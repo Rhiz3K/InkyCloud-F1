@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include .env.example
+include EXAMPLES.md
+recursive-include translations *.json
+recursive-include app *.py
+recursive-include app/assets *

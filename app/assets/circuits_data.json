@@ -1,0 +1,1477 @@
+{
+  "albert_park": {
+    "race_name": "Australian Grand Prix",
+    "url_slug": "australia",
+    "circuit_length": "5.278km",
+    "first_grand_prix": "1996",
+    "number_of_laps": 58,
+    "race_distance": "306.124km",
+    "fastest_lap_time": "1:19.813",
+    "fastest_lap_driver": "Charles Leclerc",
+    "fastest_lap_year": "2024",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:15.096"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:15.180"
+        },
+        {
+          "pos": 4,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:15.546"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:42:06.304"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+0.895"
+        },
+        {
+          "pos": 3,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+8.481"
+        }
+      ]
+    }
+  },
+  "shanghai": {
+    "race_name": "Chinese Grand Prix",
+    "url_slug": "china",
+    "circuit_length": "5.451km",
+    "first_grand_prix": "2004",
+    "number_of_laps": 56,
+    "race_distance": "305.066km",
+    "fastest_lap_time": "1:32.238",
+    "fastest_lap_driver": "Michael Schumacher",
+    "fastest_lap_year": "2004",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:30.641"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:30.793"
+        },
+        {
+          "pos": 4,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:30.817"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:30:55.026"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+9.748"
+        },
+        {
+          "pos": 3,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+11.097"
+        }
+      ]
+    }
+  },
+  "suzuka": {
+    "race_name": "Japanese Grand Prix",
+    "url_slug": "japan",
+    "circuit_length": "5.807km",
+    "first_grand_prix": "1987",
+    "number_of_laps": 53,
+    "race_distance": "307.471km",
+    "fastest_lap_time": "1:30.965",
+    "fastest_lap_driver": "Kimi Antonelli",
+    "fastest_lap_year": "2025",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:26.983"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:26.995"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:27.027"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:22:06.983"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+1.423"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+2.129"
+        }
+      ]
+    }
+  },
+  "bahrain": {
+    "race_name": "Bahrain Grand Prix",
+    "url_slug": "bahrain",
+    "circuit_length": "5.412km",
+    "first_grand_prix": "2004",
+    "number_of_laps": 57,
+    "race_distance": "308.238km",
+    "fastest_lap_time": "1:31.447",
+    "fastest_lap_driver": "Pedro de la Rosa",
+    "fastest_lap_year": "2005",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:29.841"
+        },
+        {
+          "pos": 6,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:30.267"
+        },
+        {
+          "pos": 9,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:30.772"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:35:39.435"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+15.499"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+16.273"
+        }
+      ]
+    }
+  },
+  "jeddah": {
+    "race_name": "Saudi Arabian Grand Prix",
+    "url_slug": "saudi-arabia",
+    "circuit_length": "6.174km",
+    "first_grand_prix": "2021",
+    "number_of_laps": 50,
+    "race_distance": "308.45km",
+    "fastest_lap_time": "1:30.734",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2021",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:27.294"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:27.304"
+        },
+        {
+          "pos": 10,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:27.481"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:21:06.758"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+2.843"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+8.104"
+        }
+      ]
+    }
+  },
+  "miami": {
+    "race_name": "Miami Grand Prix",
+    "url_slug": "miami",
+    "circuit_length": "5.412km",
+    "first_grand_prix": "2022",
+    "number_of_laps": 57,
+    "race_distance": "308.326km",
+    "fastest_lap_time": "1:29.708",
+    "fastest_lap_driver": "Max Verstappen",
+    "fastest_lap_year": "2023",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:26.204"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:26.269"
+        },
+        {
+          "pos": 4,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:26.375"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:28:51.587"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+4.630"
+        },
+        {
+          "pos": 3,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+37.644"
+        }
+      ]
+    }
+  },
+  "villeneuve": {
+    "race_name": "Canadian Grand Prix",
+    "url_slug": "canada",
+    "circuit_length": "4.361km",
+    "first_grand_prix": "1978",
+    "number_of_laps": 70,
+    "race_distance": "305.27km",
+    "fastest_lap_time": "1:13.078",
+    "fastest_lap_driver": "Valtteri Bottas",
+    "fastest_lap_year": "2019",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:10.899"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:11.120"
+        },
+        {
+          "pos": 7,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:11.625"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:31:52.688"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+0.228"
+        },
+        {
+          "pos": 3,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "+1.014"
+        }
+      ]
+    }
+  },
+  "monaco": {
+    "race_name": "Monaco Grand Prix",
+    "url_slug": "monaco",
+    "circuit_length": "3.337km",
+    "first_grand_prix": "1950",
+    "number_of_laps": 78,
+    "race_distance": "260.286km",
+    "fastest_lap_time": "1:12.909",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2021",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:09.954"
+        },
+        {
+          "pos": 2,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:10.063"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:10.129"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:40:33.843"
+        },
+        {
+          "pos": 2,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+3.131"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+3.658"
+        }
+      ]
+    }
+  },
+  "catalunya": {
+    "race_name": "Barcelona-Catalunya Grand Prix",
+    "url_slug": "barcelona-catalunya",
+    "circuit_length": "4.657km",
+    "first_grand_prix": "1991",
+    "number_of_laps": 66,
+    "race_distance": "307.236km",
+    "fastest_lap_time": "1:15.743",
+    "fastest_lap_driver": "Oscar Piastri",
+    "fastest_lap_year": "2025",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:11.546"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:11.755"
+        },
+        {
+          "pos": 3,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:11.848"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:32:57.375"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+2.471"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+10.455"
+        }
+      ]
+    }
+  },
+  "red_bull_ring": {
+    "race_name": "Austrian Grand Prix",
+    "url_slug": "austria",
+    "circuit_length": "4.326km",
+    "first_grand_prix": "1970",
+    "number_of_laps": 71,
+    "race_distance": "307.018km",
+    "fastest_lap_time": "1:07.924",
+    "fastest_lap_driver": "Oscar Piastri",
+    "fastest_lap_year": "2025",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:03.971"
+        },
+        {
+          "pos": 2,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:04.492"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:04.554"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:23:47.693"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+2.695"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+19.820"
+        }
+      ]
+    }
+  },
+  "silverstone": {
+    "race_name": "British Grand Prix",
+    "url_slug": "great-britain",
+    "circuit_length": "5.891km",
+    "first_grand_prix": "1950",
+    "number_of_laps": 52,
+    "race_distance": "306.198km",
+    "fastest_lap_time": "1:27.097",
+    "fastest_lap_driver": "Max Verstappen",
+    "fastest_lap_year": "2020",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:24.892"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:24.995"
+        },
+        {
+          "pos": 5,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:25.095"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:37:15.735"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+6.812"
+        },
+        {
+          "pos": 3,
+          "code": "HUL",
+          "name": "H\u00fclkenberg",
+          "team": "Sauber",
+          "time": "+34.742"
+        }
+      ]
+    }
+  },
+  "spa": {
+    "race_name": "Belgian Grand Prix",
+    "url_slug": "belgium",
+    "circuit_length": "7.004km",
+    "first_grand_prix": "1950",
+    "number_of_laps": 44,
+    "race_distance": "308.052km",
+    "fastest_lap_time": "1:44.701",
+    "fastest_lap_driver": "Sergio Perez",
+    "fastest_lap_year": "2024",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:40.562"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:40.647"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:40.900"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:25:22.601"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+3.415"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+20.185"
+        }
+      ]
+    }
+  },
+  "hungaroring": {
+    "race_name": "Hungarian Grand Prix",
+    "url_slug": "hungary",
+    "circuit_length": "4.381km",
+    "first_grand_prix": "1986",
+    "number_of_laps": 70,
+    "race_distance": "306.63km",
+    "fastest_lap_time": "1:16.627",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2020",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:15.372"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:15.398"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:15.413"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:35:21.231"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+0.698"
+        },
+        {
+          "pos": 3,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+21.916"
+        }
+      ]
+    }
+  },
+  "zandvoort": {
+    "race_name": "Dutch Grand Prix",
+    "url_slug": "netherlands",
+    "circuit_length": "4.259km",
+    "first_grand_prix": "1952",
+    "number_of_laps": 72,
+    "race_distance": "306.587km",
+    "fastest_lap_time": "1:11.097",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2021",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:08.662"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:08.674"
+        },
+        {
+          "pos": 3,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:08.925"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:38:29.849"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+1.271"
+        },
+        {
+          "pos": 3,
+          "code": "HAD",
+          "name": "Hadjar",
+          "team": "RB F1 Team",
+          "time": "+3.233"
+        }
+      ]
+    }
+  },
+  "monza": {
+    "race_name": "Italian Grand Prix",
+    "url_slug": "italy",
+    "circuit_length": "5.793km",
+    "first_grand_prix": "1950",
+    "number_of_laps": 53,
+    "race_distance": "306.72km",
+    "fastest_lap_time": "1:20.901",
+    "fastest_lap_driver": "Lando Norris",
+    "fastest_lap_year": "2025",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:18.792"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:18.869"
+        },
+        {
+          "pos": 6,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:19.157"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:13:24.325"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+19.207"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+21.351"
+        }
+      ]
+    }
+  },
+  "madring": {
+    "race_name": "Spanish Grand Prix",
+    "url_slug": "spain",
+    "circuit_length": "5.474km",
+    "first_grand_prix": "2026",
+    "number_of_laps": null,
+    "race_distance": null,
+    "fastest_lap_time": null,
+    "fastest_lap_driver": null,
+    "fastest_lap_year": null
+  },
+  "baku": {
+    "race_name": "Azerbaijan Grand Prix",
+    "url_slug": "azerbaijan",
+    "circuit_length": "6.003km",
+    "first_grand_prix": "2016",
+    "number_of_laps": 51,
+    "race_distance": "306.049km",
+    "fastest_lap_time": "1:43.009",
+    "fastest_lap_driver": "Charles Leclerc",
+    "fastest_lap_year": "2019",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:41.117"
+        },
+        {
+          "pos": 2,
+          "code": "SAI",
+          "name": "Sainz",
+          "team": "Williams",
+          "time": "1:41.595"
+        },
+        {
+          "pos": 7,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:42.239"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:33:26.408"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+14.609"
+        },
+        {
+          "pos": 3,
+          "code": "SAI",
+          "name": "Sainz",
+          "team": "Williams",
+          "time": "+19.199"
+        }
+      ]
+    }
+  },
+  "marina_bay": {
+    "race_name": "Singapore Grand Prix",
+    "url_slug": "singapore",
+    "circuit_length": "4.927km",
+    "first_grand_prix": "2008",
+    "number_of_laps": 62,
+    "race_distance": "305.337km",
+    "fastest_lap_time": "1:33.808",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2025",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:29.158"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:29.340"
+        },
+        {
+          "pos": 6,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:29.688"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:40:22.367"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+5.430"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+6.066"
+        }
+      ]
+    }
+  },
+  "americas": {
+    "race_name": "United States Grand Prix",
+    "url_slug": "united-states",
+    "circuit_length": "5.513km",
+    "first_grand_prix": "2012",
+    "number_of_laps": 56,
+    "race_distance": "308.405km",
+    "fastest_lap_time": "1:36.169",
+    "fastest_lap_driver": "Charles Leclerc",
+    "fastest_lap_year": "2019",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:32.510"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:32.801"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:32.807"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:34:00.161"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+7.959"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+15.373"
+        }
+      ]
+    }
+  },
+  "rodriguez": {
+    "race_name": "Mexican Grand Prix",
+    "url_slug": "mexico",
+    "circuit_length": "4.304km",
+    "first_grand_prix": "1963",
+    "number_of_laps": 71,
+    "race_distance": "305.354km",
+    "fastest_lap_time": "1:17.774",
+    "fastest_lap_driver": "Valtteri Bottas",
+    "fastest_lap_year": "2021",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:15.586"
+        },
+        {
+          "pos": 2,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:15.848"
+        },
+        {
+          "pos": 9,
+          "code": "HAD",
+          "name": "Hadjar",
+          "team": "RB F1 Team",
+          "time": "1:16.252"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:37:58.574"
+        },
+        {
+          "pos": 2,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+30.324"
+        },
+        {
+          "pos": 3,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+31.049"
+        }
+      ]
+    }
+  },
+  "interlagos": {
+    "race_name": "Brazilian Grand Prix",
+    "url_slug": "brazil",
+    "circuit_length": "4.309km",
+    "first_grand_prix": "1973",
+    "number_of_laps": 71,
+    "race_distance": "305.879km",
+    "fastest_lap_time": "1:10.540",
+    "fastest_lap_driver": "Valtteri Bottas",
+    "fastest_lap_year": "2018",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:09.511"
+        },
+        {
+          "pos": 2,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:09.685"
+        },
+        {
+          "pos": 9,
+          "code": "GAS",
+          "name": "Gasly",
+          "team": "Alpine F1 Team",
+          "time": "1:10.002"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:32:01.596"
+        },
+        {
+          "pos": 2,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "+10.388"
+        },
+        {
+          "pos": 3,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+10.750"
+        }
+      ]
+    }
+  },
+  "las_vegas": {
+    "race_name": "Las Vegas Grand Prix",
+    "url_slug": "las-vegas",
+    "circuit_length": "6.201km",
+    "first_grand_prix": "2023",
+    "number_of_laps": 50,
+    "race_distance": "309.958km",
+    "fastest_lap_time": "1:33.365",
+    "fastest_lap_driver": "Max Verstappen",
+    "fastest_lap_year": "2025",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:47.934"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:48.257"
+        },
+        {
+          "pos": 4,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:48.803"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:21:08.429"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+23.546"
+        },
+        {
+          "pos": 3,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "+30.488"
+        }
+      ]
+    }
+  },
+  "losail": {
+    "race_name": "Qatar Grand Prix",
+    "url_slug": "qatar",
+    "circuit_length": "5.419km",
+    "first_grand_prix": "2021",
+    "number_of_laps": 57,
+    "race_distance": "308.611km",
+    "fastest_lap_time": "1:22.384",
+    "fastest_lap_driver": "Lando Norris",
+    "fastest_lap_year": "2024",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:19.387"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:19.495"
+        },
+        {
+          "pos": 4,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:19.662"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:24:38.241"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+7.995"
+        },
+        {
+          "pos": 3,
+          "code": "SAI",
+          "name": "Sainz",
+          "team": "Williams",
+          "time": "+22.665"
+        }
+      ]
+    }
+  },
+  "yas_marina": {
+    "race_name": "Abu Dhabi Grand Prix",
+    "url_slug": "united-arab-emirates",
+    "circuit_length": "5.281km",
+    "first_grand_prix": "2009",
+    "number_of_laps": 58,
+    "race_distance": "306.183km",
+    "fastest_lap_time": "1:25.637",
+    "fastest_lap_driver": "Kevin Magnussen",
+    "fastest_lap_year": "2024",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:22.207"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:22.437"
+        },
+        {
+          "pos": 4,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:22.645"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:26:07.469"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+12.594"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+16.572"
+        }
+      ]
+    }
+  },
+  "imola": {
+    "race_name": "Emilia Romagna Grand Prix",
+    "url_slug": "emilia-romagna",
+    "circuit_length": "4.909km",
+    "first_grand_prix": "1980",
+    "number_of_laps": 63,
+    "race_distance": "309.049km",
+    "fastest_lap_time": "1:15.484",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2020",
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:14.670"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:14.704"
+        },
+        {
+          "pos": 6,
+          "code": "SAI",
+          "name": "Sainz",
+          "team": "Williams",
+          "time": "1:15.432"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:31:33.199"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+6.109"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+12.956"
+        }
+      ]
+    }
+  }
+}

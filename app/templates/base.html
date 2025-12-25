@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="{{ ui_lang }}" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}F1.InkyCloud.click{% endblock %}</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="author" content="F1 E-Ink Calendar">
+    <meta name="keywords" content="{{ t.get('meta_keywords', 'F1, Formula 1, E-Ink, calendar, race schedule') }}">
+    {% block meta_description %}<meta name="description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">{% endblock %}
+    
+    <!-- Canonical & Hreflang -->
+    {% block canonical %}<link rel="canonical" href="{{ site_url }}/">{% endblock %}
+    <link rel="alternate" hreflang="en" href="{{ site_url }}/?lang=en">
+    <link rel="alternate" hreflang="cs" href="{{ site_url }}/?lang=cs">
+    <link rel="alternate" hreflang="x-default" href="{{ site_url }}/">
+    
+    <!-- Open Graph -->
+    <meta property="og:site_name" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="{{ 'cs_CZ' if ui_lang == 'cs' else 'en_US' }}">
+    {% block og_tags %}
+    <meta property="og:title" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
+    <meta property="og:description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">
+    <meta property="og:url" content="{{ site_url }}/">
+    <meta property="og:image" content="{{ site_url }}/static/images/og-preview.png">
+    {% endblock %}
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    {% block twitter_tags %}
+    <meta name="twitter:title" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
+    <meta name="twitter:description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">
+    <meta name="twitter:image" content="{{ site_url }}/static/images/og-preview.png">
+    {% endblock %}
+    
+    <!-- Favicons -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48">
+    <link rel="icon" href="/static/favicon/favicon.svg" type="image/svg+xml">
+    <link rel="icon" type="image/png" sizes="96x96" href="/static/favicon/favicon-96x96.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon/apple-touch-icon.png">
+    <link rel="manifest" href="/static/favicon/site.webmanifest">
+    {{ umami_script | safe }}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        mono: ['"Space Mono"', 'monospace'],
+                    },
+                    colors: {
+                        racing: {
+                            red: '#DC2626',
+                            black: '#000000',
+                            paper: '#f0f0f0',
+                        }
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(0,0,0,1)',
+                        'neo-sm': '2px 2px 0px 0px rgba(0,0,0,1)',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    {% block head %}{% endblock %}
+</head>
+<body class="min-h-full bg-racing-paper flex flex-col text-black selection:bg-racing-red selection:text-white{% block body_class %}{% endblock %}">
+    {% include "components/header.html" %}
+    
+    {% block content %}{% endblock %}
+    
+    <!-- Mobile Navigation Overlay (non-home pages) -->
+    <div id="mobileNavOverlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden" onclick="closeMobileNav()"></div>
+    <div id="mobileNavMenu" class="fixed top-0 left-0 h-full w-72 bg-white border-r-4 border-black transform -translate-x-full transition-transform duration-200 z-50 lg:hidden">
+        <div class="px-4 py-3 border-b-2 border-black bg-black text-white flex items-center justify-between">
+            <span class="font-bold uppercase tracking-widest text-sm">{{ nav.nav_menu }}</span>
+            <button onclick="closeMobileNav()" class="p-1 hover:bg-white hover:text-black transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <nav class="p-4 space-y-2">
+            <a href="/?lang={{ ui_lang }}" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm">{{ nav.nav_home }}</a>
+            <a href="/stats?lang={{ ui_lang }}" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'stats' %}bg-racing-red text-white border-racing-red{% endif %}">{{ nav.nav_stats }}</a>
+            <a href="/api/docs/html?lang={{ ui_lang }}" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'api' %}bg-racing-red text-white border-racing-red{% endif %}">{{ nav.nav_api }}</a>
+            <a href="/privacy?lang={{ ui_lang }}" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'privacy' %}bg-racing-red text-white border-racing-red{% endif %}">{{ nav.nav_privacy }}</a>
+            <a href="https://github.com/Rhiz3K/InkyCloud-F1" target="_blank" rel="noopener noreferrer" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm">GitHub</a>
+        </nav>
+    </div>
+
+    <script src="/static/js/common.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

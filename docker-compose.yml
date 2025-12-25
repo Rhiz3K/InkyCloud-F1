@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  f1-eink-cal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: f1-eink-cal
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    environment:
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - PYTHONUNBUFFERED=1
+      - DATABASE_PATH=/app/data/f1.db
+      - IMAGES_PATH=/app/data/images
+    volumes:
+      - f1_data:/app/data
+    # Healthcheck is built into Dockerfile, but can override if needed
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      # Coolify labels for auto-discovery and management
+      - "coolify.managed=true"
+      - "coolify.type=application"
+      - "coolify.name=f1-eink-cal"
+
+volumes:
+  f1_data:

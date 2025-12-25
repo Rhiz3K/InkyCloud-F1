@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.get("api_docs_title", "API Documentation") }} - F1.InkyCloud.click{% endblock %}
+
+{% block meta_description %}<meta name="description" content="{{ t.get('meta_description_api', 'REST API documentation for F1 E-Ink Calendar') }}">{% endblock %}
+
+{% block canonical %}<link rel="canonical" href="{{ site_url }}/api/docs/html?lang={{ ui_lang }}">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:title" content="{{ t.get('api_docs_title', 'API Documentation') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}">
+<meta property="og:description" content="{{ t.get('meta_description_api', 'REST API documentation for F1 E-Ink Calendar') }}">
+<meta property="og:url" content="{{ site_url }}/api/docs/html?lang={{ ui_lang }}">
+<meta property="og:image" content="{{ site_url }}/static/images/og-preview.png">
+{% endblock %}
+
+{% block twitter_tags %}
+<meta name="twitter:title" content="{{ t.get('api_docs_title', 'API Documentation') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}">
+<meta name="twitter:description" content="{{ t.get('meta_description_api', 'REST API documentation for F1 E-Ink Calendar') }}">
+<meta name="twitter:image" content="{{ site_url }}/static/images/og-preview.png">
+{% endblock %}
+
+{% block content %}
+<!-- Main Content -->
+<main class="flex-1 py-8 px-4">
+    <div class="max-w-4xl mx-auto">
+        <!-- Title & Intro -->
+        <div class="bg-white border-2 border-black shadow-neo p-6 md:p-8 mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wider border-b-2 border-black pb-3 mb-4">
+                {{ t.get("api_docs_title", "API Documentation") }}
+            </h1>
+            <p class="text-sm mb-4">
+                {{ t.get("api_docs_intro", "Generate 800×480 1-bit BMP images for E-Ink displays showing F1 race schedules.") }}
+            </p>
+            <div class="flex flex-wrap gap-2 text-xs">
+                <span class="px-2 py-1 border-2 border-black font-mono">800×480</span>
+                <span class="px-2 py-1 border-2 border-black font-mono">1-bit BMP</span>
+                <span class="px-2 py-1 border-2 border-black font-mono">E-Ink</span>
+                <span class="px-2 py-1 bg-black text-white font-bold">REST API</span>
+            </div>
+        </div>
+
+        <!-- Main Endpoint: /calendar.bmp -->
+        <div class="bg-white border-2 border-black shadow-neo p-6 md:p-8 mb-6">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="px-2 py-1 bg-black text-white text-xs font-bold">GET</span>
+                <code class="text-lg font-mono">/calendar.bmp</code>
+            </div>
+            <p class="text-sm mb-4">
+                {{ calendar_desc }}
+            </p>
+
+            <!-- Parameters -->
+            <h3 class="text-lg font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-3">
+                {{ t.get("api_docs_parameters", "Parameters") }}
+            </h3>
+            <div class="overflow-x-auto mb-6">
+                <table class="w-full text-sm border-2 border-black">
+                    <thead class="bg-black text-white">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Parameter</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">{{ t.get("api_docs_type", "Type") }}</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">{{ t.get("api_docs_description", "Description") }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-3 py-2 font-mono text-racing-red font-bold">lang</td>
+                            <td class="px-3 py-2">string</td>
+                            <td class="px-3 py-2">
+                                {{ lang_desc }}
+                                <br><span class="text-xs text-gray-500">{{ t.get("api_docs_values", "Values") }}: <code class="bg-gray-100 px-1">en</code>, <code class="bg-gray-100 px-1">cs</code> ({{ t.get("api_docs_default", "default") }}: <code class="bg-gray-100 px-1">en</code>)</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 font-mono text-racing-red font-bold">year</td>
+                            <td class="px-3 py-2">integer</td>
+                            <td class="px-3 py-2">
+                                {{ year_desc }}
+                                <br><span class="text-xs text-gray-500">{{ t.get("api_docs_optional", "optional") }} — {{ eg }} <code class="bg-gray-100 px-1">2025</code></span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 font-mono text-racing-red font-bold">round</td>
+                            <td class="px-3 py-2">integer</td>
+                            <td class="px-3 py-2">
+                                {{ round_desc }}
+                                <br><span class="text-xs text-gray-500">{{ t.get("api_docs_optional", "optional") }} — {{ eg }} <code class="bg-gray-100 px-1">5</code></span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 font-mono text-racing-red font-bold">tz</td>
+                            <td class="px-3 py-2">string</td>
+                            <td class="px-3 py-2">
+                                {{ tz_desc }}
+                                <br><span class="text-xs text-gray-500">{{ t.get("api_docs_optional", "optional") }} — {{ eg }} <code class="bg-gray-100 px-1">America/New_York</code>, <code class="bg-gray-100 px-1">Europe/Prague</code></span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Response -->
+            <h3 class="text-lg font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-3">
+                {{ t.get("api_docs_response", "Response") }}
+            </h3>
+            <div class="border-2 border-black p-4 mb-6 bg-gray-50">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-500 block text-xs uppercase">Content-Type</span>
+                        <code class="font-bold">image/bmp</code>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 block text-xs uppercase">{{ dimensions_label }}</span>
+                        <code class="font-bold">800×480</code>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 block text-xs uppercase">{{ color_depth_label }}</span>
+                        <code class="font-bold">1-bit</code>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 block text-xs uppercase">Cache</span>
+                        <code class="font-bold">1 hour</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Try it -->
+            <div class="flex flex-wrap gap-3">
+                <button onclick="tryCalendarBmp()"
+                    class="px-4 py-2 bg-racing-red text-white border-2 border-black shadow-neo font-bold uppercase tracking-wider hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="square" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                        <path stroke-linecap="square" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    {{ t.get("api_docs_try_it", "Try it") }}
+                </button>
+                <a href="/calendar.bmp" target="_blank"
+                    class="px-4 py-2 bg-white border-2 border-black shadow-neo-sm font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-all flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="square" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                    {{ t.get("api_docs_open_image", "Open Image") }}
+                </a>
+            </div>
+        </div>
+
+        <!-- Code Examples -->
+        <div class="bg-white border-2 border-black shadow-neo p-6 md:p-8 mb-6">
+            <h2 class="text-xl font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-4">
+                {{ t.get("api_docs_code_examples", "Code Examples") }}
+            </h2>
+
+            <!-- Tabs -->
+            <div class="flex gap-1 mb-4" role="tablist">
+                <button class="tab-btn px-4 py-2 text-sm font-bold uppercase active" 
+                    onclick="switchTab('curl')" role="tab" aria-selected="true" data-tab="curl">
+                    cURL
+                </button>
+                <button class="tab-btn px-4 py-2 text-sm font-bold uppercase bg-white" 
+                    onclick="switchTab('python')" role="tab" aria-selected="false" data-tab="python">
+                    Python
+                </button>
+                <button class="tab-btn px-4 py-2 text-sm font-bold uppercase bg-white" 
+                    onclick="switchTab('javascript')" role="tab" aria-selected="false" data-tab="javascript">
+                    JavaScript
+                </button>
+            </div>
+
+            <!-- Tab Contents -->
+            <div id="tab-curl" class="tab-content active">
+                <div class="code-block p-4 relative">
+                    <button onclick="copyCode('curl')" class="copy-btn absolute top-2 right-2 px-2 py-1 bg-gray-700 text-white text-xs font-bold uppercase border border-gray-600">
+                        {{ t.get("api_docs_copy", "Copy") }}
+                    </button>
+                    <pre><code id="code-curl">{{ code_curl }}</code></pre>
+                </div>
+            </div>
+
+            <div id="tab-python" class="tab-content">
+                <div class="code-block p-4 relative">
+                    <button onclick="copyCode('python')" class="copy-btn absolute top-2 right-2 px-2 py-1 bg-gray-700 text-white text-xs font-bold uppercase border border-gray-600">
+                        {{ t.get("api_docs_copy", "Copy") }}
+                    </button>
+                    <pre><code id="code-python">{{ code_python }}</code></pre>
+                </div>
+            </div>
+
+            <div id="tab-javascript" class="tab-content">
+                <div class="code-block p-4 relative">
+                    <button onclick="copyCode('javascript')" class="copy-btn absolute top-2 right-2 px-2 py-1 bg-gray-700 text-white text-xs font-bold uppercase border border-gray-600">
+                        {{ t.get("api_docs_copy", "Copy") }}
+                    </button>
+                    <pre><code id="code-javascript">{{ code_javascript }}</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- E-Ink Usage -->
+        <div class="bg-racing-red text-white border-2 border-black shadow-neo p-6 mb-6">
+            <h2 class="text-xl font-bold uppercase tracking-wider border-b-2 border-white pb-2 mb-4">
+                {{ t.get("api_docs_eink_usage", "E-Ink Display Usage") }}
+            </h2>
+            <p class="mb-4">
+                {{ t.get("api_docs_eink_desc", "Fetch /calendar.bmp and display directly on your E-Ink display. Recommended refresh interval: every 1-6 hours.") }}
+            </p>
+            <div class="bg-white text-black border-2 border-black p-4">
+                <p class="text-sm font-bold uppercase mb-2">
+                    {{ laskakit_title }}
+                </p>
+                <ol class="text-sm space-y-1">
+                    <li class="flex items-start gap-2"><span class="bg-black text-white px-1.5 font-bold text-xs">1</span> {{ laskakit_step1 }}</li>
+                    <li class="flex items-start gap-2"><span class="bg-black text-white px-1.5 font-bold text-xs">2</span> {{ laskakit_step2 }}: <code class="bg-gray-100 px-1 border border-black">https://your-server.com/calendar.bmp?lang=cs&amp;tz=Europe/Prague</code></li>
+                    <li class="flex items-start gap-2"><span class="bg-black text-white px-1.5 font-bold text-xs">3</span> {{ laskakit_step3 }}</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Other Endpoints -->
+        <div class="bg-white border-2 border-black shadow-neo p-6 md:p-8 mb-6">
+            <h2 class="text-xl font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-4">
+                {{ t.get("api_docs_endpoints", "Other Endpoints") }}
+            </h2>
+
+            <div class="space-y-4">
+                <!-- /api/races/{year} -->
+                <div class="border-2 border-black p-4 hover:shadow-neo-sm transition-shadow">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="px-2 py-0.5 bg-black text-white text-xs font-bold">GET</span>
+                        <code class="font-mono">/api/races/{year}</code>
+                    </div>
+                    <p class="text-sm mb-3">
+                        {{ races_desc }}
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="tryEndpoint('/api/races/2025', 'result-races')"
+                            class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors">
+                            {{ t.get("api_docs_try_it", "Try it") }}
+                        </button>
+                    </div>
+                    <pre id="result-races" class="mt-3 p-3 bg-black text-white border-2 border-black text-xs font-mono overflow-x-auto hidden"></pre>
+                </div>
+
+                <!-- /api/race/{year}/{round} -->
+                <div class="border-2 border-black p-4 hover:shadow-neo-sm transition-shadow">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="px-2 py-0.5 bg-black text-white text-xs font-bold">GET</span>
+                        <code class="font-mono">/api/race/{year}/{round}</code>
+                    </div>
+                    <p class="text-sm mb-3">
+                        {{ race_desc }}
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="tryEndpoint('/api/race/2025/1', 'result-race')"
+                            class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors">
+                            {{ t.get("api_docs_try_it", "Try it") }}
+                        </button>
+                    </div>
+                    <pre id="result-race" class="mt-3 p-3 bg-black text-white border-2 border-black text-xs font-mono overflow-x-auto hidden"></pre>
+                </div>
+
+                <!-- /api/stats -->
+                <div class="border-2 border-black p-4 hover:shadow-neo-sm transition-shadow">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="px-2 py-0.5 bg-black text-white text-xs font-bold">GET</span>
+                        <code class="font-mono">/api/stats</code>
+                    </div>
+                    <p class="text-sm mb-3">
+                        {{ stats_desc }}
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="tryEndpoint('/api/stats', 'result-stats')"
+                            class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors">
+                            {{ t.get("api_docs_try_it", "Try it") }}
+                        </button>
+                    </div>
+                    <pre id="result-stats" class="mt-3 p-3 bg-black text-white border-2 border-black text-xs font-mono overflow-x-auto hidden"></pre>
+                </div>
+
+                <!-- /health -->
+                <div class="border-2 border-black p-4 hover:shadow-neo-sm transition-shadow">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="px-2 py-0.5 bg-black text-white text-xs font-bold">GET</span>
+                        <code class="font-mono">/health</code>
+                    </div>
+                    <p class="text-sm mb-3">
+                        {{ health_desc }}
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="tryEndpoint('/health', 'result-health')"
+                            class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors">
+                            {{ t.get("api_docs_try_it", "Try it") }}
+                        </button>
+                    </div>
+                    <pre id="result-health" class="mt-3 p-3 bg-black text-white border-2 border-black text-xs font-mono overflow-x-auto hidden"></pre>
+                </div>
+
+                <!-- /api (JSON) -->
+                <div class="border-2 border-black p-4 hover:shadow-neo-sm transition-shadow">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="px-2 py-0.5 bg-black text-white text-xs font-bold">GET</span>
+                        <code class="font-mono">/api</code>
+                    </div>
+                    <p class="text-sm mb-3">
+                        {{ t.get("api_docs_json_api", "JSON API") }} — {{ json_api_desc }}
+                    </p>
+                    <div class="flex gap-2">
+                        <a href="/api" target="_blank"
+                            class="px-3 py-1 bg-white border-2 border-black text-sm font-bold uppercase hover:bg-black hover:text-white transition-colors">
+                            {{ t.get("api_docs_open_image", "Open") }} →
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Image Preview Modal -->
+<div id="imageModal" class="modal" onclick="closeModal(event)">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content bg-white border-4 border-black p-2 shadow-neo">
+        <img id="modalImage" src="" alt="Calendar Preview" class="max-w-full max-h-[80vh] border-2 border-gray-200">
+        <div class="text-center mt-2">
+            <button onclick="closeModalBtn()" class="px-4 py-2 bg-black text-white font-bold uppercase text-sm hover:bg-racing-red transition-colors">
+                {{ close_btn }}
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const currentUiLang = '{{ ui_lang }}';
+    const copyText = '{{ t.get("api_docs_copy", "Copy") }}';
+    const copiedText = '{{ t.get("api_docs_copied", "Copied!") }}';
+    const loadingText = '{{ loading_text }}';
+    const errorText = '{{ error_text }}';
+
+    // Tab switching
+    function switchTab(tabName) {
+        // Update buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            btn.classList.add('bg-gray-100', 'text-gray-600');
+            btn.setAttribute('aria-selected', 'false');
+        });
+        const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+        activeBtn.classList.add('active');
+        activeBtn.classList.remove('bg-gray-100', 'text-gray-600');
+        activeBtn.setAttribute('aria-selected', 'true');
+
+        // Update content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(`tab-${tabName}`).classList.add('active');
+    }
+
+    // Copy code
+    function copyCode(lang) {
+        const code = document.getElementById(`code-${lang}`).textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            const btn = document.querySelector(`#tab-${lang} .copy-btn`);
+            btn.textContent = copiedText;
+            btn.classList.add('copied');
+            setTimeout(() => {
+                btn.textContent = copyText;
+                btn.classList.remove('copied');
+            }, 2000);
+        });
+    }
+
+    // Try calendar.bmp - show in modal
+    function tryCalendarBmp() {
+        const modal = document.getElementById('imageModal');
+        const img = document.getElementById('modalImage');
+        img.src = '/calendar.bmp?_t=' + Date.now();
+        modal.classList.add('active');
+    }
+
+    function closeModal(event) {
+        if (event.target.classList.contains('modal-backdrop')) {
+            document.getElementById('imageModal').classList.remove('active');
+        }
+    }
+
+    function closeModalBtn() {
+        document.getElementById('imageModal').classList.remove('active');
+    }
+
+    // Try JSON endpoints
+    async function tryEndpoint(url, resultId) {
+        const resultEl = document.getElementById(resultId);
+        resultEl.classList.remove('hidden');
+        resultEl.textContent = loadingText;
+        
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+            resultEl.textContent = errorText + ': ' + e.message;
+        }
+    }
+
+    // Keyboard navigation for modal
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.getElementById('imageModal').classList.remove('active');
+        }
+    });
+</script>
+{% endblock %}

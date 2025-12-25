@@ -1,0 +1,74 @@
+[project]
+name = "f1-eink-cal"
+version = "0.1.0"
+description = "F1 E-Ink calendar service generating 800x480 1-bit BMPs for LaskaKit displays"
+readme = "README.md"
+authors = [
+    { name = "Rhiz3K" },
+]
+license = "MIT"
+requires-python = ">=3.11"
+classifiers = [
+    "Framework :: FastAPI",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pillow>=10.1.0",
+    "httpx>=0.25.0",
+    "sentry-sdk[fastapi]>=1.38.0",
+    "python-dotenv>=1.0.0",
+    "pytz>=2023.3",
+    "apscheduler>=3.10.0",
+    "aiosqlite>=0.19.0",
+    "aiofiles>=23.0.0",
+    "cachetools>=6.2.4",
+    "pydantic-settings>=2.0.0",
+    "jinja2>=3.1.0",
+    "boto3>=1.35.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.1.0",
+    "numpy>=2.4.0",
+    "scikit-learn>=1.8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Rhiz3K/InkyCloud-F1"
+Repository = "https://github.com/Rhiz3K/InkyCloud-F1"
+Issues = "https://github.com/Rhiz3K/InkyCloud-F1/issues"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app", "app.services"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"*" = ["*.json", "*.bmp", "*.png", "*.ttf", "*.jpg"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore line length in main.py due to inline HTML templates
+"app/main.py" = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

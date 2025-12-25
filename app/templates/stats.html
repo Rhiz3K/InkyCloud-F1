@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.get("stats_title", "Statistics") }} - F1.InkyCloud.click{% endblock %}
+
+{% block meta_description %}<meta name="description" content="{{ t.get('meta_description_stats', 'Usage statistics and metrics for F1 E-Ink Calendar') }}">{% endblock %}
+
+{% block canonical %}<link rel="canonical" href="{{ site_url }}/stats?lang={{ ui_lang }}">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:title" content="{{ t.get('stats_title', 'Statistics') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}">
+<meta property="og:description" content="{{ t.get('meta_description_stats', 'Usage statistics and metrics for F1 E-Ink Calendar') }}">
+<meta property="og:url" content="{{ site_url }}/stats?lang={{ ui_lang }}">
+<meta property="og:image" content="{{ site_url }}/static/images/og-preview.png">
+{% endblock %}
+
+{% block twitter_tags %}
+<meta name="twitter:title" content="{{ t.get('stats_title', 'Statistics') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}">
+<meta name="twitter:description" content="{{ t.get('meta_description_stats', 'Usage statistics and metrics for F1 E-Ink Calendar') }}">
+<meta name="twitter:image" content="{{ site_url }}/static/images/og-preview.png">
+{% endblock %}
+
+{% block body_class %} font-mono{% endblock %}
+
+{% block content %}
+<main class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Title and Range Selector -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wider border-b-4 border-black pb-2">
+            {{ t.get("stats_title", "Statistics Dashboard") }}
+        </h1>
+        <div class="flex gap-2 flex-wrap">
+            {% for r in ["1h", "24h", "7d", "30d", "365d"] %}
+            <a href="/stats?range={{ r }}&lang={{ ui_lang }}"
+               class="px-4 py-2 border-2 border-black {% if r == selected_range %}bg-racing-red text-white{% else %}bg-white hover:bg-gray-100{% endif %} font-bold uppercase tracking-wider shadow-neo-sm text-sm">
+                {{ r | upper }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Main Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <!-- Total Requests -->
+        <div class="border-2 border-black bg-white p-6 shadow-neo text-center">
+            <div class="text-xs uppercase tracking-widest text-gray-600 mb-2">
+                {{ t.get("stats_total_requests", "Total Requests") }}
+            </div>
+            <div class="text-4xl font-bold font-mono text-racing-red">
+                {{ "{:,}".format(stats.total_requests) }}
+            </div>
+            <div class="text-xs text-gray-500 mt-2">{{ range_label }}</div>
+        </div>
+
+        <!-- Avg Response Time -->
+        <div class="border-2 border-black bg-white p-6 shadow-neo text-center">
+            <div class="text-xs uppercase tracking-widest text-gray-600 mb-2">
+                {{ t.get("stats_avg_response", "Avg Response Time") }}
+            </div>
+            <div class="text-4xl font-bold font-mono">
+                {{ stats.avg_response_ms | int }}<span class="text-lg">ms</span>
+            </div>
+            <div class="text-xs text-gray-500 mt-2">
+                min: {{ stats.min_response_ms | int }}ms / max: {{ stats.max_response_ms | int }}ms
+            </div>
+        </div>
+
+        <!-- Data Transfer -->
+        <div class="border-2 border-black bg-white p-6 shadow-neo text-center">
+            <div class="text-xs uppercase tracking-widest text-gray-600 mb-2">
+                {{ t.get("stats_data_transfer", "Data Transfer") }}
+            </div>
+            <div class="text-4xl font-bold font-mono">
+                {{ format_bytes(stats.total_bytes) }}
+            </div>
+            <div class="text-xs text-gray-500 mt-2">{{ range_label }}</div>
+        </div>
+    </div>
+
+    <!-- Response Times Bar -->
+    <div class="border-2 border-black bg-white p-6 shadow-neo mb-8">
+        <h2 class="font-bold uppercase tracking-wider mb-4 border-b-2 border-black pb-2">
+            {{ t.get("stats_response_times", "Response Times") }}
+        </h2>
+        <div class="space-y-3">
+            <div class="flex items-center gap-3">
+                <span class="w-12 text-xs font-bold uppercase">MIN</span>
+                <div class="flex-1 h-6 bg-gray-200 border border-black">
+                    <div class="h-full bg-green-500" style="width: {{ min_pct }}%"></div>
+                </div>
+                <span class="w-20 text-right font-mono text-sm">{{ stats.min_response_ms | int }} ms</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="w-12 text-xs font-bold uppercase">AVG</span>
+                <div class="flex-1 h-6 bg-gray-200 border border-black">
+                    <div class="h-full bg-yellow-500" style="width: {{ avg_pct }}%"></div>
+                </div>
+                <span class="w-20 text-right font-mono text-sm">{{ stats.avg_response_ms | int }} ms</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="w-12 text-xs font-bold uppercase">MAX</span>
+                <div class="flex-1 h-6 bg-gray-200 border border-black">
+                    <div class="h-full bg-racing-red" style="width: 100%"></div>
+                </div>
+                <span class="w-20 text-right font-mono text-sm">{{ stats.max_response_ms | int }} ms</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two Column Layout: Endpoints + Languages -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <!-- Endpoints -->
+        <div class="border-2 border-black bg-white p-6 shadow-neo">
+            <h2 class="font-bold uppercase tracking-wider mb-4 border-b-2 border-black pb-2">
+                {{ t.get("stats_by_endpoint", "By Endpoint") }}
+            </h2>
+            {% if stats.endpoints %}
+                {% for ep in stats.endpoints[:5] %}
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="w-32 text-xs font-mono truncate" title="{{ ep.endpoint }}">{{ ep.endpoint }}</span>
+                    <div class="flex-1 h-5 bg-gray-200 border border-black">
+                        <div class="h-full bg-racing-red" style="width: {{ calc_percent(ep.count, stats.total_requests) }}%"></div>
+                    </div>
+                    <span class="w-16 text-right font-mono text-xs">{{ calc_percent(ep.count, stats.total_requests) }}%</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-gray-500 text-sm">No data</p>
+            {% endif %}
+        </div>
+
+        <!-- Languages -->
+        <div class="border-2 border-black bg-white p-6 shadow-neo">
+            <h2 class="font-bold uppercase tracking-wider mb-4 border-b-2 border-black pb-2">
+                {{ t.get("stats_by_language", "By Language") }}
+            </h2>
+            {% if stats.languages %}
+                {% set lang_total = stats.languages | sum(attribute='count') %}
+                {% for lang_stat in stats.languages %}
+                {% set lang_code = (lang_stat.lang | upper) if lang_stat.lang else "?" %}
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="w-8 font-bold text-sm">{{ lang_code }}</span>
+                    <div class="flex-1 h-5 bg-gray-200 border border-black">
+                        <div class="h-full {% if lang_code == 'EN' %}bg-racing-red{% else %}bg-black{% endif %}" style="width: {{ calc_percent(lang_stat.count, lang_total) }}%"></div>
+                    </div>
+                    <span class="w-16 text-right font-mono text-xs">{{ calc_percent(lang_stat.count, lang_total) }}%</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-gray-500 text-sm">No data</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Races - Full Width -->
+    <div class="border-2 border-black bg-white p-6 shadow-neo mb-8">
+        <h2 class="font-bold uppercase tracking-wider mb-4 border-b-2 border-black pb-2">
+            {{ t.get("stats_by_race", "By Race") }}
+        </h2>
+        <div class="flex flex-col gap-2">
+            {% if stats.races %}
+                {% set race_total = stats.races | sum(attribute='count') %}
+                {% for race_stat in stats.races[:5] %}
+                {% set display_name = race_stat.race_name if race_stat.race_name else "Unknown" %}
+                {% set is_auto = race_stat.is_auto_selected %}
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="w-56 text-xs font-mono flex items-center gap-1" title="{{ display_name }}{% if is_auto %} (auto){% endif %}">
+                        {% if is_auto %}<span class="text-racing-red">⚡</span>{% endif %}
+                        {{ display_name }}
+                    </span>
+                    <div class="flex-1 h-5 bg-gray-200 border border-black">
+                        <div class="h-full {% if loop.first %}bg-racing-red{% else %}bg-black{% endif %}" style="width: {{ calc_percent(race_stat.count, race_total) }}%"></div>
+                    </div>
+                    <span class="w-12 text-right font-mono text-xs">{{ calc_percent(race_stat.count, race_total) }}%</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-gray-500 text-sm">No data</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Timezones -->
+    <div class="border-2 border-black bg-white p-6 shadow-neo mb-8">
+        <h2 class="font-bold uppercase tracking-wider mb-4 border-b-2 border-black pb-2">
+            {{ t.get("stats_top_timezones", "Top Timezones") }}
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {% if stats.timezones %}
+                {% set tz_total = stats.timezones | sum(attribute='count') %}
+                {% for tz_stat in stats.timezones[:5] %}
+                {% set tz_name = tz_stat.tz if tz_stat.tz else "default" %}
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="w-36 text-xs font-mono truncate" title="{{ tz_name }}">{{ tz_name }}</span>
+                    <div class="flex-1 h-5 bg-gray-200 border border-black">
+                        <div class="h-full {% if loop.first %}bg-racing-red{% else %}bg-black{% endif %}" style="width: {{ calc_percent(tz_stat.count, tz_total) }}%"></div>
+                    </div>
+                    <span class="w-12 text-right font-mono text-xs">{{ calc_percent(tz_stat.count, tz_total) }}%</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-gray-500 text-sm">No data</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Footer note -->
+    <div class="text-center text-xs text-gray-500 mt-8">
+        {{ t.get("stats_footer", "Data refreshes on page load. Select a time range above.") }}
+    </div>
+</main>
+{% endblock %}

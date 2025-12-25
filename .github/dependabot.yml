@@ -1,0 +1,35 @@
+version: 2
+registries:
+  github-self-hosted:
+    type: git
+    url: https://github.com/
+    username: x-access-token
+    password: ${{ secrets.DEPENDABOT_SELF_HOSTED_TOKEN }}
+
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    registries:
+      - github-self-hosted
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    registries:
+      - github-self-hosted
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    registries:
+      - github-self-hosted

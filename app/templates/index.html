@@ -1,0 +1,808 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t.get('site_name', 'F1 E-Ink Calendar') }} - F1.InkyCloud.click{% endblock %}
+
+{% block meta_description %}<meta name="description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">{% endblock %}
+
+{% block canonical %}<link rel="canonical" href="{{ site_url }}/?lang={{ ui_lang }}">{% endblock %}
+
+{% block og_tags %}
+<meta property="og:title" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
+<meta property="og:description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">
+<meta property="og:url" content="{{ site_url }}/?lang={{ ui_lang }}">
+<meta property="og:image" content="{{ site_url }}/static/images/og-preview.png">
+{% endblock %}
+
+{% block twitter_tags %}
+<meta name="twitter:title" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
+<meta name="twitter:description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">
+<meta name="twitter:image" content="{{ site_url }}/static/images/og-preview.png">
+{% endblock %}
+
+{% block head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "{{ t.get('site_name', 'F1 E-Ink Calendar') }}",
+  "description": "{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}",
+  "url": "{{ site_url }}",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Any",
+  "browserRequirements": "Requires JavaScript",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+{% endblock %}
+
+{% block body_class %} h-full overflow-hidden{% endblock %}
+
+{% block content %}
+<!-- Content Wrapper -->
+<div class="flex-1 flex flex-col lg:flex-row h-full overflow-hidden relative">
+    <!-- Mobile overlay -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden"></div>
+    
+    <!-- Left Panel - Settings -->
+    <div id="settingsSidebar" class="fixed inset-y-0 left-0 w-80 bg-white border-r-4 border-black transform -translate-x-full lg:translate-x-0 transition-transform duration-200 z-40 flex flex-col lg:static lg:h-full lg:flex-shrink-0">
+        <!-- Close button (mobile only) -->
+        <button onclick="toggleSidebar()" class="lg:hidden absolute top-3 right-3 p-2 border-2 border-black bg-white hover:bg-black hover:text-white z-50">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        
+        <!-- Panel Header -->
+        <div class="px-4 py-3 border-b-2 border-black bg-black text-white">
+            <h2 class="font-bold uppercase tracking-widest text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                Settings
+            </h2>
+        </div>
+
+        <!-- Timezone - Mobile -->
+        <div class="lg:hidden p-4 border-b-2 border-black">
+            <label class="block text-xs font-bold uppercase mb-2" id="tzLabelMobile">Timezone</label>
+            <select id="tzSelectMobile" onchange="selectTimezoneMobile()"
+                class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm">
+            </select>
+        </div>
+        
+        <!-- Timezone - Desktop -->
+        <div class="hidden lg:flex flex-1 flex-col min-h-0">
+            <div class="px-3 py-2 border-b-2 border-black bg-gray-50 flex-shrink-0 flex items-center justify-between gap-2">
+                <label class="text-xs font-bold uppercase" id="tzLabel">Timezone</label>
+                <input type="text" id="tzSearch" placeholder="SEARCH..." 
+                    class="flex-1 min-w-0 px-2 py-1 text-xs bg-white border-2 border-black focus:outline-none focus:bg-racing-red focus:text-white placeholder-gray-400"
+                    oninput="onTzSearch()">
+            </div>
+            <!-- Continent Filter -->
+            <div class="px-2 py-1.5 border-b-2 border-black bg-white flex-shrink-0 flex flex-wrap items-center gap-1" id="tzContinents">
+                <button onclick="filterTzContinent('ALL')" class="tz-filter-btn active whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none">ALL</button>
+                <button onclick="filterTzContinent('DETECTED')" class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none">DETECTED</button>
+                <button onclick="filterTzContinent('EUROPE')" class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none">EUROPE</button>
+                <button onclick="filterTzContinent('AMERICA')" class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none">AMERICA</button>
+                <button onclick="filterTzContinent('ASIA')" class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none">ASIA</button>
+                <button onclick="filterTzContinent('AFRICA')" class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none">AFRICA</button>
+                <button onclick="filterTzContinent('OCEANIA')" class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none">OCEANIA</button>
+                <button onclick="filterTzContinent('OTHER')" class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none">OTHER</button>
+            </div>
+            <div id="tzList" class="flex-1 overflow-y-auto text-xs p-2 space-y-0.5">
+            </div>
+        </div>
+        <input type="hidden" id="tz" value="">
+        
+        <!-- Mobile Race Selector -->
+        <div class="lg:hidden p-4 border-t-2 border-black bg-gray-50">
+            <label class="block text-xs font-bold uppercase mb-2" id="raceLabel">Race</label>
+            <select id="raceSelectMobile" onchange="selectRaceMobile()"
+                class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm">
+                <option value="">Next Race</option>
+            </select>
+        </div>
+        
+        <!-- Links & Credits Section (mobile) -->
+        <div class="lg:hidden mt-auto border-t-2 border-black">
+            <div class="p-4 space-y-2 text-xs">
+                <div class="font-bold uppercase tracking-wider mb-2">Links</div>
+                <a href="/stats?lang={{ ui_lang }}" class="block hover:text-racing-red">{{ nav.nav_stats }}</a>
+                <a href="/api/docs/html?lang={{ ui_lang }}" class="block hover:text-racing-red">{{ nav.nav_api }}</a>
+                <a href="/privacy?lang={{ ui_lang }}" class="block hover:text-racing-red">{{ nav.nav_privacy }}</a>
+                <a href="https://github.com/Rhiz3K/InkyCloud-F1" target="_blank" rel="noopener noreferrer" class="block hover:text-racing-red">GitHub</a>
+            </div>
+            <div class="p-4 pt-0 space-y-2 text-xs">
+                <div class="font-bold uppercase tracking-wider mb-2">Credits</div>
+                <div><span class="text-gray-500">Inspired by</span> <a href="https://x.com/foxeelab/status/1761498129268981856" target="_blank" rel="noopener noreferrer" class="text-racing-red hover:underline">FoxeeLab</a></div>
+                <div><span class="text-gray-500">Hosting:</span> <a href="https://coolify.io" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Coolify</a> + <a href="https://hetzner.com" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Hetzner</a></div>
+                <div><span class="text-gray-500">Hardware:</span> <a href="https://www.laskakit.cz/laskakit-live-7-5-e-paper-stavebnice-s-wifi-pro---zivy-obraz-/" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">LaskaKit ePaper</a></div>
+                <div class="text-gray-500">Powered by:</div>
+                <div class="flex flex-wrap gap-2">
+                    <a href="https://github.com/jolpica/jolpica-f1" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Jolpica</a>
+                    <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">zivyobraz</a>
+                    <a href="https://umami.is" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Umami</a>
+                    <a href="https://glitchtip.com" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">GlitchTip</a>
+                    <a href="https://flagcdn.com" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Flagcdn</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 flex flex-row overflow-hidden relative">
+    
+    <!-- Center Panel - Preview -->
+    <div class="flex-1 flex flex-col min-w-0 bg-racing-paper p-4 lg:p-6 overflow-y-auto">
+        
+        <!-- Preview Container -->
+        <div class="flex-1 flex flex-col items-center justify-start min-h-[300px]">
+            
+            <div class="w-full max-w-[800px] mb-4 flex justify-between items-end">
+                <div class="inline-block bg-black text-white px-3 py-1 text-xs font-bold uppercase tracking-widest transform -rotate-1">
+                    Preview
+                </div>
+                <div class="flex gap-2">
+                    <span class="px-2 py-1 border-2 border-black bg-white text-xs font-bold shadow-neo-sm">800×480</span>
+                    <span class="px-2 py-1 border-2 border-black bg-white text-xs font-bold shadow-neo-sm">1-BIT</span>
+                    <span class="px-2 py-1 border-2 border-black bg-racing-red text-white text-xs font-bold shadow-neo-sm" id="einkBadge">E-INK</span>
+                </div>
+            </div>
+
+            <div class="relative bg-white border-4 border-black p-2 shadow-neo max-w-full">
+                <img id="previewImage" alt="Calendar Preview" src="" class="max-w-full h-auto border-2 border-gray-200">
+                
+                <!-- Loading Overlay -->
+                <div id="loadingOverlay" class="absolute inset-0 bg-white/90 z-20 flex items-center justify-center backdrop-blur-sm">
+                    <div class="w-12 h-12 border-4 border-black border-t-racing-red rounded-full animate-spin"></div>
+                </div>
+                
+                <!-- Error Overlay -->
+                <div id="errorOverlay" class="absolute inset-0 bg-black/95 z-20 flex flex-col items-center justify-center p-6 hidden">
+                    <div class="text-racing-red text-6xl mb-4 font-bold">!</div>
+                    <p class="text-white text-xl font-bold mb-4 uppercase" id="errorText">Failed to load</p>
+                    <button onclick="refreshPreview()" id="retryBtn"
+                        class="px-6 py-2 bg-racing-red text-white border-2 border-white font-bold uppercase tracking-wider hover:bg-white hover:text-black hover:border-racing-red transition-all">
+                        Retry
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Controls -->
+            <div class="w-full max-w-[800px] mt-6 flex flex-col sm:flex-row gap-3">
+                <div class="flex-1 flex gap-0 relative shadow-neo">
+                    <div class="bg-black text-white px-3 py-2 text-xs font-bold uppercase flex items-center justify-center border-l-2 border-t-2 border-b-2 border-black">URL</div>
+                    <input type="text" id="apiUrl" readonly
+                        class="flex-1 px-3 py-2 text-xs font-mono bg-white border-2 border-black focus:outline-none selection:bg-racing-red selection:text-white">
+                    <button onclick="copyUrl()" id="copyBtn"
+                        class="px-4 py-2 bg-white border-t-2 border-r-2 border-b-2 border-black hover:bg-black hover:text-white transition-colors control-btn"
+                        title="Copy">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    </button>
+                </div>
+                
+                <button onclick="refreshPreview()" id="refreshBtn"
+                    class="px-6 py-2 bg-racing-red text-white border-2 border-black font-bold uppercase tracking-wider shadow-neo hover:translate-y-[2px] hover:translate-x-[2px] hover:shadow-none transition-all flex items-center justify-center gap-2 control-btn">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    <span id="refreshBtnText">Refresh</span>
+                </button>
+            </div>
+            
+            <!-- ePaper Setup Info -->
+            <div class="w-full max-w-[800px] mt-6 p-4 bg-white border-2 border-black shadow-neo-sm">
+                <div class="font-bold text-black uppercase tracking-wider mb-2 border-b-2 border-black pb-1 inline-block" id="epaperSetupTitle">ePaper Display Setup</div>
+                <div class="text-sm space-y-1 font-mono" id="epaperSetupText">
+                    <p id="epaperStep1" class="flex items-start gap-2"><span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>In <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">zivyobraz.eu</a> select <strong>URL</strong> as content source</span></p>
+                    <p id="epaperStep2" class="flex items-start gap-2"><span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Copy the URL above into the image URL field</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Panel - Race List -->
+    <div class="hidden lg:flex lg:w-72 flex-shrink-0 bg-white border-l-4 border-black flex-col z-0">
+        <div class="px-4 py-3 border-b-2 border-black bg-black text-white flex-shrink-0">
+            <h2 class="font-bold uppercase tracking-widest text-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span id="seasonTitle">2025 Calendar</span>
+            </h2>
+        </div>
+        <div id="raceList" class="flex-1 overflow-y-auto p-2 space-y-0.5">
+            <div class="p-4 text-center text-gray-400 text-xs font-mono">Loading data...</div>
+        </div>
+    </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Country to ISO code mapping for flag images
+    const COUNTRY_ISO = {
+        'Australia': 'au', 'Austria': 'at', 'Azerbaijan': 'az', 'Bahrain': 'bh',
+        'Belgium': 'be', 'Brazil': 'br', 'Canada': 'ca', 'China': 'cn',
+        'France': 'fr', 'Germany': 'de', 'Hungary': 'hu', 'Italy': 'it',
+        'Japan': 'jp', 'Mexico': 'mx', 'Monaco': 'mc', 'Netherlands': 'nl',
+        'Portugal': 'pt', 'Qatar': 'qa', 'Saudi Arabia': 'sa', 'Singapore': 'sg',
+        'Spain': 'es', 'UAE': 'ae', 'United Arab Emirates': 'ae', 'UK': 'gb',
+        'United Kingdom': 'gb', 'USA': 'us', 'United States': 'us', 'Las Vegas': 'us',
+        'Miami': 'us', 'Turkey': 'tr', 'Russia': 'ru'
+    };
+    
+    // Helper to generate flag HTML (waving flags from flagpedia.net)
+    function getFlagHtml(country, size = 'h-4') {
+        const iso = COUNTRY_ISO[country];
+        if (iso) {
+            return `<img src="/static/flags/${iso}.png" alt="${country}" class="inline ${size} w-auto">`;
+        }
+        return '🏁';
+    }
+
+    // UI Translations
+    const translations = {
+        en: {
+            headerTitle: 'F1 InkyCloud',
+            langLabel: 'Bitmap Language',
+            tzLabel: 'Timezone',
+            raceLabel: 'Race',
+            einkBadge: 'E-INK',
+            errorText: 'FAILED TO LOAD',
+            retryBtn: 'RETRY',
+            refreshBtn: 'REFRESH',
+            nextRace: 'NEXT RACE',
+            seasonTitle: 'Calendar',
+            footerPrivacy: 'Privacy Policy',
+            epaperSetupTitle: 'ePaper Display Setup',
+            epaperStep1: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>In <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">zivyobraz.eu</a> select <strong>URL</strong> as content source</span>',
+            epaperStep2: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Copy the URL above into the image URL field</span>'
+        },
+        cs: {
+            headerTitle: 'F1 InkyCloud',
+            langLabel: 'Jazyk Bitmapy',
+            tzLabel: 'Časové pásmo',
+            raceLabel: 'Závod',
+            einkBadge: 'E-INK',
+            errorText: 'CHYBA NAČÍTÁNÍ',
+            retryBtn: 'ZNOVU',
+            refreshBtn: 'OBNOVIT',
+            nextRace: 'DALŠÍ ZÁVOD',
+            seasonTitle: 'Kalendář',
+            footerPrivacy: 'Ochrana soukromí',
+            epaperSetupTitle: 'Nastavení ePaper Displeje',
+            epaperStep1: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>V <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">zivyobraz.eu</a> vyberte <strong>URL</strong> jako zdroj obsahu</span>',
+            epaperStep2: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Vložte URL výše do pole pro URL obrázku</span>'
+        }
+    };
+
+    let currentUiLang = '{{ ui_lang }}';
+    let racesData = [];
+    let selectedYear = null;
+    let selectedRound = null;
+    let activeSeasonYear = new Date().getFullYear();
+    let activeContinent = 'ALL';
+
+    function filterTzContinent(continent) {
+        activeContinent = continent;
+        document.querySelectorAll('.tz-filter-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.textContent === continent);
+        });
+        // Clear search when filtering by continent
+        if (activeContinent !== 'ALL' && activeContinent !== 'DETECTED') {
+            document.getElementById('tzSearch').value = '';
+        }
+        renderTzList();
+    }
+
+    function setUiLanguage(lang) {
+        currentUiLang = lang;
+        const t = translations[lang] || translations.en;
+        // header title is image now, skipping
+        document.getElementById('tzLabel').textContent = t.tzLabel;
+        const raceLabel = document.getElementById('raceLabel');
+        if (raceLabel) raceLabel.textContent = t.raceLabel;
+        document.getElementById('einkBadge').textContent = t.einkBadge;
+        document.getElementById('errorText').textContent = t.errorText;
+        document.getElementById('retryBtn').textContent = t.retryBtn;
+        document.getElementById('refreshBtnText').textContent = t.refreshBtn;
+        document.getElementById('seasonTitle').textContent = `${activeSeasonYear} ${t.seasonTitle}`;
+        const footerPrivacy = document.getElementById('footerPrivacy');
+        if (footerPrivacy) footerPrivacy.textContent = t.footerPrivacy;
+        // ePaper setup translations
+        document.getElementById('epaperSetupTitle').textContent = t.epaperSetupTitle;
+        document.getElementById('epaperStep1').innerHTML = t.epaperStep1;
+        document.getElementById('epaperStep2').innerHTML = t.epaperStep2;
+    }
+
+    function getApiUrl() {
+        const tz = document.getElementById('tz').value;
+        let url = `${window.location.origin}/calendar.bmp?lang=${currentUiLang}`;
+        if (tz) url += `&tz=${encodeURIComponent(tz)}`;
+        if (selectedYear && selectedRound) url += `&year=${selectedYear}&round=${selectedRound}`;
+        return url;
+    }
+
+    async function loadRaces() {
+        const currentYear = new Date().getFullYear();
+        const raceList = document.getElementById('raceList');
+        const mobileSelect = document.getElementById('raceSelectMobile');
+        
+        try {
+            let response = await fetch(`/api/races/${currentYear}`);
+            let data = await response.json();
+            racesData = data.races || [];
+            activeSeasonYear = currentYear;
+            
+            // If no races or all past, try next year
+            const futureRaces = racesData.filter(r => !r.is_past);
+            if (futureRaces.length === 0) {
+                // Update loading text to indicate switching years
+                raceList.innerHTML = '<div class="p-4 text-center text-gray-400 text-xs font-mono">Loading 2026 season...</div>';
+                
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+                    response = await fetch(`/api/races/${currentYear + 1}`, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    data = await response.json();
+                    racesData = data.races || [];
+                    activeSeasonYear = currentYear + 1;
+                } catch (e) {
+                    console.error('Failed to fetch next year races:', e);
+                    // Fallback to empty or show error
+                    throw e;
+                }
+            }
+            
+            // Update season title
+            const t = translations[currentUiLang] || translations.en;
+            document.getElementById('seasonTitle').textContent = `${activeSeasonYear} ${t.seasonTitle}`;
+            
+            // Build race list (desktop) - compact layout
+            let html = `<button class="race-item w-full px-2 py-0.5 text-left text-xs border-2 border-transparent hover:border-black flex items-center justify-between group selected" data-round="" onclick="selectRaceFromList(null, null)">
+                <span class="font-bold uppercase flex items-center gap-1.5"><span class="text-racing-red">⚡</span> ${t.nextRace}</span>
+                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-gray-500 uppercase">AUTO</span>
+            </button>`;
+            
+            racesData.forEach(race => {
+                const date = race.date ? new Date(race.date) : null;
+                const dateStr = date ? String(date.getDate()).padStart(2, '0') + '.' + String(date.getMonth() + 1).padStart(2, '0') + '.' : '';
+                const country = race.country || '';
+                const flagHtml = getFlagHtml(country, 'h-2.5');
+                const name = race.race_name.replace(' Grand Prix', '').replace('Grand Prix', '');
+                const isPast = race.is_past;
+                
+                html += `<button class="race-item w-full px-2 py-0.5 text-left text-[11px] border-2 border-transparent hover:border-black flex items-center gap-2 ${isPast ? 'opacity-40 grayscale' : ''}" 
+                    data-round="${race.round}" onclick="selectRaceFromList(${activeSeasonYear}, ${race.round})">
+                    <span class="race-date font-mono font-bold w-10 text-gray-400 group-hover:text-black">${dateStr}</span>
+                    <span class="flex-shrink-0">${flagHtml}</span>
+                    <span class="font-bold truncate">${name.trim()}</span>
+                </button>`;
+            });
+            
+            raceList.innerHTML = html;
+            
+            // Build mobile select (use ISO codes for text, no images in select options)
+            mobileSelect.innerHTML = `<option value="">${t.nextRace}</option>`;
+            racesData.forEach(race => {
+                const date = race.date ? new Date(race.date) : null;
+                const dateStr = date ? String(date.getDate()).padStart(2, '0') + '.' + String(date.getMonth() + 1).padStart(2, '0') + '.' : '';
+                const country = race.country || '';
+                const iso = COUNTRY_ISO[country] || '';
+                const isoDisplay = iso ? iso.toUpperCase() : '🏁';
+                const name = race.race_name.replace(' Grand Prix', ' GP');
+                mobileSelect.innerHTML += `<option value="${race.round}">${dateStr} ${isoDisplay} ${name}</option>`;
+            });
+            
+        } catch (e) {
+            console.error('Failed to load races:', e);
+            raceList.innerHTML = '<div class="p-3 text-center text-racing-red font-bold text-sm border-2 border-racing-red bg-red-50">FAILED TO LOAD RACES</div>';
+        }
+    }
+
+    function selectRaceFromList(year, round) {
+        selectedYear = year;
+        selectedRound = round;
+        
+        // Update selection UI
+        document.querySelectorAll('.race-item').forEach(el => el.classList.remove('selected', 'border-black', 'shadow-neo-sm'));
+        const selector = round ? `[data-round="${round}"]` : '[data-round=""]';
+        const selected = document.querySelector(selector);
+        if (selected) {
+            selected.classList.add('selected', 'border-black', 'shadow-neo-sm');
+        }
+        
+        // Sync mobile select
+        document.getElementById('raceSelectMobile').value = round || '';
+        
+        updatePreview();
+    }
+
+    function selectRaceMobile() {
+        const round = document.getElementById('raceSelectMobile').value;
+        if (round) {
+            selectRaceFromList(activeSeasonYear, parseInt(round));
+        } else {
+            selectRaceFromList(null, null);
+        }
+    }
+
+    function updateUrlDisplay() {
+        document.getElementById('apiUrl').value = getApiUrl();
+    }
+
+    function updatePreview() {
+        updateUrlDisplay();
+        loadPreview();
+    }
+
+    function loadPreview() {
+        const img = document.getElementById('previewImage');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const errorOverlay = document.getElementById('errorOverlay');
+        const refreshBtn = document.getElementById('refreshBtn');
+
+        loadingOverlay.classList.remove('hidden');
+        errorOverlay.classList.add('hidden');
+        refreshBtn.disabled = true;
+        refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+        const url = getApiUrl();
+        const cacheBuster = `&_t=${Date.now()}`;
+
+        img.onload = function() {
+            loadingOverlay.classList.add('hidden');
+            refreshBtn.disabled = false;
+            refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        };
+
+        img.onerror = function() {
+            loadingOverlay.classList.add('hidden');
+            errorOverlay.classList.remove('hidden');
+            refreshBtn.disabled = false;
+            refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        };
+
+        img.src = url + cacheBuster;
+    }
+
+    function refreshPreview() { loadPreview(); }
+
+    function copyUrl() {
+        const urlInput = document.getElementById('apiUrl');
+        const copyBtn = document.getElementById('copyBtn');
+
+        navigator.clipboard.writeText(urlInput.value).then(function() {
+            const originalHtml = copyBtn.innerHTML;
+            copyBtn.classList.add('bg-black', 'text-white');
+            copyBtn.classList.remove('bg-white');
+            copyBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+            setTimeout(function() {
+                copyBtn.classList.remove('bg-black', 'text-white');
+                copyBtn.classList.add('bg-white');
+                copyBtn.innerHTML = originalHtml;
+            }, 1500);
+        }).catch(function(err) {
+            urlInput.select();
+            document.execCommand('copy');
+        });
+    }
+
+    // UI Language switching with localStorage
+    function initUiLanguage() {
+        const saved = localStorage.getItem('preferredLang');
+        const uiSwitch = document.getElementById('uiLangSwitch');
+        
+        // If saved preference differs from current, redirect
+        if (saved && saved !== currentUiLang && ['en', 'cs'].includes(saved)) {
+            window.location.href = '/?lang=' + saved;
+            return false; // Signal that redirect is happening
+        }
+        
+        // Sync UI language switch
+        if (uiSwitch) uiSwitch.value = currentUiLang;
+        
+        return true; // Continue initialization
+    }
+
+    // Timezone handling - simple list sorted by UTC offset
+    let allTimezones = [];
+    try {
+        allTimezones = Intl.supportedValuesOf('timeZone');
+    } catch (e) {
+        console.error('Intl.supportedValuesOf not supported', e);
+        // Fallback to basic list if needed, or rely on popularTz
+        allTimezones = ['UTC', 'Europe/Prague', 'America/New_York', 'Europe/London']; 
+    }
+    const defaultTimezone = '{{ default_timezone }}';
+    let selectedTz = '';
+    let browserTz = '';
+    
+    // Popular timezones grouped by UTC offset (most common cities)
+    const popularTz = [
+        { offset: -12, zones: ['Pacific/Auckland'] },
+        { offset: -11, zones: ['Pacific/Pago_Pago'] },
+        { offset: -10, zones: ['Pacific/Honolulu'] },
+        { offset: -9, zones: ['America/Anchorage'] },
+        { offset: -8, zones: ['America/Los_Angeles', 'America/Vancouver'] },
+        { offset: -7, zones: ['America/Denver', 'America/Phoenix'] },
+        { offset: -6, zones: ['America/Chicago', 'America/Mexico_City'] },
+        { offset: -5, zones: ['America/New_York', 'America/Toronto'] },
+        { offset: -4, zones: ['America/Santiago', 'America/Halifax'] },
+        { offset: -3, zones: ['America/Sao_Paulo', 'America/Buenos_Aires'] },
+        { offset: -2, zones: ['Atlantic/South_Georgia'] },
+        { offset: -1, zones: ['Atlantic/Azores'] },
+        { offset: 0, zones: ['Europe/London', 'Atlantic/Reykjavik'] },
+        { offset: 1, zones: ['Europe/Prague', 'Europe/Paris', 'Europe/Berlin'] },
+        { offset: 2, zones: ['Europe/Helsinki', 'Africa/Cairo', 'Africa/Johannesburg'] },
+        { offset: 3, zones: ['Europe/Moscow', 'Asia/Riyadh'] },
+        { offset: 4, zones: ['Asia/Dubai', 'Asia/Baku'] },
+        { offset: 5, zones: ['Asia/Karachi', 'Asia/Tashkent'] },
+        { offset: 5.5, zones: ['Asia/Kolkata'] },
+        { offset: 6, zones: ['Asia/Dhaka', 'Asia/Almaty'] },
+        { offset: 7, zones: ['Asia/Bangkok', 'Asia/Jakarta'] },
+        { offset: 8, zones: ['Asia/Shanghai', 'Asia/Singapore', 'Australia/Perth'] },
+        { offset: 9, zones: ['Asia/Tokyo', 'Asia/Seoul'] },
+        { offset: 9.5, zones: ['Australia/Darwin', 'Australia/Adelaide'] },
+        { offset: 10, zones: ['Australia/Sydney', 'Australia/Brisbane'] },
+        { offset: 11, zones: ['Pacific/Noumea'] },
+        { offset: 12, zones: ['Pacific/Fiji', 'Pacific/Auckland'] },
+    ];
+    
+    function getUtcOffsetNum(tz) {
+        try {
+            const formatter = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' });
+            const parts = formatter.formatToParts(new Date());
+            const offsetPart = parts.find(p => p.type === 'timeZoneName');
+            if (offsetPart) {
+                const match = offsetPart.value.match(/GMT([+-]?)(\d+)(?::(\d+))?/);
+                if (match) {
+                    let hours = parseInt(match[2]) || 0;
+                    let mins = parseInt(match[3]) || 0;
+                    let val = hours + mins / 60;
+                    if (match[1] === '-') val = -val;
+                    return val;
+                }
+            }
+            return 0;
+        } catch (e) { return 0; }
+    }
+    
+    function formatOffset(offset) {
+        if (offset === 0) return 'UTC';
+        const sign = offset > 0 ? '+' : '';
+        if (offset % 1 !== 0) {
+            const hours = Math.floor(Math.abs(offset));
+            const mins = Math.round((Math.abs(offset) % 1) * 60);
+            return `UTC${sign}${offset < 0 ? '-' : ''}${hours}:${mins.toString().padStart(2, '0')}`;
+        }
+        return `UTC${sign}${offset}`;
+    }
+    
+    function formatTzDisplay(tz) {
+        // Format as Continent/Country/City or Continent/City
+        const parts = tz.split('/').map(p => p.replace(/_/g, ' '));
+        return parts.join(' / ');
+    }
+    
+    function onTzSearch() {
+        renderTzList();
+    }
+    
+    function renderTzList() {
+        const container = document.getElementById('tzList');
+        const query = document.getElementById('tzSearch').value.toLowerCase().trim();
+        container.innerHTML = '';
+        
+        // Helper to add group header
+        const addHeader = (text) => {
+            const header = document.createElement('div');
+            header.className = 'px-2 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-wider sticky top-0 z-10 border-b border-white';
+            header.textContent = text;
+            container.appendChild(header);
+        };
+
+        // Search mode - flat list
+        if (query) {
+            const results = allTimezones.filter(tz => 
+                tz.toLowerCase().includes(query) || 
+                tz.replace(/_/g, ' ').toLowerCase().includes(query)
+            ).slice(0, 50);
+            
+            if (results.length === 0) {
+                container.innerHTML = '<div class="px-2 py-2 text-gray-400 text-center font-mono uppercase">No results</div>';
+                return;
+            }
+            
+            results.forEach(tz => {
+                const div = document.createElement('div');
+                div.className = `tz-item px-2 py-0.5 cursor-pointer border-b border-gray-100 hover:bg-black hover:text-white ${tz === selectedTz ? 'bg-racing-red text-white font-bold' : ''}`;
+                div.innerHTML = `<span class="opacity-70 w-14 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(tz))}</span> ${formatTzDisplay(tz)}`;
+                div.onclick = () => { document.getElementById('tzSearch').value = ''; selectTimezone(tz); };
+                container.appendChild(div);
+            });
+            return;
+        }
+        
+        // Browser detected timezone (always show)
+        if (browserTz) {
+            const browserDiv = document.createElement('div');
+            browserDiv.className = `tz-item px-2 py-1 cursor-pointer hover:bg-black hover:text-white flex items-center border-b-4 border-black mb-0.5 ${browserTz === selectedTz ? 'bg-racing-red text-white' : 'bg-white'}`;
+            browserDiv.innerHTML = `<span class="mr-1">📍</span><span class="opacity-70 w-12 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(browserTz))}</span> <span class="font-bold">DETECTED</span>`;
+            browserDiv.onclick = () => selectTimezone(browserTz);
+            container.appendChild(browserDiv);
+        }
+
+        if (activeContinent === 'DETECTED' && !query) return;
+        
+        // Group timezones by region
+        const regions = {};
+        popularTz.forEach(({ offset, zones }) => {
+            zones.forEach(tz => {
+                if (!allTimezones.includes(tz)) return;
+                const region = tz.split('/')[0].toUpperCase();
+                
+                // Continent filtering
+                if (!query && activeContinent !== 'ALL') {
+                    if (activeContinent === 'EUROPE' && region !== 'EUROPE') return;
+                    if (activeContinent === 'AMERICA' && region !== 'AMERICA' && region !== 'US' && region !== 'CANADA' && region !== 'BRAZIL') return;
+                    if (activeContinent === 'ASIA' && region !== 'ASIA') return;
+                    if (activeContinent === 'AFRICA' && region !== 'AFRICA') return;
+                    if (activeContinent === 'OCEANIA' && region !== 'AUSTRALIA' && region !== 'PACIFIC') return;
+                    if (activeContinent === 'OTHER' && ['EUROPE', 'AMERICA', 'US', 'CANADA', 'BRAZIL', 'ASIA', 'AFRICA', 'AUSTRALIA', 'PACIFIC'].includes(region)) return;
+                }
+                
+                if (!regions[region]) regions[region] = [];
+                regions[region].push({ tz, offset });
+            });
+        });
+
+        // Sort regions and render
+        Object.keys(regions).sort().forEach(region => {
+            addHeader(region);
+            regions[region].forEach(({ tz, offset }) => {
+                const div = document.createElement('div');
+                div.className = `tz-item px-2 py-0.5 cursor-pointer border-b border-gray-100 hover:bg-black hover:text-white ${tz === selectedTz ? 'bg-racing-red text-white' : ''}`;
+                const city = tz.split('/').slice(1).join(' / ').replace(/_/g, ' ');
+                div.innerHTML = `<span class="opacity-70 w-14 inline-block text-[10px] font-mono">${formatOffset(offset)}</span> ${city}`;
+                div.onclick = () => selectTimezone(tz);
+                container.appendChild(div);
+            });
+        });
+    }
+
+    function selectTimezone(tz) {
+        selectedTz = tz;
+        document.getElementById('tz').value = tz;
+        renderTzList();
+        syncMobileTzSelect();
+        updatePreview();
+    }
+    
+    function selectTimezoneMobile() {
+        const select = document.getElementById('tzSelectMobile');
+        const tz = select.value;
+        if (tz) {
+            selectedTz = tz;
+            document.getElementById('tz').value = tz;
+            renderTzList();
+            updatePreview();
+        }
+    }
+    
+    function syncMobileTzSelect() {
+        const select = document.getElementById('tzSelectMobile');
+        if (select && selectedTz) {
+            // Try to select the current timezone
+            const options = Array.from(select.options);
+            const match = options.find(opt => opt.value === selectedTz);
+            if (match) {
+                select.value = selectedTz;
+            } else {
+                // Add it as a custom option if not in list
+                const customOpt = document.createElement('option');
+                customOpt.value = selectedTz;
+                customOpt.textContent = `${formatOffset(getUtcOffsetNum(selectedTz))} ${formatTzDisplay(selectedTz)}`;
+                select.insertBefore(customOpt, select.firstChild);
+                select.value = selectedTz;
+            }
+        }
+    }
+    
+    function populateMobileTzSelect() {
+        const select = document.getElementById('tzSelectMobile');
+        if (!select) return;
+        
+        select.innerHTML = '';
+        
+        // Add browser detected timezone
+        if (browserTz && allTimezones.includes(browserTz)) {
+            const browserOpt = document.createElement('option');
+            browserOpt.value = browserTz;
+            browserOpt.textContent = `📍 ${formatOffset(getUtcOffsetNum(browserTz))} DETECTED`;
+            select.appendChild(browserOpt);
+        }
+        
+        // Group timezones by region
+        const regions = {};
+        popularTz.forEach(({ offset, zones }) => {
+            zones.forEach(tz => {
+                if (!allTimezones.includes(tz)) return;
+                if (tz === browserTz) return;
+                const region = tz.split('/')[0];
+                if (!regions[region]) regions[region] = [];
+                regions[region].push({ tz, offset });
+            });
+        });
+
+        // Create optgroups
+        Object.keys(regions).sort().forEach(region => {
+            const group = document.createElement('optgroup');
+            group.label = region;
+            regions[region].forEach(({ tz, offset }) => {
+                const opt = document.createElement('option');
+                opt.value = tz;
+                const city = tz.split('/').slice(1).join(' / ').replace(/_/g, ' ');
+                opt.textContent = `${formatOffset(offset)} ${city}`;
+                group.appendChild(opt);
+            });
+            select.appendChild(group);
+        });
+        
+        syncMobileTzSelect();
+    }
+
+    function initTimezone() {
+        try {
+            browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            if (browserTz) {
+                // Always try to select browser TZ first
+                selectTimezone(browserTz);
+            } else {
+                selectTimezone(defaultTimezone);
+            }
+        } catch (e) {
+            console.error('Timezone detection failed:', e);
+            selectTimezone(defaultTimezone);
+        }
+        
+        // Force URL update to match selected timezone immediately
+        if (document.getElementById('tz').value) {
+            updateUrlDisplay();
+        }
+        populateMobileTzSelect();
+        renderTzList();
+    }
+
+    // Robust Initialization
+    function startApp() {
+        console.log("Starting F1 App...");
+        if (!initUiLanguage()) { return; }
+        
+        setUiLanguage(currentUiLang);
+        loadRaces();
+        initTimezone();
+        
+        updateUrlDisplay();
+        loadPreview();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startApp);
+    } else {
+        startApp();
+    }
+
+    function toggleSidebar() {
+        const sidebar = document.getElementById('settingsSidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        if (sidebar.classList.contains('-translate-x-full')) {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+        } else {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+    }
+</script>
+{% endblock %}

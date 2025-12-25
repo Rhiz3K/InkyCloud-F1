@@ -1,0 +1,62 @@
+# Coolify Build Context Optimization
+# Excludes files not needed for deployment
+
+# Development
+.venv/
+venv/
+env/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+*.log
+.hypothesis/
+.tox/
+
+# Documentation (keep only essential)
+docs/
+*.md
+!README.md
+!COOLIFY.md
+CONTRIBUTING.md
+EXAMPLES.md
+AGENTS.md
+CLAUDE.md
+plan.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD (Coolify has its own)
+.github/
+.gitlab-ci.yml
+
+# Local development
+.env
+.DS_Store
+quickstart.sh
+
+# Docker (build happens in Coolify)
+Dockerfile.old
+docker-compose*.yml
+
+# Build artifacts
+build/
+dist/
+f1_eink_cal.egg-info/

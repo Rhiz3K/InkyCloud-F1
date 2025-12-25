@@ -1,0 +1,37 @@
+<!-- Header -->
+<header class="bg-white border-b-4 border-black flex-shrink-0 z-30 relative w-full">
+    <div class="max-w-full mx-auto px-4 py-3 flex items-center justify-between">
+        <!-- Left: Mobile Menu Button + Logo -->
+        <div class="flex items-center gap-4">
+            <button id="mobileMenuBtn" onclick="toggleMobileMenu()" class="lg:hidden p-2 border-2 border-black shadow-neo active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-white text-black">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </button>
+            <a href="/?lang={{ ui_lang }}" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <img src="/static/images/f1_homepage_logo.png" alt="F1 InkyCloud" class="{% if active_page == 'home' %}h-14{% else %}h-10{% endif %} w-auto object-contain">
+            </a>
+        </div>
+        
+        <div class="flex items-center gap-4 text-xs font-bold uppercase tracking-wider">
+            <!-- Desktop Nav -->
+            <nav class="hidden md:flex items-center gap-4 mr-4">
+                {% if active_page != 'home' %}
+                <a href="/?lang={{ ui_lang }}" class="hover:text-racing-red transition-colors">{{ nav.nav_home }}</a>
+                {% endif %}
+                <a href="/stats?lang={{ ui_lang }}" class="{% if active_page == 'stats' %}text-racing-red{% else %}hover:text-racing-red{% endif %} transition-colors">{{ nav.nav_stats }}</a>
+                <a href="/api/docs/html?lang={{ ui_lang }}" class="{% if active_page == 'api' %}text-racing-red{% else %}hover:text-racing-red{% endif %} transition-colors">{{ nav.nav_api }}</a>
+                <a href="/privacy?lang={{ ui_lang }}" class="{% if active_page == 'privacy' %}text-racing-red{% else %}hover:text-racing-red{% endif %} transition-colors">{{ nav.nav_privacy }}</a>
+                <a href="https://github.com/Rhiz3K/InkyCloud-F1" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red transition-colors">GitHub</a>
+                {% include "components/credits_dropdown.html" %}
+            </nav>
+
+            <!-- Language Switcher -->
+            <div class="relative group">
+                <select id="uiLangSwitch" onchange="switchUiLanguage()"
+                    class="appearance-none bg-white border-2 border-black px-3 py-1 cursor-pointer hover:bg-racing-red hover:text-white transition-colors focus:outline-none shadow-neo-sm">
+                    <option value="en" {{ lang_selected_en }}>EN</option>
+                    <option value="cs" {{ lang_selected_cs }}>CZ</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</header>
