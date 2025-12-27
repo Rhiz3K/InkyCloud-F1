@@ -29,6 +29,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Build arguments for release info (Coolify injects SOURCE_COMMIT automatically)
+ARG SOURCE_COMMIT=unknown
+ARG BUILD_VERSION=dev
+ARG BUILD_TIME=unknown
+
 # Install runtime dependencies only (no build tools)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg62-turbo \
@@ -69,9 +74,13 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 EXPOSE 8000
 
 # Environment variables for better container behavior
+# Build info is passed from build args for release tracking
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
+    PORT=8000 \
+    BUILD_VERSION=${BUILD_VERSION} \
+    BUILD_COMMIT=${SOURCE_COMMIT} \
+    BUILD_TIME=${BUILD_TIME}
 
 # Run application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

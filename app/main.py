@@ -2,6 +2,8 @@
 
 import asyncio
 import logging
+import os
+import subprocess
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -13,7 +15,13 @@ import pytz
 import sentry_sdk
 from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -48,6 +56,67 @@ if config.SENTRY_DSN:
         profiles_sample_rate=config.SENTRY_TRACES_SAMPLE_RATE,
     )
     logger.info("Sentry/GlitchTip initialized")
+
+
+def _get_build_info() -> dict:
+    """
+    Get build/release information from environment variables or git.
+
+    Priority:
+    1. Environment variables (BUILD_VERSION, BUILD_COMMIT, BUILD_TIME) - for Docker/Coolify
+    2. Git commands - for local development
+
+    Returns:
+        Dictionary with version, commit, and build_time
+    """
+    # Default values
+    build_info = {
+        "version": os.environ.get("BUILD_VERSION", ""),
+        "commit": os.environ.get("BUILD_COMMIT", ""),
+        "build_time": os.environ.get("BUILD_TIME", ""),
+    }
+
+    # If env variables are not set, try git (for local development)
+    if not build_info["version"] or not build_info["commit"]:
+        git_commands = {
+            "version": ["git", "describe", "--tags", "--always"],
+            "commit": ["git", "rev-parse", "--short", "HEAD"],
+            "build_time": ["git", "log", "-1", "--format=%cI"],
+        }
+
+        for key, command in git_commands.items():
+            if not build_info[key]:  # Only run if env var was not set
+                try:
+                    result = subprocess.run(
+                        command,
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                        check=True,
+                    )
+                    build_info[key] = result.stdout.strip()
+                except (
+                    subprocess.TimeoutExpired,
+                    subprocess.CalledProcessError,
+                    FileNotFoundError,
+                    OSError,
+                ):
+                    pass  # Keep empty or default value
+
+    # Set final defaults for any missing values
+    if not build_info["version"]:
+        build_info["version"] = "dev"
+    if not build_info["commit"]:
+        build_info["commit"] = "unknown"
+    if not build_info["build_time"]:
+        build_info["build_time"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    return build_info
+
+
+# Cache build info at startup (it won't change during runtime)
+_build_info: dict = _get_build_info()
+logger.info(f"Build info: {_build_info}")
 
 
 @asynccontextmanager
@@ -198,6 +267,26 @@ async def favicon():
         media_type="image/svg+xml",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+@app.get("/site.webmanifest")
+async def site_webmanifest():
+    """
+    Serve the PWA web app manifest file.
+
+    Dedicated route to avoid static file serving issues and ensure correct MIME type.
+    """
+    manifest_path = Path("app/assets/favicon/site.webmanifest")
+    try:
+        content = manifest_path.read_text()
+        return Response(
+            content=content,
+            media_type="application/manifest+json",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+    except FileNotFoundError:
+        logger.error(f"Manifest file not found: {manifest_path}")
+        raise HTTPException(status_code=404, detail="Manifest not found")
 
 
 @app.get("/api")
@@ -572,6 +661,9 @@ async def stats_dashboard(
     max_response = stats.get("max_response_ms", 1) or 1
     context["min_pct"] = _calc_percent(stats.get("min_response_ms", 0), max_response)
     context["avg_pct"] = _calc_percent(int(stats.get("avg_response_ms", 0)), max_response)
+
+    # Add build/release info
+    context["build_info"] = _build_info
 
     return templates.TemplateResponse(request, "stats.html", context)
 

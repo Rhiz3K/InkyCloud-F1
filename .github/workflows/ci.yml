@@ -34,4 +34,8 @@ jobs:
     
     - name: Test Docker build
       run: |
-        docker build -t f1-eink-cal:test .
+        docker build --network=host \
+          --build-arg BUILD_VERSION=$(git describe --tags --always 2>/dev/null || echo "dev") \
+          --build-arg SOURCE_COMMIT=$(git rev-parse --short HEAD) \
+          --build-arg BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+          -t f1-eink-cal:test .
