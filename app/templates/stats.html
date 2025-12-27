@@ -23,22 +23,6 @@
 
 {% block content %}
 <main class="max-w-6xl mx-auto px-4 py-8">
-    <!-- Release Info Banner -->
-    <div class="border-2 border-black bg-white p-3 shadow-neo-sm mb-6 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div class="flex items-center gap-4">
-            <span class="font-bold uppercase tracking-widest text-gray-600">{{ t.get("stats_release_info", "Release Info") }}</span>
-            <span class="font-mono">
-                <span class="text-racing-red font-bold">{{ build_info.version }}</span>
-                <span class="text-gray-400 mx-1">|</span>
-                <span class="text-gray-600">{{ t.get("stats_commit", "Commit") }}:</span>
-                <span class="font-bold">{{ build_info.commit }}</span>
-            </span>
-        </div>
-        <div class="text-gray-500 font-mono">
-            {{ t.get("stats_build_time", "Build") }}: {{ build_info.build_time }}
-        </div>
-    </div>
-
     <!-- Title and Range Selector -->
     <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wider border-b-4 border-black pb-2">

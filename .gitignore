@@ -192,7 +192,7 @@ PLAN.md
 # Internal workflow
 conductor/
 openspec/
-.opencode/
+
 # Local environment files
 .env.local
 .env.local.example
