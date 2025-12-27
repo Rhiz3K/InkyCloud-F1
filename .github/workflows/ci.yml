@@ -34,4 +34,4 @@ jobs:
     
     - name: Test Docker build
       run: |
-        docker build -t f1-eink-cal:test .
+        docker build --network=host -t f1-eink-cal:test .

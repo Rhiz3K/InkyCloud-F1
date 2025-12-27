@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import subprocess
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -13,7 +14,13 @@ import pytz
 import sentry_sdk
 from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -48,6 +55,66 @@ if config.SENTRY_DSN:
         profiles_sample_rate=config.SENTRY_TRACES_SAMPLE_RATE,
     )
     logger.info("Sentry/GlitchTip initialized")
+
+
+def _get_build_info() -> dict:
+    """
+    Get build/release information from git or environment.
+
+    Returns:
+        Dictionary with version, commit, and build_time
+    """
+    build_info = {
+        "version": "dev",
+        "commit": "unknown",
+        "build_time": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+
+    try:
+        # Try to get version from git tag
+        result = subprocess.run(
+            ["git", "describe", "--tags", "--always"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            build_info["version"] = result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        pass
+
+    try:
+        # Try to get commit hash
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            build_info["commit"] = result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        pass
+
+    try:
+        # Try to get commit timestamp
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%cI"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            build_info["build_time"] = result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        pass
+
+    return build_info
+
+
+# Cache build info at startup (it won't change during runtime)
+_build_info: dict = _get_build_info()
+logger.info(f"Build info: {_build_info}")
 
 
 @asynccontextmanager
@@ -198,6 +265,26 @@ async def favicon():
         media_type="image/svg+xml",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+@app.get("/site.webmanifest")
+async def site_webmanifest():
+    """
+    Serve the PWA web app manifest file.
+
+    Dedicated route to avoid static file serving issues and ensure correct MIME type.
+    """
+    manifest_path = Path("app/assets/favicon/site.webmanifest")
+    try:
+        content = manifest_path.read_text()
+        return Response(
+            content=content,
+            media_type="application/manifest+json",
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+    except FileNotFoundError:
+        logger.error(f"Manifest file not found: {manifest_path}")
+        raise HTTPException(status_code=404, detail="Manifest not found")
 
 
 @app.get("/api")
@@ -572,6 +659,9 @@ async def stats_dashboard(
     max_response = stats.get("max_response_ms", 1) or 1
     context["min_pct"] = _calc_percent(stats.get("min_response_ms", 0), max_response)
     context["avg_pct"] = _calc_percent(int(stats.get("avg_response_ms", 0)), max_response)
+
+    # Add build/release info
+    context["build_info"] = _build_info
 
     return templates.TemplateResponse(request, "stats.html", context)
 
