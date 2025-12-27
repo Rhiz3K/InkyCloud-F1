@@ -70,44 +70,29 @@ def _get_build_info() -> dict:
         "build_time": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
-    try:
-        # Try to get version from git tag
-        result = subprocess.run(
-            ["git", "describe", "--tags", "--always"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            build_info["version"] = result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
+    commands = {
+        "version": ["git", "describe", "--tags", "--always"],
+        "commit": ["git", "rev-parse", "--short", "HEAD"],
+        "build_time": ["git", "log", "-1", "--format=%cI"],
+    }
 
-    try:
-        # Try to get commit hash
-        result = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            build_info["commit"] = result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
-
-    try:
-        # Try to get commit timestamp
-        result = subprocess.run(
-            ["git", "log", "-1", "--format=%cI"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0:
-            build_info["build_time"] = result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
-        pass
+    for key, command in commands.items():
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=True,
+            )
+            build_info[key] = result.stdout.strip()
+        except (
+            subprocess.TimeoutExpired,
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            OSError,
+        ):
+            pass  # Keep default value if git command fails
 
     return build_info
 
