@@ -18,16 +18,13 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Stre
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.config import config
+from app.config import VALID_LANGUAGES, config
 from app.services.analytics import get_umami_script_tag, track_event, track_pageview
 from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
-
-# Valid language codes for translations
-VALID_LANGUAGES = {"en", "cs"}
 
 # In-memory cache for rendered BMP images
 # TTL of 1 hour (3600 seconds), max 100 entries
@@ -69,7 +66,7 @@ def _check_persistent_storage() -> bool:
         True if check passed, False if persistence issue detected
     """
     # Allow skipping for development/testing
-    if os.environ.get("SKIP_PERSISTENCE_CHECK"):
+    if os.environ.get("SKIP_PERSISTENCE_CHECK", "").lower() == "true":
         logger.debug("Persistence check skipped via SKIP_PERSISTENCE_CHECK env var")
         return True
 

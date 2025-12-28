@@ -5,15 +5,12 @@ import logging
 from pathlib import Path
 from typing import Dict
 
-from app.config import config
+from app.config import VALID_LANGUAGES, config
 
 logger = logging.getLogger(__name__)
 
 # Cache for loaded translations
 _translations_cache: Dict[str, dict] = {}
-
-# Valid language codes (allowlist to prevent path injection)
-VALID_LANGUAGES = {"en", "cs"}
 
 
 def get_translator(lang: str) -> dict:
