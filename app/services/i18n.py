@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Dict
 
-from app.config import config
+from app.config import VALID_LANGUAGES, config
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,11 @@ def get_translator(lang: str) -> dict:
     Returns:
         Dictionary with translations
     """
+    # Validate language against allowlist (prevents path injection)
+    if lang not in VALID_LANGUAGES:
+        logger.warning(f"Invalid language '{lang}', falling back to {config.DEFAULT_LANG}")
+        lang = config.DEFAULT_LANG
+
     # Return cached translations if available
     if lang in _translations_cache:
         return _translations_cache[lang]
