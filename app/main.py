@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -24,6 +25,9 @@ from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
+
+# Valid language codes for translations
+VALID_LANGUAGES = {"en", "cs"}
 
 # In-memory cache for rendered BMP images
 # TTL of 1 hour (3600 seconds), max 100 entries
@@ -50,10 +54,65 @@ if config.SENTRY_DSN:
     logger.info("Sentry/GlitchTip initialized")
 
 
+# Persistence check marker file
+_PERSISTENCE_MARKER = Path(config.DATABASE_PATH).parent / ".persistence_marker"
+
+
+def _check_persistent_storage() -> bool:
+    """
+    Check if the data directory is on persistent storage.
+
+    Creates a marker file on first run. If the database exists but the marker
+    doesn't, it means storage was reset (not persistent).
+
+    Returns:
+        True if check passed, False if persistence issue detected
+    """
+    # Allow skipping for development/testing
+    if os.environ.get("SKIP_PERSISTENCE_CHECK"):
+        logger.debug("Persistence check skipped via SKIP_PERSISTENCE_CHECK env var")
+        return True
+
+    # If marker exists, storage is persistent
+    if _PERSISTENCE_MARKER.exists():
+        logger.debug("Persistence marker found - storage is persistent")
+        return True
+
+    # First run - create marker
+    try:
+        _PERSISTENCE_MARKER.parent.mkdir(parents=True, exist_ok=True)
+        _PERSISTENCE_MARKER.write_text(
+            f"created: {datetime.now(timezone.utc).isoformat()}\n"
+            "This file verifies persistent storage. Do not delete.\n"
+        )
+        logger.info(f"Created persistence marker at {_PERSISTENCE_MARKER}")
+    except OSError as e:
+        logger.error(f"Failed to create persistence marker: {e}")
+        return False
+
+    # Check if database exists but marker didn't (means storage was reset)
+    db_path = Path(config.DATABASE_PATH)
+    if db_path.exists():
+        logger.warning(
+            "WARNING: Database exists but persistence marker was missing! "
+            "This may indicate that /app/data is NOT on persistent storage. "
+            "Data may be lost on container restart. "
+            "Please configure a persistent volume for /app/data"
+        )
+        return False
+
+    # First deployment - marker created, no DB yet
+    logger.info("First deployment detected - persistence will be verified on next restart")
+    return True
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
     logger.info("Starting F1 E-Ink calendar service")
+
+    # Check persistent storage (warn only, don't block startup)
+    _check_persistent_storage()
 
     # Start background scheduler
     start_scheduler()
@@ -916,9 +975,13 @@ async def get_calendar_bmp(
         )
 
     try:
-        # Validate language
-        if lang not in ["cs", "en"]:
+        # Validate language against allowlist (prevents path injection in i18n)
+        if lang not in VALID_LANGUAGES:
             lang = config.DEFAULT_LANG
+
+        # Validate timezone against pytz allowlist (prevents path injection in image key)
+        if tz and tz not in pytz.all_timezones_set:
+            raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
 
         # Determine if this is auto-selected (next race) or manual selection
         is_auto_selected = year is None and round is None

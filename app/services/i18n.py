@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 # Cache for loaded translations
 _translations_cache: Dict[str, dict] = {}
 
+# Valid language codes (allowlist to prevent path injection)
+VALID_LANGUAGES = {"en", "cs"}
+
 
 def get_translator(lang: str) -> dict:
     """
@@ -23,6 +26,11 @@ def get_translator(lang: str) -> dict:
     Returns:
         Dictionary with translations
     """
+    # Validate language against allowlist (prevents path injection)
+    if lang not in VALID_LANGUAGES:
+        logger.warning(f"Invalid language '{lang}', falling back to {config.DEFAULT_LANG}")
+        lang = config.DEFAULT_LANG
+
     # Return cached translations if available
     if lang in _translations_cache:
         return _translations_cache[lang]

@@ -518,6 +518,11 @@ class F1Service:
         Returns:
             List of Race objects from static data
         """
+        # Validate year range to prevent path traversal
+        if not isinstance(year, int) or not (2000 <= year <= 2100):
+            logger.warning(f"Invalid year value: {year}")
+            return []
+
         json_path = SEASONS_DIR / f"{year}.json"
 
         if not json_path.exists():
