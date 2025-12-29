@@ -36,9 +36,16 @@ def get_translator(lang: str) -> dict:
     translations_dir = Path(__file__).parent.parent.parent / "translations"
     translation_file = translations_dir / f"{lang}.json"
 
+    # Resolve paths and verify containment (defense in depth against path traversal)
+    resolved_dir = translations_dir.resolve()
+    resolved_file = translation_file.resolve()
+    if not str(resolved_file).startswith(str(resolved_dir)):
+        logger.error(f"Path traversal attempt detected for language: {lang}")
+        return {}
+
     try:
-        if translation_file.exists():
-            with open(translation_file, "r", encoding="utf-8") as f:
+        if resolved_file.exists():
+            with open(resolved_file, "r", encoding="utf-8") as f:
                 translations = json.load(f)
                 _translations_cache[lang] = translations
                 logger.info(f"Loaded translations for language: {lang}")

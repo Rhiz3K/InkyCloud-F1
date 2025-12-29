@@ -518,19 +518,24 @@ class F1Service:
         Returns:
             List of Race objects from static data
         """
-        # Validate year range to prevent path traversal
         if not isinstance(year, int) or not (2000 <= year <= 2100):
             logger.warning(f"Invalid year value: {year}")
             return []
 
         json_path = SEASONS_DIR / f"{year}.json"
 
-        if not json_path.exists():
-            logger.warning(f"Static season file not found: {json_path}")
+        resolved_dir = SEASONS_DIR.resolve()
+        resolved_path = json_path.resolve()
+        if not str(resolved_path).startswith(str(resolved_dir)):
+            logger.error(f"Path traversal attempt detected for year: {year}")
+            return []
+
+        if not resolved_path.exists():
+            logger.warning(f"Static season file not found: {resolved_path}")
             return []
 
         try:
-            with open(json_path, encoding="utf-8") as f:
+            with open(resolved_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             races = []
