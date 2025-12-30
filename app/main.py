@@ -1044,12 +1044,18 @@ async def get_calendar_bmp(
             else:
                 image_key = f"calendar_{lang}"
 
-            image_path = Path(config.IMAGES_PATH) / f"{image_key}.bmp"
+            images_dir = Path(config.IMAGES_PATH)
+            image_path = images_dir / f"{image_key}.bmp"
 
-            if image_path.exists():
-                logger.info(f"Serving pre-generated image: {image_path}")
-                # Read and cache the file
-                bmp_data = image_path.read_bytes()
+            resolved_dir = images_dir.resolve()
+            resolved_path = image_path.resolve()
+            if not resolved_path.is_relative_to(resolved_dir):
+                logger.error(f"Path traversal attempt detected for image: {image_key}")
+                raise HTTPException(status_code=400, detail="Invalid image key")
+
+            if resolved_path.exists():
+                logger.info(f"Serving pre-generated image: {resolved_path}")
+                bmp_data = resolved_path.read_bytes()
                 _bmp_cache[cache_key] = bmp_data
                 _record_api_call(
                     "/calendar.bmp",
@@ -1064,7 +1070,7 @@ async def get_calendar_bmp(
                 )
                 await track_calendar_analytics()
                 return FileResponse(
-                    path=str(image_path),
+                    path=str(resolved_path),
                     media_type="image/bmp",
                     filename="calendar.bmp",
                     headers={"Cache-Control": "public, max-age=3600", "X-Cache": "MISS"},
