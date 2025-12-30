@@ -1049,7 +1049,7 @@ async def get_calendar_bmp(
 
             resolved_dir = images_dir.resolve()
             resolved_path = image_path.resolve()
-            if not str(resolved_path).startswith(str(resolved_dir)):
+            if not resolved_path.is_relative_to(resolved_dir):
                 logger.error(f"Path traversal attempt detected for image: {image_key}")
                 raise HTTPException(status_code=400, detail="Invalid image key")
 

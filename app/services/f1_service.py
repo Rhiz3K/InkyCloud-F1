@@ -526,7 +526,7 @@ class F1Service:
 
         resolved_dir = SEASONS_DIR.resolve()
         resolved_path = json_path.resolve()
-        if not str(resolved_path).startswith(str(resolved_dir)):
+        if not resolved_path.is_relative_to(resolved_dir):
             logger.error(f"Path traversal attempt detected for year: {year}")
             return []
 

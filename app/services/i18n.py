@@ -39,7 +39,7 @@ def get_translator(lang: str) -> dict:
     # Resolve paths and verify containment (defense in depth against path traversal)
     resolved_dir = translations_dir.resolve()
     resolved_file = translation_file.resolve()
-    if not str(resolved_file).startswith(str(resolved_dir)):
+    if not resolved_file.is_relative_to(resolved_dir):
         logger.error(f"Path traversal attempt detected for language: {lang}")
         return {}
 
