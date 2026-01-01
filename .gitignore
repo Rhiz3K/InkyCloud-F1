@@ -162,6 +162,9 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# Node.js
+node_modules/
+
 # Project-specific
 api_response*.json
 debug_*.png
@@ -170,7 +173,9 @@ test_calendar*.bmp
 !app/assets/**/*.bmp
 !assets/**/*.bmp
 *.db
-data/benchmark_results.json
+data/
+tmp/
+standings_*.png
 
 # macOS
 .DS_Store

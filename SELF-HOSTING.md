@@ -106,30 +106,36 @@ For more deployment options (Heroku, Railway, Render, DigitalOcean, systemd), se
 InkyCloud-F1/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py              # FastAPI application
+│   ├── main.py              # FastAPI application (endpoints, lifespan)
 │   ├── config.py            # Configuration management
 │   ├── models.py            # Pydantic models
 │   ├── assets/
-│   │   ├── fonts/           # Custom fonts (TitilliumWeb)
-│   │   ├── images/          # Static images (F1 logo)
+│   │   ├── fonts/           # Custom fonts (TitilliumWeb, RacingSansOne)
+│   │   ├── images/          # Driver photos, team logos
 │   │   ├── tracks/          # Circuit track images
 │   │   ├── seasons/         # Static season calendars (2025.json, 2026.json)
 │   │   └── circuits_data.json  # Circuit info + historical results
-│   └── services/
-│       ├── __init__.py
-│       ├── f1_service.py    # F1 data service (static + API fallback)
-│       ├── renderer.py      # BMP image rendering
-│       ├── scheduler.py     # Background jobs
-│       ├── database.py      # SQLite cache
-│       ├── analytics.py     # Umami analytics
-│       └── i18n.py          # Translation service
+│   ├── services/
+│   │   ├── renderer.py      # 1-bit BMP rendering engine
+│   │   ├── f1_service.py    # F1 data service (static + API fallback)
+│   │   ├── teams_service.py # Teams & drivers data
+│   │   ├── standings_service.py # Championship standings
+│   │   ├── database.py      # SQLite operations
+│   │   ├── scheduler.py     # APScheduler background jobs
+│   │   ├── backup.py        # S3 database backup
+│   │   ├── analytics.py     # Umami analytics
+│   │   └── i18n.py          # Translation service
+│   └── templates/           # Jinja2 HTML templates
 ├── scripts/
 │   ├── update_seasons.py    # Download season calendars from API
-│   └── update_historical.py # Update historical race results
+│   ├── update_historical.py # Update historical race results
+│   └── preprocess_*.py      # Asset preprocessing utilities
 ├── translations/
 │   ├── en.json              # English translations
 │   └── cs.json              # Czech translations
+├── tests/                   # Pytest test suite
 ├── .github/workflows/
+│   ├── ci.yml               # CI pipeline (lint, test, build)
 │   └── update-f1-data.yml   # Weekly auto-update action
 ├── Dockerfile
 ├── docker-compose.yml
@@ -143,10 +149,14 @@ InkyCloud-F1/
 | Component | Purpose |
 |-----------|---------|
 | `app/main.py` | FastAPI endpoints with async/await pattern |
+| `app/services/renderer.py` | Pixel-perfect 1-bit BMP rendering engine (1600+ lines) |
 | `app/services/f1_service.py` | F1 data fetching with timezone conversion |
-| `app/services/renderer.py` | Pixel-perfect 1-bit BMP rendering engine |
-| `app/services/i18n.py` | Translation loader with caching |
+| `app/services/teams_service.py` | Teams & drivers data service |
+| `app/services/database.py` | SQLite for statistics and cache |
+| `app/services/scheduler.py` | APScheduler background jobs |
+| `app/services/backup.py` | S3-compatible database backup |
 | `app/services/analytics.py` | Fire-and-forget Umami tracking |
+| `app/services/i18n.py` | Translation loader with caching |
 
 ---
 

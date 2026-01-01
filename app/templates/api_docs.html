@@ -76,7 +76,7 @@
                             <td class="px-3 py-2">integer</td>
                             <td class="px-3 py-2">
                                 {{ year_desc }}
-                                <br><span class="text-xs text-gray-500">{{ t.get("api_docs_optional", "optional") }} — {{ eg }} <code class="bg-gray-100 px-1">2025</code></span>
+                                <br><span class="text-xs text-gray-500">{{ t.get("api_docs_optional", "optional") }} — {{ eg }} <code class="bg-gray-100 px-1">2026</code></span>
                             </td>
                         </tr>
                         <tr>
@@ -215,6 +215,95 @@
             </div>
         </div>
 
+        <!-- Teams BMP Endpoint -->
+        <div class="bg-white border-2 border-black shadow-neo p-6 md:p-8 mb-6">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="px-2 py-1 bg-black text-white text-xs font-bold">GET</span>
+                <code class="text-lg font-mono">/teams.bmp</code>
+            </div>
+            <p class="text-sm mb-4">
+                {{ t.get("api_docs_teams_desc", "Generate a 1-bit BMP image showing all F1 teams with their drivers, photos, and championship points.") }}
+            </p>
+
+            <!-- Parameters -->
+            <h3 class="text-lg font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-3">
+                {{ t.get("api_docs_parameters", "Parameters") }}
+            </h3>
+            <div class="overflow-x-auto mb-6">
+                <table class="w-full text-sm border-2 border-black">
+                    <thead class="bg-black text-white">
+                        <tr>
+                            <th class="px-3 py-2 text-left font-bold uppercase">Parameter</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">{{ t.get("api_docs_type", "Type") }}</th>
+                            <th class="px-3 py-2 text-left font-bold uppercase">{{ t.get("api_docs_description", "Description") }}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-3 py-2 font-mono text-racing-red font-bold">lang</td>
+                            <td class="px-3 py-2">string</td>
+                            <td class="px-3 py-2">
+                                {{ lang_desc }}
+                                <br><span class="text-xs text-gray-500">{{ t.get("api_docs_values", "Values") }}: <code class="bg-gray-100 px-1">en</code>, <code class="bg-gray-100 px-1">cs</code> ({{ t.get("api_docs_default", "default") }}: <code class="bg-gray-100 px-1">en</code>)</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 font-mono text-racing-red font-bold">year</td>
+                            <td class="px-3 py-2">integer</td>
+                            <td class="px-3 py-2">
+                                {{ t.get("api_docs_teams_year_desc", "Season year for team data") }}
+                                <br><span class="text-xs text-gray-500">{{ t.get("api_docs_optional", "optional") }} — {{ eg }} <code class="bg-gray-100 px-1">2026</code></span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Response -->
+            <h3 class="text-lg font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-3">
+                {{ t.get("api_docs_response", "Response") }}
+            </h3>
+            <div class="border-2 border-black p-4 mb-6 bg-gray-50">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-500 block text-xs uppercase">Content-Type</span>
+                        <code class="font-bold">image/bmp</code>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 block text-xs uppercase">{{ dimensions_label }}</span>
+                        <code class="font-bold">800×480</code>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 block text-xs uppercase">{{ color_depth_label }}</span>
+                        <code class="font-bold">1-bit</code>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 block text-xs uppercase">Cache</span>
+                        <code class="font-bold">1 hour</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Try it -->
+            <div class="flex flex-wrap gap-3">
+                <button onclick="tryTeamsBmp()"
+                    class="px-4 py-2 bg-racing-red text-white border-2 border-black shadow-neo font-bold uppercase tracking-wider hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="square" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                        <path stroke-linecap="square" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    {{ t.get("api_docs_try_it", "Try it") }}
+                </button>
+                <a href="/teams.bmp" target="_blank"
+                    class="px-4 py-2 bg-white border-2 border-black shadow-neo-sm font-bold uppercase tracking-wider hover:bg-black hover:text-white transition-all flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="square" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                    {{ t.get("api_docs_open_image", "Open Image") }}
+                </a>
+            </div>
+        </div>
+
         <!-- Other Endpoints -->
         <div class="bg-white border-2 border-black shadow-neo p-6 md:p-8 mb-6">
             <h2 class="text-xl font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-4">
@@ -222,6 +311,42 @@
             </h2>
 
             <div class="space-y-4">
+                <!-- /api/teams/{year} -->
+                <div class="border-2 border-black p-4 hover:shadow-neo-sm transition-shadow">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="px-2 py-0.5 bg-black text-white text-xs font-bold">GET</span>
+                        <code class="font-mono">/api/teams/{year}</code>
+                    </div>
+                    <p class="text-sm mb-3">
+                        {{ t.get("api_docs_teams_json_desc", "Get all teams with drivers and points for a season (JSON)") }}
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="tryEndpoint('/api/teams/2026', 'result-teams')"
+                            class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors">
+                            {{ t.get("api_docs_try_it", "Try it") }}
+                        </button>
+                    </div>
+                    <pre id="result-teams" class="mt-3 p-3 bg-black text-white border-2 border-black text-xs font-mono overflow-x-auto hidden"></pre>
+                </div>
+
+                <!-- /api/standings/leader -->
+                <div class="border-2 border-black p-4 hover:shadow-neo-sm transition-shadow">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="px-2 py-0.5 bg-black text-white text-xs font-bold">GET</span>
+                        <code class="font-mono">/api/standings/leader</code>
+                    </div>
+                    <p class="text-sm mb-3">
+                        {{ t.get("api_docs_standings_leader_desc", "Get current championship leaders (driver and constructor)") }}
+                    </p>
+                    <div class="flex gap-2">
+                        <button onclick="tryEndpoint('/api/standings/leader', 'result-leader')"
+                            class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors">
+                            {{ t.get("api_docs_try_it", "Try it") }}
+                        </button>
+                    </div>
+                    <pre id="result-leader" class="mt-3 p-3 bg-black text-white border-2 border-black text-xs font-mono overflow-x-auto hidden"></pre>
+                </div>
+
                 <!-- /api/races/{year} -->
                 <div class="border-2 border-black p-4 hover:shadow-neo-sm transition-shadow">
                     <div class="flex items-center gap-3 mb-2">
@@ -232,7 +357,7 @@
                         {{ races_desc }}
                     </p>
                     <div class="flex gap-2">
-                        <button onclick="tryEndpoint('/api/races/2025', 'result-races')"
+                        <button onclick="tryEndpoint('/api/races/2026', 'result-races')"
                             class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors">
                             {{ t.get("api_docs_try_it", "Try it") }}
                         </button>
@@ -250,7 +375,7 @@
                         {{ race_desc }}
                     </p>
                     <div class="flex gap-2">
-                        <button onclick="tryEndpoint('/api/race/2025/1', 'result-race')"
+                        <button onclick="tryEndpoint('/api/race/2026/1', 'result-race')"
                             class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors">
                             {{ t.get("api_docs_try_it", "Try it") }}
                         </button>
@@ -376,6 +501,14 @@
         const modal = document.getElementById('imageModal');
         const img = document.getElementById('modalImage');
         img.src = '/calendar.bmp?_t=' + Date.now();
+        modal.classList.add('active');
+    }
+
+    // Try teams.bmp - show in modal
+    function tryTeamsBmp() {
+        const modal = document.getElementById('imageModal');
+        const img = document.getElementById('modalImage');
+        img.src = '/teams.bmp?_t=' + Date.now();
         modal.classList.add('active');
     }
 

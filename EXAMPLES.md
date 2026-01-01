@@ -63,6 +63,34 @@ curl http://localhost:8000/api/stats/history
 curl "http://localhost:8000/api/stats/history?limit=720"
 ```
 
+### Championship Standings
+
+```bash
+# Get standings BMP image (split view - drivers left, constructors right)
+curl http://localhost:8000/standings.bmp -o standings.bmp
+
+# Get drivers-only view
+curl "http://localhost:8000/standings.bmp?view=drivers" -o standings_drivers.bmp
+
+# Get constructors-only view
+curl "http://localhost:8000/standings.bmp?view=constructors" -o standings_constructors.bmp
+
+# Get standings in Czech
+curl "http://localhost:8000/standings.bmp?lang=cs" -o standings_cs.bmp
+
+# Get standings for specific year
+curl "http://localhost:8000/standings.bmp?year=2024" -o standings_2024.bmp
+
+# Get JSON standings data
+curl http://localhost:8000/api/standings/2025
+
+# Get driver standings only (JSON)
+curl http://localhost:8000/api/standings/2025/drivers
+
+# Get constructor standings only (JSON)
+curl http://localhost:8000/api/standings/2025/constructors
+```
+
 ### Interactive API Documentation
 
 ```bash

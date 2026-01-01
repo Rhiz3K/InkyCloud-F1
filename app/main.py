@@ -17,6 +17,10 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.gzip import GZipMiddleware
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import Response as StarletteResponse
 
 from app.config import VALID_LANGUAGES, config
 from app.services.analytics import get_umami_script_tag, track_event, track_pageview
@@ -25,6 +29,8 @@ from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
+from app.services.teams_service import TeamsService
+from app.services.version_service import get_cached_version, refresh_version_info
 
 # In-memory cache for rendered BMP images
 # TTL of 1 hour (3600 seconds), max 100 entries
@@ -132,6 +138,26 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+class StaticCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next) -> StarletteResponse:
+        response = await call_next(request)
+        path = request.url.path
+
+        if path.startswith("/static/"):
+            if "/fonts/" in path:
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            elif path.endswith((".png", ".jpg", ".bmp", ".ico", ".svg", ".webmanifest")):
+                response.headers["Cache-Control"] = "public, max-age=86400"
+            elif path.endswith((".css", ".js")):
+                response.headers["Cache-Control"] = "public, max-age=3600"
+
+        return response
+
+
+app.add_middleware(StaticCacheMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 # Mount static files (flags, etc.)
 app.mount("/static", StaticFiles(directory="app/assets"), name="static")
 
@@ -176,6 +202,7 @@ def _get_template_context(request: Request, ui_lang: str = "en") -> dict:
         "nav_stats": t.get("nav_stats", "Stats"),
         "nav_api": t.get("nav_api", "API"),
         "nav_privacy": t.get("nav_privacy", "Privacy"),
+        "nav_changelog": t.get("nav_changelog", "Changelog"),
     }
 
     return {
@@ -207,19 +234,11 @@ def _detect_ui_language(request: Request) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request, lang: str = Query(default=None)):
-    """
-    Main preview page - interactive parameter selection and preview.
-
-    This is the index page of the application.
-    Language can be overridden via ?lang= query parameter.
-    """
     if lang in ["en", "cs"]:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
 
-    # Track pageview server-side (for non-JS clients)
-    # Always include effective language in URL for consistent analytics
     url = f"/?lang={ui_lang}"
     await track_pageview(
         url=url,
@@ -229,12 +248,77 @@ async def root(request: Request, lang: str = Query(default=None)):
         referrer=request.headers.get("Referer", ""),
     )
 
-    # Build template context
     context = _get_template_context(request, ui_lang)
     context["active_page"] = "home"
+    context["screen_types"] = [
+        {"id": "calendar", "name_key": "screen_calendar_name", "desc_key": "screen_calendar_desc"},
+        {"id": "teams", "name_key": "screen_teams_name", "desc_key": "screen_teams_desc"},
+    ]
+
+    return templates.TemplateResponse(request, "home.html", context)
+
+
+@app.get("/configure/{screen_type}", response_class=HTMLResponse)
+async def configure_screen(request: Request, screen_type: str, lang: str = Query(default=None)):
+    if screen_type not in ["calendar", "teams"]:
+        raise HTTPException(status_code=404, detail="Unknown screen type")
+
+    if lang in ["en", "cs"]:
+        ui_lang = lang
+    else:
+        ui_lang = _detect_ui_language(request)
+
+    url = f"/configure/{screen_type}?lang={ui_lang}"
+    await track_pageview(
+        url=url,
+        title=f"Configure {screen_type.title()}",
+        lang=ui_lang,
+        user_agent=request.headers.get("User-Agent"),
+        referrer=request.headers.get("Referer", ""),
+    )
+
+    context = _get_template_context(request, ui_lang)
+    context["active_page"] = "configure"
+    context["screen_type"] = screen_type
     context["default_timezone"] = config.DEFAULT_TIMEZONE
 
-    return templates.TemplateResponse(request, "index.html", context)
+    return templates.TemplateResponse(request, "configure.html", context)
+
+
+@app.get("/preview/{screen_type}.png")
+async def get_preview_png(screen_type: str, lang: str = Query(default="en")):
+    if screen_type not in ["calendar", "teams"]:
+        raise HTTPException(status_code=404, detail="Unknown screen type")
+    if lang not in ["en", "cs"]:
+        lang = "en"
+
+    preview_path = Path(config.IMAGES_PATH) / f"preview_{screen_type}_{lang}.png"
+    if preview_path.exists():
+        return FileResponse(
+            preview_path,
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+
+    raise HTTPException(status_code=404, detail="Preview not generated yet")
+
+
+@app.get("/preview/configure/{screen_type}.png")
+async def get_configure_preview_png(screen_type: str, lang: str = Query(default="en")):
+    if screen_type not in ["calendar", "teams"]:
+        raise HTTPException(status_code=404, detail="Unknown screen type")
+    if lang not in ["en", "cs"]:
+        lang = "en"
+
+    configure_path = Path(config.IMAGES_PATH) / f"configure_{screen_type}_{lang}.png"
+    if configure_path.exists():
+        return FileResponse(
+            configure_path,
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=3600"},
+        )
+
+    raise HTTPException(status_code=404, detail="Configure preview not generated yet")
 
 
 @app.get("/preview")
@@ -253,6 +337,15 @@ async def favicon():
         iter([svg.encode()]),
         media_type="image/svg+xml",
         headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@app.get("/sw.js")
+async def service_worker():
+    return FileResponse(
+        Path("app/assets/js/sw.js"),
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache"},
     )
 
 
@@ -390,6 +483,84 @@ async def privacy(request: Request, lang: str = Query(default=None)):
     context = _get_template_context(request, ui_lang)
     context["active_page"] = "privacy"
     return templates.TemplateResponse(request, "privacy.html", context)
+
+
+@app.get("/changelog", response_class=HTMLResponse)
+async def changelog(request: Request, lang: str = Query(default=None)):
+    """
+    Changelog page showing version history and release notes.
+
+    Displays CHANGELOG.md content with version info from GitHub API.
+    Language can be overridden via ?lang= query parameter.
+    """
+    import markdown
+
+    if lang in ["en", "cs"]:
+        ui_lang = lang
+    else:
+        ui_lang = _detect_ui_language(request)
+
+    # Track pageview server-side
+    url = f"/changelog?lang={ui_lang}"
+    await track_pageview(
+        url=url,
+        title="Changelog",
+        lang=ui_lang,
+        user_agent=request.headers.get("User-Agent"),
+        referrer=request.headers.get("Referer", ""),
+    )
+
+    # Read CHANGELOG.md and filter to show only Frontend sections
+    changelog_path = Path(__file__).parent.parent / "CHANGELOG.md"
+    changelog_content = ""
+    if changelog_path.exists():
+        raw_content = changelog_path.read_text(encoding="utf-8")
+
+        # Filter out Backend sections, keep only Frontend
+        filtered_lines = []
+        in_backend_section = False
+        for line in raw_content.split("\n"):
+            # Check for section headers
+            if line.startswith("### Backend"):
+                in_backend_section = True
+                continue
+            elif line.startswith("### Frontend"):
+                in_backend_section = False
+                # Skip the "### Frontend" header itself - just show content
+                continue
+            elif line.startswith("## ["):
+                # New version section - reset backend flag
+                in_backend_section = False
+
+            # Only add lines if not in backend section
+            if not in_backend_section:
+                filtered_lines.append(line)
+
+        changelog_content = "\n".join(filtered_lines)
+
+        # Convert markdown to HTML
+        changelog_html = markdown.markdown(
+            changelog_content,
+            extensions=["extra", "toc"],
+        )
+    else:
+        changelog_html = "<p>Changelog not found.</p>"
+
+    # Get version info (may be None if not yet fetched)
+    version_info = get_cached_version()
+    if version_info is None:
+        # Fetch on first request if cache is empty
+        try:
+            version_info = await refresh_version_info()
+        except Exception as e:
+            logger.warning(f"Failed to fetch version info: {e}")
+
+    context = _get_template_context(request, ui_lang)
+    context["active_page"] = "changelog"
+    context["changelog_html"] = changelog_html
+    context["version_info"] = version_info
+
+    return templates.TemplateResponse(request, "changelog.html", context)
 
 
 @app.get("/api/docs/html", response_class=HTMLResponse)
@@ -597,6 +768,9 @@ async def stats_dashboard(
     # Get stats from database
     db = Database()
     stats = await db.get_stats_for_range(hours)
+    perf_stats = await db.get_perf_stats(hours)
+    perf_by_page = await db.get_perf_stats_by_page(hours)
+    perf_trends = await db.get_perf_trends(hours)
 
     # Track pageview
     url = f"/stats?range={range}&lang={ui_lang}"
@@ -612,6 +786,9 @@ async def stats_dashboard(
     context = _get_template_context(request, ui_lang)
     context["active_page"] = "stats"
     context["stats"] = stats
+    context["perf_stats"] = perf_stats
+    context["perf_by_page"] = perf_by_page
+    context["perf_trends"] = perf_trends
     context["selected_range"] = range
 
     # Range label for display
@@ -672,6 +849,7 @@ async def sitemap_xml():
     pages = [
         {"loc": "/", "priority": "1.0", "changefreq": "daily"},
         {"loc": "/api/docs/html", "priority": "0.8", "changefreq": "monthly"},
+        {"loc": "/changelog", "priority": "0.7", "changefreq": "weekly"},
         {"loc": "/stats", "priority": "0.6", "changefreq": "hourly"},
         {"loc": "/privacy", "priority": "0.3", "changefreq": "yearly"},
     ]
@@ -769,6 +947,57 @@ async def get_stats():
     }
 
 
+@app.post("/api/perf-metrics")
+async def post_perf_metrics(request: Request):
+    from app.models import PerfMetricsPayload
+    from app.services.analytics import track_event
+
+    try:
+        data = await request.json()
+        payload = PerfMetricsPayload(**data)
+
+        db = Database()
+        await db.save_perf_metric(
+            page_path=payload.page_path,
+            lcp_ms=payload.lcp_ms,
+            cls=payload.cls,
+            fcp_ms=payload.fcp_ms,
+            ttfb_ms=payload.ttfb_ms,
+            inp_ms=payload.inp_ms,
+            user_agent=request.headers.get("User-Agent"),
+            connection_type=payload.connection_type,
+            device_memory=payload.device_memory,
+        )
+
+        asyncio.create_task(
+            track_event(
+                url=payload.page_path,
+                event_name="web_vitals",
+                lang="en",
+                user_agent=request.headers.get("User-Agent"),
+                event_data={
+                    "lcp": payload.lcp_ms,
+                    "cls": payload.cls,
+                    "fcp": payload.fcp_ms,
+                    "ttfb": payload.ttfb_ms,
+                },
+            )
+        )
+
+        return {"status": "ok"}
+    except Exception as e:
+        logger.warning(f"Failed to save perf metrics: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/perf-metrics")
+async def get_perf_metrics(hours: int = Query(default=24, le=720)):
+    db = Database()
+    stats = await db.get_perf_stats(hours)
+    by_page = await db.get_perf_stats_by_page(hours)
+    return {"overall": stats, "by_page": by_page}
+
+
 @app.get("/api/stats/history")
 async def get_stats_history(limit: int = Query(default=168, le=720)):
     """
@@ -832,6 +1061,81 @@ async def get_race_detail(
 def _get_cache_key(lang: str, year: int | None, round_num: int | None, tz: str | None) -> str:
     """Generate cache key for BMP image."""
     return f"{lang}:{year or 'next'}:{round_num or 'next'}:{tz or 'default'}"
+
+
+def _get_current_f1_season() -> int:
+    """
+    Get the current F1 season based on first race dates.
+
+    Returns 2025 until 2026 season starts (March 8, 2026), then 2026.
+    """
+    now = datetime.now(timezone.utc)
+    season_2026_start = datetime(2026, 3, 8, tzinfo=timezone.utc)
+    season_2025_start = datetime(2025, 3, 16, tzinfo=timezone.utc)
+
+    if now >= season_2026_start:
+        return 2026
+    if now >= season_2025_start:
+        return 2025
+    return 2024
+
+
+DRIVER_NUMBERS = {
+    "VER": 1,
+    "NOR": 4,
+    "LEC": 16,
+    "SAI": 55,
+    "HAM": 44,
+    "RUS": 63,
+    "PIA": 81,
+    "ALO": 14,
+    "STR": 18,
+    "GAS": 10,
+    "OCO": 31,
+    "ALB": 23,
+    "TSU": 22,
+    "RIC": 3,
+    "HUL": 27,
+    "MAG": 20,
+    "BOT": 77,
+    "ZHO": 24,
+    "SAR": 2,
+    "LAW": 30,
+    "BEA": 87,
+    "COL": 43,
+    "DOO": 7,
+    "ANT": 12,
+    "HAD": 6,
+    "BOR": 5,
+}
+
+TEAM_ID_MAP = {
+    "McLaren": "mclaren",
+    "Ferrari": "ferrari",
+    "Red Bull": "red_bull",
+    "Mercedes": "mercedes",
+    "Aston Martin": "aston_martin",
+    "Alpine": "alpine",
+    "Williams": "williams",
+    "RB": "racing_bulls",
+    "Racing Bulls": "racing_bulls",
+    "Haas F1 Team": "haas",
+    "Haas": "haas",
+    "Kick Sauber": "sauber",
+    "Sauber": "sauber",
+    "Alfa Romeo": "sauber",
+}
+
+
+def _get_driver_number(driver_code: str, year: int) -> int | None:
+    return DRIVER_NUMBERS.get(driver_code)
+
+
+def _get_team_id(team_name: str) -> str | None:
+    for key, team_id in TEAM_ID_MAP.items():
+        if key.lower() in team_name.lower():
+            return team_id
+    return None
 
 
 def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
@@ -1199,6 +1503,147 @@ async def get_calendar_bmp(
             media_type="image/bmp",
             headers={"Content-Disposition": 'inline; filename="calendar.bmp"'},
         )
+
+
+@app.get("/teams.bmp")
+async def get_teams_bmp(
+    request: Request,
+    lang: str = Query(default="en", description="Language code (cs, en)"),
+    year: int = Query(default=None, description="Season year"),
+):
+    """Generate teams and drivers BMP image for E-Ink displays."""
+    start_time = time.time()
+
+    try:
+        if lang not in VALID_LANGUAGES:
+            lang = config.DEFAULT_LANG
+
+        if year is None:
+            year = _get_current_f1_season()
+
+        translator = get_translator(lang)
+        teams_service = TeamsService()
+        teams_data = await teams_service.get_teams_and_drivers(year)
+
+        renderer = Renderer(translator)
+        bmp_data = renderer.render_teams_drivers(teams_data)
+
+        _record_api_call(
+            "/teams.bmp",
+            (time.time() - start_time) * 1000,
+            len(bmp_data),
+            lang,
+            None,
+            year,
+            None,
+            None,
+            False,
+        )
+
+        return StreamingResponse(
+            BytesIO(bmp_data),
+            media_type="image/bmp",
+            headers={
+                "Content-Disposition": 'inline; filename="teams.bmp"',
+                "Cache-Control": "public, max-age=3600",
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"Error generating teams: {e}", exc_info=True)
+        sentry_sdk.capture_exception(e)
+
+        translator = get_translator(lang)
+        renderer = Renderer(translator)
+        bmp_data = renderer.render_error(str(e))
+
+        _record_api_call(
+            "/teams.bmp",
+            (time.time() - start_time) * 1000,
+            len(bmp_data),
+            lang,
+            None,
+            year,
+            None,
+            None,
+            False,
+        )
+
+        return StreamingResponse(
+            BytesIO(bmp_data),
+            media_type="image/bmp",
+            headers={"Content-Disposition": 'inline; filename="teams.bmp"'},
+        )
+
+
+@app.get("/api/teams/{year}")
+async def get_teams(year: int):
+    """Get teams and drivers for a season."""
+    teams_service = TeamsService()
+    teams_data = await teams_service.get_teams_and_drivers(year)
+    return {
+        "season": teams_data.season,
+        "teams": [t.model_dump() for t in teams_data.teams],
+    }
+
+
+@app.get("/api/standings/leader")
+@app.get("/api/standings/leader/{year}")
+async def get_standings_leader(year: int | None = None):
+    """
+    Get the championship leader (team and driver) for a given season.
+
+    Returns the leading constructor and driver based on current standings.
+    For future seasons with no data yet, returns has_data=false.
+    """
+    from app.services.standings_service import StandingsService
+
+    if year is None:
+        year = _get_current_f1_season()
+
+    standings_service = StandingsService()
+
+    try:
+        driver_standings = await standings_service.get_driver_standings(year, limit=1)
+        constructor_standings = await standings_service.get_constructor_standings(year, limit=1)
+
+        leader_driver = None
+        leader_team = None
+
+        if driver_standings:
+            d = driver_standings[0]
+            leader_driver = {
+                "name": d.driver_name.upper(),
+                "code": d.driver_code,
+                "full_name": f"{d.driver_given_name} {d.driver_name}",
+                "number": _get_driver_number(d.driver_code, year),
+                "team": d.constructor_name,
+            }
+
+        if constructor_standings:
+            c = constructor_standings[0]
+            leader_team = {
+                "name": c.constructor_name,
+                "id": _get_team_id(c.constructor_name),
+            }
+
+        has_data = leader_driver is not None or leader_team is not None
+
+        return {
+            "season": year,
+            "leader_team": leader_team,
+            "leader_driver": leader_driver,
+            "has_data": has_data,
+        }
+
+    except Exception as e:
+        logger.warning(f"Failed to get standings leader for {year}: {e}")
+        return {
+            "season": year,
+            "leader_team": None,
+            "leader_driver": None,
+            "has_data": False,
+        }
 
 
 if __name__ == "__main__":

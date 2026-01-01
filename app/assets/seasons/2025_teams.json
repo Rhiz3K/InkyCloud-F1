@@ -1,0 +1,223 @@
+{
+  "year": 2025,
+  "teams": [
+    {
+      "entrant": "BWT Alpine F1 Team",
+      "constructor": "Alpine-Renault",
+      "chassis": "A525",
+      "power_unit": "Renault E-Tech RE25",
+      "drivers": [
+        {
+          "number": 7,
+          "name": "Jack Doohan",
+          "nationality": "Australia",
+          "rounds": "1–6"
+        },
+        {
+          "number": 43,
+          "name": "Franco Colapinto",
+          "nationality": "Argentina",
+          "rounds": "7–24"
+        },
+        {
+          "number": 10,
+          "name": "Pierre Gasly",
+          "nationality": "France",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Aston Martin Aramco F1 Team",
+      "constructor": "Aston Martin Aramco-Mercedes",
+      "chassis": "AMR25",
+      "power_unit": "Mercedes-AMG F1 M16",
+      "drivers": [
+        {
+          "number": 14,
+          "name": "Fernando Alonso",
+          "nationality": "Spain",
+          "rounds": "All"
+        },
+        {
+          "number": 18,
+          "name": "Lance Stroll",
+          "nationality": "Canada",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Scuderia Ferrari HP",
+      "constructor": "Ferrari",
+      "chassis": "SF-25",
+      "power_unit": "Ferrari 066/15",
+      "drivers": [
+        {
+          "number": 16,
+          "name": "Charles Leclerc",
+          "nationality": "Monaco",
+          "rounds": "All"
+        },
+        {
+          "number": 44,
+          "name": "Lewis Hamilton",
+          "nationality": "United Kingdom",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "MoneyGram Haas F1 Team",
+      "constructor": "Haas-Ferrari",
+      "chassis": "VF-25",
+      "power_unit": "Ferrari 066/15",
+      "drivers": [
+        {
+          "number": 31,
+          "name": "Esteban Ocon",
+          "nationality": "France",
+          "rounds": "All"
+        },
+        {
+          "number": 87,
+          "name": "Oliver Bearman",
+          "nationality": "United Kingdom",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Stake F1 Team Kick Sauber",
+      "constructor": "Kick Sauber-Ferrari",
+      "chassis": "C45",
+      "power_unit": "Ferrari 066/15",
+      "drivers": [
+        {
+          "number": 5,
+          "name": "Gabriel Bortoleto",
+          "nationality": "Brazil",
+          "rounds": "All"
+        },
+        {
+          "number": 27,
+          "name": "Nico Hülkenberg",
+          "nationality": "Germany",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "McLaren Formula 1 Team",
+      "constructor": "McLaren-Mercedes",
+      "chassis": "MCL39",
+      "power_unit": "Mercedes-AMG F1 M16",
+      "drivers": [
+        {
+          "number": 4,
+          "name": "Lando Norris",
+          "nationality": "United Kingdom",
+          "rounds": "All"
+        },
+        {
+          "number": 81,
+          "name": "Oscar Piastri",
+          "nationality": "Australia",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Mercedes-AMG Petronas F1 Team",
+      "constructor": "Mercedes",
+      "chassis": "F1 W16",
+      "power_unit": "Mercedes-AMG F1 M16",
+      "drivers": [
+        {
+          "number": 12,
+          "name": "Kimi Antonelli",
+          "nationality": "Italy",
+          "rounds": "All"
+        },
+        {
+          "number": 63,
+          "name": "George Russell",
+          "nationality": "United Kingdom",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Visa Cash App Racing Bulls F1 Team",
+      "constructor": "Racing Bulls-Honda RBPT",
+      "chassis": "VCARB 02",
+      "power_unit": "Honda RBPTH003",
+      "drivers": [
+        {
+          "number": 6,
+          "name": "Isack Hadjar",
+          "nationality": "France",
+          "rounds": "All"
+        },
+        {
+          "number": 22,
+          "name": "Yuki Tsunoda",
+          "nationality": "Japan",
+          "rounds": "1–2"
+        },
+        {
+          "number": 30,
+          "name": "Liam Lawson",
+          "nationality": "New Zealand",
+          "rounds": "3–24"
+        }
+      ]
+    },
+    {
+      "entrant": "Oracle Red Bull Racing",
+      "constructor": "Red Bull Racing-Honda RBPT",
+      "chassis": "RB21",
+      "power_unit": "Honda RBPTH003",
+      "drivers": [
+        {
+          "number": 1,
+          "name": "Max Verstappen",
+          "nationality": "Netherlands",
+          "rounds": "All"
+        },
+        {
+          "number": 30,
+          "name": "Liam Lawson",
+          "nationality": "New Zealand",
+          "rounds": "1–2"
+        },
+        {
+          "number": 22,
+          "name": "Yuki Tsunoda",
+          "nationality": "Japan",
+          "rounds": "3–24"
+        }
+      ]
+    },
+    {
+      "entrant": "Atlassian Williams Racing",
+      "constructor": "Williams-Mercedes",
+      "chassis": "FW47",
+      "power_unit": "Mercedes-AMG F1 M16",
+      "drivers": [
+        {
+          "number": 23,
+          "name": "Alexander Albon",
+          "nationality": "Thailand",
+          "rounds": "All"
+        },
+        {
+          "number": 55,
+          "name": "Carlos Sainz Jr.",
+          "nationality": "Spain",
+          "rounds": "All"
+        }
+      ]
+    }
+  ]
+}

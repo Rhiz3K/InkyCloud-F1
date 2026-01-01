@@ -129,15 +129,21 @@ docs: update Docker deployment instructions
 ```
 InkyCloud-F1/
 ├── app/
-│   ├── main.py           # FastAPI application
+│   ├── main.py           # FastAPI application (endpoints, lifespan)
 │   ├── config.py         # Configuration management
-│   ├── models.py         # Data models
+│   ├── models.py         # Pydantic data models
 │   └── services/         # Business logic
+│       ├── renderer.py      # 1-bit BMP rendering engine
 │       ├── f1_service.py    # F1 API integration
-│       ├── renderer.py      # Image rendering
-│       ├── analytics.py     # Analytics tracking
+│       ├── teams_service.py # Teams & drivers data
+│       ├── standings_service.py # Championship standings
+│       ├── database.py      # SQLite operations
+│       ├── scheduler.py     # APScheduler background jobs
+│       ├── backup.py        # S3 database backup
+│       ├── analytics.py     # Umami analytics
 │       └── i18n.py          # Translations
-├── translations/         # i18n JSON files
+├── scripts/             # Data update & preprocessing utilities
+├── translations/        # i18n JSON files (en, cs)
 ├── tests/               # Test suite
 └── .github/             # CI/CD workflows
 ```

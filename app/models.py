@@ -126,3 +126,100 @@ class ScheduleEvent(BaseModel):
     name: str
     datetime: datetime
     display_time: str
+
+
+# ============================================================================
+# Championship Standings Models (for driver and constructor standings)
+# ============================================================================
+
+
+class DriverStanding(BaseModel):
+    """Driver championship standing entry."""
+
+    position: int
+    points: float
+    wins: int = 0
+    driver_code: str = Field(default="", description="Driver code, e.g. VER")
+    driver_name: str = Field(default="", description="Family name for display")
+    driver_given_name: str = ""
+    nationality: str = ""
+    constructor_name: str = ""
+
+
+class ConstructorStanding(BaseModel):
+    """Constructor/team championship standing entry."""
+
+    position: int
+    points: float
+    wins: int = 0
+    constructor_name: str = Field(default="", description="Team name, e.g. Red Bull")
+    nationality: str = ""
+
+
+class StandingsData(BaseModel):
+    """Container for championship standings data."""
+
+    season: int
+    round: int = Field(default=0, description="After which round these standings apply")
+    driver_standings: list[DriverStanding] = []
+    constructor_standings: list[ConstructorStanding] = []
+
+
+# ============================================================================
+# Teams & Drivers Models (for season entry list display)
+# ============================================================================
+
+
+class TeamDriverEntry(BaseModel):
+    """A driver entry within a team for the season."""
+
+    driver_id: str = Field(default="", description="Driver ID from API")
+    driver_code: str = Field(default="", description="Driver code, e.g. VER")
+    driver_number: Optional[int] = Field(default=None, description="Permanent race number")
+    given_name: str = ""
+    family_name: str = ""
+    name: str = Field(default="", description="Full display name from Wikipedia")
+    nationality: str = ""
+    rounds: str = Field(default="All", description="Which rounds the driver races")
+    position: Optional[int] = Field(default=None, description="Championship position")
+    points: float = Field(default=0.0, description="Championship points")
+    wins: int = Field(default=0, description="Number of race wins")
+
+
+class TeamEntry(BaseModel):
+    """A team/constructor entry with its drivers for the season."""
+
+    constructor_id: str = Field(default="", description="Constructor ID from API")
+    constructor_name: str = Field(default="", description="Team name, e.g. Red Bull")
+    entrant: str = Field(default="", description="Full entrant name with sponsors")
+    chassis: str = Field(default="", description="Chassis model, e.g. RB21")
+    power_unit: str = Field(default="", description="Power unit, e.g. Honda RBPTH003")
+    nationality: str = ""
+    position: Optional[int] = Field(default=None, description="Constructor championship position")
+    points: float = Field(default=0.0, description="Constructor championship points")
+    drivers: list[TeamDriverEntry] = Field(default_factory=list)
+
+
+class TeamsData(BaseModel):
+    """Container for teams and drivers data for a season."""
+
+    season: int
+    teams: list[TeamEntry] = Field(default_factory=list)
+
+
+# ============================================================================
+# Performance Metrics Models (Real User Monitoring)
+# ============================================================================
+
+
+class PerfMetricsPayload(BaseModel):
+    """Payload for performance metrics from browser."""
+
+    page_path: str = Field(..., max_length=500)
+    lcp_ms: Optional[float] = Field(default=None, ge=0, le=60000)
+    cls: Optional[float] = Field(default=None, ge=0, le=10)
+    fcp_ms: Optional[float] = Field(default=None, ge=0, le=60000)
+    ttfb_ms: Optional[float] = Field(default=None, ge=0, le=60000)
+    inp_ms: Optional[float] = Field(default=None, ge=0, le=60000)
+    connection_type: Optional[str] = Field(default=None, max_length=50)
+    device_memory: Optional[float] = Field(default=None, ge=0, le=512)

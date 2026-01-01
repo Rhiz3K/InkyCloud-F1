@@ -97,10 +97,26 @@ class Database:
                     is_auto_selected INTEGER DEFAULT 0
                 );
 
+                -- Performance metrics table (Real User Monitoring)
+                CREATE TABLE IF NOT EXISTS perf_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    page_path TEXT NOT NULL,
+                    lcp_ms REAL,
+                    cls REAL,
+                    fcp_ms REAL,
+                    ttfb_ms REAL,
+                    inp_ms REAL,
+                    user_agent TEXT,
+                    connection_type TEXT,
+                    device_memory REAL
+                );
+
                 -- Create indexes (note: idx_api_calls_race created after migrations)
                 CREATE INDEX IF NOT EXISTS idx_images_key ON generated_images(image_key);
                 CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON request_stats(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_api_calls_timestamp ON api_calls(timestamp);
+                CREATE INDEX IF NOT EXISTS idx_perf_metrics_timestamp ON perf_metrics(timestamp);
             """)
             await conn.commit()
 
@@ -600,3 +616,260 @@ class Database:
                 return [
                     {"lang": row["lang"], "tz": row["tz"], "count": row["count"]} for row in rows
                 ]
+
+    async def save_perf_metric(
+        self,
+        page_path: str,
+        lcp_ms: float | None = None,
+        cls: float | None = None,
+        fcp_ms: float | None = None,
+        ttfb_ms: float | None = None,
+        inp_ms: float | None = None,
+        user_agent: str | None = None,
+        connection_type: str | None = None,
+        device_memory: float | None = None,
+    ) -> None:
+        await self._init_db_if_needed()
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            await conn.execute(
+                """
+                INSERT INTO perf_metrics
+                    (timestamp, page_path, lcp_ms, cls, fcp_ms, ttfb_ms, inp_ms,
+                     user_agent, connection_type, device_memory)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    datetime.now(timezone.utc).isoformat(),
+                    page_path,
+                    lcp_ms,
+                    cls,
+                    fcp_ms,
+                    ttfb_ms,
+                    inp_ms,
+                    user_agent,
+                    connection_type,
+                    device_memory,
+                ),
+            )
+            await conn.commit()
+
+    async def get_perf_stats(self, hours: int = 24) -> dict:
+        await self._init_db_if_needed()
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+
+            # Get aggregate stats
+            async with conn.execute(
+                """
+                SELECT
+                    COUNT(*) as sample_count,
+                    AVG(lcp_ms) as avg_lcp,
+                    AVG(cls) as avg_cls,
+                    AVG(fcp_ms) as avg_fcp,
+                    AVG(ttfb_ms) as avg_ttfb,
+                    AVG(inp_ms) as avg_inp,
+                    MIN(lcp_ms) as min_lcp,
+                    MAX(lcp_ms) as max_lcp,
+                    MIN(ttfb_ms) as min_ttfb,
+                    MAX(ttfb_ms) as max_ttfb
+                FROM perf_metrics
+                WHERE timestamp > ?
+                """,
+                (cutoff,),
+            ) as cursor:
+                row = await cursor.fetchone()
+
+            if not row or row["sample_count"] == 0:
+                return {
+                    "sample_count": 0,
+                    "lcp": {
+                        "avg": None,
+                        "min": None,
+                        "max": None,
+                        "p50": None,
+                        "p75": None,
+                        "p95": None,
+                    },
+                    "cls": {"avg": None, "p50": None, "p75": None, "p95": None},
+                    "fcp": {"avg": None, "p50": None, "p75": None, "p95": None},
+                    "ttfb": {
+                        "avg": None,
+                        "min": None,
+                        "max": None,
+                        "p50": None,
+                        "p75": None,
+                        "p95": None,
+                    },
+                    "inp": {"avg": None, "p50": None, "p75": None, "p95": None},
+                }
+
+            # Fetch raw values for percentile calculation (sorted)
+            async with conn.execute(
+                """SELECT lcp_ms FROM perf_metrics
+                WHERE timestamp > ? AND lcp_ms IS NOT NULL ORDER BY lcp_ms""",
+                (cutoff,),
+            ) as cursor:
+                lcp_values = [r["lcp_ms"] for r in await cursor.fetchall()]
+
+            async with conn.execute(
+                """SELECT cls FROM perf_metrics
+                WHERE timestamp > ? AND cls IS NOT NULL ORDER BY cls""",
+                (cutoff,),
+            ) as cursor:
+                cls_values = [r["cls"] for r in await cursor.fetchall()]
+
+            async with conn.execute(
+                """SELECT fcp_ms FROM perf_metrics
+                WHERE timestamp > ? AND fcp_ms IS NOT NULL ORDER BY fcp_ms""",
+                (cutoff,),
+            ) as cursor:
+                fcp_values = [r["fcp_ms"] for r in await cursor.fetchall()]
+
+            async with conn.execute(
+                """SELECT ttfb_ms FROM perf_metrics
+                WHERE timestamp > ? AND ttfb_ms IS NOT NULL ORDER BY ttfb_ms""",
+                (cutoff,),
+            ) as cursor:
+                ttfb_values = [r["ttfb_ms"] for r in await cursor.fetchall()]
+
+            async with conn.execute(
+                """SELECT inp_ms FROM perf_metrics
+                WHERE timestamp > ? AND inp_ms IS NOT NULL ORDER BY inp_ms""",
+                (cutoff,),
+            ) as cursor:
+                inp_values = [r["inp_ms"] for r in await cursor.fetchall()]
+
+            return {
+                "sample_count": row["sample_count"],
+                "lcp": {
+                    "avg": round(row["avg_lcp"], 0) if row["avg_lcp"] else None,
+                    "min": round(row["min_lcp"], 0) if row["min_lcp"] else None,
+                    "max": round(row["max_lcp"], 0) if row["max_lcp"] else None,
+                    "p50": self._calculate_percentile(lcp_values, 50),
+                    "p75": self._calculate_percentile(lcp_values, 75),
+                    "p95": self._calculate_percentile(lcp_values, 95),
+                },
+                "cls": {
+                    "avg": round(row["avg_cls"], 3) if row["avg_cls"] else None,
+                    "p50": self._calculate_percentile_fine(cls_values, 50),
+                    "p75": self._calculate_percentile_fine(cls_values, 75),
+                    "p95": self._calculate_percentile_fine(cls_values, 95),
+                },
+                "fcp": {
+                    "avg": round(row["avg_fcp"], 0) if row["avg_fcp"] else None,
+                    "p50": self._calculate_percentile(fcp_values, 50),
+                    "p75": self._calculate_percentile(fcp_values, 75),
+                    "p95": self._calculate_percentile(fcp_values, 95),
+                },
+                "ttfb": {
+                    "avg": round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None,
+                    "min": round(row["min_ttfb"], 0) if row["min_ttfb"] else None,
+                    "max": round(row["max_ttfb"], 0) if row["max_ttfb"] else None,
+                    "p50": self._calculate_percentile(ttfb_values, 50),
+                    "p75": self._calculate_percentile(ttfb_values, 75),
+                    "p95": self._calculate_percentile(ttfb_values, 95),
+                },
+                "inp": {
+                    "avg": round(row["avg_inp"], 0) if row["avg_inp"] else None,
+                    "p50": self._calculate_percentile(inp_values, 50),
+                    "p75": self._calculate_percentile(inp_values, 75),
+                    "p95": self._calculate_percentile(inp_values, 95),
+                },
+            }
+
+    async def get_perf_stats_by_page(self, hours: int = 24) -> list[dict]:
+        await self._init_db_if_needed()
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+
+            async with conn.execute(
+                """
+                SELECT
+                    page_path,
+                    COUNT(*) as sample_count,
+                    AVG(lcp_ms) as avg_lcp,
+                    AVG(cls) as avg_cls,
+                    AVG(fcp_ms) as avg_fcp,
+                    AVG(ttfb_ms) as avg_ttfb
+                FROM perf_metrics
+                WHERE timestamp > ?
+                GROUP BY page_path
+                ORDER BY sample_count DESC
+                LIMIT 10
+                """,
+                (cutoff,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return [
+                    {
+                        "page": row["page_path"],
+                        "samples": row["sample_count"],
+                        "lcp": round(row["avg_lcp"], 0) if row["avg_lcp"] else None,
+                        "cls": round(row["avg_cls"], 3) if row["avg_cls"] else None,
+                        "fcp": round(row["avg_fcp"], 0) if row["avg_fcp"] else None,
+                        "ttfb": round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None,
+                    }
+                    for row in rows
+                ]
+
+    def _calculate_percentile(self, values: list[float], percentile: int) -> float | None:
+        if not values:
+            return None
+        n = len(values)
+        idx = (percentile / 100) * (n - 1)
+        lower = int(idx)
+        upper = lower + 1
+        if upper >= n:
+            return round(values[-1], 0)
+        weight = idx - lower
+        return round(values[lower] * (1 - weight) + values[upper] * weight, 0)
+
+    def _calculate_percentile_fine(self, values: list[float], percentile: int) -> float | None:
+        if not values:
+            return None
+        n = len(values)
+        idx = (percentile / 100) * (n - 1)
+        lower = int(idx)
+        upper = lower + 1
+        if upper >= n:
+            return round(values[-1], 3)
+        weight = idx - lower
+        return round(values[lower] * (1 - weight) + values[upper] * weight, 3)
+
+    async def get_perf_trends(self, hours: int = 24) -> dict:
+        await self._init_db_if_needed()
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
+
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+
+            async with conn.execute(
+                """
+                SELECT
+                    strftime('%Y-%m-%d %H:00', timestamp) as hour,
+                    AVG(lcp_ms) as avg_lcp,
+                    AVG(fcp_ms) as avg_fcp,
+                    AVG(ttfb_ms) as avg_ttfb,
+                    COUNT(*) as samples
+                FROM perf_metrics
+                WHERE timestamp > ?
+                GROUP BY hour
+                ORDER BY hour ASC
+                """,
+                (cutoff,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return {
+                    "hours": [row["hour"] for row in rows],
+                    "lcp": [round(row["avg_lcp"], 0) if row["avg_lcp"] else None for row in rows],
+                    "fcp": [round(row["avg_fcp"], 0) if row["avg_fcp"] else None for row in rows],
+                    "ttfb": [
+                        round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None for row in rows
+                    ],
+                    "samples": [row["samples"] for row in rows],
+                }
