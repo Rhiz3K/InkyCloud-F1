@@ -165,15 +165,11 @@ def main():
 
     data = scrape_wiki_teams(year)
 
-    print(f"\nFound {len(data.get('teams', []))} teams:")
-    for team in data.get("teams", []):
-        print(f"\n  {team['entrant']}")
-        print(f"    Constructor: {team['constructor']}")
-        print(f"    Chassis: {team['chassis']}")
-        print(f"    Power Unit: {team['power_unit']}")
-        for d in team["drivers"]:
-            num = f"#{d.get('number', '?'):>2}" if d.get("number") else "# ?"
-            print(f"    {num} {d.get('name', 'Unknown'):<20} ({d.get('rounds', 'All')})")
+    teams_list = data.get("teams", [])
+    print(f"\nFound {len(teams_list)} teams:")
+    for team in teams_list:
+        driver_count = len(team.get("drivers", []))
+        print(f"  - {team.get('entrant', 'Unknown')} ({driver_count} drivers)")
 
     output_path = Path(__file__).parent.parent / "app" / "assets" / "seasons" / f"{year}_teams.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)

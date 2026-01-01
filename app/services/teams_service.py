@@ -67,8 +67,17 @@ class TeamsService:
         self._cache[key] = CacheEntry(data)
         logger.debug(f"Cached {key}")
 
+    def _validate_year(self, year: int) -> bool:
+        """Validate year is within acceptable F1 data range (1950-2030)."""
+        return isinstance(year, int) and 1950 <= year <= 2030
+
     def _load_from_json(self, year: int) -> Optional[TeamsData]:
-        json_path = SEASONS_DIR / f"{year}_teams.json"
+        if not self._validate_year(year):
+            logger.warning(f"Invalid year requested: {year}")
+            return None
+
+        safe_filename = f"{year}_teams.json"
+        json_path = SEASONS_DIR / safe_filename
         if not json_path.exists():
             logger.debug(f"No JSON file found at {json_path}")
             return None

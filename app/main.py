@@ -287,12 +287,19 @@ async def configure_screen(request: Request, screen_type: str, lang: str = Query
 
 @app.get("/preview/{screen_type}.png")
 async def get_preview_png(screen_type: str, lang: str = Query(default="en")):
-    if screen_type not in ["calendar", "teams"]:
-        raise HTTPException(status_code=404, detail="Unknown screen type")
-    if lang not in ["en", "cs"]:
-        lang = "en"
+    # Whitelist validation to prevent path injection
+    allowed_screens = {"calendar": "calendar", "teams": "teams"}
+    allowed_langs = {"en": "en", "cs": "cs"}
 
-    preview_path = Path(config.IMAGES_PATH) / f"preview_{screen_type}_{lang}.png"
+    safe_screen = allowed_screens.get(screen_type)
+    if not safe_screen:
+        raise HTTPException(status_code=404, detail="Unknown screen type")
+
+    safe_lang = allowed_langs.get(lang, "en")
+
+    # Use validated values only
+    filename = f"preview_{safe_screen}_{safe_lang}.png"
+    preview_path = Path(config.IMAGES_PATH) / filename
     if preview_path.exists():
         return FileResponse(
             preview_path,
@@ -305,12 +312,19 @@ async def get_preview_png(screen_type: str, lang: str = Query(default="en")):
 
 @app.get("/preview/configure/{screen_type}.png")
 async def get_configure_preview_png(screen_type: str, lang: str = Query(default="en")):
-    if screen_type not in ["calendar", "teams"]:
-        raise HTTPException(status_code=404, detail="Unknown screen type")
-    if lang not in ["en", "cs"]:
-        lang = "en"
+    # Whitelist validation to prevent path injection
+    allowed_screens = {"calendar": "calendar", "teams": "teams"}
+    allowed_langs = {"en": "en", "cs": "cs"}
 
-    configure_path = Path(config.IMAGES_PATH) / f"configure_{screen_type}_{lang}.png"
+    safe_screen = allowed_screens.get(screen_type)
+    if not safe_screen:
+        raise HTTPException(status_code=404, detail="Unknown screen type")
+
+    safe_lang = allowed_langs.get(lang, "en")
+
+    # Use validated values only
+    filename = f"configure_{safe_screen}_{safe_lang}.png"
+    configure_path = Path(config.IMAGES_PATH) / filename
     if configure_path.exists():
         return FileResponse(
             configure_path,
@@ -987,7 +1001,7 @@ async def post_perf_metrics(request: Request):
         return {"status": "ok"}
     except Exception as e:
         logger.warning(f"Failed to save perf metrics: {e}")
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": "Failed to save metrics"}
 
 
 @app.get("/api/perf-metrics")
