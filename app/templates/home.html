@@ -4,7 +4,7 @@
 
 {% block meta_description %}<meta name="description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">{% endblock %}
 
-{% block canonical %}<link rel="canonical" href="{{ site_url }}/?lang={{ ui_lang }}">{% endblock %}
+{# canonical handled by base.html using request.url.path #}
 
 {% block og_tags %}
 <meta property="og:title" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
@@ -53,8 +53,10 @@
                 <div class="relative bg-gray-100 border-b-4 border-black overflow-hidden">
                     <img src="/preview/{{ screen.id }}.png?lang={{ ui_lang }}" 
                          alt="{{ t.get(screen.name_key, screen.id) }}" 
+                         width="800"
+                         height="480"
                          class="w-full h-auto object-contain"
-                         loading="lazy"
+                         {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}
                          decoding="async"
                          onerror="this.src='/static/images/og-preview.png'">
                     <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
@@ -67,7 +69,7 @@
                         {{ t.get(screen.desc_key, '') }}
                     </p>
                     <div class="mt-4 flex items-center justify-between">
-                        <span class="text-xs font-bold uppercase text-gray-400">800x480 1-BIT</span>
+                        <span class="text-xs font-bold uppercase text-gray-600">800x480 1-BIT</span>
                         <span class="px-3 py-1 bg-black text-white text-xs font-bold uppercase group-hover:bg-racing-red transition-colors">
                             {{ t.get('home_configure', 'Configure') }} &rarr;
                         </span>
@@ -81,26 +83,26 @@
             <h3 class="text-sm font-bold uppercase tracking-widest mb-4 text-center">Credits</h3>
             <div class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-gray-600">
                 <span>
-                    <span class="text-gray-400">Inspired by</span>
-                    <a href="https://x.com/foxeelab/status/1761498129268981856" target="_blank" rel="noopener noreferrer" class="text-racing-red hover:underline">FoxeeLab</a>
+                    <span class="text-gray-600">Inspired by</span>
+                    <a href="https://x.com/foxeelab/status/1761498129268981856" target="_blank" rel="noopener noreferrer" class="font-bold hover:text-racing-red hover:underline">FoxeeLab</a>
                 </span>
                 <span class="text-gray-300">|</span>
                 <span>
-                    <span class="text-gray-400">Data:</span>
+                    <span class="text-gray-600">Data:</span>
                     <a href="https://github.com/jolpica/jolpica-f1" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Jolpica</a>
                 </span>
                 <span class="text-gray-300">|</span>
                 <span>
-                    <span class="text-gray-400">Platform:</span>
+                    <span class="text-gray-600">Platform:</span>
                     <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Živýobraz.eu</a>
                 </span>
                 <span class="text-gray-300">|</span>
                 <span>
-                    <span class="text-gray-400">Hardware:</span>
+                    <span class="text-gray-600">Hardware:</span>
                     <a href="https://www.laskakit.cz/laskakit-live-7-5-e-paper-stavebnice-s-wifi-pro---zivy-obraz-/" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">LaskaKit</a>
                 </span>
             </div>
-            <div class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-gray-400 mt-3">
+            <div class="flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-gray-600 mt-3">
                 <span>
                     <span>Hosting:</span>
                     <a href="https://coolify.io" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Coolify</a> +

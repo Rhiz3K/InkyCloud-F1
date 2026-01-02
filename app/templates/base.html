@@ -11,10 +11,10 @@
     {% block meta_description %}<meta name="description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">{% endblock %}
     
     <!-- Canonical & Hreflang -->
-    {% block canonical %}<link rel="canonical" href="{{ site_url }}/">{% endblock %}
-    <link rel="alternate" hreflang="en" href="{{ site_url }}/?lang=en">
-    <link rel="alternate" hreflang="cs" href="{{ site_url }}/?lang=cs">
-    <link rel="alternate" hreflang="x-default" href="{{ site_url }}/">
+    {% block canonical %}<link rel="canonical" href="{{ site_url }}{{ request.url.path }}{% if ui_lang %}?lang={{ ui_lang }}{% endif %}">{% endblock %}
+    <link rel="alternate" hreflang="en" href="{{ site_url }}{{ request.url.path }}?lang=en">
+    <link rel="alternate" hreflang="cs" href="{{ site_url }}{{ request.url.path }}?lang=cs">
+    <link rel="alternate" hreflang="x-default" href="{{ site_url }}{{ request.url.path }}">
     
     <!-- Open Graph -->
     <meta property="og:site_name" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
@@ -64,8 +64,8 @@
     <div id="mobileNavMenu" class="fixed top-0 left-0 h-full w-72 bg-white border-r-4 border-black transform -translate-x-full transition-transform duration-200 z-50 lg:hidden">
         <div class="px-4 py-3 border-b-2 border-black bg-black text-white flex items-center justify-between">
             <span class="font-bold uppercase tracking-widest text-sm">{{ nav.nav_menu }}</span>
-            <button onclick="closeMobileNav()" class="p-1 hover:bg-white hover:text-black transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <button onclick="closeMobileNav()" aria-label="Close menu" class="p-1 hover:bg-white hover:text-black transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="square" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
         <nav class="p-4 space-y-2">
@@ -78,7 +78,7 @@
         </nav>
     </div>
 
-    <script src="/static/js/common.js"></script>
+    <script src="/static/js/common.js" defer></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

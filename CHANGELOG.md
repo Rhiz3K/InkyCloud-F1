@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-01-02
+
+### Performance (Core Web Vitals)
+
+#### Fixed
+- **LCP Optimization** - First preview image now has `fetchpriority="high"` and no lazy loading
+- **CLS Prevention** - Added explicit `width="800" height="480"` to preview images
+- **Logo Optimization** - Removed oversized 2x srcset (19KB → 10KB saved), added `fetchpriority="high"`
+- **Render-blocking** - Deferred `common.js` script loading
+
+#### Accessibility
+- **WCAG AA Contrast** - Fixed low contrast text in credits section (`text-gray-400` → `text-gray-600`)
+- **WCAG AA Contrast** - FoxeeLab link now uses `font-bold` with hover state instead of `text-racing-red`
+- **Screen Readers** - Added `aria-label` to mobile menu buttons with fallback (`nav.get('nav_menu', 'Menu')`)
+- **Screen Readers** - Added `aria-hidden="true"` to decorative SVG icons
+- **Screen Readers** - Added `sr-only` label to language switcher select
+
+#### SEO
+- **Canonical URLs** - Now correctly use `request.url.path` with language parameter
+- **Hreflang Tags** - Fixed to match canonical URL structure per page
+
 ## [1.1.0] - 2026-01-01
 
 ### Frontend

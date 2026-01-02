@@ -60,7 +60,7 @@ def test_root_endpoint_returns_html():
     response = client.get("/", follow_redirects=False)
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "/static/images/f1_homepage_logo.png" in response.text
+    assert "/static/images/f1_homepage_logo_optimized.png" in response.text
 
 
 def test_root_page_contains_tailwind():
