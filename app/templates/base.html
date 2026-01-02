@@ -14,7 +14,7 @@
     {% block canonical %}<link rel="canonical" href="{{ site_url }}{{ request.url.path }}{% if ui_lang %}?lang={{ ui_lang }}{% endif %}">{% endblock %}
     <link rel="alternate" hreflang="en" href="{{ site_url }}{{ request.url.path }}?lang=en">
     <link rel="alternate" hreflang="cs" href="{{ site_url }}{{ request.url.path }}?lang=cs">
-    <link rel="alternate" hreflang="x-default" href="{{ site_url }}{{ request.url.path }}">
+    <link rel="alternate" hreflang="x-default" href="{{ site_url }}{{ request.url.path }}?lang=en">
     
     <!-- Open Graph -->
     <meta property="og:site_name" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
@@ -37,7 +37,6 @@
     
     <!-- Favicons -->
     <link rel="icon" href="/favicon.ico" sizes="48x48">
-    <link rel="icon" href="/static/favicon/favicon.svg" type="image/svg+xml">
     <link rel="icon" type="image/png" sizes="96x96" href="/static/favicon/favicon-96x96.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon/apple-touch-icon.png">
     <link rel="manifest" href="/static/favicon/site.webmanifest">
