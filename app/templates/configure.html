@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}{{ t.get('site_name', 'F1 E-Ink Calendar') }} - F1.InkyCloud.click{% endblock %}
+{% block title %}{{ t.get('configure_title', 'Configure').replace('{screen_type}', screen_type|title) }} - F1.InkyCloud.click{% endblock %}
 
 {% block meta_description %}<meta name="description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">{% endblock %}
 
-{% block canonical %}<link rel="canonical" href="{{ site_url }}/?lang={{ ui_lang }}">{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ site_url }}/configure/{{ screen_type }}?lang={{ ui_lang }}">{% endblock %}
 
 {% block og_tags %}
 <meta property="og:title" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
@@ -20,6 +20,7 @@
 {% endblock %}
 
 {% block head %}
+<link rel="preload" as="image" href="/preview/configure/{{ screen_type }}.png?lang={{ ui_lang }}" type="image/png">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -54,24 +55,40 @@
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
         
-        <!-- Panel Header -->
+        <!-- Panel Header with Back Link -->
         <div class="px-4 py-3 border-b-2 border-black bg-black text-white">
+            <a href="/?lang={{ ui_lang }}" class="flex items-center gap-2 hover:text-racing-red transition-colors mb-2 text-xs">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                {{ t.get('home_back', 'Back') }}
+            </a>
             <h2 class="font-bold uppercase tracking-widest text-sm flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-                Settings
+                {% if screen_type == 'calendar' %}{{ t.get('screen_calendar_name', 'Calendar') }}{% else %}{{ t.get('screen_teams_name', 'Teams') }}{% endif %}
             </h2>
+        </div>
+        
+        <!-- Screen Type Selector -->
+        <div class="px-2 py-1.5 border-b-2 border-black bg-gray-50 flex gap-1">
+            <a href="/configure/calendar?lang={{ ui_lang }}" 
+               class="flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all {% if screen_type == 'calendar' %}bg-black text-white{% else %}bg-white hover:bg-black hover:text-white{% endif %}">
+                {{ t.get('screen_calendar_name', 'Calendar') }}
+            </a>
+            <a href="/configure/teams?lang={{ ui_lang }}" 
+               class="flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all {% if screen_type == 'teams' %}bg-black text-white{% else %}bg-white hover:bg-black hover:text-white{% endif %}">
+                {{ t.get('screen_teams_name', 'Teams') }}
+            </a>
         </div>
 
         <!-- Timezone - Mobile -->
-        <div class="lg:hidden p-4 border-b-2 border-black">
+        <div class="lg:hidden p-4 border-b-2 border-black" id="mobileTzContainer">
             <label class="block text-xs font-bold uppercase mb-2" id="tzLabelMobile">Timezone</label>
             <select id="tzSelectMobile" onchange="selectTimezoneMobile()"
                 class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm">
             </select>
         </div>
         
-        <!-- Timezone - Desktop -->
-        <div class="hidden lg:flex flex-1 flex-col min-h-0">
+        <!-- Timezone - Desktop (hidden on mobile via 'hidden', shown on lg+ via 'lg:flex') -->
+        <div id="desktopTzContainer" class="hidden lg:flex flex-1 flex-col min-h-0">
             <div class="px-3 py-2 border-b-2 border-black bg-gray-50 flex-shrink-0 flex items-center justify-between gap-2">
                 <label class="text-xs font-bold uppercase" id="tzLabel">Timezone</label>
                 <input type="text" id="tzSearch" placeholder="SEARCH..." 
@@ -94,8 +111,8 @@
         </div>
         <input type="hidden" id="tz" value="">
         
-        <!-- Mobile Race Selector -->
-        <div class="lg:hidden p-4 border-t-2 border-black bg-gray-50">
+        <!-- Mobile Race Selector (Calendar only) -->
+        <div class="lg:hidden p-4 border-t-2 border-black bg-gray-50" id="mobileRaceContainer">
             <label class="block text-xs font-bold uppercase mb-2" id="raceLabel">Race</label>
             <select id="raceSelectMobile" onchange="selectRaceMobile()"
                 class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm">
@@ -103,13 +120,22 @@
             </select>
         </div>
         
+        <!-- Mobile Year Selector (Teams only) -->
+        <div class="lg:hidden p-4 border-t-2 border-black bg-gray-50 hidden" id="mobileYearContainer">
+            <label class="block text-xs font-bold uppercase mb-2" id="yearLabelMobile">Season</label>
+            <select id="yearSelectMobile" onchange="selectYearMobile()"
+                class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm">
+            </select>
+        </div>
+        
         <!-- Links & Credits Section (mobile) -->
         <div class="lg:hidden mt-auto border-t-2 border-black">
             <div class="p-4 space-y-2 text-xs">
-                <div class="font-bold uppercase tracking-wider mb-2">Links</div>
+                <div class="font-bold uppercase tracking-wider mb-2">{{ nav.nav_menu }}</div>
                 <a href="/stats?lang={{ ui_lang }}" class="block hover:text-racing-red">{{ nav.nav_stats }}</a>
                 <a href="/api/docs/html?lang={{ ui_lang }}" class="block hover:text-racing-red">{{ nav.nav_api }}</a>
                 <a href="/privacy?lang={{ ui_lang }}" class="block hover:text-racing-red">{{ nav.nav_privacy }}</a>
+                <a href="/changelog?lang={{ ui_lang }}" class="block hover:text-racing-red">{{ nav.nav_changelog }}</a>
                 <a href="https://github.com/Rhiz3K/InkyCloud-F1" target="_blank" rel="noopener noreferrer" class="block hover:text-racing-red">GitHub</a>
             </div>
             <div class="p-4 pt-0 space-y-2 text-xs">
@@ -120,7 +146,7 @@
                 <div class="text-gray-500">Powered by:</div>
                 <div class="flex flex-wrap gap-2">
                     <a href="https://github.com/jolpica/jolpica-f1" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Jolpica</a>
-                    <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">zivyobraz</a>
+                    <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Živýobraz.eu</a>
                     <a href="https://umami.is" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Umami</a>
                     <a href="https://glitchtip.com" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">GlitchTip</a>
                     <a href="https://flagcdn.com" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Flagcdn</a>
@@ -133,6 +159,12 @@
     
     <!-- Center Panel - Preview -->
     <div class="flex-1 flex flex-col min-w-0 bg-racing-paper p-4 lg:p-6 overflow-y-auto">
+        
+        <!-- Mobile Settings Button -->
+        <button onclick="toggleSidebar()" class="lg:hidden mb-4 w-full px-4 py-3 bg-black text-white border-2 border-black font-bold uppercase tracking-wider shadow-neo hover:bg-racing-red transition-colors flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+            <span id="settingsBtnText">Settings</span>
+        </button>
         
         <!-- Preview Container -->
         <div class="flex-1 flex flex-col items-center justify-start min-h-[300px]">
@@ -151,9 +183,12 @@
             <div class="relative bg-white border-4 border-black p-2 shadow-neo max-w-full">
                 <img id="previewImage" alt="Calendar Preview" src="" class="max-w-full h-auto border-2 border-gray-200">
                 
-                <!-- Loading Overlay -->
-                <div id="loadingOverlay" class="absolute inset-0 bg-white/90 z-20 flex items-center justify-center backdrop-blur-sm">
-                    <div class="w-12 h-12 border-4 border-black border-t-racing-red rounded-full animate-spin"></div>
+                <div id="loadingOverlay" class="absolute inset-0 z-20 bg-white flex flex-col items-center justify-center">
+                    <svg class="w-12 h-12 animate-spin text-black mb-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-black font-bold uppercase tracking-widest text-sm" id="loadingText">Loading...</span>
                 </div>
                 
                 <!-- Error Overlay -->
@@ -191,24 +226,43 @@
             <div class="w-full max-w-[800px] mt-6 p-4 bg-white border-2 border-black shadow-neo-sm">
                 <div class="font-bold text-black uppercase tracking-wider mb-2 border-b-2 border-black pb-1 inline-block" id="epaperSetupTitle">ePaper Display Setup</div>
                 <div class="text-sm space-y-1 font-mono" id="epaperSetupText">
-                    <p id="epaperStep1" class="flex items-start gap-2"><span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>In <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">zivyobraz.eu</a> select <strong>URL</strong> as content source</span></p>
+                    <p id="epaperStep1" class="flex items-start gap-2"><span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>In <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> select <strong>URL</strong> as content source</span></p>
                     <p id="epaperStep2" class="flex items-start gap-2"><span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Copy the URL above into the image URL field</span></p>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Right Panel - Race List -->
-    <div class="hidden lg:flex lg:w-72 flex-shrink-0 bg-white border-l-4 border-black flex-col z-0">
-        <div class="px-4 py-3 border-b-2 border-black bg-black text-white flex-shrink-0">
-            <h2 class="font-bold uppercase tracking-widest text-sm flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                <span id="seasonTitle">2025 Calendar</span>
-            </h2>
+    <!-- Right Panel - Race List (Calendar) / Rankings (Teams) - Hidden on mobile, visible on lg+ -->
+    <div id="rightPanel" class="hidden lg:flex lg:w-72 flex-shrink-0 bg-white border-l-4 border-black flex-col z-0">
+        
+        <!-- Calendar Content -->
+        <div id="rightPanelCalendar" class="flex flex-col flex-1 {% if screen_type != 'calendar' %}hidden{% endif %}">
+            <div class="px-4 py-3 border-b-2 border-black bg-black text-white flex-shrink-0">
+                <h2 class="font-bold uppercase tracking-widest text-sm flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span id="seasonTitle">2025 Calendar</span>
+                </h2>
+            </div>
+            <div id="raceList" class="flex-1 overflow-y-auto p-2 space-y-0.5">
+                <div class="p-4 text-center text-gray-400 text-xs font-mono">Loading data...</div>
+            </div>
         </div>
-        <div id="raceList" class="flex-1 overflow-y-auto p-2 space-y-0.5">
-            <div class="p-4 text-center text-gray-400 text-xs font-mono">Loading data...</div>
+        
+        <!-- Teams Content -->
+        <div id="rightPanelTeams" class="flex flex-col flex-1 {% if screen_type != 'teams' %}hidden{% endif %}">
+            <div class="px-4 py-3 border-b-2 border-black bg-black text-white flex-shrink-0">
+                <h2 class="font-bold uppercase tracking-widest text-sm flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                    <span id="rankingsTitle">Teams & Drivers Rankings</span>
+                </h2>
+            </div>
+            
+            <div id="teamsSeasonButtons" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <div class="p-4 text-center text-gray-400 text-xs font-mono">Loading...</div>
+            </div>
         </div>
+        
     </div>
     </main>
 </div>
@@ -228,11 +282,10 @@
         'Miami': 'us', 'Turkey': 'tr', 'Russia': 'ru'
     };
     
-    // Helper to generate flag HTML (waving flags from flagpedia.net)
     function getFlagHtml(country, size = 'h-4') {
         const iso = COUNTRY_ISO[country];
         if (iso) {
-            return `<img src="/static/flags/${iso}.png" alt="${country}" class="inline ${size} w-auto">`;
+            return `<img src="/static/flags/${iso}.png" alt="${country}" class="inline ${size} w-auto" loading="lazy" decoding="async">`;
         }
         return '🏁';
     }
@@ -241,45 +294,242 @@
     const translations = {
         en: {
             headerTitle: 'F1 InkyCloud',
+            screenTypeLabel: 'Screen Type',
+            btnCalendar: 'Calendar',
+            btnTeams: 'Teams',
             langLabel: 'Bitmap Language',
             tzLabel: 'Timezone',
             raceLabel: 'Race',
+            yearLabel: 'Season',
+            settingsBtn: 'Settings',
             einkBadge: 'E-INK',
             errorText: 'FAILED TO LOAD',
+            loadingText: 'Loading...',
             retryBtn: 'RETRY',
             refreshBtn: 'REFRESH',
             nextRace: 'NEXT RACE',
             seasonTitle: 'Calendar',
             footerPrivacy: 'Privacy Policy',
             epaperSetupTitle: 'ePaper Display Setup',
-            epaperStep1: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>In <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">zivyobraz.eu</a> select <strong>URL</strong> as content source</span>',
-            epaperStep2: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Copy the URL above into the image URL field</span>'
+            epaperStep1: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>In <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> select <strong>URL</strong> as content source</span>',
+            epaperStep2: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Copy the URL above into the image URL field</span>',
+            currentRankings: 'Current Rankings',
+            currentSeason: 'Current',
+            leaderTeam: 'Team',
+            leaderDriver: 'Driver',
+            noDataYet: 'No data yet'
         },
         cs: {
             headerTitle: 'F1 InkyCloud',
+            screenTypeLabel: 'Typ obrazovky',
+            btnCalendar: 'Kalendář',
+            btnTeams: 'Týmy',
             langLabel: 'Jazyk Bitmapy',
             tzLabel: 'Časové pásmo',
             raceLabel: 'Závod',
+            yearLabel: 'Sezóna',
+            settingsBtn: 'Nastavení',
             einkBadge: 'E-INK',
             errorText: 'CHYBA NAČÍTÁNÍ',
+            loadingText: 'Načítání...',
             retryBtn: 'ZNOVU',
             refreshBtn: 'OBNOVIT',
             nextRace: 'DALŠÍ ZÁVOD',
             seasonTitle: 'Kalendář',
             footerPrivacy: 'Ochrana soukromí',
             epaperSetupTitle: 'Nastavení ePaper Displeje',
-            epaperStep1: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>V <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">zivyobraz.eu</a> vyberte <strong>URL</strong> jako zdroj obsahu</span>',
-            epaperStep2: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Vložte URL výše do pole pro URL obrázku</span>'
+            epaperStep1: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>V <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> vyberte <strong>URL</strong> jako zdroj obsahu</span>',
+            epaperStep2: '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Vložte URL výše do pole pro URL obrázku</span>',
+            currentRankings: 'Aktuální pořadí',
+            currentSeason: 'Aktuální',
+            leaderTeam: 'Tým',
+            leaderDriver: 'Jezdec',
+            noDataYet: 'Zatím žádná data'
         }
     };
 
     let currentUiLang = '{{ ui_lang }}';
+    let currentScreenType = '{{ screen_type }}';
     let racesData = [];
     let selectedYear = null;
     let selectedRound = null;
     let activeSeasonYear = new Date().getFullYear();
     let activeContinent = 'ALL';
+    let selectedTeamsYear = null;
+    let leaderData = {};
 
+    function initScreenTypeVisibility() {
+        const isCalendar = currentScreenType === 'calendar';
+        const isTeams = currentScreenType === 'teams';
+        
+        const elements = {
+            mobileTz: document.getElementById('mobileTzContainer'),
+            desktopTz: document.getElementById('desktopTzContainer'),
+            mobileRace: document.getElementById('mobileRaceContainer'),
+            mobileYear: document.getElementById('mobileYearContainer'),
+            rightPanel: document.getElementById('rightPanel'),
+            rightPanelCalendar: document.getElementById('rightPanelCalendar'),
+            rightPanelTeams: document.getElementById('rightPanelTeams')
+        };
+        
+        if (isCalendar) {
+            if (elements.mobileTz) elements.mobileTz.classList.remove('hidden');
+            if (elements.mobileRace) elements.mobileRace.classList.remove('hidden');
+            if (elements.mobileYear) elements.mobileYear.classList.add('hidden');
+            if (elements.rightPanelCalendar) elements.rightPanelCalendar.classList.remove('hidden');
+            if (elements.rightPanelTeams) elements.rightPanelTeams.classList.add('hidden');
+        } else if (isTeams) {
+            if (elements.mobileTz) elements.mobileTz.classList.add('hidden');
+            if (elements.mobileRace) elements.mobileRace.classList.add('hidden');
+            if (elements.mobileYear) elements.mobileYear.classList.remove('hidden');
+            if (elements.rightPanelCalendar) elements.rightPanelCalendar.classList.add('hidden');
+            if (elements.rightPanelTeams) elements.rightPanelTeams.classList.remove('hidden');
+        } else {
+            if (elements.mobileTz) elements.mobileTz.classList.add('hidden');
+            if (elements.mobileRace) elements.mobileRace.classList.add('hidden');
+            if (elements.mobileYear) elements.mobileYear.classList.add('hidden');
+        }
+    }
+    
+    function getCurrentSeason() {
+        const now = new Date();
+        const season2026Start = new Date('2026-03-08T00:00:00Z');
+        const season2025Start = new Date('2025-03-16T00:00:00Z');
+        
+        if (now >= season2026Start) return 2026;
+        if (now >= season2025Start) return 2025;
+        return 2024;
+    }
+    
+    async function loadAllSeasonLeaders() {
+        const years = [2024, 2025, 2026];
+        
+        await Promise.all(years.map(async (year) => {
+            try {
+                const response = await fetch(`/api/standings/leader/${year}`);
+                leaderData[year] = await response.json();
+            } catch (e) {
+                leaderData[year] = { has_data: false, season: year };
+            }
+        }));
+        
+        renderTeamsSeasonButtons();
+    }
+    
+    function renderTeamsSeasonButtons() {
+        const container = document.getElementById('teamsSeasonButtons');
+        if (!container) return;
+        
+        const currentSeason = getCurrentSeason();
+        const seasons = [
+            { label: 'CURRENT', year: currentSeason, isCurrent: true },
+            { label: '2026', year: 2026, disabled: true },
+            { label: '2025', year: 2025 },
+            { label: '2024', year: 2024 }
+        ];
+        
+        let html = '';
+        
+        for (const s of seasons) {
+            const data = leaderData[s.year] || { has_data: false };
+            const isSelected = selectedTeamsYear === s.year;
+            const actualYear = s.isCurrent ? currentSeason : s.year;
+            
+            const baseClass = 'teams-season-btn w-full px-3 py-2 text-left border-2 border-black transition-all flex items-center gap-3';
+            let stateClass = '';
+            
+            if (s.disabled) {
+                stateClass = 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60';
+            } else if (isSelected) {
+                stateClass = 'bg-black text-white';
+            } else {
+                stateClass = 'bg-white hover:bg-gray-100';
+            }
+            
+            const clickHandler = s.disabled ? '' : `onclick="selectTeamsSeason(${actualYear})"`;
+            
+            html += `<button ${clickHandler} data-year="${actualYear}" class="${baseClass} ${stateClass}">`;
+            
+            html += `<span class="w-16 text-xs font-bold uppercase flex-shrink-0">${s.label}${s.isCurrent ? ' ' + currentSeason : ''}</span>`;
+            
+            if (s.disabled || !data.has_data) {
+                html += `<span class="flex-1 text-xs">—</span>`;
+            } else {
+                const teamId = data.leader_team?.id;
+                const teamName = data.leader_team?.name || '-';
+                const driverNum = data.leader_driver?.number || '';
+                const driverCode = data.leader_driver?.code || '-';
+                
+                html += `<span class="flex-1 flex items-center gap-2 min-w-0">`;
+                if (teamId) {
+                    html += `<img src="/static/images/teams/${teamId}.png" alt="" class="h-4 w-4 object-contain flex-shrink-0" onerror="this.style.display='none'">`;
+                }
+                html += `<span class="text-xs font-bold truncate">${teamName}</span>`;
+                html += `</span>`;
+                
+                html += `<span class="text-xs font-mono flex-shrink-0">${driverNum} ${driverCode}</span>`;
+            }
+            
+            html += `</button>`;
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    function selectTeamsSeason(year) {
+        selectedTeamsYear = year;
+        renderTeamsSeasonButtons();
+        syncMobileYearSelect();
+        updatePreview();
+    }
+    
+    function selectYearMobile() {
+        const year = parseInt(document.getElementById('yearSelectMobile').value);
+        if (year) {
+            selectedTeamsYear = year;
+            renderTeamsSeasonButtons();
+            updatePreview();
+        }
+    }
+    
+    function populateMobileYearSelect() {
+        const select = document.getElementById('yearSelectMobile');
+        if (!select) return;
+        
+        const currentSeason = getCurrentSeason();
+        const t = translations[currentUiLang] || translations.en;
+        
+        select.innerHTML = '';
+        
+        const seasons = [
+            { label: `${t.currentSeason || 'Current'} (${currentSeason})`, year: currentSeason },
+            { label: '2025', year: 2025 },
+            { label: '2024', year: 2024 }
+        ];
+        
+        seasons.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.year;
+            opt.textContent = s.label;
+            if (s.year === selectedTeamsYear) opt.selected = true;
+            select.appendChild(opt);
+        });
+    }
+    
+    function syncMobileYearSelect() {
+        const select = document.getElementById('yearSelectMobile');
+        if (select && selectedTeamsYear) {
+            select.value = selectedTeamsYear;
+        }
+    }
+    
+    function initTeamsPanel() {
+        const currentSeason = getCurrentSeason();
+        selectedTeamsYear = currentSeason;
+        populateMobileYearSelect();
+        loadAllSeasonLeaders();
+    }
+    
     function filterTzContinent(continent) {
         activeContinent = continent;
         document.querySelectorAll('.tz-filter-btn').forEach(btn => {
@@ -295,12 +545,17 @@
     function setUiLanguage(lang) {
         currentUiLang = lang;
         const t = translations[lang] || translations.en;
-        // header title is image now, skipping
         document.getElementById('tzLabel').textContent = t.tzLabel;
         const raceLabel = document.getElementById('raceLabel');
         if (raceLabel) raceLabel.textContent = t.raceLabel;
+        const yearLabelMobile = document.getElementById('yearLabelMobile');
+        if (yearLabelMobile) yearLabelMobile.textContent = t.yearLabel;
+        const settingsBtnText = document.getElementById('settingsBtnText');
+        if (settingsBtnText) settingsBtnText.textContent = t.settingsBtn;
         document.getElementById('einkBadge').textContent = t.einkBadge;
         document.getElementById('errorText').textContent = t.errorText;
+        const loadingText = document.getElementById('loadingText');
+        if (loadingText) loadingText.textContent = t.loadingText;
         document.getElementById('retryBtn').textContent = t.retryBtn;
         document.getElementById('refreshBtnText').textContent = t.refreshBtn;
         document.getElementById('seasonTitle').textContent = `${activeSeasonYear} ${t.seasonTitle}`;
@@ -313,11 +568,35 @@
     }
 
     function getApiUrl() {
-        const tz = document.getElementById('tz').value;
-        let url = `${window.location.origin}/calendar.bmp?lang=${currentUiLang}`;
-        if (tz) url += `&tz=${encodeURIComponent(tz)}`;
-        if (selectedYear && selectedRound) url += `&year=${selectedYear}&round=${selectedRound}`;
-        return url;
+        if (currentScreenType === 'calendar') {
+            const tz = document.getElementById('tz').value;
+            let url = `${window.location.origin}/calendar.bmp?lang=${currentUiLang}`;
+            if (tz) url += `&tz=${encodeURIComponent(tz)}`;
+            if (selectedYear && selectedRound) url += `&year=${selectedYear}&round=${selectedRound}`;
+            return url;
+        } else {
+            let url = `${window.location.origin}/teams.bmp?lang=${currentUiLang}`;
+            if (selectedTeamsYear) url += `&year=${selectedTeamsYear}`;
+            return url;
+        }
+    }
+
+    function isDefaultView() {
+        if (currentScreenType === 'calendar') {
+            // Not default if specific race selected OR non-browser timezone selected
+            const isDefaultTz = !selectedTz || selectedTz === browserTz;
+            return !selectedYear && !selectedRound && isDefaultTz;
+        } else if (currentScreenType === 'teams') {
+            return selectedTeamsYear === getCurrentSeason();
+        }
+        return false;
+    }
+
+    function getPreviewUrl() {
+        if (isDefaultView()) {
+            return `${window.location.origin}/preview/configure/${currentScreenType}.png?lang=${currentUiLang}`;
+        }
+        return getApiUrl();
     }
 
     async function loadRaces() {
@@ -436,7 +715,7 @@
         loadPreview();
     }
 
-    function loadPreview() {
+    function loadPreview(forceRefresh = false) {
         const img = document.getElementById('previewImage');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const errorOverlay = document.getElementById('errorOverlay');
@@ -447,8 +726,9 @@
         refreshBtn.disabled = true;
         refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
 
-        const url = getApiUrl();
-        const cacheBuster = `&_t=${Date.now()}`;
+        const previewUrl = getPreviewUrl();
+        const isPregenerated = previewUrl.includes('/preview/configure/');
+        const separator = previewUrl.includes('?') ? '&' : '?';
 
         img.onload = function() {
             loadingOverlay.classList.add('hidden');
@@ -457,16 +737,31 @@
         };
 
         img.onerror = function() {
+            if (isPregenerated) {
+                const fallbackUrl = getApiUrl() + `&_t=${Date.now()}`;
+                img.onerror = function() {
+                    loadingOverlay.classList.add('hidden');
+                    errorOverlay.classList.remove('hidden');
+                    refreshBtn.disabled = false;
+                    refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                };
+                img.src = fallbackUrl;
+                return;
+            }
             loadingOverlay.classList.add('hidden');
             errorOverlay.classList.remove('hidden');
             refreshBtn.disabled = false;
             refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         };
 
-        img.src = url + cacheBuster;
+        if (isPregenerated && !forceRefresh) {
+            img.src = previewUrl;
+        } else {
+            img.src = previewUrl + separator + `_t=${Date.now()}`;
+        }
     }
 
-    function refreshPreview() { loadPreview(); }
+    function refreshPreview() { loadPreview(true); }
 
     function copyUrl() {
         const urlInput = document.getElementById('apiUrl');
@@ -774,14 +1069,19 @@
         renderTzList();
     }
 
-    // Robust Initialization
     function startApp() {
-        console.log("Starting F1 App...");
+        console.log("Starting F1 Configure...");
         if (!initUiLanguage()) { return; }
         
+        initScreenTypeVisibility();
         setUiLanguage(currentUiLang);
-        loadRaces();
-        initTimezone();
+        
+        if (currentScreenType === 'calendar') {
+            loadRaces();
+            initTimezone();
+        } else if (currentScreenType === 'teams') {
+            initTeamsPanel();
+        }
         
         updateUrlDisplay();
         loadPreview();

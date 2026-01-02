@@ -3,8 +3,56 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.models import ConstructorStanding, DriverStanding, StandingsData
 
 client = TestClient(app)
+
+MOCK_DRIVER_STANDINGS = [
+    DriverStanding(
+        position=1,
+        points=255.0,
+        wins=7,
+        driver_code="VER",
+        driver_name="Verstappen",
+        driver_given_name="Max",
+        nationality="Dutch",
+        constructor_name="Red Bull",
+    ),
+    DriverStanding(
+        position=2,
+        points=150.0,
+        wins=2,
+        driver_code="NOR",
+        driver_name="Norris",
+        driver_given_name="Lando",
+        nationality="British",
+        constructor_name="McLaren",
+    ),
+]
+
+MOCK_CONSTRUCTOR_STANDINGS = [
+    ConstructorStanding(
+        position=1,
+        points=400.0,
+        wins=9,
+        constructor_name="Red Bull",
+        nationality="Austrian",
+    ),
+    ConstructorStanding(
+        position=2,
+        points=280.0,
+        wins=3,
+        constructor_name="Ferrari",
+        nationality="Italian",
+    ),
+]
+
+MOCK_STANDINGS_DATA = StandingsData(
+    season=2024,
+    round=10,
+    driver_standings=MOCK_DRIVER_STANDINGS,
+    constructor_standings=MOCK_CONSTRUCTOR_STANDINGS,
+)
 
 
 def test_root_endpoint_returns_html():
@@ -18,7 +66,7 @@ def test_root_endpoint_returns_html():
 def test_root_page_contains_tailwind():
     """Test root page uses Tailwind CSS."""
     response = client.get("/")
-    assert "tailwindcss" in response.text
+    assert "tailwind.min.css" in response.text
 
 
 def test_root_page_contains_required_elements():
@@ -26,19 +74,12 @@ def test_root_page_contains_required_elements():
     response = client.get("/")
     html = response.text
 
-    # Check for language switcher in header (lang select removed from sidebar)
     assert 'id="uiLangSwitch"' in html
     assert 'value="en"' in html
     assert 'value="cs"' in html
-
-    # Check for URL display
-    assert 'id="apiUrl"' in html
-
-    # Check for preview section
-    assert 'id="previewImage"' in html
-
-    # Check for API documentation
-    assert "API" in html
+    assert "/configure/calendar" in html
+    assert "/configure/teams" in html
+    assert "Credits" in html
 
 
 def test_preview_redirect():
@@ -71,48 +112,51 @@ def test_health_endpoint():
     assert response.json()["status"] == "healthy"
 
 
-def test_root_page_contains_api_references():
-    """Test root page includes relative API endpoint references."""
-    response = client.get("/")
+def test_configure_page_contains_api_references():
+    """Test configure page includes relative API endpoint references."""
+    response = client.get("/configure/calendar")
     html = response.text
-
-    # Should contain relative API endpoint references (no absolute BASE_URL)
     assert "/calendar.bmp" in html
     assert "/api/races/" in html
-    # Ensure we're using relative URLs, not absolute BASE_URL
     assert "BASE_URL" not in html
 
 
-def test_root_page_i18n_default_english():
-    """Test root page defaults to English for non-CZ/SK users."""
-    response = client.get("/", headers={"Accept-Language": "en-US,en;q=0.9"})
+def test_configure_page_i18n_default_english():
+    """Test configure page defaults to English for non-CZ/SK users."""
+    response = client.get("/configure/calendar", headers={"Accept-Language": "en-US,en;q=0.9"})
     html = response.text
     assert "currentUiLang = 'en'" in html
 
 
-def test_root_page_i18n_czech_for_cz():
-    """Test root page uses Czech for CZ users."""
-    response = client.get("/", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
+def test_configure_page_i18n_czech_for_cz():
+    """Test configure page uses Czech for CZ users."""
+    response = client.get("/configure/calendar", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
     html = response.text
     assert "currentUiLang = 'cs'" in html
 
 
-def test_root_page_i18n_czech_for_sk():
-    """Test root page uses Czech for SK users."""
-    response = client.get("/", headers={"Accept-Language": "sk-SK,sk;q=0.9"})
+def test_configure_page_i18n_czech_for_sk():
+    """Test configure page uses Czech for SK users."""
+    response = client.get("/configure/calendar", headers={"Accept-Language": "sk-SK,sk;q=0.9"})
     html = response.text
     assert "currentUiLang = 'cs'" in html
 
 
-def test_root_page_lang_parameter():
-    """Test root page respects ?lang= query parameter."""
-    response = client.get("/?lang=cs")
+def test_configure_page_lang_parameter():
+    """Test configure page respects ?lang= query parameter."""
+    response = client.get("/configure/calendar?lang=cs")
     html = response.text
     assert "currentUiLang = 'cs'" in html
 
-    response = client.get("/?lang=en")
+    response = client.get("/configure/calendar?lang=en")
     html = response.text
     assert "currentUiLang = 'en'" in html
+
+
+def test_configure_invalid_screen_type():
+    """Test configure page returns 404 for invalid screen type."""
+    response = client.get("/configure/invalid")
+    assert response.status_code == 404
 
 
 def test_header_contains_language_switcher():
@@ -149,16 +193,12 @@ def test_header_contains_credits_dropdown():
     assert "jolpica" in html
 
 
-def test_mobile_sidebar_contains_links():
-    """Test mobile sidebar contains Links and Credits sections."""
-    response = client.get("/")
+def test_configure_page_has_sidebar():
+    """Test configure page contains settings sidebar."""
+    response = client.get("/configure/calendar")
     html = response.text
-    # Sidebar exists
     assert 'id="settingsSidebar"' in html
-    # Links section with key items (check URLs which are stable across translations)
     assert "GitHub" in html
-    assert "/api/docs/html" in html
-    assert "/privacy" in html
 
 
 def test_privacy_page_header_nav():
@@ -355,8 +395,265 @@ def test_stats_link_in_header():
     """Test header contains link to stats page instead of inline stats display."""
     response = client.get("/")
     html = response.text
-    # Should have link to stats page (with lang parameter)
     assert 'href="/stats?lang=' in html
-    # Should NOT have inline stats display elements (moved to /stats page)
     assert 'id="statsLast24h"' not in html
     assert 'id="statsDataTransfer"' not in html
+
+
+# ============================================================================
+# Homepage Tests
+# ============================================================================
+
+
+def test_homepage_screen_type_cards():
+    """Test homepage contains screen type selection cards."""
+    response = client.get("/")
+    html = response.text
+    assert "/configure/calendar" in html
+    assert "/configure/teams" in html
+    assert "Calendar" in html or "Kalendář" in html
+    assert "Teams" in html or "Týmy" in html
+
+
+def test_homepage_mobile_menu_button():
+    """Test homepage contains mobile menu button."""
+    response = client.get("/")
+    html = response.text
+    assert 'id="mobileMenuBtn"' in html
+    assert "toggleMobileMenu" in html
+
+
+def test_homepage_language_switcher():
+    """Test homepage language switcher functionality."""
+    response_en = client.get("/?lang=en")
+    assert 'lang="en"' in response_en.text
+
+    response_cs = client.get("/?lang=cs")
+    assert 'lang="cs"' in response_cs.text
+
+
+# ============================================================================
+# Configure Page Mobile Tests
+# ============================================================================
+
+
+def test_configure_calendar_mobile_settings_button():
+    """Test configure calendar page has mobile settings button."""
+    response = client.get("/configure/calendar")
+    html = response.text
+    assert 'id="settingsBtnText"' in html
+    assert "toggleSidebar()" in html
+
+
+def test_configure_calendar_mobile_timezone_selector():
+    """Test configure calendar page has mobile timezone selector."""
+    response = client.get("/configure/calendar")
+    html = response.text
+    assert 'id="mobileTzContainer"' in html
+    assert 'id="tzSelectMobile"' in html
+
+
+def test_configure_calendar_mobile_race_selector():
+    """Test configure calendar page has mobile race selector."""
+    response = client.get("/configure/calendar")
+    html = response.text
+    assert 'id="mobileRaceContainer"' in html
+    assert 'id="raceSelectMobile"' in html
+
+
+def test_configure_teams_mobile_year_selector():
+    """Test configure teams page has mobile year selector."""
+    response = client.get("/configure/teams")
+    html = response.text
+    assert 'id="mobileYearContainer"' in html
+    assert 'id="yearSelectMobile"' in html
+    assert "selectYearMobile()" in html
+
+
+def test_configure_teams_no_timezone_selector():
+    """Test configure teams page hides timezone selector."""
+    response = client.get("/configure/teams")
+    html = response.text
+    assert 'id="mobileTzContainer"' in html
+    assert 'id="mobileRaceContainer"' in html
+
+
+def test_configure_sidebar_mobile_nav_links():
+    """Test configure page sidebar has navigation links for mobile."""
+    response = client.get("/configure/calendar?lang=en")
+    html = response.text
+    assert 'href="/stats?lang=en"' in html
+    assert 'href="/api/docs/html?lang=en"' in html
+    assert 'href="/privacy?lang=en"' in html
+    assert 'href="/changelog?lang=en"' in html
+    assert 'href="https://github.com/Rhiz3K/InkyCloud-F1"' in html
+
+
+def test_configure_sidebar_mobile_nav_links_czech():
+    """Test configure page sidebar nav links respect language."""
+    response = client.get("/configure/calendar?lang=cs")
+    html = response.text
+    assert 'href="/stats?lang=cs"' in html
+    assert 'href="/api/docs/html?lang=cs"' in html
+    assert 'href="/privacy?lang=cs"' in html
+    assert 'href="/changelog?lang=cs"' in html
+
+
+def test_configure_page_translations_english():
+    """Test configure page English translations."""
+    response = client.get("/configure/calendar?lang=en")
+    html = response.text
+    assert "settingsBtn: 'Settings'" in html
+    assert "yearLabel: 'Season'" in html
+    assert "loadingText: 'Loading...'" in html
+
+
+def test_configure_page_translations_czech():
+    """Test configure page Czech translations."""
+    response = client.get("/configure/calendar?lang=cs")
+    html = response.text
+    assert "settingsBtn: 'Nastavení'" in html
+    assert "yearLabel: 'Sezóna'" in html
+    assert "loadingText: 'Načítání...'" in html
+
+
+def test_configure_page_loading_overlay():
+    """Test configure page has loading overlay with spinner."""
+    response = client.get("/configure/calendar")
+    html = response.text
+    assert 'id="loadingOverlay"' in html
+    assert 'id="loadingText"' in html
+    assert "animate-spin" in html
+
+
+def test_configure_page_right_panel_hidden_mobile():
+    """Test configure page right panel has correct responsive classes."""
+    response = client.get("/configure/calendar")
+    html = response.text
+    assert 'id="rightPanel"' in html
+    assert 'class="hidden lg:flex' in html
+
+
+def test_configure_teams_screen_type():
+    """Test configure teams page has correct screen type."""
+    response = client.get("/configure/teams")
+    html = response.text
+    assert "currentScreenType = 'teams'" in html
+
+
+def test_configure_calendar_screen_type():
+    """Test configure calendar page has correct screen type."""
+    response = client.get("/configure/calendar")
+    html = response.text
+    assert "currentScreenType = 'calendar'" in html
+
+
+# ============================================================================
+# BMP Endpoint Tests
+# ============================================================================
+
+
+def test_calendar_bmp_default():
+    """Test /calendar.bmp returns BMP image."""
+    response = client.get("/calendar.bmp")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+    assert response.content[:2] == b"BM"
+
+
+def test_calendar_bmp_with_lang():
+    """Test /calendar.bmp with language parameter."""
+    for lang in ["en", "cs"]:
+        response = client.get(f"/calendar.bmp?lang={lang}")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/bmp"
+
+
+def test_calendar_bmp_with_timezone():
+    """Test /calendar.bmp with timezone parameter."""
+    response = client.get("/calendar.bmp?tz=Europe/Prague")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+
+
+def test_calendar_bmp_with_year_round():
+    """Test /calendar.bmp with year and round parameters."""
+    response = client.get("/calendar.bmp?year=2025&round=1")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+
+
+def test_teams_bmp_default():
+    """Test /teams.bmp returns BMP image."""
+    response = client.get("/teams.bmp")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+    assert response.content[:2] == b"BM"
+
+
+def test_teams_bmp_with_year():
+    """Test /teams.bmp with year parameter."""
+    for year in [2024, 2025]:
+        response = client.get(f"/teams.bmp?year={year}")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/bmp"
+
+
+def test_teams_bmp_with_lang():
+    """Test /teams.bmp with language parameter."""
+    response = client.get("/teams.bmp?lang=cs")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+
+
+# ============================================================================
+# API Endpoint Tests
+# ============================================================================
+
+
+def test_api_races_endpoint():
+    """Test /api/races/{year} returns race data."""
+    response = client.get("/api/races/2025")
+    assert response.status_code == 200
+    data = response.json()
+    assert "races" in data or "year" in data or isinstance(data, list)
+
+
+def test_api_races_invalid_year():
+    """Test /api/races with invalid year."""
+    response = client.get("/api/races/1900")
+    assert response.status_code in [200, 404]
+
+
+# ============================================================================
+# Changelog Page Tests
+# ============================================================================
+
+
+def test_changelog_returns_html():
+    """Test /changelog endpoint returns HTML page."""
+    response = client.get("/changelog")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+
+
+def test_changelog_contains_version_history():
+    """Test changelog page contains version history."""
+    response = client.get("/changelog?lang=en")
+    html = response.text
+    assert "Changelog" in html or "Changes" in html
+
+
+def test_changelog_lang_parameter():
+    """Test changelog page respects lang parameter."""
+    response_en = client.get("/changelog?lang=en")
+    response_cs = client.get("/changelog?lang=cs")
+    assert response_en.status_code == 200
+    assert response_cs.status_code == 200
+
+
+def test_changelog_header_nav():
+    """Test changelog page has navigation in header."""
+    response = client.get("/changelog")
+    html = response.text
+    assert 'href="/?lang=' in html

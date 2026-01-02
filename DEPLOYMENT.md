@@ -316,10 +316,14 @@ Consider adding Redis for caching:
 
 ## Backup & Recovery
 
-No database is used, but consider backing up:
+The application uses SQLite for API statistics and cache. Consider backing up:
+- `/app/data/f1.db` - SQLite database (statistics, cache metadata)
+- `/app/data/images/` - Pre-generated BMP images
 - `.env` file (securely)
 - Translation files
 - Custom modifications
+
+For automated S3 backups, see [SELF-HOSTING.md](./SELF-HOSTING.md#s3-database-backup).
 
 ## Scaling
 

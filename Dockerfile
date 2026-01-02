@@ -43,7 +43,7 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY app/ ./app/
 COPY translations/ ./translations/
-COPY pyproject.toml setup.py MANIFEST.in ./
+COPY CHANGELOG.md pyproject.toml setup.py MANIFEST.in ./
 
 # Copy and install reset-db script
 COPY scripts/reset_db.sh /usr/local/bin/reset-db

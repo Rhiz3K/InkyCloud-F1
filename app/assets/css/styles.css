@@ -142,3 +142,25 @@ button.control-btn:active {
     max-height: 90vh;
     margin: auto;
 }
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #e0e0e0 0%, #f0f0f0 50%, #e0e0e0 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-bar {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+}
+
+.skeleton-preview {
+    aspect-ratio: 800 / 480;
+    max-width: 800px;
+    width: 100%;
+}

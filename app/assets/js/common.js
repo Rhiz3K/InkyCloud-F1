@@ -82,3 +82,100 @@ function closeMobileNav() {
         menu.classList.add('-translate-x-full');
     }
 }
+
+/**
+ * Real User Monitoring - Collect and send Web Vitals
+ * Metrics: LCP, CLS, FCP, TTFB, INP
+ */
+(function() {
+    const metrics = {};
+    let metricsReported = false;
+
+    function sendMetrics() {
+        if (metricsReported) return;
+        if (!metrics.lcp && !metrics.cls && !metrics.fcp) return;
+        metricsReported = true;
+
+        const payload = {
+            page_path: window.location.pathname,
+            lcp_ms: metrics.lcp,
+            cls: metrics.cls,
+            fcp_ms: metrics.fcp,
+            ttfb_ms: metrics.ttfb,
+            inp_ms: metrics.inp,
+            connection_type: navigator.connection?.effectiveType || null,
+            device_memory: navigator.deviceMemory || null
+        };
+
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon('/api/perf-metrics', JSON.stringify(payload));
+        } else {
+            fetch('/api/perf-metrics', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+                headers: { 'Content-Type': 'application/json' },
+                keepalive: true
+            }).catch(() => {});
+        }
+    }
+
+    try {
+        new PerformanceObserver((list) => {
+            const entries = list.getEntries();
+            const last = entries[entries.length - 1];
+            if (last) {
+                metrics.lcp = Math.round(last.startTime);
+            }
+        }).observe({ type: 'largest-contentful-paint', buffered: true });
+    } catch (e) {}
+
+    try {
+        let clsValue = 0;
+        new PerformanceObserver((list) => {
+            for (const entry of list.getEntries()) {
+                if (!entry.hadRecentInput) {
+                    clsValue += entry.value;
+                }
+            }
+            metrics.cls = Math.round(clsValue * 1000) / 1000;
+        }).observe({ type: 'layout-shift', buffered: true });
+    } catch (e) {}
+
+    try {
+        new PerformanceObserver((list) => {
+            const entry = list.getEntries()[0];
+            if (entry) {
+                metrics.fcp = Math.round(entry.startTime);
+            }
+        }).observe({ type: 'paint', buffered: true });
+    } catch (e) {}
+
+    try {
+        new PerformanceObserver((list) => {
+            const entries = list.getEntries();
+            const last = entries[entries.length - 1];
+            if (last) {
+                metrics.inp = Math.round(last.duration);
+            }
+        }).observe({ type: 'event', buffered: true, durationThreshold: 16 });
+    } catch (e) {}
+
+    const navEntry = performance.getEntriesByType('navigation')[0];
+    if (navEntry) {
+        metrics.ttfb = Math.round(navEntry.responseStart);
+    }
+
+    window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            sendMetrics();
+        }
+    });
+
+    window.addEventListener('pagehide', sendMetrics);
+
+    setTimeout(sendMetrics, 10000);
+})();
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+}

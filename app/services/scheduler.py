@@ -3,18 +3,21 @@
 import copy
 import logging
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 
 import aiofiles
 import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from PIL import Image
 
 from app.config import config
 from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
+from app.services.version_service import refresh_version_info
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +100,96 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
     result["timezone"] = target_tz_str
 
     return result
+
+
+def _bmp_to_png(bmp_data: bytes, width: int = 400, full_size: bool = False) -> bytes:
+    """
+    Convert BMP to PNG for web previews.
+
+    Uses grayscale mode for better anti-aliasing on resize,
+    resulting in smoother edges compared to 1-bit mode.
+
+    Args:
+        bmp_data: Raw BMP image data
+        width: Target width (height calculated to maintain aspect ratio)
+        full_size: If True, skip resize and keep original 800x480
+
+    Returns:
+        PNG image data as bytes
+    """
+    img = Image.open(BytesIO(bmp_data))
+
+    # Convert to grayscale for smoother edges (anti-aliasing on resize)
+    img = img.convert("L")
+
+    if not full_size:
+        ratio = width / img.width
+        new_size = (width, int(img.height * ratio))
+        img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+    buffer = BytesIO()
+    img.save(buffer, format="PNG", optimize=True)
+    return buffer.getvalue()
+
+
+async def generate_preview_pngs(race_data: dict | None, historical_data) -> None:
+    """
+    Generate PNG preview images for landing page.
+
+    Creates small PNG previews (400x240) for each screen type and language.
+    These are used on the landing page for screen type selection.
+
+    Args:
+        race_data: Next race data from static JSON
+        historical_data: Historical race data for the circuit
+    """
+    from app.services.teams_service import TeamsService
+
+    images_dir = Path(config.IMAGES_PATH)
+    images_dir.mkdir(parents=True, exist_ok=True)
+
+    for lang in SUPPORTED_LANGUAGES:
+        translator = get_translator(lang)
+        renderer = Renderer(translator)
+
+        # Calendar preview
+        if race_data:
+            try:
+                bmp_data = renderer.render_calendar(race_data, historical_data)
+
+                homepage_png = _bmp_to_png(bmp_data, width=400)
+                homepage_path = images_dir / f"preview_calendar_{lang}.png"
+                async with aiofiles.open(homepage_path, "wb") as f:
+                    await f.write(homepage_png)
+
+                configure_png = _bmp_to_png(bmp_data, full_size=True)
+                configure_path = images_dir / f"configure_calendar_{lang}.png"
+                async with aiofiles.open(configure_path, "wb") as f:
+                    await f.write(configure_png)
+
+                logger.info(f"Generated calendar previews: {homepage_path}, {configure_path}")
+            except Exception as e:
+                logger.error(f"Error generating calendar preview ({lang}): {e}")
+
+        # Teams preview
+        try:
+            teams_service = TeamsService()
+            teams_data = await teams_service.get_teams_and_drivers()
+            bmp_data = renderer.render_teams_drivers(teams_data)
+
+            homepage_png = _bmp_to_png(bmp_data, width=400)
+            homepage_path = images_dir / f"preview_teams_{lang}.png"
+            async with aiofiles.open(homepage_path, "wb") as f:
+                await f.write(homepage_png)
+
+            configure_png = _bmp_to_png(bmp_data, full_size=True)
+            configure_path = images_dir / f"configure_teams_{lang}.png"
+            async with aiofiles.open(configure_path, "wb") as f:
+                await f.write(configure_png)
+
+            logger.info(f"Generated teams previews: {homepage_path}, {configure_path}")
+        except Exception as e:
+            logger.error(f"Error generating teams preview ({lang}): {e}")
 
 
 async def collect_and_generate() -> None:
@@ -230,6 +323,9 @@ async def collect_and_generate() -> None:
         # Cleanup old hourly stats (keep 30 days) - legacy table
         await db.cleanup_old_stats(days=30)
 
+        # 6. Generate PNG previews for landing page
+        await generate_preview_pngs(race_data, historical_data)
+
         logger.info(f"Image generation completed: {generated_count} images (0 API calls)")
 
     except Exception as e:
@@ -357,8 +453,20 @@ def start_scheduler() -> None:
     # Conditional: S3 database backup
     _register_backup_job(scheduler)
 
+    # Midnight: Refresh version info from GitHub API
+    scheduler.add_job(
+        refresh_version_info,
+        trigger=CronTrigger(hour=0, minute=5),
+        id="refresh_version_info",
+        name="Refresh version info from GitHub",
+        replace_existing=True,
+    )
+
     scheduler.start()
-    logger.info("Scheduler started - hourly generation at :00, API calls flush every minute")
+    logger.info(
+        "Scheduler started - hourly generation at :00, API calls flush every minute, "
+        "version refresh at 00:05"
+    )
 
 
 def stop_scheduler() -> None:
@@ -376,6 +484,7 @@ async def run_initial_generation() -> None:
     Run initial image generation on startup.
 
     Uses static data from JSON files - no API calls needed.
+    Also refreshes version info from GitHub API.
     """
     logger.info("Running initial generation from static data")
 
@@ -383,6 +492,12 @@ async def run_initial_generation() -> None:
         await collect_and_generate()
     except Exception as e:
         logger.error(f"Error in initial generation: {e}", exc_info=True)
+
+    try:
+        await refresh_version_info()
+        logger.info("Version info refreshed on startup")
+    except Exception as e:
+        logger.error(f"Error refreshing version info on startup: {e}", exc_info=True)
 
 
 # Legacy function names for backwards compatibility

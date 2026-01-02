@@ -27,14 +27,14 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 |-----------|---------|---------|
 | `lang` | `cs` (Czech), `en` (English) | `?lang=en` |
 | `tz` | Any IANA timezone | `?tz=America/New_York` |
-| `year` | Season year | `?year=2025` |
-| `round` | Race round number | `?year=2025&round=5` |
+| `year` | Season year | `?year=2026` |
+| `round` | Race round number | `?year=2026&round=5` |
 
 **Examples:**
 ```
 https://f1.inkycloud.click/calendar.bmp?lang=cs
 https://f1.inkycloud.click/calendar.bmp?lang=en&tz=America/New_York
-https://f1.inkycloud.click/calendar.bmp?lang=en&year=2025&round=5
+https://f1.inkycloud.click/calendar.bmp?lang=en&year=2026&round=5
 ```
 
 ---
@@ -64,7 +64,8 @@ Planned features for future releases:
 - [ ] **Multi-color E-Ink displays** — Support for red/black/white and other color variants
 - [ ] **Additional display sizes** — Beyond 800×480 (e.g., 4.2", 5.83", 12.48")
 - [ ] **More languages** — German, Spanish, Italian, and community translations
-- [ ] **Driver standings widget** — Current championship standings view
+- [x] **Championship standings** — Driver and constructor standings view
+- [x] **Teams & Drivers screen** — Full team grid with driver photos and points
 - [ ] **Dark mode variant** — Inverted colors for different display preferences
 - [ ] **Weather integration** — Race weekend weather forecast
 - [ ] **Custom layouts** — Multiple layout options to choose from
@@ -101,11 +102,14 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 | Endpoint | Description |
 |----------|-------------|
 | `GET /calendar.bmp` | Generate F1 calendar as 1-bit BMP image |
-| `GET /` | Interactive preview page with race selector |
-| `GET /preview` | Static preview page |
+| `GET /teams.bmp` | Teams & drivers grid as 1-bit BMP image |
+| `GET /` | Landing page with screen type selection |
+| `GET /configure/{screen}` | Interactive preview page (calendar/teams) |
 | `GET /api` | API documentation |
 | `GET /api/races/{year}` | All races for a season (JSON) |
 | `GET /api/race/{year}/{round}` | Specific race details (JSON) |
+| `GET /api/teams/{year}` | Teams and drivers for a season (JSON) |
+| `GET /api/standings/leader` | Current championship leader (JSON) |
 | `GET /api/stats` | Request statistics |
 | `GET /health` | Health check |
 
