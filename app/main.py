@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import mimetypes
 import os
 import time
 from contextlib import asynccontextmanager
@@ -31,6 +32,11 @@ from app.services.renderer import Renderer
 from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
 from app.services.teams_service import TeamsService
 from app.services.version_service import get_cached_version, refresh_version_info
+
+# Register font MIME types (Python's mimetypes doesn't know TTF by default)
+mimetypes.add_type("font/ttf", ".ttf")
+mimetypes.add_type("font/woff", ".woff")
+mimetypes.add_type("font/woff2", ".woff2")
 
 # In-memory cache for rendered BMP images
 # TTL of 1 hour (3600 seconds), max 100 entries
