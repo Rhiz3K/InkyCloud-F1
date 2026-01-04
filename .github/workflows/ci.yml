@@ -11,9 +11,12 @@ jobs:
     runs-on: [self-hosted, linux]
     permissions:
       contents: read
+      id-token: write  # Required for OIDC authentication with DeepSource
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
     
     - name: Set up Python 3.12
       uses: actions/setup-python@v6
@@ -24,15 +27,20 @@ jobs:
       run: |
         python -m pip install --upgrade pip setuptools
         pip install -e .
-        pip install pytest pytest-asyncio ruff
+        pip install pytest pytest-asyncio pytest-cov ruff
     
     - name: Lint with ruff
       run: |
         ruff check .
     
-    - name: Run tests
+    - name: Run tests with coverage
       run: |
-        pytest tests/ -v
+        pytest tests/ -v --cov=app --cov-report=xml
+    
+    - name: Report coverage to DeepSource
+      run: |
+        curl https://deepsource.io/cli | sh
+        ./bin/deepsource report --analyzer test-coverage --key python --value-file ./coverage.xml --use-oidc
     
     - name: Test Docker build
       run: |

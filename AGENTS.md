@@ -19,7 +19,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 # F1 E-Ink Calendar - Agent Knowledge Base
 
-**Generated:** 2026-01-01 | **Commit:** 1425a33 | **Branch:** main
+**Generated:** 2026-01-04 | **Commit:** 65378d8 | **Branch:** main
 
 FastAPI service generating **800x480 1-bit BMP images** for E-Ink displays (LaskaKit ESP32).
 
@@ -27,7 +27,7 @@ FastAPI service generating **800x480 1-bit BMP images** for E-Ink displays (Lask
 
 | Pattern | Reality | Impact |
 |---------|---------|--------|
-| **Monolithic core** | `main.py` (1549 lines), `renderer.py` (1601 lines) | No routers/ - all in one file |
+| **Monolithic core** | `main.py` (1697 lines), `renderer.py` (1562 lines) | No routers/ - all in one file |
 | **Data-as-Code** | F1 data in `app/assets/seasons/*.json` | SQLite for metadata only |
 | **Script-heavy** | `/scripts/` has 21 preprocessing utilities | Data lifecycle outside app/ |
 | **Self-updating** | GitHub Actions commits race data back to repo | Versioned data history |
@@ -36,8 +36,9 @@ FastAPI service generating **800x480 1-bit BMP images** for E-Ink displays (Lask
 
 | Symbol | Location | Role |
 |--------|----------|------|
-| `Renderer` | services/renderer.py | 36 methods - full BMP engine |
+| `Renderer` | services/renderer.py | 36+ methods - full BMP engine |
 | `F1Service` | services/f1_service.py | Jolpica API + timezone conversion |
+| `Database` | services/database.py | SQLite ops (875 lines) |
 | `lifespan` | main.py | Startup/shutdown + scheduler init |
 | `get_calendar_bmp` | main.py | Main endpoint, handles caching |
 | `CIRCUITS_DATA` | renderer.py | Circuit metadata from JSON |

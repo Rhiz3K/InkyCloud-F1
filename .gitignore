@@ -188,15 +188,13 @@ standings_*.png
 *.swp
 *.swo
 
-# AI assistant configs
+# AI assistant configs (keep AGENTS.md tracked)
 .claude/
 CLAUDE.md
-AGENTS.md
 PLAN.md
 
-# Internal workflow
+# Internal workflow (keep openspec tracked)
 conductor/
-openspec/
 
 # Local environment files
 .env.local
