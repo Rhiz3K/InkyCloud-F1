@@ -126,7 +126,9 @@ def main():
             print(f" {track_path.name:25} -> ERROR: {e}")
 
     print("-" * 60)
-    print(f" Total: {total_input_size / 1024 / 1024:.1f}MB -> {total_output_size / 1024:.0f}KB")
+    print(
+        f" Total: {total_input_size / 1024 / 1024:.1f}MB -> {total_output_size / 1024:.0f}KB"
+    )
     print(f" Compression: {total_input_size / total_output_size:.1f}x")
     print("=" * 60)
     print(f"\nProcessed images saved to: {OUTPUT_DIR}")

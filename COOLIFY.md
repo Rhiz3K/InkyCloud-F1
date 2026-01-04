@@ -34,23 +34,28 @@ Coolify is perfect for self-hosting F1 E-Ink Calendar:
 ## Prerequisites
 
 ### 1. Coolify Instance
+
 You need a running Coolify instance. Choose one:
 
 **Option A: Self-hosted Coolify**
+
 - VPS with 2GB+ RAM (recommended: 4GB)
 - Ubuntu 22.04 or Debian 11+
 - Docker installed
 - Follow: https://coolify.io/docs/installation
 
 **Option B: Coolify Cloud** (Coming Soon)
+
 - Managed Coolify hosting
 - Visit: https://app.coolify.io
 
 ### 2. GitHub Repository Access
+
 - Fork or have access to `Rhiz3K/InkyCloud-F1`
 - GitHub account connected to Coolify
 
 ### 3. (Optional) Custom Domain
+
 - Domain name for custom URL
 - DNS access for configuration
 
@@ -85,6 +90,7 @@ Health Check Path: /health
 Click **"Environment Variables"** and add:
 
 **Required (Minimal Setup)**:
+
 ```bash
 APP_HOST=0.0.0.0
 APP_PORT=8000
@@ -92,6 +98,7 @@ DEBUG=false
 ```
 
 **Optional (Recommended for Production)**:
+
 ```bash
 SENTRY_DSN=your-sentry-dsn-here
 SENTRY_ENVIRONMENT=production
@@ -115,18 +122,21 @@ UMAMI_API_URL=https://your-analytics-domain.com/api/send
 ### Build Configuration
 
 #### Dockerfile Settings
+
 Coolify automatically detects `Dockerfile` in the repository root. Our multi-stage build:
 
 - **Stage 1 (Builder)**: Compiles dependencies
 - **Stage 2 (Runtime)**: Minimal production image (~250MB)
 
 Key features:
+
 - Python 3.12-slim base image
 - Non-root user (security)
 - Built-in health check
 - Optimized layer caching
 
 #### Build Process
+
 ```
 1. Clone repository
 2. Build Stage 1: Install dependencies
@@ -145,55 +155,57 @@ Average build time: **2-3 minutes**
 
 ### Required Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable   | Default   | Description                                 |
+| ---------- | --------- | ------------------------------------------- |
 | `APP_HOST` | `0.0.0.0` | Bind address (always 0.0.0.0 in containers) |
-| `APP_PORT` | `8000` | Application port |
-| `DEBUG` | `false` | Debug mode (use `false` in production) |
+| `APP_PORT` | `8000`    | Application port                            |
+| `DEBUG`    | `false`   | Debug mode (use `false` in production)      |
 
 ### Optional - Monitoring
 
 #### Sentry/GlitchTip (Error Tracking)
 
-| Variable | Example | Description |
-|----------|---------|-------------|
-| `SENTRY_DSN` | `https://...@sentry.io/123` | Sentry/GlitchTip DSN |
-| `SENTRY_ENVIRONMENT` | `production` | Environment name |
-| `SENTRY_TRACES_SAMPLE_RATE` | `0.1` | 10% of requests traced |
+| Variable                    | Example                     | Description            |
+| --------------------------- | --------------------------- | ---------------------- |
+| `SENTRY_DSN`                | `https://...@sentry.io/123` | Sentry/GlitchTip DSN   |
+| `SENTRY_ENVIRONMENT`        | `production`                | Environment name       |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0.1`                       | 10% of requests traced |
 
 **Setup GlitchTip** (Self-hosted Sentry alternative):
+
 1. Deploy GlitchTip on Coolify (one-click template available)
 2. Create project
 3. Copy DSN to `SENTRY_DSN`
 
 #### Umami Analytics
 
-| Variable | Example | Description |
-|----------|---------|-------------|
-| `UMAMI_ENABLED` | `true` | Enable/disable analytics |
-| `UMAMI_WEBSITE_ID` | `abc123...` | Your website ID from Umami |
-| `UMAMI_API_URL` | `https://analytics.yourdomain.com/api/send` | Umami API endpoint |
+| Variable           | Example                                     | Description                |
+| ------------------ | ------------------------------------------- | -------------------------- |
+| `UMAMI_ENABLED`    | `true`                                      | Enable/disable analytics   |
+| `UMAMI_WEBSITE_ID` | `abc123...`                                 | Your website ID from Umami |
+| `UMAMI_API_URL`    | `https://analytics.yourdomain.com/api/send` | Umami API endpoint         |
 
 **Setup Umami**:
+
 1. Deploy Umami on Coolify (template available)
 2. Create website
 3. Copy Website ID and API URL
 
 ### Optional - API Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JOLPICA_API_URL` | `https://api.jolpi.ca/ergast/f1/current/next.json` | F1 data API |
-| `REQUEST_TIMEOUT` | `10` | API timeout (seconds) |
-| `DEFAULT_LANG` | `en` | Default language (en/cs) |
+| Variable          | Default                                            | Description              |
+| ----------------- | -------------------------------------------------- | ------------------------ |
+| `JOLPICA_API_URL` | `https://api.jolpi.ca/ergast/f1/current/next.json` | F1 data API              |
+| `REQUEST_TIMEOUT` | `10`                                               | API timeout (seconds)    |
+| `DEFAULT_LANG`    | `en`                                               | Default language (en/cs) |
 
 ### Container-Specific Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PYTHONUNBUFFERED` | `1` | Immediate log output |
-| `PYTHONDONTWRITEBYTECODE` | `1` | No .pyc files |
-| `PORT` | `8000` | Port (Coolify may override) |
+| Variable                  | Default | Description                 |
+| ------------------------- | ------- | --------------------------- |
+| `PYTHONUNBUFFERED`        | `1`     | Immediate log output        |
+| `PYTHONDONTWRITEBYTECODE` | `1`     | No .pyc files               |
+| `PORT`                    | `8000`  | Port (Coolify may override) |
 
 ---
 
@@ -218,6 +230,7 @@ TTL: 300
 ```
 
 Example for Cloudflare:
+
 ```
 f1.yourdomain.com  A  1.2.3.4
 ```
@@ -248,12 +261,14 @@ Scale to multiple instances for high availability:
 4. Click **"Update"**
 
 Coolify automatically:
+
 - Starts multiple containers
 - Load balances traffic
 - Health checks all instances
 - Removes unhealthy containers
 
 **Recommended setup**:
+
 - **Low traffic** (<1000 req/day): 1 replica
 - **Medium traffic** (1k-10k req/day): 2 replicas
 - **High traffic** (>10k req/day): 3+ replicas
@@ -269,6 +284,7 @@ Resources per replica:
 ```
 
 Our application is lightweight:
+
 - Idle: ~100MB RAM
 - Under load: ~200-300MB RAM
 - CPU: Mostly idle, spikes during image generation
@@ -299,6 +315,7 @@ View logs in Coolify dashboard:
 3. Toggle **"Follow"** for real-time
 
 **Log levels**:
+
 - `INFO`: Normal operations (startup, requests)
 - `WARNING`: Non-critical issues
 - `ERROR`: Failures (API errors, render errors)
@@ -314,12 +331,14 @@ curl https://your-app.com/health
 ```
 
 **Health check settings** (configured in Dockerfile):
+
 - Interval: 30 seconds
 - Timeout: 10 seconds
 - Retries: 3
 - Start period: 40 seconds (warmup time)
 
 **Unhealthy container actions**:
+
 1. Coolify detects failure after 3 retries
 2. Restarts container automatically
 3. Sends notification (if configured)
@@ -360,14 +379,17 @@ Notification channels:
 #### 1. Build Fails
 
 **Error**: `Python 3.14 not found`
+
 - **Cause**: Old Dockerfile (before this PR)
 - **Fix**: Ensure you're on `main` branch with latest changes
 
 **Error**: `pip install failed`
+
 - **Cause**: Network issue or dependency conflict
 - **Fix**: Check Coolify logs, retry build
 
 **Error**: `COPY failed: file not found`
+
 - **Cause**: Missing `setup.py` or `MANIFEST.in`
 - **Fix**: Ensure latest code from repository
 
@@ -376,6 +398,7 @@ Notification channels:
 **Symptom**: Container starts but marked unhealthy
 
 **Debug steps**:
+
 ```bash
 # 1. Check if app is running
 curl http://your-app:8000/
@@ -388,6 +411,7 @@ curl http://your-app:8000/health
 ```
 
 **Common causes**:
+
 - Port mismatch (ensure `PORT=8000`)
 - App crashed during startup
 - Dependencies missing
@@ -397,6 +421,7 @@ curl http://your-app:8000/health
 **Symptom**: App uses default values instead of your settings
 
 **Fix**:
+
 1. Go to **Environment Variables** in Coolify
 2. Verify variables are set correctly
 3. Check for typos in variable names
@@ -407,6 +432,7 @@ curl http://your-app:8000/health
 **Symptom**: 502 Bad Gateway or Connection Refused
 
 **Checks**:
+
 - [ ] Container is running (check Coolify status)
 - [ ] Health check is passing
 - [ ] Port 8000 is exposed
@@ -417,6 +443,7 @@ curl http://your-app:8000/health
 **Symptom**: `/calendar.bmp` takes >5 seconds
 
 **Solutions**:
+
 - Increase container resources (CPU/Memory)
 - Add Redis caching for race data
 - Check `JOLPICA_API_URL` response time
@@ -427,11 +454,13 @@ curl http://your-app:8000/health
 **Symptom**: "Not Secure" warning in browser
 
 **Checks**:
+
 - DNS is correctly configured (A record points to server)
 - Domain has propagated (check with `dig yourdomain.com`)
 - Coolify SSL provisioning completed (check domain tab)
 
 **Force SSL renewal**:
+
 1. Domain settings → SSL
 2. Click "Request Certificate"
 
@@ -442,11 +471,12 @@ curl http://your-app:8000/health
 **Cause**: Persistent volume not configured correctly or mounted to wrong path
 
 **Fix**:
+
 1. **Verify volume mount path**:
    - Go to Coolify → Your App → **"Storages"**
    - Ensure "Destination" is `/app/data` (NOT `/usr/src/app/data`)
-   
 2. **Check if volume exists**:
+
    ```bash
    # SSH into container or use Coolify console
    ls -la /app/data/
@@ -498,6 +528,7 @@ Now every push to `main` triggers deployment! 🚀
 Run staging and production separately:
 
 **Production**:
+
 ```
 Branch: main
 Domain: f1.yourdomain.com
@@ -505,6 +536,7 @@ Env: SENTRY_ENVIRONMENT=production
 ```
 
 **Staging**:
+
 ```
 Branch: develop
 Domain: staging-f1.yourdomain.com
@@ -527,18 +559,22 @@ This app uses SQLite for caching and stores pre-generated images. **IMPORTANT: Y
    Common mistake: Using `/usr/src/app/data` will NOT work!
 
 **Environment variables:**
+
 ```bash
 DATABASE_PATH=/app/data/f1.db
 IMAGES_PATH=/app/data/images
 ```
+
 These are now the default values, so you don't need to set them explicitly unless you want a different path.
 
 **Files stored:**
+
 - `f1.db` - SQLite database (API call statistics, cache metadata)
 - `f1.db-wal`, `f1.db-shm` - SQLite WAL files (Write-Ahead Logging)
 - `images/calendar_*.bmp` - Pre-generated calendar images
 
-**Backup:** 
+**Backup:**
+
 - Optional - data is cache only, regenerated hourly
 - For backup, copy `/app/data/` volume content
 
@@ -550,7 +586,8 @@ If your statistics are being lost on deployment:
    - Go to Coolify → Your App → **"Storages"**
    - Verify "Destination" is exactly `/app/data`
 
-2. **Verify volume is mounted**: 
+2. **Verify volume is mounted**:
+
    ```bash
    # In Coolify console or SSH into container
    ls -la /app/data/
@@ -558,6 +595,7 @@ If your statistics are being lost on deployment:
    ```
 
 3. **Check permissions**:
+
    ```bash
    # Files should be owned by appuser (UID 1000)
    ls -ln /app/data/
@@ -565,6 +603,7 @@ If your statistics are being lost on deployment:
    ```
 
 4. **Test database access**:
+
    ```bash
    # From container console
    python -c "from app.services.database import Database; import asyncio; asyncio.run(Database().get_api_calls_stats_24h())"
@@ -584,6 +623,7 @@ If you need to modify the Dockerfile:
 4. Rebuild
 
 **Example modifications**:
+
 - Add custom fonts
 - Include additional Python packages
 - Change base image
@@ -591,6 +631,7 @@ If you need to modify the Dockerfile:
 ### Resource Optimization
 
 **Reduce image size further**:
+
 ```dockerfile
 # Use alpine instead of slim
 FROM python:3.12-alpine
@@ -630,17 +671,18 @@ labels:
 
 Tested on basic VPS (2 vCPU, 2GB RAM):
 
-| Metric | Value |
-|--------|-------|
-| Cold start time | 10-15s |
-| Health check response | <50ms |
+| Metric                     | Value     |
+| -------------------------- | --------- |
+| Cold start time            | 10-15s    |
+| Health check response      | <50ms     |
 | `/calendar.bmp` generation | 200-500ms |
-| Memory usage (idle) | ~100MB |
-| Memory usage (load) | ~200MB |
-| Max throughput | ~50 req/s |
-| Image size | ~250MB |
+| Memory usage (idle)        | ~100MB    |
+| Memory usage (load)        | ~200MB    |
+| Max throughput             | ~50 req/s |
+| Image size                 | ~250MB    |
 
 **Recommended VPS specs**:
+
 - **Minimum**: 1 vCPU, 1GB RAM (€5/mo)
 - **Recommended**: 2 vCPU, 2GB RAM (€10/mo)
 - **High traffic**: 4 vCPU, 4GB RAM (€20/mo)
@@ -651,14 +693,15 @@ Tested on basic VPS (2 vCPU, 2GB RAM):
 
 **Self-hosted Coolify** (one-time setup):
 
-| Component | Cost | Notes |
-|-----------|------|-------|
-| VPS (Coolify) | €10-20/mo | Hetzner, DigitalOcean, etc. |
-| Domain | €10/year | Optional (can use Coolify subdomain) |
-| SSL | Free | Let's Encrypt |
-| **Total** | **€10-20/mo** | Can host multiple apps on same VPS |
+| Component     | Cost          | Notes                                |
+| ------------- | ------------- | ------------------------------------ |
+| VPS (Coolify) | €10-20/mo     | Hetzner, DigitalOcean, etc.          |
+| Domain        | €10/year      | Optional (can use Coolify subdomain) |
+| SSL           | Free          | Let's Encrypt                        |
+| **Total**     | **€10-20/mo** | Can host multiple apps on same VPS   |
 
 **vs. Alternatives**:
+
 - Heroku: $25/mo minimum
 - Render: $7/mo (but limited features)
 - Railway: $10/mo
@@ -717,6 +760,6 @@ After successful deployment:
 
 ---
 
-*Last updated: December 2024*  
-*Coolify version: 4.x+*  
-*InkyCloud-F1 version: 0.2.0+*
+_Last updated: December 2024_  
+_Coolify version: 4.x+_  
+_InkyCloud-F1 version: 0.2.0+_

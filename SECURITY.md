@@ -17,8 +17,8 @@ When reporting, please include:
 
 ## Supported Versions
 
-| Version | Supported |
-| ------- | --------- |
-| main    | Yes |
-| Latest release tag | Yes |
-| Older tags | Security fixes are best-effort only |
+| Version            | Supported                           |
+| ------------------ | ----------------------------------- |
+| main               | Yes                                 |
+| Latest release tag | Yes                                 |
+| Older tags         | Security fixes are best-effort only |

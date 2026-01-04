@@ -23,14 +23,15 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 
 ### URL Parameters
 
-| Parameter | Options | Example |
-|-----------|---------|---------|
-| `lang` | `cs` (Czech), `en` (English) | `?lang=en` |
-| `tz` | Any IANA timezone | `?tz=America/New_York` |
-| `year` | Season year | `?year=2026` |
-| `round` | Race round number | `?year=2026&round=5` |
+| Parameter | Options                      | Example                |
+| --------- | ---------------------------- | ---------------------- |
+| `lang`    | `cs` (Czech), `en` (English) | `?lang=en`             |
+| `tz`      | Any IANA timezone            | `?tz=America/New_York` |
+| `year`    | Season year                  | `?year=2026`           |
+| `round`   | Race round number            | `?year=2026&round=5`   |
 
 **Examples:**
+
 ```
 https://f1.inkycloud.click/calendar.bmp?lang=cs
 https://f1.inkycloud.click/calendar.bmp?lang=en&tz=America/New_York
@@ -43,7 +44,7 @@ https://f1.inkycloud.click/calendar.bmp?lang=en&year=2026&round=5
 
 ![F1 E-Ink Calendar Preview](./assets/device.jpg)
 
-*LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech*
+_LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
 ---
 
@@ -99,19 +100,19 @@ if (httpCode == HTTP_CODE_OK) {
 
 The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides these endpoints:
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /calendar.bmp` | Generate F1 calendar as 1-bit BMP image |
-| `GET /teams.bmp` | Teams & drivers grid as 1-bit BMP image |
-| `GET /` | Landing page with screen type selection |
-| `GET /configure/{screen}` | Interactive preview page (calendar/teams) |
-| `GET /api` | API documentation |
-| `GET /api/races/{year}` | All races for a season (JSON) |
-| `GET /api/race/{year}/{round}` | Specific race details (JSON) |
-| `GET /api/teams/{year}` | Teams and drivers for a season (JSON) |
-| `GET /api/standings/leader` | Current championship leader (JSON) |
-| `GET /api/stats` | Request statistics |
-| `GET /health` | Health check |
+| Endpoint                       | Description                               |
+| ------------------------------ | ----------------------------------------- |
+| `GET /calendar.bmp`            | Generate F1 calendar as 1-bit BMP image   |
+| `GET /teams.bmp`               | Teams & drivers grid as 1-bit BMP image   |
+| `GET /`                        | Landing page with screen type selection   |
+| `GET /configure/{screen}`      | Interactive preview page (calendar/teams) |
+| `GET /api`                     | API documentation                         |
+| `GET /api/races/{year}`        | All races for a season (JSON)             |
+| `GET /api/race/{year}/{round}` | Specific race details (JSON)              |
+| `GET /api/teams/{year}`        | Teams and drivers for a season (JSON)     |
+| `GET /api/standings/leader`    | Current championship leader (JSON)        |
+| `GET /api/stats`               | Request statistics                        |
+| `GET /health`                  | Health check                              |
 
 ---
 
@@ -120,6 +121,7 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 Want to run your own instance? We've got you covered!
 
 👉 **[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete guide for self-hosting including:
+
 - Quick start with Docker/Coolify
 - Project structure
 - Data updates & yearly maintenance

@@ -20,7 +20,8 @@ async def main():
                 (
                     r
                     for r in races
-                    if r.get("Circuit", {}).get("Location", {}).get("country") == "China"
+                    if r.get("Circuit", {}).get("Location", {}).get("country")
+                    == "China"
                 ),
                 None,
             )

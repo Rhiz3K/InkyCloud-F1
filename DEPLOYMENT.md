@@ -35,15 +35,16 @@ This guide covers different deployment options for the F1 E-Ink Calendar service
    - Health Check: `/health`
 
 3. **Environment Variables** (required):
+
    ```bash
    APP_HOST=0.0.0.0
    APP_PORT=8000
    DEBUG=false
-   
+
    # Optional - Monitoring
    SENTRY_DSN=your-sentry-dsn
    SENTRY_ENVIRONMENT=production
-   
+
    # Optional - Analytics
    UMAMI_ENABLED=true
    UMAMI_WEBSITE_ID=your-website-id
@@ -192,6 +193,7 @@ WantedBy=multi-user.target
 ```
 
 Enable and start:
+
 ```bash
 sudo systemctl enable f1-eink-cal
 sudo systemctl start f1-eink-cal
@@ -221,6 +223,7 @@ heroku logs --tail
 ```
 
 Create `Procfile`:
+
 ```
 web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
@@ -244,22 +247,22 @@ web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
 # .do/app.yaml
 name: f1-eink-cal
 services:
-- name: web
-  github:
-    repo: Rhiz3K/InkyCloud-F1
-    branch: main
-    deploy_on_push: true
-  dockerfile_path: Dockerfile
-  http_port: 8000
-  instance_count: 1
-  instance_size_slug: basic-xxs
-  envs:
-  - key: SENTRY_DSN
-    scope: RUN_TIME
-    type: SECRET
-  - key: UMAMI_ENABLED
-    scope: RUN_TIME
-    value: "true"
+  - name: web
+    github:
+      repo: Rhiz3K/InkyCloud-F1
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: SENTRY_DSN
+        scope: RUN_TIME
+        type: SECRET
+      - key: UMAMI_ENABLED
+        scope: RUN_TIME
+        value: "true"
 ```
 
 ## Monitoring & Logging
@@ -317,6 +320,7 @@ Consider adding Redis for caching:
 ## Backup & Recovery
 
 The application uses SQLite for API statistics and cache. Consider backing up:
+
 - `/app/data/f1.db` - SQLite database (statistics, cache metadata)
 - `/app/data/images/` - Pre-generated BMP images
 - `.env` file (securely)
@@ -341,6 +345,7 @@ Add a load balancer (nginx, Traefik, etc.) in front of multiple instances.
 ### Common Issues
 
 1. **Port already in use**
+
    ```bash
    # Change port in .env or command line
    APP_PORT=8080 uvicorn app.main:app

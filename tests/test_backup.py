@@ -134,7 +134,9 @@ class TestPerformBackup:
 
             with (
                 patch("app.services.backup.is_backup_configured", return_value=True),
-                patch("app.services.backup._get_s3_client", return_value=mock_s3_client),
+                patch(
+                    "app.services.backup._get_s3_client", return_value=mock_s3_client
+                ),
                 patch("app.services.backup.config") as mock_config,
                 patch("app.services.backup.cleanup_old_backups"),
             ):
@@ -180,8 +182,14 @@ class TestCleanupOldBackups:
         mock_paginator.paginate.return_value = [
             {
                 "Contents": [
-                    {"Key": "f1_backup_2025-01-01_03-00-00.db", "LastModified": old_date},
-                    {"Key": "f1_backup_2025-03-10_03-00-00.db", "LastModified": recent_date},
+                    {
+                        "Key": "f1_backup_2025-01-01_03-00-00.db",
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "f1_backup_2025-03-10_03-00-00.db",
+                        "LastModified": recent_date,
+                    },
                 ]
             }
         ]
@@ -202,7 +210,8 @@ class TestCleanupOldBackups:
             assert delete_call[1]["Bucket"] == "test-bucket"
             assert len(delete_call[1]["Delete"]["Objects"]) == 1
             assert (
-                delete_call[1]["Delete"]["Objects"][0]["Key"] == "f1_backup_2025-01-01_03-00-00.db"
+                delete_call[1]["Delete"]["Objects"][0]["Key"]
+                == "f1_backup_2025-01-01_03-00-00.db"
             )
 
 

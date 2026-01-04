@@ -7,10 +7,10 @@
  * Switch UI language by updating URL parameter and reloading
  */
 function switchUiLanguage() {
-    const lang = document.getElementById('uiLangSwitch').value;
-    localStorage.setItem('preferredLang', lang);
+    const lang = document.getElementById("uiLangSwitch").value;
+    localStorage.setItem("preferredLang", lang);
     const url = new URL(window.location.href);
-    url.searchParams.set('lang', lang);
+    url.searchParams.set("lang", lang);
     window.location.href = url.toString();
 }
 
@@ -20,11 +20,12 @@ function switchUiLanguage() {
  * @returns {string} Formatted string (e.g., "1.5 MB")
  */
 function formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
-    if (bytes < 1024 * 1024 * 1024) return Math.round(bytes / (1024 * 1024)) + ' MB';
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+    if (bytes === 0) return "0 B";
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
+    if (bytes < 1024 * 1024 * 1024)
+        return Math.round(bytes / (1024 * 1024)) + " MB";
+    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
 }
 
 /**
@@ -37,7 +38,7 @@ async function copyToClipboard(text) {
         await navigator.clipboard.writeText(text);
         return true;
     } catch (err) {
-        console.error('Failed to copy:', err);
+        console.error("Failed to copy:", err);
         return false;
     }
 }
@@ -47,10 +48,10 @@ async function copyToClipboard(text) {
  */
 function toggleMobileMenu() {
     // Check if we're on homepage (settingsSidebar exists)
-    const sidebar = document.getElementById('settingsSidebar');
+    const sidebar = document.getElementById("settingsSidebar");
     if (sidebar) {
         // Homepage - use existing toggleSidebar function
-        if (typeof toggleSidebar === 'function') {
+        if (typeof toggleSidebar === "function") {
             toggleSidebar();
         }
     } else {
@@ -63,11 +64,11 @@ function toggleMobileMenu() {
  * Open mobile navigation overlay (non-home pages)
  */
 function openMobileNav() {
-    const overlay = document.getElementById('mobileNavOverlay');
-    const menu = document.getElementById('mobileNavMenu');
+    const overlay = document.getElementById("mobileNavOverlay");
+    const menu = document.getElementById("mobileNavMenu");
     if (overlay && menu) {
-        overlay.classList.remove('hidden');
-        menu.classList.remove('-translate-x-full');
+        overlay.classList.remove("hidden");
+        menu.classList.remove("-translate-x-full");
     }
 }
 
@@ -75,11 +76,11 @@ function openMobileNav() {
  * Close mobile navigation overlay
  */
 function closeMobileNav() {
-    const overlay = document.getElementById('mobileNavOverlay');
-    const menu = document.getElementById('mobileNavMenu');
+    const overlay = document.getElementById("mobileNavOverlay");
+    const menu = document.getElementById("mobileNavMenu");
     if (overlay && menu) {
-        overlay.classList.add('hidden');
-        menu.classList.add('-translate-x-full');
+        overlay.classList.add("hidden");
+        menu.classList.add("-translate-x-full");
     }
 }
 
@@ -87,7 +88,7 @@ function closeMobileNav() {
  * Real User Monitoring - Collect and send Web Vitals
  * Metrics: LCP, CLS, FCP, TTFB, INP
  */
-(function() {
+(function () {
     const metrics = {};
     let metricsReported = false;
 
@@ -104,17 +105,17 @@ function closeMobileNav() {
             ttfb_ms: metrics.ttfb,
             inp_ms: metrics.inp,
             connection_type: navigator.connection?.effectiveType || null,
-            device_memory: navigator.deviceMemory || null
+            device_memory: navigator.deviceMemory || null,
         };
 
         if (navigator.sendBeacon) {
-            navigator.sendBeacon('/api/perf-metrics', JSON.stringify(payload));
+            navigator.sendBeacon("/api/perf-metrics", JSON.stringify(payload));
         } else {
-            fetch('/api/perf-metrics', {
-                method: 'POST',
+            fetch("/api/perf-metrics", {
+                method: "POST",
                 body: JSON.stringify(payload),
-                headers: { 'Content-Type': 'application/json' },
-                keepalive: true
+                headers: { "Content-Type": "application/json" },
+                keepalive: true,
             }).catch(() => {});
         }
     }
@@ -126,7 +127,7 @@ function closeMobileNav() {
             if (last) {
                 metrics.lcp = Math.round(last.startTime);
             }
-        }).observe({ type: 'largest-contentful-paint', buffered: true });
+        }).observe({ type: "largest-contentful-paint", buffered: true });
     } catch (e) {}
 
     try {
@@ -138,7 +139,7 @@ function closeMobileNav() {
                 }
             }
             metrics.cls = Math.round(clsValue * 1000) / 1000;
-        }).observe({ type: 'layout-shift', buffered: true });
+        }).observe({ type: "layout-shift", buffered: true });
     } catch (e) {}
 
     try {
@@ -147,7 +148,7 @@ function closeMobileNav() {
             if (entry) {
                 metrics.fcp = Math.round(entry.startTime);
             }
-        }).observe({ type: 'paint', buffered: true });
+        }).observe({ type: "paint", buffered: true });
     } catch (e) {}
 
     try {
@@ -157,25 +158,25 @@ function closeMobileNav() {
             if (last) {
                 metrics.inp = Math.round(last.duration);
             }
-        }).observe({ type: 'event', buffered: true, durationThreshold: 16 });
+        }).observe({ type: "event", buffered: true, durationThreshold: 16 });
     } catch (e) {}
 
-    const navEntry = performance.getEntriesByType('navigation')[0];
+    const navEntry = performance.getEntriesByType("navigation")[0];
     if (navEntry) {
         metrics.ttfb = Math.round(navEntry.responseStart);
     }
 
-    window.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') {
+    window.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "hidden") {
             sendMetrics();
         }
     });
 
-    window.addEventListener('pagehide', sendMetrics);
+    window.addEventListener("pagehide", sendMetrics);
 
     setTimeout(sendMetrics, 10000);
 })();
 
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
 }

@@ -5,17 +5,19 @@ Thank you for your interest in contributing to the F1 E-Ink Calendar project! ðŸ
 ## Getting Started
 
 1. **Fork the repository**
+
    ```bash
    git clone https://github.com/Rhiz3K/InkyCloud-F1.git
    cd InkyCloud-F1
    ```
 
 2. **Set up development environment**
+
    ```bash
    # Create virtual environment
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
-   
+
    # Install dependencies
    pip install -e ".[dev]"
    ```
@@ -72,6 +74,7 @@ To add a new language:
 4. Update `app/main.py` to accept the new language code
 
 Example `translations/de.json`:
+
 ```json
 {
   "next_race": "NÃ¤chstes Rennen",
@@ -102,6 +105,7 @@ We follow conventional commits:
 - `chore:` Maintenance tasks
 
 Examples:
+
 ```
 feat: add support for Sprint Qualifying session
 fix: correct timezone conversion for Australian GP

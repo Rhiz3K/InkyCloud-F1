@@ -123,21 +123,27 @@ def test_configure_page_contains_api_references():
 
 def test_configure_page_i18n_default_english():
     """Test configure page defaults to English for non-CZ/SK users."""
-    response = client.get("/configure/calendar", headers={"Accept-Language": "en-US,en;q=0.9"})
+    response = client.get(
+        "/configure/calendar", headers={"Accept-Language": "en-US,en;q=0.9"}
+    )
     html = response.text
     assert "currentUiLang = 'en'" in html
 
 
 def test_configure_page_i18n_czech_for_cz():
     """Test configure page uses Czech for CZ users."""
-    response = client.get("/configure/calendar", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
+    response = client.get(
+        "/configure/calendar", headers={"Accept-Language": "cs-CZ,cs;q=0.9"}
+    )
     html = response.text
     assert "currentUiLang = 'cs'" in html
 
 
 def test_configure_page_i18n_czech_for_sk():
     """Test configure page uses Czech for SK users."""
-    response = client.get("/configure/calendar", headers={"Accept-Language": "sk-SK,sk;q=0.9"})
+    response = client.get(
+        "/configure/calendar", headers={"Accept-Language": "sk-SK,sk;q=0.9"}
+    )
     html = response.text
     assert "currentUiLang = 'cs'" in html
 
@@ -308,7 +314,9 @@ def test_api_docs_html_lang_parameter():
 
 def test_api_docs_html_i18n_czech():
     """Test API docs HTML page detects Czech language from header."""
-    response = client.get("/api/docs/html", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
+    response = client.get(
+        "/api/docs/html", headers={"Accept-Language": "cs-CZ,cs;q=0.9"}
+    )
     html = response.text
     assert "currentUiLang = 'cs'" in html
 

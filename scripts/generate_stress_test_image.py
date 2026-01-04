@@ -50,13 +50,21 @@ def generate_stress_image():
                 "datetime": datetime(2024, 5, 17, 17, 30),
                 "display_time": "17:30",
             },
-            {"name": "Sprint", "datetime": datetime(2024, 5, 18, 12, 0), "display_time": "12:00"},
+            {
+                "name": "Sprint",
+                "datetime": datetime(2024, 5, 18, 12, 0),
+                "display_time": "12:00",
+            },
             {
                 "name": "Qualifying",
                 "datetime": datetime(2024, 5, 18, 16, 0),
                 "display_time": "16:00",
             },
-            {"name": "Race", "datetime": datetime(2024, 5, 19, 15, 0), "display_time": "15:00"},
+            {
+                "name": "Race",
+                "datetime": datetime(2024, 5, 19, 15, 0),
+                "display_time": "15:00",
+            },
         ],
     }
 
@@ -104,7 +112,9 @@ def generate_stress_image():
             ),
             QualifyingResultEntry(
                 position=20,
-                driver=DriverInfo(code="RIC", given_name="Daniel", family_name="Ricciardo"),
+                driver=DriverInfo(
+                    code="RIC", given_name="Daniel", family_name="Ricciardo"
+                ),
                 constructor=ConstructorInfo(name="Visa Cash App RB"),
                 q3_time="1:29.846",
             ),

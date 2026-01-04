@@ -100,7 +100,9 @@ def scrape_wiki_teams(year: int) -> dict:
     url = WIKI_URL.format(year=year)
     print(f"Fetching: {url}")
 
-    headers = {"User-Agent": "F1-eInk-Calendar/1.0 (https://github.com/Rhiz3K/InkyCloud-F1)"}
+    headers = {
+        "User-Agent": "F1-eInk-Calendar/1.0 (https://github.com/Rhiz3K/InkyCloud-F1)"
+    }
 
     with httpx.Client(timeout=30.0, headers=headers, follow_redirects=True) as client:
         response = client.get(url)
@@ -169,7 +171,13 @@ def main():
     driver_count = sum(len(t.get("drivers", [])) for t in teams)
     print(f"\nFound {len(teams)} teams with {driver_count} drivers")
 
-    output_path = Path(__file__).parent.parent / "app" / "assets" / "seasons" / f"{year}_teams.json"
+    output_path = (
+        Path(__file__).parent.parent
+        / "app"
+        / "assets"
+        / "seasons"
+        / f"{year}_teams.json"
+    )
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w", encoding="utf-8") as f:

@@ -147,7 +147,9 @@ class F1Service:
         schedule_events = []
 
         # Helper function to parse and convert time
-        def parse_and_convert(date_str: str, time_str: Optional[str]) -> Optional[datetime]:
+        def parse_and_convert(
+            date_str: str, time_str: Optional[str]
+        ) -> Optional[datetime]:
             """Parse date and time, convert to target timezone."""
             if not time_str:
                 # If no time, use noon UTC as default
@@ -216,7 +218,9 @@ class F1Service:
             "timezone": self.timezone_str,
         }
 
-    async def get_historical_data(self, circuit_id: str, current_season: int) -> HistoricalData:
+    async def get_historical_data(
+        self, circuit_id: str, current_season: int
+    ) -> HistoricalData:
         """
         Fetch historical race results for the most recent previous race at this circuit.
 
@@ -244,13 +248,17 @@ class F1Service:
                     logger.info(f"No previous race found for circuit {circuit_id}")
                     return HistoricalData(is_new_track=True)
 
-                logger.info(f"Found previous race at {circuit_id} in season {previous_season}")
+                logger.info(
+                    f"Found previous race at {circuit_id} in season {previous_season}"
+                )
 
                 # Step 2: Fetch qualifying and race results for that season
                 qualifying_results = await self._fetch_qualifying_results(
                     client, circuit_id, previous_season
                 )
-                race_results = await self._fetch_race_results(client, circuit_id, previous_season)
+                race_results = await self._fetch_race_results(
+                    client, circuit_id, previous_season
+                )
 
                 return HistoricalData(
                     season=previous_season,
@@ -293,7 +301,8 @@ class F1Service:
         previous_seasons = [
             int(race["season"])
             for race in races
-            if int(race["season"]) < current_season and int(race["season"]) >= MIN_HISTORICAL_YEAR
+            if int(race["season"]) < current_season
+            and int(race["season"]) >= MIN_HISTORICAL_YEAR
         ]
 
         if not previous_seasons:
@@ -315,7 +324,9 @@ class F1Service:
         Returns:
             List of QualifyingResultEntry objects (top 3)
         """
-        url = f"{JOLPICA_BASE_URL}/{season}/circuits/{circuit_id}/qualifying.json?limit=3"
+        url = (
+            f"{JOLPICA_BASE_URL}/{season}/circuits/{circuit_id}/qualifying.json?limit=3"
+        )
         logger.info(f"Fetching qualifying results: {url}")
 
         try:
@@ -442,7 +453,9 @@ class F1Service:
                         is_past = False
                         if race_date_str:
                             dt_str = f"{race_date_str}T{race_time_str}"
-                            dt_utc = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                            dt_utc = datetime.fromisoformat(
+                                dt_str.replace("Z", "+00:00")
+                            )
                             dt_local = dt_utc.astimezone(self.target_tz)
                             is_past = dt_local < now
 
@@ -450,8 +463,12 @@ class F1Service:
                             {
                                 "round": int(race.get("round", 0)),
                                 "race_name": race.get("raceName", ""),
-                                "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
-                                "circuit_name": race.get("Circuit", {}).get("circuitName", ""),
+                                "circuit_id": race.get("Circuit", {}).get(
+                                    "circuitId", ""
+                                ),
+                                "circuit_name": race.get("Circuit", {}).get(
+                                    "circuitName", ""
+                                ),
                                 "country": race.get("Circuit", {})
                                 .get("Location", {})
                                 .get("country", ""),
@@ -462,7 +479,9 @@ class F1Service:
                         )
                     except (KeyError, ValueError, TypeError) as e:
                         race_name = race.get("raceName", "N/A")
-                        logger.warning(f"Skipping malformed race: {race_name}. Error: {e}")
+                        logger.warning(
+                            f"Skipping malformed race: {race_name}. Error: {e}"
+                        )
                         continue
 
                 return result
@@ -543,7 +562,9 @@ class F1Service:
                 try:
                     races.append(Race(**race_data))
                 except Exception as e:
-                    logger.warning(f"Failed to parse race: {race_data.get('raceName')}: {e}")
+                    logger.warning(
+                        f"Failed to parse race: {race_data.get('raceName')}: {e}"
+                    )
 
             logger.info(f"Loaded {len(races)} races from static file for {year}")
             return races
@@ -575,7 +596,9 @@ class F1Service:
 
                     # If race is in the future, this is the next race
                     if race_dt > now:
-                        logger.info(f"Found next race from static: {race.raceName} ({race.date})")
+                        logger.info(
+                            f"Found next race from static: {race.raceName} ({race.date})"
+                        )
                         return self._convert_race_times(race)
 
                 except Exception as e:
@@ -674,5 +697,7 @@ class F1Service:
             logger.error(f"Circuits data file not found: {CIRCUITS_DATA_PATH}")
             return HistoricalData(is_new_track=True)
         except Exception as e:
-            logger.error(f"Error loading historical data for {circuit_id}: {e}", exc_info=True)
+            logger.error(
+                f"Error loading historical data for {circuit_id}: {e}", exc_info=True
+            )
             return HistoricalData(is_new_track=True)

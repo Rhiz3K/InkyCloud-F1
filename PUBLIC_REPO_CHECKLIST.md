@@ -5,6 +5,7 @@ Checklist for setting up the public GitHub repository `Rhiz3K/InkyCloud-F1`.
 ## 1. Branch Protection (Settings → Branches)
 
 ### Rule for `main` branch
+
 - [ ] Add branch protection rule for `main`
 - [ ] **Require a pull request before merging**
   - [ ] Require at least 1 approval
@@ -24,11 +25,13 @@ Checklist for setting up the public GitHub repository `Rhiz3K/InkyCloud-F1`.
 ## 3. Repository Settings (Settings → General)
 
 ### Features
+
 - [ ] Enable **Issues**
 - [ ] Enable **Discussions**
 - [ ] Disable **Wiki**
 
 ### Pull Requests
+
 - [ ] Allow **squash merging**
 - [ ] **Automatically delete head branches**
 

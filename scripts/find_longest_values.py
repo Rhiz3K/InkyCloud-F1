@@ -27,7 +27,9 @@ async def fetch_all_pages(client, endpoint, key_path, processor_func, max_vals):
     while total is None or offset < total:
         print(f"Fetching {endpoint} offset={offset}...")
         try:
-            resp = await client.get(f"{BASE_URL}{endpoint}.json?limit={LIMIT}&offset={offset}")
+            resp = await client.get(
+                f"{BASE_URL}{endpoint}.json?limit={LIMIT}&offset={offset}"
+            )
             resp.raise_for_status()
             data = resp.json()
 
@@ -112,7 +114,9 @@ async def main():
 
         # Races
         # /races endpoint gives all races ever
-        await fetch_all_pages(client, "/races", ["RaceTable", "Races"], process_race, max_vals)
+        await fetch_all_pages(
+            client, "/races", ["RaceTable", "Races"], process_race, max_vals
+        )
 
     print(json.dumps(asdict(max_vals), indent=2))
 

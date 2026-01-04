@@ -28,6 +28,7 @@ Deploy in 5 minutes with one-click deployment:
    - Branch: `main`
 
 2. **Set Environment Variables**
+
    ```bash
    APP_HOST=0.0.0.0
    APP_PORT=8000
@@ -91,12 +92,12 @@ For more deployment options (Heroku, Railway, Render, DigitalOcean, systemd), se
 
 ## Deployment Options
 
-| Option | Complexity | Cost | Best For |
-|--------|------------|------|----------|
-| **[Coolify](./COOLIFY.md)** | ⭐ Easy | €5-10/mo | Self-hosters wanting Heroku-like experience |
-| **Docker** | ⭐⭐ Medium | Varies | Existing Docker infrastructure |
-| **[Cloud Platforms](./DEPLOYMENT.md)** | ⭐ Easy | $7-25/mo | Quick deployment without infrastructure |
-| **Manual** | ⭐⭐⭐ Advanced | €3-5/mo | Full control, minimal cost |
+| Option                                 | Complexity      | Cost     | Best For                                    |
+| -------------------------------------- | --------------- | -------- | ------------------------------------------- |
+| **[Coolify](./COOLIFY.md)**            | ⭐ Easy         | €5-10/mo | Self-hosters wanting Heroku-like experience |
+| **Docker**                             | ⭐⭐ Medium     | Varies   | Existing Docker infrastructure              |
+| **[Cloud Platforms](./DEPLOYMENT.md)** | ⭐ Easy         | $7-25/mo | Quick deployment without infrastructure     |
+| **Manual**                             | ⭐⭐⭐ Advanced | €3-5/mo  | Full control, minimal cost                  |
 
 ---
 
@@ -146,17 +147,17 @@ InkyCloud-F1/
 
 ### Key Components
 
-| Component | Purpose |
-|-----------|---------|
-| `app/main.py` | FastAPI endpoints with async/await pattern |
-| `app/services/renderer.py` | Pixel-perfect 1-bit BMP rendering engine (1600+ lines) |
-| `app/services/f1_service.py` | F1 data fetching with timezone conversion |
-| `app/services/teams_service.py` | Teams & drivers data service |
-| `app/services/database.py` | SQLite for statistics and cache |
-| `app/services/scheduler.py` | APScheduler background jobs |
-| `app/services/backup.py` | S3-compatible database backup |
-| `app/services/analytics.py` | Fire-and-forget Umami tracking |
-| `app/services/i18n.py` | Translation loader with caching |
+| Component                       | Purpose                                                |
+| ------------------------------- | ------------------------------------------------------ |
+| `app/main.py`                   | FastAPI endpoints with async/await pattern             |
+| `app/services/renderer.py`      | Pixel-perfect 1-bit BMP rendering engine (1600+ lines) |
+| `app/services/f1_service.py`    | F1 data fetching with timezone conversion              |
+| `app/services/teams_service.py` | Teams & drivers data service                           |
+| `app/services/database.py`      | SQLite for statistics and cache                        |
+| `app/services/scheduler.py`     | APScheduler background jobs                            |
+| `app/services/backup.py`        | S3-compatible database backup                          |
+| `app/services/analytics.py`     | Fire-and-forget Umami tracking                         |
+| `app/services/i18n.py`          | Translation loader with caching                        |
 
 ---
 
@@ -166,17 +167,18 @@ The application uses **static JSON files** for F1 data instead of making API cal
 
 ### Data Files
 
-| File | Description | Update Frequency |
-|------|-------------|------------------|
-| `app/assets/seasons/2025.json` | 2025 race calendar | Once per year (or when FIA changes) |
-| `app/assets/seasons/2026.json` | 2026 race calendar | Once per year |
-| `app/assets/circuits_data.json` | Circuit info + historical results | After each GP |
+| File                            | Description                       | Update Frequency                    |
+| ------------------------------- | --------------------------------- | ----------------------------------- |
+| `app/assets/seasons/2025.json`  | 2025 race calendar                | Once per year (or when FIA changes) |
+| `app/assets/seasons/2026.json`  | 2026 race calendar                | Once per year                       |
+| `app/assets/circuits_data.json` | Circuit info + historical results | After each GP                       |
 
 ### Automatic Updates (GitHub Action)
 
 A GitHub Action runs every **Monday at 06:00 UTC** (after Sunday GP) to automatically update historical race results. Changes are committed directly to the repository.
 
 You can also trigger updates manually from the GitHub Actions tab:
+
 - **historical** - Update race results after each GP
 - **seasons** - Update season calendars (use when FIA announces changes)
 - **all** - Update both
@@ -204,6 +206,7 @@ python scripts/update_seasons.py --years 2025,2026
 ### Before Each Season (January/February)
 
 1. **Update season calendar** when FIA announces the official schedule:
+
    ```bash
    python scripts/update_seasons.py --years 2026
    ```
@@ -213,6 +216,7 @@ python scripts/update_seasons.py --years 2025,2026
    - Add track image to `app/assets/tracks/{circuitId}.png`
 
 3. **Update dependencies** for security:
+
    ```bash
    pip install -U -e ".[dev]"
    ```
@@ -243,6 +247,7 @@ python scripts/update_historical.py
 ### End of Season (December)
 
 1. **Create next year's calendar file** (placeholder until FIA announces):
+
    ```bash
    python scripts/update_seasons.py --years 2027
    ```
@@ -295,27 +300,27 @@ SCHEDULER_ENABLED=true
 
 ### Configuration Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_HOST` / `APP_PORT` / `PORT` | `0.0.0.0:8000` | Bind address and port |
-| `DEBUG` | `false` | Enable verbose logging |
-| `PYTHONUNBUFFERED` / `PYTHONDONTWRITEBYTECODE` | - | Container-friendly Python flags |
-| `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE` | - | GlitchTip/Sentry monitoring |
-| `UMAMI_WEBSITE_ID`, `UMAMI_API_URL`, `UMAMI_ENABLED` | - | Umami analytics tracking |
-| `JOLPICA_API_URL`, `REQUEST_TIMEOUT` | - | Upstream F1 data endpoint |
-| `DEFAULT_LANG` | `en` | Default calendar language |
-| `DEFAULT_TIMEZONE` | `Europe/Prague` | IANA timezone for schedule |
-| `DATABASE_PATH` | `/app/data/f1.db` | SQLite database location (absolute path for containers) |
-| `IMAGES_PATH` | `/app/data/images` | Generated preview images (absolute path for containers) |
-| `SCHEDULER_ENABLED` | `true` | Background data refresh |
-| `BACKUP_ENABLED` | `false` | Enable S3 database backup |
-| `BACKUP_CRON` | `0 3 * * *` | Backup schedule (cron expression) |
-| `BACKUP_RETENTION_DAYS` | `30` | Days to keep old backups (0 = keep all) |
-| `S3_ENDPOINT_URL` | - | S3-compatible endpoint URL |
-| `S3_ACCESS_KEY_ID` | - | S3 access key |
-| `S3_SECRET_ACCESS_KEY` | - | S3 secret key |
-| `S3_BUCKET_NAME` | - | S3 bucket for backups |
-| `S3_REGION` | `auto` | S3 region (use "auto" for Cloudflare R2) |
+| Variable                                                        | Default            | Description                                             |
+| --------------------------------------------------------------- | ------------------ | ------------------------------------------------------- |
+| `APP_HOST` / `APP_PORT` / `PORT`                                | `0.0.0.0:8000`     | Bind address and port                                   |
+| `DEBUG`                                                         | `false`            | Enable verbose logging                                  |
+| `PYTHONUNBUFFERED` / `PYTHONDONTWRITEBYTECODE`                  | -                  | Container-friendly Python flags                         |
+| `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE` | -                  | GlitchTip/Sentry monitoring                             |
+| `UMAMI_WEBSITE_ID`, `UMAMI_API_URL`, `UMAMI_ENABLED`            | -                  | Umami analytics tracking                                |
+| `JOLPICA_API_URL`, `REQUEST_TIMEOUT`                            | -                  | Upstream F1 data endpoint                               |
+| `DEFAULT_LANG`                                                  | `en`               | Default calendar language                               |
+| `DEFAULT_TIMEZONE`                                              | `Europe/Prague`    | IANA timezone for schedule                              |
+| `DATABASE_PATH`                                                 | `/app/data/f1.db`  | SQLite database location (absolute path for containers) |
+| `IMAGES_PATH`                                                   | `/app/data/images` | Generated preview images (absolute path for containers) |
+| `SCHEDULER_ENABLED`                                             | `true`             | Background data refresh                                 |
+| `BACKUP_ENABLED`                                                | `false`            | Enable S3 database backup                               |
+| `BACKUP_CRON`                                                   | `0 3 * * *`        | Backup schedule (cron expression)                       |
+| `BACKUP_RETENTION_DAYS`                                         | `30`               | Days to keep old backups (0 = keep all)                 |
+| `S3_ENDPOINT_URL`                                               | -                  | S3-compatible endpoint URL                              |
+| `S3_ACCESS_KEY_ID`                                              | -                  | S3 access key                                           |
+| `S3_SECRET_ACCESS_KEY`                                          | -                  | S3 secret key                                           |
+| `S3_BUCKET_NAME`                                                | -                  | S3 bucket for backups                                   |
+| `S3_REGION`                                                     | `auto`             | S3 region (use "auto" for Cloudflare R2)                |
 
 ---
 
@@ -339,11 +344,12 @@ Cloudflare R2 offers generous free tier (10GB storage, 1M requests/month) and no
    - Save the Access Key ID and Secret Access Key
 
 3. **Configure environment variables**:
+
    ```bash
    BACKUP_ENABLED=true
    BACKUP_CRON=0 3 * * *
    BACKUP_RETENTION_DAYS=30
-   
+
    S3_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
    S3_ACCESS_KEY_ID=<your-access-key-id>
    S3_SECRET_ACCESS_KEY=<your-secret-access-key>
@@ -383,12 +389,12 @@ S3_REGION=us-east-1
 
 The `BACKUP_CRON` variable uses standard cron syntax:
 
-| Expression | Description |
-|------------|-------------|
-| `0 3 * * *` | Daily at 3:00 AM UTC (default) |
-| `0 */6 * * *` | Every 6 hours |
-| `0 3 * * 0` | Weekly on Sundays at 3:00 AM |
-| `0 3 1 * *` | Monthly on the 1st at 3:00 AM |
+| Expression    | Description                    |
+| ------------- | ------------------------------ |
+| `0 3 * * *`   | Daily at 3:00 AM UTC (default) |
+| `0 */6 * * *` | Every 6 hours                  |
+| `0 3 * * 0`   | Weekly on Sundays at 3:00 AM   |
+| `0 3 1 * *`   | Monthly on the 1st at 3:00 AM  |
 
 ### Backup Files
 
@@ -439,15 +445,16 @@ docker compose exec f1-eink-cal backup now
 
 #### Command Details
 
-| Command | Description |
-|---------|-------------|
-| `backup info` | Shows endpoint, bucket, region, schedule, retention (no secrets) |
+| Command       | Description                                                                             |
+| ------------- | --------------------------------------------------------------------------------------- |
+| `backup info` | Shows endpoint, bucket, region, schedule, retention (no secrets)                        |
 | `backup test` | Tests credentials, bucket access, write permissions, shows latency and existing backups |
-| `backup now` | Performs immediate backup + retention cleanup, shows upload progress |
+| `backup now`  | Performs immediate backup + retention cleanup, shows upload progress                    |
 
 #### Example Output
 
 **`backup info`:**
+
 ```
 S3 Backup Configuration
 ========================================
@@ -461,6 +468,7 @@ S3 Backup Configuration
 ```
 
 **`backup test`:**
+
 ```
 Testing S3 connection...
 
@@ -480,6 +488,7 @@ Connection test PASSED
 ```
 
 **`backup now`:**
+
 ```
 Starting manual backup...
 
@@ -524,12 +533,12 @@ docker compose exec f1-eink-cal reset-db stats
 
 ### What Each Command Does
 
-| Command | Tables Affected | Also Deletes |
-|---------|-----------------|--------------|
-| `info` | None (read-only) | Nothing |
-| `stats` | `api_calls`, `request_stats` | Nothing |
+| Command | Tables Affected                  | Also Deletes             |
+| ------- | -------------------------------- | ------------------------ |
+| `info`  | None (read-only)                 | Nothing                  |
+| `stats` | `api_calls`, `request_stats`     | Nothing                  |
 | `cache` | `cache_meta`, `generated_images` | BMP files in IMAGES_PATH |
-| `all` | Entire database file | BMP files in IMAGES_PATH |
+| `all`   | Entire database file             | BMP files in IMAGES_PATH |
 
 ### Notes
 
@@ -586,12 +595,12 @@ python scripts/benchmark_renderer.py
 
 **Typical results on a 4-core VPS:**
 
-| Method | Avg Time | Throughput | Use Case |
-|--------|----------|------------|----------|
-| In-memory cache | ~0.0003 ms | ~3,000,000 req/s | Repeated requests within same process |
-| Pre-generated file | ~0.04 ms | ~25,000 req/s | Popular language/timezone combinations |
-| On-the-fly render | ~50 ms | ~20 req/s | Specific race or uncommon timezone |
-| HTTP endpoint | ~55 ms | ~18 req/s | Full request cycle including overhead |
+| Method             | Avg Time   | Throughput       | Use Case                               |
+| ------------------ | ---------- | ---------------- | -------------------------------------- |
+| In-memory cache    | ~0.0003 ms | ~3,000,000 req/s | Repeated requests within same process  |
+| Pre-generated file | ~0.04 ms   | ~25,000 req/s    | Popular language/timezone combinations |
+| On-the-fly render  | ~50 ms     | ~20 req/s        | Specific race or uncommon timezone     |
+| HTTP endpoint      | ~55 ms     | ~18 req/s        | Full request cycle including overhead  |
 
 **Memory usage:** Each rendered BMP is ~47 KB (800×480 1-bit).
 
@@ -612,14 +621,17 @@ Request → In-Memory Cache → Pre-generated File → On-the-fly Render
 The scheduler runs hourly and intelligently pre-generates BMP files based on actual usage patterns:
 
 **Always generated (defaults):**
+
 - `calendar_en.bmp` - English, next race, default timezone
 - `calendar_cs.bmp` - Czech, next race, default timezone
 
 **Dynamically generated (based on popularity):**
+
 - Up to 20 additional variants based on the most popular `(language, timezone)` combinations from the last 24 hours
 - Example: `calendar_en_America_New_York.bmp`, `calendar_cs_Europe_London.bmp`
 
 **Selection criteria:**
+
 - Queries `api_calls` table for combinations with >10 requests in last 24h
 - Excludes default timezone (already covered by base files)
 - Limits to 20 variants to control disk usage
@@ -634,6 +646,7 @@ calendar_{lang}_{tz_safe}.bmp          # Specific timezone
 ```
 
 Where `{tz_safe}` replaces `/` with `_` in timezone names:
+
 - `America/New_York` → `America_New_York`
 - `Europe/London` → `Europe_London`
 
@@ -684,47 +697,47 @@ Name your track images using the `circuitId`:
 
 ### All Circuit IDs (2000-2026)
 
-| circuitId | Circuit | Location |
-|-----------|---------|----------|
-| `albert_park` | Albert Park Grand Prix Circuit | Melbourne, Australia |
-| `americas` | Circuit of the Americas | Austin, USA |
-| `bahrain` | Bahrain International Circuit | Sakhir, Bahrain |
-| `baku` | Baku City Circuit | Baku, Azerbaijan |
-| `buddh` | Buddh International Circuit | Uttar Pradesh, India |
-| `catalunya` | Circuit de Barcelona-Catalunya | Barcelona, Spain |
-| `fuji` | Fuji Speedway | Oyama, Japan |
-| `hockenheimring` | Hockenheimring | Hockenheim, Germany |
-| `hungaroring` | Hungaroring | Budapest, Hungary |
-| `imola` | Autodromo Enzo e Dino Ferrari | Imola, Italy |
-| `indianapolis` | Indianapolis Motor Speedway | Indianapolis, USA |
-| `interlagos` | Autódromo José Carlos Pace | São Paulo, Brazil |
-| `istanbul` | Istanbul Park | Istanbul, Turkey |
-| `jeddah` | Jeddah Corniche Circuit | Jeddah, Saudi Arabia |
-| `losail` | Losail International Circuit | Lusail, Qatar |
-| `madring` | Madring | Madrid, Spain |
-| `magny_cours` | Circuit de Nevers Magny-Cours | Magny Cours, France |
-| `marina_bay` | Marina Bay Street Circuit | Marina Bay, Singapore |
-| `miami` | Miami International Autodrome | Miami, USA |
-| `monaco` | Circuit de Monaco | Monte Carlo, Monaco |
-| `monza` | Autodromo Nazionale di Monza | Monza, Italy |
-| `mugello` | Autodromo Internazionale del Mugello | Mugello, Italy |
-| `nurburgring` | Nürburgring | Nürburg, Germany |
-| `portimao` | Autódromo Internacional do Algarve | Portimão, Portugal |
-| `red_bull_ring` | Red Bull Ring | Spielberg, Austria |
-| `ricard` | Circuit Paul Ricard | Le Castellet, France |
-| `rodriguez` | Autódromo Hermanos Rodríguez | Mexico City, Mexico |
-| `sepang` | Sepang International Circuit | Kuala Lumpur, Malaysia |
-| `shanghai` | Shanghai International Circuit | Shanghai, China |
-| `silverstone` | Silverstone Circuit | Silverstone, UK |
-| `sochi` | Sochi Autodrom | Sochi, Russia |
-| `spa` | Circuit de Spa-Francorchamps | Spa, Belgium |
-| `suzuka` | Suzuka Circuit | Suzuka, Japan |
-| `valencia` | Valencia Street Circuit | Valencia, Spain |
-| `vegas` | Las Vegas Strip Street Circuit | Las Vegas, USA |
-| `villeneuve` | Circuit Gilles Villeneuve | Montreal, Canada |
-| `yas_marina` | Yas Marina Circuit | Abu Dhabi, UAE |
-| `yeongam` | Korean International Circuit | Yeongam County, Korea |
-| `zandvoort` | Circuit Park Zandvoort | Zandvoort, Netherlands |
+| circuitId        | Circuit                              | Location               |
+| ---------------- | ------------------------------------ | ---------------------- |
+| `albert_park`    | Albert Park Grand Prix Circuit       | Melbourne, Australia   |
+| `americas`       | Circuit of the Americas              | Austin, USA            |
+| `bahrain`        | Bahrain International Circuit        | Sakhir, Bahrain        |
+| `baku`           | Baku City Circuit                    | Baku, Azerbaijan       |
+| `buddh`          | Buddh International Circuit          | Uttar Pradesh, India   |
+| `catalunya`      | Circuit de Barcelona-Catalunya       | Barcelona, Spain       |
+| `fuji`           | Fuji Speedway                        | Oyama, Japan           |
+| `hockenheimring` | Hockenheimring                       | Hockenheim, Germany    |
+| `hungaroring`    | Hungaroring                          | Budapest, Hungary      |
+| `imola`          | Autodromo Enzo e Dino Ferrari        | Imola, Italy           |
+| `indianapolis`   | Indianapolis Motor Speedway          | Indianapolis, USA      |
+| `interlagos`     | Autódromo José Carlos Pace           | São Paulo, Brazil      |
+| `istanbul`       | Istanbul Park                        | Istanbul, Turkey       |
+| `jeddah`         | Jeddah Corniche Circuit              | Jeddah, Saudi Arabia   |
+| `losail`         | Losail International Circuit         | Lusail, Qatar          |
+| `madring`        | Madring                              | Madrid, Spain          |
+| `magny_cours`    | Circuit de Nevers Magny-Cours        | Magny Cours, France    |
+| `marina_bay`     | Marina Bay Street Circuit            | Marina Bay, Singapore  |
+| `miami`          | Miami International Autodrome        | Miami, USA             |
+| `monaco`         | Circuit de Monaco                    | Monte Carlo, Monaco    |
+| `monza`          | Autodromo Nazionale di Monza         | Monza, Italy           |
+| `mugello`        | Autodromo Internazionale del Mugello | Mugello, Italy         |
+| `nurburgring`    | Nürburgring                          | Nürburg, Germany       |
+| `portimao`       | Autódromo Internacional do Algarve   | Portimão, Portugal     |
+| `red_bull_ring`  | Red Bull Ring                        | Spielberg, Austria     |
+| `ricard`         | Circuit Paul Ricard                  | Le Castellet, France   |
+| `rodriguez`      | Autódromo Hermanos Rodríguez         | Mexico City, Mexico    |
+| `sepang`         | Sepang International Circuit         | Kuala Lumpur, Malaysia |
+| `shanghai`       | Shanghai International Circuit       | Shanghai, China        |
+| `silverstone`    | Silverstone Circuit                  | Silverstone, UK        |
+| `sochi`          | Sochi Autodrom                       | Sochi, Russia          |
+| `spa`            | Circuit de Spa-Francorchamps         | Spa, Belgium           |
+| `suzuka`         | Suzuka Circuit                       | Suzuka, Japan          |
+| `valencia`       | Valencia Street Circuit              | Valencia, Spain        |
+| `vegas`          | Las Vegas Strip Street Circuit       | Las Vegas, USA         |
+| `villeneuve`     | Circuit Gilles Villeneuve            | Montreal, Canada       |
+| `yas_marina`     | Yas Marina Circuit                   | Abu Dhabi, UAE         |
+| `yeongam`        | Korean International Circuit         | Yeongam County, Korea  |
+| `zandvoort`      | Circuit Park Zandvoort               | Zandvoort, Netherlands |
 
 **Note:** If no matching track image is found, the renderer uses a stylized placeholder.
 

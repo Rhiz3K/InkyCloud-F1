@@ -46,10 +46,14 @@ def measure_alignment():
     print(f"Difference (Year - Header): {diff}px")
 
     if diff > 0:
-        print(f"Year is visually LOWER by {diff}px. Move Year UP by {diff}px (Y - {diff})")
+        print(
+            f"Year is visually LOWER by {diff}px. Move Year UP by {diff}px (Y - {diff})"
+        )
     elif diff < 0:
         adj = abs(diff)
-        print(f"Year is visually HIGHER by {adj}px. Move Year DOWN by {adj}px (Y + {adj})")
+        print(
+            f"Year is visually HIGHER by {adj}px. Move Year DOWN by {adj}px (Y + {adj})"
+        )
     else:
         print("Visually aligned.")
 

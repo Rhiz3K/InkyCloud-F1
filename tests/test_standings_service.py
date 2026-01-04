@@ -99,7 +99,9 @@ async def test_get_driver_standings():
 
     with patch("httpx.AsyncClient") as mock_client:
         mock_instance = AsyncMock()
-        mock_instance.get = AsyncMock(return_value=MockResponse(MOCK_DRIVER_STANDINGS_RESPONSE))
+        mock_instance.get = AsyncMock(
+            return_value=MockResponse(MOCK_DRIVER_STANDINGS_RESPONSE)
+        )
         mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
         mock_instance.__aexit__ = AsyncMock(return_value=None)
         mock_client.return_value = mock_instance
