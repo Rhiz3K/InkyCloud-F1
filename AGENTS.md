@@ -29,7 +29,7 @@ FastAPI service generating **800x480 1-bit BMP images** for E-Ink displays (Lask
 |---------|---------|--------|
 | **Monolithic core** | `main.py` (1697 lines), `renderer.py` (1562 lines) | No routers/ - all in one file |
 | **Data-as-Code** | F1 data in `app/assets/seasons/*.json` | SQLite for metadata only |
-| **Script-heavy** | `/scripts/` has 21 preprocessing utilities | See `scripts/AGENTS.md` |
+| **Script-heavy** | `/scripts/` has 21 preprocessing utilities | Data lifecycle outside app/ |
 | **Self-updating** | GitHub Actions commits race data back to repo | Versioned data history |
 
 ## Code Map (Key Symbols)
