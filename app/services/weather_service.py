@@ -212,7 +212,7 @@ class WeatherService:
                 return WeatherData(
                     temperature_c=temps[i] if i < len(temps) else 20.0,
                     weather_code=codes[i] if i < len(codes) else 0,
-                    precipitation_probability=precip[i] if i < len(precip) and precip[i] else 0,
+                    precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
                 )
 
         logger.debug(f"Exact hour {race_hour_str} not found, finding closest")
@@ -222,7 +222,7 @@ class WeatherService:
                 return WeatherData(
                     temperature_c=temps[i] if i < len(temps) else 20.0,
                     weather_code=codes[i] if i < len(codes) else 0,
-                    precipitation_probability=precip[i] if i < len(precip) and precip[i] else 0,
+                    precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
                 )
 
         logger.warning(f"Could not find weather for {race_hour_str}")

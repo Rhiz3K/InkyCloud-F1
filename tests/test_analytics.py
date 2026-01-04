@@ -87,7 +87,10 @@ async def test_send_to_umami_custom_event(mock_config):
         payload = call_args.kwargs["json"]
         assert payload["payload"]["url"] == "/calendar.bmp"
         assert payload["payload"]["name"] == "calendar_download"
-        assert payload["payload"]["data"] == {"language": "en", "timezone": "Europe/Prague"}
+        assert payload["payload"]["data"] == {
+            "language": "en",
+            "timezone": "Europe/Prague",
+        }
 
 
 @pytest.mark.asyncio

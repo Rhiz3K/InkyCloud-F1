@@ -1,83 +1,245 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="{{ ui_lang }}" class="h-full">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}F1.InkyCloud.click{% endblock %}</title>
-    
+
     <!-- SEO Meta Tags -->
-    <meta name="author" content="F1 E-Ink Calendar">
-    <meta name="keywords" content="{{ t.get('meta_keywords', 'F1, Formula 1, E-Ink, calendar, race schedule') }}">
-    {% block meta_description %}<meta name="description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">{% endblock %}
-    
+    <meta name="author" content="F1 E-Ink Calendar" />
+    <meta
+      name="keywords"
+      content="{{ t.get('meta_keywords', 'F1, Formula 1, E-Ink, calendar, race schedule') }}"
+    />
+    {% block meta_description %}
+    <meta
+      name="description"
+      content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
+    />
+    {% endblock %}
+
     <!-- Canonical & Hreflang -->
-    {% block canonical %}<link rel="canonical" href="{{ site_url }}{{ request.url.path }}{% if ui_lang %}?lang={{ ui_lang }}{% endif %}">{% endblock %}
-    <link rel="alternate" hreflang="en" href="{{ site_url }}{{ request.url.path }}?lang=en">
-    <link rel="alternate" hreflang="cs" href="{{ site_url }}{{ request.url.path }}?lang=cs">
-    <link rel="alternate" hreflang="x-default" href="{{ site_url }}{{ request.url.path }}?lang=en">
-    
+    {% block canonical %}
+    <link
+      rel="canonical"
+      href="{{ site_url }}{{ request.url.path }}{% if ui_lang %}?lang={{ ui_lang }}{% endif %}"
+    />
+    {% endblock %}
+    <link
+      rel="alternate"
+      hreflang="en"
+      href="{{ site_url }}{{ request.url.path }}?lang=en"
+    />
+    <link
+      rel="alternate"
+      hreflang="cs"
+      href="{{ site_url }}{{ request.url.path }}?lang=cs"
+    />
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href="{{ site_url }}{{ request.url.path }}?lang=en"
+    />
+
     <!-- Open Graph -->
-    <meta property="og:site_name" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
-    <meta property="og:type" content="website">
-    <meta property="og:locale" content="{{ 'cs_CZ' if ui_lang == 'cs' else 'en_US' }}">
+    <meta
+      property="og:site_name"
+      content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:locale"
+      content="{{ 'cs_CZ' if ui_lang == 'cs' else 'en_US' }}"
+    />
     {% block og_tags %}
-    <meta property="og:title" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
-    <meta property="og:description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">
-    <meta property="og:url" content="{{ site_url }}/">
-    <meta property="og:image" content="{{ site_url }}/static/images/og-preview.png">
+    <meta
+      property="og:title"
+      content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+    />
+    <meta
+      property="og:description"
+      content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
+    />
+    <meta property="og:url" content="{{ site_url }}/" />
+    <meta
+      property="og:image"
+      content="{{ site_url }}/static/images/og-preview.png"
+    />
     {% endblock %}
-    
+
     <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:card" content="summary_large_image" />
     {% block twitter_tags %}
-    <meta name="twitter:title" content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}">
-    <meta name="twitter:description" content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}">
-    <meta name="twitter:image" content="{{ site_url }}/static/images/og-preview.png">
+    <meta
+      name="twitter:title"
+      content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+    />
+    <meta
+      name="twitter:description"
+      content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
+    />
+    <meta
+      name="twitter:image"
+      content="{{ site_url }}/static/images/og-preview.png"
+    />
     {% endblock %}
-    
+
     <!-- Favicons -->
-    <link rel="icon" href="/favicon.ico" sizes="48x48">
-    <link rel="icon" type="image/png" sizes="96x96" href="/static/favicon/favicon-96x96.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon/apple-touch-icon.png">
-    <link rel="manifest" href="/static/favicon/site.webmanifest">
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="96x96"
+      href="/static/favicon/favicon-96x96.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/static/favicon/apple-touch-icon.png"
+    />
+    <link rel="manifest" href="/static/favicon/site.webmanifest" />
     {{ umami_script | safe }}
     <style>
-        @font-face{font-family:'Space Mono';src:url('/static/fonts/SpaceMono-Regular.ttf') format('truetype');font-display:swap}
-        html,body{margin:0;padding:0}body{font-family:'Space Mono',monospace;min-height:100vh;background:#F5F5F0;color:#000}
-        .bg-racing-paper{background:#F5F5F0}.text-racing-red{color:#E10600}.bg-racing-red{background:#E10600}
-        header{border-bottom:4px solid #000;background:#fff}
+      @font-face {
+        font-family: "Space Mono";
+        src: url("/static/fonts/SpaceMono-Regular.ttf") format("truetype");
+        font-display: swap;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Space Mono", monospace;
+        min-height: 100vh;
+        background: #f5f5f0;
+        color: #000;
+      }
+      .bg-racing-paper {
+        background: #f5f5f0;
+      }
+      .text-racing-red {
+        color: #e10600;
+      }
+      .bg-racing-red {
+        background: #e10600;
+      }
+      header {
+        border-bottom: 4px solid #000;
+        background: #fff;
+      }
     </style>
-    <link rel="preload" href="/static/css/tailwind.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <link rel="preload" href="/static/css/styles.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="/static/css/tailwind.min.css"><link rel="stylesheet" href="/static/css/styles.css"></noscript>
-    <link rel="preload" href="/static/fonts/SpaceMono-Regular.ttf" as="font" type="font/ttf" crossorigin>
+    <link
+      rel="preload"
+      href="/static/css/tailwind.min.css"
+      as="style"
+      onload="
+        this.onload = null;
+        this.rel = 'stylesheet';
+      "
+    />
+    <link
+      rel="preload"
+      href="/static/css/styles.css"
+      as="style"
+      onload="
+        this.onload = null;
+        this.rel = 'stylesheet';
+      "
+    />
+    <noscript
+      ><link rel="stylesheet" href="/static/css/tailwind.min.css" /><link
+        rel="stylesheet"
+        href="/static/css/styles.css"
+    /></noscript>
+    <link
+      rel="preload"
+      href="/static/fonts/SpaceMono-Regular.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
     {% block head %}{% endblock %}
-</head>
-<body class="min-h-full bg-racing-paper flex flex-col text-black selection:bg-racing-red selection:text-white{% block body_class %}{% endblock %}">
-    {% include "components/header.html" %}
-    
-    {% block content %}{% endblock %}
-    
+  </head>
+  <body
+    class="min-h-full bg-racing-paper flex flex-col text-black selection:bg-racing-red selection:text-white{% block body_class %}{% endblock %}"
+  >
+    {% include "components/header.html" %} {% block content %}{% endblock %}
+
     <!-- Mobile Navigation Overlay (non-home pages) -->
-    <div id="mobileNavOverlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden" onclick="closeMobileNav()"></div>
-    <div id="mobileNavMenu" class="fixed top-0 left-0 h-full w-72 bg-white border-r-4 border-black transform -translate-x-full transition-transform duration-200 z-50 lg:hidden">
-        <div class="px-4 py-3 border-b-2 border-black bg-black text-white flex items-center justify-between">
-            <span class="font-bold uppercase tracking-widest text-sm">{{ nav.nav_menu }}</span>
-            <button onclick="closeMobileNav()" aria-label="Close menu" class="p-1 hover:bg-white hover:text-black transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="square" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
-        </div>
-        <nav class="p-4 space-y-2">
-            <a href="/?lang={{ ui_lang }}" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm">{{ nav.nav_home }}</a>
-            <a href="/stats?lang={{ ui_lang }}" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'stats' %}bg-racing-red text-white border-racing-red{% endif %}">{{ nav.nav_stats }}</a>
-            <a href="/api/docs/html?lang={{ ui_lang }}" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'api' %}bg-racing-red text-white border-racing-red{% endif %}">{{ nav.nav_api }}</a>
-            <a href="/privacy?lang={{ ui_lang }}" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'privacy' %}bg-racing-red text-white border-racing-red{% endif %}">{{ nav.nav_privacy }}</a>
-            <a href="/changelog?lang={{ ui_lang }}" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'changelog' %}bg-racing-red text-white border-racing-red{% endif %}">{{ nav.nav_changelog }}</a>
-            <a href="https://github.com/Rhiz3K/InkyCloud-F1" target="_blank" rel="noopener noreferrer" class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm">GitHub</a>
-        </nav>
+    <div
+      id="mobileNavOverlay"
+      class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden"
+      onclick="closeMobileNav()"
+    ></div>
+    <div
+      id="mobileNavMenu"
+      class="fixed top-0 left-0 h-full w-72 bg-white border-r-4 border-black transform -translate-x-full transition-transform duration-200 z-50 lg:hidden"
+    >
+      <div
+        class="px-4 py-3 border-b-2 border-black bg-black text-white flex items-center justify-between"
+      >
+        <span class="font-bold uppercase tracking-widest text-sm"
+          >{{ nav.nav_menu }}</span
+        >
+        <button
+          onclick="closeMobileNav()"
+          aria-label="Close menu"
+          class="p-1 hover:bg-white hover:text-black transition-colors"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="square"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            ></path>
+          </svg>
+        </button>
+      </div>
+      <nav class="p-4 space-y-2">
+        <a
+          href="/?lang={{ ui_lang }}"
+          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm"
+          >{{ nav.nav_home }}</a
+        >
+        <a
+          href="/stats?lang={{ ui_lang }}"
+          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'stats' %}bg-racing-red text-white border-racing-red{% endif %}"
+          >{{ nav.nav_stats }}</a
+        >
+        <a
+          href="/api/docs/html?lang={{ ui_lang }}"
+          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'api' %}bg-racing-red text-white border-racing-red{% endif %}"
+          >{{ nav.nav_api }}</a
+        >
+        <a
+          href="/privacy?lang={{ ui_lang }}"
+          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'privacy' %}bg-racing-red text-white border-racing-red{% endif %}"
+          >{{ nav.nav_privacy }}</a
+        >
+        <a
+          href="/changelog?lang={{ ui_lang }}"
+          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'changelog' %}bg-racing-red text-white border-racing-red{% endif %}"
+          >{{ nav.nav_changelog }}</a
+        >
+        <a
+          href="https://github.com/Rhiz3K/InkyCloud-F1"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm"
+          >GitHub</a
+        >
+      </nav>
     </div>
 
     <script src="/static/js/common.js" defer></script>
     {% block scripts %}{% endblock %}
-</body>
+  </body>
 </html>

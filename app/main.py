@@ -15,7 +15,12 @@ import pytz
 import sentry_sdk
 from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -29,7 +34,11 @@ from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
-from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
+from app.services.scheduler import (
+    run_initial_generation,
+    start_scheduler,
+    stop_scheduler,
+)
 from app.services.teams_service import TeamsService
 from app.services.version_service import get_cached_version, refresh_version_info
 from app.services.weather_service import WeatherService
@@ -258,8 +267,16 @@ async def root(request: Request, lang: str = Query(default=None)):
     context = _get_template_context(request, ui_lang)
     context["active_page"] = "home"
     context["screen_types"] = [
-        {"id": "calendar", "name_key": "screen_calendar_name", "desc_key": "screen_calendar_desc"},
-        {"id": "teams", "name_key": "screen_teams_name", "desc_key": "screen_teams_desc"},
+        {
+            "id": "calendar",
+            "name_key": "screen_calendar_name",
+            "desc_key": "screen_calendar_desc",
+        },
+        {
+            "id": "teams",
+            "name_key": "screen_teams_name",
+            "desc_key": "screen_teams_desc",
+        },
     ]
 
     return templates.TemplateResponse(request, "home.html", context)
@@ -457,7 +474,11 @@ async def api_info():
                 "method": "GET",
                 "description": "Get detailed race information",
                 "parameters": {
-                    "year": {"type": "integer", "description": "Season year", "in": "path"},
+                    "year": {
+                        "type": "integer",
+                        "description": "Season year",
+                        "in": "path",
+                    },
                     "round_num": {
                         "type": "integer",
                         "description": "Round number",
@@ -698,7 +719,7 @@ async function downloadCalendar() {{
             ),
             "eg": eg,
             "dimensions_label": "Rozměry" if ui_lang == "cs" else "Dimensions",
-            "color_depth_label": "Barevná hloubka" if ui_lang == "cs" else "Color depth",
+            "color_depth_label": ("Barevná hloubka" if ui_lang == "cs" else "Color depth"),
             "races_desc": (
                 "Seznam všech závodů pro danou sezónu"
                 if ui_lang == "cs"
@@ -714,7 +735,9 @@ async function downloadCalendar() {{
                 if ui_lang == "cs"
                 else "Request statistics (last hour and 24h counts)"
             ),
-            "health_desc": "Kontrola zdraví služby" if ui_lang == "cs" else "Service health check",
+            "health_desc": (
+                "Kontrola zdraví služby" if ui_lang == "cs" else "Service health check"
+            ),
             "json_api_desc": (
                 "Dokumentace API ve formátu JSON"
                 if ui_lang == "cs"
@@ -1414,7 +1437,10 @@ async def get_calendar_bmp(
                     path=str(resolved_path),
                     media_type="image/bmp",
                     filename="calendar.bmp",
-                    headers={"Cache-Control": "public, max-age=3600", "X-Cache": "MISS"},
+                    headers={
+                        "Cache-Control": "public, max-age=3600",
+                        "X-Cache": "MISS",
+                    },
                 )
 
         # Generate on-the-fly for specific race or when no pre-generated image exists

@@ -1,151 +1,176 @@
-{% extends "base.html" %}
-
-{% block title %}{{ t.get("changelog_title", "Changelog") }} - F1.InkyCloud.click{% endblock %}
-
-{% block meta_description %}<meta name="description" content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1 E-Ink Calendar') }}">{% endblock %}
-
-{% block canonical %}<link rel="canonical" href="{{ site_url }}/changelog?lang={{ ui_lang }}">{% endblock %}
-
-{% block og_tags %}
-<meta property="og:title" content="{{ t.get('changelog_title', 'Changelog') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}">
-<meta property="og:description" content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1 E-Ink Calendar') }}">
-<meta property="og:url" content="{{ site_url }}/changelog?lang={{ ui_lang }}">
-<meta property="og:image" content="{{ site_url }}/static/images/og-preview.png">
-{% endblock %}
-
-{% block twitter_tags %}
-<meta name="twitter:title" content="{{ t.get('changelog_title', 'Changelog') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}">
-<meta name="twitter:description" content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1 E-Ink Calendar') }}">
-<meta name="twitter:image" content="{{ site_url }}/static/images/og-preview.png">
-{% endblock %}
-
-{% block head %}
+{% extends "base.html" %} {% block title %}{{ t.get("changelog_title",
+"Changelog") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
+%}<meta
+  name="description"
+  content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1 E-Ink Calendar') }}"
+/>{% endblock %} {% block canonical %}<link
+  rel="canonical"
+  href="{{ site_url }}/changelog?lang={{ ui_lang }}"
+/>{% endblock %} {% block og_tags %}
+<meta
+  property="og:title"
+  content="{{ t.get('changelog_title', 'Changelog') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+/>
+<meta
+  property="og:description"
+  content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1 E-Ink Calendar') }}"
+/>
+<meta property="og:url" content="{{ site_url }}/changelog?lang={{ ui_lang }}" />
+<meta
+  property="og:image"
+  content="{{ site_url }}/static/images/og-preview.png"
+/>
+{% endblock %} {% block twitter_tags %}
+<meta
+  name="twitter:title"
+  content="{{ t.get('changelog_title', 'Changelog') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+/>
+<meta
+  name="twitter:description"
+  content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1 E-Ink Calendar') }}"
+/>
+<meta
+  name="twitter:image"
+  content="{{ site_url }}/static/images/og-preview.png"
+/>
+{% endblock %} {% block head %}
 <style>
-    .changelog-content h1 { display: none; }
-    .changelog-content h2 {
-        font-size: 1.25rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        border-bottom: 2px solid black;
-        padding-bottom: 0.5rem;
-        margin-top: 1.5rem;
-        margin-bottom: 1rem;
-    }
-    .changelog-content h3 {
-        font-size: 1rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        margin-top: 1rem;
-        margin-bottom: 0.5rem;
-        color: #DC2626;
-    }
-    .changelog-content ul {
-        list-style: none;
-        padding-left: 0;
-        margin-bottom: 1rem;
-    }
-    .changelog-content ul li {
-        font-size: 0.875rem;
-        line-height: 1.5;
-        padding-left: 1rem;
-        position: relative;
-        margin-bottom: 0.25rem;
-    }
-    .changelog-content ul li::before {
-        content: "•";
-        color: #DC2626;
-        font-weight: bold;
-        position: absolute;
-        left: 0;
-    }
-    .changelog-content p {
-        font-size: 0.875rem;
-        line-height: 1.5;
-        margin-bottom: 0.75rem;
-    }
-    .changelog-content a {
-        color: #DC2626;
-        text-decoration: none;
-    }
-    .changelog-content a:hover {
-        background-color: #DC2626;
-        color: white;
-        padding: 0 0.25rem;
-    }
-    .changelog-content strong {
-        font-weight: 700;
-    }
-    .changelog-content code {
-        font-family: 'Space Mono', monospace;
-        background-color: #f0f0f0;
-        padding: 0.125rem 0.25rem;
-        font-size: 0.8rem;
-        border: 1px solid #ccc;
-    }
-    .changelog-content details {
-        margin-top: 0.5rem;
-        margin-bottom: 1rem;
-        border: 2px solid #ccc;
-        padding: 0.5rem 1rem;
-        background-color: #fafafa;
-    }
-    .changelog-content details[open] {
-        border-color: black;
-        background-color: white;
-    }
-    .changelog-content summary {
-        cursor: pointer;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #666;
-        padding: 0.25rem 0;
-    }
-    .changelog-content summary:hover {
-        color: #DC2626;
-    }
-    .changelog-content details[open] summary {
-        color: black;
-        border-bottom: 1px solid #ccc;
-        margin-bottom: 0.5rem;
-        padding-bottom: 0.5rem;
-    }
+  .changelog-content h1 {
+    display: none;
+  }
+  .changelog-content h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid black;
+    padding-bottom: 0.5rem;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .changelog-content h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+    color: #dc2626;
+  }
+  .changelog-content ul {
+    list-style: none;
+    padding-left: 0;
+    margin-bottom: 1rem;
+  }
+  .changelog-content ul li {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    padding-left: 1rem;
+    position: relative;
+    margin-bottom: 0.25rem;
+  }
+  .changelog-content ul li::before {
+    content: "•";
+    color: #dc2626;
+    font-weight: bold;
+    position: absolute;
+    left: 0;
+  }
+  .changelog-content p {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+  }
+  .changelog-content a {
+    color: #dc2626;
+    text-decoration: none;
+  }
+  .changelog-content a:hover {
+    background-color: #dc2626;
+    color: white;
+    padding: 0 0.25rem;
+  }
+  .changelog-content strong {
+    font-weight: 700;
+  }
+  .changelog-content code {
+    font-family: "Space Mono", monospace;
+    background-color: #f0f0f0;
+    padding: 0.125rem 0.25rem;
+    font-size: 0.8rem;
+    border: 1px solid #ccc;
+  }
+  .changelog-content details {
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+    border: 2px solid #ccc;
+    padding: 0.5rem 1rem;
+    background-color: #fafafa;
+  }
+  .changelog-content details[open] {
+    border-color: black;
+    background-color: white;
+  }
+  .changelog-content summary {
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #666;
+    padding: 0.25rem 0;
+  }
+  .changelog-content summary:hover {
+    color: #dc2626;
+  }
+  .changelog-content details[open] summary {
+    color: black;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
 </style>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <main class="flex-1 py-8 px-4">
-    <div class="max-w-3xl mx-auto bg-white border-2 border-black shadow-neo p-6 md:p-8">
-        <h1 class="text-2xl md:text-3xl font-bold uppercase tracking-wider border-b-2 border-black pb-3 mb-4">
-            {{ t.get("changelog_title", "Changelog") }}
-        </h1>
-        
-        {% if version_info %}
-        <div class="mb-6 p-4 border-2 border-black bg-gray-50">
-            <div class="flex flex-wrap gap-4 text-sm font-mono">
-                <div>
-                    <span class="font-bold uppercase">{{ t.get("changelog_version", "Version") }}:</span>
-                    <span class="text-racing-red font-bold">{{ version_info.version_string }}</span>
-                </div>
-                {% if version_info.last_updated %}
-                <div>
-                    <span class="font-bold uppercase">{{ t.get("changelog_last_updated", "Last updated") }}:</span>
-                    <span class="text-gray-600">{{ version_info.last_updated[:10] }}</span>
-                </div>
-                {% endif %}
-                {% if version_info.commit_message %}
-                <div class="w-full">
-                    <span class="font-bold uppercase">{{ t.get("changelog_commit", "Latest commit") }}:</span>
-                    <span class="text-gray-600">{{ version_info.commit_message }}</span>
-                </div>
-                {% endif %}
-            </div>
+  <div
+    class="max-w-3xl mx-auto bg-white border-2 border-black shadow-neo p-6 md:p-8"
+  >
+    <h1
+      class="text-2xl md:text-3xl font-bold uppercase tracking-wider border-b-2 border-black pb-3 mb-4"
+    >
+      {{ t.get("changelog_title", "Changelog") }}
+    </h1>
+
+    {% if version_info %}
+    <div class="mb-6 p-4 border-2 border-black bg-gray-50">
+      <div class="flex flex-wrap gap-4 text-sm font-mono">
+        <div>
+          <span class="font-bold uppercase"
+            >{{ t.get("changelog_version", "Version") }}:</span
+          >
+          <span class="text-racing-red font-bold"
+            >{{ version_info.version_string }}</span
+          >
+        </div>
+        {% if version_info.last_updated %}
+        <div>
+          <span class="font-bold uppercase"
+            >{{ t.get("changelog_last_updated", "Last updated") }}:</span
+          >
+          <span class="text-gray-600"
+            >{{ version_info.last_updated[:10] }}</span
+          >
+        </div>
+        {% endif %} {% if version_info.commit_message %}
+        <div class="w-full">
+          <span class="font-bold uppercase"
+            >{{ t.get("changelog_commit", "Latest commit") }}:</span
+          >
+          <span class="text-gray-600">{{ version_info.commit_message }}</span>
         </div>
         {% endif %}
-
-        <div class="changelog-content">
-            {{ changelog_html | safe }}
-        </div>
+      </div>
     </div>
+    {% endif %}
+
+    <div class="changelog-content">{{ changelog_html | safe }}</div>
+  </div>
 </main>
 {% endblock %}

@@ -50,13 +50,21 @@ def generate_stress_image():
                 "datetime": datetime(2024, 5, 17, 17, 30),
                 "display_time": "17:30",
             },
-            {"name": "Sprint", "datetime": datetime(2024, 5, 18, 12, 0), "display_time": "12:00"},
+            {
+                "name": "Sprint",
+                "datetime": datetime(2024, 5, 18, 12, 0),
+                "display_time": "12:00",
+            },
             {
                 "name": "Qualifying",
                 "datetime": datetime(2024, 5, 18, 16, 0),
                 "display_time": "16:00",
             },
-            {"name": "Race", "datetime": datetime(2024, 5, 19, 15, 0), "display_time": "15:00"},
+            {
+                "name": "Race",
+                "datetime": datetime(2024, 5, 19, 15, 0),
+                "display_time": "15:00",
+            },
         ],
     }
 

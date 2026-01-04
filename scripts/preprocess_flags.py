@@ -309,7 +309,8 @@ def process_flag_image(input_path: Path, output_path: Path) -> dict:
             original = original.convert("RGBA")
         if original.mode == "RGBA":
             background.paste(
-                original, mask=original.split()[3] if len(original.split()) == 4 else None
+                original,
+                mask=original.split()[3] if len(original.split()) == 4 else None,
             )
             original = background
     elif original.mode != "RGB":

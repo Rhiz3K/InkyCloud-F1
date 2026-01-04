@@ -55,7 +55,8 @@ class Database:
 
         async with self._get_connection() as conn:
             await self._configure_connection(conn)
-            await conn.executescript("""
+            await conn.executescript(
+                """
                 -- Generated images table
                 CREATE TABLE IF NOT EXISTS generated_images (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,7 +118,8 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON request_stats(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_api_calls_timestamp ON api_calls(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_perf_metrics_timestamp ON perf_metrics(timestamp);
-            """)
+            """
+            )
             await conn.commit()
 
             # Run migrations for existing databases
@@ -213,7 +215,8 @@ class Database:
         async with self._get_connection() as conn:
             await self._configure_connection(conn)
             async with conn.execute(
-                "SELECT image_path FROM generated_images WHERE image_key = ?", (image_key,)
+                "SELECT image_path FROM generated_images WHERE image_key = ?",
+                (image_key,),
             ) as cursor:
                 row = await cursor.fetchone()
                 if row:

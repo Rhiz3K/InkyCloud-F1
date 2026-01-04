@@ -6,7 +6,14 @@ from typing import Optional, TypeVar
 
 import pytz
 from dotenv import load_dotenv
-from pydantic import Field, HttpUrl, TypeAdapter, ValidationError, ValidationInfo, field_validator
+from pydantic import (
+    Field,
+    HttpUrl,
+    TypeAdapter,
+    ValidationError,
+    ValidationInfo,
+    field_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Load environment variables

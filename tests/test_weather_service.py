@@ -40,7 +40,27 @@ class TestWeatherData:
 
 class TestWeatherIcons:
     def test_all_codes_have_icons(self):
-        expected_codes = [0, 1, 2, 3, 45, 48, 51, 53, 55, 61, 63, 65, 71, 73, 75, 80, 81, 82, 95]
+        expected_codes = [
+            0,
+            1,
+            2,
+            3,
+            45,
+            48,
+            51,
+            53,
+            55,
+            61,
+            63,
+            65,
+            71,
+            73,
+            75,
+            80,
+            81,
+            82,
+            95,
+        ]
         for code in expected_codes:
             assert code in WEATHER_ICONS
 
@@ -131,7 +151,8 @@ class TestWeatherService:
                 return MockResponse()
 
         monkeypatch.setattr(
-            "app.services.weather_service.httpx.AsyncClient", lambda **kwargs: MockAsyncClient()
+            "app.services.weather_service.httpx.AsyncClient",
+            lambda **kwargs: MockAsyncClient(),
         )
 
         async def run_test():
@@ -176,7 +197,8 @@ class TestWeatherService:
                 return MockResponse()
 
         monkeypatch.setattr(
-            "app.services.weather_service.httpx.AsyncClient", lambda **kwargs: MockAsyncClient()
+            "app.services.weather_service.httpx.AsyncClient",
+            lambda **kwargs: MockAsyncClient(),
         )
 
         async def run_test():
@@ -211,7 +233,8 @@ class TestWeatherService:
                 raise httpx.TimeoutException("Connection timed out")
 
         monkeypatch.setattr(
-            "app.services.weather_service.httpx.AsyncClient", lambda **kwargs: MockAsyncClient()
+            "app.services.weather_service.httpx.AsyncClient",
+            lambda **kwargs: MockAsyncClient(),
         )
 
         async def run_test():
@@ -245,7 +268,8 @@ class TestWeatherService:
                 return MockResponse()
 
         monkeypatch.setattr(
-            "app.services.weather_service.httpx.AsyncClient", lambda **kwargs: MockAsyncClient()
+            "app.services.weather_service.httpx.AsyncClient",
+            lambda **kwargs: MockAsyncClient(),
         )
 
         async def run_test():
@@ -281,7 +305,8 @@ class TestWeatherService:
                 return MockResponse()
 
         monkeypatch.setattr(
-            "app.services.weather_service.httpx.AsyncClient", lambda **kwargs: MockAsyncClient()
+            "app.services.weather_service.httpx.AsyncClient",
+            lambda **kwargs: MockAsyncClient(),
         )
 
         async def run_test():

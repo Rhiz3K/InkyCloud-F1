@@ -5,12 +5,14 @@
 
 /* Base font */
 body {
-    font-family: 'Space Mono', monospace;
+    font-family: "Space Mono", monospace;
 }
 
 /* Animations */
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 .animate-spin {
     animation: spin 1s linear infinite;
@@ -31,7 +33,7 @@ body {
     border: 2px solid #f0f0f0;
 }
 *::-webkit-scrollbar-thumb:hover {
-    background: #DC2626;
+    background: #dc2626;
 }
 
 /* Race item cards */
@@ -40,7 +42,7 @@ body {
 }
 .race-item:hover {
     transform: translate(-1px, -1px);
-    box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+    box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 1);
     background: #fff;
 }
 .race-item:active {
@@ -55,7 +57,7 @@ body {
     box-shadow: none;
 }
 .race-item.selected .race-date {
-    color: #DC2626;
+    color: #dc2626;
 }
 
 /* Timezone filter buttons */
@@ -115,7 +117,7 @@ button.control-btn:active {
     transition: all 0.1s;
 }
 .copy-btn:hover {
-    background: #DC2626;
+    background: #dc2626;
 }
 .copy-btn.copied {
     background: #059669;
@@ -134,7 +136,7 @@ button.control-btn:active {
 .modal-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.9);
+    background: rgba(0, 0, 0, 0.9);
 }
 .modal-content {
     position: relative;
@@ -144,8 +146,12 @@ button.control-btn:active {
 }
 
 @keyframes skeleton-shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
 }
 
 .skeleton {

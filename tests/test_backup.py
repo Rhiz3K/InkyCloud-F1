@@ -180,8 +180,14 @@ class TestCleanupOldBackups:
         mock_paginator.paginate.return_value = [
             {
                 "Contents": [
-                    {"Key": "f1_backup_2025-01-01_03-00-00.db", "LastModified": old_date},
-                    {"Key": "f1_backup_2025-03-10_03-00-00.db", "LastModified": recent_date},
+                    {
+                        "Key": "f1_backup_2025-01-01_03-00-00.db",
+                        "LastModified": old_date,
+                    },
+                    {
+                        "Key": "f1_backup_2025-03-10_03-00-00.db",
+                        "LastModified": recent_date,
+                    },
                 ]
             }
         ]

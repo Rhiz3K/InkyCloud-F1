@@ -259,7 +259,13 @@ class Renderer:
         right_teams = teams[teams_per_col : teams_per_col * 2]
         for team in right_teams:
             self._draw_team_row(
-                image, draw, split_x + gap // 2, y, self.width - col_padding, team, row_height
+                image,
+                draw,
+                split_x + gap // 2,
+                y,
+                self.width - col_padding,
+                team,
+                row_height,
             )
             y += row_height + row_gap
 
@@ -356,7 +362,9 @@ class Renderer:
         stem_top = y + cup_height
         stem_bottom = y + h - 3
         draw.rectangle(
-            [(stem_left, stem_top), (stem_left + stem_width, stem_bottom)], fill=cup_fill, outline=0
+            [(stem_left, stem_top), (stem_left + stem_width, stem_bottom)],
+            fill=cup_fill,
+            outline=0,
         )
 
         base_width = w - 4
@@ -364,7 +372,9 @@ class Renderer:
         base_top = y + h - 3
         base_bottom = y + h
         draw.rectangle(
-            [(base_left, base_top), (base_left + base_width, base_bottom)], fill=cup_fill, outline=0
+            [(base_left, base_top), (base_left + base_width, base_bottom)],
+            fill=cup_fill,
+            outline=0,
         )
 
         num_str = str(position)
@@ -593,7 +603,11 @@ class Renderer:
         image.paste(logo_resized, (logo_x, logo_y))
 
     def _draw_standings_header(
-        self, draw: ImageDraw.ImageDraw, image: Image.Image, season: int, after_round: int
+        self,
+        draw: ImageDraw.ImageDraw,
+        image: Image.Image,
+        season: int,
+        after_round: int,
     ) -> None:
         header_height = self.layout["header_height"]
         split_x = self.layout["header_split_x"]
@@ -640,7 +654,12 @@ class Renderer:
             y = header_height + 45
             for driver in standings[:drivers_per_col]:
                 pos_text = f"{driver.position}."
-                draw.text((col_padding, y), pos_text, fill=0, font=self.fonts["schedule_row_bold"])
+                draw.text(
+                    (col_padding, y),
+                    pos_text,
+                    fill=0,
+                    font=self.fonts["schedule_row_bold"],
+                )
 
                 name_x = col_padding + pos_width
                 name_text = (
@@ -652,11 +671,20 @@ class Renderer:
 
                 points_text = f"{int(driver.points)}"
                 points_x = split_x - col_padding - 40
-                draw.text((points_x, y), points_text, fill=0, font=self.fonts["schedule_row_bold"])
+                draw.text(
+                    (points_x, y),
+                    points_text,
+                    fill=0,
+                    font=self.fonts["schedule_row_bold"],
+                )
 
                 y += row_height
 
-            draw.line([(split_x, header_height + 40), (split_x, self.height - 10)], fill=0, width=1)
+            draw.line(
+                [(split_x, header_height + 40), (split_x, self.height - 10)],
+                fill=0,
+                width=1,
+            )
 
             right_x = split_x + col_padding
             y = header_height + 45
@@ -674,7 +702,12 @@ class Renderer:
 
                 points_text = f"{int(driver.points)}"
                 points_x = self.width - col_padding - 40
-                draw.text((points_x, y), points_text, fill=0, font=self.fonts["schedule_row_bold"])
+                draw.text(
+                    (points_x, y),
+                    points_text,
+                    fill=0,
+                    font=self.fonts["schedule_row_bold"],
+                )
 
                 y += row_height
         else:
@@ -693,11 +726,21 @@ class Renderer:
                 draw.text((x_start, y), pos_text, fill=0, font=self.fonts["schedule_row_bold"])
 
                 name_x = x_start + pos_width
-                draw.text((name_x, y), driver.driver_name, fill=0, font=self.fonts["schedule_row"])
+                draw.text(
+                    (name_x, y),
+                    driver.driver_name,
+                    fill=0,
+                    font=self.fonts["schedule_row"],
+                )
 
                 points_text = f"{int(driver.points)}"
                 points_x = x_start + col_width - self.layout["standings_points_width"]
-                draw.text((points_x, y), points_text, fill=0, font=self.fonts["schedule_row_bold"])
+                draw.text(
+                    (points_x, y),
+                    points_text,
+                    fill=0,
+                    font=self.fonts["schedule_row_bold"],
+                )
 
                 y += row_height
 
@@ -737,7 +780,10 @@ class Renderer:
 
             name_x = x_start + pos_width
             draw.text(
-                (name_x, y), constructor.constructor_name, fill=0, font=self.fonts["schedule_row"]
+                (name_x, y),
+                constructor.constructor_name,
+                fill=0,
+                font=self.fonts["schedule_row"],
             )
 
             points_text = f"{int(constructor.points)}"
@@ -762,7 +808,12 @@ class Renderer:
         # Draw error message
         error_text = self.translator.get("error", "Error")
         padding = self.layout["padding"]
-        draw.text((padding, padding), f"{error_text}:", fill=0, font=self.fonts["schedule_title"])
+        draw.text(
+            (padding, padding),
+            f"{error_text}:",
+            fill=0,
+            font=self.fonts["schedule_title"],
+        )
         draw.text(
             (padding, padding + 50),
             error_message[:60],
@@ -921,7 +972,11 @@ class Renderer:
             image.paste(track_image, (paste_x, paste_y))
         else:
             self._draw_track_placeholder(
-                draw, x_start + side_margin, track_top, int(available_width), int(available_height)
+                draw,
+                x_start + side_margin,
+                track_top,
+                int(available_width),
+                int(available_height),
             )
 
         label_x = self.layout["padding"]
@@ -932,7 +987,10 @@ class Renderer:
     ) -> None:
         """Draw a simple placeholder when track image is not available."""
         draw.rounded_rectangle(
-            [(x + 20, y + 20), (x + width - 20, y + height - 20)], radius=20, outline=0, width=3
+            [(x + 20, y + 20), (x + width - 20, y + height - 20)],
+            radius=20,
+            outline=0,
+            width=3,
         )
 
     def _load_track_image(self, race_data: dict) -> Image.Image | None:
@@ -1008,7 +1066,12 @@ class Renderer:
         y_start = self.layout["schedule_title_y"]
 
         schedule_title = self.translator.get("weekend_schedule", "WEEKEND SCHEDULE")
-        draw.text((x_start, y_start), schedule_title, fill=0, font=self.fonts["schedule_title"])
+        draw.text(
+            (x_start, y_start),
+            schedule_title,
+            fill=0,
+            font=self.fonts["schedule_title"],
+        )
 
         schedule = race_data.get("schedule", [])
         row_y = self.layout["schedule_start_y"]
@@ -1350,7 +1413,12 @@ class Renderer:
             image.paste(flag_img, (x, flag_top_y))
 
             draw.rectangle(
-                [x - 1, flag_top_y - 1, x + flag_img.width, flag_top_y + flag_img.height],
+                [
+                    x - 1,
+                    flag_top_y - 1,
+                    x + flag_img.width,
+                    flag_top_y + flag_img.height,
+                ],
                 outline=0,
                 width=1,
             )

@@ -114,12 +114,12 @@ const char* serverUrl = "http://your-server:8000/calendar.bmp?lang=cs";
 void setup() {
   Serial.begin(115200);
   WiFi.begin(ssid, password);
-  
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  
+
   Serial.println("\nConnected to WiFi");
   fetchAndDisplayCalendar();
 }
@@ -127,13 +127,13 @@ void setup() {
 void fetchAndDisplayCalendar() {
   HTTPClient http;
   http.begin(serverUrl);
-  
+
   int httpCode = http.GET();
-  
+
   if (httpCode == HTTP_CODE_OK) {
     int len = http.getSize();
     WiFiClient *stream = http.getStreamPtr();
-    
+
     // Read BMP header and data
     uint8_t buff[128] = { 0 };
     while (http.connected() && (len > 0 || len == -1)) {
@@ -150,7 +150,7 @@ void fetchAndDisplayCalendar() {
   } else {
     Serial.printf("HTTP GET failed, error: %s\n", http.errorToString(httpCode).c_str());
   }
-  
+
   http.end();
 }
 
@@ -172,12 +172,12 @@ def fetch_calendar(lang="en"):
     """Fetch and display F1 calendar."""
     url = f"http://localhost:8000/calendar.bmp?lang={lang}"
     response = requests.get(url)
-    
+
     if response.status_code == 200:
         # Save BMP
         with open(f"calendar_{lang}.bmp", "wb") as f:
             f.write(response.content)
-        
+
         # Display with Pillow
         img = Image.open(BytesIO(response.content))
         img.show()

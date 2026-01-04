@@ -38,13 +38,21 @@ def generate_test_image():
                 "datetime": datetime(2026, 3, 13, 7, 30),
                 "display_time": "07:30",
             },
-            {"name": "Sprint", "datetime": datetime(2026, 3, 14, 3, 0), "display_time": "03:00"},
+            {
+                "name": "Sprint",
+                "datetime": datetime(2026, 3, 14, 3, 0),
+                "display_time": "03:00",
+            },
             {
                 "name": "Qualifying",
                 "datetime": datetime(2026, 3, 14, 7, 0),
                 "display_time": "07:00",
             },
-            {"name": "Race", "datetime": datetime(2026, 3, 15, 7, 0), "display_time": "07:00"},
+            {
+                "name": "Race",
+                "datetime": datetime(2026, 3, 15, 7, 0),
+                "display_time": "07:00",
+            },
         ],
     }
 
