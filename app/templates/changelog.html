@@ -83,6 +83,33 @@
         font-size: 0.8rem;
         border: 1px solid #ccc;
     }
+    .changelog-content details {
+        margin-top: 0.5rem;
+        margin-bottom: 1rem;
+        border: 2px solid #ccc;
+        padding: 0.5rem 1rem;
+        background-color: #fafafa;
+    }
+    .changelog-content details[open] {
+        border-color: black;
+        background-color: white;
+    }
+    .changelog-content summary {
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #666;
+        padding: 0.25rem 0;
+    }
+    .changelog-content summary:hover {
+        color: #DC2626;
+    }
+    .changelog-content details[open] summary {
+        color: black;
+        border-bottom: 1px solid #ccc;
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
 </style>
 {% endblock %}
 

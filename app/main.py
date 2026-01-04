@@ -32,6 +32,7 @@ from app.services.renderer import Renderer
 from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
 from app.services.teams_service import TeamsService
 from app.services.version_service import get_cached_version, refresh_version_info
+from app.services.weather_service import WeatherService
 
 # Register font MIME types (Python's mimetypes doesn't know TTF by default)
 mimetypes.add_type("font/ttf", ".ttf")
@@ -530,38 +531,17 @@ async def changelog(request: Request, lang: str = Query(default=None)):
         referrer=request.headers.get("Referer", ""),
     )
 
-    # Read CHANGELOG.md and filter to show only Frontend sections
+    # Read CHANGELOG.md - show all sections (API, Frontend, Backend)
+    # Backend sections use <details> tags for collapsible display
     changelog_path = Path(__file__).parent.parent / "CHANGELOG.md"
     changelog_content = ""
     if changelog_path.exists():
-        raw_content = changelog_path.read_text(encoding="utf-8")
+        changelog_content = changelog_path.read_text(encoding="utf-8")
 
-        # Filter out Backend sections, keep only Frontend
-        filtered_lines = []
-        in_backend_section = False
-        for line in raw_content.split("\n"):
-            # Check for section headers
-            if line.startswith("### Backend"):
-                in_backend_section = True
-                continue
-            elif line.startswith("### Frontend"):
-                in_backend_section = False
-                # Skip the "### Frontend" header itself - just show content
-                continue
-            elif line.startswith("## ["):
-                # New version section - reset backend flag
-                in_backend_section = False
-
-            # Only add lines if not in backend section
-            if not in_backend_section:
-                filtered_lines.append(line)
-
-        changelog_content = "\n".join(filtered_lines)
-
-        # Convert markdown to HTML
+        # Convert markdown to HTML with HTML tag support for <details>
         changelog_html = markdown.markdown(
             changelog_content,
-            extensions=["extra", "toc"],
+            extensions=["extra", "toc", "md_in_html"],
         )
     else:
         changelog_html = "<p>Changelog not found.</p>"
@@ -1078,9 +1058,16 @@ async def get_race_detail(
     return race
 
 
-def _get_cache_key(lang: str, year: int | None, round_num: int | None, tz: str | None) -> str:
-    """Generate cache key for BMP image."""
-    return f"{lang}:{year or 'next'}:{round_num or 'next'}:{tz or 'default'}"
+def _get_cache_key(
+    lang: str,
+    year: int | None,
+    round_num: int | None,
+    tz: str | None,
+    weather: bool = False,
+    weather_type: str = "",
+) -> str:
+    weather_key = f"{weather_type}" if weather else "no_weather"
+    return f"{lang}:{year or 'next'}:{round_num or 'next'}:{tz or 'default'}:{weather_key}"
 
 
 def _get_current_f1_season() -> int:
@@ -1214,10 +1201,50 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
                         pass
                 break
 
-    # Update timezone field
     result["timezone"] = target_tz_str
 
     return result
+
+
+async def _fetch_race_weather(race_data: dict, weather_type: str = "race_day"):
+    """Fetch weather. Falls back to current weather if race day forecast unavailable (>14 days)."""
+    try:
+        circuit = race_data.get("circuit", {})
+        lat_str = circuit.get("lat") or circuit.get("Location", {}).get("lat")
+        lon_str = circuit.get("long") or circuit.get("Location", {}).get("long")
+
+        if not lat_str or not lon_str:
+            logger.debug("No coordinates found for weather fetch")
+            return None
+
+        lat = float(lat_str)
+        lon = float(lon_str)
+
+        weather_service = WeatherService(
+            timeout=config.REQUEST_TIMEOUT,
+            cache_minutes=config.WEATHER_CACHE_MINUTES,
+        )
+
+        if weather_type == "current":
+            return await weather_service.get_current_weather(lat, lon)
+
+        schedule = race_data.get("schedule", [])
+        race_session = next((s for s in schedule if s.get("name", "").lower() == "race"), None)
+
+        if race_session:
+            race_dt_str = race_session.get("datetime")
+            if race_dt_str:
+                race_dt = datetime.fromisoformat(race_dt_str)
+                race_weather = await weather_service.get_race_weather(lat, lon, race_dt)
+                if race_weather:
+                    return race_weather
+                logger.debug("Race day weather unavailable, falling back to current weather")
+
+        return await weather_service.get_current_weather(lat, lon)
+
+    except Exception as e:
+        logger.warning(f"Failed to fetch weather: {e}")
+        return None
 
 
 def clear_bmp_cache() -> None:
@@ -1233,24 +1260,12 @@ async def get_calendar_bmp(
     year: int = Query(default=None, description="Season year (e.g., 2025)"),
     round: int = Query(default=None, description="Round number"),
     tz: str = Query(default=None, description="Timezone"),
+    weather: bool = Query(default=True, description="Show weather forecast"),
+    weather_type: str = Query(
+        default="race_day", description="Weather type: 'current' or 'race_day'"
+    ),
     f1_service: F1Service = Depends(get_f1_service),
 ):
-    """
-    Generate F1 calendar BMP image.
-
-    Serves cached/pre-generated image if available, otherwise generates on-the-fly.
-
-    Args:
-        request: FastAPI Request object (for User-Agent header)
-        lang: Language code for translations (cs for Czech, en for English)
-        year: Optional season year for specific race
-        round: Optional round number for specific race
-        tz: Optional timezone for schedule times
-        f1_service: F1Service instance (injected, accepts tz query param for timezone)
-
-    Returns:
-        800x480 1-bit BMP image
-    """
     start_time = time.time()
 
     # Extract headers for analytics
@@ -1330,7 +1345,7 @@ async def get_calendar_bmp(
                 actual_race_name = race_info_for_stats.get("race_name", "Next Race")
 
         # Check in-memory cache first
-        cache_key = _get_cache_key(lang, year, round, tz)
+        cache_key = _get_cache_key(lang, year, round, tz, weather, weather_type)
         cached_bmp = _bmp_cache.get(cache_key)
         if cached_bmp is not None:
             logger.debug(f"Cache hit for {cache_key}")
@@ -1359,7 +1374,9 @@ async def get_calendar_bmp(
         logger.info(f"Cache miss for {cache_key}, generating...")
 
         # Try to serve pre-generated image first (only for next race, not specific year/round)
-        if not year and not round:
+        # Skip pre-generated images when weather is requested (they don't include weather)
+        use_pregenerated = not year and not round and not (weather and config.WEATHER_ENABLED)
+        if use_pregenerated:
             # Build image key based on lang and optional tz
             target_tz_for_key = tz or config.DEFAULT_TIMEZONE
             if target_tz_for_key != config.DEFAULT_TIMEZONE:
@@ -1454,9 +1471,12 @@ async def get_calendar_bmp(
                         f"new_track={historical_data.is_new_track}"
                     )
 
-            # Render the calendar with historical data
+            weather_data = None
+            if weather and config.WEATHER_ENABLED:
+                weather_data = await _fetch_race_weather(race_data, weather_type)
+
             renderer = Renderer(translator)
-            bmp_data = renderer.render_calendar(race_data, historical_data)
+            bmp_data = renderer.render_calendar(race_data, historical_data, weather_data)
 
             # Cache the result
             _bmp_cache[cache_key] = bmp_data

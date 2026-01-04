@@ -1,0 +1,293 @@
+"""Test weather service."""
+
+from datetime import datetime, timedelta, timezone
+
+import httpx
+import pytest
+
+from app.services.weather_service import (
+    WEATHER_ICONS,
+    WeatherData,
+    WeatherService,
+    clear_weather_cache,
+)
+
+
+class TestWeatherData:
+    def test_icon_clear_sky(self):
+        data = WeatherData(temperature_c=25.0, weather_code=0, precipitation_probability=10)
+        assert data.icon == WEATHER_ICONS[0]
+
+    def test_icon_rain(self):
+        data = WeatherData(temperature_c=15.0, weather_code=61, precipitation_probability=80)
+        assert data.icon == WEATHER_ICONS[61]
+
+    def test_icon_unknown_code_fallback(self):
+        data = WeatherData(temperature_c=20.0, weather_code=999, precipitation_probability=0)
+        assert data.icon == "\u2601"
+
+    def test_temp_display_rounds_correctly(self):
+        data = WeatherData(temperature_c=25.7, weather_code=0, precipitation_probability=0)
+        assert data.temp_display == "26\u00b0"
+
+        data = WeatherData(temperature_c=25.4, weather_code=0, precipitation_probability=0)
+        assert data.temp_display == "25\u00b0"
+
+    def test_precip_display(self):
+        data = WeatherData(temperature_c=20.0, weather_code=0, precipitation_probability=45)
+        assert data.precip_display == "45%"
+
+
+class TestWeatherIcons:
+    def test_all_codes_have_icons(self):
+        expected_codes = [0, 1, 2, 3, 45, 48, 51, 53, 55, 61, 63, 65, 71, 73, 75, 80, 81, 82, 95]
+        for code in expected_codes:
+            assert code in WEATHER_ICONS
+
+
+class TestWeatherService:
+    @pytest.fixture(autouse=True)
+    def clear_cache(self):
+        clear_weather_cache()
+        yield
+        clear_weather_cache()
+
+    def test_invalid_coordinates_returns_none(self):
+        import asyncio
+
+        async def run_test():
+            service = WeatherService()
+            race_dt = datetime.now(timezone.utc) + timedelta(days=2)
+            result = await service.get_race_weather(lat=100, lon=0, race_datetime=race_dt)
+            assert result is None
+
+        asyncio.run(run_test())
+
+    def test_past_race_returns_none(self):
+        import asyncio
+
+        async def run_test():
+            service = WeatherService()
+            race_dt = datetime.now(timezone.utc) - timedelta(days=1)
+            result = await service.get_race_weather(lat=52.52, lon=13.41, race_datetime=race_dt)
+            assert result is None
+
+        asyncio.run(run_test())
+
+    def test_race_too_far_returns_none(self):
+        import asyncio
+
+        async def run_test():
+            service = WeatherService()
+            race_dt = datetime.now(timezone.utc) + timedelta(days=20)
+            result = await service.get_race_weather(lat=52.52, lon=13.41, race_datetime=race_dt)
+            assert result is None
+
+        asyncio.run(run_test())
+
+    def test_get_current_weather_invalid_coordinates(self):
+        import asyncio
+
+        async def run_test():
+            service = WeatherService()
+            result = await service.get_current_weather(lat=100, lon=0)
+            assert result is None
+
+        asyncio.run(run_test())
+
+    def test_get_current_weather_invalid_longitude(self):
+        import asyncio
+
+        async def run_test():
+            service = WeatherService()
+            result = await service.get_current_weather(lat=50, lon=200)
+            assert result is None
+
+        asyncio.run(run_test())
+
+    def test_get_current_weather_success(self, monkeypatch):
+        import asyncio
+
+        mock_response_data = {
+            "current": {"temperature_2m": 22.5, "weather_code": 1},
+            "hourly": {"precipitation_probability": [15, 20, 25]},
+        }
+
+        class MockResponse:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return mock_response_data
+
+        class MockAsyncClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def get(self, url, params=None):
+                return MockResponse()
+
+        monkeypatch.setattr(
+            "app.services.weather_service.httpx.AsyncClient", lambda **kwargs: MockAsyncClient()
+        )
+
+        async def run_test():
+            service = WeatherService()
+            result = await service.get_current_weather(lat=52.52, lon=13.41)
+            assert result is not None
+            assert result.temperature_c == 22.5
+            assert result.weather_code == 1
+            assert result.precipitation_probability == 15
+            assert result.icon == WEATHER_ICONS[1]
+            assert result.temp_display == "22°"
+            assert result.precip_display == "15%"
+
+        asyncio.run(run_test())
+
+    def test_get_current_weather_cache_hit(self, monkeypatch):
+        import asyncio
+
+        call_count = 0
+        mock_response_data = {
+            "current": {"temperature_2m": 18.0, "weather_code": 3},
+            "hourly": {"precipitation_probability": [30]},
+        }
+
+        class MockResponse:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return mock_response_data
+
+        class MockAsyncClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def get(self, url, params=None):
+                nonlocal call_count
+                call_count += 1
+                return MockResponse()
+
+        monkeypatch.setattr(
+            "app.services.weather_service.httpx.AsyncClient", lambda **kwargs: MockAsyncClient()
+        )
+
+        async def run_test():
+            nonlocal call_count
+            service = WeatherService()
+            # First call - should fetch from API
+            result1 = await service.get_current_weather(lat=48.85, lon=2.35)
+            assert result1 is not None
+            assert call_count == 1
+
+            # Second call - should use cache
+            result2 = await service.get_current_weather(lat=48.85, lon=2.35)
+            assert result2 is not None
+            assert call_count == 1  # No additional API call
+
+            # Both results should be equal
+            assert result1.temperature_c == result2.temperature_c
+
+        asyncio.run(run_test())
+
+    def test_get_current_weather_timeout(self, monkeypatch):
+        import asyncio
+
+        class MockAsyncClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def get(self, url, params=None):
+                raise httpx.TimeoutException("Connection timed out")
+
+        monkeypatch.setattr(
+            "app.services.weather_service.httpx.AsyncClient", lambda **kwargs: MockAsyncClient()
+        )
+
+        async def run_test():
+            service = WeatherService()
+            result = await service.get_current_weather(lat=35.68, lon=139.69)
+            assert result is None
+
+        asyncio.run(run_test())
+
+    def test_get_current_weather_http_error(self, monkeypatch):
+        import asyncio
+
+        class MockResponse:
+            status_code = 500
+
+            def raise_for_status(self):
+                mock_request = httpx.Request("GET", "https://api.open-meteo.com/v1/forecast")
+                mock_response = httpx.Response(500, request=mock_request)
+                raise httpx.HTTPStatusError(
+                    "Server error", request=mock_request, response=mock_response
+                )
+
+        class MockAsyncClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def get(self, url, params=None):
+                return MockResponse()
+
+        monkeypatch.setattr(
+            "app.services.weather_service.httpx.AsyncClient", lambda **kwargs: MockAsyncClient()
+        )
+
+        async def run_test():
+            service = WeatherService()
+            result = await service.get_current_weather(lat=40.71, lon=-74.01)
+            assert result is None
+
+        asyncio.run(run_test())
+
+    def test_get_current_weather_empty_precipitation(self, monkeypatch):
+        import asyncio
+
+        mock_response_data = {
+            "current": {"temperature_2m": 25.0, "weather_code": 0},
+            "hourly": {"precipitation_probability": []},
+        }
+
+        class MockResponse:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return mock_response_data
+
+        class MockAsyncClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def get(self, url, params=None):
+                return MockResponse()
+
+        monkeypatch.setattr(
+            "app.services.weather_service.httpx.AsyncClient", lambda **kwargs: MockAsyncClient()
+        )
+
+        async def run_test():
+            service = WeatherService()
+            result = await service.get_current_weather(lat=51.51, lon=-0.13)
+            assert result is not None
+            assert result.precipitation_probability == 0
+
+        asyncio.run(run_test())

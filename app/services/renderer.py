@@ -11,6 +11,7 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import ConstructorStanding, DriverStanding, HistoricalData, TeamsData
+from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
 
@@ -103,11 +104,14 @@ class Renderer:
             "results_year": self._load_font(36, bold=True),  # Double size for year header
             "results_row": self._load_font(16),  # Increased for readability
             "footer": self._load_font(12),
-            "circuit_stats": self._load_font(14),
-            "circuit_stats_value": self._load_font(14, bold=True),
-            "icon": self._load_icon_font(18),
-            "icon_small": self._load_icon_font(14),
+            "circuit_stats": self._load_font(18),
+            "circuit_stats_value": self._load_font(18, bold=True),
+            "icon": self._load_icon_font(22),
+            "icon_small": self._load_icon_font(22),
             "driver_number": self._load_racing_font(22),
+            "weather": self._load_font(12, bold=True),
+            "weather_icon": self._load_icon_font(40),
+            "weather_icon_font": self._load_weather_icon_font(22),
         }
 
         self._driver_photos = self._load_driver_photos()
@@ -125,12 +129,12 @@ class Renderer:
             "right_column_x": 510,  # Shifted right to 510
             # Track map area (left column)
             "track_padding": 10,
-            "track_map_max_height": 200,
+            "track_map_max_height": 160,
             "track_title_y_offset": 5,
             # Schedule (right column)
-            "schedule_title_y": 100,
-            "schedule_start_y": 140,
-            "schedule_row_height": 28,
+            "schedule_title_y": 88,
+            "schedule_start_y": 127,
+            "schedule_row_height": 22,
             "schedule_date_x": 510,  # Shifted +20px
             "schedule_day_x": 575,  # Shifted +20px
             "schedule_time_x": 620,  # Shifted +20px
@@ -145,7 +149,7 @@ class Renderer:
             "results_data_y_offset": 4,  # Reduced to fit content (was 6)
             # Circuit stats (between schedule and results)
             "circuit_stats_y": 320,  # Y position for circuit stats
-            "circuit_stats_row_height": 18,  # Height per stat row
+            "circuit_stats_row_height": 24,  # Height per stat row
             # General
             "padding": 15,
             "separator_width": 2,
@@ -159,30 +163,20 @@ class Renderer:
         }
 
     def render_calendar(
-        self, race_data: dict, historical_data: HistoricalData | None = None
+        self,
+        race_data: dict,
+        historical_data: HistoricalData | None = None,
+        weather_data: WeatherData | None = None,
     ) -> bytes:
-        """
-        Render the F1 calendar as a 1-bit BMP in FoxeeLab style.
-
-        Args:
-            race_data: Dictionary with race information and schedule
-            historical_data: Optional historical results data
-
-        Returns:
-            BMP image as bytes
-        """
-        # Create a new 1-bit image (black and white)
-        image = Image.new("1", (self.width, self.height), 1)  # 1 = white background
+        image = Image.new("1", (self.width, self.height), 1)
         draw = ImageDraw.Draw(image)
 
-        # Draw all sections
         self._draw_header(draw, image, race_data)
         self._draw_track_section(draw, image, race_data)
-        schedule_bottom = self._draw_schedule_section(draw, race_data)
+        schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data)
         self._draw_circuit_stats(draw, race_data, schedule_bottom)
         self._draw_results_section(draw, image, race_data, historical_data)
 
-        # Convert to BMP
         return self._to_bmp(image)
 
     def render_standings(
@@ -859,16 +853,13 @@ class Renderer:
     # =========================================================================
 
     def _draw_track_section(
-        self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict
+        self,
+        draw: ImageDraw.ImageDraw,
+        image: Image.Image,
+        race_data: dict,
     ) -> None:
-        """Draw the track map and circuit info on the left side."""
         x_start = 0
 
-        # No border rectangle in reference, just the map
-
-        # Circuit name and country in a single line (Centered)
-        # Style: COUNTRY | CIRCUIT NAME (Uniform Bold)
-        # Positioned relative to the results separator line (3px gap)
         circuit = race_data.get("circuit", {})
         circuit_name = circuit.get("name", "Circuit")
         country = circuit.get("country", "").upper()
@@ -876,49 +867,31 @@ class Renderer:
 
         results_line_y = self.layout["results_y_start"]
 
-        # Single line label format: "COUNTRY, CITY | CIRCUIT NAME"
         if city:
             label_text = f"{country}, {city} | {circuit_name}"
         else:
             label_text = f"{country} | {circuit_name}"
 
-        # Position label exactly 3px above the separator line
-        # Use circuit_name font (Bold) for the combined line
         label_font_key = "circuit_name"
         label_font = self.fonts[label_font_key]
-        # Get tight bounding box assuming drawing at (0,0)
         label_bbox = draw.textbbox((0, 0), label_text, font=label_font)
 
-        # label_bbox[3] is the bottom coordinate of the text relative to the drawing origin (0,0).
-        # We want the bottom of the text to be at (results_line_y - 3).
-        # So: label_y + label_bbox[3] = results_line_y - 3
-        # label_y = results_line_y - 3 - label_bbox[3]
         label_y = results_line_y - 3 - label_bbox[3]
-
-        # For track map area calculation, we use the top of the text
-        # Visual top is label_y + label_bbox[1]
         text_visual_top = label_y + label_bbox[1]
 
-        # Recalculate track image area with minimal top margin
         side_margin = 3
-        # Header ends at 90. 91 is first free pixel. 92 is 1px gap.
-        # This is as tight as possible without touching the header separator line.
         track_top = 92
 
-        # Available height is bounded by the circuit label (3px margin)
         track_bottom = text_visual_top - side_margin
         available_height = track_bottom - track_top
         available_width = self.layout["left_column_width"] - (side_margin * 2)
 
-        # Load and draw track image
         track_image = self._load_track_image(race_data)
 
         if track_image:
-            # Check if already 1-bit (pre-processed)
             is_preprocessed = track_image.mode == "1"
 
             if not is_preprocessed:
-                # Robust auto-crop (remove everything non-black/very-dark-gray)
                 try:
                     gray = track_image.convert("L")
                     binary = gray.point(lambda p: 255 if p > 128 else 0)  # type: ignore[operator]
@@ -931,7 +904,6 @@ class Renderer:
                 except Exception as e:
                     logger.warning("Failed to crop track image: %s", e)
 
-            # Resize to fill available space
             img_w, img_h = track_image.size
             ratio = min(available_width / img_w, available_height / img_h)
             new_size = (int(img_w * ratio), int(img_h * ratio))
@@ -940,11 +912,9 @@ class Renderer:
                 track_image = track_image.resize(new_size, Image.Resampling.LANCZOS)
 
             if not is_preprocessed:
-                # Apply explicit threshold (no dithering) for clean 1-bit output
                 track_image = track_image.point(lambda p: 255 if p > 200 else 0)  # type: ignore[operator]
                 track_image = track_image.convert("1")
 
-            # Pin to top-left (precise margins)
             paste_x = side_margin
             paste_y = track_top
 
@@ -954,7 +924,6 @@ class Renderer:
                 draw, x_start + side_margin, track_top, int(available_width), int(available_height)
             )
 
-        # Draw the single line label left aligned (matching Year start)
         label_x = self.layout["padding"]
         draw.text((label_x, label_y), label_text, fill=0, font=label_font)
 
@@ -1029,16 +998,18 @@ class Renderer:
     # Schedule Section (Right Column)
     # =========================================================================
 
-    def _draw_schedule_section(self, draw: ImageDraw.ImageDraw, race_data: dict) -> int:
-        """Draw the weekend schedule. Returns the bottom Y position of the last row."""
+    def _draw_schedule_section(
+        self,
+        draw: ImageDraw.ImageDraw,
+        race_data: dict,
+        weather_data: WeatherData | None = None,
+    ) -> int:
         x_start = self.layout["right_column_x"]
         y_start = self.layout["schedule_title_y"]
 
-        # Schedule title
         schedule_title = self.translator.get("weekend_schedule", "WEEKEND SCHEDULE")
         draw.text((x_start, y_start), schedule_title, fill=0, font=self.fonts["schedule_title"])
 
-        # Draw schedule rows
         schedule = race_data.get("schedule", [])
         row_y = self.layout["schedule_start_y"]
         row_height = self.layout["schedule_row_height"]
@@ -1050,10 +1021,8 @@ class Renderer:
             if row_y > self.layout["results_y_start"] - 80:
                 break
 
-        # Draw countdown box below schedule
-        countdown_bottom = self._draw_countdown_box(draw, race_data, row_y + 5)
+        countdown_bottom = self._draw_countdown_box(draw, race_data, row_y + 10, weather_data)
 
-        # Return bottom of countdown box
         return countdown_bottom
 
     def _draw_schedule_row(self, draw: ImageDraw.ImageDraw, y: int, event: dict) -> None:
@@ -1088,10 +1057,12 @@ class Renderer:
         draw.text((self.layout["schedule_name_x"], y), translated_name, fill=0, font=font_bold)
 
     def _draw_countdown_box(
-        self, draw: ImageDraw.ImageDraw, race_data: dict, schedule_bottom: int
+        self,
+        draw: ImageDraw.ImageDraw,
+        race_data: dict,
+        schedule_bottom: int,
+        weather_data: WeatherData | None = None,
     ) -> int:
-        """Draw countdown box showing days and hours until race. Returns bottom Y position."""
-        # Get race datetime from schedule (find the Race event)
         schedule = race_data.get("schedule", [])
         race_dt = None
         for event in schedule:
@@ -1106,52 +1077,70 @@ class Renderer:
         if not race_dt:
             return schedule_bottom
 
-        # Calculate time difference
         now = datetime.now(race_dt.tzinfo) if race_dt.tzinfo else datetime.now()
         delta = race_dt - now
 
         if delta.total_seconds() <= 0:
-            return schedule_bottom  # Race already started
+            return schedule_bottom
 
         days = delta.days
         hours = delta.seconds // 3600
 
-        # Build countdown text
-        in_text = self.translator.get("countdown_in", "IN")
-        days_text = self.translator.get("countdown_days", "days")
-        hours_text = self.translator.get("countdown_hours", "hours")
-        countdown_str = f"{in_text} {days} {days_text} {hours} {hours_text}"
-
-        # Box dimensions - full width from right_column_x to width - 5px
         font = self.fonts["schedule_row_bold"]
-        # Use reference text for consistent box height regardless of diacritics
+        font_icon = self.fonts["icon_small"]
+        font_weather_icon = self.fonts["weather_icon_font"]
         ref_bbox = draw.textbbox((0, 0), TEXT_BASELINE_REF, font=font)
         text_height = ref_bbox[3] - ref_bbox[1]
 
-        padding_y = 6
+        padding_y = 3
+        padding_x = 12
         box_height = text_height + 2 * padding_y
 
-        # Box horizontal position: from right_column_x to 5px from right edge
         x_left = self.layout["right_column_x"]
         x_right = self.width - 5
 
-        # Calculate vertical position - centered between schedule and stats
-        # Stats are positioned 3px above results_y_start, with 3 rows of 18px each
         stats_row_height = self.layout["circuit_stats_row_height"]
         stats_top_y = self.layout["results_y_start"] - 3 - (3 * stats_row_height)
         available_height = stats_top_y - schedule_bottom
         y_top = schedule_bottom + (available_height - box_height) // 2
         y_bottom = y_top + box_height
 
-        # Draw black filled rectangle
         draw.rectangle([x_left, y_top, x_right, y_bottom], fill=0, outline=0)
 
-        # Draw white text centered in box (use actual text bbox for horizontal centering)
-        text_bbox = draw.textbbox((0, 0), countdown_str, font=font)
-        text_width = text_bbox[2] - text_bbox[0]
-        text_x = x_left + (x_right - x_left - text_width) // 2
-        text_y = y_top + padding_y - ref_bbox[1]  # Use ref_bbox for consistent baseline
-        draw.text((text_x, text_y), countdown_str, fill=1, font=font)
+        text_y = y_top + padding_y - ref_bbox[1]
+
+        flag_icon = "🏁"
+        countdown_str = f"{days}D {hours}H"
+
+        cur_x = x_left + padding_x
+        draw.text((cur_x, text_y), flag_icon, fill=1, font=font_icon)
+        flag_bbox = draw.textbbox((0, 0), flag_icon, font=font_icon)
+        cur_x += flag_bbox[2] - flag_bbox[0] + 6
+        draw.text((cur_x, text_y), countdown_str, fill=1, font=font)
+
+        if weather_data:
+            temp_str = f"{weather_data.temp_display} "
+            precip_str = weather_data.precip_display
+
+            weather_icon_bbox = draw.textbbox((0, 0), weather_data.icon, font=font_weather_icon)
+            weather_icon_w = weather_icon_bbox[2] - weather_icon_bbox[0]
+            temp_bbox = draw.textbbox((0, 0), temp_str, font=font)
+            temp_w = temp_bbox[2] - temp_bbox[0]
+            rain_icon_bbox = draw.textbbox((0, 0), RAINDROP_ICON, font=font_weather_icon)
+            rain_icon_w = rain_icon_bbox[2] - rain_icon_bbox[0]
+            precip_bbox = draw.textbbox((0, 0), precip_str, font=font)
+            precip_w = precip_bbox[2] - precip_bbox[0]
+
+            total_w = weather_icon_w + 4 + temp_w + rain_icon_w + 3 + precip_w
+            cur_x = x_right - padding_x - total_w
+
+            draw.text((cur_x, text_y), weather_data.icon, fill=1, font=font_weather_icon)
+            cur_x += weather_icon_w + 4
+            draw.text((cur_x, text_y), temp_str, fill=1, font=font)
+            cur_x += temp_w
+            draw.text((cur_x, text_y), RAINDROP_ICON, fill=1, font=font_weather_icon)
+            cur_x += rain_icon_w + 3
+            draw.text((cur_x, text_y), precip_str, fill=1, font=font)
 
         return int(y_bottom)
 
@@ -1160,36 +1149,28 @@ class Renderer:
     # =========================================================================
 
     def _draw_circuit_stats(
-        self, draw: ImageDraw.ImageDraw, race_data: dict, schedule_bottom: int
+        self,
+        draw: ImageDraw.ImageDraw,
+        race_data: dict,
+        schedule_bottom: int,
     ) -> None:
-        """Draw circuit statistics centered between schedule and results."""
         circuit_id = race_data.get("circuit", {}).get("circuitId", "")
-        # Map API circuit IDs to our static data IDs
         mapped_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
         circuit_data = CIRCUITS_DATA.get(mapped_id, {})
-
-        if not circuit_data:
-            return
 
         row_height = self.layout["circuit_stats_row_height"]
         font_value = self.fonts["circuit_stats_value"]
 
-        # Prepare stats to display (compact format)
         stats = []
 
-        # Length, Laps and Race Distance on same line (with ruler icon)
         length = circuit_data.get("circuit_length")
         laps = circuit_data.get("number_of_laps")
-        distance = circuit_data.get("race_distance")
         if length:
             line1 = f"{length}"
             if laps:
                 line1 += f" | {laps} " + self.translator.get("laps", "laps")
-            if distance:
-                line1 += f" | {distance}"
             stats.append(("📏", line1))
 
-        # Fastest lap (with lightning icon)
         lap_time = circuit_data.get("fastest_lap_time")
         lap_driver = circuit_data.get("fastest_lap_driver")
         lap_year = circuit_data.get("fastest_lap_year")
@@ -1204,7 +1185,6 @@ class Renderer:
                     lap_text += ")"
             stats.append(("⚡", lap_text))
 
-        # First GP (with calendar icon)
         first_gp = circuit_data.get("first_grand_prix")
         if first_gp:
             stats.append(("🗓", f"{self.translator.get('first_gp', 'First GP')}: {first_gp}"))
@@ -1212,53 +1192,42 @@ class Renderer:
         if not stats:
             return
 
-        # Calculate available space between schedule bottom and circuit label top
-        # Position block 3px above the results separator line
         results_line_y = self.layout["results_y_start"]
-
-        # Calculate total height of stats block
         total_stats_height = len(stats) * row_height
-
-        # Align bottom of stats block to 3px above results line
         y_start = results_line_y - 3 - total_stats_height
 
         font_icon = self.fonts["icon_small"]
 
-        # Find max icon width for text alignment
         max_icon_width = 0
         for stat in stats:
-            icon, _ = stat
+            icon = stat[0]
             icon_bbox = draw.textbbox((0, 0), icon, font=font_icon)
             icon_width = icon_bbox[2] - icon_bbox[0]
             max_icon_width = max(max_icon_width, icon_width)
 
-        # Calculate max text width
         max_text_width = 0
         for stat in stats:
-            _, text = stat
+            text = stat[1]
             text_bbox = draw.textbbox((0, 0), text, font=font_value)
             text_width = text_bbox[2] - text_bbox[0]
             max_text_width = max(max_text_width, text_width)
 
-        # Total block width: max_icon + gap + max_text
         icon_text_gap = 4
         total_block_width = max_icon_width + icon_text_gap + max_text_width
 
-        # Position block so right edge is 5px from screen right edge
         right_margin = 5
-        block_x = self.width - right_margin - total_block_width
+        min_x = self.layout["right_column_x"]
+        block_x = max(min_x, self.width - right_margin - total_block_width)
         text_x = block_x + max_icon_width + icon_text_gap
 
-        # Draw stats with icons and texts aligned
         y = y_start
         for stat in stats:
-            icon, text = stat
-            # Draw icon (right-aligned within icon column)
+            icon = stat[0]
+            text = stat[1]
             icon_bbox = draw.textbbox((0, 0), icon, font=font_icon)
             icon_width = icon_bbox[2] - icon_bbox[0]
             icon_x = block_x + (max_icon_width - icon_width)
             draw.text((icon_x, y), icon, fill=0, font=font_icon)
-            # Draw text (left-aligned, all texts start at same x)
             draw.text((text_x, y), text, fill=0, font=font_value)
             y += row_height
 
@@ -1273,10 +1242,8 @@ class Renderer:
         race_data: dict,
         historical_data: HistoricalData | None,
     ) -> None:
-        """Draw the historical results section."""
         y_start = self.layout["results_y_start"]
 
-        # Separator line - 10px above headers (headers are at y_start + 10, so y_start)
         draw.line(
             [(0, y_start), (self.width, y_start)],
             fill=0,
@@ -1287,12 +1254,10 @@ class Renderer:
             self._draw_new_track_message(draw, y_start)
             return
 
-        # Year header and capture its visual top coordinate
         season = historical_data.season or ""
         country = race_data.get("circuit", {}).get("country", "")
         visual_top = self._draw_results_header(draw, image, y_start, season, country)
 
-        # Qualifying results (using shared visual_top)
         self._draw_results_column(
             draw,
             self.layout["results_col1_x"],
@@ -1302,7 +1267,6 @@ class Renderer:
             is_qualifying=True,
         )
 
-        # Race results (using shared visual_top)
         self._draw_results_column(
             draw,
             self.layout["results_col2_x"],
@@ -1329,19 +1293,15 @@ class Renderer:
         season: int | str,
         country_name: str,
     ) -> int:
-        """Draw the year/season header and return its visual top coordinate."""
         year_text = str(season)
         year_font = self.fonts["results_year"]
         bbox = draw.textbbox((0, 0), year_text, font=year_font)
         text_width = bbox[2] - bbox[0]
         text_h = bbox[3] - bbox[1]
 
-        # Calculate Year+Flag block for vertical centering in the footer
-        # Footer area starts at y_start (392) and goes to self.height (480)
         footer_y_start = y_start
         footer_height = self.height - footer_y_start
 
-        # Determine ISO code and load flag
         iso_code = COUNTRY_MAP.get(country_name, "").lower()
         if not iso_code:
             if country_name == "UAE":
@@ -1355,7 +1315,6 @@ class Renderer:
 
         flag_img = None
         if iso_code:
-            # Load preprocessed 1-bit BMP flag (edge detection outline)
             local_flag_path = FLAGS_DIR / f"{iso_code}.bmp"
             if local_flag_path.exists():
                 try:
@@ -1363,13 +1322,11 @@ class Renderer:
                 except Exception as e:
                     logger.warning("Failed to load local flag: %s", e)
 
-        # Total available width for the header is up to results_col1_x
         header_area_w = self.layout["results_col1_x"]
 
-        # Scale flag to max 80% of header area width
         flag_h = 0
         if flag_img:
-            max_flag_width = int(header_area_w * 0.8)  # 80% of header area
+            max_flag_width = int(header_area_w * 0.8)
             if flag_img.width > max_flag_width:
                 ratio = max_flag_width / flag_img.width
                 flag_h = int(flag_img.height * ratio)
@@ -1377,29 +1334,25 @@ class Renderer:
             else:
                 flag_h = flag_img.height
 
-        # Calculate a stable visual top for alignment
-        # We use a standard 3px gap for centering purposes to keep Year position stable
         standard_gap = 3
         total_block_h_stable = text_h + (standard_gap if flag_h > 0 else 0) + flag_h
         y_offset_stable = (footer_height - total_block_h_stable) // 2
         visual_top = footer_y_start + y_offset_stable
 
-        # Position Year: center horizontally in header_area_w
         year_x = (header_area_w - text_width) // 2
         text_y = visual_top - bbox[1]
         draw.text((year_x, text_y), year_text, fill=0, font=year_font)
 
         if flag_img:
-            # Position Flag: Center horizontally and place at text bottom + 6px gap
             x = (header_area_w - flag_img.width) // 2
-            y = int(text_y + bbox[3] + 6)
+            flag_top_y = int(self.height - flag_img.height - 4)
 
-            # Paste 1-bit flag directly (edge detection outline)
-            image.paste(flag_img, (x, y))
+            image.paste(flag_img, (x, flag_top_y))
 
-            # Draw 1px border around the flag
             draw.rectangle(
-                [x - 1, y - 1, x + flag_img.width, y + flag_img.height], outline=0, width=1
+                [x - 1, flag_top_y - 1, x + flag_img.width, flag_top_y + flag_img.height],
+                outline=0,
+                width=1,
             )
 
         return int(visual_top)
@@ -1489,6 +1442,14 @@ class Renderer:
         except Exception as e:
             logger.warning("Failed to load Symbola font: %s", e)
             return ImageFont.load_default()
+
+    def _load_weather_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
+        try:
+            return ImageFont.truetype(str(font_path), size)
+        except Exception as e:
+            logger.warning("Failed to load Weather Icons font: %s", e)
+            return self._load_icon_font(size)
 
     def _load_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
         font_path = FONTS_DIR / "RacingSansOne-Regular.ttf"

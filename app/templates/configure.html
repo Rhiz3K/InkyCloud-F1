@@ -111,6 +111,50 @@
         </div>
         <input type="hidden" id="tz" value="">
         
+        <!-- Weather - Mobile -->
+        <div class="lg:hidden p-4 border-b-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}" id="mobileWeatherContainer">
+            <label class="block text-xs font-bold uppercase mb-2" id="weatherLabelMobile">Weather</label>
+            <div class="flex gap-1">
+                <button type="button" onclick="setWeatherType('off')" id="weatherOffBtnMobile"
+                    class="weather-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white">
+                    OFF
+                </button>
+                <button type="button" onclick="setWeatherType('current')" id="weatherCurrentBtnMobile"
+                    class="weather-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white">
+                    Current
+                </button>
+                <button type="button" onclick="setWeatherType('race_day')" id="weatherRaceDayBtnMobile"
+                    class="weather-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-racing-red text-white">
+                    Race day
+                </button>
+            </div>
+        </div>
+        
+        <!-- Weather - Desktop -->
+        <div class="hidden lg:block px-2 py-1.5 border-t-2 border-b-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}lg:hidden{% endif %}" id="weatherContainer">
+            <label class="text-xs font-bold uppercase mb-1.5 block" id="weatherLabel">Weather</label>
+            <input type="checkbox" id="weatherToggle" checked onchange="updateWeatherTypeAvailability(); updatePreview()" class="hidden">
+            <div class="flex gap-1" id="weatherTypeContainer">
+                <button type="button" onclick="setWeatherType('off')" id="weatherOffBtn"
+                    class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white">
+                    OFF
+                </button>
+                <button type="button" onclick="setWeatherType('current')" id="weatherCurrentBtn"
+                    class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white">
+                    <span id="weatherCurrentLabel">Current</span>
+                </button>
+                <button type="button" onclick="setWeatherType('race_day')" id="weatherRaceDayBtn"
+                    class="weather-type-btn group relative flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white">
+                    <span id="weatherRaceDayText">Race day</span>
+                    <span id="weatherRaceDayTooltip" class="invisible group-hover:visible group-disabled:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap z-50 border-2 border-white">
+                        <span id="weatherTooltipText">Activates 14 days before race</span>
+                    </span>
+                </button>
+            </div>
+            <input type="radio" name="weatherType" value="current" class="hidden">
+            <input type="radio" name="weatherType" value="race_day" checked class="hidden" id="weatherRaceDayRadio">
+        </div>
+        
         <!-- Mobile Race Selector (Calendar only) -->
         <div class="lg:hidden p-4 border-t-2 border-black bg-gray-50" id="mobileRaceContainer">
             <label class="block text-xs font-bold uppercase mb-2" id="raceLabel">Race</label>
@@ -317,7 +361,11 @@
             currentSeason: 'Current',
             leaderTeam: 'Team',
             leaderDriver: 'Driver',
-            noDataYet: 'No data yet'
+            noDataYet: 'No data yet',
+            weatherLabel: 'Weather',
+            weatherCurrentLabel: 'Current',
+            weatherRaceDayLabel: 'Race day',
+            weatherTooltipText: 'Activates 14 days before race'
         },
         cs: {
             headerTitle: 'F1 InkyCloud',
@@ -344,7 +392,11 @@
             currentSeason: 'Aktuální',
             leaderTeam: 'Tým',
             leaderDriver: 'Jezdec',
-            noDataYet: 'Zatím žádná data'
+            noDataYet: 'Zatím žádná data',
+            weatherLabel: 'Počasí',
+            weatherCurrentLabel: 'Aktuální',
+            weatherRaceDayLabel: 'V den závodu',
+            weatherTooltipText: 'Aktivuje se 14 dní před závodem'
         }
     };
 
@@ -561,18 +613,33 @@
         document.getElementById('seasonTitle').textContent = `${activeSeasonYear} ${t.seasonTitle}`;
         const footerPrivacy = document.getElementById('footerPrivacy');
         if (footerPrivacy) footerPrivacy.textContent = t.footerPrivacy;
-        // ePaper setup translations
         document.getElementById('epaperSetupTitle').textContent = t.epaperSetupTitle;
         document.getElementById('epaperStep1').innerHTML = t.epaperStep1;
         document.getElementById('epaperStep2').innerHTML = t.epaperStep2;
+        const weatherLabel = document.getElementById('weatherLabel');
+        if (weatherLabel) weatherLabel.textContent = t.weatherLabel;
+        const weatherCurrentLabel = document.getElementById('weatherCurrentLabel');
+        if (weatherCurrentLabel) weatherCurrentLabel.textContent = t.weatherCurrentLabel;
+        const weatherRaceDayText = document.getElementById('weatherRaceDayText');
+        if (weatherRaceDayText) weatherRaceDayText.textContent = t.weatherRaceDayLabel;
+        const weatherTooltipText = document.getElementById('weatherTooltipText');
+        if (weatherTooltipText) weatherTooltipText.textContent = t.weatherTooltipText;
     }
 
     function getApiUrl() {
         if (currentScreenType === 'calendar') {
             const tz = document.getElementById('tz').value;
+            const weatherToggle = document.getElementById('weatherToggle');
+            const showWeather = weatherToggle ? weatherToggle.checked : true;
+            const weatherType = document.querySelector('input[name="weatherType"]:checked')?.value || 'race_day';
             let url = `${window.location.origin}/calendar.bmp?lang=${currentUiLang}`;
             if (tz) url += `&tz=${encodeURIComponent(tz)}`;
             if (selectedYear && selectedRound) url += `&year=${selectedYear}&round=${selectedRound}`;
+            if (!showWeather) {
+                url += `&weather=false`;
+            } else if (weatherType === 'current') {
+                url += `&weather_type=current`;
+            }
             return url;
         } else {
             let url = `${window.location.origin}/teams.bmp?lang=${currentUiLang}`;
@@ -583,9 +650,11 @@
 
     function isDefaultView() {
         if (currentScreenType === 'calendar') {
-            // Not default if specific race selected OR non-browser timezone selected
+            // Not default if specific race selected OR non-browser timezone selected OR weather enabled
             const isDefaultTz = !selectedTz || selectedTz === browserTz;
-            return !selectedYear && !selectedRound && isDefaultTz;
+            const weatherToggle = document.getElementById('weatherToggle');
+            const hasWeather = weatherToggle && weatherToggle.checked;
+            return !selectedYear && !selectedRound && isDefaultTz && !hasWeather;
         } else if (currentScreenType === 'teams') {
             return selectedTeamsYear === getCurrentSeason();
         }
@@ -636,6 +705,13 @@
             // Update season title
             const t = translations[currentUiLang] || translations.en;
             document.getElementById('seasonTitle').textContent = `${activeSeasonYear} ${t.seasonTitle}`;
+            
+            // Set next race date for weather type availability check
+            const upcomingRaces = racesData.filter(r => !r.is_past);
+            if (upcomingRaces.length > 0 && upcomingRaces[0].date) {
+                nextRaceDate = upcomingRaces[0].date;
+            }
+            updateWeatherTypeAvailability();
             
             // Build race list (desktop) - compact layout
             let html = `<button class="race-item w-full px-2 py-0.5 text-left text-xs border-2 border-transparent hover:border-black flex items-center justify-between group selected" data-round="" onclick="selectRaceFromList(null, null)">
@@ -1069,6 +1145,91 @@
         renderTzList();
     }
 
+    let nextRaceDate = null;
+    let currentWeatherType = 'race_day';
+    
+    function setWeatherType(type) {
+        const weatherToggle = document.getElementById('weatherToggle');
+        const raceDayRadio = document.getElementById('weatherRaceDayRadio');
+        const currentRadio = document.querySelector('input[name="weatherType"][value="current"]');
+        
+        const allBtns = [
+            document.getElementById('weatherOffBtn'),
+            document.getElementById('weatherCurrentBtn'),
+            document.getElementById('weatherRaceDayBtn'),
+            document.getElementById('weatherOffBtnMobile'),
+            document.getElementById('weatherCurrentBtnMobile'),
+            document.getElementById('weatherRaceDayBtnMobile')
+        ];
+        
+        allBtns.forEach(btn => {
+            if (btn) {
+                btn.classList.remove('bg-racing-red', 'text-white', 'bg-black');
+                btn.classList.add('bg-white');
+            }
+        });
+        
+        currentWeatherType = type;
+        
+        const offBtns = [document.getElementById('weatherOffBtn'), document.getElementById('weatherOffBtnMobile')];
+        const currentBtns = [document.getElementById('weatherCurrentBtn'), document.getElementById('weatherCurrentBtnMobile')];
+        const raceDayBtns = [document.getElementById('weatherRaceDayBtn'), document.getElementById('weatherRaceDayBtnMobile')];
+        
+        if (type === 'off') {
+            weatherToggle.checked = false;
+            offBtns.forEach(btn => {
+                if (btn) { btn.classList.remove('bg-white'); btn.classList.add('bg-black', 'text-white'); }
+            });
+        } else if (type === 'current') {
+            weatherToggle.checked = true;
+            if (currentRadio) currentRadio.checked = true;
+            currentBtns.forEach(btn => {
+                if (btn) { btn.classList.remove('bg-white'); btn.classList.add('bg-racing-red', 'text-white'); }
+            });
+        } else if (type === 'race_day') {
+            weatherToggle.checked = true;
+            if (raceDayRadio) raceDayRadio.checked = true;
+            raceDayBtns.forEach(btn => {
+                if (btn) { btn.classList.remove('bg-white'); btn.classList.add('bg-racing-red', 'text-white'); }
+            });
+        }
+        
+        updateWeatherTypeAvailability();
+        updatePreview();
+    }
+    
+    function updateWeatherTypeAvailability() {
+        const raceDayBtns = [
+            document.getElementById('weatherRaceDayBtn'),
+            document.getElementById('weatherRaceDayBtnMobile')
+        ];
+        
+        const now = new Date();
+        let daysUntilRace = 999;
+        
+        if (nextRaceDate) {
+            const raceDate = new Date(nextRaceDate);
+            daysUntilRace = Math.ceil((raceDate - now) / (1000 * 60 * 60 * 24));
+        }
+        
+        const isRaceDayAvailable = daysUntilRace <= 14 && daysUntilRace >= 0;
+        
+        raceDayBtns.forEach(btn => {
+            if (!btn) return;
+            if (isRaceDayAvailable) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        });
+        
+        if (!isRaceDayAvailable && currentWeatherType === 'race_day') {
+            setWeatherType('current');
+        }
+    }
+    
     function startApp() {
         console.log("Starting F1 Configure...");
         if (!initUiLanguage()) { return; }
