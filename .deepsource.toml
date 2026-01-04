@@ -1,88 +1,53 @@
 version = 1
 
-# Repo má /tests a různý build/cache výstupy (Next, Python, coverage).
+exclude_patterns = [
+  ".venv/**",
+  "__pycache__/**",
+  "*.egg-info/**",
+  "app/assets/**",
+  "conductor/**",
+  "openspec/changes/archive/**"
+]
+
 test_patterns = [
   "tests/**",
-  "**/*test*/**",
-  "**/*_test.*",
-  "**/*.spec.*"
+  "test_*.py",
+  "*_test.py"
 ]
 
-exclude_patterns = [
-  # Node/Next build & deps
-  "**/node_modules/**",
-  "**/.next/**",
-  "**/dist/**",
-  "**/build/**",
-  "**/out/**",
-
-  # Python cache/venv
-  "**/__pycache__/**",
-  "**/.venv/**",
-  "**/venv/**",
-  "**/*.pyc",
-
-  # Coverage / reports
-  "**/coverage/**",
-  "**/.coverage",
-  "**/*.xml",
-
-  # Binaries / images (ať se zbytečně neanalyzuje šum)
-  "assets/**",
-  "**/*.png",
-  "**/*.jpg",
-  "**/*.jpeg",
-  "**/*.webp",
-  "**/*.bmp",
-  "**/*.ico",
-  "**/*.pdf",
-
-  # Locky/cache obecně (nechávám analyzovat jen SCA tam, kde to dává smysl)
-  "**/.pytest_cache/**",
-  "**/.mypy_cache/**",
-  "**/.ruff_cache/**"
-]
-
-[[analyzers]]
-name = "javascript"
-enabled = true
-
-  [analyzers.meta]
-  plugins = ["react"]
-  module_system = "es-modules"
-  environment = ["nodejs", "browser"]
-
+# Python Analyzer - static code analysis with mypy type checking
 [[analyzers]]
 name = "python"
 enabled = true
+dependency_file_paths = ["pyproject.toml"]
 
   [analyzers.meta]
-  runtime_version = "3.12.x"
+  runtime_version = "3.x.x"
+  max_line_length = 100
+  skip_doc_coverage = ["module", "magic", "init"]
+  type_checker = "mypy"
+  cyclomatic_complexity_threshold = "high"
 
+# Docker Analyzer - Dockerfile best practices
 [[analyzers]]
 name = "docker"
 enabled = true
-# Dockerfile máš v rootu, takže meta dockerfile_paths není potřeba (default je "Dockerfile"). :contentReference[oaicite:1]{index=1}
 
-[[analyzers]]
-name = "shell"
-enabled = true
   [analyzers.meta]
-  dialect = "bash"
+  dockerfile_paths = ["Dockerfile"]
+  trusted_registries = ["docker.io", "ghcr.io"]
 
+# Secrets Analyzer - detect hardcoded credentials
 [[analyzers]]
 name = "secrets"
 enabled = true
 
-# Volitelné – pokud chceš, aby DeepSource dělal i "auto-format" jako check:
-[[code_formatters]]
-name = "prettier"
+# Test Coverage Analyzer
+[[analyzers]]
+name = "test-coverage"
 enabled = true
 
+# Ruff Code Formatter - auto-fix formatting in PRs
 [[code_formatters]]
-name = "black"
-enabled = true
-
-[[code_formatters]]
-name = "isort"
+name = "ruff"
 enabled = true
