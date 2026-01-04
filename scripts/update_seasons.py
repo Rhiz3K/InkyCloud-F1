@@ -83,10 +83,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.years:
-        target_years = [int(y.strip()) for y in args.years.split(",")]
+        years_to_update = [int(y.strip()) for y in args.years.split(",")]
     else:
         current_year = datetime.now().year
-        target_years = [current_year, current_year + 1]
+        years_to_update = [current_year, current_year + 1]
 
-    print(f"Updating seasons: {target_years}")
-    asyncio.run(main(target_years))
+    print(f"Updating seasons: {years_to_update}")
+    asyncio.run(main(years_to_update))
