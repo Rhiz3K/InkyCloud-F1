@@ -1,0 +1,88 @@
+version = 1
+
+# Repo má /tests a různý build/cache výstupy (Next, Python, coverage).
+test_patterns = [
+  "tests/**",
+  "**/*test*/**",
+  "**/*_test.*",
+  "**/*.spec.*"
+]
+
+exclude_patterns = [
+  # Node/Next build & deps
+  "**/node_modules/**",
+  "**/.next/**",
+  "**/dist/**",
+  "**/build/**",
+  "**/out/**",
+
+  # Python cache/venv
+  "**/__pycache__/**",
+  "**/.venv/**",
+  "**/venv/**",
+  "**/*.pyc",
+
+  # Coverage / reports
+  "**/coverage/**",
+  "**/.coverage",
+  "**/*.xml",
+
+  # Binaries / images (ať se zbytečně neanalyzuje šum)
+  "assets/**",
+  "**/*.png",
+  "**/*.jpg",
+  "**/*.jpeg",
+  "**/*.webp",
+  "**/*.bmp",
+  "**/*.ico",
+  "**/*.pdf",
+
+  # Locky/cache obecně (nechávám analyzovat jen SCA tam, kde to dává smysl)
+  "**/.pytest_cache/**",
+  "**/.mypy_cache/**",
+  "**/.ruff_cache/**"
+]
+
+[[analyzers]]
+name = "javascript"
+enabled = true
+
+  [analyzers.meta]
+  plugins = ["react"]
+  module_system = "es-modules"
+  environment = ["nodejs", "browser"]
+
+[[analyzers]]
+name = "python"
+enabled = true
+
+  [analyzers.meta]
+  runtime_version = "3.12.x"
+
+[[analyzers]]
+name = "docker"
+enabled = true
+# Dockerfile máš v rootu, takže meta dockerfile_paths není potřeba (default je "Dockerfile"). :contentReference[oaicite:1]{index=1}
+
+[[analyzers]]
+name = "shell"
+enabled = true
+  [analyzers.meta]
+  dialect = "bash"
+
+[[analyzers]]
+name = "secrets"
+enabled = true
+
+# Volitelné – pokud chceš, aby DeepSource dělal i "auto-format" jako check:
+[[code_formatters]]
+name = "prettier"
+enabled = true
+
+[[code_formatters]]
+name = "black"
+enabled = true
+
+[[code_formatters]]
+name = "isort"
+enabled = true
