@@ -657,3 +657,80 @@ def test_changelog_header_nav():
     response = client.get("/changelog")
     html = response.text
     assert 'href="/?lang=' in html
+
+
+def test_convert_race_times_to_timezone():
+    """Test _convert_race_times_to_timezone correctly converts schedule times."""
+    from app.main import _convert_race_times_to_timezone
+
+    race_data = {
+        "race_date": "01.03.2025",
+        "schedule": [
+            {"name": "FP1", "datetime": "2025-03-01T10:30:00+00:00", "display_time": "Sat 10:30"},
+            {"name": "Race", "datetime": "2025-03-02T14:00:00+00:00", "display_time": "Sun 14:00"},
+        ],
+    }
+
+    result = _convert_race_times_to_timezone(race_data, "America/New_York")
+
+    assert result["timezone"] == "America/New_York"
+    assert result["schedule"][0]["display_time"] == "Sat 05:30"
+    assert result["schedule"][1]["display_time"] == "Sun 09:00"
+    assert "-05:00" in result["schedule"][0]["datetime"]
+
+
+def test_convert_race_times_to_timezone_invalid_tz():
+    """Test _convert_race_times_to_timezone handles invalid timezone gracefully."""
+    from app.main import _convert_race_times_to_timezone
+
+    race_data = {"schedule": [{"name": "Race", "datetime": "2025-03-02T14:00:00+00:00"}]}
+
+    result = _convert_race_times_to_timezone(race_data, "Invalid/Timezone")
+
+    assert result == race_data
+
+
+def test_convert_race_times_to_timezone_updates_race_date():
+    """Test _convert_race_times_to_timezone updates race_date from Race event."""
+    from app.main import _convert_race_times_to_timezone
+
+    race_data = {
+        "race_date": "02.03.2025",
+        "schedule": [
+            {"name": "Race", "datetime": "2025-03-02T14:00:00+00:00", "display_time": "Sun 14:00"},
+        ],
+    }
+
+    result = _convert_race_times_to_timezone(race_data, "Europe/Prague")
+
+    assert result["race_date"] == "02.03.2025"
+    assert result["timezone"] == "Europe/Prague"
+
+
+def test_perf_metrics_post_endpoint():
+    """Test POST /api/perf-metrics endpoint accepts valid payload."""
+    payload = {
+        "page_path": "/calendar.bmp",
+        "lcp_ms": 1200.5,
+        "cls": 0.05,
+        "fcp_ms": 800.0,
+        "ttfb_ms": 150.0,
+        "inp_ms": 50.0,
+        "connection_type": "4g",
+        "device_memory": 8.0,
+    }
+
+    response = client.post("/api/perf-metrics", json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+
+
+def test_perf_metrics_post_invalid_payload():
+    """Test POST /api/perf-metrics handles invalid payload gracefully."""
+    response = client.post("/api/perf-metrics", json={"invalid": "data"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "error"

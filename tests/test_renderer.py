@@ -891,3 +891,69 @@ def test_render_calendar_full_schedule(mock_race_data):
     assert img.format == "BMP"
     assert img.size == (800, 480)
     assert img.mode == "1"
+
+
+def test_render_calendar_with_non_preprocessed_track_image(mock_race_data, tmp_path, monkeypatch):
+    """Test ImageOps processing branch for non-1-bit track images."""
+    from PIL import Image as PILImage
+    from PIL import ImageDraw
+
+    from app.services import renderer as renderer_module
+
+    fake_track = PILImage.new("L", (200, 150), color=128)
+    draw = ImageDraw.Draw(fake_track)
+    draw.rectangle([20, 20, 180, 130], fill=255)
+    draw.ellipse([50, 40, 150, 110], fill=0)
+
+    tracks_dir = tmp_path / "tracks_processed"
+    tracks_dir.mkdir()
+    track_path = tracks_dir / "test_circuit.bmp"
+    fake_track.save(track_path, "BMP")
+
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", tracks_dir)
+
+    translator = get_translator("en")
+    renderer = Renderer(translator)
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = PILImage.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "1"
+
+
+def test_render_calendar_with_rgb_track_image(mock_race_data, tmp_path, monkeypatch):
+    """Test ImageOps inversion and cropping pipeline for RGB track images."""
+    from PIL import Image as PILImage
+    from PIL import ImageDraw
+
+    from app.services import renderer as renderer_module
+
+    fake_track = PILImage.new("RGB", (200, 150), color=(200, 200, 200))
+    draw = ImageDraw.Draw(fake_track)
+    draw.ellipse([30, 30, 170, 120], fill=(0, 0, 0))
+
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    track_path = tracks_dir / "test_circuit.png"
+    fake_track.save(track_path, "PNG")
+
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+
+    translator = get_translator("en")
+    renderer = Renderer(translator)
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = PILImage.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "1"
