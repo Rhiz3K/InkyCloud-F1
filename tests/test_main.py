@@ -123,40 +123,34 @@ def test_configure_page_contains_api_references():
 
 def test_configure_page_i18n_default_english():
     """Test configure page defaults to English for non-CZ/SK users."""
-    response = client.get(
-        "/configure/calendar", headers={"Accept-Language": "en-US,en;q=0.9"}
-    )
+    response = client.get("/configure/calendar", headers={"Accept-Language": "en-US,en;q=0.9"})
     html = response.text
-    assert "currentUiLang = 'en'" in html
+    assert 'currentUiLang = "en"' in html
 
 
 def test_configure_page_i18n_czech_for_cz():
     """Test configure page uses Czech for CZ users."""
-    response = client.get(
-        "/configure/calendar", headers={"Accept-Language": "cs-CZ,cs;q=0.9"}
-    )
+    response = client.get("/configure/calendar", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
     html = response.text
-    assert "currentUiLang = 'cs'" in html
+    assert 'currentUiLang = "cs"' in html
 
 
 def test_configure_page_i18n_czech_for_sk():
     """Test configure page uses Czech for SK users."""
-    response = client.get(
-        "/configure/calendar", headers={"Accept-Language": "sk-SK,sk;q=0.9"}
-    )
+    response = client.get("/configure/calendar", headers={"Accept-Language": "sk-SK,sk;q=0.9"})
     html = response.text
-    assert "currentUiLang = 'cs'" in html
+    assert 'currentUiLang = "cs"' in html
 
 
 def test_configure_page_lang_parameter():
     """Test configure page respects ?lang= query parameter."""
     response = client.get("/configure/calendar?lang=cs")
     html = response.text
-    assert "currentUiLang = 'cs'" in html
+    assert 'currentUiLang = "cs"' in html
 
     response = client.get("/configure/calendar?lang=en")
     html = response.text
-    assert "currentUiLang = 'en'" in html
+    assert 'currentUiLang = "en"' in html
 
 
 def test_configure_invalid_screen_type():
@@ -314,11 +308,9 @@ def test_api_docs_html_lang_parameter():
 
 def test_api_docs_html_i18n_czech():
     """Test API docs HTML page detects Czech language from header."""
-    response = client.get(
-        "/api/docs/html", headers={"Accept-Language": "cs-CZ,cs;q=0.9"}
-    )
+    response = client.get("/api/docs/html", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
     html = response.text
-    assert "currentUiLang = 'cs'" in html
+    assert 'currentUiLang = "cs"' in html
 
 
 def test_api_docs_html_contains_language_switcher():
@@ -511,18 +503,18 @@ def test_configure_page_translations_english():
     """Test configure page English translations."""
     response = client.get("/configure/calendar?lang=en")
     html = response.text
-    assert "settingsBtn: 'Settings'" in html
-    assert "yearLabel: 'Season'" in html
-    assert "loadingText: 'Loading...'" in html
+    assert 'settingsBtn: "Settings"' in html
+    assert 'yearLabel: "Season"' in html
+    assert 'loadingText: "Loading..."' in html
 
 
 def test_configure_page_translations_czech():
     """Test configure page Czech translations."""
     response = client.get("/configure/calendar?lang=cs")
     html = response.text
-    assert "settingsBtn: 'Nastavení'" in html
-    assert "yearLabel: 'Sezóna'" in html
-    assert "loadingText: 'Načítání...'" in html
+    assert 'settingsBtn: "Nastavení"' in html
+    assert 'yearLabel: "Sezóna"' in html
+    assert 'loadingText: "Načítání..."' in html
 
 
 def test_configure_page_loading_overlay():
@@ -546,14 +538,14 @@ def test_configure_teams_screen_type():
     """Test configure teams page has correct screen type."""
     response = client.get("/configure/teams")
     html = response.text
-    assert "currentScreenType = 'teams'" in html
+    assert 'currentScreenType = "teams"' in html
 
 
 def test_configure_calendar_screen_type():
     """Test configure calendar page has correct screen type."""
     response = client.get("/configure/calendar")
     html = response.text
-    assert "currentScreenType = 'calendar'" in html
+    assert 'currentScreenType = "calendar"' in html
 
 
 # ============================================================================
