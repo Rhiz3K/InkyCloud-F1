@@ -197,7 +197,7 @@ class TeamsService:
 
         for api_name in api_names:
             api_lower = api_name.lower()
-            if api_lower == json_lower or api_lower == json_base:
+            if api_lower in (json_lower, json_base):
                 return api_name
             if json_lower.startswith(api_lower) or api_lower.startswith(json_base):
                 return api_name

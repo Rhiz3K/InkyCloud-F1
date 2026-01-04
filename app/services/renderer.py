@@ -774,7 +774,7 @@ class Renderer:
         draw.text((x_start, title_y), title, fill=0, font=self.fonts["schedule_title"])
 
         y = header_height + 45
-        for i, constructor in enumerate(standings[:10]):
+        for _i, constructor in enumerate(standings[:10]):
             pos_text = f"{constructor.position}."
             draw.text((x_start, y), pos_text, fill=0, font=self.fonts["schedule_row_bold"])
 
@@ -946,8 +946,6 @@ class Renderer:
                 try:
                     gray = track_image.convert("L")
                     binary = gray.point(lambda p: 255 if p > 128 else 0)  # type: ignore[operator]
-                    from PIL import ImageOps
-
                     inverted = ImageOps.invert(binary)
                     bbox = inverted.getbbox()
                     if bbox:

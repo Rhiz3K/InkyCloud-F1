@@ -301,7 +301,7 @@ def measure_memory_usage(verbose: bool = False) -> dict:
     render_diff = snapshot_after_render.compare_to(snapshot_after_init, "lineno")
 
     # Get peak memory
-    current, peak = tracemalloc.get_traced_memory()
+    _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
     # Sum up memory allocations
@@ -328,12 +328,14 @@ def measure_memory_usage(verbose: bool = False) -> dict:
     return result
 
 
-def measure_cache_memory(languages: list[str] = SUPPORTED_LANGUAGES) -> dict:
+def measure_cache_memory(languages: list[str] | None = None) -> dict:
     """
     Measure memory used by caching all language variants.
 
     Simulates the _bmp_cache dict with all pre-rendered images.
     """
+    if languages is None:
+        languages = SUPPORTED_LANGUAGES
     race_data = get_mock_race_data()
     historical_data = get_mock_historical_data()
 
@@ -347,7 +349,7 @@ def measure_cache_memory(languages: list[str] = SUPPORTED_LANGUAGES) -> dict:
         bmp_data = renderer.render_calendar(race_data, historical_data)
         cache[f"calendar_{lang}"] = bmp_data
 
-    current, peak = tracemalloc.get_traced_memory()
+    _, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
     total_size = sum(len(v) for v in cache.values())

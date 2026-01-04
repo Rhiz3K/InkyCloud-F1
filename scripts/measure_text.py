@@ -18,7 +18,7 @@ def measure():
     # Typical time string
     text = "1:23.456"
 
-    left, top, right, bottom = font.getbbox(text)
+    left, _top, right, _bottom = font.getbbox(text)
     width = right - left
 
     print(f"Font: {font.path}")
@@ -29,7 +29,7 @@ def measure():
     # Also measure "results_title" for column clearance
     title_font = r.fonts["results_title"]
     title_text = "QUALIFYING"
-    left, top, right, bottom = title_font.getbbox(title_text)
+    left, _top, right, _bottom = title_font.getbbox(title_text)
     title_width = right - left
     print(f"Title: '{title_text}' Width: {title_width}")
 

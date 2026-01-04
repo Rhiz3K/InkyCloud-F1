@@ -126,7 +126,7 @@ def _check_persistent_storage() -> bool:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
     logger.info("Starting F1 E-Ink calendar service")
 
@@ -771,7 +771,7 @@ async function downloadCalendar() {{
 @app.get("/stats", response_class=HTMLResponse)
 async def stats_dashboard(
     request: Request,
-    range: str = Query(default="24h", pattern="^(1h|24h|7d|30d|365d)$"),
+    time_range: str = Query(default="24h", pattern="^(1h|24h|7d|30d|365d)$", alias="range"),
     lang: str = Query(default=None),
 ):
     """
@@ -784,9 +784,9 @@ async def stats_dashboard(
     else:
         ui_lang = _detect_ui_language(request)
 
-    # Convert range to hours
+    # Convert time_range to hours
     hours_map = {"1h": 1, "24h": 24, "7d": 168, "30d": 720, "365d": 8760}
-    hours = hours_map.get(range, 24)
+    hours = hours_map.get(time_range, 24)
 
     # Get stats from database
     db = Database()
@@ -796,7 +796,7 @@ async def stats_dashboard(
     perf_trends = await db.get_perf_trends(hours)
 
     # Track pageview
-    url = f"/stats?range={range}&lang={ui_lang}"
+    url = f"/stats?range={time_range}&lang={ui_lang}"
     await track_pageview(
         url=url,
         title="Statistics Dashboard",
@@ -812,7 +812,7 @@ async def stats_dashboard(
     context["perf_stats"] = perf_stats
     context["perf_by_page"] = perf_by_page
     context["perf_trends"] = perf_trends
-    context["selected_range"] = range
+    context["selected_range"] = time_range
 
     # Range label for display
     range_labels = {
@@ -822,7 +822,7 @@ async def stats_dashboard(
         "30d": "Last 30 Days",
         "365d": "Last 365 Days",
     }
-    context["range_label"] = range_labels.get(range, "Last 24 Hours")
+    context["range_label"] = range_labels.get(time_range, "Last 24 Hours")
 
     # Calculate percentages for bar charts
     max_response = stats.get("max_response_ms", 1) or 1
@@ -973,7 +973,6 @@ async def get_stats():
 @app.post("/api/perf-metrics")
 async def post_perf_metrics(request: Request):
     from app.models import PerfMetricsPayload
-    from app.services.analytics import track_event
 
     try:
         data = await request.json()
@@ -1157,7 +1156,7 @@ TEAM_ID_MAP = {
 }
 
 
-def _get_driver_number(driver_code: str, year: int) -> int | None:
+def _get_driver_number(driver_code: str, _year: int) -> int | None:
     return DRIVER_NUMBERS.get(driver_code)
 
 
@@ -1181,8 +1180,6 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
     Returns:
         Race data with converted schedule times
     """
-    from datetime import datetime
-
     try:
         target_tz = pytz.timezone(target_tz_str)
     except pytz.UnknownTimeZoneError:
@@ -1281,7 +1278,7 @@ async def get_calendar_bmp(
     request: Request,
     lang: str = Query(default="en", description="Language code (cs, en)"),
     year: int = Query(default=None, description="Season year (e.g., 2025)"),
-    round: int = Query(default=None, description="Round number"),
+    race_round: int = Query(default=None, description="Round number", alias="round"),
     tz: str = Query(default=None, description="Timezone"),
     weather: bool = Query(default=True, description="Show weather forecast"),
     weather_type: str = Query(
@@ -1304,8 +1301,8 @@ async def get_calendar_bmp(
             query_params["tz"] = tz
         if year is not None:
             query_params["year"] = str(year)
-        if round is not None:
-            query_params["round"] = str(round)
+        if race_round is not None:
+            query_params["round"] = str(race_round)
 
         url = f"/calendar.bmp?{urlencode(query_params)}"
 
@@ -1328,7 +1325,7 @@ async def get_calendar_bmp(
                 "language": lang,
                 "timezone": tz or "default",
                 "year": year,
-                "round": round,
+                "round": race_round,
                 "source": "direct" if not referrer else "referral",
             },
         )
@@ -1343,19 +1340,19 @@ async def get_calendar_bmp(
             raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
 
         # Determine if this is auto-selected (next race) or manual selection
-        is_auto_selected = year is None and round is None
+        is_auto_selected = year is None and race_round is None
 
         # Get race info early for statistics (fast - reads from static JSON)
         race_info_for_stats = None
         actual_year = year
-        actual_round = round
+        actual_round = race_round
         actual_race_name = None
 
-        if year and round:
+        if year and race_round:
             # Specific race requested
             all_races = f1_service.get_all_races_from_static(year)
             for race in all_races:
-                if int(race.get("round", 0)) == round:
+                if int(race.get("round", 0)) == race_round:
                     race_info_for_stats = race
                     actual_race_name = race.get("race_name", "Unknown")
                     break
@@ -1368,7 +1365,7 @@ async def get_calendar_bmp(
                 actual_race_name = race_info_for_stats.get("race_name", "Next Race")
 
         # Check in-memory cache first
-        cache_key = _get_cache_key(lang, year, round, tz, weather, weather_type)
+        cache_key = _get_cache_key(lang, year, race_round, tz, weather, weather_type)
         cached_bmp = _bmp_cache.get(cache_key)
         if cached_bmp is not None:
             logger.debug(f"Cache hit for {cache_key}")
@@ -1398,7 +1395,7 @@ async def get_calendar_bmp(
 
         # Try to serve pre-generated image first (only for next race, not specific year/round)
         # Skip pre-generated images when weather is requested (they don't include weather)
-        use_pregenerated = not year and not round and not (weather and config.WEATHER_ENABLED)
+        use_pregenerated = not year and not race_round and not (weather and config.WEATHER_ENABLED)
         if use_pregenerated:
             # Build image key based on lang and optional tz
             target_tz_for_key = tz or config.DEFAULT_TIMEZONE
@@ -1444,7 +1441,7 @@ async def get_calendar_bmp(
                 )
 
         # Generate on-the-fly for specific race or when no pre-generated image exists
-        logger.info(f"Generating image on-the-fly (year={year}, round={round}, tz={tz})")
+        logger.info(f"Generating image on-the-fly (year={year}, round={race_round}, tz={tz})")
 
         # Get translator
         translator = get_translator(lang)
@@ -1455,17 +1452,17 @@ async def get_calendar_bmp(
         # Fetch race data from static JSON files (no API calls)
         race_data = None
 
-        if year and round:
+        if year and race_round:
             # Get specific race from static data
             all_races = f1_service.get_all_races_from_static(year)
             for race in all_races:
-                if int(race.get("round", 0)) == round:
+                if int(race.get("round", 0)) == race_round:
                     race_data = race
                     break
             if race_data:
-                logger.debug(f"Using static race data for {year}/{round}")
+                logger.debug(f"Using static race data for {year}/{race_round}")
             else:
-                logger.warning(f"Race {year}/{round} not found in static data")
+                logger.warning(f"Race {year}/{race_round} not found in static data")
         else:
             # Get next race from static data
             race_data = f1_service.get_next_race_from_static()
@@ -1551,7 +1548,7 @@ async def get_calendar_bmp(
 
         # Record request with response time and size (even for errors)
         # Note: is_auto_selected may not be defined if error occurred early
-        auto_selected = year is None and round is None
+        auto_selected = year is None and race_round is None
         _record_api_call(
             "/calendar.bmp",
             (time.time() - start_time) * 1000,
@@ -1559,7 +1556,7 @@ async def get_calendar_bmp(
             lang,
             tz,
             year,  # Use original params for errors (race_info may not exist)
-            round,
+            race_round,
             None,  # No race name for errors
             auto_selected,
         )
