@@ -45,12 +45,12 @@ async def fetch_season(client: httpx.AsyncClient, year: int) -> dict:
     }
 
 
-async def main(years: list[int]) -> None:
+async def main(target_years: list[int]) -> None:
     """Download and save season data for specified years."""
     SEASONS_DIR.mkdir(parents=True, exist_ok=True)
 
     async with httpx.AsyncClient(timeout=30) as client:
-        for year in years:
+        for year in target_years:
             try:
                 data = await fetch_season(client, year)
                 output_path = SEASONS_DIR / f"{year}.json"
@@ -83,10 +83,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.years:
-        years = [int(y.strip()) for y in args.years.split(",")]
+        years_to_update = [int(y.strip()) for y in args.years.split(",")]
     else:
         current_year = datetime.now().year
-        years = [current_year, current_year + 1]
+        years_to_update = [current_year, current_year + 1]
 
-    print(f"Updating seasons: {years}")
-    asyncio.run(main(years))
+    print(f"Updating seasons: {years_to_update}")
+    asyncio.run(main(years_to_update))
