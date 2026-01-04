@@ -335,7 +335,7 @@ def measure_cache_memory(languages: list[str] | None = None) -> dict:
     Simulates the _bmp_cache dict with all pre-rendered images.
     """
     if languages is None:
-        languages = SUPPORTED_LANGUAGES
+        languages = SUPPORTED_LANGUAGES.copy()
     race_data = get_mock_race_data()
     historical_data = get_mock_historical_data()
 
