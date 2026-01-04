@@ -37,9 +37,7 @@ def cmd_info():
     print(f"  Region:       {info['region']}")
     print(f"  Schedule:     {info['schedule']}")
     print(f"  Retention:    {info['retention_days']} days")
-    print(
-        f"  Credentials:  {'configured' if info['credentials_configured'] else 'NOT configured'}"
-    )
+    print(f"  Credentials:  {'configured' if info['credentials_configured'] else 'NOT configured'}")
     print()
 
     if not info["enabled"]:

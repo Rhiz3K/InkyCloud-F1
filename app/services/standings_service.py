@@ -96,9 +96,7 @@ class StandingsService:
 
                 data = response.json()
                 standings_list = (
-                    data.get("MRData", {})
-                    .get("StandingsTable", {})
-                    .get("StandingsLists", [])
+                    data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
                 )
 
                 if not standings_list:
@@ -112,9 +110,7 @@ class StandingsService:
                 for entry in standings_data.get("DriverStandings", []):
                     driver_data = entry.get("Driver", {})
                     constructors = entry.get("Constructors", [])
-                    constructor_name = (
-                        constructors[0].get("name", "") if constructors else ""
-                    )
+                    constructor_name = constructors[0].get("name", "") if constructors else ""
 
                     driver_standings.append(
                         DriverStanding(
@@ -160,9 +156,7 @@ class StandingsService:
 
                 data = response.json()
                 standings_list = (
-                    data.get("MRData", {})
-                    .get("StandingsTable", {})
-                    .get("StandingsLists", [])
+                    data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
                 )
 
                 if not standings_list:
@@ -199,9 +193,7 @@ class StandingsService:
             logger.error(f"Error fetching constructor standings: {e}", exc_info=True)
             return []
 
-    async def get_all_standings(
-        self, year: Optional[int] = None, limit: int = 10
-    ) -> StandingsData:
+    async def get_all_standings(self, year: Optional[int] = None, limit: int = 10) -> StandingsData:
         if year is None:
             year = datetime.now().year
 

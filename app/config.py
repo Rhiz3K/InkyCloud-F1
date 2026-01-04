@@ -56,14 +56,10 @@ class Config(BaseSettings):
     # Sentry/GlitchTip settings
     SENTRY_DSN: Optional[str] = Field(default=None, description="Sentry DSN")
     SENTRY_ENVIRONMENT: str = Field("production", description="Sentry environment name")
-    SENTRY_TRACES_SAMPLE_RATE: float = Field(
-        0.1, ge=0.0, le=1.0, description="Tracing sample rate"
-    )
+    SENTRY_TRACES_SAMPLE_RATE: float = Field(0.1, ge=0.0, le=1.0, description="Tracing sample rate")
 
     # Umami Analytics settings
-    UMAMI_WEBSITE_ID: Optional[str] = Field(
-        default=None, description="Umami website identifier"
-    )
+    UMAMI_WEBSITE_ID: Optional[str] = Field(default=None, description="Umami website identifier")
     UMAMI_API_URL: str = Field(
         "https://analytics.example.com/api/send",
         description="Umami analytics endpoint",
@@ -76,9 +72,7 @@ class Config(BaseSettings):
         "https://api.jolpi.ca/ergast/f1/current/next.json",
         description="Jolpica F1 API endpoint",
     )
-    REQUEST_TIMEOUT: int = Field(
-        10, gt=0, description="HTTP request timeout in seconds"
-    )
+    REQUEST_TIMEOUT: int = Field(10, gt=0, description="HTTP request timeout in seconds")
 
     # Internationalization
     DEFAULT_LANG: str = Field("en", description="Default language code")
@@ -94,38 +88,22 @@ class Config(BaseSettings):
     #   DATABASE_PATH=./data/f1.db
     #   IMAGES_PATH=./data/images
     DATABASE_PATH: str = Field("/app/data/f1.db", description="SQLite database path")
-    IMAGES_PATH: str = Field(
-        "/app/data/images", description="Directory for cached images"
-    )
+    IMAGES_PATH: str = Field("/app/data/images", description="Directory for cached images")
 
     # Scheduler settings
     SCHEDULER_ENABLED: bool = Field(True, description="Toggle background scheduler")
 
     # Backup settings
     BACKUP_ENABLED: bool = Field(False, description="Toggle S3 database backup")
-    BACKUP_CRON: str = Field(
-        "0 3 * * *", description="Cron expression for backup schedule"
-    )
-    BACKUP_RETENTION_DAYS: int = Field(
-        30, ge=0, description="Days to retain backups (0=disabled)"
-    )
+    BACKUP_CRON: str = Field("0 3 * * *", description="Cron expression for backup schedule")
+    BACKUP_RETENTION_DAYS: int = Field(30, ge=0, description="Days to retain backups (0=disabled)")
 
     # S3 settings (for backup)
-    S3_ENDPOINT_URL: Optional[str] = Field(
-        default=None, description="S3-compatible endpoint URL"
-    )
-    S3_ACCESS_KEY_ID: Optional[str] = Field(
-        default=None, description="S3 access key ID"
-    )
-    S3_SECRET_ACCESS_KEY: Optional[str] = Field(
-        default=None, description="S3 secret access key"
-    )
-    S3_BUCKET_NAME: Optional[str] = Field(
-        default=None, description="S3 bucket name for backups"
-    )
-    S3_REGION: str = Field(
-        "auto", description="S3 region (use 'auto' for Cloudflare R2)"
-    )
+    S3_ENDPOINT_URL: Optional[str] = Field(default=None, description="S3-compatible endpoint URL")
+    S3_ACCESS_KEY_ID: Optional[str] = Field(default=None, description="S3 access key ID")
+    S3_SECRET_ACCESS_KEY: Optional[str] = Field(default=None, description="S3 secret access key")
+    S3_BUCKET_NAME: Optional[str] = Field(default=None, description="S3 bucket name for backups")
+    S3_REGION: str = Field("auto", description="S3 region (use 'auto' for Cloudflare R2)")
 
     @field_validator("APP_PORT", mode="before")
     @classmethod
@@ -139,9 +117,7 @@ class Config(BaseSettings):
                 return port
         except (TypeError, ValueError):
             pass
-        return _warn_invalid(
-            info.field_name, value, default, "must be a positive integer < 65536"
-        )
+        return _warn_invalid(info.field_name, value, default, "must be a positive integer < 65536")
 
     @field_validator("REQUEST_TIMEOUT", mode="before")
     @classmethod
@@ -155,9 +131,7 @@ class Config(BaseSettings):
                 return timeout
         except (TypeError, ValueError):
             pass
-        return _warn_invalid(
-            info.field_name, value, default, "must be a positive integer"
-        )
+        return _warn_invalid(info.field_name, value, default, "must be a positive integer")
 
     @field_validator("SENTRY_TRACES_SAMPLE_RATE", mode="before")
     @classmethod
@@ -171,9 +145,7 @@ class Config(BaseSettings):
                 return rate
         except (TypeError, ValueError):
             pass
-        return _warn_invalid(
-            info.field_name, value, default, "must be between 0.0 and 1.0"
-        )
+        return _warn_invalid(info.field_name, value, default, "must be between 0.0 and 1.0")
 
     @field_validator("DEFAULT_TIMEZONE", mode="before")
     @classmethod
@@ -210,9 +182,7 @@ class Config(BaseSettings):
                 return days
         except (TypeError, ValueError):
             pass
-        return _warn_invalid(
-            info.field_name, value, default, "must be a non-negative integer"
-        )
+        return _warn_invalid(info.field_name, value, default, "must be a non-negative integer")
 
     @field_validator("S3_ENDPOINT_URL", mode="before")
     @classmethod

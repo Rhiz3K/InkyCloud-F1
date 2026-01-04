@@ -32,9 +32,7 @@ def get_translator(lang: str) -> dict:
     """
     # Validate language against allowlist (prevents path injection)
     if lang not in VALID_LANGUAGES:
-        logger.warning(
-            f"Invalid language '{lang}', falling back to {config.DEFAULT_LANG}"
-        )
+        logger.warning(f"Invalid language '{lang}', falling back to {config.DEFAULT_LANG}")
         lang = config.DEFAULT_LANG
 
     # Return cached translations if available

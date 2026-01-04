@@ -63,9 +63,7 @@ def generate_test_image():
         race_results=[
             RaceResultEntry(
                 position=1,
-                driver=DriverInfo(
-                    code="VER", given_name="Max", family_name="Verstappen"
-                ),
+                driver=DriverInfo(code="VER", given_name="Max", family_name="Verstappen"),
                 constructor=ConstructorInfo(name="Red Bull"),
                 time="1:33:56.736",
             ),
@@ -77,9 +75,7 @@ def generate_test_image():
             ),
             RaceResultEntry(
                 position=3,
-                driver=DriverInfo(
-                    code="ALO", given_name="Fernando", family_name="Alonso"
-                ),
+                driver=DriverInfo(code="ALO", given_name="Fernando", family_name="Alonso"),
                 constructor=ConstructorInfo(name="Aston Martin"),
                 time="+38.637",
             ),
@@ -87,9 +83,7 @@ def generate_test_image():
         qualifying_results=[
             QualifyingResultEntry(
                 position=1,
-                driver=DriverInfo(
-                    code="VER", given_name="Max", family_name="Verstappen"
-                ),
+                driver=DriverInfo(code="VER", given_name="Max", family_name="Verstappen"),
                 constructor=ConstructorInfo(name="Red Bull"),
                 q3_time="1:29.708",
             ),
@@ -101,9 +95,7 @@ def generate_test_image():
             ),
             QualifyingResultEntry(
                 position=3,
-                driver=DriverInfo(
-                    code="LEC", given_name="Charles", family_name="Leclerc"
-                ),
+                driver=DriverInfo(code="LEC", given_name="Charles", family_name="Leclerc"),
                 constructor=ConstructorInfo(name="Ferrari"),
                 q3_time="1:30.000",
             ),

@@ -74,9 +74,7 @@ class WeatherService:
         self.timeout = httpx.Timeout(timeout)
         self.cache_minutes = cache_minutes
 
-    async def get_current_weather(
-        self, lat: float, lon: float
-    ) -> Optional[WeatherData]:
+    async def get_current_weather(self, lat: float, lon: float) -> Optional[WeatherData]:
         cache_key = f"current_{round(lat, 2)}_{round(lon, 2)}"
         cached = self._get_cached(cache_key)
         if cached is not None:
@@ -103,9 +101,7 @@ class WeatherService:
             logger.warning(f"Failed to fetch current weather: {e}")
             return None
 
-    async def _fetch_current_weather(
-        self, lat: float, lon: float
-    ) -> Optional[WeatherData]:
+    async def _fetch_current_weather(self, lat: float, lon: float) -> Optional[WeatherData]:
         params = {
             "latitude": round(lat, 2),
             "longitude": round(lon, 2),
@@ -151,11 +147,7 @@ class WeatherService:
             logger.warning(f"Invalid coordinates: lat={lat}, lon={lon}")
             return None
 
-        now = (
-            datetime.now(race_datetime.tzinfo)
-            if race_datetime.tzinfo
-            else datetime.utcnow()
-        )
+        now = datetime.now(race_datetime.tzinfo) if race_datetime.tzinfo else datetime.utcnow()
         delta = race_datetime - now
         days_until_race = delta.days
 
@@ -164,15 +156,11 @@ class WeatherService:
             return None
 
         if days_until_race > 16:
-            logger.debug(
-                f"Race {days_until_race} days away, outside 16-day forecast range"
-            )
+            logger.debug(f"Race {days_until_race} days away, outside 16-day forecast range")
             return None
 
         try:
-            weather_data = await self._fetch_weather(
-                lat, lon, race_datetime, days_until_race
-            )
+            weather_data = await self._fetch_weather(lat, lon, race_datetime, days_until_race)
             if weather_data:
                 self._set_cached(cache_key, weather_data)
             return weather_data
@@ -224,9 +212,7 @@ class WeatherService:
                 return WeatherData(
                     temperature_c=temps[i] if i < len(temps) else 20.0,
                     weather_code=codes[i] if i < len(codes) else 0,
-                    precipitation_probability=(
-                        precip[i] if i < len(precip) and precip[i] else 0
-                    ),
+                    precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
                 )
 
         logger.debug(f"Exact hour {race_hour_str} not found, finding closest")
@@ -236,9 +222,7 @@ class WeatherService:
                 return WeatherData(
                     temperature_c=temps[i] if i < len(temps) else 20.0,
                     weather_code=codes[i] if i < len(codes) else 0,
-                    precipitation_probability=(
-                        precip[i] if i < len(precip) and precip[i] else 0
-                    ),
+                    precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
                 )
 
         logger.warning(f"Could not find weather for {race_hour_str}")

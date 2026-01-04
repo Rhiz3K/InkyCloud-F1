@@ -167,9 +167,7 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
                 async with aiofiles.open(configure_path, "wb") as f:
                     await f.write(configure_png)
 
-                logger.info(
-                    f"Generated calendar previews: {homepage_path}, {configure_path}"
-                )
+                logger.info(f"Generated calendar previews: {homepage_path}, {configure_path}")
             except Exception as e:
                 logger.error(f"Error generating calendar preview ({lang}): {e}")
 
@@ -242,9 +240,7 @@ async def collect_and_generate() -> None:
             if historical_data.is_new_track:
                 logger.info(f"Circuit {circuit_id}: new track (no historical data)")
             else:
-                logger.info(
-                    f"Circuit {circuit_id}: historical data from {historical_data.season}"
-                )
+                logger.info(f"Circuit {circuit_id}: historical data from {historical_data.season}")
 
         # 4. Generate default images for all languages (default timezone)
         generated_count = 0
@@ -294,9 +290,7 @@ async def collect_and_generate() -> None:
                 # Generate image
                 translator = get_translator(lang)
                 renderer = Renderer(translator)
-                bmp_data = renderer.render_calendar(
-                    race_data_converted, historical_data
-                )
+                bmp_data = renderer.render_calendar(race_data_converted, historical_data)
 
                 # Save image
                 image_key = _get_image_key(lang, tz)
@@ -310,17 +304,13 @@ async def collect_and_generate() -> None:
                     image_key=image_key, image_path=str(image_path), lang=lang
                 )
 
-                logger.info(
-                    f"Generated TZ variant: {image_path} ({count} requests/24h)"
-                )
+                logger.info(f"Generated TZ variant: {image_path} ({count} requests/24h)")
                 generated_count += 1
         else:
             logger.debug("No popular TZ variants to generate")
 
         # Update last run timestamp
-        await db.set_cache_meta(
-            "last_generation", datetime.now(timezone.utc).isoformat()
-        )
+        await db.set_cache_meta("last_generation", datetime.now(timezone.utc).isoformat())
 
         # Clear in-memory BMP cache after regeneration
         try:
@@ -336,9 +326,7 @@ async def collect_and_generate() -> None:
         # 6. Generate PNG previews for landing page
         await generate_preview_pngs(race_data, historical_data)
 
-        logger.info(
-            f"Image generation completed: {generated_count} images (0 API calls)"
-        )
+        logger.info(f"Image generation completed: {generated_count} images (0 API calls)")
 
     except Exception as e:
         logger.error(f"Error in image generation: {e}", exc_info=True)
@@ -392,9 +380,7 @@ def _parse_cron_expression(cron_expr: str) -> dict:
     """
     parts = cron_expr.strip().split()
     if len(parts) != 5:
-        logger.warning(
-            f"Invalid cron expression '{cron_expr}', using default '0 3 * * *'"
-        )
+        logger.warning(f"Invalid cron expression '{cron_expr}', using default '0 3 * * *'")
         parts = ["0", "3", "*", "*", "*"]
 
     return {

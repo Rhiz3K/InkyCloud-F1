@@ -169,9 +169,7 @@ def cleanup_old_backups(s3_client=None) -> int:
         if s3_client is None:
             return 0
 
-    cutoff_date = datetime.now(timezone.utc) - timedelta(
-        days=config.BACKUP_RETENTION_DAYS
-    )
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=config.BACKUP_RETENTION_DAYS)
     deleted_count = 0
 
     try:
@@ -192,9 +190,7 @@ def cleanup_old_backups(s3_client=None) -> int:
                 # Check if object is older than retention period
                 if last_modified < cutoff_date:
                     objects_to_delete.append({"Key": key})
-                    logger.debug(
-                        f"Marking for deletion: {key} (modified: {last_modified})"
-                    )
+                    logger.debug(f"Marking for deletion: {key} (modified: {last_modified})")
 
         # Delete old backups in batches
         if objects_to_delete:
@@ -207,9 +203,7 @@ def cleanup_old_backups(s3_client=None) -> int:
                 )
                 deleted_count += len(batch)
 
-            logger.info(
-                f"Deleted {deleted_count} old backup(s) (older than {cutoff_date.date()})"
-            )
+            logger.info(f"Deleted {deleted_count} old backup(s) (older than {cutoff_date.date()})")
 
     except Exception as e:
         logger.error(f"Failed to cleanup old backups: {e}", exc_info=True)
@@ -232,9 +226,7 @@ def get_backup_config_info() -> dict:
         "region": config.S3_REGION,
         "schedule": config.BACKUP_CRON,
         "retention_days": config.BACKUP_RETENTION_DAYS,
-        "credentials_configured": bool(
-            config.S3_ACCESS_KEY_ID and config.S3_SECRET_ACCESS_KEY
-        ),
+        "credentials_configured": bool(config.S3_ACCESS_KEY_ID and config.S3_SECRET_ACCESS_KEY),
     }
 
 
@@ -294,9 +286,7 @@ def test_s3_connection() -> dict:
                 result["error"] = f"Bucket '{config.S3_BUCKET_NAME}' not found"
                 return result
             elif error_code in ("403", "AccessDenied"):
-                result["error"] = (
-                    "Access denied - check credentials and bucket permissions"
-                )
+                result["error"] = "Access denied - check credentials and bucket permissions"
                 return result
             else:
                 result["error"] = f"S3 error: {e}"
@@ -380,9 +370,7 @@ def get_bucket_stats() -> dict:
                 backups[0]["key"].replace(BACKUP_FILENAME_PREFIX, "").replace(".db", "")
             )
             result["newest_backup"] = (
-                backups[-1]["key"]
-                .replace(BACKUP_FILENAME_PREFIX, "")
-                .replace(".db", "")
+                backups[-1]["key"].replace(BACKUP_FILENAME_PREFIX, "").replace(".db", "")
             )
             result["backups"] = [
                 {

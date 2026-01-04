@@ -15,9 +15,7 @@ def _load_project_metadata() -> dict:
         "name": project["name"],
         "version": project["version"],
         "description": project.get("description", ""),
-        "long_description": Path(project.get("readme", "README.md")).read_text(
-            encoding="utf-8"
-        ),
+        "long_description": Path(project.get("readme", "README.md")).read_text(encoding="utf-8"),
         "long_description_content_type": "text/markdown",
         "python_requires": project.get("requires-python"),
         "install_requires": project.get("dependencies", []),

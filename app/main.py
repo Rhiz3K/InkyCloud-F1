@@ -121,9 +121,7 @@ def _check_persistent_storage() -> bool:
         return False
 
     # First deployment - marker created, no DB yet
-    logger.info(
-        "First deployment detected - persistence will be verified on next restart"
-    )
+    logger.info("First deployment detected - persistence will be verified on next restart")
     return True
 
 
@@ -164,12 +162,8 @@ class StaticCacheMiddleware(BaseHTTPMiddleware):
 
         if path.startswith("/static/"):
             if "/fonts/" in path:
-                response.headers["Cache-Control"] = (
-                    "public, max-age=31536000, immutable"
-                )
-            elif path.endswith(
-                (".png", ".jpg", ".bmp", ".ico", ".svg", ".webmanifest")
-            ):
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            elif path.endswith((".png", ".jpg", ".bmp", ".ico", ".svg", ".webmanifest")):
                 response.headers["Cache-Control"] = "public, max-age=86400"
             elif path.endswith((".css", ".js")):
                 response.headers["Cache-Control"] = "public, max-age=3600"
@@ -289,9 +283,7 @@ async def root(request: Request, lang: str = Query(default=None)):
 
 
 @app.get("/configure/{screen_type}", response_class=HTMLResponse)
-async def configure_screen(
-    request: Request, screen_type: str, lang: str = Query(default=None)
-):
+async def configure_screen(request: Request, screen_type: str, lang: str = Query(default=None)):
     if screen_type not in ["calendar", "teams"]:
         raise HTTPException(status_code=404, detail="Unknown screen type")
 
@@ -642,9 +634,7 @@ async def api_docs_html(request: Request, lang: str = Query(default=None)):
         js_comment2 = "// Display in img element"
         js_comment3 = "// Download as file"
 
-    context[
-        "code_curl"
-    ] = f"""{curl_comment1}
+    context["code_curl"] = f"""{curl_comment1}
 curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp"
 
 {curl_comment2}
@@ -653,9 +643,7 @@ curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?lang=cs&tz=Europe
 {curl_comment3}
 curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?year=2025&round=5\""""
 
-    context[
-        "code_python"
-    ] = f'''import httpx
+    context["code_python"] = f'''import httpx
 
 async def get_f1_calendar(lang: str = "en", tz: str = "Europe/Prague"):
     """{python_docstring}"""
@@ -675,9 +663,7 @@ async def get_f1_calendar(lang: str = "en", tz: str = "Europe/Prague"):
 import asyncio
 asyncio.run(get_f1_calendar(lang="cs"))'''
 
-    context[
-        "code_javascript"
-    ] = f"""{js_comment1}
+    context["code_javascript"] = f"""{js_comment1}
 async function loadF1Calendar(lang = 'en', tz = 'Europe/Prague') {{
     const url = new URL('https://f1-eink.example.com/calendar.bmp');
     url.searchParams.set('lang', lang);
@@ -733,9 +719,7 @@ async function downloadCalendar() {{
             ),
             "eg": eg,
             "dimensions_label": "Rozměry" if ui_lang == "cs" else "Dimensions",
-            "color_depth_label": (
-                "Barevná hloubka" if ui_lang == "cs" else "Color depth"
-            ),
+            "color_depth_label": ("Barevná hloubka" if ui_lang == "cs" else "Color depth"),
             "races_desc": (
                 "Seznam všech závodů pro danou sezónu"
                 if ui_lang == "cs"
@@ -843,9 +827,7 @@ async def stats_dashboard(
     # Calculate percentages for bar charts
     max_response = stats.get("max_response_ms", 1) or 1
     context["min_pct"] = _calc_percent(stats.get("min_response_ms", 0), max_response)
-    context["avg_pct"] = _calc_percent(
-        int(stats.get("avg_response_ms", 0)), max_response
-    )
+    context["avg_pct"] = _calc_percent(int(stats.get("avg_response_ms", 0)), max_response)
 
     return templates.TemplateResponse(request, "stats.html", context)
 
@@ -1108,9 +1090,7 @@ def _get_cache_key(
     weather_type: str = "",
 ) -> str:
     weather_key = f"{weather_type}" if weather else "no_weather"
-    return (
-        f"{lang}:{year or 'next'}:{round_num or 'next'}:{tz or 'default'}:{weather_key}"
-    )
+    return f"{lang}:{year or 'next'}:{round_num or 'next'}:{tz or 'default'}:{weather_key}"
 
 
 def _get_current_f1_season() -> int:
@@ -1272,9 +1252,7 @@ async def _fetch_race_weather(race_data: dict, weather_type: str = "race_day"):
             return await weather_service.get_current_weather(lat, lon)
 
         schedule = race_data.get("schedule", [])
-        race_session = next(
-            (s for s in schedule if s.get("name", "").lower() == "race"), None
-        )
+        race_session = next((s for s in schedule if s.get("name", "").lower() == "race"), None)
 
         if race_session:
             race_dt_str = race_session.get("datetime")
@@ -1283,9 +1261,7 @@ async def _fetch_race_weather(race_data: dict, weather_type: str = "race_day"):
                 race_weather = await weather_service.get_race_weather(lat, lon, race_dt)
                 if race_weather:
                     return race_weather
-                logger.debug(
-                    "Race day weather unavailable, falling back to current weather"
-                )
+                logger.debug("Race day weather unavailable, falling back to current weather")
 
         return await weather_service.get_current_weather(lat, lon)
 
@@ -1422,9 +1398,7 @@ async def get_calendar_bmp(
 
         # Try to serve pre-generated image first (only for next race, not specific year/round)
         # Skip pre-generated images when weather is requested (they don't include weather)
-        use_pregenerated = (
-            not year and not round and not (weather and config.WEATHER_ENABLED)
-        )
+        use_pregenerated = not year and not round and not (weather and config.WEATHER_ENABLED)
         if use_pregenerated:
             # Build image key based on lang and optional tz
             target_tz_for_key = tz or config.DEFAULT_TIMEZONE
@@ -1470,9 +1444,7 @@ async def get_calendar_bmp(
                 )
 
         # Generate on-the-fly for specific race or when no pre-generated image exists
-        logger.info(
-            f"Generating image on-the-fly (year={year}, round={round}, tz={tz})"
-        )
+        logger.info(f"Generating image on-the-fly (year={year}, round={round}, tz={tz})")
 
         # Get translator
         translator = get_translator(lang)
@@ -1530,9 +1502,7 @@ async def get_calendar_bmp(
                 weather_data = await _fetch_race_weather(race_data, weather_type)
 
             renderer = Renderer(translator)
-            bmp_data = renderer.render_calendar(
-                race_data, historical_data, weather_data
-            )
+            bmp_data = renderer.render_calendar(race_data, historical_data, weather_data)
 
             # Cache the result
             _bmp_cache[cache_key] = bmp_data
@@ -1701,9 +1671,7 @@ async def get_standings_leader(year: int | None = None):
 
     try:
         driver_standings = await standings_service.get_driver_standings(year, limit=1)
-        constructor_standings = await standings_service.get_constructor_standings(
-            year, limit=1
-        )
+        constructor_standings = await standings_service.get_constructor_standings(year, limit=1)
 
         leader_driver = None
         leader_team = None

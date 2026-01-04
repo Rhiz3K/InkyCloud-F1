@@ -98,15 +98,9 @@ def get_mock_historical_data() -> HistoricalData:
             ),
         ],
         race_results=[
-            RaceResultEntry(
-                position=1, driver=driver2, constructor=ferrari, time="1:20:26.843"
-            ),
-            RaceResultEntry(
-                position=2, driver=driver3, constructor=mclaren, time="+2.366"
-            ),
-            RaceResultEntry(
-                position=3, driver=driver1, constructor=red_bull, time="+3.799"
-            ),
+            RaceResultEntry(position=1, driver=driver2, constructor=ferrari, time="1:20:26.843"),
+            RaceResultEntry(position=2, driver=driver3, constructor=mclaren, time="+2.366"),
+            RaceResultEntry(position=3, driver=driver1, constructor=red_bull, time="+3.799"),
         ],
     )
 
@@ -497,9 +491,7 @@ def print_footer():
 # =============================================================================
 
 
-def save_results_json(
-    results: dict, memory: dict, cache_memory: dict, output_path: Path
-):
+def save_results_json(results: dict, memory: dict, cache_memory: dict, output_path: Path):
     """Save benchmark results to JSON file."""
     output = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -618,16 +610,12 @@ def main():
     # 1. Render benchmark (needed for other tests)
     print("\n Running render benchmark...")
     results["render"] = benchmark_render(args.runs, args.warmup, args.verbose)
-    print_benchmark_result(
-        "ON-THE-FLY RENDER (full PIL pipeline)", results["render"], 1
-    )
+    print_benchmark_result("ON-THE-FLY RENDER (full PIL pipeline)", results["render"], 1)
 
     # Get BMP data for cache test
     translator = get_translator("en")
     renderer = Renderer(translator)
-    bmp_data = renderer.render_calendar(
-        get_mock_race_data(), get_mock_historical_data()
-    )
+    bmp_data = renderer.render_calendar(get_mock_race_data(), get_mock_historical_data())
 
     # 2. Memory cache benchmark
     print("\n Running cache benchmark...")

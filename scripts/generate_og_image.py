@@ -90,9 +90,9 @@ def generate_og_image() -> None:
         bbox = draw.textbbox((0, 0), badge, font=font_small)
         badge_sizes.append((bbox[2] - bbox[0], bbox[3] - bbox[1]))
 
-    total_badges_width = sum(
-        w + badge_padding_x * 2 for w, _ in badge_sizes
-    ) + badge_spacing * (len(badges) - 1)
+    total_badges_width = sum(w + badge_padding_x * 2 for w, _ in badge_sizes) + badge_spacing * (
+        len(badges) - 1
+    )
     badge_x = (WIDTH - total_badges_width) // 2
 
     for i, (badge, (bw, bh)) in enumerate(zip(badges, badge_sizes)):
@@ -112,9 +112,7 @@ def generate_og_image() -> None:
                 fill=WHITE,
             )
         else:
-            draw.rectangle(
-                [(rect_x1, rect_y1), (rect_x2, rect_y2)], outline=WHITE, width=2
-            )
+            draw.rectangle([(rect_x1, rect_y1), (rect_x2, rect_y2)], outline=WHITE, width=2)
             draw.text(
                 (badge_x + badge_padding_x, badge_y + badge_padding_y),
                 badge,

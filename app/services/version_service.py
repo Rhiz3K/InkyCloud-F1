@@ -67,7 +67,9 @@ async def fetch_version_info() -> VersionInfo:
     async with httpx.AsyncClient(timeout=config.REQUEST_TIMEOUT) as client:
         # Fetch latest release
         try:
-            release_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
+            release_url = (
+                f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
+            )
             response = await client.get(
                 release_url,
                 headers={"Accept": "application/vnd.github.v3+json"},

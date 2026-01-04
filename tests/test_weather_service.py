@@ -15,38 +15,26 @@ from app.services.weather_service import (
 
 class TestWeatherData:
     def test_icon_clear_sky(self):
-        data = WeatherData(
-            temperature_c=25.0, weather_code=0, precipitation_probability=10
-        )
+        data = WeatherData(temperature_c=25.0, weather_code=0, precipitation_probability=10)
         assert data.icon == WEATHER_ICONS[0]
 
     def test_icon_rain(self):
-        data = WeatherData(
-            temperature_c=15.0, weather_code=61, precipitation_probability=80
-        )
+        data = WeatherData(temperature_c=15.0, weather_code=61, precipitation_probability=80)
         assert data.icon == WEATHER_ICONS[61]
 
     def test_icon_unknown_code_fallback(self):
-        data = WeatherData(
-            temperature_c=20.0, weather_code=999, precipitation_probability=0
-        )
+        data = WeatherData(temperature_c=20.0, weather_code=999, precipitation_probability=0)
         assert data.icon == "\u2601"
 
     def test_temp_display_rounds_correctly(self):
-        data = WeatherData(
-            temperature_c=25.7, weather_code=0, precipitation_probability=0
-        )
+        data = WeatherData(temperature_c=25.7, weather_code=0, precipitation_probability=0)
         assert data.temp_display == "26\u00b0"
 
-        data = WeatherData(
-            temperature_c=25.4, weather_code=0, precipitation_probability=0
-        )
+        data = WeatherData(temperature_c=25.4, weather_code=0, precipitation_probability=0)
         assert data.temp_display == "25\u00b0"
 
     def test_precip_display(self):
-        data = WeatherData(
-            temperature_c=20.0, weather_code=0, precipitation_probability=45
-        )
+        data = WeatherData(temperature_c=20.0, weather_code=0, precipitation_probability=45)
         assert data.precip_display == "45%"
 
 
@@ -90,9 +78,7 @@ class TestWeatherService:
         async def run_test():
             service = WeatherService()
             race_dt = datetime.now(timezone.utc) + timedelta(days=2)
-            result = await service.get_race_weather(
-                lat=100, lon=0, race_datetime=race_dt
-            )
+            result = await service.get_race_weather(lat=100, lon=0, race_datetime=race_dt)
             assert result is None
 
         asyncio.run(run_test())
@@ -103,9 +89,7 @@ class TestWeatherService:
         async def run_test():
             service = WeatherService()
             race_dt = datetime.now(timezone.utc) - timedelta(days=1)
-            result = await service.get_race_weather(
-                lat=52.52, lon=13.41, race_datetime=race_dt
-            )
+            result = await service.get_race_weather(lat=52.52, lon=13.41, race_datetime=race_dt)
             assert result is None
 
         asyncio.run(run_test())
@@ -116,9 +100,7 @@ class TestWeatherService:
         async def run_test():
             service = WeatherService()
             race_dt = datetime.now(timezone.utc) + timedelta(days=20)
-            result = await service.get_race_weather(
-                lat=52.52, lon=13.41, race_datetime=race_dt
-            )
+            result = await service.get_race_weather(lat=52.52, lon=13.41, race_datetime=race_dt)
             assert result is None
 
         asyncio.run(run_test())
@@ -269,9 +251,7 @@ class TestWeatherService:
             status_code = 500
 
             def raise_for_status(self):
-                mock_request = httpx.Request(
-                    "GET", "https://api.open-meteo.com/v1/forecast"
-                )
+                mock_request = httpx.Request("GET", "https://api.open-meteo.com/v1/forecast")
                 mock_response = httpx.Response(500, request=mock_request)
                 raise httpx.HTTPStatusError(
                     "Server error", request=mock_request, response=mock_response

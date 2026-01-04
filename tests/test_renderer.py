@@ -52,9 +52,7 @@ def mock_historical_data():
         qualifying_results=[
             QualifyingResultEntry(
                 position=1,
-                driver=DriverInfo(
-                    code="VER", given_name="Max", family_name="Verstappen"
-                ),
+                driver=DriverInfo(code="VER", given_name="Max", family_name="Verstappen"),
                 constructor=ConstructorInfo(name="Red Bull"),
                 q3_time="1:29.708",
             ),
@@ -66,9 +64,7 @@ def mock_historical_data():
             ),
             QualifyingResultEntry(
                 position=3,
-                driver=DriverInfo(
-                    code="LEC", given_name="Charles", family_name="Leclerc"
-                ),
+                driver=DriverInfo(code="LEC", given_name="Charles", family_name="Leclerc"),
                 constructor=ConstructorInfo(name="Ferrari"),
                 q3_time="1:30.012",
             ),
@@ -76,9 +72,7 @@ def mock_historical_data():
         race_results=[
             RaceResultEntry(
                 position=1,
-                driver=DriverInfo(
-                    code="VER", given_name="Max", family_name="Verstappen"
-                ),
+                driver=DriverInfo(code="VER", given_name="Max", family_name="Verstappen"),
                 constructor=ConstructorInfo(name="Red Bull"),
                 time="1:33:56.736",
             ),
@@ -90,9 +84,7 @@ def mock_historical_data():
             ),
             RaceResultEntry(
                 position=3,
-                driver=DriverInfo(
-                    code="ALO", given_name="Fernando", family_name="Alonso"
-                ),
+                driver=DriverInfo(code="ALO", given_name="Fernando", family_name="Alonso"),
                 constructor=ConstructorInfo(name="Aston Martin"),
                 time="+38.637",
             ),
@@ -562,9 +554,7 @@ def test_render_standings_split(mock_driver_standings, mock_constructor_standing
     assert img.mode == "1"
 
 
-def test_render_standings_drivers_only(
-    mock_driver_standings, mock_constructor_standings
-):
+def test_render_standings_drivers_only(mock_driver_standings, mock_constructor_standings):
     translator = get_translator("en")
     renderer = Renderer(translator)
     bmp_data = renderer.render_standings(
@@ -584,9 +574,7 @@ def test_render_standings_drivers_only(
     assert img.mode == "1"
 
 
-def test_render_standings_constructors_only(
-    mock_driver_standings, mock_constructor_standings
-):
+def test_render_standings_constructors_only(mock_driver_standings, mock_constructor_standings):
     translator = get_translator("en")
     renderer = Renderer(translator)
     bmp_data = renderer.render_standings(

@@ -112,9 +112,7 @@ def generate_stress_image():
             ),
             QualifyingResultEntry(
                 position=20,
-                driver=DriverInfo(
-                    code="RIC", given_name="Daniel", family_name="Ricciardo"
-                ),
+                driver=DriverInfo(code="RIC", given_name="Daniel", family_name="Ricciardo"),
                 constructor=ConstructorInfo(name="Visa Cash App RB"),
                 q3_time="1:29.846",
             ),

@@ -155,9 +155,7 @@ PATTERN_POOL = [
 ]
 
 
-def quantize_colors(
-    image: Image.Image, n_colors: int = MAX_COLORS
-) -> tuple[np.ndarray, list]:
+def quantize_colors(image: Image.Image, n_colors: int = MAX_COLORS) -> tuple[np.ndarray, list]:
     """
     Quantize image colors using K-Means clustering.
 
@@ -185,9 +183,7 @@ def quantize_colors(
     return labels, [tuple(c) for c in centroids]
 
 
-def analyze_colors(
-    labels: np.ndarray, centroids: list[tuple[int, int, int]]
-) -> list[dict]:
+def analyze_colors(labels: np.ndarray, centroids: list[tuple[int, int, int]]) -> list[dict]:
     """
     Analyze colors by luminance and area coverage.
 
@@ -265,9 +261,7 @@ def assign_patterns(colors: list[dict]) -> dict[int, str]:
     return assignments
 
 
-def apply_pattern(
-    image_array: np.ndarray, mask: np.ndarray, pattern_name: str
-) -> np.ndarray:
+def apply_pattern(image_array: np.ndarray, mask: np.ndarray, pattern_name: str) -> np.ndarray:
     """
     Apply a pattern to masked regions of an image.
 

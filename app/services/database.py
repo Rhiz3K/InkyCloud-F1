@@ -155,12 +155,8 @@ class Database:
 
         for column_name, column_type in migrations:
             if column_name not in existing_columns:
-                logger.info(
-                    f"Migration: Adding column '{column_name}' to api_calls table"
-                )
-                await conn.execute(
-                    f"ALTER TABLE api_calls ADD COLUMN {column_name} {column_type}"
-                )
+                logger.info(f"Migration: Adding column '{column_name}' to api_calls table")
+                await conn.execute(f"ALTER TABLE api_calls ADD COLUMN {column_name} {column_type}")
 
         await conn.commit()
 
@@ -249,9 +245,7 @@ class Database:
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
             await self._configure_connection(conn)
-            async with conn.execute(
-                "SELECT value FROM cache_meta WHERE key = ?", (key,)
-            ) as cursor:
+            async with conn.execute("SELECT value FROM cache_meta WHERE key = ?", (key,)) as cursor:
                 row = await cursor.fetchone()
                 if row:
                     return row["value"]
@@ -487,9 +481,7 @@ class Database:
                 (cutoff,),
             ) as cursor:
                 rows = await cursor.fetchall()
-                language_stats = [
-                    {"lang": row["lang"], "count": row["count"]} for row in rows
-                ]
+                language_stats = [{"lang": row["lang"], "count": row["count"]} for row in rows]
 
             # Timezone breakdown (top 10)
             async with conn.execute(
@@ -504,15 +496,11 @@ class Database:
                 (cutoff,),
             ) as cursor:
                 rows = await cursor.fetchall()
-                timezone_stats = [
-                    {"tz": row["tz"], "count": row["count"]} for row in rows
-                ]
+                timezone_stats = [{"tz": row["tz"], "count": row["count"]} for row in rows]
 
             # Hourly breakdown (for charts) - last 24 data points max
             chart_hours = min(hours, 24)
-            chart_cutoff = (
-                datetime.now(timezone.utc) - timedelta(hours=chart_hours)
-            ).isoformat()
+            chart_cutoff = (datetime.now(timezone.utc) - timedelta(hours=chart_hours)).isoformat()
             async with conn.execute(
                 """
                 SELECT
@@ -526,9 +514,7 @@ class Database:
                 (chart_cutoff,),
             ) as cursor:
                 rows = await cursor.fetchall()
-                hourly_stats = [
-                    {"hour": row["hour"], "count": row["count"]} for row in rows
-                ]
+                hourly_stats = [{"hour": row["hour"], "count": row["count"]} for row in rows]
 
             # Race breakdown (top 10) - only for /calendar.bmp endpoint
             async with conn.execute(
@@ -631,8 +617,7 @@ class Database:
             ) as cursor:
                 rows = await cursor.fetchall()
                 return [
-                    {"lang": row["lang"], "tz": row["tz"], "count": row["count"]}
-                    for row in rows
+                    {"lang": row["lang"], "tz": row["tz"], "count": row["count"]} for row in rows
                 ]
 
     async def save_perf_metric(
@@ -835,9 +820,7 @@ class Database:
                     for row in rows
                 ]
 
-    def _calculate_percentile(
-        self, values: list[float], percentile: int
-    ) -> float | None:
+    def _calculate_percentile(self, values: list[float], percentile: int) -> float | None:
         if not values:
             return None
         n = len(values)
@@ -849,9 +832,7 @@ class Database:
         weight = idx - lower
         return round(values[lower] * (1 - weight) + values[upper] * weight, 0)
 
-    def _calculate_percentile_fine(
-        self, values: list[float], percentile: int
-    ) -> float | None:
+    def _calculate_percentile_fine(self, values: list[float], percentile: int) -> float | None:
         if not values:
             return None
         n = len(values)
@@ -888,17 +869,10 @@ class Database:
                 rows = await cursor.fetchall()
                 return {
                     "hours": [row["hour"] for row in rows],
-                    "lcp": [
-                        round(row["avg_lcp"], 0) if row["avg_lcp"] else None
-                        for row in rows
-                    ],
-                    "fcp": [
-                        round(row["avg_fcp"], 0) if row["avg_fcp"] else None
-                        for row in rows
-                    ],
+                    "lcp": [round(row["avg_lcp"], 0) if row["avg_lcp"] else None for row in rows],
+                    "fcp": [round(row["avg_fcp"], 0) if row["avg_fcp"] else None for row in rows],
                     "ttfb": [
-                        round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None
-                        for row in rows
+                        round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None for row in rows
                     ],
                     "samples": [row["samples"] for row in rows],
                 }

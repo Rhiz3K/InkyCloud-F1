@@ -144,9 +144,7 @@ class TeamsService:
         """Fetch driver and constructor standings from API."""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             driver_standings_url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
-            constructor_standings_url = (
-                f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
-            )
+            constructor_standings_url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
 
             logger.info(f"Fetching standings for {year}")
 
@@ -158,9 +156,7 @@ class TeamsService:
             driver_standings: dict[str, dict] = {}
             driver_data = driver_resp.json()
             standings_lists = (
-                driver_data.get("MRData", {})
-                .get("StandingsTable", {})
-                .get("StandingsLists", [])
+                driver_data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
             )
             if standings_lists:
                 for entry in standings_lists[0].get("DriverStandings", []):
@@ -194,9 +190,7 @@ class TeamsService:
 
             return driver_standings, constructor_standings
 
-    def _match_constructor_name(
-        self, json_name: str, api_names: list[str]
-    ) -> Optional[str]:
+    def _match_constructor_name(self, json_name: str, api_names: list[str]) -> Optional[str]:
         """Match JSON constructor name to API name."""
         json_lower = json_name.lower()
         json_base = json_lower.split("-")[0].strip()
@@ -227,9 +221,7 @@ class TeamsService:
         api_names = list(constructor_standings.keys())
 
         for team in teams_data.teams:
-            matched_name = self._match_constructor_name(
-                team.constructor_name, api_names
-            )
+            matched_name = self._match_constructor_name(team.constructor_name, api_names)
             if matched_name:
                 stats = constructor_standings[matched_name]
                 team.position = stats["position"]
@@ -265,9 +257,7 @@ class TeamsService:
             drivers_url = f"{JOLPICA_BASE_URL}/{year}/drivers.json?limit=50"
             constructors_url = f"{JOLPICA_BASE_URL}/{year}/constructors.json"
             driver_standings_url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
-            constructor_standings_url = (
-                f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
-            )
+            constructor_standings_url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
 
             logger.info(f"Fetching teams and drivers from API for {year}")
 
@@ -288,9 +278,7 @@ class TeamsService:
             driver_standings_data = driver_standings_resp.json()
             constructor_standings_data = constructor_standings_resp.json()
 
-            drivers_list = (
-                drivers_data.get("MRData", {}).get("DriverTable", {}).get("Drivers", [])
-            )
+            drivers_list = drivers_data.get("MRData", {}).get("DriverTable", {}).get("Drivers", [])
             constructors_list = (
                 constructors_data.get("MRData", {})
                 .get("ConstructorTable", {})
@@ -303,9 +291,7 @@ class TeamsService:
                 .get("StandingsLists", [])
             )
             driver_standings_entries = (
-                driver_standings_list[0].get("DriverStandings", [])
-                if driver_standings_list
-                else []
+                driver_standings_list[0].get("DriverStandings", []) if driver_standings_list else []
             )
 
             constructor_standings_list = (
@@ -320,15 +306,9 @@ class TeamsService:
             )
 
             # Fallback: if no standings for future year, use previous year's standings
-            if (
-                not driver_standings_entries
-                and not constructor_standings_entries
-                and year >= 2026
-            ):
+            if not driver_standings_entries and not constructor_standings_entries and year >= 2026:
                 logger.info(f"No API standings for {year}, falling back to {year - 1}")
-                fallback_driver_url = (
-                    f"{JOLPICA_BASE_URL}/{year - 1}/driverStandings.json"
-                )
+                fallback_driver_url = f"{JOLPICA_BASE_URL}/{year - 1}/driverStandings.json"
                 fallback_constructor_url = (
                     f"{JOLPICA_BASE_URL}/{year - 1}/constructorStandings.json"
                 )
@@ -369,9 +349,7 @@ class TeamsService:
                 driver_id = entry.get("Driver", {}).get("driverId", "")
                 constructors = entry.get("Constructors", [])
                 if constructors and driver_id:
-                    driver_to_constructor[driver_id] = constructors[0].get(
-                        "constructorId", ""
-                    )
+                    driver_to_constructor[driver_id] = constructors[0].get("constructorId", "")
                 driver_standings_map[driver_id] = {
                     "position": int(entry.get("position", 0)),
                     "points": float(entry.get("points", 0)),
@@ -449,15 +427,11 @@ class TeamsService:
         try:
             json_data = self._load_from_json(year)
             if json_data:
-                driver_standings, constructor_standings = await self._fetch_standings(
-                    year
-                )
+                driver_standings, constructor_standings = await self._fetch_standings(year)
 
                 if not driver_standings and not constructor_standings and year >= 2026:
                     logger.info(f"No standings for {year}, falling back to {year - 1}")
-                    driver_standings, constructor_standings = (
-                        await self._fetch_standings(year - 1)
-                    )
+                    driver_standings, constructor_standings = await self._fetch_standings(year - 1)
 
                 json_data = self._merge_standings(
                     json_data, driver_standings, constructor_standings

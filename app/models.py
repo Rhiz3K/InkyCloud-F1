@@ -175,9 +175,7 @@ class TeamDriverEntry(BaseModel):
 
     driver_id: str = Field(default="", description="Driver ID from API")
     driver_code: str = Field(default="", description="Driver code, e.g. VER")
-    driver_number: Optional[int] = Field(
-        default=None, description="Permanent race number"
-    )
+    driver_number: Optional[int] = Field(default=None, description="Permanent race number")
     given_name: str = ""
     family_name: str = ""
     name: str = Field(default="", description="Full display name from Wikipedia")
@@ -197,9 +195,7 @@ class TeamEntry(BaseModel):
     chassis: str = Field(default="", description="Chassis model, e.g. RB21")
     power_unit: str = Field(default="", description="Power unit, e.g. Honda RBPTH003")
     nationality: str = ""
-    position: Optional[int] = Field(
-        default=None, description="Constructor championship position"
-    )
+    position: Optional[int] = Field(default=None, description="Constructor championship position")
     points: float = Field(default=0.0, description="Constructor championship points")
     drivers: list[TeamDriverEntry] = Field(default_factory=list)
 

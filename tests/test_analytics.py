@@ -96,9 +96,7 @@ async def test_send_to_umami_custom_event(mock_config):
 @pytest.mark.asyncio
 async def test_track_pageview_creates_task(mock_config):
     """Test that track_pageview creates a background task."""
-    with patch(
-        "app.services.analytics._send_to_umami", new_callable=AsyncMock
-    ) as mock_send:
+    with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
         await track_pageview(
             url="/privacy",
             title="Privacy Policy",
@@ -118,9 +116,7 @@ async def test_track_pageview_disabled_when_umami_disabled():
     with patch("app.services.analytics.config") as mock_cfg:
         mock_cfg.UMAMI_ENABLED = False
 
-        with patch(
-            "app.services.analytics._send_to_umami", new_callable=AsyncMock
-        ) as mock_send:
+        with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
             await track_pageview(
                 url="/",
                 title="Home",
@@ -138,9 +134,7 @@ async def test_track_pageview_disabled_when_website_id_missing():
         mock_cfg.UMAMI_ENABLED = True
         mock_cfg.UMAMI_WEBSITE_ID = None
 
-        with patch(
-            "app.services.analytics._send_to_umami", new_callable=AsyncMock
-        ) as mock_send:
+        with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
             await track_pageview(
                 url="/",
                 title="Home",
@@ -154,9 +148,7 @@ async def test_track_pageview_disabled_when_website_id_missing():
 @pytest.mark.asyncio
 async def test_track_event_creates_task(mock_config):
     """Test that track_event creates a background task."""
-    with patch(
-        "app.services.analytics._send_to_umami", new_callable=AsyncMock
-    ) as mock_send:
+    with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
         await track_event(
             url="/calendar.bmp",
             event_name="calendar_download",
@@ -177,9 +169,7 @@ async def test_track_event_disabled_when_umami_disabled():
     with patch("app.services.analytics.config") as mock_cfg:
         mock_cfg.UMAMI_ENABLED = False
 
-        with patch(
-            "app.services.analytics._send_to_umami", new_callable=AsyncMock
-        ) as mock_send:
+        with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
             await track_event(
                 url="/calendar.bmp",
                 event_name="calendar_download",
@@ -197,9 +187,7 @@ async def test_track_event_disabled_when_website_id_missing():
         mock_cfg.UMAMI_ENABLED = True
         mock_cfg.UMAMI_WEBSITE_ID = None
 
-        with patch(
-            "app.services.analytics._send_to_umami", new_callable=AsyncMock
-        ) as mock_send:
+        with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
             await track_event(
                 url="/calendar.bmp",
                 event_name="calendar_download",
