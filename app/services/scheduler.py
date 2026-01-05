@@ -1,5 +1,6 @@
 """Scheduler service for hourly image generation using static data."""
 
+import asyncio
 import copy
 import logging
 from datetime import datetime, timezone
@@ -18,6 +19,12 @@ from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.version_service import refresh_version_info
+from app.services.weather_service import (
+    WeatherData,
+    WeatherService,
+    load_circuit_weather_to_cache,
+    set_cached_circuit_weather,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -353,6 +360,200 @@ async def flush_api_calls_to_db() -> None:
         logger.error(f"Error flushing API calls: {e}", exc_info=True)
 
 
+async def fetch_all_circuits_weather() -> None:
+    """
+    Fetch weather for all F1 circuits and cache results.
+
+    This job runs every hour at :05 to pre-fetch weather data:
+    1. Get all unique circuits from current season
+    2. Fetch weather for each circuit sequentially (1s delay between requests)
+    3. Store results in both in-memory cache and SQLite
+    4. Retry failed circuits (max 10 attempts total per circuit)
+    5. Fall back to previous data if all retries fail
+
+    Weather is fetched as "current" weather since race day forecasts
+    are only available within 16 days.
+    """
+    if not config.WEATHER_ENABLED:
+        logger.debug("Weather is disabled, skipping fetch")
+        return
+
+    logger.info("Starting circuit weather fetch")
+
+    try:
+        db = Database()
+        f1_service = F1Service()
+        weather_service = WeatherService(
+            timeout=config.REQUEST_TIMEOUT,
+            cache_minutes=config.WEATHER_CACHE_MINUTES,
+        )
+
+        # Get current F1 season
+        current_year = datetime.now(timezone.utc).year
+
+        # Get all races from static data
+        all_races = f1_service.get_all_races_from_static(current_year)
+
+        if not all_races:
+            # Try next year (late in season, next year data might be available)
+            all_races = f1_service.get_all_races_from_static(current_year + 1)
+
+        if not all_races:
+            logger.warning("No races found in static data for weather fetch")
+            return
+
+        # Extract unique circuits with coordinates
+        seen_circuits: set[str] = set()
+        circuits_to_fetch: list[dict] = []
+
+        for race in all_races:
+            circuit = race.get("circuit", {})
+            circuit_id = circuit.get("circuitId")
+
+            if not circuit_id or circuit_id in seen_circuits:
+                continue
+
+            lat_str = circuit.get("lat")
+            lon_str = circuit.get("long")
+
+            if not lat_str or not lon_str:
+                logger.debug(f"Circuit {circuit_id} missing coordinates, skipping")
+                continue
+
+            seen_circuits.add(circuit_id)
+            circuits_to_fetch.append(
+                {
+                    "id": circuit_id,
+                    "name": circuit.get("name", circuit_id),
+                    "lat": float(lat_str),
+                    "lon": float(lon_str),
+                }
+            )
+
+        logger.info(f"Fetching weather for {len(circuits_to_fetch)} circuits")
+
+        # Track failed circuits for retry
+        failed: list[dict] = []
+        success_count = 0
+        max_attempts = 10
+
+        # Round 1: Fetch all circuits
+        for circuit in circuits_to_fetch:
+            weather = await _fetch_single_circuit_weather(
+                weather_service, circuit["lat"], circuit["lon"]
+            )
+
+            if weather:
+                # Save to both in-memory cache and SQLite
+                set_cached_circuit_weather(circuit["id"], weather)
+                await db.save_circuit_weather(
+                    circuit_id=circuit["id"],
+                    circuit_name=circuit["name"],
+                    temperature_c=weather.temperature_c,
+                    weather_code=weather.weather_code,
+                    precipitation_probability=weather.precipitation_probability,
+                )
+                success_count += 1
+                logger.debug(f"Weather fetched for {circuit['id']}: {weather.temp_display}")
+            else:
+                circuit["attempts"] = 1
+                failed.append(circuit)
+
+            # 1 second delay between requests
+            await asyncio.sleep(1)
+
+        # Retry rounds (attempts 2-10)
+        for round_num in range(2, max_attempts + 1):
+            if not failed:
+                break
+
+            logger.debug(f"Weather retry round {round_num}, {len(failed)} circuits remaining")
+            still_failed: list[dict] = []
+
+            for circuit in failed:
+                weather = await _fetch_single_circuit_weather(
+                    weather_service, circuit["lat"], circuit["lon"]
+                )
+
+                if weather:
+                    set_cached_circuit_weather(circuit["id"], weather)
+                    await db.save_circuit_weather(
+                        circuit_id=circuit["id"],
+                        circuit_name=circuit["name"],
+                        temperature_c=weather.temperature_c,
+                        weather_code=weather.weather_code,
+                        precipitation_probability=weather.precipitation_probability,
+                    )
+                    success_count += 1
+                    logger.debug(f"Weather fetched for {circuit['id']} on attempt {round_num}")
+                else:
+                    circuit["attempts"] = round_num
+                    still_failed.append(circuit)
+
+                await asyncio.sleep(1)
+
+            failed = still_failed
+
+        # Log final results
+        if failed:
+            failed_ids = [c["id"] for c in failed]
+            logger.warning(
+                f"Weather fetch failed for {len(failed)} circuits after {max_attempts} attempts: "
+                f"{failed_ids}"
+            )
+
+        logger.info(f"Weather fetch completed: {success_count}/{len(circuits_to_fetch)} successful")
+
+    except Exception as e:
+        logger.error(f"Error in circuit weather fetch: {e}", exc_info=True)
+
+
+async def _fetch_single_circuit_weather(
+    weather_service: WeatherService, lat: float, lon: float
+) -> WeatherData | None:
+    """
+    Fetch current weather for a single circuit.
+
+    Args:
+        weather_service: WeatherService instance
+        lat: Latitude
+        lon: Longitude
+
+    Returns:
+        WeatherData or None on failure
+    """
+    try:
+        return await weather_service.get_current_weather(lat, lon)
+    except Exception as e:
+        logger.debug(f"Weather fetch failed for ({lat}, {lon}): {e}")
+        return None
+
+
+async def load_weather_from_db() -> None:
+    """
+    Load weather data from SQLite into in-memory cache.
+
+    Called on startup to restore weather cache from persisted data.
+    This ensures weather is available immediately without waiting for
+    the first scheduled fetch.
+    """
+    if not config.WEATHER_ENABLED:
+        return
+
+    try:
+        db = Database()
+        weather_dict = await db.load_all_circuit_weather()
+
+        if weather_dict:
+            count = load_circuit_weather_to_cache(weather_dict)
+            logger.info(f"Loaded {count} circuit weather entries from database")
+        else:
+            logger.debug("No cached weather data in database")
+
+    except Exception as e:
+        logger.warning(f"Error loading weather from database: {e}")
+
+
 def _run_backup() -> None:
     """
     Run database backup to S3 (synchronous wrapper for scheduler).
@@ -450,6 +651,16 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
 
+    # Hourly at :55: Fetch weather for all circuits (before image generation at :00)
+    if config.WEATHER_ENABLED:
+        scheduler.add_job(
+            fetch_all_circuits_weather,
+            trigger=CronTrigger(minute=55),
+            id="fetch_circuit_weather",
+            name="Fetch weather for all circuits",
+            replace_existing=True,
+        )
+
     # Conditional: S3 database backup
     _register_backup_job(scheduler)
 
@@ -463,9 +674,10 @@ def start_scheduler() -> None:
     )
 
     scheduler.start()
+    weather_info = ", weather at :55" if config.WEATHER_ENABLED else ""
     logger.info(
-        "Scheduler started - hourly generation at :00, API calls flush every minute, "
-        "version refresh at 00:05"
+        f"Scheduler started - generation at :00{weather_info}, API flush every min, "
+        "version at 00:05"
     )
 
 
@@ -483,16 +695,30 @@ async def run_initial_generation() -> None:
     """
     Run initial image generation on startup.
 
-    Uses static data from JSON files - no API calls needed.
-    Also refreshes version info from GitHub API.
+    Order: weather -> images -> version info
+    Weather must be fetched before images so previews include weather data.
     """
     logger.info("Running initial generation from static data")
 
+    # 1. Load weather from SQLite first (instant, provides fallback data)
+    try:
+        await load_weather_from_db()
+    except Exception as e:
+        logger.warning(f"Error loading weather from database: {e}")
+
+    # 2. Fetch fresh weather data (before image generation)
+    try:
+        await fetch_all_circuits_weather()
+    except Exception as e:
+        logger.error(f"Error fetching initial weather: {e}", exc_info=True)
+
+    # 3. Generate images (now with weather data available)
     try:
         await collect_and_generate()
     except Exception as e:
         logger.error(f"Error in initial generation: {e}", exc_info=True)
 
+    # 4. Refresh version info
     try:
         await refresh_version_info()
         logger.info("Version info refreshed on startup")

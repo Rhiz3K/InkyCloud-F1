@@ -49,6 +49,10 @@ OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 _weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
 
+# Circuit weather cache - populated by scheduler, read by renderer
+# Maps circuit_id -> WeatherData
+_circuit_weather_cache: dict[str, "WeatherData"] = {}
+
 
 @dataclass
 class WeatherData:
@@ -242,3 +246,66 @@ class WeatherService:
 
 def clear_weather_cache() -> None:
     _weather_cache.clear()
+
+
+# =========================================================================
+# Circuit Weather Cache Functions (used by scheduler and renderer)
+# =========================================================================
+
+
+def get_cached_circuit_weather(circuit_id: str) -> Optional[WeatherData]:
+    """
+    Get pre-fetched weather from in-memory cache.
+
+    This is populated by the scheduler every hour.
+    Falls back to None if not found (renderer will display without weather).
+
+    Args:
+        circuit_id: Circuit identifier (e.g., "albert_park")
+
+    Returns:
+        WeatherData or None
+    """
+    return _circuit_weather_cache.get(circuit_id)
+
+
+def set_cached_circuit_weather(circuit_id: str, data: WeatherData) -> None:
+    """
+    Update in-memory cache with weather data.
+
+    Called by scheduler after fetching weather from API.
+
+    Args:
+        circuit_id: Circuit identifier
+        data: WeatherData to cache
+    """
+    _circuit_weather_cache[circuit_id] = data
+
+
+def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
+    """
+    Bulk load weather data into in-memory cache.
+
+    Used on startup to restore cache from SQLite.
+
+    Args:
+        weather_dict: Dict mapping circuit_id to weather data dict
+                     (from Database.load_all_circuit_weather)
+
+    Returns:
+        Number of circuits loaded
+    """
+    count = 0
+    for circuit_id, data in weather_dict.items():
+        _circuit_weather_cache[circuit_id] = WeatherData(
+            temperature_c=data["temperature_c"],
+            weather_code=data["weather_code"],
+            precipitation_probability=data["precipitation_probability"],
+        )
+        count += 1
+    return count
+
+
+def clear_circuit_weather_cache() -> None:
+    """Clear the circuit weather cache."""
+    _circuit_weather_cache.clear()

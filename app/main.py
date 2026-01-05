@@ -41,7 +41,7 @@ from app.services.scheduler import (
 )
 from app.services.teams_service import TeamsService
 from app.services.version_service import get_cached_version, refresh_version_info
-from app.services.weather_service import WeatherService
+from app.services.weather_service import WeatherService, get_cached_circuit_weather
 
 # Register font MIME types (Python's mimetypes doesn't know TTF by default)
 mimetypes.add_type("font/ttf", ".ttf")
@@ -1496,7 +1496,8 @@ async def get_calendar_bmp(
 
             weather_data = None
             if weather and config.WEATHER_ENABLED:
-                weather_data = await _fetch_race_weather(race_data, weather_type)
+                # Use pre-fetched weather from scheduler (populated hourly)
+                weather_data = get_cached_circuit_weather(circuit_id)
 
             renderer = Renderer(translator)
             bmp_data = renderer.render_calendar(race_data, historical_data, weather_data)

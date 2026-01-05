@@ -113,6 +113,16 @@ class Database:
                     device_memory REAL
                 );
 
+                -- Circuit weather cache table
+                CREATE TABLE IF NOT EXISTS circuit_weather (
+                    circuit_id TEXT PRIMARY KEY,
+                    circuit_name TEXT,
+                    temperature_c REAL,
+                    weather_code INTEGER,
+                    precipitation_probability INTEGER,
+                    fetched_at TEXT NOT NULL
+                );
+
                 -- Create indexes (note: idx_api_calls_race created after migrations)
                 CREATE INDEX IF NOT EXISTS idx_images_key ON generated_images(image_key);
                 CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON request_stats(timestamp);
@@ -875,4 +885,117 @@ class Database:
                         round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None for row in rows
                     ],
                     "samples": [row["samples"] for row in rows],
+                }
+
+    # =========================================================================
+    # Circuit Weather Cache Methods
+    # =========================================================================
+
+    async def save_circuit_weather(
+        self,
+        circuit_id: str,
+        circuit_name: str,
+        temperature_c: float,
+        weather_code: int,
+        precipitation_probability: int,
+    ) -> None:
+        """
+        Save weather data for a circuit.
+
+        Args:
+            circuit_id: Circuit identifier (e.g., "albert_park")
+            circuit_name: Human-readable name (e.g., "Albert Park")
+            temperature_c: Temperature in Celsius
+            weather_code: WMO weather code
+            precipitation_probability: Precipitation probability (0-100)
+        """
+        await self._init_db_if_needed()
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            await conn.execute(
+                """
+                INSERT INTO circuit_weather
+                    (circuit_id, circuit_name, temperature_c, weather_code,
+                     precipitation_probability, fetched_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(circuit_id) DO UPDATE SET
+                    circuit_name = excluded.circuit_name,
+                    temperature_c = excluded.temperature_c,
+                    weather_code = excluded.weather_code,
+                    precipitation_probability = excluded.precipitation_probability,
+                    fetched_at = excluded.fetched_at
+                """,
+                (
+                    circuit_id,
+                    circuit_name,
+                    temperature_c,
+                    weather_code,
+                    precipitation_probability,
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            await conn.commit()
+
+    async def get_circuit_weather(self, circuit_id: str) -> Optional[dict]:
+        """
+        Get cached weather data for a circuit.
+
+        Returns data even if stale (up to 2 hours old) as fallback.
+
+        Args:
+            circuit_id: Circuit identifier
+
+        Returns:
+            Dict with temperature_c, weather_code, precipitation_probability
+            or None if not found
+        """
+        await self._init_db_if_needed()
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            async with conn.execute(
+                """
+                SELECT temperature_c, weather_code, precipitation_probability, fetched_at
+                FROM circuit_weather
+                WHERE circuit_id = ?
+                """,
+                (circuit_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        "temperature_c": row["temperature_c"],
+                        "weather_code": row["weather_code"],
+                        "precipitation_probability": row["precipitation_probability"],
+                        "fetched_at": row["fetched_at"],
+                    }
+                return None
+
+    async def load_all_circuit_weather(self) -> dict[str, dict]:
+        """
+        Load all cached circuit weather data.
+
+        Used on startup to populate in-memory cache from SQLite.
+
+        Returns:
+            Dict mapping circuit_id to weather data dict
+        """
+        await self._init_db_if_needed()
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            async with conn.execute(
+                """
+                SELECT circuit_id, temperature_c, weather_code,
+                       precipitation_probability, fetched_at
+                FROM circuit_weather
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return {
+                    row["circuit_id"]: {
+                        "temperature_c": row["temperature_c"],
+                        "weather_code": row["weather_code"],
+                        "precipitation_probability": row["precipitation_probability"],
+                        "fetched_at": row["fetched_at"],
+                    }
+                    for row in rows
                 }
