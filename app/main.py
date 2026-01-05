@@ -101,9 +101,9 @@ def _check_persistent_storage() -> bool:
             f"created: {datetime.now(timezone.utc).isoformat()}\n"
             "This file verifies persistent storage. Do not delete.\n"
         )
-        logger.info(f"Created persistence marker at {_PERSISTENCE_MARKER}")
+        logger.info("Created persistence marker at %s", _PERSISTENCE_MARKER)
     except OSError as e:
-        logger.error(f"Failed to create persistence marker: {e}")
+        logger.error("Failed to create persistence marker: %s", e)
         return False
 
     # Check if database exists but marker didn't (means storage was reset)
@@ -612,7 +612,7 @@ async def changelog(request: Request, lang: str = Query(default=None)):
         try:
             version_info = await refresh_version_info()
         except Exception as e:
-            logger.warning(f"Failed to fetch version info: {e}")
+            logger.warning("Failed to fetch version info: %s", e)
 
     context = _get_template_context(request, ui_lang)
     context["active_page"] = "changelog"
@@ -991,7 +991,7 @@ async def post_perf_metrics(request: Request):
 
         return {"status": "ok"}
     except Exception as e:
-        logger.warning(f"Failed to save perf metrics: {e}")
+        logger.warning("Failed to save perf metrics: %s", e)
         return {"status": "error", "message": "Failed to save metrics"}
 
 
