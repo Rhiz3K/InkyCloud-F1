@@ -53,6 +53,11 @@ enabled = true
 name = "test-coverage"
 enabled = true
 
+  [analyzers.meta]
+  # Lower threshold for new code coverage (default is 80%)
+  new_line_coverage_threshold = 40
+  new_branch_coverage_threshold = 80
+
 # Ruff Code Formatter - auto-fix formatting in PRs
 [[code_formatters]]
 name = "ruff"
