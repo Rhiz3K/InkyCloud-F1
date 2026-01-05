@@ -1168,7 +1168,7 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
     try:
         target_tz = pytz.timezone(target_tz_str)
     except pytz.UnknownTimeZoneError:
-        logger.warning(f"Unknown timezone {target_tz_str}, returning original data")
+        logger.warning("Unknown timezone %s, returning original data", target_tz_str)
         return race_data
 
     # Deep copy to avoid modifying original
@@ -1190,7 +1190,7 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
                 event["datetime"] = dt_local.isoformat()
                 event["display_time"] = dt_local.strftime("%a %H:%M")
             except (ValueError, TypeError) as e:
-                logger.warning(f"Error converting time {iso_str}: {e}")
+                logger.warning("Error converting time %s: %s", iso_str, e)
 
     # Update race_date to target timezone format
     if schedule:
@@ -1327,7 +1327,7 @@ async def get_calendar_bmp(
         cache_key = _get_cache_key(lang, year, race_round, tz, weather, weather_type)
         cached_bmp = get_bmp_cache().get(cache_key)
         if cached_bmp is not None:
-            logger.debug(f"Cache hit for {cache_key}")
+            logger.debug("Cache hit for %s", cache_key)
             record_api_call(
                 "/calendar.bmp",
                 (time.time() - start_time) * 1000,
@@ -1350,7 +1350,7 @@ async def get_calendar_bmp(
                 },
             )
 
-        logger.info(f"Cache miss for {cache_key}, generating...")
+        logger.info("Cache miss for %s, generating...", cache_key)
 
         # Try to serve pre-generated image first (only for next race, not specific year/round)
         # Skip pre-generated images when weather is requested (they don't include weather)
@@ -1415,9 +1415,9 @@ async def get_calendar_bmp(
                     race_data = race
                     break
             if race_data:
-                logger.debug(f"Using static race data for {year}/{race_round}")
+                logger.debug("Using static race data for %s/%s", year, race_round)
             else:
-                logger.warning(f"Race {year}/{race_round} not found in static data")
+                logger.warning("Race %s/%s not found in static data", year, race_round)
         else:
             # Get next race from static data
             race_data = f1_service.get_next_race_from_static()
@@ -1428,7 +1428,7 @@ async def get_calendar_bmp(
         if race_data:
             cached_tz = race_data.get("timezone", config.DEFAULT_TIMEZONE)
             if cached_tz != target_tz:
-                logger.debug(f"Converting times from {cached_tz} to {target_tz}")
+                logger.debug("Converting times from %s to %s", cached_tz, target_tz)
                 race_data = _convert_race_times_to_timezone(race_data, target_tz)
 
         if not race_data:
