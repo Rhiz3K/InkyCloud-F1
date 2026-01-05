@@ -137,12 +137,12 @@ class F1Service:
     def _convert_race_times(self, race: Race) -> dict:
         """
         Convert a Race model's UTC session and race times to the service's target timezone and return a structured race payload.
-        
+
         This will parse session and race date/time values (treating a missing time as "12:00:00Z"), convert them to the service's target timezone, and produce a schedule of events sorted by local datetime. Unparsable or missing session times are omitted from the schedule.
-        
+
         Parameters:
             race (Race): Race model containing UTC date/time strings and circuit/location metadata.
-        
+
         Returns:
             dict: A dictionary containing:
                 - race_name: race's name.

@@ -426,10 +426,10 @@ class Database:
     async def get_stats_for_range(self, hours: int) -> dict:
         """
         Return aggregated API and usage statistics for the past `hours` hours for dashboard consumption.
-        
+
         Parameters:
             hours (int): Number of hours to look back (e.g., 1, 24, 168, 720).
-        
+
         Returns:
             dict: A dictionary containing:
                 total_requests (int): Total number of requests in the range.
@@ -876,10 +876,10 @@ class Database:
     async def get_perf_trends(self, hours: int = 24) -> dict:
         """
         Retrieve hourly trends for page performance metrics within the given lookback window.
-        
+
         Parameters:
             hours (int): Lookback period in hours used to aggregate metrics (default 24).
-        
+
         Returns:
             dict: A dictionary with keys:
                 - "hours": list of hour strings in "YYYY-MM-DD HH:00" ascending order.
@@ -934,9 +934,9 @@ class Database:
     ) -> None:
         """
         Store or update cached weather for a circuit.
-        
+
         Inserts a record for the given circuit_id or updates the existing record; sets `fetched_at` to the current UTC timestamp in ISO 8601 format.
-        
+
         Parameters:
             circuit_id: Circuit identifier (e.g., "albert_park").
             circuit_name: Human-readable circuit name (e.g., "Albert Park").
@@ -974,12 +974,12 @@ class Database:
     async def get_circuit_weather(self, circuit_id: str) -> Optional[dict]:
         """
         Retrieve cached weather data for a circuit.
-        
+
         Returns the cached temperature, weather code, precipitation probability, and the timestamp when the data was fetched. Data is returned regardless of age (may be stale).
-        
+
         Parameters:
             circuit_id (str): Circuit identifier.
-        
+
         Returns:
             dict: A mapping with keys "temperature_c" (float), "weather_code" (int), "precipitation_probability" (int), and "fetched_at" (ISO 8601 string), or `None` if no record exists.
         """
@@ -1007,9 +1007,9 @@ class Database:
     async def load_all_circuit_weather(self) -> dict[str, dict]:
         """
         Load all cached circuit weather records from the database.
-        
+
         Used on startup to populate an in-memory cache with the latest stored weather for each circuit.
-        
+
         Returns:
             dict: Mapping of `circuit_id` (str) to a dict with keys:
                 - `temperature_c` (float): temperature in Celsius

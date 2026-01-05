@@ -112,14 +112,14 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
 def _bmp_to_png(bmp_data: bytes, width: int = 400, full_size: bool = False) -> bytes:
     """
     Convert BMP image data to PNG bytes suitable for web previews.
-    
+
     Parameters:
-    	bmp_data (bytes): Raw BMP image data.
-    	width (int): Target width in pixels when resizing; height is adjusted to maintain aspect ratio.
-    	full_size (bool): If True, preserve the original image size and skip resizing.
-    
+        bmp_data (bytes): Raw BMP image data.
+        width (int): Target width in pixels when resizing; height is adjusted to maintain aspect ratio.
+        full_size (bool): If True, preserve the original image size and skip resizing.
+
     Returns:
-    	bytes: PNG image data.
+        bytes: PNG image data.
     """
     img_file = Image.open(BytesIO(bmp_data))
 
@@ -360,13 +360,13 @@ async def flush_api_calls_to_db() -> None:
 async def fetch_all_circuits_weather() -> None:
     """
     Fetch current weather for all F1 circuits, cache each circuit's weather in memory, and persist results to the database.
-    
+
     This job:
     - Iterates unique circuits from the current (or next) season, skipping circuits without coordinates.
     - Fetches current weather for each circuit sequentially with a 1-second pause between requests.
     - Stores successful results in the in-memory cache and in SQLite.
     - Retries failed circuits up to 10 total attempts per circuit; logs any circuits that remain failed after all attempts.
-    
+
     If weather fetching is disabled via configuration, the function returns immediately.
     """
     if not config.WEATHER_ENABLED:
@@ -508,11 +508,11 @@ async def _fetch_single_circuit_weather(
 ) -> WeatherData | None:
     """
     Fetch the current weather for a single circuit location.
-    
+
     Parameters:
         lat (float): Latitude of the circuit.
         lon (float): Longitude of the circuit.
-    
+
     Returns:
         WeatherData | None: The current weather data on success, `None` if the fetch fails.
     """
@@ -551,7 +551,7 @@ async def load_weather_from_db() -> None:
 def _run_backup() -> None:
     """
     Trigger a configured database backup to S3.
-    
+
     If backup is not configured, the function returns without action. When configured, it invokes the backup procedure synchronously.
     """
     from app.services.backup import is_backup_configured, perform_backup
@@ -615,14 +615,14 @@ def _register_backup_job(sched: AsyncIOScheduler) -> None:
 def start_scheduler() -> None:
     """
     Initialize, configure, and start the global background scheduler.
-    
+
     Registers and starts the module-level AsyncIOScheduler with these jobs:
     - hourly image generation from static data at minute :00,
     - per-minute flush of the API calls buffer at second :00,
     - optional hourly weather fetch for all circuits at minute :55 when weather is enabled,
     - optional S3 backup job if backup is configured,
     - refresh of version info daily at 00:05.
-    
+
     If the scheduler is disabled via configuration or already running, the function returns without starting a new scheduler.
     """
     global scheduler
@@ -698,7 +698,7 @@ def stop_scheduler() -> None:
 async def run_initial_generation() -> None:
     """
     Perform startup initialization by loading cached weather, fetching fresh weather, generating images, and refreshing version info.
-    
+
     This ensures weather data is available before image generation so generated previews include current weather; failures in individual steps are logged but do not stop subsequent steps.
     """
     logger.info("Running initial generation from static data")

@@ -154,10 +154,10 @@ def perform_backup() -> bool:
 def cleanup_old_backups(s3_client=None) -> int:
     """
     Delete backup objects in the configured S3 bucket that are older than the configured retention period.
-    
+
     Parameters:
         s3_client: Optional boto3 S3 client to use; if None, a client is created via _get_s3_client().
-    
+
     Returns:
         Number of backups deleted. Returns 0 if retention is disabled or an S3 client could not be obtained.
     """
@@ -216,7 +216,7 @@ def cleanup_old_backups(s3_client=None) -> int:
 def get_backup_config_info() -> dict[str, Any]:
     """
     Return non-sensitive backup configuration details.
-    
+
     Returns:
         dict[str, Any]: Mapping containing:
             - enabled (bool): Whether backups are enabled.
@@ -241,9 +241,9 @@ def get_backup_config_info() -> dict[str, Any]:
 def test_s3_connection() -> dict[str, Any]:
     """
     Check the S3-compatible storage configuration and perform connectivity and permission tests.
-    
+
     Performs a bucket head request and a small write/delete to verify credentials, bucket accessibility, and write permissions, and measures latency.
-    
+
     Returns:
         dict[str, Any]: Test results with keys:
             - success (bool): `True` if all tests passed, `False` otherwise.
@@ -329,7 +329,7 @@ def test_s3_connection() -> dict[str, Any]:
 def get_bucket_stats() -> dict[str, Any]:
     """
     Retrieve statistics and metadata for backup objects stored in the configured S3 bucket.
-    
+
     Returns:
         dict: A mapping with the following keys:
             - backup_count (int): Number of backup objects found.
@@ -404,7 +404,7 @@ def get_bucket_stats() -> dict[str, Any]:
 def perform_backup_with_details() -> dict[str, Any]:
     """
     Perform a backup of the configured database to the S3-compatible endpoint and return details about the operation.
-    
+
     Returns:
         result (dict[str, Any]): Dictionary with the operation outcome and metadata:
             - success (bool): `True` if the backup and upload succeeded, `False` otherwise.
