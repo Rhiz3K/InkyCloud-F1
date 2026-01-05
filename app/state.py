@@ -46,6 +46,7 @@ def record_api_call(
 
 
 def get_and_clear_api_calls_buffer() -> list:
-    calls = _api_calls_buffer.copy()
-    _api_calls_buffer.clear()
+    global _api_calls_buffer
+    calls = _api_calls_buffer
+    _api_calls_buffer = []
     return calls
