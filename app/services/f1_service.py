@@ -532,11 +532,13 @@ class F1Service:
             logger.warning("Invalid year value: %s", year)
             return []
 
-        json_path = SEASONS_DIR / f"{year}.json"
+        # Security: Construct safe filename using only validated integer
+        # to prevent path traversal attacks
+        safe_filename = f"{year:04d}.json"
+        resolved_path = (SEASONS_DIR / safe_filename).resolve()
 
-        resolved_dir = SEASONS_DIR.resolve()
-        resolved_path = json_path.resolve()
-        if not resolved_path.is_relative_to(resolved_dir):
+        # Verify path stays within allowed directory
+        if not resolved_path.is_relative_to(SEASONS_DIR.resolve()):
             logger.error("Path traversal attempt detected for year: %s", year)
             return []
 
