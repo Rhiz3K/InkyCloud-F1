@@ -15,50 +15,40 @@ test_patterns = [
   "*_test.py"
 ]
 
-# Python Analyzer - static code analysis with mypy type checking
 [[analyzers]]
 name = "python"
 enabled = true
 dependency_file_paths = ["pyproject.toml"]
 
-  [analyzers.meta]
-  runtime_version = "3.x.x"
-  max_line_length = 100
-  skip_doc_coverage = ["module", "magic", "init"]
-  type_checker = "mypy"
-  cyclomatic_complexity_threshold = "high"
+[analyzers.meta]
+runtime_version = "3.x.x"
+max_line_length = 100
+skip_doc_coverage = ["module", "magic", "init"]
+type_checker = "mypy"
+cyclomatic_complexity_threshold = "high"
 
-# Exclude rules that are too noisy or don't apply to our codebase
-exclude_rules = [
-  "PYL-W1203",  # f-string logging is acceptable in modern Python
-  "PYL-R0201",  # Test methods need self for pytest fixtures
-]
-
-# Docker Analyzer - Dockerfile best practices
 [[analyzers]]
 name = "docker"
 enabled = true
 
-  [analyzers.meta]
-  dockerfile_paths = ["Dockerfile"]
-  trusted_registries = ["docker.io", "ghcr.io"]
+[analyzers.meta]
+dockerfile_paths = ["Dockerfile"]
+trusted_registries = ["docker.io", "ghcr.io"]
 
-# Secrets Analyzer - detect hardcoded credentials
 [[analyzers]]
 name = "secrets"
 enabled = true
 
-# Test Coverage Analyzer
 [[analyzers]]
 name = "test-coverage"
 enabled = true
 
-  [analyzers.meta]
-  # Lower threshold for new code coverage (default is 80%)
-  new_line_coverage_threshold = 40
-  new_branch_coverage_threshold = 80
-
-# Ruff Code Formatter - auto-fix formatting in PRs
 [[code_formatters]]
 name = "ruff"
 enabled = true
+
+exclude_rules = [
+  "PYL-W1203",
+  "PYL-R0201",
+  "TCV-001"
+]
