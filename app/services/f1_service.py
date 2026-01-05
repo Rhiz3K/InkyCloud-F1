@@ -210,6 +210,8 @@ class F1Service:
                 "name": race.Circuit.circuitName,
                 "location": race.Circuit.Location.locality,
                 "country": race.Circuit.Location.country,
+                "lat": race.Circuit.Location.lat,
+                "long": race.Circuit.Location.long,
             },
             "schedule": schedule_events,
             "race_date": race_dt.strftime("%d.%m.%Y") if race_dt else race.date,
