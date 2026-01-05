@@ -27,6 +27,9 @@ skip_doc_coverage = ["module", "magic", "init"]
 type_checker = "mypy"
 cyclomatic_complexity_threshold = "high"
 
+[[analyzers.ignore_rules]]
+rule_ids = ["PYL-W1203", "PYL-R0201"]
+
 [[analyzers]]
 name = "docker"
 enabled = true
@@ -46,9 +49,3 @@ enabled = false
 [[code_formatters]]
 name = "ruff"
 enabled = true
-
-exclude_rules = [
-  "PYL-W1203",
-  "PYL-R0201",
-  "TCV-001"
-]
