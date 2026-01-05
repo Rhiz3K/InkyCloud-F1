@@ -91,11 +91,11 @@ class WeatherService:
         cache_key = f"current_{round(lat, 2)}_{round(lon, 2)}"
         cached = self._get_cached(cache_key)
         if cached is not None:
-            logger.debug(f"Current weather cache hit for {cache_key}")
+            logger.debug("Current weather cache hit for %s", cache_key)
             return cached
 
         if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
-            logger.warning(f"Invalid coordinates: lat={lat}, lon={lon}")
+            logger.warning("Invalid coordinates: lat=%s, lon=%s", lat, lon)
             return None
 
         try:
@@ -108,10 +108,10 @@ class WeatherService:
             logger.warning("Weather API request timed out")
             return None
         except httpx.HTTPStatusError as e:
-            logger.warning(f"Weather API HTTP error: {e.response.status_code}")
+            logger.warning("Weather API HTTP error: %s", e.response.status_code)
             return None
         except Exception as e:
-            logger.warning(f"Failed to fetch current weather: {e}")
+            logger.warning("Failed to fetch current weather: %s", e)
             return None
 
     async def _fetch_current_weather(self, lat: float, lon: float) -> Optional[WeatherData]:
@@ -164,11 +164,11 @@ class WeatherService:
         cache_key = f"{round(lat, 2)}_{round(lon, 2)}_{race_datetime.isoformat()}"
         cached = self._get_cached(cache_key)
         if cached is not None:
-            logger.debug(f"Weather cache hit for {cache_key}")
+            logger.debug("Weather cache hit for %s", cache_key)
             return cached
 
         if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
-            logger.warning(f"Invalid coordinates: lat={lat}, lon={lon}")
+            logger.warning("Invalid coordinates: lat=%s, lon=%s", lat, lon)
             return None
 
         now = datetime.now(race_datetime.tzinfo) if race_datetime.tzinfo else datetime.utcnow()
@@ -180,7 +180,7 @@ class WeatherService:
             return None
 
         if days_until_race > 16:
-            logger.debug(f"Race {days_until_race} days away, outside 16-day forecast range")
+            logger.debug("Race %d days away, outside 16-day forecast range", days_until_race)
             return None
 
         try:
@@ -193,10 +193,10 @@ class WeatherService:
             logger.warning("Weather API request timed out")
             return None
         except httpx.HTTPStatusError as e:
-            logger.warning(f"Weather API HTTP error: {e.response.status_code}")
+            logger.warning("Weather API HTTP error: %s", e.response.status_code)
             return None
         except Exception as e:
-            logger.warning(f"Failed to fetch weather: {e}")
+            logger.warning("Failed to fetch weather: %s", e)
             return None
 
     async def _fetch_weather(
@@ -251,7 +251,7 @@ class WeatherService:
                     precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
                 )
 
-        logger.debug(f"Exact hour {race_hour_str} not found, finding closest")
+        logger.debug("Exact hour %s not found, finding closest", race_hour_str)
         race_date_str = race_datetime.strftime("%Y-%m-%d")
         for i, t in enumerate(times):
             if t.startswith(race_date_str):
@@ -261,7 +261,7 @@ class WeatherService:
                     precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
                 )
 
-        logger.warning(f"Could not find weather for {race_hour_str}")
+        logger.warning("Could not find weather for %s", race_hour_str)
         return None
 
     def _get_cached(self, key: str) -> Optional[WeatherData]:
