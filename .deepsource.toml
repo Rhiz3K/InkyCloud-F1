@@ -26,7 +26,13 @@ dependency_file_paths = ["pyproject.toml"]
   skip_doc_coverage = ["module", "magic", "init"]
   type_checker = "mypy"
   cyclomatic_complexity_threshold = "high"
-  exclude_issues = ["PYL-W1203", "PYL-R0201"]
+
+  [analyzers.pylint]
+  enabled = true
+  config = """
+  [MESSAGES CONTROL]
+  disable = W1203, R0201
+  """
 
 [[analyzers]]
 name = "docker"
