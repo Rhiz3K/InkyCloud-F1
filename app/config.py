@@ -93,6 +93,12 @@ class Config(BaseSettings):
     # Scheduler settings
     SCHEDULER_ENABLED: bool = Field(True, description="Toggle background scheduler")
 
+    # Weather integration
+    WEATHER_ENABLED: bool = Field(True, description="Toggle weather forecast display")
+    WEATHER_CACHE_MINUTES: int = Field(
+        60, gt=0, description="Weather data cache duration in minutes"
+    )
+
     # Backup settings
     BACKUP_ENABLED: bool = Field(False, description="Toggle S3 database backup")
     BACKUP_CRON: str = Field("0 3 * * *", description="Cron expression for backup schedule")
