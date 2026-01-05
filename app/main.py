@@ -1396,7 +1396,7 @@ async def get_calendar_bmp(
                     )
 
         # Generate on-the-fly for specific race or when no pre-generated image exists
-        logger.info(f"Generating image on-the-fly (year={year}, round={race_round}, tz={tz})")
+        logger.info("Generating image on-the-fly (year=%s, round=%s, tz=%s)", year, race_round, tz)
 
         # Get translator
         translator = get_translator(lang)
