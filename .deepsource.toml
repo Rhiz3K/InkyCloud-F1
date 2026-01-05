@@ -6,7 +6,8 @@ exclude_patterns = [
   "*.egg-info/**",
   "app/assets/**",
   "conductor/**",
-  "openspec/changes/archive/**"
+  "openspec/changes/archive/**",
+  ".auto-claude/**"
 ]
 
 test_patterns = [
@@ -27,12 +28,7 @@ dependency_file_paths = ["pyproject.toml"]
   type_checker = "mypy"
   cyclomatic_complexity_threshold = "high"
 
-  [analyzers.pylint]
-  enabled = true
-  config = """
-  [MESSAGES CONTROL]
-  disable = W1203, R0201
-  """
+
 
 [[analyzers]]
 name = "docker"
