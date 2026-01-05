@@ -194,7 +194,12 @@ def _format_bytes(bytes_val: int) -> str:
 
 
 def _calc_percent(value: int, total: int) -> float:
-    """Calculate percentage safely."""
+    """
+    Compute the value as a percentage of the total, rounded to one decimal place.
+    
+    Returns:
+        float: Percentage of `value` relative to `total`, rounded to one decimal place; `0` if `total` is zero.
+    """
     if total == 0:
         return 0
     return round((value / total) * 100, 1)
@@ -206,19 +211,18 @@ _TZ_PATH_SAFE_PATTERN = re.compile(r"^[A-Za-z0-9/_+-]+$")
 
 def _sanitize_tz_for_path(tz_str: str) -> str:
     """
-    Sanitize a timezone string for safe use in file paths.
-
-    This validates that the timezone only contains expected characters
-    and replaces "/" with "_" for filesystem compatibility.
-
-    Args:
-        tz_str: Timezone string (e.g., "America/New_York")
-
+    Produce a filesystem-safe representation of a timezone identifier.
+    
+    Validates that the input contains only allowed characters and does not include path traversal sequences, then returns the string with '/' characters replaced by '_' for safe use in file paths.
+    
+    Parameters:
+        tz_str (str): Timezone identifier, e.g. "America/New_York".
+    
     Returns:
-        Path-safe string (e.g., "America_New_York")
-
+        str: Sanitized timezone suitable for filenames, e.g. "America_New_York".
+    
     Raises:
-        ValueError: If timezone contains unexpected characters
+        ValueError: If the timezone contains disallowed characters or path traversal sequences (e.g., "..").
     """
     if not _TZ_PATH_SAFE_PATTERN.match(tz_str):
         raise ValueError(f"Invalid characters in timezone: {tz_str}")
@@ -230,14 +234,23 @@ def _sanitize_tz_for_path(tz_str: str) -> str:
 
 def _get_template_context(request: Request, ui_lang: str = "en") -> dict:
     """
-    Build common template context with translations and shared data.
-
-    Args:
-        request: FastAPI request object
-        ui_lang: UI language code (en or cs)
-
+    Builds the shared Jinja2 template context used by HTML views.
+    
+    Parameters:
+        request (fastapi.Request): The incoming request object included in the template context.
+        ui_lang (str): UI language code, typically "en" or "cs", used to select translations and language flags.
+    
     Returns:
-        Dictionary with common template context
+        dict: Context dictionary containing:
+            - request: the FastAPI request
+            - ui_lang: selected language code
+            - lang_selected_en / lang_selected_cs: "selected" marker for language dropdown
+            - umami_script: analytics script tag
+            - t: translator object for page-specific translations
+            - nav: common navigation labels (nav_home, nav_stats, nav_api, nav_privacy, nav_changelog)
+            - site_url: configured site URL without a trailing slash
+            - format_bytes: helper to format byte sizes
+            - calc_percent: helper to calculate percentages
     """
     t = get_translator(ui_lang)
 
@@ -1198,16 +1211,18 @@ def _get_team_id(team_name: str) -> str | None:
 
 def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
     """
-    Convert race schedule times to a different timezone.
-
-    The race_data contains ISO datetime strings that we can parse and convert.
-
-    Args:
-        race_data: Race data dictionary with schedule
-        target_tz_str: Target timezone string (e.g., 'America/New_York')
-
+    Convert all schedule times in `race_data` to the specified timezone.
+    
+    Parses ISO datetime strings found in `race_data["schedule"]`, converts each to `target_tz_str`, and updates each event's `datetime` (ISO string) and `display_time` (e.g., "Mon 14:30"). Also updates `race_date` from the event named "Race" using the target timezone and sets the top-level `timezone` field to `target_tz_str`. The function returns a deep-copied dict and does not modify the input.
+    
+    If `target_tz_str` is unknown, the original `race_data` is returned unchanged and a warning is logged. If an individual event's datetime cannot be parsed, that event is left unchanged and a warning is logged.
+     
+    Parameters:
+        race_data (dict): Race data containing a "schedule" list of events with ISO `datetime` strings.
+        target_tz_str (str): Timezone identifier (e.g., "Europe/Prague") to convert times into.
+    
     Returns:
-        Race data with converted schedule times
+        dict: A copy of `race_data` with converted schedule times, updated `race_date`, and `timezone` set to `target_tz_str`.
     """
     try:
         target_tz = pytz.timezone(target_tz_str)
@@ -1256,7 +1271,9 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
 
 
 def clear_bmp_cache() -> None:
-    """Clear the BMP image cache. Called by scheduler after regeneration."""
+    """
+    Clear the in-memory BMP render cache.
+    """
     _bmp_cache.clear()
     logger.info("BMP cache cleared")
 
@@ -1274,6 +1291,27 @@ async def get_calendar_bmp(
     ),
     f1_service: F1Service = Depends(get_f1_service),
 ):
+    """
+    Generate and return an 800x480 BMP image of the F1 calendar (next race or a specific race) localized and optionally including weather.
+    
+    Generates a calendar BMP for the requested language and selection. If year and round are provided, the specific race is rendered; otherwise the next race is used. Responses may be served from an in-memory cache, a pre-generated file for the next race, or rendered on-the-fly. On error the endpoint returns a BMP image containing an error message.
+    
+    Parameters:
+    	 request (Request): Incoming FastAPI request (used for headers/analytics).
+    	 lang (str): Language code ("en" or "cs"); falls back to the default if unsupported.
+    	 year (int | None): Season year to render; when omitted, the next scheduled race is used.
+    	 race_round (int | None): Round number within a season; when omitted with year, behaves like next race.
+    	 tz (str | None): Target timezone for race times; when omitted the default timezone is used.
+    	 weather (bool): Whether to include weather data in the rendered image.
+    	 weather_type (str): Weather type selection (e.g., "current" or "race_day").
+    	 f1_service (F1Service): Injected service used to read static race data (omitted from detailed param docs intentionally).
+    
+    Returns:
+    	StreamingResponse: A response whose body is the BMP image bytes and headers appropriate for inline display.
+    
+    Raises:
+    	HTTPException: Raised with status 400 for invalid timezone values or detected unsafe image path keys.
+    """
     start_time = time.time()
 
     # Extract headers for analytics

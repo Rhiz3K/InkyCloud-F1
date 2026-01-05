@@ -327,6 +327,11 @@ class TestCircuitWeatherCache:
 
     @pytest.fixture(autouse=True)
     def clear_cache(self):
+        """
+        Clears the circuit weather cache before and after a test runs.
+        
+        This fixture ensures each test executes with a clean cache state by clearing the circuit weather cache prior to the test and again after the test completes.
+        """
         clear_circuit_weather_cache()
         yield
         clear_circuit_weather_cache()

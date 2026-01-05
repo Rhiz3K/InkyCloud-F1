@@ -79,6 +79,14 @@ class WeatherService:
         self.cache_minutes = cache_minutes
 
     async def get_current_weather(self, lat: float, lon: float) -> Optional[WeatherData]:
+        """
+        Retrieve current weather for the specified latitude and longitude, using an internal cache.
+        
+        On a cache miss the function requests current conditions from the weather API and stores a successful result in the in-memory cache. Coordinates outside valid ranges will cause the function to return None.
+        
+        Returns:
+            WeatherData if data was obtained (from cache or API), `None` if coordinates are invalid, the API request fails (including timeouts or HTTP errors), or no data is available.
+        """
         cache_key = f"current_{round(lat, 2)}_{round(lon, 2)}"
         cached = self._get_cached(cache_key)
         if cached is not None:
@@ -106,6 +114,17 @@ class WeatherService:
             return None
 
     async def _fetch_current_weather(self, lat: float, lon: float) -> Optional[WeatherData]:
+        """
+        Fetches current weather for the given coordinates from the Open-Meteo API and returns a WeatherData instance.
+        
+        Parameters:
+            lat (float): Latitude in decimal degrees.
+            lon (float): Longitude in decimal degrees.
+        
+        Returns:
+            WeatherData: Current weather containing `temperature_c`, `weather_code`, and `precipitation_probability`.
+                If the API response omits values, defaults are used: temperature 20.0°C, weather code 0, precipitation probability 0.
+        """
         params: dict[str, str | int | float] = {
             "latitude": round(lat, 2),
             "longitude": round(lon, 2),
@@ -186,6 +205,18 @@ class WeatherService:
         race_datetime: datetime,
         days_ahead: int,
     ) -> Optional[WeatherData]:
+        """
+        Fetch hourly forecast around a target race datetime from Open-Meteo and return weather for the exact hour or the first entry on the same day.
+        
+        Parameters:
+            lat (float): Latitude of the location.
+            lon (float): Longitude of the location.
+            race_datetime (datetime): Target datetime for the race; used to match an exact hour (YYYY-MM-DDTHH:00) or any entry on the same calendar day.
+            days_ahead (int): Number of days from now to include in the forecast; used to compute the `forecast_days` query (capped at 16).
+        
+        Returns:
+            WeatherData | None: A WeatherData instance for the matching hour or day, or `None` if the API returns no hourly data or no matching time entry is found.
+        """
         params: dict[str, str | int | float] = {
             "latitude": round(lat, 2),
             "longitude": round(lon, 2),
@@ -245,6 +276,11 @@ class WeatherService:
 
 
 def clear_weather_cache() -> None:
+    """
+    Clear the in-memory weather cache used for storing fetched WeatherData.
+    
+    Removes all cached entries so subsequent requests will fetch fresh data.
+    """
     _weather_cache.clear()
 
 
@@ -255,45 +291,40 @@ def clear_weather_cache() -> None:
 
 def get_cached_circuit_weather(circuit_id: str) -> Optional[WeatherData]:
     """
-    Get pre-fetched weather from in-memory cache.
-
-    This is populated by the scheduler every hour.
-    Falls back to None if not found (renderer will display without weather).
-
-    Args:
-        circuit_id: Circuit identifier (e.g., "albert_park")
-
+    Retrieve pre-fetched weather for a circuit from the in-memory cache.
+    
+    This cache is populated periodically by an external scheduler; if no entry exists for the given circuit_id, returns None.
+    
+    Parameters:
+        circuit_id (str): Circuit identifier (e.g., "albert_park")
+    
     Returns:
-        WeatherData or None
+        WeatherData or None: The cached WeatherData for the circuit, or `None` if not found.
     """
     return _circuit_weather_cache.get(circuit_id)
 
 
 def set_cached_circuit_weather(circuit_id: str, data: WeatherData) -> None:
     """
-    Update in-memory cache with weather data.
-
-    Called by scheduler after fetching weather from API.
-
-    Args:
-        circuit_id: Circuit identifier
-        data: WeatherData to cache
+    Store WeatherData for a circuit ID in the in-memory circuit weather cache.
+    
+    Parameters:
+        circuit_id (str): Identifier of the circuit to associate with the weather data.
+        data (WeatherData): WeatherData instance to store; overwrites any existing entry for the circuit.
     """
     _circuit_weather_cache[circuit_id] = data
 
 
 def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
     """
-    Bulk load weather data into in-memory cache.
-
-    Used on startup to restore cache from SQLite.
-
-    Args:
-        weather_dict: Dict mapping circuit_id to weather data dict
-                     (from Database.load_all_circuit_weather)
-
+    Load multiple circuit weather entries into the in-memory circuit weather cache.
+    
+    Parameters:
+        weather_dict (dict[str, dict]): Mapping of circuit_id to weather data dict (expected keys:
+            "temperature_c", "weather_code", "precipitation_probability"), typically sourced from persistent storage.
+    
     Returns:
-        Number of circuits loaded
+        int: Number of circuits successfully loaded into the cache.
     """
     count = 0
     for circuit_id, data in weather_dict.items():
@@ -311,5 +342,9 @@ def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
 
 
 def clear_circuit_weather_cache() -> None:
-    """Clear the circuit weather cache."""
+    """
+    Clear the in-memory cache of pre-fetched circuit weather data.
+    
+    This removes all entries stored in the module-level circuit weather cache so subsequent reads will miss until data is repopulated.
+    """
     _circuit_weather_cache.clear()
