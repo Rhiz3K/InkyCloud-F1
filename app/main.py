@@ -4,6 +4,7 @@ import asyncio
 import logging
 import mimetypes
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -197,6 +198,34 @@ def _calc_percent(value: int, total: int) -> float:
     if total == 0:
         return 0
     return round((value / total) * 100, 1)
+
+
+# Regex pattern for valid timezone characters (letters, digits, slash, underscore, plus, minus)
+_TZ_PATH_SAFE_PATTERN = re.compile(r"^[A-Za-z0-9/_+-]+$")
+
+
+def _sanitize_tz_for_path(tz_str: str) -> str:
+    """
+    Sanitize a timezone string for safe use in file paths.
+
+    This validates that the timezone only contains expected characters
+    and replaces "/" with "_" for filesystem compatibility.
+
+    Args:
+        tz_str: Timezone string (e.g., "America/New_York")
+
+    Returns:
+        Path-safe string (e.g., "America_New_York")
+
+    Raises:
+        ValueError: If timezone contains unexpected characters
+    """
+    if not _TZ_PATH_SAFE_PATTERN.match(tz_str):
+        raise ValueError(f"Invalid characters in timezone: {tz_str}")
+    # Check for path traversal attempts
+    if ".." in tz_str:
+        raise ValueError(f"Path traversal attempt in timezone: {tz_str}")
+    return tz_str.replace("/", "_")
 
 
 def _get_template_context(request: Request, ui_lang: str = "en") -> dict:
@@ -1357,9 +1386,15 @@ async def get_calendar_bmp(
         use_pregenerated = not year and not race_round and not (weather and config.WEATHER_ENABLED)
         if use_pregenerated:
             # Build image key based on lang and optional tz
+            # Use sanitizer to ensure timezone is safe for path use
             target_tz_for_key = tz or config.DEFAULT_TIMEZONE
+            try:
+                tz_safe = _sanitize_tz_for_path(target_tz_for_key)
+            except ValueError as e:
+                logger.error(f"Invalid timezone for path: {e}")
+                raise HTTPException(status_code=400, detail="Invalid timezone") from e
+
             if target_tz_for_key != config.DEFAULT_TIMEZONE:
-                tz_safe = target_tz_for_key.replace("/", "_")
                 image_key = f"calendar_{lang}_{tz_safe}"
             else:
                 image_key = f"calendar_{lang}"
