@@ -336,12 +336,14 @@ class TestCircuitWeatherCache:
         yield
         clear_circuit_weather_cache()
 
-    def test_get_cached_circuit_weather_not_found(self):
+    @staticmethod
+    def test_get_cached_circuit_weather_not_found():
         """Test that missing circuit returns None."""
         result = get_cached_circuit_weather("nonexistent_circuit")
         assert result is None
 
-    def test_set_and_get_cached_circuit_weather(self):
+    @staticmethod
+    def test_set_and_get_cached_circuit_weather():
         """Test setting and retrieving circuit weather."""
         weather = WeatherData(
             temperature_c=25.0,
@@ -356,7 +358,8 @@ class TestCircuitWeatherCache:
         assert result.weather_code == 0
         assert result.precipitation_probability == 10
 
-    def test_set_overwrites_existing(self):
+    @staticmethod
+    def test_set_overwrites_existing():
         """Test that setting same circuit overwrites previous value."""
         weather1 = WeatherData(temperature_c=20.0, weather_code=0, precipitation_probability=0)
         weather2 = WeatherData(temperature_c=30.0, weather_code=61, precipitation_probability=80)
@@ -368,7 +371,8 @@ class TestCircuitWeatherCache:
         assert result.temperature_c == 30.0
         assert result.weather_code == 61
 
-    def test_load_circuit_weather_to_cache(self):
+    @staticmethod
+    def test_load_circuit_weather_to_cache():
         """Test bulk loading weather data from dict."""
         weather_dict = {
             "albert_park": {
@@ -394,7 +398,8 @@ class TestCircuitWeatherCache:
         assert monaco is not None
         assert monaco.temperature_c == 28.0
 
-    def test_load_circuit_weather_with_defaults(self):
+    @staticmethod
+    def test_load_circuit_weather_with_defaults():
         """Test bulk loading with missing fields uses defaults."""
         weather_dict = {
             "silverstone": {},  # All fields missing
@@ -415,7 +420,8 @@ class TestCircuitWeatherCache:
         assert spa.temperature_c == 18.0
         assert spa.weather_code == 0  # Default
 
-    def test_load_circuit_weather_skips_invalid(self):
+    @staticmethod
+    def test_load_circuit_weather_skips_invalid():
         """Test that invalid data is skipped gracefully."""
         weather_dict = {
             "valid": {"temperature_c": 25.0, "weather_code": 0, "precipitation_probability": 10},
@@ -429,7 +435,8 @@ class TestCircuitWeatherCache:
         valid = get_cached_circuit_weather("valid")
         assert valid is not None
 
-    def test_clear_circuit_weather_cache(self):
+    @staticmethod
+    def test_clear_circuit_weather_cache():
         """Test clearing the circuit weather cache."""
         weather = WeatherData(temperature_c=25.0, weather_code=0, precipitation_probability=10)
         set_cached_circuit_weather("test_circuit", weather)

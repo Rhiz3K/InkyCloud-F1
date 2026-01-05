@@ -15,7 +15,8 @@ class TestCircuitWeatherDatabase:
         """Create a fresh database instance for each test."""
         return Database()
 
-    def test_save_and_get_circuit_weather(self, db):
+    @staticmethod
+    def test_save_and_get_circuit_weather(db):
         """Test saving and retrieving circuit weather."""
 
         async def run_test():
@@ -36,7 +37,8 @@ class TestCircuitWeatherDatabase:
 
         asyncio.run(run_test())
 
-    def test_get_circuit_weather_not_found(self, db):
+    @staticmethod
+    def test_get_circuit_weather_not_found(db):
         """Test that missing circuit returns None."""
 
         async def run_test():
@@ -45,7 +47,8 @@ class TestCircuitWeatherDatabase:
 
         asyncio.run(run_test())
 
-    def test_save_circuit_weather_upsert(self, db):
+    @staticmethod
+    def test_save_circuit_weather_upsert(db):
         """Test that saving same circuit updates the data."""
 
         async def run_test():
@@ -75,7 +78,8 @@ class TestCircuitWeatherDatabase:
 
         asyncio.run(run_test())
 
-    def test_load_all_circuit_weather_empty(self, db):
+    @staticmethod
+    def test_load_all_circuit_weather_empty(db):
         """Test loading all weather when database is empty."""
 
         async def run_test():
@@ -85,7 +89,8 @@ class TestCircuitWeatherDatabase:
 
         asyncio.run(run_test())
 
-    def test_load_all_circuit_weather(self, db):
+    @staticmethod
+    def test_load_all_circuit_weather(db):
         """Test loading all circuit weather data."""
 
         async def run_test():
