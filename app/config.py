@@ -117,15 +117,17 @@ class Config(BaseSettings):
         """
         Validate and normalize a port value from configuration.
 
-        If `info.field_name` is None, returns 8000. Otherwise, attempts to parse `value` as an integer and ensure it is greater than 0 and less than 65536. On success returns the parsed port; on failure logs a warning and returns the field's configured default.
+        If `info.field_name` is None, returns 8000. Otherwise, attempts to parse
+        `value` as an integer in range 1-65535. On success returns the parsed
+        port; on failure logs a warning and returns the field's default.
 
         Parameters:
             cls: The Config class (used to access the field default).
             value: The raw value to validate (typically from environment).
-            info (ValidationInfo): Validator context; `info.field_name` selects the field default.
+            info: Validator context; `info.field_name` selects the field default.
 
         Returns:
-            int: The validated port number, or the field default if `value` is invalid.
+            int: The validated port number, or the field default if invalid.
         """
         if info.field_name is None:
             return 8000
@@ -144,14 +146,16 @@ class Config(BaseSettings):
         """
         Validate and coerce a configured request timeout into a positive integer.
 
-        If the validator is invoked without a field name, returns 10. If `value` can be converted to an integer greater than 0, that integer is returned; otherwise the configured field default is returned after logging a warning.
+        If the validator is invoked without a field name, returns 10. If `value`
+        can be converted to an integer > 0, that integer is returned; otherwise
+        the configured field default is returned after logging a warning.
 
         Parameters:
             value: The raw value to validate (may be any type).
-            info: Validation metadata; if `info.field_name` is None a fallback of 10 is used.
+            info: Validation metadata; if `info.field_name` is None, uses 10.
 
         Returns:
-            An integer timeout in seconds (the provided positive integer or the field's default).
+            An integer timeout in seconds (positive integer or field default).
         """
         if info.field_name is None:
             return 10
@@ -208,11 +212,11 @@ class Config(BaseSettings):
         Validate and coerce a retention-days setting to a non-negative integer.
 
         Parameters:
-            value (object): Raw input to validate and convert to an integer.
-            info (ValidationInfo): Validator context; used to determine the field name and default value. If `info.field_name` is None, a default of 30 is used.
+            value: Raw input to validate and convert to an integer.
+            info: Validator context for field name and default. Falls back to 30.
 
         Returns:
-            int: The parsed integer if it is greater than or equal to zero; otherwise the field's configured default (or 30 when `info.field_name` is None) after logging a warning.
+            int: Parsed integer >= 0, or field default after logging a warning.
         """
         if info.field_name is None:
             return 30

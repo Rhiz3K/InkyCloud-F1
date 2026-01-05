@@ -864,14 +864,15 @@ class Renderer:
 
     def _draw_f1_logo(self, image: Image.Image, width: int, height: int) -> None:
         """
-        Render the F1 logo centered within the specified header area of the given image.
+        Render the F1 logo centered in the header area.
 
-        Attempts to load the bundled F1 logo asset, scale it to fit the provided width/height with minimal padding, convert it to a 1-bit image, and paste it centered into the supplied image. If the logo file is missing or cannot be loaded, a warning is logged and the image is left unmodified.
+        Loads, scales to fit, converts to 1-bit, and pastes centered. Logs
+        warning if logo missing.
 
         Parameters:
-            image (PIL.Image.Image): Destination image where the logo will be pasted.
-            width (int): Width of the header area available for the logo.
-            height (int): Height of the header area available for the logo.
+            image: Destination image for the logo.
+            width: Header area width.
+            height: Header area height.
         """
         logo_path = IMAGES_DIR / "eInkF1logo.jpg"
 
@@ -1134,16 +1135,16 @@ class Renderer:
         weather_data: WeatherData | None = None,
     ) -> int:
         """
-        Draws a centered countdown box in the right column showing time until the race and optional weather, and returns the bottom Y coordinate of the drawn box.
+        Draw countdown box showing time until race and optional weather.
 
         Parameters:
-            draw (ImageDraw.ImageDraw): Pillow drawing context used to render shapes and text.
-            race_data (dict): Race information containing a "schedule" list of events; each event should have a "name" (e.g., "Race") and a "datetime" (ISO string or datetime object).
-            schedule_bottom (int): Y coordinate below the schedule area; the countdown box will be placed between this value and the circuit-stats area.
-            weather_data (WeatherData | None): Optional weather summary with attributes `icon` (str), `temp_display` (str), and `precip_display` (str); when provided, weather icon, temperature, and precipitation are rendered on the right side of the box.
+            draw: Pillow drawing context.
+            race_data: Race info with "schedule" list of events.
+            schedule_bottom: Y coordinate below schedule area.
+            weather_data: Optional weather with icon, temp, precipitation.
 
         Returns:
-            int: The bottom Y coordinate of the drawn countdown box. If no upcoming race datetime is found or the race time is in the past, returns the original `schedule_bottom` unchanged.
+            Bottom Y of drawn box, or schedule_bottom if no upcoming race.
         """
         schedule = race_data.get("schedule", [])
         race_dt = None
@@ -1237,14 +1238,12 @@ class Renderer:
         schedule_bottom: int,
     ) -> None:
         """
-        Render circuit-specific statistic lines (length/laps, fastest lap, first Grand Prix) aligned under the results area.
-
-        Looks up circuit details via CIRCUIT_ID_MAP and CIRCUITS_DATA and, if any stats are present, right-aligns a compact icon + text block beneath the results header area. Uses the renderer's fonts and translator for localized labels and returns immediately if no circuit stats are available.
+        Render circuit stats (length, laps, fastest lap, first GP) under results.
 
         Parameters:
-            draw (ImageDraw.ImageDraw): Pillow drawing context used to measure and draw text.
-            race_data (dict): Race metadata containing a "circuit" object with a "circuitId" key; used to map into CIRCUITS_DATA.
-            schedule_bottom (int): Y coordinate of the bottom of the schedule area (unused directly by this implementation but provided for layout context).
+            draw: Pillow drawing context.
+            race_data: Race metadata with circuit.circuitId.
+            schedule_bottom: Y coordinate below schedule (for layout context).
         """
         circuit_id = race_data.get("circuit", {}).get("circuitId", "")
         mapped_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
@@ -1386,19 +1385,17 @@ class Renderer:
         country_name: str,
     ) -> int:
         """
-        Render the results section header by drawing the centered year and an optional country flag.
-
-        Draws the season year centered in the left results header area and, if a matching flag bitmap is found in the flags directory, pastes that flag near the bottom of the header and draws a 1px border around it.
+        Render results header with centered year and optional country flag.
 
         Parameters:
-            draw (ImageDraw.ImageDraw): Draw context used for text and shapes.
-            image (Image.Image): Image onto which the flag is pasted.
-            y_start (int): Y coordinate where the results footer area begins.
-            season (int | str): Year or season label to render as the header text.
-            country_name (str): Country name used to resolve a two-letter flag file (falls back to simple heuristics if no direct mapping is found).
+            draw: Draw context for text/shapes.
+            image: Image for flag paste.
+            y_start: Y where results footer begins.
+            season: Year or season label.
+            country_name: Country for flag lookup.
 
         Returns:
-            int: Y coordinate (visual top) where the results columns should be aligned.
+            Y coordinate where results columns should align.
         """
         year_text = str(season)
         year_font = self.fonts["results_year"]
@@ -1574,12 +1571,10 @@ class Renderer:
 
     def _load_driver_photos(self) -> dict[str, Image.Image]:
         """
-        Load driver silhouette images from the assets/drivers folder and convert them to 1-bit masks.
-
-        Images are returned in a dictionary keyed by the file stem in lowercase (e.g., "hamilton" for "hamilton.png"). If the drivers directory does not exist the function returns an empty dict. Images with an alpha channel are converted to 1-bit by treating pixels with alpha > 128 as opaque; other images are converted directly to 1-bit. Individual file load or conversion failures are logged and those files are skipped.
+        Load driver silhouettes from assets/drivers and convert to 1-bit masks.
 
         Returns:
-            dict[str, Image.Image]: Mapping from lowercase filename stem to a 1-bit PIL Image containing the driver silhouette.
+            dict mapping lowercase filename stem to 1-bit PIL Image.
         """
         drivers_dir = IMAGES_DIR / "drivers"
         photos: dict[str, Image.Image] = {}
@@ -1611,12 +1606,10 @@ class Renderer:
 
     def _load_team_logos(self) -> dict[str, Image.Image]:
         """
-        Load team logo images from the assets images/teams directory and return them as 1-bit, cropped Pillow images keyed by filename stem.
-
-        The function scans IMAGES_DIR/"teams" for PNG files, converts each found image to 1-bit mode if necessary, crops it to its non-empty content, and stores it in the returned dictionary using the lowercase filename stem as the key. Files that fail to load are skipped and a warning is logged.
+        Load team logos from assets/teams as 1-bit cropped images.
 
         Returns:
-            dict[str, Image.Image]: Mapping from lowercase filename stem (team key) to the processed 1-bit Pillow Image.
+            dict mapping lowercase filename stem to 1-bit PIL Image.
         """
         teams_dir = IMAGES_DIR / "teams"
         logos: dict[str, Image.Image] = {}

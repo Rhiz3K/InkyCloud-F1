@@ -25,6 +25,7 @@ from app.services.weather_service import (
     load_circuit_weather_to_cache,
     set_cached_circuit_weather,
 )
+from app.state import clear_bmp_cache, get_and_clear_api_calls_buffer
 
 logger = logging.getLogger(__name__)
 
@@ -111,15 +112,15 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
 
 def _bmp_to_png(bmp_data: bytes, width: int = 400, full_size: bool = False) -> bytes:
     """
-    Convert BMP image data to PNG bytes suitable for web previews.
+    Convert BMP image data to PNG bytes for web previews.
 
     Parameters:
-        bmp_data (bytes): Raw BMP image data.
-        width (int): Target width in pixels when resizing; height is adjusted to maintain aspect ratio.
-        full_size (bool): If True, preserve the original image size and skip resizing.
+        bmp_data: Raw BMP image data.
+        width: Target width (height scales proportionally).
+        full_size: If True, skip resizing.
 
     Returns:
-        bytes: PNG image data.
+        PNG image data as bytes.
     """
     img_file = Image.open(BytesIO(bmp_data))
 
@@ -317,12 +318,7 @@ async def collect_and_generate() -> None:
         await db.set_cache_meta("last_generation", datetime.now(timezone.utc).isoformat())
 
         # Clear in-memory BMP cache after regeneration
-        try:
-            from app.main import clear_bmp_cache
-
-            clear_bmp_cache()
-        except ImportError:
-            pass  # Cache not available (e.g., during tests)
+        clear_bmp_cache()
 
         # Cleanup old hourly stats (keep 30 days) - legacy table
         await db.cleanup_old_stats(days=30)
@@ -344,30 +340,22 @@ async def flush_api_calls_to_db() -> None:
     the in-memory buffer to the database.
     """
     try:
-        from app.main import get_and_clear_api_calls_buffer
-
         calls = get_and_clear_api_calls_buffer()
         if calls:
             db = Database()
             count = await db.save_api_calls_batch(calls)
             logger.debug(f"Flushed {count} API calls to database")
-    except ImportError:
-        pass  # Buffer not available (e.g., during tests)
     except Exception as e:
         logger.error(f"Error flushing API calls: {e}", exc_info=True)
 
 
 async def fetch_all_circuits_weather() -> None:
     """
-    Fetch current weather for all F1 circuits, cache each circuit's weather in memory, and persist results to the database.
+    Fetch weather for all F1 circuits, cache in memory, and persist to DB.
 
-    This job:
-    - Iterates unique circuits from the current (or next) season, skipping circuits without coordinates.
-    - Fetches current weather for each circuit sequentially with a 1-second pause between requests.
-    - Stores successful results in the in-memory cache and in SQLite.
-    - Retries failed circuits up to 10 total attempts per circuit; logs any circuits that remain failed after all attempts.
-
-    If weather fetching is disabled via configuration, the function returns immediately.
+    Iterates circuits from current season, fetches weather sequentially with
+    1s pause, stores in cache and SQLite. Retries failed circuits up to 10x.
+    Returns immediately if weather is disabled.
     """
     if not config.WEATHER_ENABLED:
         logger.debug("Weather is disabled, skipping fetch")
@@ -550,9 +538,9 @@ async def load_weather_from_db() -> None:
 
 def _run_backup() -> None:
     """
-    Trigger a configured database backup to S3.
+    Trigger database backup to S3 if configured.
 
-    If backup is not configured, the function returns without action. When configured, it invokes the backup procedure synchronously.
+    Returns immediately if backup not configured.
     """
     from app.services.backup import is_backup_configured, perform_backup
 
@@ -614,16 +602,11 @@ def _register_backup_job(sched: AsyncIOScheduler) -> None:
 
 def start_scheduler() -> None:
     """
-    Initialize, configure, and start the global background scheduler.
+    Initialize and start the background scheduler with all jobs.
 
-    Registers and starts the module-level AsyncIOScheduler with these jobs:
-    - hourly image generation from static data at minute :00,
-    - per-minute flush of the API calls buffer at second :00,
-    - optional hourly weather fetch for all circuits at minute :55 when weather is enabled,
-    - optional S3 backup job if backup is configured,
-    - refresh of version info daily at 00:05.
-
-    If the scheduler is disabled via configuration or already running, the function returns without starting a new scheduler.
+    Jobs: hourly image gen (:00), API flush (every min), weather (:55 if
+    enabled), backup (if configured), version refresh (00:05 daily).
+    Returns if scheduler disabled or already running.
     """
     global scheduler
 
@@ -697,9 +680,9 @@ def stop_scheduler() -> None:
 
 async def run_initial_generation() -> None:
     """
-    Perform startup initialization by loading cached weather, fetching fresh weather, generating images, and refreshing version info.
+    Perform startup: load weather, fetch fresh weather, generate images, refresh version.
 
-    This ensures weather data is available before image generation so generated previews include current weather; failures in individual steps are logged but do not stop subsequent steps.
+    Failures in individual steps are logged but don't stop subsequent steps.
     """
     logger.info("Running initial generation from static data")
 

@@ -153,13 +153,13 @@ def perform_backup() -> bool:
 
 def cleanup_old_backups(s3_client=None) -> int:
     """
-    Delete backup objects in the configured S3 bucket that are older than the configured retention period.
+    Delete backups older than the configured retention period.
 
     Parameters:
-        s3_client: Optional boto3 S3 client to use; if None, a client is created via _get_s3_client().
+        s3_client: Optional boto3 S3 client; if None, creates one via _get_s3_client().
 
     Returns:
-        Number of backups deleted. Returns 0 if retention is disabled or an S3 client could not be obtained.
+        Number of backups deleted. Returns 0 if retention disabled or no client.
     """
     if config.BACKUP_RETENTION_DAYS <= 0:
         logger.debug("Backup retention disabled (BACKUP_RETENTION_DAYS=0)")
@@ -218,14 +218,8 @@ def get_backup_config_info() -> dict[str, Any]:
     Return non-sensitive backup configuration details.
 
     Returns:
-        dict[str, Any]: Mapping containing:
-            - enabled (bool): Whether backups are enabled.
-            - endpoint (str): S3 endpoint URL or "(not configured)".
-            - bucket (str): S3 bucket name or "(not configured)".
-            - region (str | None): S3 region value from configuration.
-            - schedule (str | None): Cron schedule configured for backups.
-            - retention_days (int): Number of days to retain backups.
-            - credentials_configured (bool): True if both access key and secret are configured, False otherwise.
+        dict with enabled, endpoint, bucket, region, schedule, retention_days,
+        and credentials_configured fields.
     """
     return {
         "enabled": config.BACKUP_ENABLED,
@@ -240,18 +234,11 @@ def get_backup_config_info() -> dict[str, Any]:
 
 def test_s3_connection() -> dict[str, Any]:
     """
-    Check the S3-compatible storage configuration and perform connectivity and permission tests.
-
-    Performs a bucket head request and a small write/delete to verify credentials, bucket accessibility, and write permissions, and measures latency.
+    Test S3 connectivity, credentials, and write permissions.
 
     Returns:
-        dict[str, Any]: Test results with keys:
-            - success (bool): `True` if all tests passed, `False` otherwise.
-            - credentials_valid (bool): `True` if provided credentials were accepted.
-            - bucket_accessible (bool): `True` if the configured bucket exists and is reachable.
-            - write_permission (bool): `True` if an object can be written and deleted in the bucket.
-            - latency_ms (float | None): Round-trip time in milliseconds for the connectivity tests, or `None` if not measured.
-            - error (str | None): Error message when a test fails, otherwise `None`.
+        dict with success, credentials_valid, bucket_accessible, write_permission,
+        latency_ms, and error fields.
     """
     import time
 
@@ -328,19 +315,11 @@ def test_s3_connection() -> dict[str, Any]:
 
 def get_bucket_stats() -> dict[str, Any]:
     """
-    Retrieve statistics and metadata for backup objects stored in the configured S3 bucket.
+    Retrieve backup statistics from the configured S3 bucket.
 
     Returns:
-        dict: A mapping with the following keys:
-            - backup_count (int): Number of backup objects found.
-            - total_size_bytes (int): Sum of sizes for all backups in bytes.
-            - oldest_backup (str | None): Filename (without prefix/suffix) of the oldest backup, or `None` if none exist.
-            - newest_backup (str | None): Filename (without prefix/suffix) of the newest backup, or `None` if none exist.
-            - backups (list[dict]): List of backups with each item containing:
-                - name (str): Object key in the bucket.
-                - size (int): Object size in bytes.
-                - date (str): Last modified timestamp formatted as "YYYY-MM-DD HH:MM:SS UTC".
-            - error (str | None): Error message if an error occurred, otherwise `None`.
+        dict with backup_count, total_size_bytes, oldest_backup, newest_backup,
+        backups list, and error fields.
     """
     result: dict[str, Any] = {
         "backup_count": 0,
@@ -403,15 +382,10 @@ def get_bucket_stats() -> dict[str, Any]:
 
 def perform_backup_with_details() -> dict[str, Any]:
     """
-    Perform a backup of the configured database to the S3-compatible endpoint and return details about the operation.
+    Perform a database backup to S3 and return operation details.
 
     Returns:
-        result (dict[str, Any]): Dictionary with the operation outcome and metadata:
-            - success (bool): `True` if the backup and upload succeeded, `False` otherwise.
-            - filename (str | None): The uploaded backup filename on the bucket, or `None` on failure.
-            - size_bytes (int | None): Size in bytes of the uploaded file, or `None` on failure.
-            - deleted_count (int): Number of old backups deleted according to retention policy.
-            - error (str | None): Error message if the operation failed, otherwise `None`.
+        dict with success, filename, size_bytes, deleted_count, and error fields.
     """
     result: dict[str, Any] = {
         "success": False,

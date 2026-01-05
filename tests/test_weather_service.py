@@ -330,7 +330,7 @@ class TestCircuitWeatherCache:
         """
         Clears the circuit weather cache before and after a test runs.
 
-        This fixture ensures each test executes with a clean cache state by clearing the circuit weather cache prior to the test and again after the test completes.
+        Ensures each test executes with a clean cache state.
         """
         clear_circuit_weather_cache()
         yield

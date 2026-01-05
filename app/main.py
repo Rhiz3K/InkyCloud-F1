@@ -14,7 +14,6 @@ from urllib.parse import urlencode
 
 import pytz
 import sentry_sdk
-from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import (
     FileResponse,
@@ -43,18 +42,15 @@ from app.services.scheduler import (
 from app.services.teams_service import TeamsService
 from app.services.version_service import get_cached_version, refresh_version_info
 from app.services.weather_service import get_cached_circuit_weather
+from app.state import (
+    get_bmp_cache,
+    record_api_call,
+)
 
 # Register font MIME types (Python's mimetypes doesn't know TTF by default)
 mimetypes.add_type("font/ttf", ".ttf")
 mimetypes.add_type("font/woff", ".woff")
 mimetypes.add_type("font/woff2", ".woff2")
-
-# In-memory cache for rendered BMP images
-# TTL of 1 hour (3600 seconds), max 100 entries
-_bmp_cache: TTLCache = TTLCache(maxsize=100, ttl=3600)
-
-# Buffer for API calls to be flushed to SQLite every minute
-_api_calls_buffer: list = []
 
 # Configure logging
 logging.basicConfig(
@@ -941,61 +937,6 @@ async def sitemap_xml():
     return Response(content=sitemap_content, media_type="application/xml")
 
 
-def _record_api_call(
-    endpoint: str,
-    response_time_ms: float,
-    response_size_bytes: int,
-    lang: str | None = None,
-    tz: str | None = None,
-    year: int | None = None,
-    round_num: int | None = None,
-    race_name: str | None = None,
-    is_auto_selected: bool = False,
-) -> None:
-    """
-    Record an API call to the buffer for later DB flush.
-
-    Args:
-        endpoint: API endpoint path (e.g., "/calendar.bmp")
-        response_time_ms: Response time in milliseconds
-        response_size_bytes: Size of response in bytes
-        lang: Language parameter (optional)
-        tz: Timezone parameter (optional)
-        year: Season year (optional, for /calendar.bmp)
-        round_num: Round number (optional, for /calendar.bmp)
-        race_name: Race name (optional, for /calendar.bmp)
-        is_auto_selected: Whether "next race" was auto-selected (default False)
-    """
-    call = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "endpoint": endpoint,
-        "response_time_ms": response_time_ms,
-        "response_size_bytes": response_size_bytes,
-        "lang": lang,
-        "tz": tz,
-        "year": year,
-        "round": round_num,
-        "race_name": race_name,
-        "is_auto_selected": 1 if is_auto_selected else 0,
-    }
-    _api_calls_buffer.append(call)
-
-
-def get_and_clear_api_calls_buffer() -> list:
-    """
-    Get all buffered API calls and clear the buffer.
-
-    Used by scheduler to flush calls to database.
-
-    Returns:
-        List of API call dictionaries
-    """
-    global _api_calls_buffer
-    calls = _api_calls_buffer.copy()
-    _api_calls_buffer = []
-    return calls
-
-
 @app.get("/api/stats")
 async def get_stats():
     """Get API request statistics from database."""
@@ -1007,8 +948,8 @@ async def get_stats():
             "avg_response_ms": stats["avg_response_ms"],
             "total_bytes_24h": stats["total_bytes_24h"],
         },
-        "cache_size": len(_bmp_cache),
-        "cache_max_size": _bmp_cache.maxsize,
+        "cache_size": len(get_bmp_cache()),
+        "cache_max_size": get_bmp_cache().maxsize,
     }
 
 
@@ -1270,14 +1211,6 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
     return result
 
 
-def clear_bmp_cache() -> None:
-    """
-    Clear the in-memory BMP render cache.
-    """
-    _bmp_cache.clear()
-    logger.info("BMP cache cleared")
-
-
 @app.get("/calendar.bmp")
 async def get_calendar_bmp(
     request: Request,
@@ -1392,10 +1325,10 @@ async def get_calendar_bmp(
 
         # Check in-memory cache first
         cache_key = _get_cache_key(lang, year, race_round, tz, weather, weather_type)
-        cached_bmp = _bmp_cache.get(cache_key)
+        cached_bmp = get_bmp_cache().get(cache_key)
         if cached_bmp is not None:
             logger.debug(f"Cache hit for {cache_key}")
-            _record_api_call(
+            record_api_call(
                 "/calendar.bmp",
                 (time.time() - start_time) * 1000,
                 len(cached_bmp),
@@ -1449,8 +1382,8 @@ async def get_calendar_bmp(
             if resolved_path.exists():
                 logger.info(f"Serving pre-generated image: {resolved_path}")
                 bmp_data = resolved_path.read_bytes()
-                _bmp_cache[cache_key] = bmp_data
-                _record_api_call(
+                get_bmp_cache()[cache_key] = bmp_data
+                record_api_call(
                     "/calendar.bmp",
                     (time.time() - start_time) * 1000,
                     len(bmp_data),
@@ -1535,7 +1468,7 @@ async def get_calendar_bmp(
             bmp_data = renderer.render_calendar(race_data, historical_data, weather_data)
 
             # Cache the result
-            _bmp_cache[cache_key] = bmp_data
+            get_bmp_cache()[cache_key] = bmp_data
 
         # Update race info from actual rendered data (may have been fetched fresh)
         if race_data:
@@ -1544,7 +1477,7 @@ async def get_calendar_bmp(
             actual_race_name = race_data.get("race_name", actual_race_name)
 
         # Record request with response time and size
-        _record_api_call(
+        record_api_call(
             "/calendar.bmp",
             (time.time() - start_time) * 1000,
             len(bmp_data),
@@ -1582,7 +1515,7 @@ async def get_calendar_bmp(
         # Record request with response time and size (even for errors)
         # Note: is_auto_selected may not be defined if error occurred early
         auto_selected = year is None and race_round is None
-        _record_api_call(
+        record_api_call(
             "/calendar.bmp",
             (time.time() - start_time) * 1000,
             len(bmp_data),
@@ -1624,7 +1557,7 @@ async def get_teams_bmp(
         renderer = Renderer(translator)
         bmp_data = renderer.render_teams_drivers(teams_data)
 
-        _record_api_call(
+        record_api_call(
             "/teams.bmp",
             (time.time() - start_time) * 1000,
             len(bmp_data),
@@ -1653,7 +1586,7 @@ async def get_teams_bmp(
         renderer = Renderer(translator)
         bmp_data = renderer.render_error(str(e))
 
-        _record_api_call(
+        record_api_call(
             "/teams.bmp",
             (time.time() - start_time) * 1000,
             len(bmp_data),

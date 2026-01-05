@@ -425,23 +425,14 @@ class Database:
 
     async def get_stats_for_range(self, hours: int) -> dict:
         """
-        Return aggregated API and usage statistics for the past `hours` hours for dashboard consumption.
+        Return aggregated API/usage statistics for the past N hours.
 
         Parameters:
-            hours (int): Number of hours to look back (e.g., 1, 24, 168, 720).
+            hours: Number of hours to look back (e.g., 1, 24, 168, 720).
 
         Returns:
-            dict: A dictionary containing:
-                total_requests (int): Total number of requests in the range.
-                min_response_ms (float): Minimum response time in milliseconds (rounded to 1 decimal).
-                avg_response_ms (float): Average response time in milliseconds (rounded to 1 decimal).
-                max_response_ms (float): Maximum response time in milliseconds (rounded to 1 decimal).
-                total_bytes (int): Sum of response_size_bytes for the range.
-                endpoints (list[dict]): Top endpoints by request count; each dict has `endpoint` (str) and `count` (int).
-                languages (list[dict]): Request counts by `lang`; each dict has `lang` (str) and `count` (int).
-                timezones (list[dict]): Top time zones by request count; each dict has `tz` (str) and `count` (int).
-                hourly (list[dict]): Hourly counts (up to last 24 hours) for charting; each dict has `hour` (str formatted 'YYYY-MM-DD HH:00') and `count` (int).
-                races (list[dict]): Top races for the `/calendar.bmp` endpoint; each dict has `year` (int|None), `round` (int|None), `race_name` (str), `is_auto_selected` (bool), and `count` (int).
+            dict with total_requests, min/avg/max_response_ms, total_bytes,
+            endpoints, languages, timezones, hourly, and races breakdowns.
         """
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
@@ -875,18 +866,13 @@ class Database:
 
     async def get_perf_trends(self, hours: int = 24) -> dict:
         """
-        Retrieve hourly trends for page performance metrics within the given lookback window.
+        Retrieve hourly trends for page performance metrics.
 
         Parameters:
-            hours (int): Lookback period in hours used to aggregate metrics (default 24).
+            hours: Lookback period in hours (default 24).
 
         Returns:
-            dict: A dictionary with keys:
-                - "hours": list of hour strings in "YYYY-MM-DD HH:00" ascending order.
-                - "lcp": list of average Largest Contentful Paint values (rounded to 0 decimals) or `None` where no data.
-                - "fcp": list of average First Contentful Paint values (rounded to 0 decimals) or `None` where no data.
-                - "ttfb": list of average Time To First Byte values (rounded to 0 decimals) or `None` where no data.
-                - "samples": list of integer sample counts for each hour.
+            dict with hours, lcp, fcp, ttfb (averages or None), and samples lists.
         """
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
@@ -933,16 +919,14 @@ class Database:
         precipitation_probability: int,
     ) -> None:
         """
-        Store or update cached weather for a circuit.
-
-        Inserts a record for the given circuit_id or updates the existing record; sets `fetched_at` to the current UTC timestamp in ISO 8601 format.
+        Store or update cached weather for a circuit (upsert).
 
         Parameters:
             circuit_id: Circuit identifier (e.g., "albert_park").
-            circuit_name: Human-readable circuit name (e.g., "Albert Park").
+            circuit_name: Human-readable circuit name.
             temperature_c: Temperature in degrees Celsius.
-            weather_code: WMO weather code representing the observed condition.
-            precipitation_probability: Precipitation probability as an integer percentage (0–100).
+            weather_code: WMO weather code.
+            precipitation_probability: Probability percentage (0-100).
         """
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
@@ -973,15 +957,14 @@ class Database:
 
     async def get_circuit_weather(self, circuit_id: str) -> Optional[dict]:
         """
-        Retrieve cached weather data for a circuit.
-
-        Returns the cached temperature, weather code, precipitation probability, and the timestamp when the data was fetched. Data is returned regardless of age (may be stale).
+        Retrieve cached weather data for a circuit (may be stale).
 
         Parameters:
-            circuit_id (str): Circuit identifier.
+            circuit_id: Circuit identifier.
 
         Returns:
-            dict: A mapping with keys "temperature_c" (float), "weather_code" (int), "precipitation_probability" (int), and "fetched_at" (ISO 8601 string), or `None` if no record exists.
+            dict with temperature_c, weather_code, precipitation_probability,
+            and fetched_at; or None if not found.
         """
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
@@ -1008,14 +991,9 @@ class Database:
         """
         Load all cached circuit weather records from the database.
 
-        Used on startup to populate an in-memory cache with the latest stored weather for each circuit.
-
         Returns:
-            dict: Mapping of `circuit_id` (str) to a dict with keys:
-                - `temperature_c` (float): temperature in Celsius
-                - `weather_code` (int): provider weather code
-                - `precipitation_probability` (int): precipitation probability as percentage
-                - `fetched_at` (str): UTC ISO8601 timestamp when the data was fetched
+            dict mapping circuit_id to weather data (temperature_c, weather_code,
+            precipitation_probability, fetched_at).
         """
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
