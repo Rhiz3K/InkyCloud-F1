@@ -124,10 +124,10 @@ def _bmp_to_png(bmp_data: bytes, width: int = 400, full_size: bool = False) -> b
     Returns:
         PNG image data as bytes
     """
-    img = Image.open(BytesIO(bmp_data))
+    img_file = Image.open(BytesIO(bmp_data))
 
     # Convert to grayscale for smoother edges (anti-aliasing on resize)
-    img = img.convert("L")
+    img: Image.Image = img_file.convert("L")
 
     if not full_size:
         ratio = width / img.width

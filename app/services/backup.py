@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import sentry_sdk
 
@@ -212,7 +213,7 @@ def cleanup_old_backups(s3_client=None) -> int:
     return deleted_count
 
 
-def get_backup_config_info() -> dict:
+def get_backup_config_info() -> dict[str, Any]:
     """
     Get backup configuration information (without sensitive data).
 
@@ -230,7 +231,7 @@ def get_backup_config_info() -> dict:
     }
 
 
-def test_s3_connection() -> dict:
+def test_s3_connection() -> dict[str, Any]:
     """
     Test S3 connection and return detailed results.
 
@@ -245,7 +246,7 @@ def test_s3_connection() -> dict:
     """
     import time
 
-    result = {
+    result: dict[str, Any] = {
         "success": False,
         "credentials_valid": False,
         "bucket_accessible": False,
@@ -316,7 +317,7 @@ def test_s3_connection() -> dict:
     return result
 
 
-def get_bucket_stats() -> dict:
+def get_bucket_stats() -> dict[str, Any]:
     """
     Get statistics about backups in the S3 bucket.
 
@@ -328,7 +329,7 @@ def get_bucket_stats() -> dict:
         - newest_backup: str or None
         - error: str or None
     """
-    result = {
+    result: dict[str, Any] = {
         "backup_count": 0,
         "total_size_bytes": 0,
         "oldest_backup": None,
@@ -387,7 +388,7 @@ def get_bucket_stats() -> dict:
     return result
 
 
-def perform_backup_with_details() -> dict:
+def perform_backup_with_details() -> dict[str, Any]:
     """
     Perform backup and return detailed results for CLI output.
 
@@ -399,7 +400,7 @@ def perform_backup_with_details() -> dict:
         - deleted_count: int
         - error: str or None
     """
-    result = {
+    result: dict[str, Any] = {
         "success": False,
         "filename": None,
         "size_bytes": None,

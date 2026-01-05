@@ -106,7 +106,7 @@ class WeatherService:
             return None
 
     async def _fetch_current_weather(self, lat: float, lon: float) -> Optional[WeatherData]:
-        params = {
+        params: dict[str, str | int | float] = {
             "latitude": round(lat, 2),
             "longitude": round(lon, 2),
             "current": "temperature_2m,weather_code",
@@ -186,7 +186,7 @@ class WeatherService:
         race_datetime: datetime,
         days_ahead: int,
     ) -> Optional[WeatherData]:
-        params = {
+        params: dict[str, str | int | float] = {
             "latitude": round(lat, 2),
             "longitude": round(lon, 2),
             "hourly": "temperature_2m,weather_code,precipitation_probability",

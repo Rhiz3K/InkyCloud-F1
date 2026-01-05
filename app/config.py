@@ -118,7 +118,7 @@ class Config(BaseSettings):
             return 8000
         default: int = cls.model_fields[info.field_name].default
         try:
-            port = int(value)  # type: ignore[arg-type]
+            port = int(value)  # type: ignore[call-overload]
             if 0 < port < 65536:
                 return port
         except (TypeError, ValueError):
@@ -132,7 +132,7 @@ class Config(BaseSettings):
             return 10
         default: int = cls.model_fields[info.field_name].default
         try:
-            timeout = int(value)  # type: ignore[arg-type]
+            timeout = int(value)  # type: ignore[call-overload]
             if timeout > 0:
                 return timeout
         except (TypeError, ValueError):
@@ -183,7 +183,7 @@ class Config(BaseSettings):
             return 30
         default: int = cls.model_fields[info.field_name].default
         try:
-            days = int(value)  # type: ignore[arg-type]
+            days = int(value)  # type: ignore[call-overload]
             if days >= 0:
                 return days
         except (TypeError, ValueError):

@@ -454,13 +454,22 @@ class Database:
                 (cutoff,),
             ) as cursor:
                 row = await cursor.fetchone()
-                basic_stats = {
-                    "total_requests": row["total_requests"] or 0,
-                    "min_response_ms": round(row["min_ms"], 1) if row["min_ms"] else 0,
-                    "avg_response_ms": round(row["avg_ms"], 1) if row["avg_ms"] else 0,
-                    "max_response_ms": round(row["max_ms"], 1) if row["max_ms"] else 0,
-                    "total_bytes": row["total_bytes"] or 0,
-                }
+                if row:
+                    basic_stats = {
+                        "total_requests": row["total_requests"] or 0,
+                        "min_response_ms": round(row["min_ms"], 1) if row["min_ms"] else 0,
+                        "avg_response_ms": round(row["avg_ms"], 1) if row["avg_ms"] else 0,
+                        "max_response_ms": round(row["max_ms"], 1) if row["max_ms"] else 0,
+                        "total_bytes": row["total_bytes"] or 0,
+                    }
+                else:
+                    basic_stats = {
+                        "total_requests": 0,
+                        "min_response_ms": 0,
+                        "avg_response_ms": 0,
+                        "max_response_ms": 0,
+                        "total_bytes": 0,
+                    }
 
             # Endpoint breakdown
             async with conn.execute(

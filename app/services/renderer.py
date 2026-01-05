@@ -871,23 +871,23 @@ class Renderer:
             return
 
         try:
-            logo = Image.open(logo_path)
+            logo_file = Image.open(logo_path)
 
             # Maximize logo size - minimal padding
             pad = 2
             target_w = width - (pad * 2)
             target_h = height - (pad * 2)
 
-            logo.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+            logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
 
             # Convert to 1-bit
             # Use simplified thresholding
-            logo = logo.convert("L")
+            logo: Image.Image = logo_file.convert("L")
             # NO Inversion - keep black as black (0) and white as white (1) because bg is white (1)
 
             # Threshold
             threshold = 128
-            logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[operator]
+            logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[arg-type]
             logo = logo.convert("1")
 
             # Center it
@@ -1173,7 +1173,7 @@ class Renderer:
         flag_icon = "🏁"
         countdown_str = f"{days}D {hours}H"
 
-        cur_x = x_left + padding_x
+        cur_x: float = x_left + padding_x
         draw.text((cur_x, text_y), flag_icon, fill=1, font=font_icon)
         flag_bbox = draw.textbbox((0, 0), flag_icon, font=font_icon)
         cur_x += flag_bbox[2] - flag_bbox[0] + 6
@@ -1259,14 +1259,14 @@ class Renderer:
 
         font_icon = self.fonts["icon_small"]
 
-        max_icon_width = 0
+        max_icon_width: float = 0
         for stat in stats:
             icon = stat[0]
             icon_bbox = draw.textbbox((0, 0), icon, font=font_icon)
             icon_width = icon_bbox[2] - icon_bbox[0]
             max_icon_width = max(max_icon_width, icon_width)
 
-        max_text_width = 0
+        max_text_width: float = 0
         for stat in stats:
             text = stat[1]
             text_bbox = draw.textbbox((0, 0), text, font=font_value)
@@ -1374,7 +1374,7 @@ class Renderer:
             else:
                 iso_code = country_name[:2].lower()
 
-        flag_img = None
+        flag_img: Image.Image | None = None
         if iso_code:
             local_flag_path = FLAGS_DIR / f"{iso_code}.bmp"
             if local_flag_path.exists():
@@ -1536,18 +1536,19 @@ class Renderer:
 
         for photo_path in drivers_dir.glob("*.png"):
             try:
-                img = Image.open(photo_path)
-                if img.mode in ("RGBA", "LA", "PA", "P"):
-                    img = img.convert("RGBA")
-                    result = Image.new("1", img.size, 1)
-                    for y in range(img.height):
-                        for x in range(img.width):
-                            pixel = img.getpixel((x, y))
-                            if pixel[3] > 128:
+                img_file = Image.open(photo_path)
+                img: Image.Image
+                if img_file.mode in ("RGBA", "LA", "PA", "P"):
+                    rgba_img = img_file.convert("RGBA")
+                    result = Image.new("1", rgba_img.size, 1)
+                    for y in range(rgba_img.height):
+                        for x in range(rgba_img.width):
+                            pixel = rgba_img.getpixel((x, y))
+                            if isinstance(pixel, tuple) and len(pixel) >= 4 and pixel[3] > 128:
                                 result.putpixel((x, y), 0)
                     img = result
                 else:
-                    img = img.convert("1")
+                    img = img_file.convert("1")
                 driver_key = photo_path.stem.lower()
                 photos[driver_key] = img
             except Exception as e:
@@ -1564,9 +1565,8 @@ class Renderer:
 
         for logo_path in teams_dir.glob("*.png"):
             try:
-                img = Image.open(logo_path)
-                if img.mode != "1":
-                    img = img.convert("1")
+                img_file = Image.open(logo_path)
+                img: Image.Image = img_file.convert("1") if img_file.mode != "1" else img_file
                 img = self._crop_to_content(img)
                 team_key = logo_path.stem.lower()
                 logos[team_key] = img

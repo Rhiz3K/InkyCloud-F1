@@ -1236,9 +1236,9 @@ def clear_bmp_cache() -> None:
 async def get_calendar_bmp(
     request: Request,
     lang: str = Query(default="en", description="Language code (cs, en)"),
-    year: int = Query(default=None, description="Season year (e.g., 2025)"),
-    race_round: int = Query(default=None, description="Round number", alias="round"),
-    tz: str = Query(default=None, description="Timezone"),
+    year: int | None = Query(default=None, description="Season year (e.g., 2025)"),
+    race_round: int | None = Query(default=None, description="Round number", alias="round"),
+    tz: str | None = Query(default=None, description="Timezone"),
     weather: bool = Query(default=True, description="Show weather forecast"),
     weather_type: str = Query(
         default="race_day", description="Weather type: 'current' or 'race_day'"
