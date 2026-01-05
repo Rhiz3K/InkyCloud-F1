@@ -1356,58 +1356,44 @@ async def get_calendar_bmp(
         # Skip pre-generated images when weather is requested (they don't include weather)
         use_pregenerated = not year and not race_round and not (weather and config.WEATHER_ENABLED)
         if use_pregenerated:
-            # Build image key based on lang and optional tz
-            # Use sanitizer to ensure timezone is safe for path use
+            # Only serve pre-generated images for default timezone (no user-controlled paths)
+            # This eliminates CodeQL path injection concerns entirely
             target_tz_for_key = tz or config.DEFAULT_TIMEZONE
-            try:
-                tz_safe = _sanitize_tz_for_path(target_tz_for_key)
-            except ValueError as e:
-                logger.error(f"Invalid timezone for path: {e}")
-                raise HTTPException(status_code=400, detail="Invalid timezone") from e
+            if target_tz_for_key == config.DEFAULT_TIMEZONE:
+                # Use hardcoded filename pattern - no user input in path
+                if lang == "cs":
+                    image_filename = "calendar_cs.bmp"
+                else:
+                    image_filename = "calendar_en.bmp"
 
-            # Explicit allowlist check for lang to satisfy CodeQL static analysis
-            # lang was already validated against VALID_LANGUAGES above, this is defense-in-depth
-            safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
+                images_dir = Path(config.IMAGES_PATH)
+                image_path = images_dir / image_filename
 
-            if target_tz_for_key != config.DEFAULT_TIMEZONE:
-                image_key = f"calendar_{safe_lang}_{tz_safe}"
-            else:
-                image_key = f"calendar_{safe_lang}"
-
-            images_dir = Path(config.IMAGES_PATH)
-            image_path = images_dir / f"{image_key}.bmp"
-
-            resolved_dir = images_dir.resolve()
-            resolved_path = image_path.resolve()
-            if not resolved_path.is_relative_to(resolved_dir):
-                logger.error(f"Path traversal attempt detected for image: {image_key}")
-                raise HTTPException(status_code=400, detail="Invalid image key")
-
-            if resolved_path.exists():
-                logger.info(f"Serving pre-generated image: {resolved_path}")
-                bmp_data = resolved_path.read_bytes()
-                get_bmp_cache()[cache_key] = bmp_data
-                record_api_call(
-                    "/calendar.bmp",
-                    (time.time() - start_time) * 1000,
-                    len(bmp_data),
-                    lang,
-                    tz,
-                    actual_year,
-                    actual_round,
-                    actual_race_name,
-                    is_auto_selected,
-                )
-                await track_calendar_analytics()
-                return FileResponse(
-                    path=str(resolved_path),
-                    media_type="image/bmp",
-                    filename="calendar.bmp",
-                    headers={
-                        "Cache-Control": "public, max-age=3600",
-                        "X-Cache": "MISS",
-                    },
-                )
+                if image_path.exists():
+                    logger.info(f"Serving pre-generated image: {image_path}")
+                    bmp_data = image_path.read_bytes()
+                    get_bmp_cache()[cache_key] = bmp_data
+                    record_api_call(
+                        "/calendar.bmp",
+                        (time.time() - start_time) * 1000,
+                        len(bmp_data),
+                        lang,
+                        tz,
+                        actual_year,
+                        actual_round,
+                        actual_race_name,
+                        is_auto_selected,
+                    )
+                    await track_calendar_analytics()
+                    return FileResponse(
+                        path=str(image_path),
+                        media_type="image/bmp",
+                        filename="calendar.bmp",
+                        headers={
+                            "Cache-Control": "public, max-age=3600",
+                            "X-Cache": "MISS",
+                        },
+                    )
 
         # Generate on-the-fly for specific race or when no pre-generated image exists
         logger.info(f"Generating image on-the-fly (year={year}, round={race_round}, tz={tz})")
