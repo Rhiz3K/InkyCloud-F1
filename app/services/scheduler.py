@@ -172,9 +172,9 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
                 async with aiofiles.open(configure_path, "wb") as f:
                     await f.write(configure_png)
 
-                logger.info(f"Generated calendar previews: {homepage_path}, {configure_path}")
+                logger.info("Generated calendar previews: %s, %s", homepage_path, configure_path)
             except Exception as e:
-                logger.error(f"Error generating calendar preview ({lang}): {e}")
+                logger.error("Error generating calendar preview (%s): %s", lang, e)
 
         # Teams preview
         try:
@@ -192,9 +192,9 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
             async with aiofiles.open(configure_path, "wb") as f:
                 await f.write(configure_png)
 
-            logger.info(f"Generated teams previews: {homepage_path}, {configure_path}")
+            logger.info("Generated teams previews: %s, %s", homepage_path, configure_path)
         except Exception as e:
-            logger.error(f"Error generating teams preview ({lang}): {e}")
+            logger.error("Error generating teams preview (%s): %s", lang, e)
 
 
 async def collect_and_generate() -> None:
@@ -224,7 +224,7 @@ async def collect_and_generate() -> None:
             deleted_count += 1
 
         if deleted_count > 0:
-            logger.info(f"Deleted {deleted_count} existing BMP files")
+            logger.info("Deleted %d existing BMP files", deleted_count)
 
         # 2. Get next race from static data (NO API CALL)
         race_data = f1_service.get_next_race_from_static()
@@ -233,7 +233,7 @@ async def collect_and_generate() -> None:
             logger.warning("No upcoming race found in static data")
             return
 
-        logger.info(f"Next race: {race_data.get('race_name')} (from static data)")
+        logger.info("Next race: %s (from static data)", race_data.get("race_name"))
 
         # 3. Get historical data from static JSON (NO API CALL)
         circuit_id = race_data.get("circuit", {}).get("circuitId", "")
@@ -243,9 +243,11 @@ async def collect_and_generate() -> None:
             historical_data = F1Service.get_historical_from_static(circuit_id)
 
             if historical_data.is_new_track:
-                logger.info(f"Circuit {circuit_id}: new track (no historical data)")
+                logger.info("Circuit %s: new track (no historical data)", circuit_id)
             else:
-                logger.info(f"Circuit {circuit_id}: historical data from {historical_data.season}")
+                logger.info(
+                    "Circuit %s: historical data from %s", circuit_id, historical_data.season
+                )
 
         # 4. Generate default images for all languages (default timezone)
         generated_count = 0
@@ -268,7 +270,7 @@ async def collect_and_generate() -> None:
                 image_key=image_key, image_path=str(image_path), lang=lang
             )
 
-            logger.info(f"Generated default image: {image_path}")
+            logger.info("Generated default image: %s", image_path)
             generated_count += 1
 
         # 5. Generate popular timezone variants (max 20)
@@ -277,7 +279,7 @@ async def collect_and_generate() -> None:
         )
 
         if popular_variants:
-            logger.info(f"Generating {len(popular_variants)} popular TZ variants")
+            logger.info("Generating %d popular TZ variants", len(popular_variants))
 
             for variant in popular_variants:
                 lang = variant["lang"]
@@ -286,7 +288,7 @@ async def collect_and_generate() -> None:
 
                 # Skip if language not supported
                 if lang not in SUPPORTED_LANGUAGES:
-                    logger.debug(f"Skipping unsupported language: {lang}")
+                    logger.debug("Skipping unsupported language: %s", lang)
                     continue
 
                 # Convert race times to target timezone
@@ -309,7 +311,7 @@ async def collect_and_generate() -> None:
                     image_key=image_key, image_path=str(image_path), lang=lang
                 )
 
-                logger.info(f"Generated TZ variant: {image_path} ({count} requests/24h)")
+                logger.info("Generated TZ variant: %s (%d requests/24h)", image_path, count)
                 generated_count += 1
         else:
             logger.debug("No popular TZ variants to generate")
@@ -326,10 +328,10 @@ async def collect_and_generate() -> None:
         # 6. Generate PNG previews for landing page
         await generate_preview_pngs(race_data, historical_data)
 
-        logger.info(f"Image generation completed: {generated_count} images (0 API calls)")
+        logger.info("Image generation completed: %d images (0 API calls)", generated_count)
 
     except Exception as e:
-        logger.error(f"Error in image generation: {e}", exc_info=True)
+        logger.error("Error in image generation: %s", e, exc_info=True)
 
 
 async def flush_api_calls_to_db() -> None:
@@ -566,7 +568,7 @@ def _parse_cron_expression(cron_expr: str) -> dict:
     """
     parts = cron_expr.strip().split()
     if len(parts) != 5:
-        logger.warning(f"Invalid cron expression '{cron_expr}', using default '0 3 * * *'")
+        logger.warning("Invalid cron expression '%s', using default '0 3 * * *'", cron_expr)
         parts = ["0", "3", "*", "*", "*"]
 
     return {
@@ -601,7 +603,7 @@ def _register_backup_job(sched: AsyncIOScheduler) -> None:
         replace_existing=True,
     )
 
-    logger.info(f"S3 backup job registered (cron: {config.BACKUP_CRON})")
+    logger.info("S3 backup job registered (cron: %s)", config.BACKUP_CRON)
 
 
 def start_scheduler() -> None:
@@ -706,14 +708,14 @@ async def run_initial_generation() -> None:
     try:
         await collect_and_generate()
     except Exception as e:
-        logger.error(f"Error in initial generation: {e}", exc_info=True)
+        logger.error("Error in initial generation: %s", e, exc_info=True)
 
     # 4. Refresh version info
     try:
         await refresh_version_info()
         logger.info("Version info refreshed on startup")
     except Exception as e:
-        logger.error(f"Error refreshing version info on startup: {e}", exc_info=True)
+        logger.error("Error refreshing version info on startup: %s", e, exc_info=True)
 
 
 # Legacy function names for backwards compatibility
