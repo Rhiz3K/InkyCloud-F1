@@ -669,8 +669,8 @@ def start_scheduler() -> None:
     scheduler.start()
     weather_info = ", weather at :55" if config.WEATHER_ENABLED else ""
     logger.info(
-        f"Scheduler started - generation at :00{weather_info}, API flush every min, "
-        "version at 00:05"
+        "Scheduler started - generation at :00%s, API flush every min, version at 00:05",
+        weather_info,
     )
 
 
