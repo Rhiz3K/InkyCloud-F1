@@ -1,0 +1,6 @@
+feat(weather): add missing enabled config
+
+Add the missing weather enabled configuration to allow weather
+functionality to display correctly on the production server.
+
+Fixes #1

@@ -1370,7 +1370,7 @@ async def get_calendar_bmp(
                 image_path = images_dir / image_filename
 
                 if image_path.exists():
-                    logger.info(f"Serving pre-generated image: {image_path}")
+                    logger.info("Serving pre-generated image: %s", image_path)
                     bmp_data = image_path.read_bytes()
                     get_bmp_cache()[cache_key] = bmp_data
                     record_api_call(

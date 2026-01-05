@@ -1,0 +1,83 @@
+{
+  "complexity": "simple",
+  "workflow_type": "investigation",
+  "confidence": 0.85,
+  "reasoning": "This is a production debugging task - weather works in dev but not in production. The weather service uses Open-Meteo (free API, no API key required). Investigation scope is limited to comparing configs, checking WEATHER_ENABLED flag, and reviewing network/rendering behavior. Likely a simple configuration or environment difference.",
+
+  "analysis": {
+    "scope": {
+      "estimated_files": 4,
+      "estimated_services": 1,
+      "is_cross_cutting": false,
+      "notes": "Files to investigate: weather_service.py, renderer.py, config.py, possibly deployment config. Single FastAPI service."
+    },
+    "integrations": {
+      "external_services": ["Open-Meteo API"],
+      "new_dependencies": [],
+      "research_needed": false,
+      "notes": "Open-Meteo is already integrated, free API without authentication. No new integrations needed."
+    },
+    "infrastructure": {
+      "docker_changes": false,
+      "database_changes": false,
+      "config_changes": true,
+      "notes": "May need to verify/add WEATHER_ENABLED to production environment. No Docker or DB changes expected."
+    },
+    "knowledge": {
+      "patterns_exist": true,
+      "research_required": false,
+      "unfamiliar_tech": [],
+      "notes": "Weather feature is already implemented and working in dev. Investigation only, no new patterns needed."
+    },
+    "risk": {
+      "level": "low",
+      "concerns": ["Need to access production logs or config to diagnose", "Fix should be simple once root cause identified"],
+      "notes": "Low risk - debugging existing feature. Weather is non-critical functionality, failure doesn't break core F1 calendar."
+    }
+  },
+
+  "key_findings": {
+    "weather_api": "Open-Meteo (https://api.open-meteo.com) - free, no API key required",
+    "config_flags": ["WEATHER_ENABLED (default: true)", "WEATHER_CACHE_MINUTES (default: 60)"],
+    "missing_from_env_example": "WEATHER_ENABLED and WEATHER_CACHE_MINUTES are in config.py but NOT in .env.example - production may not have these set",
+    "likely_root_causes": [
+      "WEATHER_ENABLED may be explicitly set to false in production",
+      "Network restrictions blocking api.open-meteo.com in production",
+      "Rendering issue specific to production environment",
+      "Race coordinates (lat/lon) not being passed correctly"
+    ]
+  },
+
+  "recommended_phases": [
+    "discovery",
+    "quick_spec",
+    "validation"
+  ],
+
+  "flags": {
+    "needs_research": false,
+    "needs_self_critique": false,
+    "needs_infrastructure_setup": false
+  },
+
+  "validation_recommendations": {
+    "risk_level": "low",
+    "skip_validation": false,
+    "minimal_mode": true,
+    "test_types_required": ["unit"],
+    "security_scan_required": false,
+    "staging_deployment_required": false,
+    "reasoning": "Investigation task with likely simple fix (config change or small code adjustment). Once fix is identified, run existing weather tests to verify. No security implications - weather is display-only feature."
+  },
+
+  "investigation_checklist": [
+    "1. Check if WEATHER_ENABLED is set in production environment",
+    "2. Verify production can reach api.open-meteo.com (network/firewall)",
+    "3. Check production logs for weather-related warnings/errors",
+    "4. Compare dev vs prod environment configurations",
+    "5. Test weather endpoint directly on production",
+    "6. Verify race data includes valid lat/lon coordinates"
+  ],
+
+  "created_at": "2025-01-05T10:00:00Z"
+}
