@@ -41,7 +41,7 @@ from app.services.scheduler import (
 )
 from app.services.teams_service import TeamsService
 from app.services.version_service import get_cached_version, refresh_version_info
-from app.services.weather_service import WeatherService, get_cached_circuit_weather
+from app.services.weather_service import get_cached_circuit_weather
 
 # Register font MIME types (Python's mimetypes doesn't know TTF by default)
 mimetypes.add_type("font/ttf", ".ttf")
@@ -1224,47 +1224,6 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
     result["timezone"] = target_tz_str
 
     return result
-
-
-async def _fetch_race_weather(race_data: dict, weather_type: str = "race_day"):
-    """Fetch weather. Falls back to current weather if race day forecast unavailable (>14 days)."""
-    try:
-        circuit = race_data.get("circuit", {})
-        lat_str = circuit.get("lat") or circuit.get("Location", {}).get("lat")
-        lon_str = circuit.get("long") or circuit.get("Location", {}).get("long")
-
-        if not lat_str or not lon_str:
-            logger.debug("No coordinates found for weather fetch")
-            return None
-
-        lat = float(lat_str)
-        lon = float(lon_str)
-
-        weather_service = WeatherService(
-            timeout=config.REQUEST_TIMEOUT,
-            cache_minutes=config.WEATHER_CACHE_MINUTES,
-        )
-
-        if weather_type == "current":
-            return await weather_service.get_current_weather(lat, lon)
-
-        schedule = race_data.get("schedule", [])
-        race_session = next((s for s in schedule if s.get("name", "").lower() == "race"), None)
-
-        if race_session:
-            race_dt_str = race_session.get("datetime")
-            if race_dt_str:
-                race_dt = datetime.fromisoformat(race_dt_str)
-                race_weather = await weather_service.get_race_weather(lat, lon, race_dt)
-                if race_weather:
-                    return race_weather
-                logger.debug("Race day weather unavailable, falling back to current weather")
-
-        return await weather_service.get_current_weather(lat, lon)
-
-    except Exception as e:
-        logger.warning(f"Failed to fetch weather: {e}")
-        return None
 
 
 def clear_bmp_cache() -> None:

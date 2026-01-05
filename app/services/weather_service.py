@@ -297,12 +297,16 @@ def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
     """
     count = 0
     for circuit_id, data in weather_dict.items():
-        _circuit_weather_cache[circuit_id] = WeatherData(
-            temperature_c=data["temperature_c"],
-            weather_code=data["weather_code"],
-            precipitation_probability=data["precipitation_probability"],
-        )
-        count += 1
+        try:
+            _circuit_weather_cache[circuit_id] = WeatherData(
+                temperature_c=data.get("temperature_c", 20.0),
+                weather_code=data.get("weather_code", 0),
+                precipitation_probability=data.get("precipitation_probability", 0),
+            )
+            count += 1
+        except (TypeError, ValueError) as e:
+            logger.warning(f"Invalid weather data for {circuit_id}: {e}")
+            continue
     return count
 
 
