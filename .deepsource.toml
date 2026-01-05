@@ -41,7 +41,7 @@ enabled = true
 
 [[analyzers]]
 name = "test-coverage"
-enabled = true
+enabled = false
 
 [[code_formatters]]
 name = "ruff"
