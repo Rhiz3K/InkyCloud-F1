@@ -89,7 +89,7 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
                 event["datetime"] = dt_local.isoformat()
                 event["display_time"] = dt_local.strftime("%a %H:%M")
             except (ValueError, TypeError) as e:
-                logger.warning(f"Error converting time {iso_str}: {e}")
+                logger.warning("Error converting time %s: %s", iso_str, e)
 
     # Update race_date to target timezone format
     if schedule:
@@ -344,9 +344,9 @@ async def flush_api_calls_to_db() -> None:
         if calls:
             db = Database()
             count = await db.save_api_calls_batch(calls)
-            logger.debug(f"Flushed {count} API calls to database")
+            logger.debug("Flushed %d API calls to database", count)
     except Exception as e:
-        logger.error(f"Error flushing API calls: {e}", exc_info=True)
+        logger.error("Error flushing API calls: %s", e, exc_info=True)
 
 
 async def fetch_all_circuits_weather() -> None:

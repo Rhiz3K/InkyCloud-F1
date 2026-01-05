@@ -1,0 +1,16 @@
+{
+  "task_description": "Fix weather not displaying on production server (https://f1.inkycloud.click/) by merging existing fix branch into main and deploying",
+  "scoped_services": ["main"],
+  "files_to_modify": ["app/config.py"],
+  "files_to_reference": ["app/main.py"],
+  "patterns": {
+    "config_pattern": "Pydantic Field-based configuration in app/config.py"
+  },
+  "service_contexts": {
+    "main": {
+      "description": "FastAPI main application",
+      "config_file": "app/config.py"
+    }
+  },
+  "created_at": "2026-01-05T00:00:00Z"
+}
