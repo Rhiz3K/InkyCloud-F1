@@ -532,21 +532,21 @@ class F1Service:
             logger.warning("Invalid year value: %s", year)
             return []
 
-        # Security: Use basename to strip any path components, then validate
-        raw_filename = f"{year}.json"
-        safe_filename = Path(raw_filename).name  # Strips path separators
-        if safe_filename != raw_filename:
-            logger.error("Path traversal attempt detected for year: %s", year)
+        # Build allowlist of valid season files that exist
+        allowed_files: dict[int, Path] = {}
+        for f in SEASONS_DIR.glob("*.json"):
+            try:
+                file_year = int(f.stem)
+                if 2000 <= file_year <= 2100:
+                    allowed_files[file_year] = f.resolve()
+            except ValueError:
+                continue
+
+        if year not in allowed_files:
+            logger.warning("Static season file not found for year: %s", year)
             return []
 
-        resolved_path = (SEASONS_DIR / safe_filename).resolve()
-        if not resolved_path.is_relative_to(SEASONS_DIR.resolve()):
-            logger.error("Path traversal attempt detected for year: %s", year)
-            return []
-
-        if not resolved_path.exists():
-            logger.warning("Static season file not found: %s", resolved_path)
-            return []
+        resolved_path = allowed_files[year]
 
         try:
             with open(resolved_path, encoding="utf-8") as f:
