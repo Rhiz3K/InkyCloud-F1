@@ -400,7 +400,7 @@ async def fetch_all_circuits_weather() -> None:
             lon_str = circuit.get("long")
 
             if not lat_str or not lon_str:
-                logger.debug(f"Circuit {circuit_id} missing coordinates, skipping")
+                logger.debug("Circuit %s missing coordinates, skipping", circuit_id)
                 continue
 
             seen_circuits.add(circuit_id)
@@ -413,7 +413,7 @@ async def fetch_all_circuits_weather() -> None:
                 }
             )
 
-        logger.info(f"Fetching weather for {len(circuits_to_fetch)} circuits")
+        logger.info("Fetching weather for %d circuits", len(circuits_to_fetch))
 
         # Track failed circuits for retry
         failed: list[dict] = []
@@ -437,7 +437,7 @@ async def fetch_all_circuits_weather() -> None:
                     precipitation_probability=weather.precipitation_probability,
                 )
                 success_count += 1
-                logger.debug(f"Weather fetched for {circuit['id']}: {weather.temp_display}")
+                logger.debug("Weather fetched for %s: %s", circuit["id"], weather.temp_display)
             else:
                 circuit["attempts"] = 1
                 failed.append(circuit)
@@ -450,7 +450,7 @@ async def fetch_all_circuits_weather() -> None:
             if not failed:
                 break
 
-            logger.debug(f"Weather retry round {round_num}, {len(failed)} circuits remaining")
+            logger.debug("Weather retry round %d, %d circuits remaining", round_num, len(failed))
             still_failed: list[dict] = []
 
             for circuit in failed:
@@ -468,7 +468,7 @@ async def fetch_all_circuits_weather() -> None:
                         precipitation_probability=weather.precipitation_probability,
                     )
                     success_count += 1
-                    logger.debug(f"Weather fetched for {circuit['id']} on attempt {round_num}")
+                    logger.debug("Weather fetched for %s on attempt %d", circuit["id"], round_num)
                 else:
                     circuit["attempts"] = round_num
                     still_failed.append(circuit)
@@ -485,10 +485,12 @@ async def fetch_all_circuits_weather() -> None:
                 f"{failed_ids}"
             )
 
-        logger.info(f"Weather fetch completed: {success_count}/{len(circuits_to_fetch)} successful")
+        logger.info(
+            "Weather fetch completed: %d/%d successful", success_count, len(circuits_to_fetch)
+        )
 
     except Exception as e:
-        logger.error(f"Error in circuit weather fetch: {e}", exc_info=True)
+        logger.error("Error in circuit weather fetch: %s", e, exc_info=True)
 
 
 async def _fetch_single_circuit_weather(
@@ -507,7 +509,7 @@ async def _fetch_single_circuit_weather(
     try:
         return await weather_service.get_current_weather(lat, lon)
     except Exception as e:
-        logger.debug(f"Weather fetch failed for ({lat}, {lon}): {e}")
+        logger.debug("Weather fetch failed for (%s, %s): %s", lat, lon, e)
         return None
 
 
@@ -528,12 +530,12 @@ async def load_weather_from_db() -> None:
 
         if weather_dict:
             count = load_circuit_weather_to_cache(weather_dict)
-            logger.info(f"Loaded {count} circuit weather entries from database")
+            logger.info("Loaded %d circuit weather entries from database", count)
         else:
             logger.debug("No cached weather data in database")
 
     except Exception as e:
-        logger.warning(f"Error loading weather from database: {e}")
+        logger.warning("Error loading weather from database: %s", e)
 
 
 def _run_backup() -> None:
@@ -690,13 +692,13 @@ async def run_initial_generation() -> None:
     try:
         await load_weather_from_db()
     except Exception as e:
-        logger.warning(f"Error loading weather from database: {e}")
+        logger.warning("Error loading weather from database: %s", e)
 
     # 2. Fetch fresh weather data (before image generation)
     try:
         await fetch_all_circuits_weather()
     except Exception as e:
-        logger.error(f"Error fetching initial weather: {e}", exc_info=True)
+        logger.error("Error fetching initial weather: %s", e, exc_info=True)
 
     # 3. Generate images (now with weather data available)
     try:

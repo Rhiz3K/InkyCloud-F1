@@ -335,7 +335,7 @@ def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
             )
             count += 1
         except (TypeError, ValueError) as e:
-            logger.warning(f"Invalid weather data for {circuit_id}: {e}")
+            logger.warning("Invalid weather data for %s: %s", circuit_id, e)
             continue
     return count
 
