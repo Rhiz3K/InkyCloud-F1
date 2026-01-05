@@ -136,13 +136,22 @@ class F1Service:
 
     def _convert_race_times(self, race: Race) -> dict:
         """
-        Convert race times from UTC to target timezone.
+        Convert a Race model's UTC session and race times to the service's target timezone and return a structured race payload.
 
-        Args:
-            race: Race object with UTC times
+        This will parse session and race date/time values (treating a missing time as "12:00:00Z"), convert them to the service's target timezone, and produce a schedule of events sorted by local datetime. Unparsable or missing session times are omitted from the schedule.
+
+        Parameters:
+            race (Race): Race model containing UTC date/time strings and circuit/location metadata.
 
         Returns:
-            Dictionary with race data and converted schedule events
+            dict: A dictionary containing:
+                - race_name: race's name.
+                - round: race round number.
+                - season: race season year.
+                - circuit: mapping with keys `circuitId`, `name`, `location`, `country`, `lat`, `long` (lat/long may be None).
+                - schedule: list of events; each event has `name`, ISO `datetime` string in the target timezone, and `display_time` for UI.
+                - race_date: race date formatted as `DD.MM.YYYY` if the race datetime was parsed, otherwise the original race.date string.
+                - timezone: normalized timezone string used for conversions.
         """
         schedule_events = []
 

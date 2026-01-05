@@ -114,6 +114,19 @@ class Config(BaseSettings):
     @field_validator("APP_PORT", mode="before")
     @classmethod
     def validate_port(cls, value: object, info: ValidationInfo) -> int:
+        """
+        Validate and normalize a port value from configuration.
+
+        If `info.field_name` is None, returns 8000. Otherwise, attempts to parse `value` as an integer and ensure it is greater than 0 and less than 65536. On success returns the parsed port; on failure logs a warning and returns the field's configured default.
+
+        Parameters:
+            cls: The Config class (used to access the field default).
+            value: The raw value to validate (typically from environment).
+            info (ValidationInfo): Validator context; `info.field_name` selects the field default.
+
+        Returns:
+            int: The validated port number, or the field default if `value` is invalid.
+        """
         if info.field_name is None:
             return 8000
         default: int = cls.model_fields[info.field_name].default
@@ -128,6 +141,18 @@ class Config(BaseSettings):
     @field_validator("REQUEST_TIMEOUT", mode="before")
     @classmethod
     def validate_timeout(cls, value: object, info: ValidationInfo) -> int:
+        """
+        Validate and coerce a configured request timeout into a positive integer.
+
+        If the validator is invoked without a field name, returns 10. If `value` can be converted to an integer greater than 0, that integer is returned; otherwise the configured field default is returned after logging a warning.
+
+        Parameters:
+            value: The raw value to validate (may be any type).
+            info: Validation metadata; if `info.field_name` is None a fallback of 10 is used.
+
+        Returns:
+            An integer timeout in seconds (the provided positive integer or the field's default).
+        """
         if info.field_name is None:
             return 10
         default: int = cls.model_fields[info.field_name].default
@@ -179,6 +204,16 @@ class Config(BaseSettings):
     @field_validator("BACKUP_RETENTION_DAYS", mode="before")
     @classmethod
     def validate_retention_days(cls, value: object, info: ValidationInfo) -> int:
+        """
+        Validate and coerce a retention-days setting to a non-negative integer.
+
+        Parameters:
+            value (object): Raw input to validate and convert to an integer.
+            info (ValidationInfo): Validator context; used to determine the field name and default value. If `info.field_name` is None, a default of 30 is used.
+
+        Returns:
+            int: The parsed integer if it is greater than or equal to zero; otherwise the field's configured default (or 30 when `info.field_name` is None) after logging a warning.
+        """
         if info.field_name is None:
             return 30
         default: int = cls.model_fields[info.field_name].default

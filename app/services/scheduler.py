@@ -111,18 +111,15 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
 
 def _bmp_to_png(bmp_data: bytes, width: int = 400, full_size: bool = False) -> bytes:
     """
-    Convert BMP to PNG for web previews.
+    Convert BMP image data to PNG bytes suitable for web previews.
 
-    Uses grayscale mode for better anti-aliasing on resize,
-    resulting in smoother edges compared to 1-bit mode.
-
-    Args:
-        bmp_data: Raw BMP image data
-        width: Target width (height calculated to maintain aspect ratio)
-        full_size: If True, skip resize and keep original 800x480
+    Parameters:
+        bmp_data (bytes): Raw BMP image data.
+        width (int): Target width in pixels when resizing; height is adjusted to maintain aspect ratio.
+        full_size (bool): If True, preserve the original image size and skip resizing.
 
     Returns:
-        PNG image data as bytes
+        bytes: PNG image data.
     """
     img_file = Image.open(BytesIO(bmp_data))
 
@@ -362,17 +359,15 @@ async def flush_api_calls_to_db() -> None:
 
 async def fetch_all_circuits_weather() -> None:
     """
-    Fetch weather for all F1 circuits and cache results.
+    Fetch current weather for all F1 circuits, cache each circuit's weather in memory, and persist results to the database.
 
-    This job runs every hour at :05 to pre-fetch weather data:
-    1. Get all unique circuits from current season
-    2. Fetch weather for each circuit sequentially (1s delay between requests)
-    3. Store results in both in-memory cache and SQLite
-    4. Retry failed circuits (max 10 attempts total per circuit)
-    5. Fall back to previous data if all retries fail
+    This job:
+    - Iterates unique circuits from the current (or next) season, skipping circuits without coordinates.
+    - Fetches current weather for each circuit sequentially with a 1-second pause between requests.
+    - Stores successful results in the in-memory cache and in SQLite.
+    - Retries failed circuits up to 10 total attempts per circuit; logs any circuits that remain failed after all attempts.
 
-    Weather is fetched as "current" weather since race day forecasts
-    are only available within 16 days.
+    If weather fetching is disabled via configuration, the function returns immediately.
     """
     if not config.WEATHER_ENABLED:
         logger.debug("Weather is disabled, skipping fetch")
@@ -512,15 +507,14 @@ async def _fetch_single_circuit_weather(
     weather_service: WeatherService, lat: float, lon: float
 ) -> WeatherData | None:
     """
-    Fetch current weather for a single circuit.
+    Fetch the current weather for a single circuit location.
 
-    Args:
-        weather_service: WeatherService instance
-        lat: Latitude
-        lon: Longitude
+    Parameters:
+        lat (float): Latitude of the circuit.
+        lon (float): Longitude of the circuit.
 
     Returns:
-        WeatherData or None on failure
+        WeatherData | None: The current weather data on success, `None` if the fetch fails.
     """
     try:
         return await weather_service.get_current_weather(lat, lon)
@@ -556,10 +550,9 @@ async def load_weather_from_db() -> None:
 
 def _run_backup() -> None:
     """
-    Run database backup to S3 (synchronous wrapper for scheduler).
+    Trigger a configured database backup to S3.
 
-    This function is called by the scheduler and runs the backup
-    in the current thread since boto3 is synchronous.
+    If backup is not configured, the function returns without action. When configured, it invokes the backup procedure synchronously.
     """
     from app.services.backup import is_backup_configured, perform_backup
 
@@ -620,7 +613,18 @@ def _register_backup_job(sched: AsyncIOScheduler) -> None:
 
 
 def start_scheduler() -> None:
-    """Start the background scheduler."""
+    """
+    Initialize, configure, and start the global background scheduler.
+
+    Registers and starts the module-level AsyncIOScheduler with these jobs:
+    - hourly image generation from static data at minute :00,
+    - per-minute flush of the API calls buffer at second :00,
+    - optional hourly weather fetch for all circuits at minute :55 when weather is enabled,
+    - optional S3 backup job if backup is configured,
+    - refresh of version info daily at 00:05.
+
+    If the scheduler is disabled via configuration or already running, the function returns without starting a new scheduler.
+    """
     global scheduler
 
     if not config.SCHEDULER_ENABLED:
@@ -693,10 +697,9 @@ def stop_scheduler() -> None:
 
 async def run_initial_generation() -> None:
     """
-    Run initial image generation on startup.
+    Perform startup initialization by loading cached weather, fetching fresh weather, generating images, and refreshing version info.
 
-    Order: weather -> images -> version info
-    Weather must be fetched before images so previews include weather data.
+    This ensures weather data is available before image generation so generated previews include current weather; failures in individual steps are logged but do not stop subsequent steps.
     """
     logger.info("Running initial generation from static data")
 
