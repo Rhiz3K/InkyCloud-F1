@@ -481,8 +481,10 @@ async def fetch_all_circuits_weather() -> None:
         if failed:
             failed_ids = [c["id"] for c in failed]
             logger.warning(
-                f"Weather fetch failed for {len(failed)} circuits after {max_attempts} attempts: "
-                f"{failed_ids}"
+                "Weather fetch failed for %d circuits after %d attempts: %s",
+                len(failed),
+                max_attempts,
+                failed_ids,
             )
 
         logger.info(
