@@ -21,7 +21,7 @@ try:
     with open(CIRCUITS_DATA_PATH, "r", encoding="utf-8") as f:
         CIRCUITS_DATA = json.load(f)
 except Exception as e:
-    logger.warning(f"Failed to load circuit data: {e}")
+    logger.warning("Failed to load circuit data: %s", e)
     CIRCUITS_DATA = {}
 
 # Circuit ID mapping (API uses different IDs than our static data)

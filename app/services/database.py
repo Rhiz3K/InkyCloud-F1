@@ -141,7 +141,7 @@ class Database:
             )
             await conn.commit()
 
-            logger.info(f"Database initialized at {self.db_path}")
+            logger.info("Database initialized at %s", self.db_path)
         self._initialized = True
 
     async def _run_migrations(self, conn: aiosqlite.Connection) -> None:
@@ -165,7 +165,7 @@ class Database:
 
         for column_name, column_type in migrations:
             if column_name not in existing_columns:
-                logger.info(f"Migration: Adding column '{column_name}' to api_calls table")
+                logger.info("Migration: Adding column '%s' to api_calls table", column_name)
                 await conn.execute(f"ALTER TABLE api_calls ADD COLUMN {column_name} {column_type}")
 
         await conn.commit()
@@ -280,7 +280,7 @@ class Database:
                 (datetime.now(timezone.utc).isoformat(), hour_count, day_count),
             )
             await conn.commit()
-            logger.debug(f"Saved request stats: hour={hour_count}, day={day_count}")
+            logger.debug("Saved request stats: hour=%s, day=%s", hour_count, day_count)
 
     async def get_request_stats_history(self, limit: int = 168) -> list[dict]:
         """
@@ -335,7 +335,7 @@ class Database:
             deleted = cursor.rowcount
             await conn.commit()
             if deleted > 0:
-                logger.info(f"Cleaned up {deleted} old stats records")
+                logger.info("Cleaned up %s old stats records", deleted)
             return deleted
 
     async def save_api_calls_batch(self, calls: list[dict]) -> int:
@@ -380,7 +380,7 @@ class Database:
                 ],
             )
             await conn.commit()
-            logger.debug(f"Saved {len(calls)} API calls to database")
+            logger.debug("Saved %s API calls to database", len(calls))
             return len(calls)
 
     async def get_api_calls_stats_24h(self) -> dict:

@@ -102,7 +102,7 @@ def perform_backup() -> bool:
 
     db_path = Path(config.DATABASE_PATH)
     if not db_path.exists():
-        logger.warning(f"Database file not found: {db_path}")
+        logger.warning("Database file not found: %s", db_path)
         return False
 
     s3_client = _get_s3_client()
@@ -115,21 +115,21 @@ def perform_backup() -> bool:
         temp_fd, temp_path = tempfile.mkstemp(suffix=".db")
         os.close(temp_fd)
 
-        logger.info(f"Creating backup copy of {db_path}")
+        logger.info("Creating backup copy of %s", db_path)
         shutil.copy2(db_path, temp_path)
 
         # Generate backup filename and upload
         backup_filename = generate_backup_filename()
         file_size = os.path.getsize(temp_path)
 
-        logger.info(f"Uploading backup to S3: {backup_filename} ({file_size} bytes)")
+        logger.info("Uploading backup to S3: %s (%s bytes)", backup_filename, file_size)
         s3_client.upload_file(
             temp_path,
             config.S3_BUCKET_NAME,
             backup_filename,
         )
 
-        logger.info(f"Backup completed successfully: {backup_filename}")
+        logger.info("Backup completed successfully: %s", backup_filename)
 
         # Clean up old backups if retention is configured
         if config.BACKUP_RETENTION_DAYS > 0:
@@ -138,7 +138,7 @@ def perform_backup() -> bool:
         return True
 
     except Exception as e:
-        logger.error(f"Backup failed: {e}", exc_info=True)
+        logger.error("Backup failed: %s", e, exc_info=True)
         sentry_sdk.capture_exception(e)
         return False
 
@@ -148,7 +148,7 @@ def perform_backup() -> bool:
             try:
                 os.remove(temp_path)
             except OSError as e:
-                logger.warning(f"Failed to remove temporary file {temp_path}: {e}")
+                logger.warning("Failed to remove temporary file %s: %s", temp_path, e)
 
 
 def cleanup_old_backups(s3_client=None) -> int:
@@ -191,7 +191,7 @@ def cleanup_old_backups(s3_client=None) -> int:
                 # Check if object is older than retention period
                 if last_modified < cutoff_date:
                     objects_to_delete.append({"Key": key})
-                    logger.debug(f"Marking for deletion: {key} (modified: {last_modified})")
+                    logger.debug("Marking for deletion: %s (modified: %s)", key, last_modified)
 
         # Delete old backups in batches
         if objects_to_delete:
@@ -204,10 +204,12 @@ def cleanup_old_backups(s3_client=None) -> int:
                 )
                 deleted_count += len(batch)
 
-            logger.info(f"Deleted {deleted_count} old backup(s) (older than {cutoff_date.date()})")
+            logger.info(
+                "Deleted %s old backup(s) (older than %s)", deleted_count, cutoff_date.date()
+            )
 
     except Exception as e:
-        logger.error(f"Failed to cleanup old backups: {e}", exc_info=True)
+        logger.error("Failed to cleanup old backups: %s", e, exc_info=True)
         sentry_sdk.capture_exception(e)
 
     return deleted_count
