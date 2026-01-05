@@ -69,7 +69,7 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
     try:
         target_tz = pytz.timezone(target_tz_str)
     except pytz.UnknownTimeZoneError:
-        logger.warning(f"Unknown timezone {target_tz_str}, returning original data")
+        logger.warning("Unknown timezone %s, returning original data", target_tz_str)
         return race_data
 
     # Deep copy to avoid modifying original
