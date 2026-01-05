@@ -1494,7 +1494,7 @@ async def get_calendar_bmp(
         )
 
     except Exception as e:
-        logger.error(f"Error generating calendar: {str(e)}", exc_info=True)
+        logger.error("Error generating calendar: %s", e, exc_info=True)
         sentry_sdk.capture_exception(e)
 
         # Return error image (don't cache errors)
@@ -1569,7 +1569,7 @@ async def get_teams_bmp(
         )
 
     except Exception as e:
-        logger.error(f"Error generating teams: {e}", exc_info=True)
+        logger.error("Error generating teams: %s", e, exc_info=True)
         sentry_sdk.capture_exception(e)
 
         translator = get_translator(lang)
@@ -1656,7 +1656,7 @@ async def get_standings_leader(year: int | None = None):
         }
 
     except Exception as e:
-        logger.warning(f"Failed to get standings leader for {year}: {e}")
+        logger.warning("Failed to get standings leader for %s: %s", year, e)
         return {
             "season": year,
             "leader_team": None,
