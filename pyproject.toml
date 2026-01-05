@@ -76,3 +76,12 @@ ignore = []
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "types-aiofiles>=25.1.0.20251011",
+    "types-cachetools>=6.2.0.20251022",
+    "types-markdown>=3.10.0.20251106",
+    "types-pytz>=2025.2.0.20251108",
+]

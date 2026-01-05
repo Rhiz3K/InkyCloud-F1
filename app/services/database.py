@@ -113,6 +113,16 @@ class Database:
                     device_memory REAL
                 );
 
+                -- Circuit weather cache table
+                CREATE TABLE IF NOT EXISTS circuit_weather (
+                    circuit_id TEXT PRIMARY KEY,
+                    circuit_name TEXT,
+                    temperature_c REAL,
+                    weather_code INTEGER,
+                    precipitation_probability INTEGER,
+                    fetched_at TEXT NOT NULL
+                );
+
                 -- Create indexes (note: idx_api_calls_race created after migrations)
                 CREATE INDEX IF NOT EXISTS idx_images_key ON generated_images(image_key);
                 CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON request_stats(timestamp);
@@ -131,7 +141,7 @@ class Database:
             )
             await conn.commit()
 
-            logger.info(f"Database initialized at {self.db_path}")
+            logger.info("Database initialized at %s", self.db_path)
         self._initialized = True
 
     async def _run_migrations(self, conn: aiosqlite.Connection) -> None:
@@ -155,7 +165,7 @@ class Database:
 
         for column_name, column_type in migrations:
             if column_name not in existing_columns:
-                logger.info(f"Migration: Adding column '{column_name}' to api_calls table")
+                logger.info("Migration: Adding column '%s' to api_calls table", column_name)
                 await conn.execute(f"ALTER TABLE api_calls ADD COLUMN {column_name} {column_type}")
 
         await conn.commit()
@@ -270,7 +280,7 @@ class Database:
                 (datetime.now(timezone.utc).isoformat(), hour_count, day_count),
             )
             await conn.commit()
-            logger.debug(f"Saved request stats: hour={hour_count}, day={day_count}")
+            logger.debug("Saved request stats: hour=%s, day=%s", hour_count, day_count)
 
     async def get_request_stats_history(self, limit: int = 168) -> list[dict]:
         """
@@ -325,7 +335,7 @@ class Database:
             deleted = cursor.rowcount
             await conn.commit()
             if deleted > 0:
-                logger.info(f"Cleaned up {deleted} old stats records")
+                logger.info("Cleaned up %s old stats records", deleted)
             return deleted
 
     async def save_api_calls_batch(self, calls: list[dict]) -> int:
@@ -370,7 +380,7 @@ class Database:
                 ],
             )
             await conn.commit()
-            logger.debug(f"Saved {len(calls)} API calls to database")
+            logger.debug("Saved %s API calls to database", len(calls))
             return len(calls)
 
     async def get_api_calls_stats_24h(self) -> dict:
@@ -415,13 +425,14 @@ class Database:
 
     async def get_stats_for_range(self, hours: int) -> dict:
         """
-        Get comprehensive statistics for a given time range.
+        Return aggregated API/usage statistics for the past N hours.
 
-        Args:
-            hours: Number of hours to look back (1, 24, 168 for 7d, 720 for 30d)
+        Parameters:
+            hours: Number of hours to look back (e.g., 1, 24, 168, 720).
 
         Returns:
-            Dictionary with all stats for the dashboard
+            dict with total_requests, min/avg/max_response_ms, total_bytes,
+            endpoints, languages, timezones, hourly, and races breakdowns.
         """
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
@@ -444,13 +455,22 @@ class Database:
                 (cutoff,),
             ) as cursor:
                 row = await cursor.fetchone()
-                basic_stats = {
-                    "total_requests": row["total_requests"] or 0,
-                    "min_response_ms": round(row["min_ms"], 1) if row["min_ms"] else 0,
-                    "avg_response_ms": round(row["avg_ms"], 1) if row["avg_ms"] else 0,
-                    "max_response_ms": round(row["max_ms"], 1) if row["max_ms"] else 0,
-                    "total_bytes": row["total_bytes"] or 0,
-                }
+                if row:
+                    basic_stats = {
+                        "total_requests": row["total_requests"] or 0,
+                        "min_response_ms": round(row["min_ms"], 1) if row["min_ms"] else 0,
+                        "avg_response_ms": round(row["avg_ms"], 1) if row["avg_ms"] else 0,
+                        "max_response_ms": round(row["max_ms"], 1) if row["max_ms"] else 0,
+                        "total_bytes": row["total_bytes"] or 0,
+                    }
+                else:
+                    basic_stats = {
+                        "total_requests": 0,
+                        "min_response_ms": 0,
+                        "avg_response_ms": 0,
+                        "max_response_ms": 0,
+                        "total_bytes": 0,
+                    }
 
             # Endpoint breakdown
             async with conn.execute(
@@ -845,6 +865,15 @@ class Database:
         return round(values[lower] * (1 - weight) + values[upper] * weight, 3)
 
     async def get_perf_trends(self, hours: int = 24) -> dict:
+        """
+        Retrieve hourly trends for page performance metrics.
+
+        Parameters:
+            hours: Lookback period in hours (default 24).
+
+        Returns:
+            dict with hours, lcp, fcp, ttfb (averages or None), and samples lists.
+        """
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
@@ -875,4 +904,114 @@ class Database:
                         round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None for row in rows
                     ],
                     "samples": [row["samples"] for row in rows],
+                }
+
+    # =========================================================================
+    # Circuit Weather Cache Methods
+    # =========================================================================
+
+    async def save_circuit_weather(
+        self,
+        circuit_id: str,
+        circuit_name: str,
+        temperature_c: float,
+        weather_code: int,
+        precipitation_probability: int,
+    ) -> None:
+        """
+        Store or update cached weather for a circuit (upsert).
+
+        Parameters:
+            circuit_id: Circuit identifier (e.g., "albert_park").
+            circuit_name: Human-readable circuit name.
+            temperature_c: Temperature in degrees Celsius.
+            weather_code: WMO weather code.
+            precipitation_probability: Probability percentage (0-100).
+        """
+        await self._init_db_if_needed()
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            await conn.execute(
+                """
+                INSERT INTO circuit_weather
+                    (circuit_id, circuit_name, temperature_c, weather_code,
+                     precipitation_probability, fetched_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(circuit_id) DO UPDATE SET
+                    circuit_name = excluded.circuit_name,
+                    temperature_c = excluded.temperature_c,
+                    weather_code = excluded.weather_code,
+                    precipitation_probability = excluded.precipitation_probability,
+                    fetched_at = excluded.fetched_at
+                """,
+                (
+                    circuit_id,
+                    circuit_name,
+                    temperature_c,
+                    weather_code,
+                    precipitation_probability,
+                    datetime.now(timezone.utc).isoformat(),
+                ),
+            )
+            await conn.commit()
+
+    async def get_circuit_weather(self, circuit_id: str) -> Optional[dict]:
+        """
+        Retrieve cached weather data for a circuit (may be stale).
+
+        Parameters:
+            circuit_id: Circuit identifier.
+
+        Returns:
+            dict with temperature_c, weather_code, precipitation_probability,
+            and fetched_at; or None if not found.
+        """
+        await self._init_db_if_needed()
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            async with conn.execute(
+                """
+                SELECT temperature_c, weather_code, precipitation_probability, fetched_at
+                FROM circuit_weather
+                WHERE circuit_id = ?
+                """,
+                (circuit_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return {
+                        "temperature_c": row["temperature_c"],
+                        "weather_code": row["weather_code"],
+                        "precipitation_probability": row["precipitation_probability"],
+                        "fetched_at": row["fetched_at"],
+                    }
+                return None
+
+    async def load_all_circuit_weather(self) -> dict[str, dict]:
+        """
+        Load all cached circuit weather records from the database.
+
+        Returns:
+            dict mapping circuit_id to weather data (temperature_c, weather_code,
+            precipitation_probability, fetched_at).
+        """
+        await self._init_db_if_needed()
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            async with conn.execute(
+                """
+                SELECT circuit_id, temperature_c, weather_code,
+                       precipitation_probability, fetched_at
+                FROM circuit_weather
+                """
+            ) as cursor:
+                rows = await cursor.fetchall()
+                return {
+                    row["circuit_id"]: {
+                        "temperature_c": row["temperature_c"],
+                        "weather_code": row["weather_code"],
+                        "precipitation_probability": row["precipitation_probability"],
+                        "fetched_at": row["fetched_at"],
+                    }
+                    for row in rows
                 }

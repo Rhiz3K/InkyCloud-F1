@@ -49,6 +49,10 @@ OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 _weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
 
+# Circuit weather cache - populated by scheduler, read by renderer
+# Maps circuit_id -> WeatherData
+_circuit_weather_cache: dict[str, "WeatherData"] = {}
+
 
 @dataclass
 class WeatherData:
@@ -75,14 +79,23 @@ class WeatherService:
         self.cache_minutes = cache_minutes
 
     async def get_current_weather(self, lat: float, lon: float) -> Optional[WeatherData]:
+        """
+        Retrieve current weather for coordinates, using internal cache.
+
+        On cache miss, fetches from API and caches result. Invalid coordinates
+        return None.
+
+        Returns:
+            WeatherData or None if invalid coords, API failure, or no data.
+        """
         cache_key = f"current_{round(lat, 2)}_{round(lon, 2)}"
         cached = self._get_cached(cache_key)
         if cached is not None:
-            logger.debug(f"Current weather cache hit for {cache_key}")
+            logger.debug("Current weather cache hit for %s", cache_key)
             return cached
 
         if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
-            logger.warning(f"Invalid coordinates: lat={lat}, lon={lon}")
+            logger.warning("Invalid coordinates: lat=%s, lon=%s", lat, lon)
             return None
 
         try:
@@ -95,14 +108,25 @@ class WeatherService:
             logger.warning("Weather API request timed out")
             return None
         except httpx.HTTPStatusError as e:
-            logger.warning(f"Weather API HTTP error: {e.response.status_code}")
+            logger.warning("Weather API HTTP error: %s", e.response.status_code)
             return None
         except Exception as e:
-            logger.warning(f"Failed to fetch current weather: {e}")
+            logger.warning("Failed to fetch current weather: %s", e)
             return None
 
     async def _fetch_current_weather(self, lat: float, lon: float) -> Optional[WeatherData]:
-        params = {
+        """
+        Fetch current weather from Open-Meteo API.
+
+        Parameters:
+            lat: Latitude in decimal degrees.
+            lon: Longitude in decimal degrees.
+
+        Returns:
+            WeatherData with temperature_c, weather_code, precipitation_probability.
+            Uses defaults (20.0C, code 0, prob 0) if API omits values.
+        """
+        params: dict[str, str | int | float] = {
             "latitude": round(lat, 2),
             "longitude": round(lon, 2),
             "current": "temperature_2m,weather_code",
@@ -140,11 +164,11 @@ class WeatherService:
         cache_key = f"{round(lat, 2)}_{round(lon, 2)}_{race_datetime.isoformat()}"
         cached = self._get_cached(cache_key)
         if cached is not None:
-            logger.debug(f"Weather cache hit for {cache_key}")
+            logger.debug("Weather cache hit for %s", cache_key)
             return cached
 
         if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
-            logger.warning(f"Invalid coordinates: lat={lat}, lon={lon}")
+            logger.warning("Invalid coordinates: lat=%s, lon=%s", lat, lon)
             return None
 
         now = datetime.now(race_datetime.tzinfo) if race_datetime.tzinfo else datetime.utcnow()
@@ -156,7 +180,7 @@ class WeatherService:
             return None
 
         if days_until_race > 16:
-            logger.debug(f"Race {days_until_race} days away, outside 16-day forecast range")
+            logger.debug("Race %d days away, outside 16-day forecast range", days_until_race)
             return None
 
         try:
@@ -169,10 +193,10 @@ class WeatherService:
             logger.warning("Weather API request timed out")
             return None
         except httpx.HTTPStatusError as e:
-            logger.warning(f"Weather API HTTP error: {e.response.status_code}")
+            logger.warning("Weather API HTTP error: %s", e.response.status_code)
             return None
         except Exception as e:
-            logger.warning(f"Failed to fetch weather: {e}")
+            logger.warning("Failed to fetch weather: %s", e)
             return None
 
     async def _fetch_weather(
@@ -182,7 +206,19 @@ class WeatherService:
         race_datetime: datetime,
         days_ahead: int,
     ) -> Optional[WeatherData]:
-        params = {
+        """
+        Fetch hourly forecast for race datetime from Open-Meteo.
+
+        Parameters:
+            lat: Latitude.
+            lon: Longitude.
+            race_datetime: Target datetime (matches exact hour or same day).
+            days_ahead: Days to include in forecast (capped at 16).
+
+        Returns:
+            WeatherData for matching hour/day, or None if no data found.
+        """
+        params: dict[str, str | int | float] = {
             "latitude": round(lat, 2),
             "longitude": round(lon, 2),
             "hourly": "temperature_2m,weather_code,precipitation_probability",
@@ -215,7 +251,7 @@ class WeatherService:
                     precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
                 )
 
-        logger.debug(f"Exact hour {race_hour_str} not found, finding closest")
+        logger.debug("Exact hour %s not found, finding closest", race_hour_str)
         race_date_str = race_datetime.strftime("%Y-%m-%d")
         for i, t in enumerate(times):
             if t.startswith(race_date_str):
@@ -225,7 +261,7 @@ class WeatherService:
                     precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
                 )
 
-        logger.warning(f"Could not find weather for {race_hour_str}")
+        logger.warning("Could not find weather for %s", race_hour_str)
         return None
 
     def _get_cached(self, key: str) -> Optional[WeatherData]:
@@ -241,4 +277,73 @@ class WeatherService:
 
 
 def clear_weather_cache() -> None:
+    """
+    Clear the in-memory weather cache used for storing fetched WeatherData.
+
+    Removes all cached entries so subsequent requests will fetch fresh data.
+    """
     _weather_cache.clear()
+
+
+# =========================================================================
+# Circuit Weather Cache Functions (used by scheduler and renderer)
+# =========================================================================
+
+
+def get_cached_circuit_weather(circuit_id: str) -> Optional[WeatherData]:
+    """
+    Retrieve pre-fetched weather for a circuit from the in-memory cache.
+
+    Parameters:
+        circuit_id: Circuit identifier (e.g., "albert_park").
+
+    Returns:
+        Cached WeatherData or None if not found.
+    """
+    return _circuit_weather_cache.get(circuit_id)
+
+
+def set_cached_circuit_weather(circuit_id: str, data: WeatherData) -> None:
+    """
+    Store WeatherData for a circuit ID in the in-memory circuit weather cache.
+
+    Parameters:
+        circuit_id (str): Circuit identifier to associate with the weather data.
+        data (WeatherData): WeatherData to store; overwrites any existing entry.
+    """
+    _circuit_weather_cache[circuit_id] = data
+
+
+def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
+    """
+    Load multiple circuit weather entries into the in-memory circuit weather cache.
+
+    Parameters:
+        weather_dict (dict[str, dict]): Mapping of circuit_id to weather dict with keys:
+            temperature_c, weather_code, precipitation_probability.
+
+    Returns:
+        int: Number of circuits successfully loaded into the cache.
+    """
+    count = 0
+    for circuit_id, data in weather_dict.items():
+        try:
+            _circuit_weather_cache[circuit_id] = WeatherData(
+                temperature_c=data.get("temperature_c", 20.0),
+                weather_code=data.get("weather_code", 0),
+                precipitation_probability=data.get("precipitation_probability", 0),
+            )
+            count += 1
+        except (TypeError, ValueError) as e:
+            logger.warning("Invalid weather data for %s: %s", circuit_id, e)
+            continue
+    return count
+
+
+def clear_circuit_weather_cache() -> None:
+    """
+    Clear the in-memory cache of pre-fetched circuit weather data.
+
+    Removes all entries so subsequent reads will miss until data is repopulated.
+    """
+    _circuit_weather_cache.clear()

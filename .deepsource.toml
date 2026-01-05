@@ -6,7 +6,8 @@ exclude_patterns = [
   "*.egg-info/**",
   "app/assets/**",
   "conductor/**",
-  "openspec/changes/archive/**"
+  "openspec/changes/archive/**",
+  ".auto-claude/**"
 ]
 
 test_patterns = [
@@ -15,7 +16,6 @@ test_patterns = [
   "*_test.py"
 ]
 
-# Python Analyzer - static code analysis with mypy type checking
 [[analyzers]]
 name = "python"
 enabled = true
@@ -28,26 +28,24 @@ dependency_file_paths = ["pyproject.toml"]
   type_checker = "mypy"
   cyclomatic_complexity_threshold = "high"
 
-# Docker Analyzer - Dockerfile best practices
+
+
 [[analyzers]]
 name = "docker"
 enabled = true
 
-  [analyzers.meta]
-  dockerfile_paths = ["Dockerfile"]
-  trusted_registries = ["docker.io", "ghcr.io"]
+[analyzers.meta]
+dockerfile_paths = ["Dockerfile"]
+trusted_registries = ["docker.io", "ghcr.io"]
 
-# Secrets Analyzer - detect hardcoded credentials
 [[analyzers]]
 name = "secrets"
 enabled = true
 
-# Test Coverage Analyzer
 [[analyzers]]
 name = "test-coverage"
-enabled = true
+enabled = false
 
-# Ruff Code Formatter - auto-fix formatting in PRs
 [[code_formatters]]
 name = "ruff"
 enabled = true

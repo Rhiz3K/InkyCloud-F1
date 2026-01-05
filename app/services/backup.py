@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import sentry_sdk
 
@@ -101,7 +102,7 @@ def perform_backup() -> bool:
 
     db_path = Path(config.DATABASE_PATH)
     if not db_path.exists():
-        logger.warning(f"Database file not found: {db_path}")
+        logger.warning("Database file not found: %s", db_path)
         return False
 
     s3_client = _get_s3_client()
@@ -114,21 +115,21 @@ def perform_backup() -> bool:
         temp_fd, temp_path = tempfile.mkstemp(suffix=".db")
         os.close(temp_fd)
 
-        logger.info(f"Creating backup copy of {db_path}")
+        logger.info("Creating backup copy of %s", db_path)
         shutil.copy2(db_path, temp_path)
 
         # Generate backup filename and upload
         backup_filename = generate_backup_filename()
         file_size = os.path.getsize(temp_path)
 
-        logger.info(f"Uploading backup to S3: {backup_filename} ({file_size} bytes)")
+        logger.info("Uploading backup to S3: %s (%s bytes)", backup_filename, file_size)
         s3_client.upload_file(
             temp_path,
             config.S3_BUCKET_NAME,
             backup_filename,
         )
 
-        logger.info(f"Backup completed successfully: {backup_filename}")
+        logger.info("Backup completed successfully: %s", backup_filename)
 
         # Clean up old backups if retention is configured
         if config.BACKUP_RETENTION_DAYS > 0:
@@ -137,7 +138,7 @@ def perform_backup() -> bool:
         return True
 
     except Exception as e:
-        logger.error(f"Backup failed: {e}", exc_info=True)
+        logger.error("Backup failed: %s", e, exc_info=True)
         sentry_sdk.capture_exception(e)
         return False
 
@@ -147,18 +148,18 @@ def perform_backup() -> bool:
             try:
                 os.remove(temp_path)
             except OSError as e:
-                logger.warning(f"Failed to remove temporary file {temp_path}: {e}")
+                logger.warning("Failed to remove temporary file %s: %s", temp_path, e)
 
 
 def cleanup_old_backups(s3_client=None) -> int:
     """
-    Delete backups older than the retention period.
+    Delete backups older than the configured retention period.
 
-    Args:
-        s3_client: Optional boto3 S3 client. If None, creates a new client.
+    Parameters:
+        s3_client: Optional boto3 S3 client; if None, creates one via _get_s3_client().
 
     Returns:
-        Number of backups deleted.
+        Number of backups deleted. Returns 0 if retention disabled or no client.
     """
     if config.BACKUP_RETENTION_DAYS <= 0:
         logger.debug("Backup retention disabled (BACKUP_RETENTION_DAYS=0)")
@@ -190,7 +191,7 @@ def cleanup_old_backups(s3_client=None) -> int:
                 # Check if object is older than retention period
                 if last_modified < cutoff_date:
                     objects_to_delete.append({"Key": key})
-                    logger.debug(f"Marking for deletion: {key} (modified: {last_modified})")
+                    logger.debug("Marking for deletion: %s (modified: %s)", key, last_modified)
 
         # Delete old backups in batches
         if objects_to_delete:
@@ -203,21 +204,24 @@ def cleanup_old_backups(s3_client=None) -> int:
                 )
                 deleted_count += len(batch)
 
-            logger.info(f"Deleted {deleted_count} old backup(s) (older than {cutoff_date.date()})")
+            logger.info(
+                "Deleted %s old backup(s) (older than %s)", deleted_count, cutoff_date.date()
+            )
 
     except Exception as e:
-        logger.error(f"Failed to cleanup old backups: {e}", exc_info=True)
+        logger.error("Failed to cleanup old backups: %s", e, exc_info=True)
         sentry_sdk.capture_exception(e)
 
     return deleted_count
 
 
-def get_backup_config_info() -> dict:
+def get_backup_config_info() -> dict[str, Any]:
     """
-    Get backup configuration information (without sensitive data).
+    Return non-sensitive backup configuration details.
 
     Returns:
-        Dictionary with configuration details.
+        dict with enabled, endpoint, bucket, region, schedule, retention_days,
+        and credentials_configured fields.
     """
     return {
         "enabled": config.BACKUP_ENABLED,
@@ -230,22 +234,17 @@ def get_backup_config_info() -> dict:
     }
 
 
-def test_s3_connection() -> dict:
+def test_s3_connection() -> dict[str, Any]:
     """
-    Test S3 connection and return detailed results.
+    Test S3 connectivity, credentials, and write permissions.
 
     Returns:
-        Dictionary with test results including:
-        - success: bool
-        - credentials_valid: bool
-        - bucket_accessible: bool
-        - write_permission: bool
-        - latency_ms: float (if successful)
-        - error: str (if failed)
+        dict with success, credentials_valid, bucket_accessible, write_permission,
+        latency_ms, and error fields.
     """
     import time
 
-    result = {
+    result: dict[str, Any] = {
         "success": False,
         "credentials_valid": False,
         "bucket_accessible": False,
@@ -316,19 +315,15 @@ def test_s3_connection() -> dict:
     return result
 
 
-def get_bucket_stats() -> dict:
+def get_bucket_stats() -> dict[str, Any]:
     """
-    Get statistics about backups in the S3 bucket.
+    Retrieve backup statistics from the configured S3 bucket.
 
     Returns:
-        Dictionary with:
-        - backup_count: int
-        - total_size_bytes: int
-        - oldest_backup: str or None
-        - newest_backup: str or None
-        - error: str or None
+        dict with backup_count, total_size_bytes, oldest_backup, newest_backup,
+        backups list, and error fields.
     """
-    result = {
+    result: dict[str, Any] = {
         "backup_count": 0,
         "total_size_bytes": 0,
         "oldest_backup": None,
@@ -387,19 +382,14 @@ def get_bucket_stats() -> dict:
     return result
 
 
-def perform_backup_with_details() -> dict:
+def perform_backup_with_details() -> dict[str, Any]:
     """
-    Perform backup and return detailed results for CLI output.
+    Perform a database backup to S3 and return operation details.
 
     Returns:
-        Dictionary with:
-        - success: bool
-        - filename: str or None
-        - size_bytes: int or None
-        - deleted_count: int
-        - error: str or None
+        dict with success, filename, size_bytes, deleted_count, and error fields.
     """
-    result = {
+    result: dict[str, Any] = {
         "success": False,
         "filename": None,
         "size_bytes": None,

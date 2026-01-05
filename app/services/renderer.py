@@ -21,7 +21,7 @@ try:
     with open(CIRCUITS_DATA_PATH, "r", encoding="utf-8") as f:
         CIRCUITS_DATA = json.load(f)
 except Exception as e:
-    logger.warning(f"Failed to load circuit data: {e}")
+    logger.warning("Failed to load circuit data: %s", e)
     CIRCUITS_DATA = {}
 
 # Circuit ID mapping (API uses different IDs than our static data)
@@ -863,7 +863,17 @@ class Renderer:
         draw.text((text_x, start_y + 40), line2, fill=1, font=self.fonts["header_subtitle"])
 
     def _draw_f1_logo(self, image: Image.Image, width: int, height: int) -> None:
-        """Load and paste the F1 logo centered in the left header block."""
+        """
+        Render the F1 logo centered in the header area.
+
+        Loads, scales to fit, converts to 1-bit, and pastes centered. Logs
+        warning if logo missing.
+
+        Parameters:
+            image: Destination image for the logo.
+            width: Header area width.
+            height: Header area height.
+        """
         logo_path = IMAGES_DIR / "eInkF1logo.jpg"
 
         if not logo_path.exists():
@@ -871,23 +881,23 @@ class Renderer:
             return
 
         try:
-            logo = Image.open(logo_path)
+            logo_file = Image.open(logo_path)
 
             # Maximize logo size - minimal padding
             pad = 2
             target_w = width - (pad * 2)
             target_h = height - (pad * 2)
 
-            logo.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+            logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
 
             # Convert to 1-bit
             # Use simplified thresholding
-            logo = logo.convert("L")
+            logo: Image.Image = logo_file.convert("L")
             # NO Inversion - keep black as black (0) and white as white (1) because bg is white (1)
 
             # Threshold
             threshold = 128
-            logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[operator]
+            logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[arg-type]
             logo = logo.convert("1")
 
             # Center it
@@ -1124,6 +1134,18 @@ class Renderer:
         schedule_bottom: int,
         weather_data: WeatherData | None = None,
     ) -> int:
+        """
+        Draw countdown box showing time until race and optional weather.
+
+        Parameters:
+            draw: Pillow drawing context.
+            race_data: Race info with "schedule" list of events.
+            schedule_bottom: Y coordinate below schedule area.
+            weather_data: Optional weather with icon, temp, precipitation.
+
+        Returns:
+            Bottom Y of drawn box, or schedule_bottom if no upcoming race.
+        """
         schedule = race_data.get("schedule", [])
         race_dt = None
         for event in schedule:
@@ -1173,7 +1195,7 @@ class Renderer:
         flag_icon = "🏁"
         countdown_str = f"{days}D {hours}H"
 
-        cur_x = x_left + padding_x
+        cur_x: float = x_left + padding_x
         draw.text((cur_x, text_y), flag_icon, fill=1, font=font_icon)
         flag_bbox = draw.textbbox((0, 0), flag_icon, font=font_icon)
         cur_x += flag_bbox[2] - flag_bbox[0] + 6
@@ -1215,6 +1237,14 @@ class Renderer:
         race_data: dict,
         schedule_bottom: int,
     ) -> None:
+        """
+        Render circuit stats (length, laps, fastest lap, first GP) under results.
+
+        Parameters:
+            draw: Pillow drawing context.
+            race_data: Race metadata with circuit.circuitId.
+            schedule_bottom: Y coordinate below schedule (for layout context).
+        """
         circuit_id = race_data.get("circuit", {}).get("circuitId", "")
         mapped_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
         circuit_data = CIRCUITS_DATA.get(mapped_id, {})
@@ -1259,14 +1289,14 @@ class Renderer:
 
         font_icon = self.fonts["icon_small"]
 
-        max_icon_width = 0
+        max_icon_width: float = 0
         for stat in stats:
             icon = stat[0]
             icon_bbox = draw.textbbox((0, 0), icon, font=font_icon)
             icon_width = icon_bbox[2] - icon_bbox[0]
             max_icon_width = max(max_icon_width, icon_width)
 
-        max_text_width = 0
+        max_text_width: float = 0
         for stat in stats:
             text = stat[1]
             text_bbox = draw.textbbox((0, 0), text, font=font_value)
@@ -1354,6 +1384,19 @@ class Renderer:
         season: int | str,
         country_name: str,
     ) -> int:
+        """
+        Render results header with centered year and optional country flag.
+
+        Parameters:
+            draw: Draw context for text/shapes.
+            image: Image for flag paste.
+            y_start: Y where results footer begins.
+            season: Year or season label.
+            country_name: Country for flag lookup.
+
+        Returns:
+            Y coordinate where results columns should align.
+        """
         year_text = str(season)
         year_font = self.fonts["results_year"]
         bbox = draw.textbbox((0, 0), year_text, font=year_font)
@@ -1374,7 +1417,7 @@ class Renderer:
             else:
                 iso_code = country_name[:2].lower()
 
-        flag_img = None
+        flag_img: Image.Image | None = None
         if iso_code:
             local_flag_path = FLAGS_DIR / f"{iso_code}.bmp"
             if local_flag_path.exists():
@@ -1527,7 +1570,12 @@ class Renderer:
         return self._load_font(size, bold=True)
 
     def _load_driver_photos(self) -> dict[str, Image.Image]:
-        """Load all driver photo silhouettes."""
+        """
+        Load driver silhouettes from assets/drivers and convert to 1-bit masks.
+
+        Returns:
+            dict mapping lowercase filename stem to 1-bit PIL Image.
+        """
         drivers_dir = IMAGES_DIR / "drivers"
         photos: dict[str, Image.Image] = {}
 
@@ -1536,18 +1584,19 @@ class Renderer:
 
         for photo_path in drivers_dir.glob("*.png"):
             try:
-                img = Image.open(photo_path)
-                if img.mode in ("RGBA", "LA", "PA", "P"):
-                    img = img.convert("RGBA")
-                    result = Image.new("1", img.size, 1)
-                    for y in range(img.height):
-                        for x in range(img.width):
-                            pixel = img.getpixel((x, y))
-                            if pixel[3] > 128:
+                img_file = Image.open(photo_path)
+                img: Image.Image
+                if img_file.mode in ("RGBA", "LA", "PA", "P"):
+                    rgba_img = img_file.convert("RGBA")
+                    result = Image.new("1", rgba_img.size, 1)
+                    for y in range(rgba_img.height):
+                        for x in range(rgba_img.width):
+                            pixel = rgba_img.getpixel((x, y))
+                            if isinstance(pixel, tuple) and len(pixel) >= 4 and pixel[3] > 128:
                                 result.putpixel((x, y), 0)
                     img = result
                 else:
-                    img = img.convert("1")
+                    img = img_file.convert("1")
                 driver_key = photo_path.stem.lower()
                 photos[driver_key] = img
             except Exception as e:
@@ -1556,6 +1605,12 @@ class Renderer:
         return photos
 
     def _load_team_logos(self) -> dict[str, Image.Image]:
+        """
+        Load team logos from assets/teams as 1-bit cropped images.
+
+        Returns:
+            dict mapping lowercase filename stem to 1-bit PIL Image.
+        """
         teams_dir = IMAGES_DIR / "teams"
         logos: dict[str, Image.Image] = {}
 
@@ -1564,9 +1619,8 @@ class Renderer:
 
         for logo_path in teams_dir.glob("*.png"):
             try:
-                img = Image.open(logo_path)
-                if img.mode != "1":
-                    img = img.convert("1")
+                img_file = Image.open(logo_path)
+                img: Image.Image = img_file.convert("1") if img_file.mode != "1" else img_file
                 img = self._crop_to_content(img)
                 team_key = logo_path.stem.lower()
                 logos[team_key] = img

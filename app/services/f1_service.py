@@ -61,7 +61,7 @@ class F1Service:
         try:
             self.target_tz = pytz.timezone(self.timezone_str)
         except pytz.UnknownTimeZoneError:
-            logger.warning(f"Unknown timezone {self.timezone_str}, falling back to UTC")
+            logger.warning("Unknown timezone %s, falling back to UTC", self.timezone_str)
             self.target_tz = pytz.UTC
             self.timezone_str = "UTC"
 
@@ -94,7 +94,10 @@ class F1Service:
                     if attempt < max_retries:
                         delay = RETRY_BASE_DELAY * (2**attempt)
                         logger.warning(
-                            f"Rate limited (429), retry {attempt + 1}/{max_retries} in {delay}s"
+                            "Rate limited (429), retry %s/%s in %ss",
+                            attempt + 1,
+                            max_retries,
+                            delay,
                         )
                         await asyncio.sleep(delay)
                         continue
@@ -112,7 +115,7 @@ class F1Service:
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                logger.info(f"Fetching next race from {self.api_url}")
+                logger.info("Fetching next race from %s", self.api_url)
                 response = await client.get(self.api_url)
                 response.raise_for_status()
 
@@ -128,21 +131,26 @@ class F1Service:
                 return self._convert_race_times(race)
 
         except httpx.HTTPError as e:
-            logger.error(f"HTTP error fetching race data: {str(e)}", exc_info=True)
+            logger.error("HTTP error fetching race data: %s", str(e), exc_info=True)
             return None
         except Exception as e:
-            logger.error(f"Error fetching race data: {str(e)}", exc_info=True)
+            logger.error("Error fetching race data: %s", str(e), exc_info=True)
             return None
 
     def _convert_race_times(self, race: Race) -> dict:
         """
-        Convert race times from UTC to target timezone.
+        Convert Race UTC times to target timezone and return structured payload.
 
-        Args:
-            race: Race object with UTC times
+        Parses session/race times (default "12:00:00Z" if missing), converts to
+        target timezone, and produces a sorted schedule. Invalid times are omitted.
+
+        Parameters:
+            race: Race model with UTC date/time strings and circuit metadata.
 
         Returns:
-            Dictionary with race data and converted schedule events
+            dict with race_name, round, season, circuit (circuitId, name,
+            location, country, lat, long), schedule (list of events with name,
+            datetime, display_time), race_date, and timezone.
         """
         schedule_events = []
 
@@ -162,7 +170,7 @@ class F1Service:
                 dt_local = dt_utc.astimezone(self.target_tz)
                 return dt_local
             except ValueError as e:
-                logger.warning(f"Error parsing datetime {dt_str}: {e}")
+                logger.warning("Error parsing datetime %s: %s", dt_str, e)
                 return None
 
         # Add race sessions to schedule
@@ -210,6 +218,8 @@ class F1Service:
                 "name": race.Circuit.circuitName,
                 "location": race.Circuit.Location.locality,
                 "country": race.Circuit.Location.country,
+                "lat": race.Circuit.Location.lat or None,
+                "long": race.Circuit.Location.long or None,
             },
             "schedule": schedule_events,
             "race_date": race_dt.strftime("%d.%m.%Y") if race_dt else race.date,
@@ -241,10 +251,10 @@ class F1Service:
                 )
 
                 if previous_season is None:
-                    logger.info(f"No previous race found for circuit {circuit_id}")
+                    logger.info("No previous race found for circuit %s", circuit_id)
                     return HistoricalData(is_new_track=True)
 
-                logger.info(f"Found previous race at {circuit_id} in season {previous_season}")
+                logger.info("Found previous race at %s in season %s", circuit_id, previous_season)
 
                 # Step 2: Fetch qualifying and race results for that season
                 qualifying_results = await self._fetch_qualifying_results(
@@ -260,7 +270,7 @@ class F1Service:
                 )
 
         except Exception as e:
-            logger.error(f"Error fetching historical data: {e}", exc_info=True)
+            logger.error("Error fetching historical data: %s", e, exc_info=True)
             return HistoricalData(is_new_track=True)
 
     async def _find_previous_race_season(
@@ -281,7 +291,7 @@ class F1Service:
             The previous season year, or None if no previous race exists
         """
         url = f"{JOLPICA_BASE_URL}/circuits/{circuit_id}/races.json?limit=100"
-        logger.info(f"Fetching race history for circuit {circuit_id}")
+        logger.info("Fetching race history for circuit %s", circuit_id)
 
         response = await self._fetch_with_retry(client, url)
 
@@ -316,7 +326,7 @@ class F1Service:
             List of QualifyingResultEntry objects (top 3)
         """
         url = f"{JOLPICA_BASE_URL}/{season}/circuits/{circuit_id}/qualifying.json?limit=3"
-        logger.info(f"Fetching qualifying results: {url}")
+        logger.info("Fetching qualifying results: %s", url)
 
         try:
             response = await self._fetch_with_retry(client, url)
@@ -352,7 +362,7 @@ class F1Service:
             return results
 
         except Exception as e:
-            logger.warning(f"Failed to fetch qualifying results: {e}")
+            logger.warning("Failed to fetch qualifying results: %s", e)
             return []
 
     async def _fetch_race_results(
@@ -370,7 +380,7 @@ class F1Service:
             List of RaceResultEntry objects (top 3)
         """
         url = f"{JOLPICA_BASE_URL}/{season}/circuits/{circuit_id}/results.json?limit=3"
-        logger.info(f"Fetching race results: {url}")
+        logger.info("Fetching race results: %s", url)
 
         try:
             response = await self._fetch_with_retry(client, url)
@@ -407,7 +417,7 @@ class F1Service:
             return results
 
         except Exception as e:
-            logger.warning(f"Failed to fetch race results: {e}")
+            logger.warning("Failed to fetch race results: %s", e)
             return []
 
     async def get_season_races(self, year: int) -> list[dict]:
@@ -423,7 +433,7 @@ class F1Service:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 url = f"{JOLPICA_BASE_URL}/{year}.json"
-                logger.info(f"Fetching season races from {url}")
+                logger.info("Fetching season races from %s", url)
                 response = await self._fetch_with_retry(client, url)
 
                 data = response.json()
@@ -462,13 +472,13 @@ class F1Service:
                         )
                     except (KeyError, ValueError, TypeError) as e:
                         race_name = race.get("raceName", "N/A")
-                        logger.warning(f"Skipping malformed race: {race_name}. Error: {e}")
+                        logger.warning("Skipping malformed race: %s. Error: %s", race_name, e)
                         continue
 
                 return result
 
         except Exception as e:
-            logger.error(f"Error fetching season races: {e}", exc_info=True)
+            logger.error("Error fetching season races: %s", e, exc_info=True)
             return []
 
     async def get_race_by_round(self, year: int, round_num: int) -> Optional[dict]:
@@ -485,7 +495,7 @@ class F1Service:
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 url = f"{JOLPICA_BASE_URL}/{year}/{round_num}.json"
-                logger.info(f"Fetching race from {url}")
+                logger.info("Fetching race from %s", url)
                 response = await self._fetch_with_retry(client, url)
 
                 data = response.json()
@@ -501,7 +511,7 @@ class F1Service:
                 return self._convert_race_times(race)
 
         except Exception as e:
-            logger.error(f"Error fetching race by round: {e}", exc_info=True)
+            logger.error("Error fetching race by round: %s", e, exc_info=True)
             return None
 
     # =========================================================================
@@ -519,20 +529,24 @@ class F1Service:
             List of Race objects from static data
         """
         if not isinstance(year, int) or not (2000 <= year <= 2100):
-            logger.warning(f"Invalid year value: {year}")
+            logger.warning("Invalid year value: %s", year)
             return []
 
-        json_path = SEASONS_DIR / f"{year}.json"
+        # Build allowlist of valid season files that exist
+        allowed_files: dict[int, Path] = {}
+        for f in SEASONS_DIR.glob("*.json"):
+            try:
+                file_year = int(f.stem)
+                if 2000 <= file_year <= 2100:
+                    allowed_files[file_year] = f.resolve()
+            except ValueError:
+                continue
 
-        resolved_dir = SEASONS_DIR.resolve()
-        resolved_path = json_path.resolve()
-        if not resolved_path.is_relative_to(resolved_dir):
-            logger.error(f"Path traversal attempt detected for year: {year}")
+        if year not in allowed_files:
+            logger.warning("Static season file not found for year: %s", year)
             return []
 
-        if not resolved_path.exists():
-            logger.warning(f"Static season file not found: {resolved_path}")
-            return []
+        resolved_path = allowed_files[year]
 
         try:
             with open(resolved_path, encoding="utf-8") as f:
@@ -543,13 +557,13 @@ class F1Service:
                 try:
                     races.append(Race(**race_data))
                 except Exception as e:
-                    logger.warning(f"Failed to parse race: {race_data.get('raceName')}: {e}")
+                    logger.warning("Failed to parse race: %s: %s", race_data.get("raceName"), e)
 
-            logger.info(f"Loaded {len(races)} races from static file for {year}")
+            logger.info("Loaded %s races from static file for %s", len(races), year)
             return races
 
         except Exception as e:
-            logger.error(f"Error loading static season data: {e}", exc_info=True)
+            logger.error("Error loading static season data: %s", e, exc_info=True)
             return []
 
     def get_next_race_from_static(self) -> Optional[dict]:
@@ -575,11 +589,13 @@ class F1Service:
 
                     # If race is in the future, this is the next race
                     if race_dt > now:
-                        logger.info(f"Found next race from static: {race.raceName} ({race.date})")
+                        logger.info(
+                            "Found next race from static: %s (%s)", race.raceName, race.date
+                        )
                         return self._convert_race_times(race)
 
                 except Exception as e:
-                    logger.warning(f"Error parsing race date for {race.raceName}: {e}")
+                    logger.warning("Error parsing race date for %s: %s", race.raceName, e)
                     continue
 
         logger.warning("No future races found in static data")
@@ -602,7 +618,7 @@ class F1Service:
             try:
                 result.append(self._convert_race_times(race))
             except Exception as e:
-                logger.warning(f"Error converting race {race.raceName}: {e}")
+                logger.warning("Error converting race %s: %s", race.raceName, e)
 
         return result
 
@@ -628,7 +644,7 @@ class F1Service:
             historical = circuit.get("historical")
 
             if not historical:
-                logger.info(f"No historical data for circuit {mapped_id}")
+                logger.info("No historical data for circuit %s", mapped_id)
                 return HistoricalData(is_new_track=True)
 
             # Parse qualifying results
@@ -671,8 +687,8 @@ class F1Service:
             )
 
         except FileNotFoundError:
-            logger.error(f"Circuits data file not found: {CIRCUITS_DATA_PATH}")
+            logger.error("Circuits data file not found: %s", CIRCUITS_DATA_PATH)
             return HistoricalData(is_new_track=True)
         except Exception as e:
-            logger.error(f"Error loading historical data for {circuit_id}: {e}", exc_info=True)
+            logger.error("Error loading historical data for %s: %s", circuit_id, e, exc_info=True)
             return HistoricalData(is_new_track=True)

@@ -4,6 +4,7 @@ import asyncio
 import logging
 import mimetypes
 import os
+import re
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -13,7 +14,6 @@ from urllib.parse import urlencode
 
 import pytz
 import sentry_sdk
-from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import (
     FileResponse,
@@ -41,19 +41,16 @@ from app.services.scheduler import (
 )
 from app.services.teams_service import TeamsService
 from app.services.version_service import get_cached_version, refresh_version_info
-from app.services.weather_service import WeatherService
+from app.services.weather_service import get_cached_circuit_weather
+from app.state import (
+    get_bmp_cache,
+    record_api_call,
+)
 
 # Register font MIME types (Python's mimetypes doesn't know TTF by default)
 mimetypes.add_type("font/ttf", ".ttf")
 mimetypes.add_type("font/woff", ".woff")
 mimetypes.add_type("font/woff2", ".woff2")
-
-# In-memory cache for rendered BMP images
-# TTL of 1 hour (3600 seconds), max 100 entries
-_bmp_cache: TTLCache = TTLCache(maxsize=100, ttl=3600)
-
-# Buffer for API calls to be flushed to SQLite every minute
-_api_calls_buffer: list = []
 
 # Configure logging
 logging.basicConfig(
@@ -104,9 +101,9 @@ def _check_persistent_storage() -> bool:
             f"created: {datetime.now(timezone.utc).isoformat()}\n"
             "This file verifies persistent storage. Do not delete.\n"
         )
-        logger.info(f"Created persistence marker at {_PERSISTENCE_MARKER}")
+        logger.info("Created persistence marker at %s", _PERSISTENCE_MARKER)
     except OSError as e:
-        logger.error(f"Failed to create persistence marker: {e}")
+        logger.error("Failed to create persistence marker: %s", e)
         return False
 
     # Check if database exists but marker didn't (means storage was reset)
@@ -193,22 +190,63 @@ def _format_bytes(bytes_val: int) -> str:
 
 
 def _calc_percent(value: int, total: int) -> float:
-    """Calculate percentage safely."""
+    """
+    Compute the value as a percentage of the total, rounded to one decimal place.
+
+    Returns:
+        float: Percentage of `value` relative to `total`, rounded to one decimal place; `0` if `total` is zero.
+    """
     if total == 0:
         return 0
     return round((value / total) * 100, 1)
 
 
-def _get_template_context(request: Request, ui_lang: str = "en") -> dict:
-    """
-    Build common template context with translations and shared data.
+# Regex pattern for valid timezone characters (letters, digits, slash, underscore, plus, minus)
+_TZ_PATH_SAFE_PATTERN = re.compile(r"^[A-Za-z0-9/_+-]+$")
 
-    Args:
-        request: FastAPI request object
-        ui_lang: UI language code (en or cs)
+
+def _sanitize_tz_for_path(tz_str: str) -> str:
+    """
+    Produce a filesystem-safe representation of a timezone identifier.
+
+    Validates that the input contains only allowed characters and does not include path traversal sequences, then returns the string with '/' characters replaced by '_' for safe use in file paths.
+
+    Parameters:
+        tz_str (str): Timezone identifier, e.g. "America/New_York".
 
     Returns:
-        Dictionary with common template context
+        str: Sanitized timezone suitable for filenames, e.g. "America_New_York".
+
+    Raises:
+        ValueError: If the timezone contains disallowed characters or path traversal sequences (e.g., "..").
+    """
+    if not _TZ_PATH_SAFE_PATTERN.match(tz_str):
+        raise ValueError(f"Invalid characters in timezone: {tz_str}")
+    # Check for path traversal attempts
+    if ".." in tz_str:
+        raise ValueError(f"Path traversal attempt in timezone: {tz_str}")
+    return tz_str.replace("/", "_")
+
+
+def _get_template_context(request: Request, ui_lang: str = "en") -> dict:
+    """
+    Builds the shared Jinja2 template context used by HTML views.
+
+    Parameters:
+        request (fastapi.Request): The incoming request object included in the template context.
+        ui_lang (str): UI language code, typically "en" or "cs", used to select translations and language flags.
+
+    Returns:
+        dict: Context dictionary containing:
+            - request: the FastAPI request
+            - ui_lang: selected language code
+            - lang_selected_en / lang_selected_cs: "selected" marker for language dropdown
+            - umami_script: analytics script tag
+            - t: translator object for page-specific translations
+            - nav: common navigation labels (nav_home, nav_stats, nav_api, nav_privacy, nav_changelog)
+            - site_url: configured site URL without a trailing slash
+            - format_bytes: helper to format byte sizes
+            - calc_percent: helper to calculate percentages
     """
     t = get_translator(ui_lang)
 
@@ -574,7 +612,7 @@ async def changelog(request: Request, lang: str = Query(default=None)):
         try:
             version_info = await refresh_version_info()
         except Exception as e:
-            logger.warning(f"Failed to fetch version info: {e}")
+            logger.warning("Failed to fetch version info: %s", e)
 
     context = _get_template_context(request, ui_lang)
     context["active_page"] = "changelog"
@@ -899,61 +937,6 @@ async def sitemap_xml():
     return Response(content=sitemap_content, media_type="application/xml")
 
 
-def _record_api_call(
-    endpoint: str,
-    response_time_ms: float,
-    response_size_bytes: int,
-    lang: str | None = None,
-    tz: str | None = None,
-    year: int | None = None,
-    round_num: int | None = None,
-    race_name: str | None = None,
-    is_auto_selected: bool = False,
-) -> None:
-    """
-    Record an API call to the buffer for later DB flush.
-
-    Args:
-        endpoint: API endpoint path (e.g., "/calendar.bmp")
-        response_time_ms: Response time in milliseconds
-        response_size_bytes: Size of response in bytes
-        lang: Language parameter (optional)
-        tz: Timezone parameter (optional)
-        year: Season year (optional, for /calendar.bmp)
-        round_num: Round number (optional, for /calendar.bmp)
-        race_name: Race name (optional, for /calendar.bmp)
-        is_auto_selected: Whether "next race" was auto-selected (default False)
-    """
-    call = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "endpoint": endpoint,
-        "response_time_ms": response_time_ms,
-        "response_size_bytes": response_size_bytes,
-        "lang": lang,
-        "tz": tz,
-        "year": year,
-        "round": round_num,
-        "race_name": race_name,
-        "is_auto_selected": 1 if is_auto_selected else 0,
-    }
-    _api_calls_buffer.append(call)
-
-
-def get_and_clear_api_calls_buffer() -> list:
-    """
-    Get all buffered API calls and clear the buffer.
-
-    Used by scheduler to flush calls to database.
-
-    Returns:
-        List of API call dictionaries
-    """
-    global _api_calls_buffer
-    calls = _api_calls_buffer.copy()
-    _api_calls_buffer = []
-    return calls
-
-
 @app.get("/api/stats")
 async def get_stats():
     """Get API request statistics from database."""
@@ -965,8 +948,8 @@ async def get_stats():
             "avg_response_ms": stats["avg_response_ms"],
             "total_bytes_24h": stats["total_bytes_24h"],
         },
-        "cache_size": len(_bmp_cache),
-        "cache_max_size": _bmp_cache.maxsize,
+        "cache_size": len(get_bmp_cache()),
+        "cache_max_size": get_bmp_cache().maxsize,
     }
 
 
@@ -1008,7 +991,7 @@ async def post_perf_metrics(request: Request):
 
         return {"status": "ok"}
     except Exception as e:
-        logger.warning(f"Failed to save perf metrics: {e}")
+        logger.warning("Failed to save perf metrics: %s", e)
         return {"status": "error", "message": "Failed to save metrics"}
 
 
@@ -1169,21 +1152,23 @@ def _get_team_id(team_name: str) -> str | None:
 
 def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
     """
-    Convert race schedule times to a different timezone.
+    Convert all schedule times in `race_data` to the specified timezone.
 
-    The race_data contains ISO datetime strings that we can parse and convert.
+    Parses ISO datetime strings found in `race_data["schedule"]`, converts each to `target_tz_str`, and updates each event's `datetime` (ISO string) and `display_time` (e.g., "Mon 14:30"). Also updates `race_date` from the event named "Race" using the target timezone and sets the top-level `timezone` field to `target_tz_str`. The function returns a deep-copied dict and does not modify the input.
 
-    Args:
-        race_data: Race data dictionary with schedule
-        target_tz_str: Target timezone string (e.g., 'America/New_York')
+    If `target_tz_str` is unknown, the original `race_data` is returned unchanged and a warning is logged. If an individual event's datetime cannot be parsed, that event is left unchanged and a warning is logged.
+
+    Parameters:
+        race_data (dict): Race data containing a "schedule" list of events with ISO `datetime` strings.
+        target_tz_str (str): Timezone identifier (e.g., "Europe/Prague") to convert times into.
 
     Returns:
-        Race data with converted schedule times
+        dict: A copy of `race_data` with converted schedule times, updated `race_date`, and `timezone` set to `target_tz_str`.
     """
     try:
         target_tz = pytz.timezone(target_tz_str)
     except pytz.UnknownTimeZoneError:
-        logger.warning(f"Unknown timezone {target_tz_str}, returning original data")
+        logger.warning("Unknown timezone %s, returning original data", target_tz_str)
         return race_data
 
     # Deep copy to avoid modifying original
@@ -1205,7 +1190,7 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
                 event["datetime"] = dt_local.isoformat()
                 event["display_time"] = dt_local.strftime("%a %H:%M")
             except (ValueError, TypeError) as e:
-                logger.warning(f"Error converting time {iso_str}: {e}")
+                logger.warning("Error converting time %s: %s", iso_str, e)
 
     # Update race_date to target timezone format
     if schedule:
@@ -1226,66 +1211,40 @@ def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict
     return result
 
 
-async def _fetch_race_weather(race_data: dict, weather_type: str = "race_day"):
-    """Fetch weather. Falls back to current weather if race day forecast unavailable (>14 days)."""
-    try:
-        circuit = race_data.get("circuit", {})
-        lat_str = circuit.get("lat") or circuit.get("Location", {}).get("lat")
-        lon_str = circuit.get("long") or circuit.get("Location", {}).get("long")
-
-        if not lat_str or not lon_str:
-            logger.debug("No coordinates found for weather fetch")
-            return None
-
-        lat = float(lat_str)
-        lon = float(lon_str)
-
-        weather_service = WeatherService(
-            timeout=config.REQUEST_TIMEOUT,
-            cache_minutes=config.WEATHER_CACHE_MINUTES,
-        )
-
-        if weather_type == "current":
-            return await weather_service.get_current_weather(lat, lon)
-
-        schedule = race_data.get("schedule", [])
-        race_session = next((s for s in schedule if s.get("name", "").lower() == "race"), None)
-
-        if race_session:
-            race_dt_str = race_session.get("datetime")
-            if race_dt_str:
-                race_dt = datetime.fromisoformat(race_dt_str)
-                race_weather = await weather_service.get_race_weather(lat, lon, race_dt)
-                if race_weather:
-                    return race_weather
-                logger.debug("Race day weather unavailable, falling back to current weather")
-
-        return await weather_service.get_current_weather(lat, lon)
-
-    except Exception as e:
-        logger.warning(f"Failed to fetch weather: {e}")
-        return None
-
-
-def clear_bmp_cache() -> None:
-    """Clear the BMP image cache. Called by scheduler after regeneration."""
-    _bmp_cache.clear()
-    logger.info("BMP cache cleared")
-
-
 @app.get("/calendar.bmp")
 async def get_calendar_bmp(
     request: Request,
     lang: str = Query(default="en", description="Language code (cs, en)"),
-    year: int = Query(default=None, description="Season year (e.g., 2025)"),
-    race_round: int = Query(default=None, description="Round number", alias="round"),
-    tz: str = Query(default=None, description="Timezone"),
+    year: int | None = Query(default=None, description="Season year (e.g., 2025)"),
+    race_round: int | None = Query(default=None, description="Round number", alias="round"),
+    tz: str | None = Query(default=None, description="Timezone"),
     weather: bool = Query(default=True, description="Show weather forecast"),
     weather_type: str = Query(
         default="race_day", description="Weather type: 'current' or 'race_day'"
     ),
     f1_service: F1Service = Depends(get_f1_service),
 ):
+    """
+    Generate and return an 800x480 BMP image of the F1 calendar (next race or a specific race) localized and optionally including weather.
+
+    Generates a calendar BMP for the requested language and selection. If year and round are provided, the specific race is rendered; otherwise the next race is used. Responses may be served from an in-memory cache, a pre-generated file for the next race, or rendered on-the-fly. On error the endpoint returns a BMP image containing an error message.
+
+    Parameters:
+             request (Request): Incoming FastAPI request (used for headers/analytics).
+             lang (str): Language code ("en" or "cs"); falls back to the default if unsupported.
+             year (int | None): Season year to render; when omitted, the next scheduled race is used.
+             race_round (int | None): Round number within a season; when omitted with year, behaves like next race.
+             tz (str | None): Target timezone for race times; when omitted the default timezone is used.
+             weather (bool): Whether to include weather data in the rendered image.
+             weather_type (str): Weather type selection (e.g., "current" or "race_day").
+             f1_service (F1Service): Injected service used to read static race data (omitted from detailed param docs intentionally).
+
+    Returns:
+        StreamingResponse: A response whose body is the BMP image bytes and headers appropriate for inline display.
+
+    Raises:
+        HTTPException: Raised with status 400 for invalid timezone values or detected unsafe image path keys.
+    """
     start_time = time.time()
 
     # Extract headers for analytics
@@ -1366,10 +1325,10 @@ async def get_calendar_bmp(
 
         # Check in-memory cache first
         cache_key = _get_cache_key(lang, year, race_round, tz, weather, weather_type)
-        cached_bmp = _bmp_cache.get(cache_key)
+        cached_bmp = get_bmp_cache().get(cache_key)
         if cached_bmp is not None:
-            logger.debug(f"Cache hit for {cache_key}")
-            _record_api_call(
+            logger.debug("Cache hit for %s", cache_key)
+            record_api_call(
                 "/calendar.bmp",
                 (time.time() - start_time) * 1000,
                 len(cached_bmp),
@@ -1391,57 +1350,53 @@ async def get_calendar_bmp(
                 },
             )
 
-        logger.info(f"Cache miss for {cache_key}, generating...")
+        logger.info("Cache miss for %s, generating...", cache_key)
 
         # Try to serve pre-generated image first (only for next race, not specific year/round)
         # Skip pre-generated images when weather is requested (they don't include weather)
         use_pregenerated = not year and not race_round and not (weather and config.WEATHER_ENABLED)
         if use_pregenerated:
-            # Build image key based on lang and optional tz
+            # Only serve pre-generated images for default timezone (no user-controlled paths)
+            # This eliminates CodeQL path injection concerns entirely
             target_tz_for_key = tz or config.DEFAULT_TIMEZONE
-            if target_tz_for_key != config.DEFAULT_TIMEZONE:
-                tz_safe = target_tz_for_key.replace("/", "_")
-                image_key = f"calendar_{lang}_{tz_safe}"
-            else:
-                image_key = f"calendar_{lang}"
+            if target_tz_for_key == config.DEFAULT_TIMEZONE:
+                # Use hardcoded filename pattern - no user input in path
+                if lang == "cs":
+                    image_filename = "calendar_cs.bmp"
+                else:
+                    image_filename = "calendar_en.bmp"
 
-            images_dir = Path(config.IMAGES_PATH)
-            image_path = images_dir / f"{image_key}.bmp"
+                images_dir = Path(config.IMAGES_PATH)
+                image_path = images_dir / image_filename
 
-            resolved_dir = images_dir.resolve()
-            resolved_path = image_path.resolve()
-            if not resolved_path.is_relative_to(resolved_dir):
-                logger.error(f"Path traversal attempt detected for image: {image_key}")
-                raise HTTPException(status_code=400, detail="Invalid image key")
-
-            if resolved_path.exists():
-                logger.info(f"Serving pre-generated image: {resolved_path}")
-                bmp_data = resolved_path.read_bytes()
-                _bmp_cache[cache_key] = bmp_data
-                _record_api_call(
-                    "/calendar.bmp",
-                    (time.time() - start_time) * 1000,
-                    len(bmp_data),
-                    lang,
-                    tz,
-                    actual_year,
-                    actual_round,
-                    actual_race_name,
-                    is_auto_selected,
-                )
-                await track_calendar_analytics()
-                return FileResponse(
-                    path=str(resolved_path),
-                    media_type="image/bmp",
-                    filename="calendar.bmp",
-                    headers={
-                        "Cache-Control": "public, max-age=3600",
-                        "X-Cache": "MISS",
-                    },
-                )
+                if image_path.exists():
+                    logger.info("Serving pre-generated image: %s", image_path)
+                    bmp_data = image_path.read_bytes()
+                    get_bmp_cache()[cache_key] = bmp_data
+                    record_api_call(
+                        "/calendar.bmp",
+                        (time.time() - start_time) * 1000,
+                        len(bmp_data),
+                        lang,
+                        tz,
+                        actual_year,
+                        actual_round,
+                        actual_race_name,
+                        is_auto_selected,
+                    )
+                    await track_calendar_analytics()
+                    return FileResponse(
+                        path=str(image_path),
+                        media_type="image/bmp",
+                        filename="calendar.bmp",
+                        headers={
+                            "Cache-Control": "public, max-age=3600",
+                            "X-Cache": "MISS",
+                        },
+                    )
 
         # Generate on-the-fly for specific race or when no pre-generated image exists
-        logger.info(f"Generating image on-the-fly (year={year}, round={race_round}, tz={tz})")
+        logger.info("Generating image on-the-fly (year=%s, round=%s, tz=%s)", year, race_round, tz)
 
         # Get translator
         translator = get_translator(lang)
@@ -1460,9 +1415,9 @@ async def get_calendar_bmp(
                     race_data = race
                     break
             if race_data:
-                logger.debug(f"Using static race data for {year}/{race_round}")
+                logger.debug("Using static race data for %s/%s", year, race_round)
             else:
-                logger.warning(f"Race {year}/{race_round} not found in static data")
+                logger.warning("Race %s/%s not found in static data", year, race_round)
         else:
             # Get next race from static data
             race_data = f1_service.get_next_race_from_static()
@@ -1473,7 +1428,7 @@ async def get_calendar_bmp(
         if race_data:
             cached_tz = race_data.get("timezone", config.DEFAULT_TIMEZONE)
             if cached_tz != target_tz:
-                logger.debug(f"Converting times from {cached_tz} to {target_tz}")
+                logger.debug("Converting times from %s to %s", cached_tz, target_tz)
                 race_data = _convert_race_times_to_timezone(race_data, target_tz)
 
         if not race_data:
@@ -1496,13 +1451,14 @@ async def get_calendar_bmp(
 
             weather_data = None
             if weather and config.WEATHER_ENABLED:
-                weather_data = await _fetch_race_weather(race_data, weather_type)
+                # Use pre-fetched weather from scheduler (populated hourly)
+                weather_data = get_cached_circuit_weather(circuit_id)
 
             renderer = Renderer(translator)
             bmp_data = renderer.render_calendar(race_data, historical_data, weather_data)
 
             # Cache the result
-            _bmp_cache[cache_key] = bmp_data
+            get_bmp_cache()[cache_key] = bmp_data
 
         # Update race info from actual rendered data (may have been fetched fresh)
         if race_data:
@@ -1511,7 +1467,7 @@ async def get_calendar_bmp(
             actual_race_name = race_data.get("race_name", actual_race_name)
 
         # Record request with response time and size
-        _record_api_call(
+        record_api_call(
             "/calendar.bmp",
             (time.time() - start_time) * 1000,
             len(bmp_data),
@@ -1538,7 +1494,7 @@ async def get_calendar_bmp(
         )
 
     except Exception as e:
-        logger.error(f"Error generating calendar: {str(e)}", exc_info=True)
+        logger.error("Error generating calendar: %s", e, exc_info=True)
         sentry_sdk.capture_exception(e)
 
         # Return error image (don't cache errors)
@@ -1549,7 +1505,7 @@ async def get_calendar_bmp(
         # Record request with response time and size (even for errors)
         # Note: is_auto_selected may not be defined if error occurred early
         auto_selected = year is None and race_round is None
-        _record_api_call(
+        record_api_call(
             "/calendar.bmp",
             (time.time() - start_time) * 1000,
             len(bmp_data),
@@ -1591,7 +1547,7 @@ async def get_teams_bmp(
         renderer = Renderer(translator)
         bmp_data = renderer.render_teams_drivers(teams_data)
 
-        _record_api_call(
+        record_api_call(
             "/teams.bmp",
             (time.time() - start_time) * 1000,
             len(bmp_data),
@@ -1613,14 +1569,14 @@ async def get_teams_bmp(
         )
 
     except Exception as e:
-        logger.error(f"Error generating teams: {e}", exc_info=True)
+        logger.error("Error generating teams: %s", e, exc_info=True)
         sentry_sdk.capture_exception(e)
 
         translator = get_translator(lang)
         renderer = Renderer(translator)
         bmp_data = renderer.render_error(str(e))
 
-        _record_api_call(
+        record_api_call(
             "/teams.bmp",
             (time.time() - start_time) * 1000,
             len(bmp_data),
@@ -1700,7 +1656,7 @@ async def get_standings_leader(year: int | None = None):
         }
 
     except Exception as e:
-        logger.warning(f"Failed to get standings leader for {year}: {e}")
+        logger.warning("Failed to get standings leader for %s: %s", year, e)
         return {
             "season": year,
             "leader_team": None,

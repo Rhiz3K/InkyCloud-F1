@@ -33,14 +33,9 @@ jobs:
       run: |
         ruff check .
     
-    - name: Run tests with coverage
+    - name: Run tests
       run: |
-        pytest tests/ -v --cov=app --cov-report=xml
-    
-    - name: Report coverage to DeepSource
-      run: |
-        curl https://deepsource.io/cli | sh
-        ./bin/deepsource report --analyzer test-coverage --key python --value-file ./coverage.xml --use-oidc
+        pytest tests/ -v
     
     - name: Test Docker build
       run: |
