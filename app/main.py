@@ -1365,10 +1365,14 @@ async def get_calendar_bmp(
                 logger.error(f"Invalid timezone for path: {e}")
                 raise HTTPException(status_code=400, detail="Invalid timezone") from e
 
+            # Explicit allowlist check for lang to satisfy CodeQL static analysis
+            # lang was already validated against VALID_LANGUAGES above, this is defense-in-depth
+            safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
+
             if target_tz_for_key != config.DEFAULT_TIMEZONE:
-                image_key = f"calendar_{lang}_{tz_safe}"
+                image_key = f"calendar_{safe_lang}_{tz_safe}"
             else:
-                image_key = f"calendar_{lang}"
+                image_key = f"calendar_{safe_lang}"
 
             images_dir = Path(config.IMAGES_PATH)
             image_path = images_dir / f"{image_key}.bmp"
