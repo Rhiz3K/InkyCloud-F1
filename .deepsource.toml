@@ -28,6 +28,12 @@ dependency_file_paths = ["pyproject.toml"]
   type_checker = "mypy"
   cyclomatic_complexity_threshold = "high"
 
+# Exclude rules that are too noisy or don't apply to our codebase
+exclude_rules = [
+  "PYL-W1203",  # f-string logging is acceptable in modern Python
+  "PYL-R0201",  # Test methods need self for pytest fixtures
+]
+
 # Docker Analyzer - Dockerfile best practices
 [[analyzers]]
 name = "docker"
