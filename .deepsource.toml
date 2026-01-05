@@ -20,15 +20,13 @@ name = "python"
 enabled = true
 dependency_file_paths = ["pyproject.toml"]
 
-[analyzers.meta]
-runtime_version = "3.x.x"
-max_line_length = 100
-skip_doc_coverage = ["module", "magic", "init"]
-type_checker = "mypy"
-cyclomatic_complexity_threshold = "high"
-
-[[analyzers.ignore_rules]]
-rule_ids = ["PYL-W1203", "PYL-R0201"]
+  [analyzers.meta]
+  runtime_version = "3.x.x"
+  max_line_length = 100
+  skip_doc_coverage = ["module", "magic", "init"]
+  type_checker = "mypy"
+  cyclomatic_complexity_threshold = "high"
+  exclude_issues = ["PYL-W1203", "PYL-R0201"]
 
 [[analyzers]]
 name = "docker"
