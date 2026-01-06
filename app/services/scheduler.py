@@ -260,7 +260,7 @@ async def collect_and_generate() -> None:
                     if weather_data:
                         logger.info(f"Using cached weather: {weather_data.temp_display}")
                 except (ValueError, TypeError):
-                    pass
+                    logger.warning(f"Invalid coordinates for weather: lat={lat}, lon={lon}")
 
         # 4. Generate default images for all languages (default timezone)
         generated_count = 0

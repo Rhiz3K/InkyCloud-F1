@@ -247,11 +247,8 @@ def clear_weather_cache() -> None:
     _weather_cache.clear()
 
 
-async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData]:
-    """
-    Pre-fetch weather for next race and store in DB cache.
-    Called by scheduler at :55 each hour before image generation.
-    """
+def _get_next_race_details() -> Optional[tuple[float, float, datetime]]:
+    """Extract coordinates and race datetime from next race static data."""
     from app.services.f1_service import F1Service
 
     f1_service = F1Service()
@@ -270,10 +267,10 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
         return None
 
     try:
-        lat = float(lat)
-        lon = float(lon)
+        lat_f = float(lat)
+        lon_f = float(lon)
     except (ValueError, TypeError):
-        logger.warning(f"Invalid coordinates: lat={lat}, lon={lon}")
+        logger.warning("Invalid coordinates: lat=%s, lon=%s", lat, lon)
         return None
 
     schedule = race_data.get("schedule", [])
@@ -291,9 +288,22 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
     try:
         race_dt = datetime.fromisoformat(race_dt_str)
     except ValueError:
-        logger.warning(f"Invalid race datetime: {race_dt_str}")
+        logger.warning("Invalid race datetime: %s", race_dt_str)
         return None
 
+    return (lat_f, lon_f, race_dt)
+
+
+async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData]:
+    """
+    Pre-fetch weather for next race and store in DB cache.
+    Called by scheduler at :55 each hour before image generation.
+    """
+    details = _get_next_race_details()
+    if not details:
+        return None
+
+    lat, lon, race_dt = details
     weather_service = WeatherService(cache_minutes=120)
 
     current_weather = await weather_service.get_current_weather(lat, lon)
