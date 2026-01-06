@@ -18,6 +18,11 @@ from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.version_service import refresh_version_info
+from app.services.weather_service import (
+    WeatherData,
+    get_cached_weather_from_db,
+    prefetch_weather_for_next_race,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -242,14 +247,28 @@ async def collect_and_generate() -> None:
             else:
                 logger.info(f"Circuit {circuit_id}: historical data from {historical_data.season}")
 
+        # 3b. Get cached weather from DB (prefetched at :55)
+        weather_data: WeatherData | None = None
+        if config.WEATHER_ENABLED:
+            circuit = race_data.get("circuit", {})
+            lat = circuit.get("lat")
+            lon = circuit.get("long")
+            if lat and lon:
+                try:
+                    cache_key = f"current_{round(float(lat), 2)}_{round(float(lon), 2)}"
+                    weather_data = await get_cached_weather_from_db(db, cache_key)
+                    if weather_data:
+                        logger.info(f"Using cached weather: {weather_data.temp_display}")
+                except (ValueError, TypeError):
+                    pass
+
         # 4. Generate default images for all languages (default timezone)
         generated_count = 0
         for lang in SUPPORTED_LANGUAGES:
             translator = get_translator(lang)
             renderer = Renderer(translator)
 
-            # Generate image with default timezone
-            bmp_data = renderer.render_calendar(race_data, historical_data)
+            bmp_data = renderer.render_calendar(race_data, historical_data, weather_data)
 
             # Save image using async file I/O
             image_key = _get_image_key(lang)
@@ -284,13 +303,13 @@ async def collect_and_generate() -> None:
                     logger.debug(f"Skipping unsupported language: {lang}")
                     continue
 
-                # Convert race times to target timezone
                 race_data_converted = _convert_race_times_to_timezone(race_data, tz)
 
-                # Generate image
                 translator = get_translator(lang)
                 renderer = Renderer(translator)
-                bmp_data = renderer.render_calendar(race_data_converted, historical_data)
+                bmp_data = renderer.render_calendar(
+                    race_data_converted, historical_data, weather_data
+                )
 
                 # Save image
                 image_key = _get_image_key(lang, tz)
@@ -351,6 +370,30 @@ async def flush_api_calls_to_db() -> None:
         pass  # Buffer not available (e.g., during tests)
     except Exception as e:
         logger.error(f"Error flushing API calls: {e}", exc_info=True)
+
+
+async def prefetch_weather() -> None:
+    """
+    Pre-fetch weather data for next race at :55 each hour.
+    Stores in DB cache so image generation at :00 doesn't need API calls.
+    """
+    if not config.WEATHER_ENABLED:
+        logger.debug("Weather disabled, skipping prefetch")
+        return
+
+    try:
+        db = Database()
+        weather_data = await prefetch_weather_for_next_race(db)
+        if weather_data:
+            logger.info(f"Weather prefetch complete: {weather_data.temp_display}")
+        else:
+            logger.debug("No weather data prefetched")
+
+        deleted = await db.cleanup_expired_weather_cache()
+        if deleted > 0:
+            logger.debug(f"Cleaned up {deleted} expired weather cache entries")
+    except Exception as e:
+        logger.error(f"Error in weather prefetch: {e}", exc_info=True)
 
 
 def _run_backup() -> None:
@@ -432,6 +475,16 @@ def start_scheduler() -> None:
 
     scheduler = AsyncIOScheduler()
 
+    # Weather prefetch at :55 (before image generation at :00)
+    if config.WEATHER_ENABLED:
+        scheduler.add_job(
+            prefetch_weather,
+            trigger=CronTrigger(minute=55),
+            id="weather_prefetch",
+            name="Weather data prefetch for next race",
+            replace_existing=True,
+        )
+
     # Hourly: Regenerate images from static data
     scheduler.add_job(
         collect_and_generate,
@@ -463,9 +516,10 @@ def start_scheduler() -> None:
     )
 
     scheduler.start()
+    weather_msg = ", weather prefetch at :55" if config.WEATHER_ENABLED else ""
     logger.info(
-        "Scheduler started - hourly generation at :00, API calls flush every minute, "
-        "version refresh at 00:05"
+        f"Scheduler started - hourly generation at :00{weather_msg}, "
+        "API calls flush every minute, version refresh at 00:05"
     )
 
 
@@ -487,6 +541,13 @@ async def run_initial_generation() -> None:
     Also refreshes version info from GitHub API.
     """
     logger.info("Running initial generation from static data")
+
+    if config.WEATHER_ENABLED:
+        try:
+            await prefetch_weather()
+            logger.info("Weather prefetched on startup")
+        except Exception as e:
+            logger.error(f"Error prefetching weather on startup: {e}", exc_info=True)
 
     try:
         await collect_and_generate()

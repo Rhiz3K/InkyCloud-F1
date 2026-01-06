@@ -3,9 +3,12 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import httpx
+
+if TYPE_CHECKING:
+    from app.services.database import Database
 
 logger = logging.getLogger(__name__)
 
@@ -242,3 +245,93 @@ class WeatherService:
 
 def clear_weather_cache() -> None:
     _weather_cache.clear()
+
+
+async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData]:
+    """
+    Pre-fetch weather for next race and store in DB cache.
+    Called by scheduler at :55 each hour before image generation.
+    """
+    from app.services.f1_service import F1Service
+
+    f1_service = F1Service()
+    race_data = f1_service.get_next_race_from_static()
+
+    if not race_data:
+        logger.warning("No upcoming race for weather prefetch")
+        return None
+
+    circuit = race_data.get("circuit", {})
+    lat = circuit.get("lat")
+    lon = circuit.get("long")
+
+    if not lat or not lon:
+        logger.warning("No coordinates for weather prefetch")
+        return None
+
+    try:
+        lat = float(lat)
+        lon = float(lon)
+    except (ValueError, TypeError):
+        logger.warning(f"Invalid coordinates: lat={lat}, lon={lon}")
+        return None
+
+    schedule = race_data.get("schedule", [])
+    race_session = next((s for s in schedule if s.get("name") == "Race"), None)
+
+    if not race_session:
+        logger.warning("No race session found for weather prefetch")
+        return None
+
+    race_dt_str = race_session.get("datetime")
+    if not race_dt_str:
+        logger.warning("No race datetime for weather prefetch")
+        return None
+
+    try:
+        race_dt = datetime.fromisoformat(race_dt_str)
+    except ValueError:
+        logger.warning(f"Invalid race datetime: {race_dt_str}")
+        return None
+
+    weather_service = WeatherService(cache_minutes=120)
+
+    current_weather = await weather_service.get_current_weather(lat, lon)
+    if current_weather:
+        cache_key = f"current_{round(lat, 2)}_{round(lon, 2)}"
+        await db.save_weather_cache(
+            cache_key=cache_key,
+            temperature_c=current_weather.temperature_c,
+            weather_code=current_weather.weather_code,
+            precipitation_probability=current_weather.precipitation_probability,
+            ttl_minutes=120,
+        )
+        logger.info(f"Prefetched current weather: {current_weather.temp_display}")
+
+    race_weather = await weather_service.get_race_weather(lat, lon, race_dt)
+    if race_weather:
+        cache_key = f"{round(lat, 2)}_{round(lon, 2)}_{race_dt.isoformat()}"
+        await db.save_weather_cache(
+            cache_key=cache_key,
+            temperature_c=race_weather.temperature_c,
+            weather_code=race_weather.weather_code,
+            precipitation_probability=race_weather.precipitation_probability,
+            ttl_minutes=120,
+        )
+        logger.info(f"Prefetched race day weather: {race_weather.temp_display}")
+        return race_weather
+
+    return current_weather
+
+
+async def get_cached_weather_from_db(db: "Database", cache_key: str) -> Optional[WeatherData]:
+    """Get weather from DB cache."""
+    cached = await db.get_weather_cache(cache_key)
+    if cached:
+        temp_c, code, precip = cached
+        return WeatherData(
+            temperature_c=temp_c,
+            weather_code=code,
+            precipitation_probability=precip,
+        )
+    return None

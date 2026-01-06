@@ -113,11 +113,24 @@ class Database:
                     device_memory REAL
                 );
 
+                -- Weather cache table
+                CREATE TABLE IF NOT EXISTS weather_cache (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cache_key TEXT UNIQUE NOT NULL,
+                    temperature_c REAL NOT NULL,
+                    weather_code INTEGER NOT NULL,
+                    precipitation_probability INTEGER NOT NULL,
+                    cached_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL
+                );
+
                 -- Create indexes (note: idx_api_calls_race created after migrations)
                 CREATE INDEX IF NOT EXISTS idx_images_key ON generated_images(image_key);
                 CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON request_stats(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_api_calls_timestamp ON api_calls(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_perf_metrics_timestamp ON perf_metrics(timestamp);
+                CREATE INDEX IF NOT EXISTS idx_weather_cache_key ON weather_cache(cache_key);
+                CREATE INDEX IF NOT EXISTS idx_weather_cache_expires ON weather_cache(expires_at);
             """
             )
             await conn.commit()
@@ -876,3 +889,102 @@ class Database:
                     ],
                     "samples": [row["samples"] for row in rows],
                 }
+
+    async def save_weather_cache(
+        self,
+        cache_key: str,
+        temperature_c: float,
+        weather_code: int,
+        precipitation_probability: int,
+        ttl_minutes: int = 120,
+    ) -> None:
+        """
+        Save weather data to database cache.
+
+        Args:
+            cache_key: Unique cache key (e.g., "current_-37.85_144.97")
+            temperature_c: Temperature in Celsius
+            weather_code: WMO weather code
+            precipitation_probability: Precipitation probability percentage
+            ttl_minutes: Cache TTL in minutes (default 120 = 2 hours)
+        """
+        await self._init_db_if_needed()
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(minutes=ttl_minutes)
+
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            await conn.execute(
+                """
+                INSERT INTO weather_cache
+                    (cache_key, temperature_c, weather_code, precipitation_probability,
+                     cached_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(cache_key) DO UPDATE SET
+                    temperature_c = excluded.temperature_c,
+                    weather_code = excluded.weather_code,
+                    precipitation_probability = excluded.precipitation_probability,
+                    cached_at = excluded.cached_at,
+                    expires_at = excluded.expires_at
+                """,
+                (
+                    cache_key,
+                    temperature_c,
+                    weather_code,
+                    precipitation_probability,
+                    now.isoformat(),
+                    expires_at.isoformat(),
+                ),
+            )
+            await conn.commit()
+
+    async def get_weather_cache(self, cache_key: str) -> Optional[tuple[float, int, int]]:
+        """
+        Get weather data from database cache if not expired.
+
+        Args:
+            cache_key: Cache key to lookup
+
+        Returns:
+            Tuple of (temperature_c, weather_code, precipitation_probability) or None
+        """
+        await self._init_db_if_needed()
+        now = datetime.now(timezone.utc).isoformat()
+
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            async with conn.execute(
+                """
+                SELECT temperature_c, weather_code, precipitation_probability
+                FROM weather_cache
+                WHERE cache_key = ? AND expires_at > ?
+                """,
+                (cache_key, now),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return (
+                        row["temperature_c"],
+                        row["weather_code"],
+                        row["precipitation_probability"],
+                    )
+                return None
+
+    async def cleanup_expired_weather_cache(self) -> int:
+        """
+        Remove expired weather cache entries.
+
+        Returns:
+            Number of rows deleted
+        """
+        await self._init_db_if_needed()
+        now = datetime.now(timezone.utc).isoformat()
+
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            cursor = await conn.execute(
+                "DELETE FROM weather_cache WHERE expires_at <= ?",
+                (now,),
+            )
+            await conn.commit()
+            return cursor.rowcount
