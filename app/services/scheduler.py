@@ -258,9 +258,9 @@ async def collect_and_generate() -> None:
                     cache_key = f"current_{round(float(lat), 2)}_{round(float(lon), 2)}"
                     weather_data = await get_cached_weather_from_db(db, cache_key)
                     if weather_data:
-                        logger.info(f"Using cached weather: {weather_data.temp_display}")
+                        logger.info("Using cached weather: %s", weather_data.temp_display)
                 except (ValueError, TypeError):
-                    logger.warning(f"Invalid coordinates for weather: lat={lat}, lon={lon}")
+                    logger.warning("Invalid coordinates for weather: lat=%s, lon=%s", lat, lon)
 
         # 4. Generate default images for all languages (default timezone)
         generated_count = 0
@@ -385,15 +385,15 @@ async def prefetch_weather() -> None:
         db = Database()
         weather_data = await prefetch_weather_for_next_race(db)
         if weather_data:
-            logger.info(f"Weather prefetch complete: {weather_data.temp_display}")
+            logger.info("Weather prefetch complete: %s", weather_data.temp_display)
         else:
             logger.debug("No weather data prefetched")
 
         deleted = await db.cleanup_expired_weather_cache()
         if deleted > 0:
-            logger.debug(f"Cleaned up {deleted} expired weather cache entries")
+            logger.debug("Cleaned up %d expired weather cache entries", deleted)
     except Exception as e:
-        logger.error(f"Error in weather prefetch: {e}", exc_info=True)
+        logger.error("Error in weather prefetch: %s", e, exc_info=True)
 
 
 def _run_backup() -> None:
@@ -547,7 +547,7 @@ async def run_initial_generation() -> None:
             await prefetch_weather()
             logger.info("Weather prefetched on startup")
         except Exception as e:
-            logger.error(f"Error prefetching weather on startup: {e}", exc_info=True)
+            logger.error("Error prefetching weather on startup: %s", e, exc_info=True)
 
     try:
         await collect_and_generate()

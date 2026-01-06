@@ -316,7 +316,7 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
             precipitation_probability=current_weather.precipitation_probability,
             ttl_minutes=120,
         )
-        logger.info(f"Prefetched current weather: {current_weather.temp_display}")
+        logger.info("Prefetched current weather: %s", current_weather.temp_display)
 
     race_weather = await weather_service.get_race_weather(lat, lon, race_dt)
     if race_weather:
@@ -328,7 +328,7 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
             precipitation_probability=race_weather.precipitation_probability,
             ttl_minutes=120,
         )
-        logger.info(f"Prefetched race day weather: {race_weather.temp_display}")
+        logger.info("Prefetched race day weather: %s", race_weather.temp_display)
         return race_weather
 
     return current_weather
