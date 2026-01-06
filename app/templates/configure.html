@@ -234,6 +234,66 @@ block content %}
         id="tzList"
         class="flex-1 overflow-y-auto text-xs p-2 space-y-0.5"
       ></div>
+      <!-- Weather - Desktop (inside timezone container for proper flex layout) -->
+      <div
+        class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
+        id="weatherContainer"
+      >
+        <label class="text-xs font-bold uppercase mb-1.5 block" id="weatherLabel"
+          >Weather</label
+        >
+        <input
+          type="checkbox"
+          id="weatherToggle"
+          checked
+          onchange="
+            updateWeatherTypeAvailability();
+            updatePreview();
+          "
+          class="hidden"
+        />
+        <div class="flex gap-1" id="weatherTypeContainer">
+          <button
+            type="button"
+            onclick="setWeatherType('off')"
+            id="weatherOffBtn"
+            class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          >
+            OFF
+          </button>
+          <button
+            type="button"
+            onclick="setWeatherType('current')"
+            id="weatherCurrentBtn"
+            class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          >
+            <span id="weatherCurrentLabel">Current</span>
+          </button>
+          <button
+            type="button"
+            onclick="setWeatherType('race_day')"
+            id="weatherRaceDayBtn"
+            class="weather-type-btn group relative flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
+          >
+            <span id="weatherRaceDayText">Race day</span>
+            <span
+              id="weatherRaceDayTooltip"
+              class="invisible group-hover:visible group-disabled:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap z-50 border-2 border-white"
+            >
+              <span id="weatherTooltipText">Activates 14 days before race</span>
+            </span>
+          </button>
+        </div>
+        <input type="radio" name="weatherType" value="current" class="hidden" />
+        <input
+          type="radio"
+          name="weatherType"
+          value="race_day"
+          checked
+          class="hidden"
+          id="weatherRaceDayRadio"
+        />
+      </div>
     </div>
     <input type="hidden" id="tz" value="" />
 
@@ -273,67 +333,6 @@ block content %}
           Race day
         </button>
       </div>
-    </div>
-
-    <!-- Weather - Desktop -->
-    <div
-      class="hidden lg:block px-2 py-1.5 border-t-2 border-b-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}lg:hidden{% endif %}"
-      id="weatherContainer"
-    >
-      <label class="text-xs font-bold uppercase mb-1.5 block" id="weatherLabel"
-        >Weather</label
-      >
-      <input
-        type="checkbox"
-        id="weatherToggle"
-        checked
-        onchange="
-          updateWeatherTypeAvailability();
-          updatePreview();
-        "
-        class="hidden"
-      />
-      <div class="flex gap-1" id="weatherTypeContainer">
-        <button
-          type="button"
-          onclick="setWeatherType('off')"
-          id="weatherOffBtn"
-          class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
-        >
-          OFF
-        </button>
-        <button
-          type="button"
-          onclick="setWeatherType('current')"
-          id="weatherCurrentBtn"
-          class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
-        >
-          <span id="weatherCurrentLabel">Current</span>
-        </button>
-        <button
-          type="button"
-          onclick="setWeatherType('race_day')"
-          id="weatherRaceDayBtn"
-          class="weather-type-btn group relative flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
-        >
-          <span id="weatherRaceDayText">Race day</span>
-          <span
-            id="weatherRaceDayTooltip"
-            class="invisible group-hover:visible group-disabled:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap z-50 border-2 border-white"
-          >
-            <span id="weatherTooltipText">Activates 14 days before race</span>
-          </span>
-        </button>
-      </div>
-      <input type="radio" name="weatherType" value="current" class="hidden" />
-      <input
-        type="radio"
-        name="weatherType"
-        value="race_day"
-        checked
-        class="hidden"
-        id="weatherRaceDayRadio"
-      />
     </div>
 
     <!-- Mobile Race Selector (Calendar only) -->
