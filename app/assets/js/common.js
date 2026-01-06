@@ -4,15 +4,19 @@
  */
 
 (function initLanguagePreference() {
-    const storedLang = localStorage.getItem("preferredLang");
-    if (!storedLang) return;
+    try {
+        const storedLang = localStorage.getItem("preferredLang");
+        if (!storedLang) return;
 
-    const url = new URL(window.location.href);
-    const urlLang = url.searchParams.get("lang");
+        const url = new URL(window.location.href);
+        const urlLang = url.searchParams.get("lang");
 
-    if (!urlLang || urlLang !== storedLang) {
-        url.searchParams.set("lang", storedLang);
-        window.location.replace(url.toString());
+        if (urlLang !== storedLang) {
+            url.searchParams.set("lang", storedLang);
+            window.location.replace(url.toString());
+        }
+    } catch (e) {
+        console.error("Failed to apply language preference from localStorage:", e);
     }
 })();
 
