@@ -25,7 +25,9 @@ except Exception as e:
     logger.warning(f"Failed to load circuit data: {e}")
     CIRCUITS_DATA = {}
 
-CIRCUIT_ID_MAP: dict[str, str] = {}
+CIRCUIT_ID_MAP: dict[str, str] = {
+    "vegas": "las_vegas",
+}
 
 COUNTRY_MAP = {
     "Australia": "au",
@@ -638,15 +640,6 @@ class Spectra6Renderer:
         footer_height = self.height - footer_y_start
 
         iso_code = COUNTRY_MAP.get(country_name, "").lower()
-        if not iso_code:
-            if country_name == "UAE":
-                iso_code = "ae"
-            elif country_name == "UK":
-                iso_code = "gb"
-            elif country_name == "USA":
-                iso_code = "us"
-            else:
-                iso_code = country_name[:2].lower()
 
         flag_img = None
         if iso_code:
