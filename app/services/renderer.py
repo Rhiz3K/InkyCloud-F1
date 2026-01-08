@@ -980,8 +980,9 @@ class Renderer:
         label_x = self.layout["padding"]
         draw.text((label_x, label_y), label_text, fill=0, font=label_font)
 
+    @staticmethod
     def _draw_track_placeholder(
-        self, draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
+        draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
     ) -> None:
         """Draw a simple placeholder when track image is not available."""
         draw.rounded_rectangle(
@@ -1582,8 +1583,8 @@ class Renderer:
             return img.crop(bbox)
         return img
 
+    @staticmethod
     def _fit_text(
-        self,
         draw: ImageDraw.ImageDraw,
         font: FreeTypeFont | ImageFont.ImageFont,
         max_width: int,

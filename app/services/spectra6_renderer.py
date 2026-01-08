@@ -293,13 +293,14 @@ class Spectra6Renderer:
         label_x = self.layout["padding"]
         draw.text((label_x, label_y), label_text, fill=self.colors.BLACK, font=label_font)
 
+    @staticmethod
     def _draw_track_placeholder(
-        self, draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
+        draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
     ) -> None:
         draw.rounded_rectangle(
             [(x + 20, y + 20), (x + width - 20, y + height - 20)],
             radius=20,
-            outline=self.colors.BLACK,
+            outline=Spectra6Colors.BLACK,
             width=3,
         )
 
@@ -757,8 +758,8 @@ class Spectra6Renderer:
             if time_str:
                 draw.text((time_x, y), time_str, fill=self.colors.BLACK, font=font)
 
+    @staticmethod
     def _fit_text(
-        self,
         draw: ImageDraw.ImageDraw,
         font: FreeTypeFont | ImageFont.ImageFont,
         max_width: int,
