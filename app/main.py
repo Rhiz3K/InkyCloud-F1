@@ -251,7 +251,10 @@ def _detect_ui_language(request: Request) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request, lang: str = Query(default=None)):
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url="/", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -288,7 +291,10 @@ async def configure_screen(request: Request, screen_type: str, lang: str = Query
     if screen_type not in ["calendar", "teams"]:
         raise HTTPException(status_code=404, detail="Unknown screen type")
 
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url=f"/configure/{screen_type}", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -507,7 +513,10 @@ async def privacy(request: Request, lang: str = Query(default=None)):
 
     Language can be overridden via ?lang= query parameter.
     """
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url="/privacy", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -538,7 +547,10 @@ async def changelog(request: Request, lang: str = Query(default=None)):
     """
     import markdown
 
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url="/changelog", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -593,7 +605,10 @@ async def api_docs_html(request: Request, lang: str = Query(default=None)):
     Interactive HTML documentation with code examples and "Try it" functionality.
     Language can be overridden via ?lang= query parameter.
     """
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url="/api/docs/html", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -780,7 +795,10 @@ async def stats_dashboard(
 
     Shows request counts, response times, endpoint breakdown, language stats, etc.
     """
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url=f"/stats?range={time_range}", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
