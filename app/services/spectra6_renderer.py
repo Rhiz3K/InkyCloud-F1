@@ -193,7 +193,7 @@ class Spectra6Renderer:
         draw.rectangle([(0, 0), (split_x, header_height)], fill=self.colors.WHITE)
         draw.line(
             [(0, header_height - 1), (split_x, header_height - 1)],
-            fill=self.colors.BLACK,
+            fill=self.colors.RED,
             width=2,
         )
         draw.rectangle([(split_x + 1, 0), (self.width, header_height)], fill=self.colors.RED)
