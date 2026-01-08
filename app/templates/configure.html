@@ -1908,12 +1908,8 @@ block content %}
     }
   }
 
-  function setDisplayType(type, skipSave = false) {
+  function setDisplayType(type) {
     currentDisplayType = type;
-
-    if (!skipSave) {
-      localStorage.setItem("preferredDisplayType", type);
-    }
 
     const allBtns = [
       document.getElementById("display1bitBtn"),
@@ -1962,13 +1958,6 @@ block content %}
     updatePreview();
   }
 
-  function initDisplayType() {
-    const saved = localStorage.getItem("preferredDisplayType");
-    if (saved && ["1bit", "spectra6"].includes(saved)) {
-      setDisplayType(saved, true);
-    }
-  }
-
   function startApp() {
     console.log("Starting F1 Configure...");
     if (!initUiLanguage()) {
@@ -1977,7 +1966,6 @@ block content %}
 
     initScreenTypeVisibility();
     setUiLanguage(currentUiLang);
-    initDisplayType();
 
     if (currentScreenType === "calendar") {
       loadRaces();
