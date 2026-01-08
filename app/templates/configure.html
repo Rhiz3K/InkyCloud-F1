@@ -294,6 +294,33 @@ block content %}
           id="weatherRaceDayRadio"
         />
       </div>
+      <!-- Display Type - Desktop -->
+      <div
+        class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
+        id="displayContainer"
+      >
+        <label class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
+          >Display</label
+        >
+        <div class="flex gap-1" id="displayTypeContainer">
+          <button
+            type="button"
+            onclick="setDisplayType('1bit')"
+            id="display1bitBtn"
+            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-black text-white"
+          >
+            1-BIT
+          </button>
+          <button
+            type="button"
+            onclick="setDisplayType('spectra6')"
+            id="displaySpectra6Btn"
+            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          >
+            SPECTRA 6
+          </button>
+        </div>
+      </div>
     </div>
     <input type="hidden" id="tz" value="" />
 
@@ -331,6 +358,36 @@ block content %}
           class="weather-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-racing-red text-white"
         >
           Race day
+        </button>
+      </div>
+    </div>
+
+    <!-- Display Type - Mobile -->
+    <div
+      class="lg:hidden p-4 border-b-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
+      id="mobileDisplayContainer"
+    >
+      <label
+        class="block text-xs font-bold uppercase mb-2"
+        id="displayLabelMobile"
+        >Display</label
+      >
+      <div class="flex gap-1">
+        <button
+          type="button"
+          onclick="setDisplayType('1bit')"
+          id="display1bitBtnMobile"
+          class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-black text-white"
+        >
+          1-BIT
+        </button>
+        <button
+          type="button"
+          onclick="setDisplayType('spectra6')"
+          id="displaySpectra6BtnMobile"
+          class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
+        >
+          SPECTRA 6
         </button>
       </div>
     </div>
@@ -524,6 +581,7 @@ block content %}
             >
             <span
               class="px-2 py-1 border-2 border-black bg-white text-xs font-bold shadow-neo-sm"
+              id="displayBadge"
               >1-BIT</span
             >
             <span
@@ -850,6 +908,7 @@ block content %}
       weatherCurrentLabel: "Current",
       weatherRaceDayLabel: "Race day",
       weatherTooltipText: "Activates 14 days before race",
+      displayLabel: "Display",
     },
     cs: {
       headerTitle: "F1 InkyCloud",
@@ -883,11 +942,13 @@ block content %}
       weatherCurrentLabel: "Aktuální",
       weatherRaceDayLabel: "V den závodu",
       weatherTooltipText: "Aktivuje se 14 dní před závodem",
+      displayLabel: "Displej",
     },
   };
 
   let currentUiLang = "{{ ui_lang }}";
   let currentScreenType = "{{ screen_type }}";
+  let currentDisplayType = "1bit";
   let racesData = [];
   let selectedYear = null;
   let selectedRound = null;
@@ -1127,6 +1188,10 @@ block content %}
     const weatherTooltipText = document.getElementById("weatherTooltipText");
     if (weatherTooltipText)
       weatherTooltipText.textContent = t.weatherTooltipText;
+    const displayLabel = document.getElementById("displayLabel");
+    if (displayLabel) displayLabel.textContent = t.displayLabel;
+    const displayLabelMobile = document.getElementById("displayLabelMobile");
+    if (displayLabelMobile) displayLabelMobile.textContent = t.displayLabel;
   }
 
   function getApiUrl() {
@@ -1146,6 +1211,9 @@ block content %}
       } else if (weatherType === "current") {
         url += `&weather_type=current`;
       }
+      if (currentDisplayType === "spectra6") {
+        url += `&display=spectra6`;
+      }
       return url;
     } else {
       let url = `${window.location.origin}/teams.bmp?lang=${currentUiLang}`;
@@ -1156,11 +1224,11 @@ block content %}
 
   function isDefaultView() {
     if (currentScreenType === "calendar") {
-      // Not default if specific race selected OR non-browser timezone selected OR weather enabled
       const isDefaultTz = !selectedTz || selectedTz === browserTz;
       const weatherToggle = document.getElementById("weatherToggle");
       const hasWeather = weatherToggle && weatherToggle.checked;
-      return !selectedYear && !selectedRound && isDefaultTz && !hasWeather;
+      const isDefaultDisplay = currentDisplayType === "1bit";
+      return !selectedYear && !selectedRound && isDefaultTz && !hasWeather && isDefaultDisplay;
     } else if (currentScreenType === "teams") {
       return selectedTeamsYear === getCurrentSeason();
     }
@@ -1838,6 +1906,56 @@ block content %}
     if (!isRaceDayAvailable && currentWeatherType === "race_day") {
       setWeatherType("current");
     }
+  }
+
+  function setDisplayType(type) {
+    currentDisplayType = type;
+
+    const allBtns = [
+      document.getElementById("display1bitBtn"),
+      document.getElementById("displaySpectra6Btn"),
+      document.getElementById("display1bitBtnMobile"),
+      document.getElementById("displaySpectra6BtnMobile"),
+    ];
+
+    allBtns.forEach((btn) => {
+      if (btn) {
+        btn.classList.remove("bg-black", "text-white");
+        btn.classList.add("bg-white");
+      }
+    });
+
+    const oneBitBtns = [
+      document.getElementById("display1bitBtn"),
+      document.getElementById("display1bitBtnMobile"),
+    ];
+    const spectra6Btns = [
+      document.getElementById("displaySpectra6Btn"),
+      document.getElementById("displaySpectra6BtnMobile"),
+    ];
+
+    if (type === "1bit") {
+      oneBitBtns.forEach((btn) => {
+        if (btn) {
+          btn.classList.remove("bg-white");
+          btn.classList.add("bg-black", "text-white");
+        }
+      });
+    } else if (type === "spectra6") {
+      spectra6Btns.forEach((btn) => {
+        if (btn) {
+          btn.classList.remove("bg-white");
+          btn.classList.add("bg-black", "text-white");
+        }
+      });
+    }
+
+    const displayBadge = document.getElementById("displayBadge");
+    if (displayBadge) {
+      displayBadge.textContent = type === "spectra6" ? "6-COLOR" : "1-BIT";
+    }
+
+    updatePreview();
   }
 
   function startApp() {
