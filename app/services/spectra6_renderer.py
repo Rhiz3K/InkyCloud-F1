@@ -582,7 +582,7 @@ class Spectra6Renderer:
 
         draw.line(
             [(0, y_start), (self.width, y_start)],
-            fill=self.colors.BLACK,
+            fill=self.colors.RED,
             width=self.layout["separator_width"],
         )
 
