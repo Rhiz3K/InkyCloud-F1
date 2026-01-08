@@ -1463,7 +1463,7 @@ class Renderer:
         for i, entry in enumerate(results[:3]):
             y = y_rows_start + (i * row_height)
 
-            pos = entry.position
+            pos = i + 1
             driver_name = entry.driver.display_name
             team = entry.constructor.name
 
