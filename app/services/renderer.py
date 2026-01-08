@@ -538,7 +538,8 @@ class Renderer:
             logo_container_right,
         )
 
-    def _get_team_logo_key(self, constructor: str) -> str | None:
+    @staticmethod
+    def _get_team_logo_key(constructor: str) -> str | None:
         name = constructor.lower()
         if "mclaren" in name:
             return "mclaren"
@@ -1576,7 +1577,8 @@ class Renderer:
 
         return logos
 
-    def _crop_to_content(self, img: Image.Image) -> Image.Image:
+    @staticmethod
+    def _crop_to_content(img: Image.Image) -> Image.Image:
         inverted = ImageOps.invert(img.convert("L")).convert("1")
         bbox = inverted.getbbox()
         if bbox:
@@ -1622,7 +1624,8 @@ class Renderer:
         # Last resort
         return f"{pos}. {driver[:5]}.. ({team[:3]}..)"
 
-    def _to_bmp(self, image: Image.Image) -> bytes:
+    @staticmethod
+    def _to_bmp(image: Image.Image) -> bytes:
         """Convert PIL Image to BMP bytes."""
         buffer = io.BytesIO()
         image.save(buffer, format="BMP")
