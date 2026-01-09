@@ -20,6 +20,7 @@ from app.models import (
 from app.services import renderer as renderer_module
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
+from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 
 
 @pytest.fixture
@@ -948,3 +949,237 @@ def test_render_calendar_with_rgb_track_image(mock_race_data, tmp_path, monkeypa
     assert img.format == "BMP"
     assert img.size == (800, 480)
     assert img.mode == "1"
+
+
+# ============================================================================
+# Spectra 6 Renderer Tests (6-color E-Ink display)
+# ============================================================================
+
+
+def test_spectra6_render_calendar_english(mock_race_data):
+    """Test Spectra 6 rendering calendar in English."""
+    translator = get_translator("en")
+    renderer = Spectra6Renderer(translator)
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+    assert img.getpalette() is not None
+
+
+def test_spectra6_render_calendar_czech(mock_race_data):
+    """Test Spectra 6 rendering calendar in Czech."""
+    translator = get_translator("cs")
+    renderer = Spectra6Renderer(translator)
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_spectra6_render_calendar_with_historical_data(mock_race_data, mock_historical_data):
+    """Test Spectra 6 rendering calendar with historical qualifying and race results."""
+    translator = get_translator("en")
+    renderer = Spectra6Renderer(translator)
+    bmp_data = renderer.render_calendar(mock_race_data, mock_historical_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_spectra6_render_calendar_new_track(mock_race_data):
+    """Test Spectra 6 rendering calendar when track is new (no historical data)."""
+    translator = get_translator("en")
+    renderer = Spectra6Renderer(translator)
+
+    new_track_data = HistoricalData(is_new_track=True)
+    bmp_data = renderer.render_calendar(mock_race_data, new_track_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_spectra6_render_error_english():
+    """Test Spectra 6 rendering error message in English."""
+    translator = get_translator("en")
+    renderer = Spectra6Renderer(translator)
+    bmp_data = renderer.render_error("Test error message")
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_spectra6_render_error_czech():
+    """Test Spectra 6 rendering error message in Czech."""
+    translator = get_translator("cs")
+    renderer = Spectra6Renderer(translator)
+    bmp_data = renderer.render_error("Chybová zpráva")
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_spectra6_colors_palette():
+    assert Spectra6Colors.BLACK == (0x00, 0x00, 0x00)
+    assert Spectra6Colors.WHITE == (0xFF, 0xFF, 0xFF)
+    assert Spectra6Colors.RED == (0xA0, 0x20, 0x20)
+    assert Spectra6Colors.YELLOW == (0xF0, 0xE0, 0x50)
+    assert Spectra6Colors.GREEN == (0x60, 0x80, 0x50)
+    assert Spectra6Colors.BLUE == (0x50, 0x80, 0xB8)
+
+    assert len(Spectra6Colors.PALETTE) == 6
+    assert Spectra6Colors.PALETTE[0] == Spectra6Colors.BLACK
+    assert Spectra6Colors.PALETTE[1] == Spectra6Colors.WHITE
+
+
+def test_spectra6_session_colors():
+    """Test Spectra 6 session color assignment - only Race is RED, all else BLACK."""
+    translator = get_translator("en")
+    renderer = Spectra6Renderer(translator)
+
+    # Only "Race" session should be RED
+    assert renderer._get_session_color("Race") == Spectra6Colors.RED
+    assert renderer._get_session_color("race") == Spectra6Colors.RED
+
+    # All other sessions should be BLACK (simplified color scheme)
+    assert renderer._get_session_color("Qualifying") == Spectra6Colors.BLACK
+    assert renderer._get_session_color("Q1") == Spectra6Colors.BLACK
+    assert renderer._get_session_color("Q2") == Spectra6Colors.BLACK
+    assert renderer._get_session_color("Q3") == Spectra6Colors.BLACK
+
+    assert renderer._get_session_color("FP1") == Spectra6Colors.BLACK
+    assert renderer._get_session_color("FP2") == Spectra6Colors.BLACK
+    assert renderer._get_session_color("FP3") == Spectra6Colors.BLACK
+    assert renderer._get_session_color("Practice 1") == Spectra6Colors.BLACK
+
+    assert renderer._get_session_color("Sprint") == Spectra6Colors.BLACK
+    assert renderer._get_session_color("Sprint Qualifying") == Spectra6Colors.BLACK
+
+
+def test_spectra6_render_calendar_with_weather():
+    """Test Spectra 6 rendering calendar with weather data."""
+    from datetime import datetime, timedelta
+
+    from app.services.weather_service import WeatherData
+
+    translator = get_translator("en")
+    renderer = Spectra6Renderer(translator)
+
+    race_datetime = datetime.now() + timedelta(days=3)
+    race_data = {
+        "race_name": "Monaco Grand Prix",
+        "round": "8",
+        "season": "2025",
+        "circuit": {
+            "circuitId": "monaco",
+            "name": "Circuit de Monaco",
+            "location": "Monte Carlo",
+            "country": "Monaco",
+        },
+        "schedule": [
+            {"name": "Race", "datetime": race_datetime},
+        ],
+    }
+
+    weather = WeatherData(
+        temperature_c=24.5,
+        precipitation_probability=10,
+        weather_code=0,
+    )
+
+    bmp_data = renderer.render_calendar(race_data, weather_data=weather)
+
+    assert bmp_data is not None
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_spectra6_render_calendar_with_datetime_schedule():
+    """Test Spectra 6 rendering with datetime objects in schedule."""
+    from datetime import datetime, timedelta, timezone
+
+    translator = get_translator("en")
+    renderer = Spectra6Renderer(translator)
+
+    now = datetime.now(timezone.utc)
+    race_data = {
+        "race_name": "British Grand Prix",
+        "season": "2025",
+        "circuit": {
+            "circuitId": "silverstone",
+            "name": "Silverstone Circuit",
+            "location": "Silverstone",
+            "country": "UK",
+        },
+        "schedule": [
+            {"name": "FP1", "datetime": now + timedelta(days=1)},
+            {"name": "FP2", "datetime": now + timedelta(days=1, hours=4)},
+            {"name": "FP3", "datetime": now + timedelta(days=2)},
+            {"name": "Qualifying", "datetime": now + timedelta(days=2, hours=4)},
+            {"name": "Race", "datetime": now + timedelta(days=3)},
+        ],
+    }
+
+    bmp_data = renderer.render_calendar(race_data)
+
+    assert bmp_data is not None
+    img = Image.open(BytesIO(bmp_data))
+    assert img.size == (800, 480)
+
+
+def test_spectra6_render_calendar_las_vegas():
+    """Test Spectra 6 rendering with Las Vegas circuit (tests CIRCUIT_ID_MAP)."""
+    translator = get_translator("en")
+    renderer = Spectra6Renderer(translator)
+
+    race_data = {
+        "race_name": "Las Vegas Grand Prix",
+        "season": "2025",
+        "circuit": {
+            "circuitId": "vegas",
+            "name": "Las Vegas Street Circuit",
+            "location": "Las Vegas",
+            "country": "USA",
+        },
+        "schedule": [
+            {"name": "Race", "display_time": "Sun 22:00"},
+        ],
+    }
+
+    bmp_data = renderer.render_calendar(race_data)
+
+    assert bmp_data is not None
+    img = Image.open(BytesIO(bmp_data))
+    assert img.size == (800, 480)

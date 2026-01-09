@@ -113,7 +113,7 @@ class Database:
                     device_memory REAL
                 );
 
-                -- Circuit weather cache table
+                -- Circuit weather cache table (batch circuit caching)
                 CREATE TABLE IF NOT EXISTS circuit_weather (
                     circuit_id TEXT PRIMARY KEY,
                     circuit_name TEXT,
@@ -123,11 +123,24 @@ class Database:
                     fetched_at TEXT NOT NULL
                 );
 
+                -- Weather cache table (key-based caching with TTL)
+                CREATE TABLE IF NOT EXISTS weather_cache (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cache_key TEXT UNIQUE NOT NULL,
+                    temperature_c REAL NOT NULL,
+                    weather_code INTEGER NOT NULL,
+                    precipitation_probability INTEGER NOT NULL,
+                    cached_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL
+                );
+
                 -- Create indexes (note: idx_api_calls_race created after migrations)
                 CREATE INDEX IF NOT EXISTS idx_images_key ON generated_images(image_key);
                 CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON request_stats(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_api_calls_timestamp ON api_calls(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_perf_metrics_timestamp ON perf_metrics(timestamp);
+                CREATE INDEX IF NOT EXISTS idx_weather_cache_key ON weather_cache(cache_key);
+                CREATE INDEX IF NOT EXISTS idx_weather_cache_expires ON weather_cache(expires_at);
             """
             )
             await conn.commit()
@@ -907,7 +920,7 @@ class Database:
                 }
 
     # =========================================================================
-    # Circuit Weather Cache Methods
+    # Circuit Weather Cache Methods (batch circuit caching)
     # =========================================================================
 
     async def save_circuit_weather(
@@ -918,16 +931,7 @@ class Database:
         weather_code: int,
         precipitation_probability: int,
     ) -> None:
-        """
-        Store or update cached weather for a circuit (upsert).
-
-        Parameters:
-            circuit_id: Circuit identifier (e.g., "albert_park").
-            circuit_name: Human-readable circuit name.
-            temperature_c: Temperature in degrees Celsius.
-            weather_code: WMO weather code.
-            precipitation_probability: Probability percentage (0-100).
-        """
+        """Store or update cached weather for a circuit (upsert)."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
             await self._configure_connection(conn)
@@ -956,16 +960,7 @@ class Database:
             await conn.commit()
 
     async def get_circuit_weather(self, circuit_id: str) -> Optional[dict]:
-        """
-        Retrieve cached weather data for a circuit (may be stale).
-
-        Parameters:
-            circuit_id: Circuit identifier.
-
-        Returns:
-            dict with temperature_c, weather_code, precipitation_probability,
-            and fetched_at; or None if not found.
-        """
+        """Retrieve cached weather data for a circuit (may be stale)."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
             await self._configure_connection(conn)
@@ -988,13 +983,7 @@ class Database:
                 return None
 
     async def load_all_circuit_weather(self) -> dict[str, dict]:
-        """
-        Load all cached circuit weather records from the database.
-
-        Returns:
-            dict mapping circuit_id to weather data (temperature_c, weather_code,
-            precipitation_probability, fetched_at).
-        """
+        """Load all cached circuit weather records from the database."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
             await self._configure_connection(conn)
@@ -1015,3 +1004,84 @@ class Database:
                     }
                     for row in rows
                 }
+
+    # =========================================================================
+    # Weather Cache Methods (key-based caching with TTL)
+    # =========================================================================
+
+    async def save_weather_cache(
+        self,
+        cache_key: str,
+        temperature_c: float,
+        weather_code: int,
+        precipitation_probability: int,
+        ttl_minutes: int = 120,
+    ) -> None:
+        """Save weather data to database cache with TTL."""
+        await self._init_db_if_needed()
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(minutes=ttl_minutes)
+
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            await conn.execute(
+                """
+                INSERT INTO weather_cache
+                    (cache_key, temperature_c, weather_code, precipitation_probability,
+                     cached_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(cache_key) DO UPDATE SET
+                    temperature_c = excluded.temperature_c,
+                    weather_code = excluded.weather_code,
+                    precipitation_probability = excluded.precipitation_probability,
+                    cached_at = excluded.cached_at,
+                    expires_at = excluded.expires_at
+                """,
+                (
+                    cache_key,
+                    temperature_c,
+                    weather_code,
+                    precipitation_probability,
+                    now.isoformat(),
+                    expires_at.isoformat(),
+                ),
+            )
+            await conn.commit()
+
+    async def get_weather_cache(self, cache_key: str) -> Optional[tuple[float, int, int]]:
+        """Get weather data from database cache if not expired."""
+        await self._init_db_if_needed()
+        now = datetime.now(timezone.utc).isoformat()
+
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            async with conn.execute(
+                """
+                SELECT temperature_c, weather_code, precipitation_probability
+                FROM weather_cache
+                WHERE cache_key = ? AND expires_at > ?
+                """,
+                (cache_key, now),
+            ) as cursor:
+                row = await cursor.fetchone()
+                if row:
+                    return (
+                        row["temperature_c"],
+                        row["weather_code"],
+                        row["precipitation_probability"],
+                    )
+                return None
+
+    async def cleanup_expired_weather_cache(self) -> int:
+        """Remove expired weather cache entries."""
+        await self._init_db_if_needed()
+        now = datetime.now(timezone.utc).isoformat()
+
+        async with self._get_connection() as conn:
+            await self._configure_connection(conn)
+            cursor = await conn.execute(
+                "DELETE FROM weather_cache WHERE expires_at <= ?",
+                (now,),
+            )
+            await conn.commit()
+            return cursor.rowcount

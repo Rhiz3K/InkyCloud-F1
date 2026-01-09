@@ -538,7 +538,8 @@ class Renderer:
             logo_container_right,
         )
 
-    def _get_team_logo_key(self, constructor: str) -> str | None:
+    @staticmethod
+    def _get_team_logo_key(constructor: str) -> str | None:
         name = constructor.lower()
         if "mclaren" in name:
             return "mclaren"
@@ -990,8 +991,9 @@ class Renderer:
         label_x = self.layout["padding"]
         draw.text((label_x, label_y), label_text, fill=0, font=label_font)
 
+    @staticmethod
     def _draw_track_placeholder(
-        self, draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
+        draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
     ) -> None:
         """Draw a simple placeholder when track image is not available."""
         draw.rounded_rectangle(
@@ -1193,12 +1195,24 @@ class Renderer:
         text_y = y_top + padding_y - ref_bbox[1]
 
         flag_icon = "🏁"
-        countdown_str = f"{days}D {hours}H"
+        days_label = self.translator.get("countdown_days", "days")
+        hours_label = self.translator.get("countdown_hours", "hours")
+        countdown_str = f"{days} {days_label} {hours} {hours_label}"
 
-        cur_x: float = x_left + padding_x
-        draw.text((cur_x, text_y), flag_icon, fill=1, font=font_icon)
         flag_bbox = draw.textbbox((0, 0), flag_icon, font=font_icon)
-        cur_x += flag_bbox[2] - flag_bbox[0] + 6
+        flag_w = flag_bbox[2] - flag_bbox[0]
+        countdown_bbox = draw.textbbox((0, 0), countdown_str, font=font)
+        countdown_w = countdown_bbox[2] - countdown_bbox[0]
+        total_content_w = flag_w + 6 + countdown_w
+
+        if weather_data:
+            cur_x = x_left + padding_x
+        else:
+            box_width = x_right - x_left
+            cur_x = x_left + (box_width - total_content_w) // 2
+
+        draw.text((cur_x, text_y), flag_icon, fill=1, font=font_icon)
+        cur_x += flag_w + 6
         draw.text((cur_x, text_y), countdown_str, fill=1, font=font)
 
         if weather_data:
@@ -1504,7 +1518,7 @@ class Renderer:
         for i, entry in enumerate(results[:3]):
             y = y_rows_start + (i * row_height)
 
-            pos = entry.position
+            pos = i + 1
             driver_name = entry.driver.display_name
             team = entry.constructor.name
 
@@ -1629,15 +1643,16 @@ class Renderer:
 
         return logos
 
-    def _crop_to_content(self, img: Image.Image) -> Image.Image:
+    @staticmethod
+    def _crop_to_content(img: Image.Image) -> Image.Image:
         inverted = ImageOps.invert(img.convert("L")).convert("1")
         bbox = inverted.getbbox()
         if bbox:
             return img.crop(bbox)
         return img
 
+    @staticmethod
     def _fit_text(
-        self,
         draw: ImageDraw.ImageDraw,
         font: FreeTypeFont | ImageFont.ImageFont,
         max_width: int,
@@ -1675,7 +1690,8 @@ class Renderer:
         # Last resort
         return f"{pos}. {driver[:5]}.. ({team[:3]}..)"
 
-    def _to_bmp(self, image: Image.Image) -> bytes:
+    @staticmethod
+    def _to_bmp(image: Image.Image) -> bytes:
         """Convert PIL Image to BMP bytes."""
         buffer = io.BytesIO()
         image.save(buffer, format="BMP")

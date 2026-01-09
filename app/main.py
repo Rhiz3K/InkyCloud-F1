@@ -39,6 +39,7 @@ from app.services.scheduler import (
     start_scheduler,
     stop_scheduler,
 )
+from app.services.spectra6_renderer import Spectra6Renderer
 from app.services.teams_service import TeamsService
 from app.services.version_service import get_cached_version, refresh_version_info
 from app.services.weather_service import get_cached_circuit_weather
@@ -288,7 +289,10 @@ def _detect_ui_language(request: Request) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request, lang: str = Query(default=None)):
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url="/", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -325,7 +329,10 @@ async def configure_screen(request: Request, screen_type: str, lang: str = Query
     if screen_type not in ["calendar", "teams"]:
         raise HTTPException(status_code=404, detail="Unknown screen type")
 
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url=f"/configure/{screen_type}", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -544,7 +551,10 @@ async def privacy(request: Request, lang: str = Query(default=None)):
 
     Language can be overridden via ?lang= query parameter.
     """
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url="/privacy", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -575,7 +585,10 @@ async def changelog(request: Request, lang: str = Query(default=None)):
     """
     import markdown
 
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url="/changelog", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -630,7 +643,10 @@ async def api_docs_html(request: Request, lang: str = Query(default=None)):
     Interactive HTML documentation with code examples and "Try it" functionality.
     Language can be overridden via ?lang= query parameter.
     """
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url="/api/docs/html", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -817,7 +833,10 @@ async def stats_dashboard(
 
     Shows request counts, response times, endpoint breakdown, language stats, etc.
     """
-    if lang in ["en", "cs"]:
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url=f"/stats?range={time_range}", status_code=301)
+
+    if lang in VALID_LANGUAGES:
         ui_lang = lang
     else:
         ui_lang = _detect_ui_language(request)
@@ -1070,9 +1089,12 @@ def _get_cache_key(
     tz: str | None,
     weather: bool = False,
     weather_type: str = "",
+    display: str = "1bit",
 ) -> str:
     weather_key = f"{weather_type}" if weather else "no_weather"
-    return f"{lang}:{year or 'next'}:{round_num or 'next'}:{tz or 'default'}:{weather_key}"
+    return (
+        f"{lang}:{year or 'next'}:{round_num or 'next'}:{tz or 'default'}:{weather_key}:{display}"
+    )
 
 
 def _get_current_f1_season() -> int:
@@ -1222,6 +1244,10 @@ async def get_calendar_bmp(
     weather_type: str = Query(
         default="race_day", description="Weather type: 'current' or 'race_day'"
     ),
+    display: str = Query(
+        default="1bit",
+        description="Display type: '1bit' (800x480 monochrome) or 'spectra6' (800x480 6-color)",
+    ),
     f1_service: F1Service = Depends(get_f1_service),
 ):
     """
@@ -1323,8 +1349,12 @@ async def get_calendar_bmp(
                 actual_round = int(race_info_for_stats.get("round", 0)) or None
                 actual_race_name = race_info_for_stats.get("race_name", "Next Race")
 
+        # Validate display type
+        if display not in ("1bit", "spectra6"):
+            display = "1bit"
+
         # Check in-memory cache first
-        cache_key = _get_cache_key(lang, year, race_round, tz, weather, weather_type)
+        cache_key = _get_cache_key(lang, year, race_round, tz, weather, weather_type, display)
         cached_bmp = get_bmp_cache().get(cache_key)
         if cached_bmp is not None:
             logger.debug("Cache hit for %s", cache_key)
@@ -1352,9 +1382,7 @@ async def get_calendar_bmp(
 
         logger.info("Cache miss for %s, generating...", cache_key)
 
-        # Try to serve pre-generated image first (only for next race, not specific year/round)
-        # Skip pre-generated images when weather is requested (they don't include weather)
-        use_pregenerated = not year and not race_round and not (weather and config.WEATHER_ENABLED)
+        use_pregenerated = not year and not race_round
         if use_pregenerated:
             # Only serve pre-generated images for default timezone (no user-controlled paths)
             # This eliminates CodeQL path injection concerns entirely
@@ -1362,9 +1390,15 @@ async def get_calendar_bmp(
             if target_tz_for_key == config.DEFAULT_TIMEZONE:
                 # Use hardcoded filename pattern - no user input in path
                 if lang == "cs":
-                    image_filename = "calendar_cs.bmp"
+                    image_filename = "calendar_cs"
                 else:
-                    image_filename = "calendar_en.bmp"
+                    image_filename = "calendar_en"
+
+                # Add display type suffix (allowlisted values only)
+                if display == "spectra6":
+                    image_filename += "_spectra6"
+
+                image_filename += ".bmp"
 
                 images_dir = Path(config.IMAGES_PATH)
                 image_path = images_dir / image_filename
@@ -1433,8 +1467,10 @@ async def get_calendar_bmp(
 
         if not race_data:
             logger.error("Failed to get race data from static files")
-            # Return error image (don't cache errors)
-            renderer = Renderer(translator)
+            if display == "spectra6":
+                renderer = Spectra6Renderer(translator)
+            else:
+                renderer = Renderer(translator)
             bmp_data = renderer.render_error("Failed to fetch race data")
         else:
             # Get historical data from static JSON (no API calls)
@@ -1454,7 +1490,10 @@ async def get_calendar_bmp(
                 # Use pre-fetched weather from scheduler (populated hourly)
                 weather_data = get_cached_circuit_weather(circuit_id)
 
-            renderer = Renderer(translator)
+            if display == "spectra6":
+                renderer = Spectra6Renderer(translator)
+            else:
+                renderer = Renderer(translator)
             bmp_data = renderer.render_calendar(race_data, historical_data, weather_data)
 
             # Cache the result
@@ -1497,9 +1536,11 @@ async def get_calendar_bmp(
         logger.error("Error generating calendar: %s", e, exc_info=True)
         sentry_sdk.capture_exception(e)
 
-        # Return error image (don't cache errors)
         translator = get_translator(lang)
-        renderer = Renderer(translator)
+        if display == "spectra6":
+            renderer = Spectra6Renderer(translator)
+        else:
+            renderer = Renderer(translator)
         bmp_data = renderer.render_error(str(e))
 
         # Record request with response time and size (even for errors)

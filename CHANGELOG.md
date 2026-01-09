@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-08
+
+### API
+
+#### Added
+
+- `display` parameter for `/calendar.bmp` - set to `spectra6` for 6-color E-Ink displays (default: `1bit`)
+
+### Frontend
+
+#### Added
+
+- **Display type selector** - Choose between 1-BIT (monochrome) and 6-COLOR (Spectra 6) display modes
+- **Mobile display controls** - Full display type settings available on mobile sidebar
+
+#### Fixed
+
+- **SEO** - Invalid or empty `?lang=` parameter now redirects to canonical URL (301)
+- **Language preference** - Stored language preference now applied correctly on page load
+- **Weather buttons** - Fixed visibility in desktop mode
+
+### Backend
+
+<details markdown="1">
+<summary>Backend</summary>
+
+#### Added
+
+- **Spectra 6 Renderer** - New 840-line renderer for 7.3" 6-color E-Ink displays (800×480)
+- **6-color palette** - BLACK, WHITE, RED (#A02020), YELLOW (#F0E050), GREEN (#608050), BLUE (#5080B8)
+- **Pre-processed track images** - 25 circuit maps optimized for Spectra 6 (494×271, no dithering)
+- **Pre-processed flag images** - 26 country flags for Spectra 6 (87×58)
+- **Dedicated F1 logo** - Color-optimized logo for Spectra 6 displays
+- **Weather pre-fetch** - Scheduler fetches weather at :55 before hourly image generation
+- **DeepSource integration** - Automated code quality analysis
+
+#### Changed
+
+- **Scheduler** - Pre-generates all variants: 2 displays × 3 weather modes × 2 languages
+- **Session colors** - Simplified for Spectra 6: only "Race" is RED, all others BLACK
+- **Red accent lines** - F1 logo underline and results separator now use RED in Spectra 6
+- **Code quality** - Added @staticmethod decorators to pure utility methods
+
+#### Fixed
+
+- **CIRCUIT_ID_MAP** - Added Vegas → Las Vegas mapping for track images
+- **Country code logic** - Removed redundant fallback (already in COUNTRY_MAP)
+- **Weather config** - Added missing weather configuration attributes
+
+</details>
+
+---
+
 ## [1.1.4] - 2026-01-04
 
 ### API

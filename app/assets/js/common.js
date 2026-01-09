@@ -3,6 +3,23 @@
  * Shared utilities and functions across all pages
  */
 
+(function initLanguagePreference() {
+    try {
+        const storedLang = localStorage.getItem("preferredLang");
+        if (!storedLang) return;
+
+        const url = new URL(window.location.href);
+        const urlLang = url.searchParams.get("lang");
+
+        if (urlLang !== storedLang) {
+            url.searchParams.set("lang", storedLang);
+            window.location.replace(url.toString());
+        }
+    } catch (e) {
+        console.error("Failed to apply language preference from localStorage:", e);
+    }
+})();
+
 /**
  * Switch UI language by updating URL parameter and reloading
  */

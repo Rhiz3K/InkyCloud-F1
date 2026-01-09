@@ -234,6 +234,93 @@ block content %}
         id="tzList"
         class="flex-1 overflow-y-auto text-xs p-2 space-y-0.5"
       ></div>
+      <!-- Weather - Desktop (inside timezone container for proper flex layout) -->
+      <div
+        class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
+        id="weatherContainer"
+      >
+        <label class="text-xs font-bold uppercase mb-1.5 block" id="weatherLabel"
+          >Weather</label
+        >
+        <input
+          type="checkbox"
+          id="weatherToggle"
+          checked
+          onchange="
+            updateWeatherTypeAvailability();
+            updatePreview();
+          "
+          class="hidden"
+        />
+        <div class="flex gap-1" id="weatherTypeContainer">
+          <button
+            type="button"
+            onclick="setWeatherType('off')"
+            id="weatherOffBtn"
+            class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          >
+            OFF
+          </button>
+          <button
+            type="button"
+            onclick="setWeatherType('current')"
+            id="weatherCurrentBtn"
+            class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          >
+            <span id="weatherCurrentLabel">Current</span>
+          </button>
+          <button
+            type="button"
+            onclick="setWeatherType('race_day')"
+            id="weatherRaceDayBtn"
+            class="weather-type-btn group relative flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
+          >
+            <span id="weatherRaceDayText">Race day</span>
+            <span
+              id="weatherRaceDayTooltip"
+              class="invisible group-hover:visible group-disabled:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap z-50 border-2 border-white"
+            >
+              <span id="weatherTooltipText">Activates 14 days before race</span>
+            </span>
+          </button>
+        </div>
+        <input type="radio" name="weatherType" value="current" class="hidden" />
+        <input
+          type="radio"
+          name="weatherType"
+          value="race_day"
+          checked
+          class="hidden"
+          id="weatherRaceDayRadio"
+        />
+      </div>
+      <!-- Display Type - Desktop -->
+      <div
+        class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
+        id="displayContainer"
+      >
+        <label class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
+          >Display</label
+        >
+        <div class="flex gap-1" id="displayTypeContainer">
+          <button
+            type="button"
+            onclick="setDisplayType('1bit')"
+            id="display1bitBtn"
+            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-black text-white"
+          >
+            1-BIT
+          </button>
+          <button
+            type="button"
+            onclick="setDisplayType('spectra6')"
+            id="displaySpectra6Btn"
+            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          >
+            SPECTRA 6
+          </button>
+        </div>
+      </div>
     </div>
     <input type="hidden" id="tz" value="" />
 
@@ -275,65 +362,34 @@ block content %}
       </div>
     </div>
 
-    <!-- Weather - Desktop -->
+    <!-- Display Type - Mobile -->
     <div
-      class="hidden lg:block px-2 py-1.5 border-t-2 border-b-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}lg:hidden{% endif %}"
-      id="weatherContainer"
+      class="lg:hidden p-4 border-b-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
+      id="mobileDisplayContainer"
     >
-      <label class="text-xs font-bold uppercase mb-1.5 block" id="weatherLabel"
-        >Weather</label
+      <label
+        class="block text-xs font-bold uppercase mb-2"
+        id="displayLabelMobile"
+        >Display</label
       >
-      <input
-        type="checkbox"
-        id="weatherToggle"
-        checked
-        onchange="
-          updateWeatherTypeAvailability();
-          updatePreview();
-        "
-        class="hidden"
-      />
-      <div class="flex gap-1" id="weatherTypeContainer">
+      <div class="flex gap-1">
         <button
           type="button"
-          onclick="setWeatherType('off')"
-          id="weatherOffBtn"
-          class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          onclick="setDisplayType('1bit')"
+          id="display1bitBtnMobile"
+          class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-black text-white"
         >
-          OFF
+          1-BIT
         </button>
         <button
           type="button"
-          onclick="setWeatherType('current')"
-          id="weatherCurrentBtn"
-          class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          onclick="setDisplayType('spectra6')"
+          id="displaySpectra6BtnMobile"
+          class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
         >
-          <span id="weatherCurrentLabel">Current</span>
-        </button>
-        <button
-          type="button"
-          onclick="setWeatherType('race_day')"
-          id="weatherRaceDayBtn"
-          class="weather-type-btn group relative flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
-        >
-          <span id="weatherRaceDayText">Race day</span>
-          <span
-            id="weatherRaceDayTooltip"
-            class="invisible group-hover:visible group-disabled:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap z-50 border-2 border-white"
-          >
-            <span id="weatherTooltipText">Activates 14 days before race</span>
-          </span>
+          SPECTRA 6
         </button>
       </div>
-      <input type="radio" name="weatherType" value="current" class="hidden" />
-      <input
-        type="radio"
-        name="weatherType"
-        value="race_day"
-        checked
-        class="hidden"
-        id="weatherRaceDayRadio"
-      />
     </div>
 
     <!-- Mobile Race Selector (Calendar only) -->
@@ -525,6 +581,7 @@ block content %}
             >
             <span
               class="px-2 py-1 border-2 border-black bg-white text-xs font-bold shadow-neo-sm"
+              id="displayBadge"
               >1-BIT</span
             >
             <span
@@ -851,6 +908,7 @@ block content %}
       weatherCurrentLabel: "Current",
       weatherRaceDayLabel: "Race day",
       weatherTooltipText: "Activates 14 days before race",
+      displayLabel: "Display",
     },
     cs: {
       headerTitle: "F1 InkyCloud",
@@ -884,11 +942,13 @@ block content %}
       weatherCurrentLabel: "Aktuální",
       weatherRaceDayLabel: "V den závodu",
       weatherTooltipText: "Aktivuje se 14 dní před závodem",
+      displayLabel: "Displej",
     },
   };
 
   let currentUiLang = "{{ ui_lang }}";
   let currentScreenType = "{{ screen_type }}";
+  let currentDisplayType = "1bit";
   let racesData = [];
   let selectedYear = null;
   let selectedRound = null;
@@ -1128,6 +1188,10 @@ block content %}
     const weatherTooltipText = document.getElementById("weatherTooltipText");
     if (weatherTooltipText)
       weatherTooltipText.textContent = t.weatherTooltipText;
+    const displayLabel = document.getElementById("displayLabel");
+    if (displayLabel) displayLabel.textContent = t.displayLabel;
+    const displayLabelMobile = document.getElementById("displayLabelMobile");
+    if (displayLabelMobile) displayLabelMobile.textContent = t.displayLabel;
   }
 
   function getApiUrl() {
@@ -1147,6 +1211,9 @@ block content %}
       } else if (weatherType === "current") {
         url += `&weather_type=current`;
       }
+      if (currentDisplayType === "spectra6") {
+        url += `&display=spectra6`;
+      }
       return url;
     } else {
       let url = `${window.location.origin}/teams.bmp?lang=${currentUiLang}`;
@@ -1157,11 +1224,11 @@ block content %}
 
   function isDefaultView() {
     if (currentScreenType === "calendar") {
-      // Not default if specific race selected OR non-browser timezone selected OR weather enabled
       const isDefaultTz = !selectedTz || selectedTz === browserTz;
       const weatherToggle = document.getElementById("weatherToggle");
       const hasWeather = weatherToggle && weatherToggle.checked;
-      return !selectedYear && !selectedRound && isDefaultTz && !hasWeather;
+      const isDefaultDisplay = currentDisplayType === "1bit";
+      return !selectedYear && !selectedRound && isDefaultTz && !hasWeather && isDefaultDisplay;
     } else if (currentScreenType === "teams") {
       return selectedTeamsYear === getCurrentSeason();
     }
@@ -1839,6 +1906,56 @@ block content %}
     if (!isRaceDayAvailable && currentWeatherType === "race_day") {
       setWeatherType("current");
     }
+  }
+
+  function setDisplayType(type) {
+    currentDisplayType = type;
+
+    const allBtns = [
+      document.getElementById("display1bitBtn"),
+      document.getElementById("displaySpectra6Btn"),
+      document.getElementById("display1bitBtnMobile"),
+      document.getElementById("displaySpectra6BtnMobile"),
+    ];
+
+    allBtns.forEach((btn) => {
+      if (btn) {
+        btn.classList.remove("bg-black", "text-white");
+        btn.classList.add("bg-white");
+      }
+    });
+
+    const oneBitBtns = [
+      document.getElementById("display1bitBtn"),
+      document.getElementById("display1bitBtnMobile"),
+    ];
+    const spectra6Btns = [
+      document.getElementById("displaySpectra6Btn"),
+      document.getElementById("displaySpectra6BtnMobile"),
+    ];
+
+    if (type === "1bit") {
+      oneBitBtns.forEach((btn) => {
+        if (btn) {
+          btn.classList.remove("bg-white");
+          btn.classList.add("bg-black", "text-white");
+        }
+      });
+    } else if (type === "spectra6") {
+      spectra6Btns.forEach((btn) => {
+        if (btn) {
+          btn.classList.remove("bg-white");
+          btn.classList.add("bg-black", "text-white");
+        }
+      });
+    }
+
+    const displayBadge = document.getElementById("displayBadge");
+    if (displayBadge) {
+      displayBadge.textContent = type === "spectra6" ? "6-COLOR" : "1-BIT";
+    }
+
+    updatePreview();
   }
 
   function startApp() {
