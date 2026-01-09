@@ -452,12 +452,24 @@ class Spectra6Renderer:
         text_y = y_top + padding_y - ref_bbox[1]
 
         flag_icon = "🏁"
-        countdown_str = f"{days}D {hours}H"
+        days_label = self.translator.get("countdown_days", "days")
+        hours_label = self.translator.get("countdown_hours", "hours")
+        countdown_str = f"{days} {days_label} {hours} {hours_label}"
 
-        cur_x = x_left + padding_x
-        draw.text((cur_x, text_y), flag_icon, fill=self.colors.WHITE, font=font_icon)
         flag_bbox = draw.textbbox((0, 0), flag_icon, font=font_icon)
-        cur_x += flag_bbox[2] - flag_bbox[0] + 6
+        flag_w = flag_bbox[2] - flag_bbox[0]
+        countdown_bbox = draw.textbbox((0, 0), countdown_str, font=font)
+        countdown_w = countdown_bbox[2] - countdown_bbox[0]
+        total_content_w = flag_w + 6 + countdown_w
+
+        if weather_data:
+            cur_x = x_left + padding_x
+        else:
+            box_width = x_right - x_left
+            cur_x = x_left + (box_width - total_content_w) // 2
+
+        draw.text((cur_x, text_y), flag_icon, fill=self.colors.WHITE, font=font_icon)
+        cur_x += flag_w + 6
         draw.text((cur_x, text_y), countdown_str, fill=self.colors.WHITE, font=font)
 
         if weather_data:
