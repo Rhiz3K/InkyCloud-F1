@@ -277,13 +277,14 @@ def _get_template_context(request: Request, ui_lang: str = "en") -> dict:
 
 def _detect_ui_language(request: Request) -> str:
     """
-    Detect preferred UI language from request headers.
+    Get UI language from cookie or default to English.
 
-    CZ/SK users get Czech, everyone else gets English.
+    Accept-Language detection removed - English is the default.
+    Users who want Czech must explicitly select it via ?lang=cs.
     """
-    accept_lang = request.headers.get("accept-language", "").lower()
-    if "cs" in accept_lang or "sk" in accept_lang:
-        return "cs"
+    preferred = request.cookies.get("preferredLang")
+    if preferred in VALID_LANGUAGES:
+        return preferred
     return "en"
 
 
@@ -297,7 +298,7 @@ async def root(request: Request, lang: str = Query(default=None)):
     else:
         ui_lang = _detect_ui_language(request)
 
-    url = f"/?lang={ui_lang}"
+    url = f"/?lang={ui_lang}" if ui_lang != "en" else "/"
     await track_pageview(
         url=url,
         title="F1 E-Ink Calendar",
@@ -337,7 +338,11 @@ async def configure_screen(request: Request, screen_type: str, lang: str = Query
     else:
         ui_lang = _detect_ui_language(request)
 
-    url = f"/configure/{screen_type}?lang={ui_lang}"
+    url = (
+        f"/configure/{screen_type}?lang={ui_lang}"
+        if ui_lang != "en"
+        else f"/configure/{screen_type}"
+    )
     await track_pageview(
         url=url,
         title=f"Configure {screen_type.title()}",
@@ -559,9 +564,7 @@ async def privacy(request: Request, lang: str = Query(default=None)):
     else:
         ui_lang = _detect_ui_language(request)
 
-    # Track pageview server-side
-    # Always include effective language in URL for consistent analytics
-    url = f"/privacy?lang={ui_lang}"
+    url = f"/privacy?lang={ui_lang}" if ui_lang != "en" else "/privacy"
     await track_pageview(
         url=url,
         title="Privacy Policy",
@@ -593,8 +596,7 @@ async def changelog(request: Request, lang: str = Query(default=None)):
     else:
         ui_lang = _detect_ui_language(request)
 
-    # Track pageview server-side
-    url = f"/changelog?lang={ui_lang}"
+    url = f"/changelog?lang={ui_lang}" if ui_lang != "en" else "/changelog"
     await track_pageview(
         url=url,
         title="Changelog",
@@ -651,9 +653,7 @@ async def api_docs_html(request: Request, lang: str = Query(default=None)):
     else:
         ui_lang = _detect_ui_language(request)
 
-    # Track pageview server-side
-    # Always include effective language in URL for consistent analytics
-    url = f"/api/docs/html?lang={ui_lang}"
+    url = f"/api/docs/html?lang={ui_lang}" if ui_lang != "en" else "/api/docs/html"
     await track_pageview(
         url=url,
         title="API Documentation",
@@ -852,8 +852,11 @@ async def stats_dashboard(
     perf_by_page = await db.get_perf_stats_by_page(hours)
     perf_trends = await db.get_perf_trends(hours)
 
-    # Track pageview
-    url = f"/stats?range={time_range}&lang={ui_lang}"
+    url = (
+        f"/stats?range={time_range}&lang={ui_lang}"
+        if ui_lang != "en"
+        else f"/stats?range={time_range}"
+    )
     await track_pageview(
         url=url,
         title="Statistics Dashboard",

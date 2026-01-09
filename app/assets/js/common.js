@@ -8,6 +8,8 @@
         const storedLang = localStorage.getItem("preferredLang");
         if (!storedLang) return;
 
+        document.cookie = `preferredLang=${storedLang};path=/;max-age=31536000;SameSite=Lax`;
+
         const url = new URL(window.location.href);
         const urlLang = url.searchParams.get("lang") || "en";
 
@@ -20,17 +22,14 @@
             window.location.replace(url.toString());
         }
     } catch (e) {
-        console.error("Failed to apply language preference from localStorage:", e);
+        console.error("Failed to apply language preference:", e);
     }
 })();
 
-/**
- * Switch UI language by updating URL parameter and reloading
- * English is default - no ?lang= param needed for English
- */
 function switchUiLanguage() {
     const lang = document.getElementById("uiLangSwitch").value;
     localStorage.setItem("preferredLang", lang);
+    document.cookie = `preferredLang=${lang};path=/;max-age=31536000;SameSite=Lax`;
     const url = new URL(window.location.href);
     if (lang === "en") {
         url.searchParams.delete("lang");

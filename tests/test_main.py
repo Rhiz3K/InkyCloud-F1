@@ -128,16 +128,16 @@ def test_configure_page_i18n_default_english():
     assert 'currentUiLang = "en"' in html
 
 
-def test_configure_page_i18n_czech_for_cz():
-    """Test configure page uses Czech for CZ users."""
+def test_configure_page_i18n_ignores_accept_language():
+    """Test configure page ignores Accept-Language header (English is default)."""
     response = client.get("/configure/calendar", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
     html = response.text
-    assert 'currentUiLang = "cs"' in html
+    assert 'currentUiLang = "en"' in html
 
 
-def test_configure_page_i18n_czech_for_sk():
-    """Test configure page uses Czech for SK users."""
-    response = client.get("/configure/calendar", headers={"Accept-Language": "sk-SK,sk;q=0.9"})
+def test_configure_page_i18n_respects_cookie():
+    """Test configure page respects preferredLang cookie."""
+    response = client.get("/configure/calendar", cookies={"preferredLang": "cs"})
     html = response.text
     assert 'currentUiLang = "cs"' in html
 
@@ -251,10 +251,9 @@ def test_privacy_page_lang_parameter():
 
 
 def test_privacy_page_i18n_czech():
-    """Test privacy page detects Czech language from header."""
-    response = client.get("/privacy", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
+    """Test privacy page respects preferredLang cookie for Czech."""
+    response = client.get("/privacy", cookies={"preferredLang": "cs"})
     html = response.text
-    # Check HTML lang attribute is set to Czech
     assert 'lang="cs"' in html
 
 
@@ -309,8 +308,8 @@ def test_api_docs_html_lang_parameter():
 
 
 def test_api_docs_html_i18n_czech():
-    """Test API docs HTML page detects Czech language from header."""
-    response = client.get("/api/docs/html", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
+    """Test API docs HTML page respects preferredLang cookie for Czech."""
+    response = client.get("/api/docs/html", cookies={"preferredLang": "cs"})
     html = response.text
     assert 'currentUiLang = "cs"' in html
 
