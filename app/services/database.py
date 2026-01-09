@@ -43,7 +43,8 @@ class Database:
         """Get a database connection context manager with WAL mode enabled."""
         return aiosqlite.connect(self.db_path)
 
-    async def _configure_connection(self, conn: aiosqlite.Connection) -> None:
+    @staticmethod
+    async def _configure_connection(conn: aiosqlite.Connection) -> None:
         """Configure connection settings after it's opened."""
         await conn.execute("PRAGMA journal_mode=WAL;")
         conn.row_factory = aiosqlite.Row
@@ -157,7 +158,8 @@ class Database:
             logger.info("Database initialized at %s", self.db_path)
         self._initialized = True
 
-    async def _run_migrations(self, conn: aiosqlite.Connection) -> None:
+    @staticmethod
+    async def _run_migrations(conn: aiosqlite.Connection) -> None:
         """
         Run database migrations for existing databases.
 
@@ -853,7 +855,8 @@ class Database:
                     for row in rows
                 ]
 
-    def _calculate_percentile(self, values: list[float], percentile: int) -> float | None:
+    @staticmethod
+    def _calculate_percentile(values: list[float], percentile: int) -> float | None:
         if not values:
             return None
         n = len(values)

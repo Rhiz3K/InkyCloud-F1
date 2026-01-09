@@ -115,7 +115,7 @@ class F1Response(BaseModel):
             if races:
                 return Race(**races[0])
         except Exception as e:
-            logger.error(f"Failed to parse race data: {e}", exc_info=True)
+            logger.error("Failed to parse race data: %s", e, exc_info=True)
             return None
         return None
 

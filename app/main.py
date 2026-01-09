@@ -1481,8 +1481,10 @@ async def get_calendar_bmp(
                 historical_data = F1Service.get_historical_from_static(circuit_id)
                 if historical_data:
                     logger.debug(
-                        f"Historical data for {circuit_id}: season={historical_data.season}, "
-                        f"new_track={historical_data.is_new_track}"
+                        "Historical data for %s: season=%s, new_track=%s",
+                        circuit_id,
+                        historical_data.season,
+                        historical_data.is_new_track,
                     )
 
             weather_data = None
