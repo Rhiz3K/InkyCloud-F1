@@ -52,7 +52,7 @@ class TeamsService:
         self._cache: dict[str, CacheEntry] = {}
 
     @staticmethod
-    def _get_cache_key(self, year: int) -> str:
+    def _get_cache_key(year: int) -> str:
         return f"teams_{year}"
 
     def _get_cached(self, year: int) -> Optional[TeamsData]:
@@ -69,7 +69,7 @@ class TeamsService:
         logger.debug(f"Cached {key}")
 
     @staticmethod
-    def _validate_year(self, year: int) -> bool:
+    def _validate_year(year: int) -> bool:
         """Validate year is within acceptable F1 data range (1950-2030)."""
         return isinstance(year, int) and 1950 <= year <= 2030
 
@@ -120,8 +120,8 @@ class TeamsService:
             return None
 
     @staticmethod
-    def _fetch_with_retry(
-        self, client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
+    async def _fetch_with_retry(
+        client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
     ) -> httpx.Response:
         last_exception: httpx.HTTPStatusError | None = None
         for attempt in range(max_retries + 1):
@@ -194,7 +194,7 @@ class TeamsService:
             return driver_standings, constructor_standings
 
     @staticmethod
-    def _match_constructor_name(self, json_name: str, api_names: list[str]) -> Optional[str]:
+    def _match_constructor_name(json_name: str, api_names: list[str]) -> Optional[str]:
         """Match JSON constructor name to API name."""
         json_lower = json_name.lower()
         json_base = json_lower.split("-")[0].strip()

@@ -221,7 +221,7 @@ class Spectra6Renderer:
         )
 
     @staticmethod
-    def _draw_f1_logo(self, image: Image.Image, width: int, height: int) -> None:
+    def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:
         logo_path = IMAGES_DIR / "f1_spectra_6.bmp"
 
         if not logo_path.exists():
@@ -301,7 +301,7 @@ class Spectra6Renderer:
         )
 
     @staticmethod
-    def _load_track_image(self, race_data: dict) -> Image.Image | None:
+    def _load_track_image(race_data: dict) -> Image.Image | None:
         circuit = race_data.get("circuit", {})
         circuit_id = circuit.get("circuitId", "")
 
@@ -791,7 +791,7 @@ class Spectra6Renderer:
         return f"{pos}. {driver[:5]}.. ({team[:3]}..)"
 
     @staticmethod
-    def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
+    def _load_font(size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
         font_filename = "TitilliumWeb-Bold.ttf" if bold else "TitilliumWeb-Regular.ttf"
         font_path = FONTS_DIR / font_filename
 
@@ -807,7 +807,8 @@ class Spectra6Renderer:
         except OSError:
             return ImageFont.load_default()
 
-    def _load_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+    @staticmethod
+    def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
         symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
         try:
             return ImageFont.truetype(symbola_path, size)

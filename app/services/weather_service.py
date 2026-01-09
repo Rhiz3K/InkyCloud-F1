@@ -276,7 +276,7 @@ class WeatherService:
         return None
 
     @staticmethod
-    def _set_cached(self, key: str, data: WeatherData) -> None:
+    def _set_cached(key: str, data: WeatherData) -> None:
         _weather_cache[key] = (data, datetime.now())
 
 

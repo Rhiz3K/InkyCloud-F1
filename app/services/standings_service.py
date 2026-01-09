@@ -40,7 +40,7 @@ class StandingsService:
         self._cache: dict[str, CacheEntry] = {}
 
     @staticmethod
-    def _get_cache_key(self, year: int, standings_type: str) -> str:
+    def _get_cache_key(year: int, standings_type: str) -> str:
         return f"{year}_{standings_type}"
 
     def _get_cached(self, year: int, standings_type: str) -> Optional[StandingsData]:
@@ -57,8 +57,8 @@ class StandingsService:
         logger.debug(f"Cached {key}")
 
     @staticmethod
-    def _fetch_with_retry(
-        self, client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
+    async def _fetch_with_retry(
+        client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
     ) -> httpx.Response:
         last_exception: httpx.HTTPStatusError | None = None
         for attempt in range(max_retries + 1):

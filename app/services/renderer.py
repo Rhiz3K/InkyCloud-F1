@@ -864,7 +864,7 @@ class Renderer:
         draw.text((text_x, start_y + 40), line2, fill=1, font=self.fonts["header_subtitle"])
 
     @staticmethod
-    def _draw_f1_logo(self, image: Image.Image, width: int, height: int) -> None:
+    def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:
         """
         Render the F1 logo centered in the header area.
 
@@ -1005,7 +1005,7 @@ class Renderer:
         )
 
     @staticmethod
-    def _load_track_image(self, race_data: dict) -> Image.Image | None:
+    def _load_track_image(race_data: dict) -> Image.Image | None:
         """Load track image from assets.
 
         First tries to load pre-processed 1-bit BMP from tracks_processed/,
@@ -1543,7 +1543,7 @@ class Renderer:
     # =========================================================================
 
     @staticmethod
-    def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
+    def _load_font(size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
         """Load TitilliumWeb font."""
         font_filename = "TitilliumWeb-Bold.ttf" if bold else "TitilliumWeb-Regular.ttf"
         font_path = FONTS_DIR / font_filename
@@ -1562,7 +1562,7 @@ class Renderer:
             return ImageFont.load_default()
 
     @staticmethod
-    def _load_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+    def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
         symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
         try:
             return ImageFont.truetype(symbola_path, size)
@@ -1588,7 +1588,7 @@ class Renderer:
         return self._load_font(size, bold=True)
 
     @staticmethod
-    def _load_driver_photos(self) -> dict[str, Image.Image]:
+    def _load_driver_photos() -> dict[str, Image.Image]:
         """
         Load driver silhouettes from assets/drivers and convert to 1-bit masks.
 
