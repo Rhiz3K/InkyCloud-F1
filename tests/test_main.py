@@ -205,7 +205,8 @@ def test_privacy_page_header_nav():
     """Test privacy page has navigation in header."""
     response = client.get("/privacy")
     html = response.text
-    assert 'href="/?lang=' in html
+    # English is default - home link should NOT have ?lang= parameter
+    assert 'href="/"' in html
     assert "/api/docs/html" in html
 
 
@@ -213,7 +214,8 @@ def test_api_docs_header_nav():
     """Test API docs page has navigation in header."""
     response = client.get("/api/docs/html")
     html = response.text
-    assert 'href="/?lang=' in html
+    # English is default - home link should NOT have ?lang= parameter
+    assert 'href="/"' in html
     assert "/privacy" in html
 
 
@@ -395,7 +397,8 @@ def test_stats_link_in_header():
     """Test header contains link to stats page instead of inline stats display."""
     response = client.get("/")
     html = response.text
-    assert 'href="/stats?lang=' in html
+    # English is default - stats link should NOT have ?lang= parameter
+    assert 'href="/stats"' in html
     assert 'id="statsLast24h"' not in html
     assert 'id="statsDataTransfer"' not in html
 
@@ -482,10 +485,11 @@ def test_configure_sidebar_mobile_nav_links():
     """Test configure page sidebar has navigation links for mobile."""
     response = client.get("/configure/calendar?lang=en")
     html = response.text
-    assert 'href="/stats?lang=en"' in html
-    assert 'href="/api/docs/html?lang=en"' in html
-    assert 'href="/privacy?lang=en"' in html
-    assert 'href="/changelog?lang=en"' in html
+    # English is default - links should NOT have ?lang=en parameter
+    assert 'href="/stats"' in html
+    assert 'href="/api/docs/html"' in html
+    assert 'href="/privacy"' in html
+    assert 'href="/changelog"' in html
     assert 'href="https://github.com/Rhiz3K/InkyCloud-F1"' in html
 
 
@@ -656,7 +660,7 @@ def test_changelog_header_nav():
     """Test changelog page has navigation in header."""
     response = client.get("/changelog")
     html = response.text
-    assert 'href="/?lang=' in html
+    assert 'href="/"' in html
 
 
 def test_convert_race_times_to_timezone():

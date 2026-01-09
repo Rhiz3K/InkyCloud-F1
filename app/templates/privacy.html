@@ -4,7 +4,7 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   content="{{ t.get('meta_description_privacy', 'Privacy policy for F1 E-Ink Calendar service') }}"
 />{% endblock %} {% block canonical %}<link
   rel="canonical"
-  href="{{ site_url }}/privacy?lang={{ ui_lang }}"
+  href="{{ site_url }}/privacy{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
 />{% endblock %} {% block og_tags %}
 <meta
   property="og:title"
@@ -14,7 +14,7 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   property="og:description"
   content="{{ t.get('meta_description_privacy', 'Privacy policy for F1 E-Ink Calendar service') }}"
 />
-<meta property="og:url" content="{{ site_url }}/privacy?lang={{ ui_lang }}" />
+<meta property="og:url" content="{{ site_url }}/privacy{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}" />
 <meta
   property="og:image"
   content="{{ site_url }}/static/images/og-preview.png"

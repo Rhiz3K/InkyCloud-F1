@@ -13,7 +13,7 @@ block og_tags %}
   property="og:description"
   content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
 />
-<meta property="og:url" content="{{ site_url }}/?lang={{ ui_lang }}" />
+<meta property="og:url" content="{{ site_url }}/{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}" />
 <meta
   property="og:image"
   content="{{ site_url }}/static/images/og-preview.png"
@@ -64,14 +64,14 @@ block og_tags %}
     >
       {% for screen in screen_types %}
       <a
-        href="/configure/{{ screen.id }}?lang={{ ui_lang }}"
+        href="/configure/{{ screen.id }}{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
         class="group bg-white border-4 border-black shadow-neo hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-none transition-all duration-100 flex flex-col overflow-hidden"
       >
         <div
           class="relative bg-gray-100 border-b-4 border-black overflow-hidden"
         >
           <img
-            src="/preview/{{ screen.id }}.png?lang={{ ui_lang }}"
+            src="/preview/{{ screen.id }}.png{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
             alt="{{ t.get(screen.name_key, screen.id) }}"
             width="800"
             height="480"

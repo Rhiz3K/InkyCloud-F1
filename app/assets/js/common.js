@@ -9,10 +9,14 @@
         if (!storedLang) return;
 
         const url = new URL(window.location.href);
-        const urlLang = url.searchParams.get("lang");
+        const urlLang = url.searchParams.get("lang") || "en";
 
         if (urlLang !== storedLang) {
-            url.searchParams.set("lang", storedLang);
+            if (storedLang === "en") {
+                url.searchParams.delete("lang");
+            } else {
+                url.searchParams.set("lang", storedLang);
+            }
             window.location.replace(url.toString());
         }
     } catch (e) {
@@ -22,12 +26,17 @@
 
 /**
  * Switch UI language by updating URL parameter and reloading
+ * English is default - no ?lang= param needed for English
  */
 function switchUiLanguage() {
     const lang = document.getElementById("uiLangSwitch").value;
     localStorage.setItem("preferredLang", lang);
     const url = new URL(window.location.href);
-    url.searchParams.set("lang", lang);
+    if (lang === "en") {
+        url.searchParams.delete("lang");
+    } else {
+        url.searchParams.set("lang", lang);
+    }
     window.location.href = url.toString();
 }
 

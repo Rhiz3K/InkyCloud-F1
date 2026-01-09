@@ -5,7 +5,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
 />{% endblock %} {% block canonical %}<link
   rel="canonical"
-  href="{{ site_url }}/configure/{{ screen_type }}?lang={{ ui_lang }}"
+  href="{{ site_url }}/configure/{{ screen_type }}{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
 />{% endblock %} {% block og_tags %}
 <meta
   property="og:title"
@@ -15,7 +15,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   property="og:description"
   content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
 />
-<meta property="og:url" content="{{ site_url }}/?lang={{ ui_lang }}" />
+<meta property="og:url" content="{{ site_url }}/{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}" />
 <meta
   property="og:image"
   content="{{ site_url }}/static/images/og-preview.png"
@@ -37,7 +37,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
 <link
   rel="preload"
   as="image"
-  href="/preview/configure/{{ screen_type }}.png?lang={{ ui_lang }}"
+  href="/preview/configure/{{ screen_type }}.png{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
   type="image/png"
 />
 <script type="application/ld+json">
@@ -95,7 +95,7 @@ block content %}
     <!-- Panel Header with Back Link -->
     <div class="px-4 py-3 border-b-2 border-black bg-black text-white">
       <a
-        href="/?lang={{ ui_lang }}"
+        href="/{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
         class="flex items-center gap-2 hover:text-racing-red transition-colors mb-2 text-xs"
       >
         <svg
@@ -137,13 +137,13 @@ block content %}
     <!-- Screen Type Selector -->
     <div class="px-2 py-1.5 border-b-2 border-black bg-gray-50 flex gap-1">
       <a
-        href="/configure/calendar?lang={{ ui_lang }}"
+        href="/configure/calendar{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
         class="flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all {% if screen_type == 'calendar' %}bg-black text-white{% else %}bg-white hover:bg-black hover:text-white{% endif %}"
       >
         {{ t.get('screen_calendar_name', 'Calendar') }}
       </a>
       <a
-        href="/configure/teams?lang={{ ui_lang }}"
+        href="/configure/teams{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
         class="flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all {% if screen_type == 'teams' %}bg-black text-white{% else %}bg-white hover:bg-black hover:text-white{% endif %}"
       >
         {{ t.get('screen_teams_name', 'Teams') }}
@@ -430,21 +430,21 @@ block content %}
         <div class="font-bold uppercase tracking-wider mb-2">
           {{ nav.nav_menu }}
         </div>
-        <a href="/stats?lang={{ ui_lang }}" class="block hover:text-racing-red"
+        <a href="/stats{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}" class="block hover:text-racing-red"
           >{{ nav.nav_stats }}</a
         >
         <a
-          href="/api/docs/html?lang={{ ui_lang }}"
+          href="/api/docs/html{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block hover:text-racing-red"
           >{{ nav.nav_api }}</a
         >
         <a
-          href="/privacy?lang={{ ui_lang }}"
+          href="/privacy{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block hover:text-racing-red"
           >{{ nav.nav_privacy }}</a
         >
         <a
-          href="/changelog?lang={{ ui_lang }}"
+          href="/changelog{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block hover:text-racing-red"
           >{{ nav.nav_changelog }}</a
         >
@@ -1202,22 +1202,30 @@ block content %}
       const weatherType =
         document.querySelector('input[name="weatherType"]:checked')?.value ||
         "race_day";
-      let url = `${window.location.origin}/calendar.bmp?lang=${currentUiLang}`;
-      if (tz) url += `&tz=${encodeURIComponent(tz)}`;
-      if (selectedYear && selectedRound)
-        url += `&year=${selectedYear}&round=${selectedRound}`;
+      let url = `${window.location.origin}/calendar.bmp`;
+      let params = [];
+      if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
+      if (tz) params.push(`tz=${encodeURIComponent(tz)}`);
+      if (selectedYear && selectedRound) {
+        params.push(`year=${selectedYear}`);
+        params.push(`round=${selectedRound}`);
+      }
       if (!showWeather) {
-        url += `&weather=false`;
+        params.push(`weather=false`);
       } else if (weatherType === "current") {
-        url += `&weather_type=current`;
+        params.push(`weather_type=current`);
       }
       if (currentDisplayType === "spectra6") {
-        url += `&display=spectra6`;
+        params.push(`display=spectra6`);
       }
+      if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else {
-      let url = `${window.location.origin}/teams.bmp?lang=${currentUiLang}`;
-      if (selectedTeamsYear) url += `&year=${selectedTeamsYear}`;
+      let url = `${window.location.origin}/teams.bmp`;
+      let params = [];
+      if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
+      if (selectedTeamsYear) params.push(`year=${selectedTeamsYear}`);
+      if (params.length > 0) url += '?' + params.join('&');
       return url;
     }
   }
@@ -1237,7 +1245,9 @@ block content %}
 
   function getPreviewUrl() {
     if (isDefaultView()) {
-      return `${window.location.origin}/preview/configure/${currentScreenType}.png?lang=${currentUiLang}`;
+      let url = `${window.location.origin}/preview/configure/${currentScreenType}.png`;
+      if (currentUiLang !== 'en') url += `?lang=${currentUiLang}`;
+      return url;
     }
     return getApiUrl();
   }
@@ -1467,7 +1477,7 @@ block content %}
 
     // If saved preference differs from current, redirect
     if (saved && saved !== currentUiLang && ["en", "cs"].includes(saved)) {
-      window.location.href = "/?lang=" + saved;
+      window.location.href = saved !== 'en' ? "/?lang=" + saved : "/";
       return false; // Signal that redirect is happening
     }
 
