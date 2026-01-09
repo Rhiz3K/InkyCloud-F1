@@ -1,0 +1,29 @@
+# GitHub Copilot Setup Steps
+# This file automates the development environment setup for Copilot coding agent
+
+steps:
+  - name: Create Python virtual environment
+    command: python3 -m venv venv
+    description: Creates an isolated Python environment for the project
+
+  - name: Activate virtual environment (Unix)
+    command: source venv/bin/activate
+    description: Activates the virtual environment on Unix-like systems
+    platform: unix
+
+  - name: Activate virtual environment (Windows)
+    command: venv\Scripts\activate
+    description: Activates the virtual environment on Windows
+    platform: windows
+
+  - name: Install project dependencies
+    command: pip install -e ".[dev]"
+    description: Installs the project in editable mode with development dependencies
+
+  - name: Verify installation
+    command: pytest --version && ruff --version && uvicorn --version
+    description: Verifies that key development tools are installed correctly
+
+  - name: Run initial tests
+    command: pytest -v
+    description: Runs the test suite to ensure the environment is properly configured
