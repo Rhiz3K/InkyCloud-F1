@@ -868,7 +868,8 @@ class Database:
         weight = idx - lower
         return round(values[lower] * (1 - weight) + values[upper] * weight, 0)
 
-    def _calculate_percentile_fine(self, values: list[float], percentile: int) -> float | None:
+    @staticmethod
+    def _calculate_percentile_fine(values: list[float], percentile: int) -> float | None:
         if not values:
             return None
         n = len(values)

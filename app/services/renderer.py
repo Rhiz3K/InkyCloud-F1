@@ -863,6 +863,7 @@ class Renderer:
         draw.text((text_x, start_y), line1, fill=1, font=self.fonts["header_title"])
         draw.text((text_x, start_y + 40), line2, fill=1, font=self.fonts["header_subtitle"])
 
+    @staticmethod
     def _draw_f1_logo(self, image: Image.Image, width: int, height: int) -> None:
         """
         Render the F1 logo centered in the header area.
@@ -1003,6 +1004,7 @@ class Renderer:
             width=3,
         )
 
+    @staticmethod
     def _load_track_image(self, race_data: dict) -> Image.Image | None:
         """Load track image from assets.
 
@@ -1540,6 +1542,7 @@ class Renderer:
     # Utility Methods
     # =========================================================================
 
+    @staticmethod
     def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
         """Load TitilliumWeb font."""
         font_filename = "TitilliumWeb-Bold.ttf" if bold else "TitilliumWeb-Regular.ttf"
@@ -1558,6 +1561,7 @@ class Renderer:
         except OSError:
             return ImageFont.load_default()
 
+    @staticmethod
     def _load_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
         symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
         try:
@@ -1583,6 +1587,7 @@ class Renderer:
                 logger.warning("Failed to load Racing Sans One: %s", e)
         return self._load_font(size, bold=True)
 
+    @staticmethod
     def _load_driver_photos(self) -> dict[str, Image.Image]:
         """
         Load driver silhouettes from assets/drivers and convert to 1-bit masks.

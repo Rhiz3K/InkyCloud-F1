@@ -220,6 +220,7 @@ class Spectra6Renderer:
             font=self.fonts["header_subtitle"],
         )
 
+    @staticmethod
     def _draw_f1_logo(self, image: Image.Image, width: int, height: int) -> None:
         logo_path = IMAGES_DIR / "f1_spectra_6.bmp"
 
@@ -299,6 +300,7 @@ class Spectra6Renderer:
             width=3,
         )
 
+    @staticmethod
     def _load_track_image(self, race_data: dict) -> Image.Image | None:
         circuit = race_data.get("circuit", {})
         circuit_id = circuit.get("circuitId", "")
@@ -788,6 +790,7 @@ class Spectra6Renderer:
 
         return f"{pos}. {driver[:5]}.. ({team[:3]}..)"
 
+    @staticmethod
     def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
         font_filename = "TitilliumWeb-Bold.ttf" if bold else "TitilliumWeb-Regular.ttf"
         font_path = FONTS_DIR / font_filename

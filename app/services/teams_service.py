@@ -51,6 +51,7 @@ class TeamsService:
         self.timeout = config.REQUEST_TIMEOUT
         self._cache: dict[str, CacheEntry] = {}
 
+    @staticmethod
     def _get_cache_key(self, year: int) -> str:
         return f"teams_{year}"
 
@@ -67,6 +68,7 @@ class TeamsService:
         self._cache[key] = CacheEntry(data)
         logger.debug(f"Cached {key}")
 
+    @staticmethod
     def _validate_year(self, year: int) -> bool:
         """Validate year is within acceptable F1 data range (1950-2030)."""
         return isinstance(year, int) and 1950 <= year <= 2030
@@ -117,7 +119,8 @@ class TeamsService:
             logger.error(f"Error loading JSON file: {e}", exc_info=True)
             return None
 
-    async def _fetch_with_retry(
+    @staticmethod
+    def _fetch_with_retry(
         self, client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
     ) -> httpx.Response:
         last_exception: httpx.HTTPStatusError | None = None
@@ -190,6 +193,7 @@ class TeamsService:
 
             return driver_standings, constructor_standings
 
+    @staticmethod
     def _match_constructor_name(self, json_name: str, api_names: list[str]) -> Optional[str]:
         """Match JSON constructor name to API name."""
         json_lower = json_name.lower()
