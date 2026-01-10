@@ -22,7 +22,7 @@ try:
     with open(CIRCUITS_DATA_PATH, "r", encoding="utf-8") as f:
         CIRCUITS_DATA = json.load(f)
 except Exception as e:
-    logger.warning(f"Failed to load circuit data: {e}")
+    logger.warning("Failed to load circuit data: %s", e)
     CIRCUITS_DATA = {}
 
 CIRCUIT_ID_MAP: dict[str, str] = {
@@ -315,7 +315,7 @@ class Spectra6Renderer:
             try:
                 return Image.open(track_path)
             except Exception as e:
-                logger.warning(f"Failed to load track {track_path}: {e}")
+                logger.warning("Failed to load track %s: %s", track_path, e)
 
         return None
 
