@@ -157,6 +157,7 @@ def _get_pregenerated_calendar_path(
     race_round: int | None,
     tz: str | None,
     display: str,
+    weather_type: str,
 ) -> Path | None:
     if year is not None or race_round is not None:
         return None
@@ -165,9 +166,12 @@ def _get_pregenerated_calendar_path(
     if target_tz_for_key != config.DEFAULT_TIMEZONE:
         return None
 
+    # Build filename matching scheduler's _get_image_key format
     image_filename = "calendar_cs" if lang == "cs" else "calendar_en"
     if display == "spectra6":
         image_filename += "_spectra6"
+    if weather_type != "off":
+        image_filename += f"_weather_{weather_type}"
     image_filename += ".bmp"
 
     image_path = Path(config.IMAGES_PATH) / image_filename
@@ -296,7 +300,12 @@ async def get_calendar_bmp(
         )
 
     image_path = _get_pregenerated_calendar_path(
-        lang=lang, year=year, race_round=race_round, tz=tz, display=display
+        lang=lang,
+        year=year,
+        race_round=race_round,
+        tz=tz,
+        display=display,
+        weather_type=weather_type,
     )
     if image_path is not None:
         logger.info("Serving pre-generated image: %s", image_path)
