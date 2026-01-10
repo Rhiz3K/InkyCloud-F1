@@ -977,8 +977,9 @@ class Renderer:
                 track_image = track_image.point(lambda p: 255 if p > 200 else 0)  # type: ignore[operator]
                 track_image = track_image.convert("1")
 
-            paste_x = side_margin
-            paste_y = track_top
+            final_w, final_h = track_image.size
+            paste_x = side_margin + (available_width - final_w) // 2
+            paste_y = track_top + (available_height - final_h) // 2
 
             image.paste(track_image, (paste_x, paste_y))
         else:
