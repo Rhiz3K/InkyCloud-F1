@@ -116,8 +116,9 @@ app = FastAPI(
 
 
 class StaticCacheMiddleware(BaseHTTPMiddleware):
-    # noqa: PLR6301 - dispatch must be instance method (BaseHTTPMiddleware override)
-    async def dispatch(self, request: StarletteRequest, call_next) -> StarletteResponse:
+    async def dispatch(  # skipcq: PYL-R0201 - must be instance method (BaseHTTPMiddleware)
+        self, request: StarletteRequest, call_next
+    ) -> StarletteResponse:
         response = await call_next(request)
         path = request.url.path
 
