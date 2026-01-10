@@ -22,7 +22,6 @@ from app.services.weather_service import (
     WeatherData,
     WeatherService,
     get_cached_circuit_weather,
-    get_cached_weather_from_db,
     load_circuit_weather_to_cache,
     prefetch_weather_for_next_race,
     set_cached_circuit_weather,
@@ -222,41 +221,18 @@ async def _load_weather_context(
         return current_weather, race_weather, weather_by_type
 
     circuit = race_data.get("circuit", {})
-    lat = circuit.get("lat")
-    lon = circuit.get("long")
-    if not lat or not lon:
+    circuit_id = circuit.get("circuitId", "")
+    if not circuit_id:
         return current_weather, race_weather, weather_by_type
 
-    try:
-        lat_f, lon_f = round(float(lat), 2), round(float(lon), 2)
-        current_key = f"current_{lat_f}_{lon_f}"
-        current_weather = await get_cached_weather_from_db(db, current_key)
-        if current_weather:
-            logger.info("Current weather: %s", current_weather.temp_display)
-            weather_by_type["current"] = current_weather
-
-        schedule = race_data.get("schedule", [])
-        race_session = next((s for s in schedule if s.get("name") == "Race"), None)
-        if not race_session:
-            return current_weather, race_weather, weather_by_type
-
-        race_dt_str = race_session.get("datetime")
-        if not race_dt_str:
-            return current_weather, race_weather, weather_by_type
-
-        race_dt = datetime.fromisoformat(race_dt_str)
-        days_until = (race_dt - datetime.now(timezone.utc)).days
-        if not (0 <= days_until <= 14):
-            return current_weather, race_weather, weather_by_type
-
-        race_key = f"{lat_f}_{lon_f}_{race_dt.isoformat()}"
-        race_weather = await get_cached_weather_from_db(db, race_key)
-        if race_weather:
-            logger.info("Race weather: %s", race_weather.temp_display)
-            weather_by_type["race"] = race_weather
-
-    except (ValueError, TypeError) as exc:
-        logger.warning("Weather error: %s", exc)
+    # Use in-memory circuit weather cache (filled by fetch_all_circuits_weather)
+    current_weather = get_cached_circuit_weather(circuit_id)
+    if current_weather:
+        logger.info("Current weather for %s: %s", circuit_id, current_weather.temp_display)
+        weather_by_type["current"] = current_weather
+        # For now, use current weather as race weather too (same data source)
+        weather_by_type["race"] = current_weather
+        race_weather = current_weather
 
     return current_weather, race_weather, weather_by_type
 
