@@ -694,7 +694,7 @@ def start_scheduler() -> None:
     enabled), backup (if configured), version refresh (00:05 daily).
     Returns if scheduler disabled or already running.
     """
-    global scheduler
+    global scheduler  # noqa: PLW0603 - singleton pattern for scheduler instance
 
     if not config.SCHEDULER_ENABLED:
         logger.info("Scheduler is disabled")
@@ -766,7 +766,7 @@ def start_scheduler() -> None:
 
 def stop_scheduler() -> None:
     """Stop the background scheduler."""
-    global scheduler
+    global scheduler  # noqa: PLW0603 - singleton pattern for scheduler instance
 
     if scheduler is not None:
         scheduler.shutdown()

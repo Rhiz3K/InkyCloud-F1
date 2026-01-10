@@ -148,7 +148,10 @@ class TeamsService:
                     if attempt < max_retries:
                         delay = RETRY_BASE_DELAY * (2**attempt)
                         logger.warning(
-                            f"Rate limited (429), retry {attempt + 1}/{max_retries} in {delay}s"
+                            "Rate limited (429), retry %d/%d in %ss",
+                            attempt + 1,
+                            max_retries,
+                            delay,
                         )
                         await asyncio.sleep(delay)
                         continue
