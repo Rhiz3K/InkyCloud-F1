@@ -78,20 +78,27 @@ class TeamsService:
             logger.warning("Invalid year requested: %s", year)
             return None
 
-        safe_filename = f"{year}_teams.json"
-        json_path = (SEASONS_DIR / safe_filename).resolve()
+        # Security: year is validated to be integer 1950-2030, filename cannot contain
+        # path traversal characters. Using str() for explicit type conversion.
+        safe_year = str(year)
+        if not safe_year.isdigit():
+            return None
+        safe_filename = f"{safe_year}_teams.json"
+        json_path = SEASONS_DIR / safe_filename
 
-        # Security: ensure path stays within SEASONS_DIR (prevent path traversal)
-        if not str(json_path).startswith(str(SEASONS_DIR.resolve())):
-            logger.warning("Path traversal attempt detected for year: %s", year)
+        # Verify the resolved path is within SEASONS_DIR (defense in depth)
+        resolved_path = json_path.resolve()
+        seasons_resolved = SEASONS_DIR.resolve()
+        if not str(resolved_path).startswith(str(seasons_resolved)):
+            logger.warning("Path traversal attempt blocked for year: %s", year)
             return None
 
-        if not json_path.exists():
-            logger.debug("No JSON file found at %s", json_path)
+        if not resolved_path.exists():
+            logger.debug("No JSON file found at %s", resolved_path)
             return None
 
         try:
-            with open(json_path, encoding="utf-8") as f:
+            with open(resolved_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             teams = []

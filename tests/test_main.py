@@ -189,7 +189,8 @@ def test_header_contains_credits_dropdown():
     assert "FoxeeLab" in html
     assert 'href="https://coolify.io"' in html
     assert 'href="https://hetzner.com"' in html
-    assert 'href="https://www.laskakit.cz"' in html
+    # LaskaKit link has full product URL
+    assert 'href="https://www.laskakit.cz/' in html
     assert "jolpica" in html
 
 
