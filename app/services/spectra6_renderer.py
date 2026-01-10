@@ -155,13 +155,14 @@ class Spectra6Renderer:
         race_data: dict,
         historical_data: HistoricalData | None = None,
         weather_data: WeatherData | None = None,
+        weather_type: str = "",
     ) -> bytes:
         image = Image.new("RGB", (self.width, self.height), self.colors.WHITE)
         draw = ImageDraw.Draw(image)
 
         self._draw_header(draw, image, race_data)
         self._draw_track_section(draw, image, race_data)
-        schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data)
+        schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data, weather_type)
         self._draw_circuit_stats(draw, race_data, schedule_bottom)
         self._draw_results_section(draw, image, race_data, historical_data)
 
@@ -324,6 +325,7 @@ class Spectra6Renderer:
         draw: ImageDraw.ImageDraw,
         race_data: dict,
         weather_data: WeatherData | None = None,
+        weather_type: str = "",
     ) -> int:
         x_start = self.layout["right_column_x"]
         y_start = self.layout["schedule_title_y"]
@@ -347,7 +349,9 @@ class Spectra6Renderer:
             if row_y > self.layout["results_y_start"] - 80:
                 break
 
-        countdown_bottom = self._draw_countdown_box(draw, race_data, row_y + 10, weather_data)
+        countdown_bottom = self._draw_countdown_box(
+            draw, race_data, row_y + 10, weather_data, weather_type
+        )
 
         return countdown_bottom
 
@@ -402,6 +406,7 @@ class Spectra6Renderer:
         race_data: dict,
         schedule_bottom: int,
         weather_data: WeatherData | None = None,
+        weather_type: str = "",
     ) -> int:
         schedule = race_data.get("schedule", [])
         race_dt = None
@@ -454,8 +459,13 @@ class Spectra6Renderer:
         text_y = y_top + padding_y - ref_bbox[1]
 
         flag_icon = "🏁"
-        days_label = self.translator.get("countdown_days", "days")
-        hours_label = self.translator.get("countdown_hours", "hours")
+        # Use short labels (d/h) for current and race_day weather types
+        if weather_type in ("current", "race_day"):
+            days_label = self.translator.get("countdown_days_short", "d")
+            hours_label = self.translator.get("countdown_hours_short", "h")
+        else:
+            days_label = self.translator.get("countdown_days", "days")
+            hours_label = self.translator.get("countdown_hours", "hours")
         countdown_str = f"{days} {days_label} {hours} {hours_label}"
 
         flag_bbox = draw.textbbox((0, 0), flag_icon, font=font_icon)

@@ -160,7 +160,7 @@ async def _generate_variant(
         renderer = Renderer(translator)
 
     wd = weather_data if weather_type != "off" else None
-    bmp_data = renderer.render_calendar(race_data, historical_data, wd)
+    bmp_data = renderer.render_calendar(race_data, historical_data, wd, weather_type)
 
     image_key = _get_image_key(lang, tz, display, weather_type)
     image_path = images_dir / f"{image_key}.bmp"

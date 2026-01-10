@@ -209,6 +209,7 @@ def _render_calendar(
     race_round: int | None,
     target_tz: str,
     weather: bool,
+    weather_type: str,
     display: str,
 ) -> tuple[bytes, dict | None]:
     translator = get_translator(lang)
@@ -228,7 +229,9 @@ def _render_calendar(
         weather_data = get_cached_circuit_weather(circuit_id)
 
     renderer = _get_renderer(display, translator)
-    return renderer.render_calendar(race_data, historical_data, weather_data), race_data
+    return renderer.render_calendar(
+        race_data, historical_data, weather_data, weather_type
+    ), race_data
 
 
 @router.get("/calendar.bmp")
@@ -333,6 +336,7 @@ async def get_calendar_bmp(
             race_round=race_round,
             target_tz=target_tz,
             weather=weather,
+            weather_type=weather_type,
             display=display,
         )
         get_bmp_cache()[cache_key] = bmp_data
