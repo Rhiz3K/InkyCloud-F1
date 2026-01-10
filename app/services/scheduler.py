@@ -21,6 +21,7 @@ from app.services.version_service import refresh_version_info
 from app.services.weather_service import (
     WeatherData,
     WeatherService,
+    get_cached_circuit_weather,
     get_cached_weather_from_db,
     load_circuit_weather_to_cache,
     prefetch_weather_for_next_race,
@@ -105,7 +106,15 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
         # Calendar preview
         if race_data:
             try:
-                bmp_data = renderer.render_calendar(race_data, historical_data)
+                # Get weather data for preview
+                circuit_id = race_data.get("circuit", {}).get("circuitId", "")
+                weather_data = None
+                if circuit_id and config.WEATHER_ENABLED:
+                    weather_data = get_cached_circuit_weather(circuit_id)
+
+                bmp_data = renderer.render_calendar(
+                    race_data, historical_data, weather_data, weather_type="current"
+                )
 
                 homepage_png = _bmp_to_png(bmp_data, width=400)
                 homepage_path = images_dir / f"preview_calendar_{lang}.png"
