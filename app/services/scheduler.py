@@ -1,14 +1,12 @@
 """Scheduler service for hourly image generation using static data."""
 
 import asyncio
-import copy
 import logging
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 
 import aiofiles
-import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from PIL import Image
@@ -29,6 +27,7 @@ from app.services.weather_service import (
     set_cached_circuit_weather,
 )
 from app.state import clear_bmp_cache, get_and_clear_api_calls_buffer
+from app.utils.race_times import convert_race_times_to_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -54,61 +53,6 @@ def _get_image_key(
     if weather != "off":
         key += f"_weather_{weather}"
     return key
-
-
-def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
-    """
-    Convert race schedule times to a different timezone.
-
-    Args:
-        race_data: Race data dictionary with schedule
-        target_tz_str: Target timezone string (e.g., 'America/New_York')
-
-    Returns:
-        Race data with converted schedule times
-    """
-    try:
-        target_tz = pytz.timezone(target_tz_str)
-    except pytz.UnknownTimeZoneError:
-        logger.warning("Unknown timezone %s, returning original data", target_tz_str)
-        return race_data
-
-    # Deep copy to avoid modifying original
-    result = copy.deepcopy(race_data)
-
-    # Convert schedule times
-    schedule = result.get("schedule", [])
-    for event in schedule:
-        iso_str = event.get("datetime")
-        if iso_str:
-            try:
-                # Parse ISO datetime string
-                dt = datetime.fromisoformat(iso_str)
-                # Convert to target timezone
-                dt_local = dt.astimezone(target_tz)
-                # Update both datetime and display_time
-                event["datetime"] = dt_local.isoformat()
-                event["display_time"] = dt_local.strftime("%a %H:%M")
-            except (ValueError, TypeError) as e:
-                logger.warning("Error converting time %s: %s", iso_str, e)
-
-    # Update race_date to target timezone format
-    if schedule:
-        for event in schedule:
-            if event.get("name") == "Race":
-                iso_str = event.get("datetime")
-                if iso_str:
-                    try:
-                        dt = datetime.fromisoformat(iso_str)
-                        result["race_date"] = dt.strftime("%d.%m.%Y")
-                    except (ValueError, TypeError):
-                        pass
-                break
-
-    # Update timezone field
-    result["timezone"] = target_tz_str
-
-    return result
 
 
 def _bmp_to_png(bmp_data: bytes, width: int = 400, full_size: bool = False) -> bytes:
@@ -228,6 +172,162 @@ async def _generate_variant(
     return True
 
 
+def _delete_existing_bmps(images_dir: Path) -> int:
+    deleted_count = 0
+    for bmp_file in images_dir.glob("*.bmp"):
+        bmp_file.unlink()
+        deleted_count += 1
+    return deleted_count
+
+
+def _load_historical_data(race_data: dict) -> object | None:
+    circuit_id = race_data.get("circuit", {}).get("circuitId", "")
+    if not circuit_id:
+        return None
+
+    historical_data = F1Service.get_historical_from_static(circuit_id)
+    if historical_data is None:
+        return None
+
+    if getattr(historical_data, "is_new_track", False):
+        logger.info("Circuit %s: new track (no historical data)", circuit_id)
+    else:
+        logger.info(
+            "Circuit %s: historical data from %s",
+            circuit_id,
+            getattr(historical_data, "season", "unknown"),
+        )
+
+    return historical_data
+
+
+async def _load_weather_context(
+    db: Database, race_data: dict
+) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
+    current_weather: WeatherData | None = None
+    race_weather: WeatherData | None = None
+
+    weather_by_type: dict[str, WeatherData | None] = {"off": None}
+
+    if not config.WEATHER_ENABLED:
+        return current_weather, race_weather, weather_by_type
+
+    circuit = race_data.get("circuit", {})
+    lat = circuit.get("lat")
+    lon = circuit.get("long")
+    if not lat or not lon:
+        return current_weather, race_weather, weather_by_type
+
+    try:
+        lat_f, lon_f = round(float(lat), 2), round(float(lon), 2)
+        current_key = f"current_{lat_f}_{lon_f}"
+        current_weather = await get_cached_weather_from_db(db, current_key)
+        if current_weather:
+            logger.info("Current weather: %s", current_weather.temp_display)
+            weather_by_type["current"] = current_weather
+
+        schedule = race_data.get("schedule", [])
+        race_session = next((s for s in schedule if s.get("name") == "Race"), None)
+        if not race_session:
+            return current_weather, race_weather, weather_by_type
+
+        race_dt_str = race_session.get("datetime")
+        if not race_dt_str:
+            return current_weather, race_weather, weather_by_type
+
+        race_dt = datetime.fromisoformat(race_dt_str)
+        days_until = (race_dt - datetime.now(timezone.utc)).days
+        if not (0 <= days_until <= 14):
+            return current_weather, race_weather, weather_by_type
+
+        race_key = f"{lat_f}_{lon_f}_{race_dt.isoformat()}"
+        race_weather = await get_cached_weather_from_db(db, race_key)
+        if race_weather:
+            logger.info("Race weather: %s", race_weather.temp_display)
+            weather_by_type["race"] = race_weather
+
+    except (ValueError, TypeError) as exc:
+        logger.warning("Weather error: %s", exc)
+
+    return current_weather, race_weather, weather_by_type
+
+
+async def _generate_base_variants(
+    *,
+    images_dir: Path,
+    db: Database,
+    race_data: dict,
+    historical_data,
+    display_types: list[str],
+    weather_by_type: dict[str, WeatherData | None],
+) -> int:
+    generated_count = 0
+
+    for lang in SUPPORTED_LANGUAGES:
+        for display in display_types:
+            for weather_type, wd in weather_by_type.items():
+                if await _generate_variant(
+                    images_dir,
+                    db,
+                    race_data,
+                    historical_data,
+                    wd,
+                    lang,
+                    None,
+                    display,
+                    weather_type,
+                ):
+                    generated_count += 1
+
+    return generated_count
+
+
+async def _generate_popular_tz_variants(
+    *,
+    images_dir: Path,
+    db: Database,
+    race_data: dict,
+    historical_data,
+    display_types: list[str],
+    weather_by_type: dict[str, WeatherData | None],
+) -> int:
+    generated_count = 0
+
+    popular_variants = await db.get_popular_tz_variants(
+        min_requests=10, hours=24, limit=20, exclude_tz=config.DEFAULT_TIMEZONE
+    )
+    if not popular_variants:
+        return 0
+
+    logger.info("Generating %d popular TZ variants", len(popular_variants))
+
+    for variant in popular_variants:
+        lang = variant["lang"]
+        tz = variant["tz"]
+        if lang not in SUPPORTED_LANGUAGES:
+            logger.debug("Skipping unsupported language: %s", lang)
+            continue
+
+        race_data_converted = convert_race_times_to_timezone(race_data, tz)
+
+        for display in display_types:
+            for weather_type, wd in weather_by_type.items():
+                if await _generate_variant(
+                    images_dir,
+                    db,
+                    race_data_converted,
+                    historical_data,
+                    wd,
+                    lang,
+                    tz,
+                    display,
+                    weather_type,
+                ):
+                    generated_count += 1
+
+    return generated_count
+
+
 async def collect_and_generate() -> None:
     logger.info("Starting image generation from static data")
 
@@ -238,11 +338,7 @@ async def collect_and_generate() -> None:
         images_dir = Path(config.IMAGES_PATH)
         images_dir.mkdir(parents=True, exist_ok=True)
 
-        deleted_count = 0
-        for bmp_file in images_dir.glob("*.bmp"):
-            bmp_file.unlink()
-            deleted_count += 1
-
+        deleted_count = _delete_existing_bmps(images_dir)
         if deleted_count > 0:
             logger.info("Deleted %d existing BMP files", deleted_count)
 
@@ -253,117 +349,34 @@ async def collect_and_generate() -> None:
 
         logger.info("Next race: %s (from static data)", race_data.get("race_name"))
 
-        circuit_id = race_data.get("circuit", {}).get("circuitId", "")
-        historical_data = None
-        if circuit_id:
-            historical_data = F1Service.get_historical_from_static(circuit_id)
+        historical_data = _load_historical_data(race_data)
 
-            if historical_data.is_new_track:
-                logger.info("Circuit %s: new track (no historical data)", circuit_id)
-            else:
-                logger.info(
-                    "Circuit %s: historical data from %s", circuit_id, historical_data.season
-                )
-
-        current_weather: WeatherData | None = None
-        race_weather: WeatherData | None = None
-        race_weather_available = False
-
-        if config.WEATHER_ENABLED:
-            circuit = race_data.get("circuit", {})
-            lat = circuit.get("lat")
-            lon = circuit.get("long")
-            if lat and lon:
-                try:
-                    lat_f, lon_f = round(float(lat), 2), round(float(lon), 2)
-                    current_key = f"current_{lat_f}_{lon_f}"
-                    current_weather = await get_cached_weather_from_db(db, current_key)
-                    if current_weather:
-                        logger.info("Current weather: %s", current_weather.temp_display)
-
-                    schedule = race_data.get("schedule", [])
-                    race_session = next((s for s in schedule if s.get("name") == "Race"), None)
-                    if race_session:
-                        race_dt_str = race_session.get("datetime")
-                        if race_dt_str:
-                            race_dt = datetime.fromisoformat(race_dt_str)
-                            days_until = (race_dt - datetime.now(timezone.utc)).days
-                            if 0 <= days_until <= 14:
-                                race_key = f"{lat_f}_{lon_f}_{race_dt.isoformat()}"
-                                race_weather = await get_cached_weather_from_db(db, race_key)
-                                if race_weather:
-                                    race_weather_available = True
-                                    logger.info("Race weather: %s", race_weather.temp_display)
-                except (ValueError, TypeError) as e:
-                    logger.warning("Weather error: %s", e)
+        _, _, weather_by_type = await _load_weather_context(db, race_data)
 
         display_types = ["1bit", "spectra6"]
-        weather_types = ["off"]
-        if config.WEATHER_ENABLED and current_weather:
-            weather_types.append("current")
-        if race_weather_available and race_weather:
-            weather_types.append("race")
-
-        logger.info("Generating variants: displays=%s, weather=%s", display_types, weather_types)
-
-        generated_count = 0
-        for lang in SUPPORTED_LANGUAGES:
-            for display in display_types:
-                for weather_type in weather_types:
-                    wd = None
-                    if weather_type == "current":
-                        wd = current_weather
-                    elif weather_type == "race":
-                        wd = race_weather
-
-                    if await _generate_variant(
-                        images_dir,
-                        db,
-                        race_data,
-                        historical_data,
-                        wd,
-                        lang,
-                        None,
-                        display,
-                        weather_type,
-                    ):
-                        generated_count += 1
-
-        popular_variants = await db.get_popular_tz_variants(
-            min_requests=10, hours=24, limit=20, exclude_tz=config.DEFAULT_TIMEZONE
+        logger.info(
+            "Generating variants: displays=%s, weather=%s",
+            display_types,
+            list(weather_by_type.keys()),
         )
 
-        if popular_variants:
-            logger.info("Generating %d popular TZ variants", len(popular_variants))
-            for variant in popular_variants:
-                lang = variant["lang"]
-                tz = variant["tz"]
-                if lang not in SUPPORTED_LANGUAGES:
-                    logger.debug("Skipping unsupported language: %s", lang)
-                    continue
-
-                race_data_converted = _convert_race_times_to_timezone(race_data, tz)
-
-                for display in display_types:
-                    for weather_type in weather_types:
-                        wd = None
-                        if weather_type == "current":
-                            wd = current_weather
-                        elif weather_type == "race":
-                            wd = race_weather
-
-                        if await _generate_variant(
-                            images_dir,
-                            db,
-                            race_data_converted,
-                            historical_data,
-                            wd,
-                            lang,
-                            tz,
-                            display,
-                            weather_type,
-                        ):
-                            generated_count += 1
+        generated_count = 0
+        generated_count += await _generate_base_variants(
+            images_dir=images_dir,
+            db=db,
+            race_data=race_data,
+            historical_data=historical_data,
+            display_types=display_types,
+            weather_by_type=weather_by_type,
+        )
+        generated_count += await _generate_popular_tz_variants(
+            images_dir=images_dir,
+            db=db,
+            race_data=race_data,
+            historical_data=historical_data,
+            display_types=display_types,
+            weather_by_type=weather_by_type,
+        )
 
         await db.set_cache_meta("last_generation", datetime.now(timezone.utc).isoformat())
         clear_bmp_cache()
@@ -373,8 +386,8 @@ async def collect_and_generate() -> None:
 
         logger.info("Image generation completed: %d images", generated_count)
 
-    except Exception as e:
-        logger.error("Error in image generation: %s", e, exc_info=True)
+    except Exception as exc:
+        logger.error("Error in image generation: %s", exc, exc_info=True)
 
 
 async def flush_api_calls_to_db() -> None:
