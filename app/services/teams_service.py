@@ -59,14 +59,14 @@ class TeamsService:
         key = self._get_cache_key(year)
         entry = self._cache.get(key)
         if entry and entry.is_valid():
-            logger.debug(f"Cache hit for {key}")
+            logger.debug("Cache hit for %s", key)
             return entry.data
         return None
 
     def _set_cache(self, year: int, data: TeamsData) -> None:
         key = self._get_cache_key(year)
         self._cache[key] = CacheEntry(data)
-        logger.debug(f"Cached {key}")
+        logger.debug("Cached %s", key)
 
     @staticmethod
     def _validate_year(year: int) -> bool:
@@ -75,17 +75,30 @@ class TeamsService:
 
     def _load_from_json(self, year: int) -> Optional[TeamsData]:
         if not self._validate_year(year):
-            logger.warning(f"Invalid year requested: {year}")
+            logger.warning("Invalid year requested: %s", year)
             return None
 
-        safe_filename = f"{year}_teams.json"
+        # Security: year is validated to be integer 1950-2030, filename cannot contain
+        # path traversal characters. Using str() for explicit type conversion.
+        safe_year = str(year)
+        if not safe_year.isdigit():
+            return None
+        safe_filename = f"{safe_year}_teams.json"
         json_path = SEASONS_DIR / safe_filename
-        if not json_path.exists():
-            logger.debug(f"No JSON file found at {json_path}")
+
+        # Verify the resolved path is within SEASONS_DIR (defense in depth)
+        resolved_path = json_path.resolve()
+        seasons_resolved = SEASONS_DIR.resolve()
+        if not str(resolved_path).startswith(str(seasons_resolved)):
+            logger.warning("Path traversal attempt blocked for year: %s", year)
+            return None
+
+        if not resolved_path.exists():
+            logger.debug("No JSON file found at %s", resolved_path)
             return None
 
         try:
-            with open(json_path, encoding="utf-8") as f:
+            with open(resolved_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             teams = []
@@ -112,11 +125,11 @@ class TeamsService:
                 )
 
             result = TeamsData(season=data.get("year", year), teams=teams)
-            logger.info(f"Loaded {len(teams)} teams from {json_path}")
+            logger.info("Loaded %d teams from %s", len(teams), json_path)
             return result
 
         except Exception as e:
-            logger.error(f"Error loading JSON file: {e}", exc_info=True)
+            logger.error("Error loading JSON file: %s", e, exc_info=True)
             return None
 
     @staticmethod
@@ -135,7 +148,10 @@ class TeamsService:
                     if attempt < max_retries:
                         delay = RETRY_BASE_DELAY * (2**attempt)
                         logger.warning(
-                            f"Rate limited (429), retry {attempt + 1}/{max_retries} in {delay}s"
+                            "Rate limited (429), retry %d/%d in %ss",
+                            attempt + 1,
+                            max_retries,
+                            delay,
                         )
                         await asyncio.sleep(delay)
                         continue
@@ -149,7 +165,7 @@ class TeamsService:
             driver_standings_url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
             constructor_standings_url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
 
-            logger.info(f"Fetching standings for {year}")
+            logger.info("Fetching standings for %d", year)
 
             driver_resp, constructor_resp = await asyncio.gather(
                 self._fetch_with_retry(client, driver_standings_url),
@@ -263,7 +279,7 @@ class TeamsService:
             driver_standings_url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
             constructor_standings_url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
 
-            logger.info(f"Fetching teams and drivers from API for {year}")
+            logger.info("Fetching teams and drivers from API for %d", year)
 
             (
                 drivers_resp,
@@ -311,7 +327,7 @@ class TeamsService:
 
             # Fallback: if no standings for future year, use previous year's standings
             if not driver_standings_entries and not constructor_standings_entries and year >= 2026:
-                logger.info(f"No API standings for {year}, falling back to {year - 1}")
+                logger.info("No API standings for %d, falling back to %d", year, year - 1)
                 fallback_driver_url = f"{JOLPICA_BASE_URL}/{year - 1}/driverStandings.json"
                 fallback_constructor_url = (
                     f"{JOLPICA_BASE_URL}/{year - 1}/constructorStandings.json"
@@ -434,7 +450,7 @@ class TeamsService:
                 driver_standings, constructor_standings = await self._fetch_standings(year)
 
                 if not driver_standings and not constructor_standings and year >= 2026:
-                    logger.info(f"No standings for {year}, falling back to {year - 1}")
+                    logger.info("No standings for %d, falling back to %d", year, year - 1)
                     driver_standings, constructor_standings = await self._fetch_standings(year - 1)
 
                 json_data = self._merge_standings(
@@ -448,5 +464,5 @@ class TeamsService:
             return api_data
 
         except Exception as e:
-            logger.error(f"Error fetching teams and drivers: {e}", exc_info=True)
+            logger.error("Error fetching teams and drivers: %s", e, exc_info=True)
             return TeamsData(season=year, teams=[])

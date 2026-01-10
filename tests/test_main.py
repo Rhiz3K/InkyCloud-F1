@@ -185,11 +185,12 @@ def test_header_contains_credits_dropdown():
     html = response.text
     # Credits section
     assert "Credits" in html
-    # Key credit links
+    # Key credit links - use href pattern to avoid CodeQL false positive
     assert "FoxeeLab" in html
-    assert "coolify.io" in html
-    assert "hetzner.com" in html
-    assert "laskakit.cz" in html
+    assert 'href="https://coolify.io"' in html
+    assert 'href="https://hetzner.com"' in html
+    # LaskaKit link has full product URL
+    assert 'href="https://www.laskakit.cz/' in html
     assert "jolpica" in html
 
 
