@@ -1,5 +1,5 @@
 {
-  "$schema": "https://claude.ai/claude-code/settings.schema.json",
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "project": {
     "name": "F1 E-Ink Calendar",
     "description": "FastAPI service generating 800x480 1-bit BMP images for E-Ink displays",
