@@ -156,6 +156,28 @@ def _normalize_weather_type(weather_type: str) -> str:
     return weather_type if weather_type in allowed else "race_day"
 
 
+# Pre-defined whitelist of valid calendar image filenames (no user input in paths)
+_VALID_CALENDAR_FILENAMES: dict[tuple[str, str, str], str] = {
+    # (lang, display, weather) -> filename
+    ("en", "1bit", "off"): "calendar_en.bmp",
+    ("en", "1bit", "current"): "calendar_en_weather_current.bmp",
+    ("en", "1bit", "race"): "calendar_en_weather_race.bmp",
+    ("en", "1bit", "race_day"): "calendar_en_weather_race.bmp",
+    ("en", "spectra6", "off"): "calendar_en_spectra6.bmp",
+    ("en", "spectra6", "current"): "calendar_en_spectra6_weather_current.bmp",
+    ("en", "spectra6", "race"): "calendar_en_spectra6_weather_race.bmp",
+    ("en", "spectra6", "race_day"): "calendar_en_spectra6_weather_race.bmp",
+    ("cs", "1bit", "off"): "calendar_cs.bmp",
+    ("cs", "1bit", "current"): "calendar_cs_weather_current.bmp",
+    ("cs", "1bit", "race"): "calendar_cs_weather_race.bmp",
+    ("cs", "1bit", "race_day"): "calendar_cs_weather_race.bmp",
+    ("cs", "spectra6", "off"): "calendar_cs_spectra6.bmp",
+    ("cs", "spectra6", "current"): "calendar_cs_spectra6_weather_current.bmp",
+    ("cs", "spectra6", "race"): "calendar_cs_spectra6_weather_race.bmp",
+    ("cs", "spectra6", "race_day"): "calendar_cs_spectra6_weather_race.bmp",
+}
+
+
 def _get_pregenerated_calendar_path(
     *,
     lang: str,
@@ -172,26 +194,18 @@ def _get_pregenerated_calendar_path(
     if target_tz_for_key != config.DEFAULT_TIMEZONE:
         return None
 
-    # Validate weather_type to prevent path traversal
+    # Normalize inputs to allowed values
+    safe_lang = "cs" if lang == "cs" else "en"
+    safe_display = "spectra6" if display == "spectra6" else "1bit"
     safe_weather = _normalize_weather_type(weather_type)
 
-    # Build filename matching scheduler's _get_image_key format
-    image_filename = "calendar_cs" if lang == "cs" else "calendar_en"
-    if display == "spectra6":
-        image_filename += "_spectra6"
-    if safe_weather != "off":
-        image_filename += f"_weather_{safe_weather}"
-    image_filename += ".bmp"
-
-    image_path = Path(config.IMAGES_PATH) / image_filename
-
-    # Security: verify path is within IMAGES_PATH (defense against path traversal)
-    images_dir = Path(config.IMAGES_PATH).resolve()
-    resolved_path = image_path.resolve()
-    if not resolved_path.is_relative_to(images_dir):
+    # Lookup filename from whitelist (no user input in path construction)
+    filename = _VALID_CALENDAR_FILENAMES.get((safe_lang, safe_display, safe_weather))
+    if not filename:
         return None
 
-    return resolved_path if resolved_path.exists() else None
+    image_path = Path(config.IMAGES_PATH) / filename
+    return image_path if image_path.exists() else None
 
 
 def _get_race_data_from_static(
