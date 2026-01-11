@@ -184,7 +184,14 @@ def _get_pregenerated_calendar_path(
     image_filename += ".bmp"
 
     image_path = Path(config.IMAGES_PATH) / image_filename
-    return image_path if image_path.exists() else None
+
+    # Security: verify path is within IMAGES_PATH (defense against path traversal)
+    images_dir = Path(config.IMAGES_PATH).resolve()
+    resolved_path = image_path.resolve()
+    if not resolved_path.is_relative_to(images_dir):
+        return None
+
+    return resolved_path if resolved_path.exists() else None
 
 
 def _get_race_data_from_static(
