@@ -102,28 +102,63 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
         translator = get_translator(lang)
         renderer = Renderer(translator)
 
-        # Calendar preview
+        # Calendar preview - generate variants for different weather types and displays
         if race_data:
-            try:
-                # Preview is generated WITHOUT weather (default/neutral view)
-                # When user enables weather, dynamic BMP is loaded instead
-                bmp_data = renderer.render_calendar(
-                    race_data, historical_data, weather_data=None, weather_type="off"
-                )
+            circuit_id = race_data.get("circuit", {}).get("circuitId", "")
+            weather_data = None
+            if circuit_id and config.WEATHER_ENABLED:
+                weather_data = get_cached_circuit_weather(circuit_id)
 
-                homepage_png = _bmp_to_png(bmp_data, width=400)
-                homepage_path = images_dir / f"preview_calendar_{lang}.png"
-                async with aiofiles.open(homepage_path, "wb") as f:
-                    await f.write(homepage_png)
+            # Weather variants: off, current, race (if weather data available)
+            weather_variants: list[tuple[str, WeatherData | None]] = [("off", None)]
+            if weather_data:
+                weather_variants.append(("current", weather_data))
+                weather_variants.append(("race", weather_data))
 
-                configure_png = _bmp_to_png(bmp_data, full_size=True)
-                configure_path = images_dir / f"configure_calendar_{lang}.png"
-                async with aiofiles.open(configure_path, "wb") as f:
-                    await f.write(configure_png)
+            # Display variants: 1bit and spectra6
+            display_variants = [
+                ("1bit", Renderer(translator)),
+                ("spectra6", Spectra6Renderer(translator)),
+            ]
 
-                logger.info("Generated calendar previews: %s, %s", homepage_path, configure_path)
-            except Exception as e:
-                logger.error("Error generating calendar preview (%s): %s", lang, e)
+            for display_name, display_renderer in display_variants:
+                for weather_type, wd in weather_variants:
+                    try:
+                        bmp_data = display_renderer.render_calendar(
+                            race_data, historical_data, wd, weather_type
+                        )
+
+                        # Build filename suffix
+                        suffix = f"_{lang}"
+                        if display_name == "spectra6":
+                            suffix += "_spectra6"
+                        if weather_type != "off":
+                            suffix += f"_weather_{weather_type}"
+
+                        # Homepage preview (small, only for default 1bit+off)
+                        if display_name == "1bit" and weather_type == "off":
+                            homepage_png = _bmp_to_png(bmp_data, width=400)
+                            homepage_path = images_dir / f"preview_calendar_{lang}.png"
+                            async with aiofiles.open(homepage_path, "wb") as f:
+                                await f.write(homepage_png)
+
+                        # Configure preview (full size, all variants)
+                        configure_png = _bmp_to_png(bmp_data, full_size=True)
+                        configure_path = images_dir / f"configure_calendar{suffix}.png"
+                        async with aiofiles.open(configure_path, "wb") as f:
+                            await f.write(configure_png)
+
+                        logger.debug("Generated configure preview: %s", configure_path)
+                    except Exception as e:
+                        logger.error(
+                            "Error generating calendar preview (%s, %s, %s): %s",
+                            lang,
+                            display_name,
+                            weather_type,
+                            e,
+                        )
+
+            logger.info("Generated calendar previews for %s", lang)
 
         # Teams preview
         try:

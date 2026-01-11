@@ -1230,13 +1230,11 @@ block content %}
     }
   }
 
-  function isDefaultView() {
+  function canUsePrerenderedPreview() {
     if (currentScreenType === "calendar") {
+      // Pre-rendered previews available for next race with default timezone
       const isDefaultTz = !selectedTz || selectedTz === browserTz;
-      const weatherToggle = document.getElementById("weatherToggle");
-      const hasWeather = weatherToggle && weatherToggle.checked;
-      const isDefaultDisplay = currentDisplayType === "1bit";
-      return !selectedYear && !selectedRound && isDefaultTz && !hasWeather && isDefaultDisplay;
+      return !selectedYear && !selectedRound && isDefaultTz;
     } else if (currentScreenType === "teams") {
       return selectedTeamsYear === getCurrentSeason();
     }
@@ -1244,7 +1242,24 @@ block content %}
   }
 
   function getPreviewUrl() {
-    if (isDefaultView()) {
+    if (canUsePrerenderedPreview() && currentScreenType === "calendar") {
+      // Use pre-rendered PNG with weather_type and display parameters
+      const weatherType = document.querySelector('input[name="weatherType"]:checked')?.value || "race_day";
+      const weatherParam = weatherType === "race_day" ? "race" : weatherType === "current" ? "current" : "off";
+      
+      // Check if weather is enabled
+      const weatherToggle = document.getElementById("weatherToggle");
+      const weatherEnabled = weatherToggle && weatherToggle.checked;
+      const finalWeather = weatherEnabled ? weatherParam : "off";
+      
+      let url = `${window.location.origin}/preview/configure/${currentScreenType}.png`;
+      let params = [];
+      if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
+      params.push(`weather_type=${finalWeather}`);
+      if (currentDisplayType === "spectra6") params.push(`display=spectra6`);
+      if (params.length > 0) url += '?' + params.join('&');
+      return url;
+    } else if (canUsePrerenderedPreview() && currentScreenType === "teams") {
       let url = `${window.location.origin}/preview/configure/${currentScreenType}.png`;
       if (currentUiLang !== 'en') url += `?lang=${currentUiLang}`;
       return url;
