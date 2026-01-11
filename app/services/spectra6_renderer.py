@@ -277,7 +277,20 @@ class Spectra6Renderer:
         track_image = self._load_track_image(race_data)
 
         if track_image:
-            image.paste(track_image.convert("RGB"), (side_margin, track_top))
+            # Resize to fit available space while maintaining aspect ratio
+            img_w, img_h = track_image.size
+            ratio = min(available_width / img_w, available_height / img_h)
+            new_size = (int(img_w * ratio), int(img_h * ratio))
+
+            if new_size != (img_w, img_h):
+                track_image = track_image.resize(new_size, Image.Resampling.LANCZOS)
+
+            # Center horizontally and vertically in available space
+            final_w, final_h = track_image.size
+            paste_x = side_margin + (available_width - final_w) // 2
+            paste_y = track_top + (available_height - final_h) // 2
+
+            image.paste(track_image.convert("RGB"), (paste_x, paste_y))
         else:
             self._draw_track_placeholder(
                 draw,
