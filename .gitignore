@@ -205,3 +205,6 @@ conductor/
 .claude_settings.json
 bun.lock
 app/services/AGENTS.md
+
+# Local assistant artifacts
+.sisyphus/

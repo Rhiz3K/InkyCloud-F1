@@ -167,13 +167,14 @@ class Renderer:
         race_data: dict,
         historical_data: HistoricalData | None = None,
         weather_data: WeatherData | None = None,
+        weather_type: str = "",
     ) -> bytes:
         image = Image.new("1", (self.width, self.height), 1)
         draw = ImageDraw.Draw(image)
 
         self._draw_header(draw, image, race_data)
         self._draw_track_section(draw, image, race_data)
-        schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data)
+        schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data, weather_type)
         self._draw_circuit_stats(draw, race_data, schedule_bottom)
         self._draw_results_section(draw, image, race_data, historical_data)
 
@@ -538,7 +539,8 @@ class Renderer:
             logo_container_right,
         )
 
-    def _get_team_logo_key(self, constructor: str) -> str | None:
+    @staticmethod
+    def _get_team_logo_key(constructor: str) -> str | None:
         name = constructor.lower()
         if "mclaren" in name:
             return "mclaren"
@@ -862,7 +864,8 @@ class Renderer:
         draw.text((text_x, start_y), line1, fill=1, font=self.fonts["header_title"])
         draw.text((text_x, start_y + 40), line2, fill=1, font=self.fonts["header_subtitle"])
 
-    def _draw_f1_logo(self, image: Image.Image, width: int, height: int) -> None:
+    @staticmethod
+    def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:
         """
         Render the F1 logo centered in the header area.
 
@@ -974,8 +977,9 @@ class Renderer:
                 track_image = track_image.point(lambda p: 255 if p > 200 else 0)  # type: ignore[operator]
                 track_image = track_image.convert("1")
 
-            paste_x = side_margin
-            paste_y = track_top
+            final_w, final_h = track_image.size
+            paste_x = side_margin + (available_width - final_w) // 2
+            paste_y = track_top + (available_height - final_h) // 2
 
             image.paste(track_image, (paste_x, paste_y))
         else:
@@ -990,8 +994,9 @@ class Renderer:
         label_x = self.layout["padding"]
         draw.text((label_x, label_y), label_text, fill=0, font=label_font)
 
+    @staticmethod
     def _draw_track_placeholder(
-        self, draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
+        draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
     ) -> None:
         """Draw a simple placeholder when track image is not available."""
         draw.rounded_rectangle(
@@ -1001,7 +1006,8 @@ class Renderer:
             width=3,
         )
 
-    def _load_track_image(self, race_data: dict) -> Image.Image | None:
+    @staticmethod
+    def _load_track_image(race_data: dict) -> Image.Image | None:
         """Load track image from assets.
 
         First tries to load pre-processed 1-bit BMP from tracks_processed/,
@@ -1069,6 +1075,7 @@ class Renderer:
         draw: ImageDraw.ImageDraw,
         race_data: dict,
         weather_data: WeatherData | None = None,
+        weather_type: str = "",
     ) -> int:
         x_start = self.layout["right_column_x"]
         y_start = self.layout["schedule_title_y"]
@@ -1092,7 +1099,9 @@ class Renderer:
             if row_y > self.layout["results_y_start"] - 80:
                 break
 
-        countdown_bottom = self._draw_countdown_box(draw, race_data, row_y + 10, weather_data)
+        countdown_bottom = self._draw_countdown_box(
+            draw, race_data, row_y + 10, weather_data, weather_type
+        )
 
         return countdown_bottom
 
@@ -1133,6 +1142,7 @@ class Renderer:
         race_data: dict,
         schedule_bottom: int,
         weather_data: WeatherData | None = None,
+        weather_type: str = "",
     ) -> int:
         """
         Draw countdown box showing time until race and optional weather.
@@ -1142,6 +1152,7 @@ class Renderer:
             race_data: Race info with "schedule" list of events.
             schedule_bottom: Y coordinate below schedule area.
             weather_data: Optional weather with icon, temp, precipitation.
+            weather_type: Weather display type ("current", "race_day", etc.).
 
         Returns:
             Bottom Y of drawn box, or schedule_bottom if no upcoming race.
@@ -1193,12 +1204,29 @@ class Renderer:
         text_y = y_top + padding_y - ref_bbox[1]
 
         flag_icon = "🏁"
-        countdown_str = f"{days}D {hours}H"
+        # Use short labels (d/h) for current and race_day weather types
+        if weather_type in ("current", "race_day"):
+            days_label = self.translator.get("countdown_days_short", "d")
+            hours_label = self.translator.get("countdown_hours_short", "h")
+        else:
+            days_label = self.translator.get("countdown_days", "days")
+            hours_label = self.translator.get("countdown_hours", "hours")
+        countdown_str = f"{days} {days_label} {hours} {hours_label}"
 
-        cur_x: float = x_left + padding_x
-        draw.text((cur_x, text_y), flag_icon, fill=1, font=font_icon)
         flag_bbox = draw.textbbox((0, 0), flag_icon, font=font_icon)
-        cur_x += flag_bbox[2] - flag_bbox[0] + 6
+        flag_w = flag_bbox[2] - flag_bbox[0]
+        countdown_bbox = draw.textbbox((0, 0), countdown_str, font=font)
+        countdown_w = countdown_bbox[2] - countdown_bbox[0]
+        total_content_w = flag_w + 6 + countdown_w
+
+        if weather_data:
+            cur_x = x_left + padding_x
+        else:
+            box_width = x_right - x_left
+            cur_x = x_left + (box_width - total_content_w) // 2
+
+        draw.text((cur_x, text_y), flag_icon, fill=1, font=font_icon)
+        cur_x += flag_w + 6
         draw.text((cur_x, text_y), countdown_str, fill=1, font=font)
 
         if weather_data:
@@ -1504,7 +1532,7 @@ class Renderer:
         for i, entry in enumerate(results[:3]):
             y = y_rows_start + (i * row_height)
 
-            pos = entry.position
+            pos = i + 1
             driver_name = entry.driver.display_name
             team = entry.constructor.name
 
@@ -1526,7 +1554,8 @@ class Renderer:
     # Utility Methods
     # =========================================================================
 
-    def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
+    @staticmethod
+    def _load_font(size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
         """Load TitilliumWeb font."""
         font_filename = "TitilliumWeb-Bold.ttf" if bold else "TitilliumWeb-Regular.ttf"
         font_path = FONTS_DIR / font_filename
@@ -1544,7 +1573,8 @@ class Renderer:
         except OSError:
             return ImageFont.load_default()
 
-    def _load_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+    @staticmethod
+    def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
         symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
         try:
             return ImageFont.truetype(symbola_path, size)
@@ -1569,7 +1599,8 @@ class Renderer:
                 logger.warning("Failed to load Racing Sans One: %s", e)
         return self._load_font(size, bold=True)
 
-    def _load_driver_photos(self) -> dict[str, Image.Image]:
+    @staticmethod
+    def _load_driver_photos() -> dict[str, Image.Image]:
         """
         Load driver silhouettes from assets/drivers and convert to 1-bit masks.
 
@@ -1629,15 +1660,16 @@ class Renderer:
 
         return logos
 
-    def _crop_to_content(self, img: Image.Image) -> Image.Image:
+    @staticmethod
+    def _crop_to_content(img: Image.Image) -> Image.Image:
         inverted = ImageOps.invert(img.convert("L")).convert("1")
         bbox = inverted.getbbox()
         if bbox:
             return img.crop(bbox)
         return img
 
+    @staticmethod
     def _fit_text(
-        self,
         draw: ImageDraw.ImageDraw,
         font: FreeTypeFont | ImageFont.ImageFont,
         max_width: int,
@@ -1675,7 +1707,8 @@ class Renderer:
         # Last resort
         return f"{pos}. {driver[:5]}.. ({team[:3]}..)"
 
-    def _to_bmp(self, image: Image.Image) -> bytes:
+    @staticmethod
+    def _to_bmp(image: Image.Image) -> bytes:
         """Convert PIL Image to BMP bytes."""
         buffer = io.BytesIO()
         image.save(buffer, format="BMP")

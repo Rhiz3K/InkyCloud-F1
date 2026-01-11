@@ -5,7 +5,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
   content="{{ t.get('meta_description_api', 'REST API documentation for F1 E-Ink Calendar') }}"
 />{% endblock %} {% block canonical %}<link
   rel="canonical"
-  href="{{ site_url }}/api/docs/html?lang={{ ui_lang }}"
+  href="{{ site_url }}/api/docs/html{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
 />{% endblock %} {% block og_tags %}
 <meta
   property="og:title"
@@ -17,7 +17,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
 />
 <meta
   property="og:url"
-  content="{{ site_url }}/api/docs/html?lang={{ ui_lang }}"
+  content="{{ site_url }}/api/docs/html{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
 />
 <meta
   property="og:image"

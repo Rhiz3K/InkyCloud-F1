@@ -22,13 +22,13 @@
     {% block canonical %}
     <link
       rel="canonical"
-      href="{{ site_url }}{{ request.url.path }}{% if ui_lang %}?lang={{ ui_lang }}{% endif %}"
+      href="{{ site_url }}{{ request.url.path }}{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
     />
     {% endblock %}
     <link
       rel="alternate"
       hreflang="en"
-      href="{{ site_url }}{{ request.url.path }}?lang=en"
+      href="{{ site_url }}{{ request.url.path }}"
     />
     <link
       rel="alternate"
@@ -38,7 +38,7 @@
     <link
       rel="alternate"
       hreflang="x-default"
-      href="{{ site_url }}{{ request.url.path }}?lang=en"
+      href="{{ site_url }}{{ request.url.path }}"
     />
 
     <!-- Open Graph -->
@@ -205,27 +205,27 @@
       </div>
       <nav class="p-4 space-y-2">
         <a
-          href="/?lang={{ ui_lang }}"
+          href="/{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm"
           >{{ nav.nav_home }}</a
         >
         <a
-          href="/stats?lang={{ ui_lang }}"
+          href="/stats{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'stats' %}bg-racing-red text-white border-racing-red{% endif %}"
           >{{ nav.nav_stats }}</a
         >
         <a
-          href="/api/docs/html?lang={{ ui_lang }}"
+          href="/api/docs/html{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'api' %}bg-racing-red text-white border-racing-red{% endif %}"
           >{{ nav.nav_api }}</a
         >
         <a
-          href="/privacy?lang={{ ui_lang }}"
+          href="/privacy{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'privacy' %}bg-racing-red text-white border-racing-red{% endif %}"
           >{{ nav.nav_privacy }}</a
         >
         <a
-          href="/changelog?lang={{ ui_lang }}"
+          href="/changelog{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'changelog' %}bg-racing-red text-white border-racing-red{% endif %}"
           >{{ nav.nav_changelog }}</a
         >

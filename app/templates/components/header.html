@@ -26,7 +26,7 @@
         </svg>
       </button>
       <a
-        href="/?lang={{ ui_lang }}"
+        href="/{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
         class="flex items-center gap-2 hover:opacity-80 transition-opacity"
       >
         <picture>
@@ -53,28 +53,28 @@
       <nav class="hidden md:flex items-center gap-4 mr-4">
         {% if active_page != 'home' %}
         <a
-          href="/?lang={{ ui_lang }}"
+          href="/{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="hover:text-racing-red transition-colors"
           >{{ nav.nav_home }}</a
         >
         {% endif %}
         <a
-          href="/stats?lang={{ ui_lang }}"
+          href="/stats{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="{% if active_page == 'stats' %}text-racing-red{% else %}hover:text-racing-red{% endif %} transition-colors"
           >{{ nav.nav_stats }}</a
         >
         <a
-          href="/api/docs/html?lang={{ ui_lang }}"
+          href="/api/docs/html{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="{% if active_page == 'api' %}text-racing-red{% else %}hover:text-racing-red{% endif %} transition-colors"
           >{{ nav.nav_api }}</a
         >
         <a
-          href="/privacy?lang={{ ui_lang }}"
+          href="/privacy{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="{% if active_page == 'privacy' %}text-racing-red{% else %}hover:text-racing-red{% endif %} transition-colors"
           >{{ nav.nav_privacy }}</a
         >
         <a
-          href="/changelog?lang={{ ui_lang }}"
+          href="/changelog{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="{% if active_page == 'changelog' %}text-racing-red{% else %}hover:text-racing-red{% endif %} transition-colors"
           >{{ nav.nav_changelog }}</a
         >

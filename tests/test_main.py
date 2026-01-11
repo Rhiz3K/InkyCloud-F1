@@ -128,16 +128,16 @@ def test_configure_page_i18n_default_english():
     assert 'currentUiLang = "en"' in html
 
 
-def test_configure_page_i18n_czech_for_cz():
-    """Test configure page uses Czech for CZ users."""
+def test_configure_page_i18n_ignores_accept_language():
+    """Test configure page ignores Accept-Language header (English is default)."""
     response = client.get("/configure/calendar", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
     html = response.text
-    assert 'currentUiLang = "cs"' in html
+    assert 'currentUiLang = "en"' in html
 
 
-def test_configure_page_i18n_czech_for_sk():
-    """Test configure page uses Czech for SK users."""
-    response = client.get("/configure/calendar", headers={"Accept-Language": "sk-SK,sk;q=0.9"})
+def test_configure_page_i18n_respects_cookie():
+    """Test configure page respects preferredLang cookie."""
+    response = client.get("/configure/calendar", cookies={"preferredLang": "cs"})
     html = response.text
     assert 'currentUiLang = "cs"' in html
 
@@ -185,11 +185,12 @@ def test_header_contains_credits_dropdown():
     html = response.text
     # Credits section
     assert "Credits" in html
-    # Key credit links
+    # Key credit links - use href pattern to avoid CodeQL false positive
     assert "FoxeeLab" in html
-    assert "coolify.io" in html
-    assert "hetzner.com" in html
-    assert "laskakit.cz" in html
+    assert 'href="https://coolify.io"' in html
+    assert 'href="https://hetzner.com"' in html
+    # LaskaKit link has full product URL
+    assert 'href="https://www.laskakit.cz/' in html
     assert "jolpica" in html
 
 
@@ -205,7 +206,8 @@ def test_privacy_page_header_nav():
     """Test privacy page has navigation in header."""
     response = client.get("/privacy")
     html = response.text
-    assert 'href="/?lang=' in html
+    # English is default - home link should NOT have ?lang= parameter
+    assert 'href="/"' in html
     assert "/api/docs/html" in html
 
 
@@ -213,7 +215,8 @@ def test_api_docs_header_nav():
     """Test API docs page has navigation in header."""
     response = client.get("/api/docs/html")
     html = response.text
-    assert 'href="/?lang=' in html
+    # English is default - home link should NOT have ?lang= parameter
+    assert 'href="/"' in html
     assert "/privacy" in html
 
 
@@ -249,10 +252,9 @@ def test_privacy_page_lang_parameter():
 
 
 def test_privacy_page_i18n_czech():
-    """Test privacy page detects Czech language from header."""
-    response = client.get("/privacy", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
+    """Test privacy page respects preferredLang cookie for Czech."""
+    response = client.get("/privacy", cookies={"preferredLang": "cs"})
     html = response.text
-    # Check HTML lang attribute is set to Czech
     assert 'lang="cs"' in html
 
 
@@ -307,8 +309,8 @@ def test_api_docs_html_lang_parameter():
 
 
 def test_api_docs_html_i18n_czech():
-    """Test API docs HTML page detects Czech language from header."""
-    response = client.get("/api/docs/html", headers={"Accept-Language": "cs-CZ,cs;q=0.9"})
+    """Test API docs HTML page respects preferredLang cookie for Czech."""
+    response = client.get("/api/docs/html", cookies={"preferredLang": "cs"})
     html = response.text
     assert 'currentUiLang = "cs"' in html
 
@@ -395,7 +397,8 @@ def test_stats_link_in_header():
     """Test header contains link to stats page instead of inline stats display."""
     response = client.get("/")
     html = response.text
-    assert 'href="/stats?lang=' in html
+    # English is default - stats link should NOT have ?lang= parameter
+    assert 'href="/stats"' in html
     assert 'id="statsLast24h"' not in html
     assert 'id="statsDataTransfer"' not in html
 
@@ -482,10 +485,11 @@ def test_configure_sidebar_mobile_nav_links():
     """Test configure page sidebar has navigation links for mobile."""
     response = client.get("/configure/calendar?lang=en")
     html = response.text
-    assert 'href="/stats?lang=en"' in html
-    assert 'href="/api/docs/html?lang=en"' in html
-    assert 'href="/privacy?lang=en"' in html
-    assert 'href="/changelog?lang=en"' in html
+    # English is default - links should NOT have ?lang=en parameter
+    assert 'href="/stats"' in html
+    assert 'href="/api/docs/html"' in html
+    assert 'href="/privacy"' in html
+    assert 'href="/changelog"' in html
     assert 'href="https://github.com/Rhiz3K/InkyCloud-F1"' in html
 
 
@@ -656,7 +660,7 @@ def test_changelog_header_nav():
     """Test changelog page has navigation in header."""
     response = client.get("/changelog")
     html = response.text
-    assert 'href="/?lang=' in html
+    assert 'href="/"' in html
 
 
 def test_convert_race_times_to_timezone():

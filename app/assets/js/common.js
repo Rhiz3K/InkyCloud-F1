@@ -3,14 +3,39 @@
  * Shared utilities and functions across all pages
  */
 
-/**
- * Switch UI language by updating URL parameter and reloading
- */
+(function initLanguagePreference() {
+    try {
+        const storedLang = localStorage.getItem("preferredLang");
+        if (!storedLang) return;
+
+        document.cookie = `preferredLang=${storedLang};path=/;max-age=31536000;SameSite=Lax`;
+
+        const url = new URL(window.location.href);
+        const urlLang = url.searchParams.get("lang") || "en";
+
+        if (urlLang !== storedLang) {
+            if (storedLang === "en") {
+                url.searchParams.delete("lang");
+            } else {
+                url.searchParams.set("lang", storedLang);
+            }
+            window.location.replace(url.toString());
+        }
+    } catch (e) {
+        console.error("Failed to apply language preference:", e);
+    }
+})();
+
 function switchUiLanguage() {
     const lang = document.getElementById("uiLangSwitch").value;
     localStorage.setItem("preferredLang", lang);
+    document.cookie = `preferredLang=${lang};path=/;max-age=31536000;SameSite=Lax`;
     const url = new URL(window.location.href);
-    url.searchParams.set("lang", lang);
+    if (lang === "en") {
+        url.searchParams.delete("lang");
+    } else {
+        url.searchParams.set("lang", lang);
+    }
     window.location.href = url.toString();
 }
 

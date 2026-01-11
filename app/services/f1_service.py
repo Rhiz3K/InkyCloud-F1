@@ -518,7 +518,8 @@ class F1Service:
     # Static data methods - load from JSON files instead of API
     # =========================================================================
 
-    def get_season_from_static(self, year: int) -> list[Race]:
+    @staticmethod
+    def get_season_from_static(year: int) -> list[Race]:
         """
         Load season calendar from static JSON file.
 
@@ -578,7 +579,7 @@ class F1Service:
 
         # Check current year and next year
         for year in [current_year, current_year + 1]:
-            races = self.get_season_from_static(year)
+            races = F1Service.get_season_from_static(year)
 
             for race in races:
                 try:
@@ -611,7 +612,7 @@ class F1Service:
         Returns:
             List of race dictionaries with converted times
         """
-        races = self.get_season_from_static(year)
+        races = F1Service.get_season_from_static(year)
         result = []
 
         for race in races:

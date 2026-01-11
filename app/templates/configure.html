@@ -5,7 +5,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
 />{% endblock %} {% block canonical %}<link
   rel="canonical"
-  href="{{ site_url }}/configure/{{ screen_type }}?lang={{ ui_lang }}"
+  href="{{ site_url }}/configure/{{ screen_type }}{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
 />{% endblock %} {% block og_tags %}
 <meta
   property="og:title"
@@ -15,7 +15,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   property="og:description"
   content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
 />
-<meta property="og:url" content="{{ site_url }}/?lang={{ ui_lang }}" />
+<meta property="og:url" content="{{ site_url }}/{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}" />
 <meta
   property="og:image"
   content="{{ site_url }}/static/images/og-preview.png"
@@ -37,7 +37,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
 <link
   rel="preload"
   as="image"
-  href="/preview/configure/{{ screen_type }}.png?lang={{ ui_lang }}"
+  href="/preview/configure/{{ screen_type }}.png{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
   type="image/png"
 />
 <script type="application/ld+json">
@@ -95,7 +95,7 @@ block content %}
     <!-- Panel Header with Back Link -->
     <div class="px-4 py-3 border-b-2 border-black bg-black text-white">
       <a
-        href="/?lang={{ ui_lang }}"
+        href="/{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
         class="flex items-center gap-2 hover:text-racing-red transition-colors mb-2 text-xs"
       >
         <svg
@@ -137,13 +137,13 @@ block content %}
     <!-- Screen Type Selector -->
     <div class="px-2 py-1.5 border-b-2 border-black bg-gray-50 flex gap-1">
       <a
-        href="/configure/calendar?lang={{ ui_lang }}"
+        href="/configure/calendar{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
         class="flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all {% if screen_type == 'calendar' %}bg-black text-white{% else %}bg-white hover:bg-black hover:text-white{% endif %}"
       >
         {{ t.get('screen_calendar_name', 'Calendar') }}
       </a>
       <a
-        href="/configure/teams?lang={{ ui_lang }}"
+        href="/configure/teams{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
         class="flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all {% if screen_type == 'teams' %}bg-black text-white{% else %}bg-white hover:bg-black hover:text-white{% endif %}"
       >
         {{ t.get('screen_teams_name', 'Teams') }}
@@ -234,6 +234,93 @@ block content %}
         id="tzList"
         class="flex-1 overflow-y-auto text-xs p-2 space-y-0.5"
       ></div>
+      <!-- Weather - Desktop (inside timezone container for proper flex layout) -->
+      <div
+        class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
+        id="weatherContainer"
+      >
+        <label class="text-xs font-bold uppercase mb-1.5 block" id="weatherLabel"
+          >Weather</label
+        >
+        <input
+          type="checkbox"
+          id="weatherToggle"
+          checked
+          onchange="
+            updateWeatherTypeAvailability();
+            updatePreview();
+          "
+          class="hidden"
+        />
+        <div class="flex gap-1" id="weatherTypeContainer">
+          <button
+            type="button"
+            onclick="setWeatherType('off')"
+            id="weatherOffBtn"
+            class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          >
+            OFF
+          </button>
+          <button
+            type="button"
+            onclick="setWeatherType('current')"
+            id="weatherCurrentBtn"
+            class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          >
+            <span id="weatherCurrentLabel">Current</span>
+          </button>
+          <button
+            type="button"
+            onclick="setWeatherType('race_day')"
+            id="weatherRaceDayBtn"
+            class="weather-type-btn group relative flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
+          >
+            <span id="weatherRaceDayText">Race day</span>
+            <span
+              id="weatherRaceDayTooltip"
+              class="invisible group-hover:visible group-disabled:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap z-50 border-2 border-white"
+            >
+              <span id="weatherTooltipText">Activates 14 days before race</span>
+            </span>
+          </button>
+        </div>
+        <input type="radio" name="weatherType" value="current" class="hidden" />
+        <input
+          type="radio"
+          name="weatherType"
+          value="race_day"
+          checked
+          class="hidden"
+          id="weatherRaceDayRadio"
+        />
+      </div>
+      <!-- Display Type - Desktop -->
+      <div
+        class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
+        id="displayContainer"
+      >
+        <label class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
+          >Display</label
+        >
+        <div class="flex gap-1" id="displayTypeContainer">
+          <button
+            type="button"
+            onclick="setDisplayType('1bit')"
+            id="display1bitBtn"
+            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-black text-white"
+          >
+            1-BIT
+          </button>
+          <button
+            type="button"
+            onclick="setDisplayType('spectra6')"
+            id="displaySpectra6Btn"
+            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          >
+            SPECTRA 6
+          </button>
+        </div>
+      </div>
     </div>
     <input type="hidden" id="tz" value="" />
 
@@ -275,65 +362,34 @@ block content %}
       </div>
     </div>
 
-    <!-- Weather - Desktop -->
+    <!-- Display Type - Mobile -->
     <div
-      class="hidden lg:block px-2 py-1.5 border-t-2 border-b-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}lg:hidden{% endif %}"
-      id="weatherContainer"
+      class="lg:hidden p-4 border-b-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
+      id="mobileDisplayContainer"
     >
-      <label class="text-xs font-bold uppercase mb-1.5 block" id="weatherLabel"
-        >Weather</label
+      <label
+        class="block text-xs font-bold uppercase mb-2"
+        id="displayLabelMobile"
+        >Display</label
       >
-      <input
-        type="checkbox"
-        id="weatherToggle"
-        checked
-        onchange="
-          updateWeatherTypeAvailability();
-          updatePreview();
-        "
-        class="hidden"
-      />
-      <div class="flex gap-1" id="weatherTypeContainer">
+      <div class="flex gap-1">
         <button
           type="button"
-          onclick="setWeatherType('off')"
-          id="weatherOffBtn"
-          class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          onclick="setDisplayType('1bit')"
+          id="display1bitBtnMobile"
+          class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-black text-white"
         >
-          OFF
+          1-BIT
         </button>
         <button
           type="button"
-          onclick="setWeatherType('current')"
-          id="weatherCurrentBtn"
-          class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+          onclick="setDisplayType('spectra6')"
+          id="displaySpectra6BtnMobile"
+          class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
         >
-          <span id="weatherCurrentLabel">Current</span>
-        </button>
-        <button
-          type="button"
-          onclick="setWeatherType('race_day')"
-          id="weatherRaceDayBtn"
-          class="weather-type-btn group relative flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
-        >
-          <span id="weatherRaceDayText">Race day</span>
-          <span
-            id="weatherRaceDayTooltip"
-            class="invisible group-hover:visible group-disabled:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap z-50 border-2 border-white"
-          >
-            <span id="weatherTooltipText">Activates 14 days before race</span>
-          </span>
+          SPECTRA 6
         </button>
       </div>
-      <input type="radio" name="weatherType" value="current" class="hidden" />
-      <input
-        type="radio"
-        name="weatherType"
-        value="race_day"
-        checked
-        class="hidden"
-        id="weatherRaceDayRadio"
-      />
     </div>
 
     <!-- Mobile Race Selector (Calendar only) -->
@@ -374,21 +430,21 @@ block content %}
         <div class="font-bold uppercase tracking-wider mb-2">
           {{ nav.nav_menu }}
         </div>
-        <a href="/stats?lang={{ ui_lang }}" class="block hover:text-racing-red"
+        <a href="/stats{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}" class="block hover:text-racing-red"
           >{{ nav.nav_stats }}</a
         >
         <a
-          href="/api/docs/html?lang={{ ui_lang }}"
+          href="/api/docs/html{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block hover:text-racing-red"
           >{{ nav.nav_api }}</a
         >
         <a
-          href="/privacy?lang={{ ui_lang }}"
+          href="/privacy{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block hover:text-racing-red"
           >{{ nav.nav_privacy }}</a
         >
         <a
-          href="/changelog?lang={{ ui_lang }}"
+          href="/changelog{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
           class="block hover:text-racing-red"
           >{{ nav.nav_changelog }}</a
         >
@@ -525,6 +581,7 @@ block content %}
             >
             <span
               class="px-2 py-1 border-2 border-black bg-white text-xs font-bold shadow-neo-sm"
+              id="displayBadge"
               >1-BIT</span
             >
             <span
@@ -851,6 +908,7 @@ block content %}
       weatherCurrentLabel: "Current",
       weatherRaceDayLabel: "Race day",
       weatherTooltipText: "Activates 14 days before race",
+      displayLabel: "Display",
     },
     cs: {
       headerTitle: "F1 InkyCloud",
@@ -884,11 +942,13 @@ block content %}
       weatherCurrentLabel: "Aktuální",
       weatherRaceDayLabel: "V den závodu",
       weatherTooltipText: "Aktivuje se 14 dní před závodem",
+      displayLabel: "Displej",
     },
   };
 
   let currentUiLang = "{{ ui_lang }}";
   let currentScreenType = "{{ screen_type }}";
+  let currentDisplayType = "1bit";
   let racesData = [];
   let selectedYear = null;
   let selectedRound = null;
@@ -1128,6 +1188,10 @@ block content %}
     const weatherTooltipText = document.getElementById("weatherTooltipText");
     if (weatherTooltipText)
       weatherTooltipText.textContent = t.weatherTooltipText;
+    const displayLabel = document.getElementById("displayLabel");
+    if (displayLabel) displayLabel.textContent = t.displayLabel;
+    const displayLabelMobile = document.getElementById("displayLabelMobile");
+    if (displayLabelMobile) displayLabelMobile.textContent = t.displayLabel;
   }
 
   function getApiUrl() {
@@ -1138,30 +1202,39 @@ block content %}
       const weatherType =
         document.querySelector('input[name="weatherType"]:checked')?.value ||
         "race_day";
-      let url = `${window.location.origin}/calendar.bmp?lang=${currentUiLang}`;
-      if (tz) url += `&tz=${encodeURIComponent(tz)}`;
-      if (selectedYear && selectedRound)
-        url += `&year=${selectedYear}&round=${selectedRound}`;
-      if (!showWeather) {
-        url += `&weather=false`;
-      } else if (weatherType === "current") {
-        url += `&weather_type=current`;
+      let url = `${window.location.origin}/calendar.bmp`;
+      let params = [];
+      if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
+      if (tz) params.push(`tz=${encodeURIComponent(tz)}`);
+      if (selectedYear && selectedRound) {
+        params.push(`year=${selectedYear}`);
+        params.push(`round=${selectedRound}`);
       }
+      if (!showWeather) {
+        params.push(`weather=false`);
+      } else if (weatherType === "current") {
+        params.push(`weather_type=current`);
+      }
+      if (currentDisplayType === "spectra6") {
+        params.push(`display=spectra6`);
+      }
+      if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else {
-      let url = `${window.location.origin}/teams.bmp?lang=${currentUiLang}`;
-      if (selectedTeamsYear) url += `&year=${selectedTeamsYear}`;
+      let url = `${window.location.origin}/teams.bmp`;
+      let params = [];
+      if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
+      if (selectedTeamsYear) params.push(`year=${selectedTeamsYear}`);
+      if (params.length > 0) url += '?' + params.join('&');
       return url;
     }
   }
 
-  function isDefaultView() {
+  function canUsePrerenderedPreview() {
     if (currentScreenType === "calendar") {
-      // Not default if specific race selected OR non-browser timezone selected OR weather enabled
+      // Pre-rendered previews available for next race with default timezone
       const isDefaultTz = !selectedTz || selectedTz === browserTz;
-      const weatherToggle = document.getElementById("weatherToggle");
-      const hasWeather = weatherToggle && weatherToggle.checked;
-      return !selectedYear && !selectedRound && isDefaultTz && !hasWeather;
+      return !selectedYear && !selectedRound && isDefaultTz;
     } else if (currentScreenType === "teams") {
       return selectedTeamsYear === getCurrentSeason();
     }
@@ -1169,8 +1242,27 @@ block content %}
   }
 
   function getPreviewUrl() {
-    if (isDefaultView()) {
-      return `${window.location.origin}/preview/configure/${currentScreenType}.png?lang=${currentUiLang}`;
+    if (canUsePrerenderedPreview() && currentScreenType === "calendar") {
+      // Use pre-rendered PNG with weather_type and display parameters
+      const weatherType = document.querySelector('input[name="weatherType"]:checked')?.value || "race_day";
+      const weatherParam = weatherType === "race_day" ? "race" : weatherType === "current" ? "current" : "off";
+      
+      // Check if weather is enabled
+      const weatherToggle = document.getElementById("weatherToggle");
+      const weatherEnabled = weatherToggle && weatherToggle.checked;
+      const finalWeather = weatherEnabled ? weatherParam : "off";
+      
+      let url = `${window.location.origin}/preview/configure/${currentScreenType}.png`;
+      let params = [];
+      if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
+      params.push(`weather_type=${finalWeather}`);
+      if (currentDisplayType === "spectra6") params.push(`display=spectra6`);
+      if (params.length > 0) url += '?' + params.join('&');
+      return url;
+    } else if (canUsePrerenderedPreview() && currentScreenType === "teams") {
+      let url = `${window.location.origin}/preview/configure/${currentScreenType}.png`;
+      if (currentUiLang !== 'en') url += `?lang=${currentUiLang}`;
+      return url;
     }
     return getApiUrl();
   }
@@ -1400,7 +1492,7 @@ block content %}
 
     // If saved preference differs from current, redirect
     if (saved && saved !== currentUiLang && ["en", "cs"].includes(saved)) {
-      window.location.href = "/?lang=" + saved;
+      window.location.href = saved !== 'en' ? "/?lang=" + saved : "/";
       return false; // Signal that redirect is happening
     }
 
@@ -1839,6 +1931,56 @@ block content %}
     if (!isRaceDayAvailable && currentWeatherType === "race_day") {
       setWeatherType("current");
     }
+  }
+
+  function setDisplayType(type) {
+    currentDisplayType = type;
+
+    const allBtns = [
+      document.getElementById("display1bitBtn"),
+      document.getElementById("displaySpectra6Btn"),
+      document.getElementById("display1bitBtnMobile"),
+      document.getElementById("displaySpectra6BtnMobile"),
+    ];
+
+    allBtns.forEach((btn) => {
+      if (btn) {
+        btn.classList.remove("bg-black", "text-white");
+        btn.classList.add("bg-white");
+      }
+    });
+
+    const oneBitBtns = [
+      document.getElementById("display1bitBtn"),
+      document.getElementById("display1bitBtnMobile"),
+    ];
+    const spectra6Btns = [
+      document.getElementById("displaySpectra6Btn"),
+      document.getElementById("displaySpectra6BtnMobile"),
+    ];
+
+    if (type === "1bit") {
+      oneBitBtns.forEach((btn) => {
+        if (btn) {
+          btn.classList.remove("bg-white");
+          btn.classList.add("bg-black", "text-white");
+        }
+      });
+    } else if (type === "spectra6") {
+      spectra6Btns.forEach((btn) => {
+        if (btn) {
+          btn.classList.remove("bg-white");
+          btn.classList.add("bg-black", "text-white");
+        }
+      });
+    }
+
+    const displayBadge = document.getElementById("displayBadge");
+    if (displayBadge) {
+      displayBadge.textContent = type === "spectra6" ? "6-COLOR" : "1-BIT";
+    }
+
+    updatePreview();
   }
 
   function startApp() {

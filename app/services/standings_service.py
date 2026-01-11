@@ -39,7 +39,8 @@ class StandingsService:
         self.timeout = config.REQUEST_TIMEOUT
         self._cache: dict[str, CacheEntry] = {}
 
-    def _get_cache_key(self, year: int, standings_type: str) -> str:
+    @staticmethod
+    def _get_cache_key(year: int, standings_type: str) -> str:
         return f"{year}_{standings_type}"
 
     def _get_cached(self, year: int, standings_type: str) -> Optional[StandingsData]:
@@ -55,8 +56,9 @@ class StandingsService:
         self._cache[key] = CacheEntry(data)
         logger.debug(f"Cached {key}")
 
+    @staticmethod
     async def _fetch_with_retry(
-        self, client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
+        client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
     ) -> httpx.Response:
         last_exception: httpx.HTTPStatusError | None = None
         for attempt in range(max_retries + 1):

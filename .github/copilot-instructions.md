@@ -6,10 +6,21 @@ This is a FastAPI service that generates **800x480 1-bit BMP images** for E-Ink 
 
 **Key components:**
 - `app/main.py` - FastAPI endpoints with async/await pattern
-- `app/services/f1_service.py` - Jolpica API client with timezone conversion
+- `app/config.py` - Configuration management from environment variables
+- `app/models.py` - Pydantic data models
+- `app/state.py` - Application state management
 - `app/services/renderer.py` - Pixel-perfect 1-bit BMP rendering engine
+- `app/services/spectra6_renderer.py` - Spectra6 multi-color E-Ink renderer
+- `app/services/f1_service.py` - Jolpica API client with timezone conversion
+- `app/services/teams_service.py` - Teams & drivers data management
+- `app/services/standings_service.py` - Championship standings data
+- `app/services/weather_service.py` - Weather forecast integration
+- `app/services/database.py` - SQLite operations for data persistence
+- `app/services/scheduler.py` - APScheduler background jobs
+- `app/services/backup.py` - S3 database backup automation
 - `app/services/i18n.py` - Translation loader with caching
 - `app/services/analytics.py` - Fire-and-forget Umami tracking
+- `app/services/version_service.py` - Version management
 - `translations/*.json` - i18n strings for cs/en
 
 ## Critical Patterns
@@ -63,6 +74,11 @@ except Exception as e:
 ## Development Commands
 
 ```bash
+# Setup environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e ".[dev]"
+
 # Local dev (auto-reload)
 uvicorn app.main:app --reload
 
@@ -71,6 +87,9 @@ DEBUG=true python -m app.main
 
 # Test suite (must pass before PR)
 pytest
+
+# Run tests with coverage
+pytest --cov=app tests/
 
 # Lint & format (CI enforced)
 ruff check .
@@ -173,3 +192,59 @@ This stylized approach keeps rendering fast and avoids storing 20+ SVG/raster tr
 - Missing circuit data is valid (Jolpica sometimes omits fields) - use `.get()` with defaults
 - BMP format is little-endian, 1-bit depth - don't manually construct headers
 - Layout constants in `renderer.py` are pixel-perfect for 800x480 - changing one may require adjusting neighbors
+
+## API Endpoints
+
+The service provides multiple endpoints for different use cases:
+
+**Image Endpoints (BMP):**
+- `GET /calendar.bmp` - F1 calendar with next race (supports `?lang=`, `?tz=`, `?year=`, `?round=`)
+- `GET /teams.bmp` - Teams & drivers grid (supports `?lang=`, `?year=`)
+
+**Web UI:**
+- `GET /` - Landing page with screen type selection
+- `GET /configure/{screen}` - Interactive preview (calendar/teams/standings)
+
+**JSON API:**
+- `GET /api/races/{year}` - All races for a season
+- `GET /api/race/{year}/{round}` - Specific race details
+- `GET /api/teams/{year}` - Teams and drivers for a season
+- `GET /api/standings/leader` - Current championship leader
+- `GET /api/stats` - Request statistics
+
+**Health & Monitoring:**
+- `GET /health` - Health check endpoint
+- `GET /api` - API documentation
+
+## Project Structure
+
+```
+InkyCloud-F1/
+├── app/
+│   ├── main.py              # FastAPI app & endpoints
+│   ├── config.py            # Environment-based config
+│   ├── models.py            # Pydantic models
+│   ├── state.py             # Application state
+│   ├── services/
+│   │   ├── renderer.py          # 1-bit BMP rendering
+│   │   ├── spectra6_renderer.py # Multi-color rendering
+│   │   ├── f1_service.py        # F1 data API client
+│   │   ├── teams_service.py     # Teams/drivers logic
+│   │   ├── standings_service.py # Championship standings
+│   │   ├── weather_service.py   # Weather forecasts
+│   │   ├── database.py          # SQLite persistence
+│   │   ├── scheduler.py         # Background jobs
+│   │   ├── backup.py            # S3 backups
+│   │   ├── analytics.py         # Umami tracking
+│   │   ├── i18n.py              # Translations
+│   │   └── version_service.py   # Version management
+│   ├── templates/           # Jinja2 HTML templates
+│   └── assets/              # Static assets (fonts, images)
+├── tests/                   # Test suite (pytest)
+├── translations/            # i18n JSON files (cs, en)
+├── scripts/                 # Data preprocessing utilities
+└── .github/
+    ├── copilot-instructions.md  # This file
+    ├── copilot-setup-steps.yaml # Environment setup automation
+    └── workflows/               # CI/CD pipelines
+```

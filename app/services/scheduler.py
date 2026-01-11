@@ -1,14 +1,12 @@
 """Scheduler service for hourly image generation using static data."""
 
 import asyncio
-import copy
 import logging
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 
 import aiofiles
-import pytz
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from PIL import Image
@@ -18,14 +16,18 @@ from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
+from app.services.spectra6_renderer import Spectra6Renderer
 from app.services.version_service import refresh_version_info
 from app.services.weather_service import (
     WeatherData,
     WeatherService,
+    get_cached_circuit_weather,
     load_circuit_weather_to_cache,
+    prefetch_weather_for_next_race,
     set_cached_circuit_weather,
 )
 from app.state import clear_bmp_cache, get_and_clear_api_calls_buffer
+from app.utils.race_times import convert_race_times_to_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -36,78 +38,21 @@ scheduler: AsyncIOScheduler | None = None
 SUPPORTED_LANGUAGES = ["en", "cs"]
 
 
-def _get_image_key(lang: str, tz: str | None = None) -> str:
-    """
-    Generate image key for file naming.
-
-    Args:
-        lang: Language code (e.g., "en", "cs")
-        tz: Optional timezone (e.g., "America/New_York")
-
-    Returns:
-        Image key for filename (e.g., "calendar_en", "calendar_en_America_New_York")
-    """
+def _get_image_key(
+    lang: str,
+    tz: str | None = None,
+    display: str = "1bit",
+    weather: str = "off",
+) -> str:
     key = f"calendar_{lang}"
     if tz and tz != config.DEFAULT_TIMEZONE:
-        # Replace / with _ for filesystem safety
         tz_safe = tz.replace("/", "_")
         key += f"_{tz_safe}"
+    if display == "spectra6":
+        key += "_spectra6"
+    if weather != "off":
+        key += f"_weather_{weather}"
     return key
-
-
-def _convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
-    """
-    Convert race schedule times to a different timezone.
-
-    Args:
-        race_data: Race data dictionary with schedule
-        target_tz_str: Target timezone string (e.g., 'America/New_York')
-
-    Returns:
-        Race data with converted schedule times
-    """
-    try:
-        target_tz = pytz.timezone(target_tz_str)
-    except pytz.UnknownTimeZoneError:
-        logger.warning("Unknown timezone %s, returning original data", target_tz_str)
-        return race_data
-
-    # Deep copy to avoid modifying original
-    result = copy.deepcopy(race_data)
-
-    # Convert schedule times
-    schedule = result.get("schedule", [])
-    for event in schedule:
-        iso_str = event.get("datetime")
-        if iso_str:
-            try:
-                # Parse ISO datetime string
-                dt = datetime.fromisoformat(iso_str)
-                # Convert to target timezone
-                dt_local = dt.astimezone(target_tz)
-                # Update both datetime and display_time
-                event["datetime"] = dt_local.isoformat()
-                event["display_time"] = dt_local.strftime("%a %H:%M")
-            except (ValueError, TypeError) as e:
-                logger.warning("Error converting time %s: %s", iso_str, e)
-
-    # Update race_date to target timezone format
-    if schedule:
-        for event in schedule:
-            if event.get("name") == "Race":
-                iso_str = event.get("datetime")
-                if iso_str:
-                    try:
-                        dt = datetime.fromisoformat(iso_str)
-                        result["race_date"] = dt.strftime("%d.%m.%Y")
-                    except (ValueError, TypeError):
-                        pass
-                break
-
-    # Update timezone field
-    result["timezone"] = target_tz_str
-
-    return result
 
 
 def _bmp_to_png(bmp_data: bytes, width: int = 400, full_size: bool = False) -> bytes:
@@ -157,24 +102,63 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
         translator = get_translator(lang)
         renderer = Renderer(translator)
 
-        # Calendar preview
+        # Calendar preview - generate variants for different weather types and displays
         if race_data:
-            try:
-                bmp_data = renderer.render_calendar(race_data, historical_data)
+            circuit_id = race_data.get("circuit", {}).get("circuitId", "")
+            weather_data = None
+            if circuit_id and config.WEATHER_ENABLED:
+                weather_data = get_cached_circuit_weather(circuit_id)
 
-                homepage_png = _bmp_to_png(bmp_data, width=400)
-                homepage_path = images_dir / f"preview_calendar_{lang}.png"
-                async with aiofiles.open(homepage_path, "wb") as f:
-                    await f.write(homepage_png)
+            # Weather variants: off, current, race (if weather data available)
+            weather_variants: list[tuple[str, WeatherData | None]] = [("off", None)]
+            if weather_data:
+                weather_variants.append(("current", weather_data))
+                weather_variants.append(("race", weather_data))
 
-                configure_png = _bmp_to_png(bmp_data, full_size=True)
-                configure_path = images_dir / f"configure_calendar_{lang}.png"
-                async with aiofiles.open(configure_path, "wb") as f:
-                    await f.write(configure_png)
+            # Display variants: 1bit and spectra6
+            display_variants = [
+                ("1bit", Renderer(translator)),
+                ("spectra6", Spectra6Renderer(translator)),
+            ]
 
-                logger.info("Generated calendar previews: %s, %s", homepage_path, configure_path)
-            except Exception as e:
-                logger.error("Error generating calendar preview (%s): %s", lang, e)
+            for display_name, display_renderer in display_variants:
+                for weather_type, wd in weather_variants:
+                    try:
+                        bmp_data = display_renderer.render_calendar(
+                            race_data, historical_data, wd, weather_type
+                        )
+
+                        # Build filename suffix
+                        suffix = f"_{lang}"
+                        if display_name == "spectra6":
+                            suffix += "_spectra6"
+                        if weather_type != "off":
+                            suffix += f"_weather_{weather_type}"
+
+                        # Homepage preview (small, only for default 1bit+off)
+                        if display_name == "1bit" and weather_type == "off":
+                            homepage_png = _bmp_to_png(bmp_data, width=400)
+                            homepage_path = images_dir / f"preview_calendar_{lang}.png"
+                            async with aiofiles.open(homepage_path, "wb") as f:
+                                await f.write(homepage_png)
+
+                        # Configure preview (full size, all variants)
+                        configure_png = _bmp_to_png(bmp_data, full_size=True)
+                        configure_path = images_dir / f"configure_calendar{suffix}.png"
+                        async with aiofiles.open(configure_path, "wb") as f:
+                            await f.write(configure_png)
+
+                        logger.debug("Generated configure preview: %s", configure_path)
+                    except Exception as e:
+                        logger.error(
+                            "Error generating calendar preview (%s, %s, %s): %s",
+                            lang,
+                            display_name,
+                            weather_type,
+                            e,
+                        )
+
+            logger.info("Generated calendar previews for %s", lang)
 
         # Teams preview
         try:
@@ -197,141 +181,229 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
             logger.error("Error generating teams preview (%s): %s", lang, e)
 
 
-async def collect_and_generate() -> None:
-    """
-    Generate pre-rendered BMP images from static data.
+async def _generate_variant(
+    images_dir: Path,
+    db: Database,
+    race_data: dict,
+    historical_data,
+    weather_data: WeatherData | None,
+    lang: str,
+    tz: str | None,
+    display: str,
+    weather_type: str,
+) -> bool:
+    translator = get_translator(lang)
+    if display == "spectra6":
+        renderer = Spectra6Renderer(translator)
+    else:
+        renderer = Renderer(translator)
 
-    This job runs every hour to:
-    1. Delete all existing BMP files in IMAGES_PATH
-    2. Get next race from static JSON data (no API call)
-    3. Get historical data from static JSON (no API call)
-    4. Generate default BMP images for all supported languages (default TZ)
-    5. Generate popular timezone variants based on usage stats (max 20)
-    """
+    wd = weather_data if weather_type != "off" else None
+    bmp_data = renderer.render_calendar(race_data, historical_data, wd, weather_type)
+
+    image_key = _get_image_key(lang, tz, display, weather_type)
+    image_path = images_dir / f"{image_key}.bmp"
+
+    async with aiofiles.open(image_path, "wb") as f:
+        await f.write(bmp_data)
+
+    await db.save_generated_image(image_key=image_key, image_path=str(image_path), lang=lang)
+    return True
+
+
+def _delete_existing_bmps(images_dir: Path) -> int:
+    deleted_count = 0
+    for bmp_file in images_dir.glob("*.bmp"):
+        bmp_file.unlink()
+        deleted_count += 1
+    return deleted_count
+
+
+def _load_historical_data(race_data: dict) -> object | None:
+    circuit_id = race_data.get("circuit", {}).get("circuitId", "")
+    if not circuit_id:
+        return None
+
+    historical_data = F1Service.get_historical_from_static(circuit_id)
+    if historical_data is None:
+        return None
+
+    if getattr(historical_data, "is_new_track", False):
+        logger.info("Circuit %s: new track (no historical data)", circuit_id)
+    else:
+        logger.info(
+            "Circuit %s: historical data from %s",
+            circuit_id,
+            getattr(historical_data, "season", "unknown"),
+        )
+
+    return historical_data
+
+
+async def _load_weather_context(
+    race_data: dict,
+) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
+    current_weather: WeatherData | None = None
+    race_weather: WeatherData | None = None
+
+    weather_by_type: dict[str, WeatherData | None] = {"off": None}
+
+    if not config.WEATHER_ENABLED:
+        return current_weather, race_weather, weather_by_type
+
+    circuit = race_data.get("circuit", {})
+    circuit_id = circuit.get("circuitId", "")
+    if not circuit_id:
+        return current_weather, race_weather, weather_by_type
+
+    # Use in-memory circuit weather cache (filled by fetch_all_circuits_weather)
+    current_weather = get_cached_circuit_weather(circuit_id)
+    if current_weather:
+        logger.info("Current weather for %s: %s", circuit_id, current_weather.temp_display)
+        weather_by_type["current"] = current_weather
+        # For now, use current weather as race weather too (same data source)
+        weather_by_type["race"] = current_weather
+        race_weather = current_weather
+
+    return current_weather, race_weather, weather_by_type
+
+
+async def _generate_base_variants(
+    *,
+    images_dir: Path,
+    db: Database,
+    race_data: dict,
+    historical_data,
+    display_types: list[str],
+    weather_by_type: dict[str, WeatherData | None],
+) -> int:
+    generated_count = 0
+
+    for lang in SUPPORTED_LANGUAGES:
+        for display in display_types:
+            for weather_type, wd in weather_by_type.items():
+                if await _generate_variant(
+                    images_dir,
+                    db,
+                    race_data,
+                    historical_data,
+                    wd,
+                    lang,
+                    None,
+                    display,
+                    weather_type,
+                ):
+                    generated_count += 1
+
+    return generated_count
+
+
+async def _generate_popular_tz_variants(
+    *,
+    images_dir: Path,
+    db: Database,
+    race_data: dict,
+    historical_data,
+    display_types: list[str],
+    weather_by_type: dict[str, WeatherData | None],
+) -> int:
+    generated_count = 0
+
+    popular_variants = await db.get_popular_tz_variants(
+        min_requests=10, hours=24, limit=20, exclude_tz=config.DEFAULT_TIMEZONE
+    )
+    if not popular_variants:
+        return 0
+
+    logger.info("Generating %d popular TZ variants", len(popular_variants))
+
+    for variant in popular_variants:
+        lang = variant["lang"]
+        tz = variant["tz"]
+        if lang not in SUPPORTED_LANGUAGES:
+            logger.debug("Skipping unsupported language: %s", lang)
+            continue
+
+        race_data_converted = convert_race_times_to_timezone(race_data, tz)
+
+        for display in display_types:
+            for weather_type, wd in weather_by_type.items():
+                if await _generate_variant(
+                    images_dir,
+                    db,
+                    race_data_converted,
+                    historical_data,
+                    wd,
+                    lang,
+                    tz,
+                    display,
+                    weather_type,
+                ):
+                    generated_count += 1
+
+    return generated_count
+
+
+async def collect_and_generate() -> None:
     logger.info("Starting image generation from static data")
 
     try:
         db = Database()
         f1_service = F1Service()
 
-        # 1. Delete all existing BMP files
         images_dir = Path(config.IMAGES_PATH)
         images_dir.mkdir(parents=True, exist_ok=True)
 
-        deleted_count = 0
-        for bmp_file in images_dir.glob("*.bmp"):
-            bmp_file.unlink()
-            deleted_count += 1
-
+        deleted_count = _delete_existing_bmps(images_dir)
         if deleted_count > 0:
             logger.info("Deleted %d existing BMP files", deleted_count)
 
-        # 2. Get next race from static data (NO API CALL)
         race_data = f1_service.get_next_race_from_static()
-
         if not race_data:
             logger.warning("No upcoming race found in static data")
             return
 
         logger.info("Next race: %s (from static data)", race_data.get("race_name"))
 
-        # 3. Get historical data from static JSON (NO API CALL)
-        circuit_id = race_data.get("circuit", {}).get("circuitId", "")
-        historical_data = None
+        historical_data = _load_historical_data(race_data)
 
-        if circuit_id:
-            historical_data = F1Service.get_historical_from_static(circuit_id)
+        _, _, weather_by_type = await _load_weather_context(race_data)
 
-            if historical_data.is_new_track:
-                logger.info("Circuit %s: new track (no historical data)", circuit_id)
-            else:
-                logger.info(
-                    "Circuit %s: historical data from %s", circuit_id, historical_data.season
-                )
-
-        # 4. Generate default images for all languages (default timezone)
-        generated_count = 0
-        for lang in SUPPORTED_LANGUAGES:
-            translator = get_translator(lang)
-            renderer = Renderer(translator)
-
-            # Generate image with default timezone
-            bmp_data = renderer.render_calendar(race_data, historical_data)
-
-            # Save image using async file I/O
-            image_key = _get_image_key(lang)
-            image_path = images_dir / f"{image_key}.bmp"
-
-            async with aiofiles.open(image_path, "wb") as f:
-                await f.write(bmp_data)
-
-            # Record in database
-            await db.save_generated_image(
-                image_key=image_key, image_path=str(image_path), lang=lang
-            )
-
-            logger.info("Generated default image: %s", image_path)
-            generated_count += 1
-
-        # 5. Generate popular timezone variants (max 20)
-        popular_variants = await db.get_popular_tz_variants(
-            min_requests=10, hours=24, limit=20, exclude_tz=config.DEFAULT_TIMEZONE
+        display_types = ["1bit", "spectra6"]
+        logger.info(
+            "Generating variants: displays=%s, weather=%s",
+            display_types,
+            list(weather_by_type.keys()),
         )
 
-        if popular_variants:
-            logger.info("Generating %d popular TZ variants", len(popular_variants))
+        generated_count = 0
+        generated_count += await _generate_base_variants(
+            images_dir=images_dir,
+            db=db,
+            race_data=race_data,
+            historical_data=historical_data,
+            display_types=display_types,
+            weather_by_type=weather_by_type,
+        )
+        generated_count += await _generate_popular_tz_variants(
+            images_dir=images_dir,
+            db=db,
+            race_data=race_data,
+            historical_data=historical_data,
+            display_types=display_types,
+            weather_by_type=weather_by_type,
+        )
 
-            for variant in popular_variants:
-                lang = variant["lang"]
-                tz = variant["tz"]
-                count = variant["count"]
-
-                # Skip if language not supported
-                if lang not in SUPPORTED_LANGUAGES:
-                    logger.debug("Skipping unsupported language: %s", lang)
-                    continue
-
-                # Convert race times to target timezone
-                race_data_converted = _convert_race_times_to_timezone(race_data, tz)
-
-                # Generate image
-                translator = get_translator(lang)
-                renderer = Renderer(translator)
-                bmp_data = renderer.render_calendar(race_data_converted, historical_data)
-
-                # Save image
-                image_key = _get_image_key(lang, tz)
-                image_path = images_dir / f"{image_key}.bmp"
-
-                async with aiofiles.open(image_path, "wb") as f:
-                    await f.write(bmp_data)
-
-                # Record in database
-                await db.save_generated_image(
-                    image_key=image_key, image_path=str(image_path), lang=lang
-                )
-
-                logger.info("Generated TZ variant: %s (%d requests/24h)", image_path, count)
-                generated_count += 1
-        else:
-            logger.debug("No popular TZ variants to generate")
-
-        # Update last run timestamp
         await db.set_cache_meta("last_generation", datetime.now(timezone.utc).isoformat())
-
-        # Clear in-memory BMP cache after regeneration
         clear_bmp_cache()
 
-        # Cleanup old hourly stats (keep 30 days) - legacy table
         await db.cleanup_old_stats(days=30)
-
-        # 6. Generate PNG previews for landing page
         await generate_preview_pngs(race_data, historical_data)
 
-        logger.info("Image generation completed: %d images (0 API calls)", generated_count)
+        logger.info("Image generation completed: %d images", generated_count)
 
-    except Exception as e:
-        logger.error("Error in image generation: %s", e, exc_info=True)
+    except Exception as exc:
+        logger.error("Error in image generation: %s", exc, exc_info=True)
 
 
 async def flush_api_calls_to_db() -> None:
@@ -542,6 +614,30 @@ async def load_weather_from_db() -> None:
         logger.warning("Error loading weather from database: %s", e)
 
 
+async def prefetch_weather() -> None:
+    """
+    Pre-fetch weather data for next race at :55 each hour.
+    Stores in DB cache so image generation at :00 doesn't need API calls.
+    """
+    if not config.WEATHER_ENABLED:
+        logger.debug("Weather disabled, skipping prefetch")
+        return
+
+    try:
+        db = Database()
+        weather_data = await prefetch_weather_for_next_race(db)
+        if weather_data:
+            logger.info("Weather prefetch complete: %s", weather_data.temp_display)
+        else:
+            logger.debug("No weather data prefetched")
+
+        deleted = await db.cleanup_expired_weather_cache()
+        if deleted > 0:
+            logger.debug("Cleaned up %d expired weather cache entries", deleted)
+    except Exception as e:
+        logger.error("Error in weather prefetch: %s", e, exc_info=True)
+
+
 def _run_backup() -> None:
     """
     Trigger database backup to S3 if configured.
@@ -614,7 +710,7 @@ def start_scheduler() -> None:
     enabled), backup (if configured), version refresh (00:05 daily).
     Returns if scheduler disabled or already running.
     """
-    global scheduler
+    global scheduler  # skipcq: PYL-W0603 - singleton pattern for scheduler instance
 
     if not config.SCHEDULER_ENABLED:
         logger.info("Scheduler is disabled")
@@ -625,6 +721,16 @@ def start_scheduler() -> None:
         return
 
     scheduler = AsyncIOScheduler()
+
+    # Weather prefetch at :55 (before image generation at :00)
+    if config.WEATHER_ENABLED:
+        scheduler.add_job(
+            prefetch_weather,
+            trigger=CronTrigger(minute=55),
+            id="weather_prefetch",
+            name="Weather data prefetch for next race",
+            replace_existing=True,
+        )
 
     # Hourly: Regenerate images from static data
     scheduler.add_job(
@@ -676,7 +782,7 @@ def start_scheduler() -> None:
 
 def stop_scheduler() -> None:
     """Stop the background scheduler."""
-    global scheduler
+    global scheduler  # skipcq: PYL-W0603 - singleton pattern for scheduler instance
 
     if scheduler is not None:
         scheduler.shutdown()
@@ -692,19 +798,17 @@ async def run_initial_generation() -> None:
     """
     logger.info("Running initial generation from static data")
 
-    # 1. Load weather from SQLite first (instant, provides fallback data)
-    try:
-        await load_weather_from_db()
-    except Exception as e:
-        logger.warning("Error loading weather from database: %s", e)
+    if config.WEATHER_ENABLED:
+        try:
+            await load_weather_from_db()
+        except Exception as e:
+            logger.warning("Error loading weather from database: %s", e)
 
-    # 2. Fetch fresh weather data (before image generation)
-    try:
-        await fetch_all_circuits_weather()
-    except Exception as e:
-        logger.error("Error fetching initial weather: %s", e, exc_info=True)
+        try:
+            await fetch_all_circuits_weather()
+        except Exception as e:
+            logger.error("Error fetching initial weather: %s", e, exc_info=True)
 
-    # 3. Generate images (now with weather data available)
     try:
         await collect_and_generate()
     except Exception as e:
