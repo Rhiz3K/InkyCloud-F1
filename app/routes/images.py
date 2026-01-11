@@ -150,6 +150,12 @@ def _record_calendar_api_call(
     )
 
 
+def _normalize_weather_type(weather_type: str) -> str:
+    """Normalize weather_type to allowed values only (prevents path traversal)."""
+    allowed = {"off", "current", "race_day", "race"}
+    return weather_type if weather_type in allowed else "race_day"
+
+
 def _get_pregenerated_calendar_path(
     *,
     lang: str,
@@ -166,12 +172,15 @@ def _get_pregenerated_calendar_path(
     if target_tz_for_key != config.DEFAULT_TIMEZONE:
         return None
 
+    # Validate weather_type to prevent path traversal
+    safe_weather = _normalize_weather_type(weather_type)
+
     # Build filename matching scheduler's _get_image_key format
     image_filename = "calendar_cs" if lang == "cs" else "calendar_en"
     if display == "spectra6":
         image_filename += "_spectra6"
-    if weather_type != "off":
-        image_filename += f"_weather_{weather_type}"
+    if safe_weather != "off":
+        image_filename += f"_weather_{safe_weather}"
     image_filename += ".bmp"
 
     image_path = Path(config.IMAGES_PATH) / image_filename
@@ -261,6 +270,7 @@ async def get_calendar_bmp(
 
     lang = _normalize_lang(lang)
     display = _normalize_display(display)
+    weather_type = _normalize_weather_type(weather_type)
     _validate_timezone_param(tz)
 
     is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(

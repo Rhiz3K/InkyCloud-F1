@@ -241,7 +241,7 @@ def _load_historical_data(race_data: dict) -> object | None:
 
 
 async def _load_weather_context(
-    db: Database, race_data: dict
+    race_data: dict,
 ) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
     current_weather: WeatherData | None = None
     race_weather: WeatherData | None = None
@@ -367,7 +367,7 @@ async def collect_and_generate() -> None:
 
         historical_data = _load_historical_data(race_data)
 
-        _, _, weather_by_type = await _load_weather_context(db, race_data)
+        _, _, weather_by_type = await _load_weather_context(race_data)
 
         display_types = ["1bit", "spectra6"]
         logger.info(
