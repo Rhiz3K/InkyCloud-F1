@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-01-08
+## [1.2.0] - 2026-01-11
 
 ### API
 
@@ -19,12 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Display type selector** - Choose between 1-BIT (monochrome) and 6-COLOR (Spectra 6) display modes
 - **Mobile display controls** - Full display type settings available on mobile sidebar
+- **Pre-rendered preview variants** - Configure page now uses pre-rendered PNG for all weather/display combinations
 
 #### Fixed
 
 - **SEO** - Invalid or empty `?lang=` parameter now redirects to canonical URL (301)
 - **Language preference** - Stored language preference now applied correctly on page load
 - **Weather buttons** - Fixed visibility in desktop mode
+- **Preview weather sync** - Weather OFF/current/race buttons now show correct preview image
 
 ### Backend
 
@@ -40,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dedicated F1 logo** - Color-optimized logo for Spectra 6 displays
 - **Weather pre-fetch** - Scheduler fetches weather at :55 before hourly image generation
 - **DeepSource integration** - Automated code quality analysis
+- **PNG preview variants** - Scheduler generates preview PNG for all weather/display combinations
 
 #### Changed
 
@@ -47,12 +50,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Session colors** - Simplified for Spectra 6: only "Race" is RED, all others BLACK
 - **Red accent lines** - F1 logo underline and results separator now use RED in Spectra 6
 - **Code quality** - Added @staticmethod decorators to pure utility methods
+- **Short countdown labels** - Uses "d"/"h" instead of "days"/"hours" for current/race_day weather types
+- **Unified weather cache** - Image generation now uses same in-memory cache as dynamic rendering
 
 #### Fixed
 
 - **CIRCUIT_ID_MAP** - Added Vegas → Las Vegas mapping for track images
 - **Country code logic** - Removed redundant fallback (already in COUNTRY_MAP)
 - **Weather config** - Added missing weather configuration attributes
+- **Track centering** - Spectra 6 renderer now centers track images horizontally and vertically
+- **Pre-generated image selection** - Correctly selects BMP file based on weather_type parameter
 
 </details>
 
