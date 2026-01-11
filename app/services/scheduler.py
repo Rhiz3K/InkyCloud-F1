@@ -105,14 +105,10 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
         # Calendar preview
         if race_data:
             try:
-                # Get weather data for preview
-                circuit_id = race_data.get("circuit", {}).get("circuitId", "")
-                weather_data = None
-                if circuit_id and config.WEATHER_ENABLED:
-                    weather_data = get_cached_circuit_weather(circuit_id)
-
+                # Preview is generated WITHOUT weather (default/neutral view)
+                # When user enables weather, dynamic BMP is loaded instead
                 bmp_data = renderer.render_calendar(
-                    race_data, historical_data, weather_data, weather_type="current"
+                    race_data, historical_data, weather_data=None, weather_type="off"
                 )
 
                 homepage_png = _bmp_to_png(bmp_data, width=400)
