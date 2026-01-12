@@ -12,7 +12,7 @@ from app.config import config
 router = APIRouter()
 
 
-@router.get("/robots.txt")
+@router.api_route("/robots.txt", methods=["GET", "HEAD"])
 async def robots_txt() -> PlainTextResponse:
     """Serve robots.txt for crawlers."""
     site_url = str(config.SITE_URL).rstrip("/")
@@ -24,7 +24,7 @@ Sitemap: {site_url}/sitemap.xml
     return PlainTextResponse(content, media_type="text/plain")
 
 
-@router.get("/sitemap.xml")
+@router.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 async def sitemap_xml() -> Response:
     """Serve sitemap.xml with language variants."""
     site_url = str(config.SITE_URL).rstrip("/")
