@@ -26,7 +26,7 @@ Sitemap: {site_url}/sitemap.xml
 
 @router.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 async def sitemap_xml() -> Response:
-    """Serve sitemap.xml with language variants."""
+    """Serve sitemap.xml with canonical URLs."""
     site_url = str(config.SITE_URL).rstrip("/")
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -40,16 +40,15 @@ async def sitemap_xml() -> Response:
 
     urls: list[str] = []
     for page in pages:
-        for lang in ["en", "cs"]:
-            url_loc = f"{site_url}{page['loc']}?lang={lang}"
-            urls.append(
-                f"""  <url>
+        url_loc = f"{site_url}{page['loc']}"
+        urls.append(
+            f"""  <url>
     <loc>{url_loc}</loc>
     <lastmod>{today}</lastmod>
     <changefreq>{page["changefreq"]}</changefreq>
     <priority>{page["priority"]}</priority>
   </url>"""
-            )
+        )
 
     sitemap_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
