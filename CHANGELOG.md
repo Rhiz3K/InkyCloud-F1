@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-01-12
+
+### Frontend
+
+#### Changed
+
+- **Language URLs** - Switched from query parameters (`?lang=cs`) to subdirectory URLs (`/cs/`) for better SEO
+- **Automatic redirects** - Old `?lang=` URLs now redirect (301) to new subdirectory format
+- **Language switcher** - Updated to navigate between subdirectory URLs
+
+### Backend
+
+<details markdown="1">
+<summary>Backend</summary>
+
+#### Added
+
+- **Subdirectory language routing** - All HTML pages now support `/{lang}/` prefix (e.g., `/cs/privacy`, `/cs/configure/calendar`)
+- **Language URL helpers** - New `lang_url()` function for generating language-aware URLs in templates
+
+#### Changed
+
+- **Sitemap** - Now includes all language variants with subdirectory URLs
+- **Hreflang tags** - Updated to reference subdirectory URLs instead of query parameters
+- **BMP endpoints unchanged** - API endpoints (`/calendar.bmp`, `/teams.bmp`) still use `?lang=` parameter
+
+</details>
+
+---
+
 ## [1.2.1] - 2026-01-12
 
 ### Backend
