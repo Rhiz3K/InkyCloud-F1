@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
+import markdown
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -19,28 +19,6 @@ from app.web.templates import calc_percent, get_template_context, lang_url, temp
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-def _resolve_language(lang_prefix: Optional[str], lang_query: Optional[str]) -> str:
-    """Resolve language from URL prefix or query param (English default)."""
-    if lang_prefix in VALID_LANGUAGES:
-        return lang_prefix
-    if lang_query in VALID_LANGUAGES:
-        return lang_query
-    return "en"
-
-
-def _should_redirect_query_param(
-    lang_prefix: Optional[str], lang_query: Optional[str], base_path: str
-) -> Optional[str]:
-    """Check if we should redirect from ?lang= to subdirectory URL."""
-    # If ?lang= is used without prefix, redirect to subdirectory
-    if lang_query in VALID_LANGUAGES and lang_prefix is None:
-        return lang_url(base_path, lang_query)
-    # If ?lang= conflicts with prefix, redirect to prefix version
-    if lang_query is not None and lang_prefix in VALID_LANGUAGES:
-        return lang_url(base_path, lang_prefix)
-    return None
 
 
 # ============================================================================
@@ -200,8 +178,6 @@ async def privacy_lang(request: Request, lang_prefix: str, lang: str = Query(def
 
 async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
     """Render changelog page."""
-    import markdown
-
     url = lang_url("/changelog", ui_lang)
     await track_pageview(
         url=url,

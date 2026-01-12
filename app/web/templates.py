@@ -60,16 +60,6 @@ def lang_url(path: str, lang: str) -> str:
     return f"/{lang}{path}"
 
 
-def canonical_path(path: str, lang: str) -> str:
-    """Generate canonical path for current page (used in hreflang)."""
-    # Remove any existing language prefix
-    for prefix in ["/cs", "/en"]:
-        if path.startswith(prefix + "/") or path == prefix:
-            path = path[len(prefix) :] or "/"
-            break
-    return lang_url(path, lang)
-
-
 def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any]:
     """Build shared Jinja2 template context used by HTML views."""
     t = get_translator(ui_lang)
