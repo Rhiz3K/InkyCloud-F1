@@ -4,7 +4,7 @@
   content="{{ t.get('meta_description_stats', 'Usage statistics and metrics for F1 E-Ink Calendar') }}"
 />{% endblock %} {% block canonical %}<link
   rel="canonical"
-  href="{{ site_url }}/stats{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
+  href="{{ site_url }}{{ lang_url('/stats') }}"
 />{% endblock %} {% block og_tags %}
 <meta
   property="og:title"
@@ -14,7 +14,7 @@
   property="og:description"
   content="{{ t.get('meta_description_stats', 'Usage statistics and metrics for F1 E-Ink Calendar') }}"
 />
-<meta property="og:url" content="{{ site_url }}/stats{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}" />
+<meta property="og:url" content="{{ site_url }}{{ lang_url('/stats') }}" />
 <meta
   property="og:image"
   content="{{ site_url }}/static/images/og-preview.png"
@@ -47,7 +47,7 @@
     <div class="flex gap-2 flex-wrap">
       {% for r in ["1h", "24h", "7d", "30d", "365d"] %}
       <a
-        href="/stats?range={{ r }}{% if ui_lang and ui_lang != 'en' %}&lang={{ ui_lang }}{% endif %}"
+        href="{{ lang_url('/stats') }}?range={{ r }}"
         class="px-4 py-2 border-2 border-black {% if r == selected_range %}bg-racing-red text-white{% else %}bg-white hover:bg-gray-100{% endif %} font-bold uppercase tracking-wider shadow-neo-sm text-sm"
       >
         {{ r | upper }}

@@ -5,7 +5,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
 />{% endblock %} {% block canonical %}<link
   rel="canonical"
-  href="{{ site_url }}/configure/{{ screen_type }}{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
+  href="{{ site_url }}{{ lang_url('/configure/' + screen_type) }}"
 />{% endblock %} {% block og_tags %}
 <meta
   property="og:title"
@@ -15,7 +15,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   property="og:description"
   content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
 />
-<meta property="og:url" content="{{ site_url }}/{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}" />
+<meta property="og:url" content="{{ site_url }}{{ lang_url('/configure/' + screen_type) }}" />
 <meta
   property="og:image"
   content="{{ site_url }}/static/images/og-preview.png"
@@ -37,7 +37,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
 <link
   rel="preload"
   as="image"
-  href="/preview/configure/{{ screen_type }}.png{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
+  href="/preview/configure/{{ screen_type }}.png?lang={{ ui_lang }}"
   type="image/png"
 />
 <script type="application/ld+json">
@@ -95,7 +95,7 @@ block content %}
     <!-- Panel Header with Back Link -->
     <div class="px-4 py-3 border-b-2 border-black bg-black text-white">
       <a
-        href="/{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
+        href="{{ lang_url('/') }}"
         class="flex items-center gap-2 hover:text-racing-red transition-colors mb-2 text-xs"
       >
         <svg
@@ -137,13 +137,13 @@ block content %}
     <!-- Screen Type Selector -->
     <div class="px-2 py-1.5 border-b-2 border-black bg-gray-50 flex gap-1">
       <a
-        href="/configure/calendar{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
+        href="{{ lang_url('/configure/calendar') }}"
         class="flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all {% if screen_type == 'calendar' %}bg-black text-white{% else %}bg-white hover:bg-black hover:text-white{% endif %}"
       >
         {{ t.get('screen_calendar_name', 'Calendar') }}
       </a>
       <a
-        href="/configure/teams{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
+        href="{{ lang_url('/configure/teams') }}"
         class="flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all {% if screen_type == 'teams' %}bg-black text-white{% else %}bg-white hover:bg-black hover:text-white{% endif %}"
       >
         {{ t.get('screen_teams_name', 'Teams') }}
@@ -430,21 +430,21 @@ block content %}
         <div class="font-bold uppercase tracking-wider mb-2">
           {{ nav.nav_menu }}
         </div>
-        <a href="/stats{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}" class="block hover:text-racing-red"
+        <a href="{{ lang_url('/stats') }}" class="block hover:text-racing-red"
           >{{ nav.nav_stats }}</a
         >
         <a
-          href="/api/docs/html{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
+          href="{{ lang_url('/api/docs/html') }}"
           class="block hover:text-racing-red"
           >{{ nav.nav_api }}</a
         >
         <a
-          href="/privacy{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
+          href="{{ lang_url('/privacy') }}"
           class="block hover:text-racing-red"
           >{{ nav.nav_privacy }}</a
         >
         <a
-          href="/changelog{% if ui_lang and ui_lang != 'en' %}?lang={{ ui_lang }}{% endif %}"
+          href="{{ lang_url('/changelog') }}"
           class="block hover:text-racing-red"
           >{{ nav.nav_changelog }}</a
         >

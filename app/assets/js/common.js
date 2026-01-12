@@ -3,6 +3,55 @@
  * Shared utilities and functions across all pages
  */
 
+/**
+ * Get the base path without language prefix
+ * @param {string} path - Current path
+ * @returns {string} Path without language prefix
+ */
+function getBasePath(path) {
+    const langPrefixes = ["/cs", "/en"];
+    for (const prefix of langPrefixes) {
+        if (path === prefix || path === prefix + "/") {
+            return "/";
+        }
+        if (path.startsWith(prefix + "/")) {
+            return path.substring(prefix.length);
+        }
+    }
+    return path;
+}
+
+/**
+ * Get current language from URL path
+ * @returns {string} Current language code
+ */
+function getCurrentLang() {
+    const path = window.location.pathname;
+    if (path.startsWith("/cs/") || path === "/cs") {
+        return "cs";
+    }
+    return "en";
+}
+
+/**
+ * Build URL with language prefix
+ * @param {string} basePath - Path without language prefix
+ * @param {string} lang - Target language
+ * @returns {string} Full URL with language prefix
+ */
+function buildLangUrl(basePath, lang) {
+    const url = new URL(window.location.href);
+    // Remove any ?lang= query param
+    url.searchParams.delete("lang");
+
+    if (lang === "en") {
+        url.pathname = basePath;
+    } else {
+        url.pathname = "/" + lang + basePath;
+    }
+    return url.toString();
+}
+
 (function initLanguagePreference() {
     try {
         const storedLang = localStorage.getItem("preferredLang");
@@ -10,16 +59,12 @@
 
         document.cookie = `preferredLang=${storedLang};path=/;max-age=31536000;SameSite=Lax`;
 
-        const url = new URL(window.location.href);
-        const urlLang = url.searchParams.get("lang") || "en";
+        const currentLang = getCurrentLang();
 
-        if (urlLang !== storedLang) {
-            if (storedLang === "en") {
-                url.searchParams.delete("lang");
-            } else {
-                url.searchParams.set("lang", storedLang);
-            }
-            window.location.replace(url.toString());
+        // Redirect if stored language differs from current URL language
+        if (currentLang !== storedLang) {
+            const basePath = getBasePath(window.location.pathname);
+            window.location.replace(buildLangUrl(basePath, storedLang));
         }
     } catch (e) {
         console.error("Failed to apply language preference:", e);
@@ -30,13 +75,9 @@ function switchUiLanguage() {
     const lang = document.getElementById("uiLangSwitch").value;
     localStorage.setItem("preferredLang", lang);
     document.cookie = `preferredLang=${lang};path=/;max-age=31536000;SameSite=Lax`;
-    const url = new URL(window.location.href);
-    if (lang === "en") {
-        url.searchParams.delete("lang");
-    } else {
-        url.searchParams.set("lang", lang);
-    }
-    window.location.href = url.toString();
+
+    const basePath = getBasePath(window.location.pathname);
+    window.location.href = buildLangUrl(basePath, lang);
 }
 
 /**
