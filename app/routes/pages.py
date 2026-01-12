@@ -1,10 +1,11 @@
-"""HTML page routes."""
+"""HTML page routes with language prefix support."""
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
+import markdown
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -13,21 +14,21 @@ from app.services.analytics import track_pageview
 from app.services.database import Database
 from app.services.version_service import get_cached_version, refresh_version_info
 from app.web.api_docs import build_api_docs_context
-from app.web.templates import calc_percent, get_template_context, resolve_ui_language, templates
+from app.web.templates import calc_percent, get_template_context, lang_url, templates
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-@router.get("/", response_class=HTMLResponse)
-async def root(request: Request, lang: str = Query(default=None)):
-    if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url="/", status_code=301)
+# ============================================================================
+# HOME PAGE
+# ============================================================================
 
-    ui_lang = resolve_ui_language(request, lang)
 
-    url = f"/?lang={ui_lang}" if ui_lang != "en" else "/"
+async def _home_handler(request: Request, ui_lang: str) -> HTMLResponse:
+    """Render home page."""
+    url = lang_url("/", ui_lang)
     await track_pageview(
         url=url,
         title="F1 E-Ink Calendar",
@@ -54,21 +55,39 @@ async def root(request: Request, lang: str = Query(default=None)):
     return templates.TemplateResponse(request, "home.html", context)
 
 
-@router.get("/configure/{screen_type}", response_class=HTMLResponse)
-async def configure_screen(request: Request, screen_type: str, lang: str = Query(default=None)):
+@router.get("/", response_class=HTMLResponse)
+async def root(request: Request, lang: str = Query(default=None)):
+    """Home page (English default)."""
+    if lang in VALID_LANGUAGES and lang != "en":
+        return RedirectResponse(url=f"/{lang}/", status_code=301)
+    if lang is not None and lang not in VALID_LANGUAGES:
+        return RedirectResponse(url="/", status_code=301)
+    return await _home_handler(request, "en")
+
+
+@router.get("/{lang_prefix}/", response_class=HTMLResponse)
+async def root_lang(request: Request, lang_prefix: str, lang: str = Query(default=None)):
+    """Home page with language prefix."""
+    if lang_prefix not in VALID_LANGUAGES:
+        raise HTTPException(status_code=404, detail="Not found")
+    if lang_prefix == "en":
+        return RedirectResponse(url="/", status_code=301)
+    if lang is not None:
+        return RedirectResponse(url=f"/{lang_prefix}/", status_code=301)
+    return await _home_handler(request, lang_prefix)
+
+
+# ============================================================================
+# CONFIGURE PAGE
+# ============================================================================
+
+
+async def _configure_handler(request: Request, screen_type: str, ui_lang: str) -> HTMLResponse:
+    """Render configure page."""
     if screen_type not in ["calendar", "teams"]:
         raise HTTPException(status_code=404, detail="Unknown screen type")
 
-    if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url=f"/configure/{screen_type}", status_code=301)
-
-    ui_lang = resolve_ui_language(request, lang)
-
-    url = (
-        f"/configure/{screen_type}?lang={ui_lang}"
-        if ui_lang != "en"
-        else f"/configure/{screen_type}"
-    )
+    url = lang_url(f"/configure/{screen_type}", ui_lang)
     await track_pageview(
         url=url,
         title=f"Configure {screen_type.title()}",
@@ -85,14 +104,38 @@ async def configure_screen(request: Request, screen_type: str, lang: str = Query
     return templates.TemplateResponse(request, "configure.html", context)
 
 
-@router.get("/privacy", response_class=HTMLResponse)
-async def privacy(request: Request, lang: str = Query(default=None)):
+@router.get("/configure/{screen_type}", response_class=HTMLResponse)
+async def configure_screen(request: Request, screen_type: str, lang: str = Query(default=None)):
+    """Configure page (English default)."""
+    if lang in VALID_LANGUAGES and lang != "en":
+        return RedirectResponse(url=f"/{lang}/configure/{screen_type}", status_code=301)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url="/privacy", status_code=301)
+        return RedirectResponse(url=f"/configure/{screen_type}", status_code=301)
+    return await _configure_handler(request, screen_type, "en")
 
-    ui_lang = resolve_ui_language(request, lang)
 
-    url = f"/privacy?lang={ui_lang}" if ui_lang != "en" else "/privacy"
+@router.get("/{lang_prefix}/configure/{screen_type}", response_class=HTMLResponse)
+async def configure_screen_lang(
+    request: Request, lang_prefix: str, screen_type: str, lang: str = Query(default=None)
+):
+    """Configure page with language prefix."""
+    if lang_prefix not in VALID_LANGUAGES:
+        raise HTTPException(status_code=404, detail="Not found")
+    if lang_prefix == "en":
+        return RedirectResponse(url=f"/configure/{screen_type}", status_code=301)
+    if lang is not None:
+        return RedirectResponse(url=f"/{lang_prefix}/configure/{screen_type}", status_code=301)
+    return await _configure_handler(request, screen_type, lang_prefix)
+
+
+# ============================================================================
+# PRIVACY PAGE
+# ============================================================================
+
+
+async def _privacy_handler(request: Request, ui_lang: str) -> HTMLResponse:
+    """Render privacy page."""
+    url = lang_url("/privacy", ui_lang)
     await track_pageview(
         url=url,
         title="Privacy Policy",
@@ -106,16 +149,36 @@ async def privacy(request: Request, lang: str = Query(default=None)):
     return templates.TemplateResponse(request, "privacy.html", context)
 
 
-@router.get("/changelog", response_class=HTMLResponse)
-async def changelog(request: Request, lang: str = Query(default=None)):
-    import markdown
-
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy(request: Request, lang: str = Query(default=None)):
+    """Privacy page (English default)."""
+    if lang in VALID_LANGUAGES and lang != "en":
+        return RedirectResponse(url=f"/{lang}/privacy", status_code=301)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url="/changelog", status_code=301)
+        return RedirectResponse(url="/privacy", status_code=301)
+    return await _privacy_handler(request, "en")
 
-    ui_lang = resolve_ui_language(request, lang)
 
-    url = f"/changelog?lang={ui_lang}" if ui_lang != "en" else "/changelog"
+@router.get("/{lang_prefix}/privacy", response_class=HTMLResponse)
+async def privacy_lang(request: Request, lang_prefix: str, lang: str = Query(default=None)):
+    """Privacy page with language prefix."""
+    if lang_prefix not in VALID_LANGUAGES:
+        raise HTTPException(status_code=404, detail="Not found")
+    if lang_prefix == "en":
+        return RedirectResponse(url="/privacy", status_code=301)
+    if lang is not None:
+        return RedirectResponse(url=f"/{lang_prefix}/privacy", status_code=301)
+    return await _privacy_handler(request, lang_prefix)
+
+
+# ============================================================================
+# CHANGELOG PAGE
+# ============================================================================
+
+
+async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
+    """Render changelog page."""
+    url = lang_url("/changelog", ui_lang)
     await track_pageview(
         url=url,
         title="Changelog",
@@ -149,14 +212,36 @@ async def changelog(request: Request, lang: str = Query(default=None)):
     return templates.TemplateResponse(request, "changelog.html", context)
 
 
-@router.get("/api/docs/html", response_class=HTMLResponse)
-async def api_docs_html(request: Request, lang: str = Query(default=None)):
+@router.get("/changelog", response_class=HTMLResponse)
+async def changelog(request: Request, lang: str = Query(default=None)):
+    """Changelog page (English default)."""
+    if lang in VALID_LANGUAGES and lang != "en":
+        return RedirectResponse(url=f"/{lang}/changelog", status_code=301)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url="/api/docs/html", status_code=301)
+        return RedirectResponse(url="/changelog", status_code=301)
+    return await _changelog_handler(request, "en")
 
-    ui_lang = resolve_ui_language(request, lang)
 
-    url = f"/api/docs/html?lang={ui_lang}" if ui_lang != "en" else "/api/docs/html"
+@router.get("/{lang_prefix}/changelog", response_class=HTMLResponse)
+async def changelog_lang(request: Request, lang_prefix: str, lang: str = Query(default=None)):
+    """Changelog page with language prefix."""
+    if lang_prefix not in VALID_LANGUAGES:
+        raise HTTPException(status_code=404, detail="Not found")
+    if lang_prefix == "en":
+        return RedirectResponse(url="/changelog", status_code=301)
+    if lang is not None:
+        return RedirectResponse(url=f"/{lang_prefix}/changelog", status_code=301)
+    return await _changelog_handler(request, lang_prefix)
+
+
+# ============================================================================
+# API DOCS PAGE
+# ============================================================================
+
+
+async def _api_docs_handler(request: Request, ui_lang: str) -> HTMLResponse:
+    """Render API docs page."""
+    url = lang_url("/api/docs/html", ui_lang)
     await track_pageview(
         url=url,
         title="API Documentation",
@@ -172,17 +257,35 @@ async def api_docs_html(request: Request, lang: str = Query(default=None)):
     return templates.TemplateResponse(request, "api_docs.html", context)
 
 
-@router.get("/stats", response_class=HTMLResponse)
-async def stats_dashboard(
-    request: Request,
-    time_range: str = Query(default="24h", pattern="^(1h|24h|7d|30d|365d)$", alias="range"),
-    lang: str = Query(default=None),
-):
+@router.get("/api/docs/html", response_class=HTMLResponse)
+async def api_docs_html(request: Request, lang: str = Query(default=None)):
+    """API docs page (English default)."""
+    if lang in VALID_LANGUAGES and lang != "en":
+        return RedirectResponse(url=f"/{lang}/api/docs/html", status_code=301)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url=f"/stats?range={time_range}", status_code=301)
+        return RedirectResponse(url="/api/docs/html", status_code=301)
+    return await _api_docs_handler(request, "en")
 
-    ui_lang = resolve_ui_language(request, lang)
 
+@router.get("/{lang_prefix}/api/docs/html", response_class=HTMLResponse)
+async def api_docs_html_lang(request: Request, lang_prefix: str, lang: str = Query(default=None)):
+    """API docs page with language prefix."""
+    if lang_prefix not in VALID_LANGUAGES:
+        raise HTTPException(status_code=404, detail="Not found")
+    if lang_prefix == "en":
+        return RedirectResponse(url="/api/docs/html", status_code=301)
+    if lang is not None:
+        return RedirectResponse(url=f"/{lang_prefix}/api/docs/html", status_code=301)
+    return await _api_docs_handler(request, lang_prefix)
+
+
+# ============================================================================
+# STATS PAGE
+# ============================================================================
+
+
+async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTMLResponse:
+    """Render stats page."""
     hours_map = {"1h": 1, "24h": 24, "7d": 168, "30d": 720, "365d": 8760}
     hours = hours_map.get(time_range, 24)
 
@@ -192,11 +295,8 @@ async def stats_dashboard(
     perf_by_page = await db.get_perf_stats_by_page(hours)
     perf_trends = await db.get_perf_trends(hours)
 
-    url = (
-        f"/stats?range={time_range}&lang={ui_lang}"
-        if ui_lang != "en"
-        else f"/stats?range={time_range}"
-    )
+    base_url = lang_url("/stats", ui_lang)
+    url = f"{base_url}?range={time_range}" if time_range != "24h" else base_url
     await track_pageview(
         url=url,
         title="Statistics Dashboard",
@@ -227,3 +327,46 @@ async def stats_dashboard(
     context["avg_pct"] = calc_percent(int(stats.get("avg_response_ms", 0)), max_response)
 
     return templates.TemplateResponse(request, "stats.html", context)
+
+
+@router.get("/stats", response_class=HTMLResponse)
+async def stats_dashboard(
+    request: Request,
+    time_range: str = Query(default="24h", pattern="^(1h|24h|7d|30d|365d)$", alias="range"),
+    lang: str = Query(default=None),
+):
+    """Stats page (English default)."""
+    if lang in VALID_LANGUAGES and lang != "en":
+        redirect_url = f"/{lang}/stats"
+        if time_range != "24h":
+            redirect_url += f"?range={time_range}"
+        return RedirectResponse(url=redirect_url, status_code=301)
+    if lang is not None and lang not in VALID_LANGUAGES:
+        redirect_url = "/stats"
+        if time_range != "24h":
+            redirect_url += f"?range={time_range}"
+        return RedirectResponse(url=redirect_url, status_code=301)
+    return await _stats_handler(request, time_range, "en")
+
+
+@router.get("/{lang_prefix}/stats", response_class=HTMLResponse)
+async def stats_dashboard_lang(
+    request: Request,
+    lang_prefix: str,
+    time_range: str = Query(default="24h", pattern="^(1h|24h|7d|30d|365d)$", alias="range"),
+    lang: str = Query(default=None),
+):
+    """Stats page with language prefix."""
+    if lang_prefix not in VALID_LANGUAGES:
+        raise HTTPException(status_code=404, detail="Not found")
+    if lang_prefix == "en":
+        redirect_url = "/stats"
+        if time_range != "24h":
+            redirect_url += f"?range={time_range}"
+        return RedirectResponse(url=redirect_url, status_code=301)
+    if lang is not None:
+        redirect_url = f"/{lang_prefix}/stats"
+        if time_range != "24h":
+            redirect_url += f"?range={time_range}"
+        return RedirectResponse(url=redirect_url, status_code=301)
+    return await _stats_handler(request, time_range, lang_prefix)

@@ -53,6 +53,13 @@ def resolve_ui_language(request: Request, lang: str | None) -> str:
     return detect_ui_language(request)
 
 
+def lang_url(path: str, lang: str) -> str:
+    """Generate URL with language prefix (empty for English, /cs for Czech)."""
+    if lang == "en":
+        return path
+    return f"/{lang}{path}"
+
+
 def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any]:
     """Build shared Jinja2 template context used by HTML views."""
     t = get_translator(ui_lang)
@@ -65,6 +72,14 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "nav_changelog": t.get("nav_changelog", "Changelog"),
     }
 
+    # Get base path without language prefix for hreflang generation
+    request_path = request.url.path
+    base_path = request_path
+    for prefix in ["/cs", "/en"]:
+        if request_path.startswith(prefix + "/") or request_path == prefix:
+            base_path = request_path[len(prefix) :] or "/"
+            break
+
     return {
         "request": request,
         "ui_lang": ui_lang,
@@ -76,4 +91,6 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "site_url": str(config.SITE_URL).rstrip("/"),
         "format_bytes": format_bytes,
         "calc_percent": calc_percent,
+        "lang_url": lambda path: lang_url(path, ui_lang),
+        "base_path": base_path,  # Path without language prefix (for hreflang)
     }

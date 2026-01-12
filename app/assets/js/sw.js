@@ -1,11 +1,10 @@
-const CACHE_NAME = "f1-eink-v1";
+const CACHE_NAME = "f1-eink-v2";
 const STATIC_ASSETS = [
     "/static/css/tailwind.min.css",
     "/static/css/styles.css",
     "/static/js/common.js",
     "/static/fonts/SpaceMono-Regular.ttf",
     "/static/fonts/SpaceMono-Bold.ttf",
-    "/static/favicon/favicon.svg",
     "/static/favicon/favicon-96x96.png",
     "/static/images/og-preview.png",
 ];

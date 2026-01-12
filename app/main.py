@@ -138,13 +138,13 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 
 app.mount("/static", StaticFiles(directory="app/assets"), name="static")
 
-# Routers
-app.include_router(pages_router)
-app.include_router(previews_router)
+# Routers - order matters! More specific routes first
+app.include_router(previews_router)  # /preview/* must be before pages (/{lang}/* patterns)
 app.include_router(seo_router)
 app.include_router(health_router)
 app.include_router(api_router)
 app.include_router(images_router)
+app.include_router(pages_router)  # Generic /{lang}/* patterns last
 
 
 if __name__ == "__main__":

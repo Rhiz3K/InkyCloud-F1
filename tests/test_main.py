@@ -136,19 +136,22 @@ def test_configure_page_i18n_ignores_accept_language():
 
 
 def test_configure_page_i18n_respects_cookie():
-    """Test configure page respects preferredLang cookie."""
-    response = client.get("/configure/calendar", cookies={"preferredLang": "cs"})
+    """Test configure page with Czech language via subdirectory URL."""
+    # With subdirectory URLs, Czech content is served at /cs/ path
+    response = client.get("/cs/configure/calendar")
     html = response.text
     assert 'currentUiLang = "cs"' in html
 
 
 def test_configure_page_lang_parameter():
-    """Test configure page respects ?lang= query parameter."""
-    response = client.get("/configure/calendar?lang=cs")
+    """Test configure page ?lang= redirects to subdirectory URL."""
+    # ?lang=cs should redirect to /cs/configure/calendar
+    response = client.get("/configure/calendar?lang=cs", follow_redirects=True)
     html = response.text
     assert 'currentUiLang = "cs"' in html
 
-    response = client.get("/configure/calendar?lang=en")
+    # ?lang=en on English page stays at /configure/calendar
+    response = client.get("/configure/calendar?lang=en", follow_redirects=True)
     html = response.text
     assert 'currentUiLang = "en"' in html
 
@@ -309,8 +312,9 @@ def test_api_docs_html_lang_parameter():
 
 
 def test_api_docs_html_i18n_czech():
-    """Test API docs HTML page respects preferredLang cookie for Czech."""
-    response = client.get("/api/docs/html", cookies={"preferredLang": "cs"})
+    """Test API docs HTML page with Czech language via subdirectory URL."""
+    # With subdirectory URLs, Czech content is served at /cs/ path
+    response = client.get("/cs/api/docs/html")
     html = response.text
     assert 'currentUiLang = "cs"' in html
 
@@ -494,13 +498,14 @@ def test_configure_sidebar_mobile_nav_links():
 
 
 def test_configure_sidebar_mobile_nav_links_czech():
-    """Test configure page sidebar nav links respect language."""
-    response = client.get("/configure/calendar?lang=cs")
+    """Test configure page sidebar nav links use subdirectory URLs for Czech."""
+    response = client.get("/cs/configure/calendar")
     html = response.text
-    assert 'href="/stats?lang=cs"' in html
-    assert 'href="/api/docs/html?lang=cs"' in html
-    assert 'href="/privacy?lang=cs"' in html
-    assert 'href="/changelog?lang=cs"' in html
+    # With subdirectory URLs, Czech nav links use /cs/ prefix
+    assert 'href="/cs/stats"' in html
+    assert 'href="/cs/api/docs/html"' in html
+    assert 'href="/cs/privacy"' in html
+    assert 'href="/cs/changelog"' in html
 
 
 def test_configure_page_translations_english():
