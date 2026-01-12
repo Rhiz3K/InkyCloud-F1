@@ -55,7 +55,9 @@ def _get_image_key(
     return key
 
 
-def _bmp_to_png(bmp_data: bytes, width: int = 400, full_size: bool = False) -> bytes:
+def _bmp_to_png(
+    bmp_data: bytes, width: int = 400, full_size: bool = False, preserve_color: bool = False
+) -> bytes:
     """
     Convert BMP image data to PNG bytes for web previews.
 
@@ -63,14 +65,19 @@ def _bmp_to_png(bmp_data: bytes, width: int = 400, full_size: bool = False) -> b
         bmp_data: Raw BMP image data.
         width: Target width (height scales proportionally).
         full_size: If True, skip resizing.
+        preserve_color: If True, keep RGB colors (for spectra6). Otherwise convert to grayscale.
 
     Returns:
         PNG image data as bytes.
     """
     img_file = Image.open(BytesIO(bmp_data))
 
-    # Convert to grayscale for smoother edges (anti-aliasing on resize)
-    img: Image.Image = img_file.convert("L")
+    if preserve_color:
+        # Keep colors for spectra6 displays
+        img: Image.Image = img_file.convert("RGB")
+    else:
+        # Convert to grayscale for smoother edges (anti-aliasing on resize)
+        img = img_file.convert("L")
 
     if not full_size:
         ratio = width / img.width
@@ -135,6 +142,8 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
                         if weather_type != "off":
                             suffix += f"_weather_{weather_type}"
 
+                        is_color = display_name == "spectra6"
+
                         # Homepage preview (small, only for default 1bit+off)
                         if display_name == "1bit" and weather_type == "off":
                             homepage_png = _bmp_to_png(bmp_data, width=400)
@@ -143,7 +152,9 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
                                 await f.write(homepage_png)
 
                         # Configure preview (full size, all variants)
-                        configure_png = _bmp_to_png(bmp_data, full_size=True)
+                        configure_png = _bmp_to_png(
+                            bmp_data, full_size=True, preserve_color=is_color
+                        )
                         configure_path = images_dir / f"configure_calendar{suffix}.png"
                         async with aiofiles.open(configure_path, "wb") as f:
                             await f.write(configure_png)
