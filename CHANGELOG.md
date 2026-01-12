@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Router ordering** - Reordered routers so `/preview/*` routes are matched before `/{lang}/*` patterns
 - **Service Worker** - Removed non-existent `favicon.svg` from cache list (was causing SW install failure)
+- **Configure page preload** - Removed unused image preload that didn't match dynamically loaded variants
 
 </details>
 
