@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Hreflang tags** - Updated to reference subdirectory URLs instead of query parameters
 - **BMP endpoints unchanged** - API endpoints (`/calendar.bmp`, `/teams.bmp`) still use `?lang=` parameter
 
+#### Fixed
+
+- **Router ordering** - Reordered routers so `/preview/*` routes are matched before `/{lang}/*` patterns
+- **Service Worker** - Removed non-existent `favicon.svg` from cache list (was causing SW install failure)
+
 </details>
 
 ---
