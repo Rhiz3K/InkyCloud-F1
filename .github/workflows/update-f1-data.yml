@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -47,11 +48,16 @@ jobs:
         run: |
           git diff --quiet app/assets/ || echo "changes=true" >> $GITHUB_OUTPUT
 
-      - name: Commit and push
+      - name: Create Pull Request
         if: steps.check_changes.outputs.changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          BRANCH="chore/update-f1-data-$(date +%Y%m%d)"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add app/assets/
-          git commit -m "chore: update F1 data [skip ci]"
-          git push
+          git commit -m "chore: update F1 data"
+          git push -u origin "$BRANCH"
+          gh pr create --title "chore: update F1 data" --body "Automated F1 data update (historical results)" --base main --head "$BRANCH"
