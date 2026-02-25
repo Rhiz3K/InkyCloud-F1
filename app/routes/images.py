@@ -20,7 +20,7 @@ from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Renderer
 from app.services.teams_service import TeamsService
-from app.services.weather_service import get_cached_circuit_weather
+from app.services.weather_service import get_weather_context
 from app.state import get_bmp_cache, record_api_call
 from app.utils.f1_season import get_current_f1_season
 from app.utils.race_times import convert_race_times_to_timezone
@@ -235,7 +235,7 @@ def _get_renderer(display: str, translator) -> Renderer | Spectra6Renderer:
     return Renderer(translator)
 
 
-def _render_calendar(
+async def _render_calendar(
     *,
     f1_service: F1Service,
     lang: str,
@@ -253,14 +253,18 @@ def _render_calendar(
         renderer = _get_renderer(display, translator)
         return renderer.render_error("Failed to fetch race data"), None
 
+    weather_data = None
+    if weather and config.WEATHER_ENABLED:
+        _, _, weather_by_type = await get_weather_context(race_data)
+        if weather_type in ("race_day", "race"):
+            weather_data = weather_by_type.get("race")
+        elif weather_type == "current":
+            weather_data = weather_by_type.get("current")
+
     race_data = _maybe_convert_timezone(race_data, target_tz)
 
     circuit_id = race_data.get("circuit", {}).get("circuitId", "")
     historical_data = F1Service.get_historical_from_static(circuit_id) if circuit_id else None
-
-    weather_data = None
-    if weather and config.WEATHER_ENABLED:
-        weather_data = get_cached_circuit_weather(circuit_id)
 
     renderer = _get_renderer(display, translator)
     return renderer.render_calendar(
@@ -369,7 +373,7 @@ async def get_calendar_bmp(
 
     try:
         target_tz = tz or config.DEFAULT_TIMEZONE
-        bmp_data, race_data = _render_calendar(
+        bmp_data, race_data = await _render_calendar(
             f1_service=f1_service,
             lang=lang,
             year=year,

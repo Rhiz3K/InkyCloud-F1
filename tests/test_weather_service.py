@@ -12,6 +12,7 @@ from app.services.weather_service import (
     clear_circuit_weather_cache,
     clear_weather_cache,
     get_cached_circuit_weather,
+    get_weather_context,
     load_circuit_weather_to_cache,
     set_cached_circuit_weather,
 )
@@ -73,8 +74,10 @@ class TestWeatherService:
     @pytest.fixture(autouse=True)
     def clear_cache(self):
         clear_weather_cache()
+        clear_circuit_weather_cache()
         yield
         clear_weather_cache()
+        clear_circuit_weather_cache()
 
     def test_invalid_coordinates_returns_none(self):
         import asyncio
@@ -321,6 +324,73 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
+    @staticmethod
+    def test_get_weather_context_returns_race_forecast(monkeypatch):
+        import asyncio
+
+        race_data = {
+            "circuit": {"circuitId": "test_circuit", "lat": "50.0", "long": "14.0"},
+            "schedule": [
+                {
+                    "name": "race",
+                    "datetime": "2026-03-08T15:00:00+02:00",
+                },
+            ],
+        }
+
+        captured: dict[str, datetime] = {}
+
+        async def fake_current(self, lat, lon):
+            return WeatherData(temperature_c=15.0, weather_code=1, precipitation_probability=10)
+
+        async def fake_race(self, lat, lon, race_datetime):
+            captured["race_datetime"] = race_datetime
+            return WeatherData(temperature_c=30.0, weather_code=3, precipitation_probability=80)
+
+        monkeypatch.setattr(WeatherService, "get_current_weather", fake_current)
+        monkeypatch.setattr(WeatherService, "get_race_weather", fake_race)
+
+        async def run_test():
+            current, race, weather_by_type = await get_weather_context(race_data)
+            assert current is not None
+            assert race is not None
+            assert current.temperature_c != race.temperature_c
+            assert weather_by_type["current"] is not None
+            assert weather_by_type["race"] is not None
+            assert weather_by_type["current"].temperature_c == 15.0
+            assert weather_by_type["race"].temperature_c == 30.0
+            assert captured["race_datetime"] == datetime(2026, 3, 8, 13, 0, tzinfo=timezone.utc)
+
+        asyncio.run(run_test())
+
+    @staticmethod
+    def test_get_weather_context_invalid_coordinates(monkeypatch):
+        import asyncio
+
+        race_data = {
+            "circuit": {"circuitId": "test_circuit", "lat": "invalid", "long": "14.0"},
+            "schedule": [
+                {"name": "Race", "datetime": datetime.now(timezone.utc).isoformat()},
+            ],
+        }
+
+        async def fail_current(self, lat, lon):
+            raise AssertionError("get_current_weather should not be called")
+
+        async def fail_race(self, lat, lon, race_datetime):
+            raise AssertionError("get_race_weather should not be called")
+
+        monkeypatch.setattr(WeatherService, "get_current_weather", fail_current)
+        monkeypatch.setattr(WeatherService, "get_race_weather", fail_race)
+
+        async def run_test():
+            current, race, weather_by_type = await get_weather_context(race_data)
+            assert current is None
+            assert race is None
+            assert weather_by_type == {"off": None}
+
+        asyncio.run(run_test())
+
 
 class TestCircuitWeatherCache:
     """Tests for the circuit weather cache functions used by scheduler."""
@@ -368,6 +438,7 @@ class TestCircuitWeatherCache:
         set_cached_circuit_weather("monaco", weather2)
 
         result = get_cached_circuit_weather("monaco")
+        assert result is not None
         assert result.temperature_c == 30.0
         assert result.weather_code == 61
 

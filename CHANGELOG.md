@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-02-25
+
+### Frontend
+
+#### Fixed
+
+- **Race day weather controls** - Configure page now enables/disables race-day weather based on the selected race date (14-day forecast window)
+- **Desktop/mobile sync** - Race selection now re-checks race-day weather availability on both desktop and mobile controls
+- **Disabled button states** - Race-day buttons now use consistent disabled styling with `aria-disabled` for better UX and accessibility
+
+### Backend
+
+<details markdown="1">
+<summary>Backend</summary>
+
+#### Changed
+
+- **Weather context helper** - Added `get_weather_context()` to centralize current and race-day forecast loading
+- **Race-day forecast rendering** - `/calendar.bmp` and preview generation now use dedicated race-day forecast data instead of reusing current weather
+- **`weather_type` alias support** - Added handling for `race` alias in weather rendering logic for both 1-bit and Spectra 6 countdown labels
+- **Version metadata** - `last_updated` now reflects the latest main-branch commit timestamp
+
+#### Fixed
+
+- **Privacy i18n test stability** - Updated cookie handling in test client to make language preference checks deterministic
+
+</details>
+
+---
+
 ## [1.2.2] - 2026-01-12
 
 ### Frontend

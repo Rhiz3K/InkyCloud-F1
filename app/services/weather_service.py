@@ -2,10 +2,12 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Optional
 
 import httpx
+
+from app.config import config
 
 if TYPE_CHECKING:
     from app.services.database import Database
@@ -55,6 +57,12 @@ _weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
 # Circuit weather cache - populated by scheduler, read by renderer
 # Maps circuit_id -> WeatherData
 _circuit_weather_cache: dict[str, "WeatherData"] = {}
+
+
+def _to_utc_datetime(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 @dataclass
@@ -164,7 +172,9 @@ class WeatherService:
         lon: float,
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
-        cache_key = f"{round(lat, 2)}_{round(lon, 2)}_{race_datetime.isoformat()}"
+        race_datetime_utc = _to_utc_datetime(race_datetime)
+
+        cache_key = f"{round(lat, 2)}_{round(lon, 2)}_{race_datetime_utc.isoformat()}"
         cached = self._get_cached(cache_key)
         if cached is not None:
             logger.debug("Weather cache hit for %s", cache_key)
@@ -174,8 +184,8 @@ class WeatherService:
             logger.warning("Invalid coordinates: lat=%s, lon=%s", lat, lon)
             return None
 
-        now = datetime.now(race_datetime.tzinfo) if race_datetime.tzinfo else datetime.utcnow()
-        delta = race_datetime - now
+        now = datetime.now(timezone.utc)
+        delta = race_datetime_utc - now
         days_until_race = delta.days
 
         if days_until_race < 0:
@@ -187,7 +197,7 @@ class WeatherService:
             return None
 
         try:
-            weather_data = await self._fetch_weather(lat, lon, race_datetime, days_until_race)
+            weather_data = await self._fetch_weather(lat, lon, race_datetime_utc, days_until_race)
             if weather_data:
                 self._set_cached(cache_key, weather_data)
             return weather_data
@@ -225,7 +235,7 @@ class WeatherService:
             "latitude": round(lat, 2),
             "longitude": round(lon, 2),
             "hourly": "temperature_2m,weather_code,precipitation_probability",
-            "timezone": "auto",
+            "timezone": "UTC",
             "forecast_days": min(days_ahead + 1, 16),
         }
 
@@ -244,7 +254,8 @@ class WeatherService:
             logger.warning("Empty weather response")
             return None
 
-        race_hour_str = race_datetime.strftime("%Y-%m-%dT%H:00")
+        race_dt_utc = _to_utc_datetime(race_datetime)
+        race_hour_str = race_dt_utc.strftime("%Y-%m-%dT%H:00")
 
         for i, t in enumerate(times):
             if t == race_hour_str:
@@ -255,7 +266,7 @@ class WeatherService:
                 )
 
         logger.debug("Exact hour %s not found, finding closest", race_hour_str)
-        race_date_str = race_datetime.strftime("%Y-%m-%d")
+        race_date_str = race_dt_utc.strftime("%Y-%m-%d")
         for i, t in enumerate(times):
             if t.startswith(race_date_str):
                 return WeatherData(
@@ -351,6 +362,145 @@ def clear_circuit_weather_cache() -> None:
     Removes all entries so subsequent reads will miss until data is repopulated.
     """
     _circuit_weather_cache.clear()
+
+
+def _build_weather_service() -> WeatherService:
+    return WeatherService(
+        timeout=config.REQUEST_TIMEOUT,
+        cache_minutes=config.WEATHER_CACHE_MINUTES,
+    )
+
+
+def _parse_coordinate(value: str | int | float | None) -> Optional[float]:
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_circuit_context(race_data: dict) -> tuple[str, Optional[float], Optional[float]]:
+    circuit = race_data.get("circuit", {})
+    circuit_id = circuit.get("circuitId") or circuit.get("circuit_id", "")
+    displayed_lon = circuit.get("long") if circuit.get("long") is not None else circuit.get("lon")
+
+    lat = _parse_coordinate(circuit.get("lat"))
+    lon = _parse_coordinate(displayed_lon)
+
+    if (circuit.get("lat") is not None and lat is None) or (
+        (circuit.get("long") or circuit.get("lon")) is not None and lon is None
+    ):
+        logger.debug(
+            "Invalid circuit coordinates: lat=%s lon=%s",
+            circuit.get("lat"),
+            displayed_lon,
+        )
+
+    return circuit_id, lat, lon
+
+
+def _extract_race_datetime(race_data: dict) -> Optional[datetime]:
+    schedule = race_data.get("schedule", [])
+    race_session = next(
+        (session for session in schedule if str(session.get("name", "")).lower() == "race"),
+        None,
+    )
+    if not race_session:
+        return None
+
+    dt_str = race_session.get("datetime")
+    if not dt_str:
+        return None
+
+    try:
+        return _to_utc_datetime(datetime.fromisoformat(dt_str.replace("Z", "+00:00")))
+    except ValueError:
+        logger.debug("Invalid race datetime: %s", dt_str)
+        return None
+
+
+async def _resolve_current_weather(
+    *,
+    circuit_id: str,
+    lat: Optional[float],
+    lon: Optional[float],
+    weather_service: Optional[WeatherService],
+) -> tuple[Optional[WeatherData], Optional[WeatherService]]:
+    current_weather: Optional[WeatherData] = (
+        get_cached_circuit_weather(circuit_id) if circuit_id else None
+    )
+    if current_weather is not None:
+        return current_weather, weather_service
+
+    if lat is None or lon is None:
+        return None, weather_service
+
+    service = weather_service or _build_weather_service()
+    current_weather = await service.get_current_weather(lat, lon)
+
+    if current_weather and circuit_id:
+        set_cached_circuit_weather(circuit_id, current_weather)
+
+    return current_weather, service
+
+
+async def _resolve_race_weather(
+    *,
+    lat: Optional[float],
+    lon: Optional[float],
+    race_dt: Optional[datetime],
+    weather_service: Optional[WeatherService],
+) -> tuple[Optional[WeatherData], Optional[WeatherService]]:
+    if lat is None or lon is None or race_dt is None:
+        return None, weather_service
+
+    service = weather_service or _build_weather_service()
+    race_weather = await service.get_race_weather(lat, lon, race_dt)
+    return race_weather, service
+
+
+async def get_weather_context(
+    race_data: dict | None,
+) -> tuple[
+    Optional[WeatherData],
+    Optional[WeatherData],
+    dict[str, Optional[WeatherData]],
+]:
+    """
+    Build weather context (current and race-day) for a given race.
+
+    Returns a tuple of (current_weather, race_weather, weather_by_type).
+    weather_by_type always includes "off": None and adds "current"/"race" when data exists.
+    """
+    weather_by_type: dict[str, Optional[WeatherData]] = {"off": None}
+
+    if not config.WEATHER_ENABLED or not race_data:
+        return None, None, weather_by_type
+
+    circuit_id, lat, lon = _extract_circuit_context(race_data)
+    race_dt = _extract_race_datetime(race_data)
+
+    current_weather, weather_service = await _resolve_current_weather(
+        circuit_id=circuit_id,
+        lat=lat,
+        lon=lon,
+        weather_service=None,
+    )
+    if current_weather:
+        weather_by_type["current"] = current_weather
+
+    race_weather, _ = await _resolve_race_weather(
+        lat=lat,
+        lon=lon,
+        race_dt=race_dt,
+        weather_service=weather_service,
+    )
+    if race_weather:
+        weather_by_type["race"] = race_weather
+
+    return current_weather, race_weather, weather_by_type
 
 
 # =========================================================================

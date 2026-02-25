@@ -2,7 +2,6 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
 import httpx
 
@@ -29,7 +28,7 @@ class VersionInfo:
     commit_sha_short: str | None  # First 7 characters
     commit_date: str | None  # ISO format
     commit_message: str | None  # First line of commit message
-    last_updated: str  # When this info was fetched
+    last_updated: str | None  # Last commit date on main branch (ISO format)
 
     @property
     def version_string(self) -> str:
@@ -115,7 +114,7 @@ async def fetch_version_info() -> VersionInfo:
         commit_sha_short=commit_sha_short,
         commit_date=commit_date,
         commit_message=commit_message,
-        last_updated=datetime.now(timezone.utc).isoformat(),
+        last_updated=commit_date,
     )
 
     return _version_cache

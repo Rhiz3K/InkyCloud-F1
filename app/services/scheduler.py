@@ -21,7 +21,7 @@ from app.services.version_service import refresh_version_info
 from app.services.weather_service import (
     WeatherData,
     WeatherService,
-    get_cached_circuit_weather,
+    get_weather_context,
     load_circuit_weather_to_cache,
     prefetch_weather_for_next_race,
     set_cached_circuit_weather,
@@ -111,16 +111,10 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
 
         # Calendar preview - generate variants for different weather types and displays
         if race_data:
-            circuit_id = race_data.get("circuit", {}).get("circuitId", "")
-            weather_data = None
-            if circuit_id and config.WEATHER_ENABLED:
-                weather_data = get_cached_circuit_weather(circuit_id)
-
-            # Weather variants: off, current, race (if weather data available)
             weather_variants: list[tuple[str, WeatherData | None]] = [("off", None)]
-            if weather_data:
-                weather_variants.append(("current", weather_data))
-                weather_variants.append(("race", weather_data))
+            if config.WEATHER_ENABLED:
+                _, _, weather_by_type = await get_weather_context(race_data)
+                weather_variants = list(weather_by_type.items())
 
             # Display variants: 1bit and spectra6
             display_variants = [
@@ -254,27 +248,13 @@ def _load_historical_data(race_data: dict) -> object | None:
 async def _load_weather_context(
     race_data: dict,
 ) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
-    current_weather: WeatherData | None = None
-    race_weather: WeatherData | None = None
+    current_weather, race_weather, weather_by_type = await get_weather_context(race_data)
 
-    weather_by_type: dict[str, WeatherData | None] = {"off": None}
-
-    if not config.WEATHER_ENABLED:
-        return current_weather, race_weather, weather_by_type
-
-    circuit = race_data.get("circuit", {})
-    circuit_id = circuit.get("circuitId", "")
-    if not circuit_id:
-        return current_weather, race_weather, weather_by_type
-
-    # Use in-memory circuit weather cache (filled by fetch_all_circuits_weather)
-    current_weather = get_cached_circuit_weather(circuit_id)
-    if current_weather:
+    circuit_id = race_data.get("circuit", {}).get("circuitId")
+    if circuit_id and current_weather:
         logger.info("Current weather for %s: %s", circuit_id, current_weather.temp_display)
-        weather_by_type["current"] = current_weather
-        # For now, use current weather as race weather too (same data source)
-        weather_by_type["race"] = current_weather
-        race_weather = current_weather
+    if circuit_id and race_weather:
+        logger.info("Race-day weather for %s: %s", circuit_id, race_weather.temp_display)
 
     return current_weather, race_weather, weather_by_type
 

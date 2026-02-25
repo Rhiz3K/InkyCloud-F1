@@ -472,8 +472,8 @@ class Spectra6Renderer:
         text_y = y_top + padding_y - ref_bbox[1]
 
         flag_icon = "🏁"
-        # Use short labels (d/h) for current and race_day weather types
-        if weather_type in ("current", "race_day"):
+        # Use short labels (d/h) for current and race-day aliases.
+        if weather_type in ("current", "race_day", "race"):
             days_label = self.translator.get("countdown_days_short", "d")
             hours_label = self.translator.get("countdown_hours_short", "h")
         else:
