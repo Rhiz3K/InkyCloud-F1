@@ -1304,11 +1304,8 @@ block content %}
       document.getElementById("seasonTitle").textContent =
         `${activeSeasonYear} ${t.seasonTitle}`;
 
-      // Set next race date for weather type availability check
-      const upcomingRaces = racesData.filter((r) => !r.is_past);
-      if (upcomingRaces.length > 0 && upcomingRaces[0].date) {
-        nextRaceDate = upcomingRaces[0].date;
-      }
+      // Set race date for weather type availability check
+      nextRaceDate = getReferenceRaceDate();
       updateWeatherTypeAvailability();
 
       // Build race list (desktop) - compact layout
@@ -1383,6 +1380,10 @@ block content %}
 
     // Sync mobile select
     document.getElementById("raceSelectMobile").value = round || "";
+
+    // Re-evaluate race day weather availability for selected race
+    nextRaceDate = getReferenceRaceDate();
+    updateWeatherTypeAvailability();
 
     updatePreview();
   }
@@ -1825,7 +1826,36 @@ block content %}
   let nextRaceDate = null;
   let currentWeatherType = "race_day";
 
+  function getReferenceRaceDate() {
+    if (selectedRound) {
+      const selectedRace = racesData.find(
+        (race) => Number(race.round) === Number(selectedRound),
+      );
+      if (selectedRace?.date) {
+        return selectedRace.date;
+      }
+    }
+
+    const upcomingRace = racesData.find((race) => !race.is_past && race.date);
+    return upcomingRace?.date || null;
+  }
+
+  function isRaceDayWeatherAvailable() {
+    if (!nextRaceDate) {
+      return false;
+    }
+
+    const now = new Date();
+    const raceDate = new Date(nextRaceDate);
+    const daysUntilRace = Math.ceil((raceDate - now) / (1000 * 60 * 60 * 24));
+    return daysUntilRace <= 14 && daysUntilRace >= 0;
+  }
+
   function setWeatherType(type) {
+    if (type === "race_day" && !isRaceDayWeatherAvailable()) {
+      return;
+    }
+
     const weatherToggle = document.getElementById("weatherToggle");
     const raceDayRadio = document.getElementById("weatherRaceDayRadio");
     const currentRadio = document.querySelector(
@@ -1900,25 +1930,39 @@ block content %}
       document.getElementById("weatherRaceDayBtn"),
       document.getElementById("weatherRaceDayBtnMobile"),
     ];
-
-    const now = new Date();
-    let daysUntilRace = 999;
-
-    if (nextRaceDate) {
-      const raceDate = new Date(nextRaceDate);
-      daysUntilRace = Math.ceil((raceDate - now) / (1000 * 60 * 60 * 24));
-    }
-
-    const isRaceDayAvailable = daysUntilRace <= 14 && daysUntilRace >= 0;
+    const isRaceDayAvailable = isRaceDayWeatherAvailable();
 
     raceDayBtns.forEach((btn) => {
       if (!btn) return;
       if (isRaceDayAvailable) {
         btn.disabled = false;
-        btn.classList.remove("opacity-50", "cursor-not-allowed");
+        btn.setAttribute("aria-disabled", "false");
+        btn.classList.remove(
+          "opacity-50",
+          "cursor-not-allowed",
+          "bg-gray-200",
+          "text-gray-500",
+          "border-gray-300",
+        );
+        btn.classList.add("border-black", "hover:bg-black", "hover:text-white");
       } else {
         btn.disabled = true;
-        btn.classList.add("opacity-50", "cursor-not-allowed");
+        btn.setAttribute("aria-disabled", "true");
+        btn.classList.remove(
+          "bg-racing-red",
+          "bg-black",
+          "text-white",
+          "border-black",
+          "hover:bg-black",
+          "hover:text-white",
+        );
+        btn.classList.add(
+          "opacity-50",
+          "cursor-not-allowed",
+          "bg-gray-200",
+          "text-gray-500",
+          "border-gray-300",
+        );
       }
     });
 
