@@ -256,7 +256,10 @@ def test_privacy_page_lang_parameter():
 
 def test_privacy_page_i18n_czech():
     """Test privacy page respects preferredLang cookie for Czech."""
-    response = client.get("/privacy", cookies={"preferredLang": "cs"})
+    with TestClient(app) as cookie_client:
+        cookie_client.cookies.set("preferredLang", "cs")
+        response = cookie_client.get("/privacy")
+
     html = response.text
     assert 'lang="cs"' in html
 

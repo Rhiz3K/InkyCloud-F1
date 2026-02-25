@@ -12,6 +12,7 @@ from app.services.weather_service import (
     clear_circuit_weather_cache,
     clear_weather_cache,
     get_cached_circuit_weather,
+    get_weather_context,
     load_circuit_weather_to_cache,
     set_cached_circuit_weather,
 )
@@ -318,6 +319,37 @@ class TestWeatherService:
             result = await service.get_current_weather(lat=51.51, lon=-0.13)
             assert result is not None
             assert result.precipitation_probability == 0
+
+        asyncio.run(run_test())
+
+    def test_get_weather_context_returns_race_forecast(self, monkeypatch):
+        import asyncio
+
+        clear_circuit_weather_cache()
+
+        race_data = {
+            "circuit": {"circuitId": "test_circuit", "lat": "50.0", "long": "14.0"},
+            "schedule": [
+                {"name": "Race", "datetime": datetime.now(timezone.utc).isoformat()},
+            ],
+        }
+
+        async def fake_current(self, lat, lon):
+            return WeatherData(temperature_c=15.0, weather_code=1, precipitation_probability=10)
+
+        async def fake_race(self, lat, lon, race_datetime):
+            return WeatherData(temperature_c=30.0, weather_code=3, precipitation_probability=80)
+
+        monkeypatch.setattr(WeatherService, "get_current_weather", fake_current)
+        monkeypatch.setattr(WeatherService, "get_race_weather", fake_race)
+
+        async def run_test():
+            current, race, weather_by_type = await get_weather_context(race_data)
+            assert current is not None
+            assert race is not None
+            assert current.temperature_c != race.temperature_c
+            assert weather_by_type["current"].temperature_c == 15.0
+            assert weather_by_type["race"].temperature_c == 30.0
 
         asyncio.run(run_test())
 

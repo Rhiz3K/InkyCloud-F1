@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Optional
 
 import httpx
 
+from app.config import config
+
 if TYPE_CHECKING:
     from app.services.database import Database
 
@@ -351,6 +353,82 @@ def clear_circuit_weather_cache() -> None:
     Removes all entries so subsequent reads will miss until data is repopulated.
     """
     _circuit_weather_cache.clear()
+
+
+async def get_weather_context(
+    race_data: dict | None,
+) -> tuple[
+    Optional[WeatherData],
+    Optional[WeatherData],
+    dict[str, Optional[WeatherData]],
+]:
+    """
+    Build weather context (current and race-day) for a given race.
+
+    Returns a tuple of (current_weather, race_weather, weather_by_type).
+    weather_by_type always includes "off": None and adds "current"/"race" when data exists.
+    """
+    current_weather: Optional[WeatherData] = None
+    race_weather: Optional[WeatherData] = None
+    weather_by_type: dict[str, Optional[WeatherData]] = {"off": None}
+
+    if not config.WEATHER_ENABLED or not race_data:
+        return current_weather, race_weather, weather_by_type
+
+    circuit = race_data.get("circuit", {}) if race_data else {}
+    circuit_id = circuit.get("circuitId") or circuit.get("circuit_id", "")
+
+    lat_str = circuit.get("lat")
+    lon_str = circuit.get("long") or circuit.get("lon")
+
+    lat = lon = None
+    try:
+        lat = float(lat_str) if lat_str is not None else None
+        lon = float(lon_str) if lon_str is not None else None
+    except (TypeError, ValueError):
+        logger.debug("Invalid circuit coordinates: lat=%s lon=%s", lat_str, lon_str)
+
+    weather_service: Optional[WeatherService] = None
+
+    if circuit_id:
+        current_weather = get_cached_circuit_weather(circuit_id)
+
+    if lat is not None and lon is not None and current_weather is None:
+        weather_service = WeatherService(
+            timeout=config.REQUEST_TIMEOUT,
+            cache_minutes=config.WEATHER_CACHE_MINUTES,
+        )
+        current_weather = await weather_service.get_current_weather(lat, lon)
+        if current_weather and circuit_id:
+            set_cached_circuit_weather(circuit_id, current_weather)
+
+    if current_weather:
+        weather_by_type["current"] = current_weather
+
+    # Race-day forecast
+    race_dt: Optional[datetime] = None
+    schedule = race_data.get("schedule", []) if race_data else []
+    for session in schedule:
+        if session.get("name") == "Race":
+            dt_str = session.get("datetime")
+            try:
+                if dt_str:
+                    race_dt = datetime.fromisoformat(dt_str)
+            except ValueError:
+                logger.debug("Invalid race datetime: %s", dt_str)
+            break
+
+    if lat is not None and lon is not None and race_dt is not None:
+        if weather_service is None:
+            weather_service = WeatherService(
+                timeout=config.REQUEST_TIMEOUT,
+                cache_minutes=config.WEATHER_CACHE_MINUTES,
+            )
+        race_weather = await weather_service.get_race_weather(lat, lon, race_dt)
+        if race_weather:
+            weather_by_type["race"] = race_weather
+
+    return current_weather, race_weather, weather_by_type
 
 
 # =========================================================================
