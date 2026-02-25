@@ -185,19 +185,22 @@ class WeatherService:
             return None
 
         now = datetime.now(timezone.utc)
-        delta = race_datetime_utc - now
-        days_until_race = delta.days
-
-        if days_until_race < 0:
+        if race_datetime_utc < now:
             logger.debug("Race already started, no weather forecast needed")
             return None
 
-        if days_until_race > 16:
-            logger.debug("Race %d days away, outside 16-day forecast range", days_until_race)
+        # Open-Meteo forecast_days includes today, so to include race date
+        # we need date_diff + 1 days.
+        forecast_days = (race_datetime_utc.date() - now.date()).days + 1
+        if forecast_days > 16:
+            logger.debug(
+                "Race requires %d forecast days, outside 16-day forecast range",
+                forecast_days,
+            )
             return None
 
         try:
-            weather_data = await self._fetch_weather(lat, lon, race_datetime_utc, days_until_race)
+            weather_data = await self._fetch_weather(lat, lon, race_datetime_utc, forecast_days)
             if weather_data:
                 self._set_cached(cache_key, weather_data)
             return weather_data
@@ -217,7 +220,7 @@ class WeatherService:
         lat: float,
         lon: float,
         race_datetime: datetime,
-        days_ahead: int,
+        forecast_days: int,
     ) -> Optional[WeatherData]:
         """
         Fetch hourly forecast for race datetime from Open-Meteo.
@@ -226,7 +229,7 @@ class WeatherService:
             lat: Latitude.
             lon: Longitude.
             race_datetime: Target datetime (matches exact hour or same day).
-            days_ahead: Days to include in forecast (capped at 16).
+            forecast_days: Number of forecast days to request (max 16).
 
         Returns:
             WeatherData for matching hour/day, or None if no data found.
@@ -236,7 +239,7 @@ class WeatherService:
             "longitude": round(lon, 2),
             "hourly": "temperature_2m,weather_code,precipitation_probability",
             "timezone": "UTC",
-            "forecast_days": min(days_ahead + 1, 16),
+            "forecast_days": min(forecast_days, 16),
         }
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -265,15 +268,35 @@ class WeatherService:
                     precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
                 )
 
-        logger.debug("Exact hour %s not found, finding closest", race_hour_str)
+        logger.debug("Exact hour %s not found, finding closest hour on race date", race_hour_str)
         race_date_str = race_dt_utc.strftime("%Y-%m-%d")
+
+        closest_index: Optional[int] = None
+        closest_delta_seconds: Optional[float] = None
         for i, t in enumerate(times):
-            if t.startswith(race_date_str):
-                return WeatherData(
-                    temperature_c=temps[i] if i < len(temps) else 20.0,
-                    weather_code=codes[i] if i < len(codes) else 0,
-                    precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
-                )
+            if not t.startswith(race_date_str):
+                continue
+
+            try:
+                candidate_dt = _to_utc_datetime(datetime.fromisoformat(t.replace("Z", "+00:00")))
+            except ValueError:
+                continue
+
+            delta_seconds = abs((candidate_dt - race_dt_utc).total_seconds())
+            if closest_delta_seconds is None or delta_seconds < closest_delta_seconds:
+                closest_delta_seconds = delta_seconds
+                closest_index = i
+
+        if closest_index is not None:
+            return WeatherData(
+                temperature_c=temps[closest_index] if closest_index < len(temps) else 20.0,
+                weather_code=codes[closest_index] if closest_index < len(codes) else 0,
+                precipitation_probability=(
+                    precip[closest_index]
+                    if closest_index < len(precip) and precip[closest_index]
+                    else 0
+                ),
+            )
 
         logger.warning("Could not find weather for %s", race_hour_str)
         return None

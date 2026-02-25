@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - CHANGELOG.md
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: [self-hosted, linux]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub release from CHANGELOG
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("node:fs");
+
+            const changelog = fs.readFileSync("CHANGELOG.md", "utf8");
+            const matches = [...changelog.matchAll(/^## \[(\d+\.\d+\.\d+)\] - .*$/gm)];
+
+            if (matches.length === 0) {
+              core.setFailed("No semantic version headings found in CHANGELOG.md");
+              return;
+            }
+
+            const version = matches[0][1];
+            const tag = `v${version}`;
+            const currentHeading = matches[0];
+            const nextHeading = matches[1] ?? null;
+
+            const bodyStart = currentHeading.index + currentHeading[0].length;
+            const bodyEnd = nextHeading ? nextHeading.index : changelog.length;
+
+            let body = changelog.slice(bodyStart, bodyEnd).trim();
+            body = body.replace(/\n---\s*$/, "").trim();
+
+            const previousTag = nextHeading ? `v${nextHeading[1]}` : null;
+            const compareUrl = previousTag
+              ? `https://github.com/${context.repo.owner}/${context.repo.repo}/compare/${previousTag}...${tag}`
+              : `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CHANGELOG.md`;
+
+            if (!body.includes("**Full Changelog**:")) {
+              body = `${body}\n\n**Full Changelog**: ${compareUrl}`;
+            }
+
+            const commitTitleRaw = context.payload.head_commit?.message?.split("\n")[0] ?? "";
+            const commitTitle = commitTitleRaw.replace(/\s+\(#\d+\)$/, "");
+            const releasePrefix = `Release ${tag}`;
+            const releaseName = commitTitle.startsWith(releasePrefix) ? commitTitle : tag;
+
+            try {
+              await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag,
+              });
+              core.info(`Release ${tag} already exists, skipping.`);
+              return;
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+            }
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              target_commitish: context.sha,
+              name: releaseName,
+              body,
+              draft: false,
+              prerelease: false,
+              generate_release_notes: false,
+            });
+
+            core.info(`Created release ${tag}`);
