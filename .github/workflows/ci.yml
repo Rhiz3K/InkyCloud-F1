@@ -16,7 +16,16 @@ jobs:
     steps:
     - uses: actions/checkout@v6
       with:
-        ref: ${{ github.event.pull_request.head.sha }}
+        ref: ${{ github.event.pull_request.head.sha || github.sha }}
+        fetch-depth: 0
+
+    - name: Verify CHANGELOG update for main PRs
+      if: github.event_name == 'pull_request' && github.base_ref == 'main'
+      run: |
+        if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx "CHANGELOG.md"; then
+          echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
+          exit 1
+        fi
     
     - name: Set up Python 3.12
       uses: actions/setup-python@v6
