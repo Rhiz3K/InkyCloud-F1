@@ -355,6 +355,97 @@ def clear_circuit_weather_cache() -> None:
     _circuit_weather_cache.clear()
 
 
+def _build_weather_service() -> WeatherService:
+    return WeatherService(
+        timeout=config.REQUEST_TIMEOUT,
+        cache_minutes=config.WEATHER_CACHE_MINUTES,
+    )
+
+
+def _parse_coordinate(value: object) -> Optional[float]:
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_circuit_context(race_data: dict) -> tuple[str, Optional[float], Optional[float]]:
+    circuit = race_data.get("circuit", {})
+    circuit_id = circuit.get("circuitId") or circuit.get("circuit_id", "")
+
+    lat = _parse_coordinate(circuit.get("lat"))
+    lon = _parse_coordinate(circuit.get("long") or circuit.get("lon"))
+
+    if (circuit.get("lat") is not None and lat is None) or (
+        (circuit.get("long") or circuit.get("lon")) is not None and lon is None
+    ):
+        logger.debug(
+            "Invalid circuit coordinates: lat=%s lon=%s", circuit.get("lat"), circuit.get("long")
+        )
+
+    return circuit_id, lat, lon
+
+
+def _extract_race_datetime(race_data: dict) -> Optional[datetime]:
+    schedule = race_data.get("schedule", [])
+    race_session = next((session for session in schedule if session.get("name") == "Race"), None)
+    if not race_session:
+        return None
+
+    dt_str = race_session.get("datetime")
+    if not dt_str:
+        return None
+
+    try:
+        return datetime.fromisoformat(dt_str)
+    except ValueError:
+        logger.debug("Invalid race datetime: %s", dt_str)
+        return None
+
+
+async def _resolve_current_weather(
+    *,
+    circuit_id: str,
+    lat: Optional[float],
+    lon: Optional[float],
+    weather_service: Optional[WeatherService],
+) -> tuple[Optional[WeatherData], Optional[WeatherService]]:
+    current_weather: Optional[WeatherData] = (
+        get_cached_circuit_weather(circuit_id) if circuit_id else None
+    )
+    if current_weather is not None:
+        return current_weather, weather_service
+
+    if lat is None or lon is None:
+        return None, weather_service
+
+    service = weather_service or _build_weather_service()
+    current_weather = await service.get_current_weather(lat, lon)
+
+    if current_weather and circuit_id:
+        set_cached_circuit_weather(circuit_id, current_weather)
+
+    return current_weather, service
+
+
+async def _resolve_race_weather(
+    *,
+    lat: Optional[float],
+    lon: Optional[float],
+    race_dt: Optional[datetime],
+    weather_service: Optional[WeatherService],
+) -> tuple[Optional[WeatherData], Optional[WeatherService]]:
+    if lat is None or lon is None or race_dt is None:
+        return None, weather_service
+
+    service = weather_service or _build_weather_service()
+    race_weather = await service.get_race_weather(lat, lon, race_dt)
+    return race_weather, service
+
+
 async def get_weather_context(
     race_data: dict | None,
 ) -> tuple[
@@ -368,65 +459,31 @@ async def get_weather_context(
     Returns a tuple of (current_weather, race_weather, weather_by_type).
     weather_by_type always includes "off": None and adds "current"/"race" when data exists.
     """
-    current_weather: Optional[WeatherData] = None
-    race_weather: Optional[WeatherData] = None
     weather_by_type: dict[str, Optional[WeatherData]] = {"off": None}
 
     if not config.WEATHER_ENABLED or not race_data:
-        return current_weather, race_weather, weather_by_type
+        return None, None, weather_by_type
 
-    circuit = race_data.get("circuit", {}) if race_data else {}
-    circuit_id = circuit.get("circuitId") or circuit.get("circuit_id", "")
+    circuit_id, lat, lon = _extract_circuit_context(race_data)
+    race_dt = _extract_race_datetime(race_data)
 
-    lat_str = circuit.get("lat")
-    lon_str = circuit.get("long") or circuit.get("lon")
-
-    lat = lon = None
-    try:
-        lat = float(lat_str) if lat_str is not None else None
-        lon = float(lon_str) if lon_str is not None else None
-    except (TypeError, ValueError):
-        logger.debug("Invalid circuit coordinates: lat=%s lon=%s", lat_str, lon_str)
-
-    weather_service: Optional[WeatherService] = None
-
-    if circuit_id:
-        current_weather = get_cached_circuit_weather(circuit_id)
-
-    if lat is not None and lon is not None and current_weather is None:
-        weather_service = WeatherService(
-            timeout=config.REQUEST_TIMEOUT,
-            cache_minutes=config.WEATHER_CACHE_MINUTES,
-        )
-        current_weather = await weather_service.get_current_weather(lat, lon)
-        if current_weather and circuit_id:
-            set_cached_circuit_weather(circuit_id, current_weather)
-
+    current_weather, weather_service = await _resolve_current_weather(
+        circuit_id=circuit_id,
+        lat=lat,
+        lon=lon,
+        weather_service=None,
+    )
     if current_weather:
         weather_by_type["current"] = current_weather
 
-    # Race-day forecast
-    race_dt: Optional[datetime] = None
-    schedule = race_data.get("schedule", []) if race_data else []
-    for session in schedule:
-        if session.get("name") == "Race":
-            dt_str = session.get("datetime")
-            try:
-                if dt_str:
-                    race_dt = datetime.fromisoformat(dt_str)
-            except ValueError:
-                logger.debug("Invalid race datetime: %s", dt_str)
-            break
-
-    if lat is not None and lon is not None and race_dt is not None:
-        if weather_service is None:
-            weather_service = WeatherService(
-                timeout=config.REQUEST_TIMEOUT,
-                cache_minutes=config.WEATHER_CACHE_MINUTES,
-            )
-        race_weather = await weather_service.get_race_weather(lat, lon, race_dt)
-        if race_weather:
-            weather_by_type["race"] = race_weather
+    race_weather, _ = await _resolve_race_weather(
+        lat=lat,
+        lon=lon,
+        race_dt=race_dt,
+        weather_service=weather_service,
+    )
+    if race_weather:
+        weather_by_type["race"] = race_weather
 
     return current_weather, race_weather, weather_by_type
 

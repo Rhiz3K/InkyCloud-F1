@@ -322,7 +322,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_get_weather_context_returns_race_forecast(self, monkeypatch):
+    @staticmethod
+    def test_get_weather_context_returns_race_forecast(monkeypatch):
         import asyncio
 
         clear_circuit_weather_cache()
@@ -348,8 +349,40 @@ class TestWeatherService:
             assert current is not None
             assert race is not None
             assert current.temperature_c != race.temperature_c
+            assert weather_by_type["current"] is not None
+            assert weather_by_type["race"] is not None
             assert weather_by_type["current"].temperature_c == 15.0
             assert weather_by_type["race"].temperature_c == 30.0
+
+        asyncio.run(run_test())
+
+    @staticmethod
+    def test_get_weather_context_invalid_coordinates(monkeypatch):
+        import asyncio
+
+        clear_circuit_weather_cache()
+
+        race_data = {
+            "circuit": {"circuitId": "test_circuit", "lat": "invalid", "long": "14.0"},
+            "schedule": [
+                {"name": "Race", "datetime": datetime.now(timezone.utc).isoformat()},
+            ],
+        }
+
+        async def fail_current(self, lat, lon):
+            raise AssertionError("get_current_weather should not be called")
+
+        async def fail_race(self, lat, lon, race_datetime):
+            raise AssertionError("get_race_weather should not be called")
+
+        monkeypatch.setattr(WeatherService, "get_current_weather", fail_current)
+        monkeypatch.setattr(WeatherService, "get_race_weather", fail_race)
+
+        async def run_test():
+            current, race, weather_by_type = await get_weather_context(race_data)
+            assert current is None
+            assert race is None
+            assert weather_by_type == {"off": None}
 
         asyncio.run(run_test())
 
@@ -400,6 +433,7 @@ class TestCircuitWeatherCache:
         set_cached_circuit_weather("monaco", weather2)
 
         result = get_cached_circuit_weather("monaco")
+        assert result is not None
         assert result.temperature_c == 30.0
         assert result.weather_code == 61
 
