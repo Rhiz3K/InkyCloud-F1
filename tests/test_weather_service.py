@@ -324,12 +324,14 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_get_race_weather_requests_forecast_covering_race_date(self, monkeypatch):
+    @staticmethod
+    def test_get_race_weather_requests_forecast_covering_race_date(monkeypatch):
         import asyncio
 
-        race_dt = datetime.now(timezone.utc) + timedelta(days=11, hours=8)
+        base_now = datetime.now(timezone.utc)
+        race_dt = base_now + timedelta(days=11, hours=8)
         race_hour = race_dt.strftime("%Y-%m-%dT%H:00")
-        expected_forecast_days = (race_dt.date() - datetime.now(timezone.utc).date()).days + 1
+        expected_forecast_days = (race_dt.date() - base_now.date()).days + 1
 
         captured_params: dict[str, int] = {}
         mock_response_data = {
@@ -342,10 +344,12 @@ class TestWeatherService:
         }
 
         class MockResponse:
-            def raise_for_status(self):
-                pass
+            @staticmethod
+            def raise_for_status() -> None:
+                return None
 
-            def json(self):
+            @staticmethod
+            def json():
                 return mock_response_data
 
         class MockAsyncClient:
@@ -355,7 +359,8 @@ class TestWeatherService:
             async def __aexit__(self, *args):
                 pass
 
-            async def get(self, url, params=None):
+            @staticmethod
+            async def get(url, params=None):
                 assert params is not None
                 captured_params["forecast_days"] = int(params["forecast_days"])
                 return MockResponse()
@@ -373,7 +378,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_get_race_weather_fallback_uses_nearest_hour(self, monkeypatch):
+    @staticmethod
+    def test_get_race_weather_fallback_uses_nearest_hour(monkeypatch):
         import asyncio
 
         race_dt = (datetime.now(timezone.utc) + timedelta(days=2)).replace(
@@ -397,10 +403,12 @@ class TestWeatherService:
         }
 
         class MockResponse:
-            def raise_for_status(self):
-                pass
+            @staticmethod
+            def raise_for_status() -> None:
+                return None
 
-            def json(self):
+            @staticmethod
+            def json():
                 return mock_response_data
 
         class MockAsyncClient:
@@ -410,7 +418,8 @@ class TestWeatherService:
             async def __aexit__(self, *args):
                 pass
 
-            async def get(self, url, params=None):
+            @staticmethod
+            async def get(url, params=None):
                 return MockResponse()
 
         monkeypatch.setattr(

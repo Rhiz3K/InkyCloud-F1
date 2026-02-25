@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-02-25
+
+### Frontend
+
+#### Added
+
+- **Open-Meteo attribution** - Added Open-Meteo to the Credits list in both desktop header dropdown and mobile configure sidebar
+
+### Backend
+
+<details markdown="1">
+<summary>Backend</summary>
+
+#### Fixed
+
+- **Forecast range boundary** - Race-day weather now requests a forecast window that always includes the race date (fixes missing data near the 14-day boundary)
+- **Nearest-hour fallback** - When exact race start hour is unavailable, fallback now picks the closest hour on race day instead of the first hour of that day
+
+#### Added
+
+- **Weather regression tests** - Added coverage for forecast-days window calculation and nearest-hour fallback selection
+- **Release automation** - Added CI workflow that creates GitHub releases from the latest `CHANGELOG.md` entry after pushes to `main`
+- **Main→dev sync automation** - Added CI workflow that opens/updates an auto-merge PR to sync `main` back into `dev` after each push to `main`
+
+</details>
+
+---
+
 ## [1.2.3] - 2026-02-25
 
 ### Frontend
