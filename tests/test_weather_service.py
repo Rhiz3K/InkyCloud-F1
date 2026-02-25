@@ -324,6 +324,55 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
+    def test_get_race_weather_requests_forecast_covering_race_date(self, monkeypatch):
+        import asyncio
+
+        race_dt = datetime.now(timezone.utc) + timedelta(days=11, hours=8)
+        race_hour = race_dt.strftime("%Y-%m-%dT%H:00")
+        expected_forecast_days = (race_dt.date() - datetime.now(timezone.utc).date()).days + 1
+
+        captured_params: dict[str, int] = {}
+        mock_response_data = {
+            "hourly": {
+                "time": [race_hour],
+                "temperature_2m": [21.0],
+                "weather_code": [1],
+                "precipitation_probability": [25],
+            }
+        }
+
+        class MockResponse:
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return mock_response_data
+
+        class MockAsyncClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def get(self, url, params=None):
+                assert params is not None
+                captured_params["forecast_days"] = int(params["forecast_days"])
+                return MockResponse()
+
+        monkeypatch.setattr(
+            "app.services.weather_service.httpx.AsyncClient",
+            lambda **kwargs: MockAsyncClient(),
+        )
+
+        async def run_test():
+            service = WeatherService()
+            result = await service.get_race_weather(lat=52.52, lon=13.41, race_datetime=race_dt)
+            assert result is not None
+            assert captured_params["forecast_days"] == expected_forecast_days
+
+        asyncio.run(run_test())
+
     @staticmethod
     def test_get_weather_context_returns_race_forecast(monkeypatch):
         import asyncio
