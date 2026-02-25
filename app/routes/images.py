@@ -253,11 +253,6 @@ async def _render_calendar(
         renderer = _get_renderer(display, translator)
         return renderer.render_error("Failed to fetch race data"), None
 
-    race_data = _maybe_convert_timezone(race_data, target_tz)
-
-    circuit_id = race_data.get("circuit", {}).get("circuitId", "")
-    historical_data = F1Service.get_historical_from_static(circuit_id) if circuit_id else None
-
     weather_data = None
     if weather and config.WEATHER_ENABLED:
         _, _, weather_by_type = await get_weather_context(race_data)
@@ -265,6 +260,11 @@ async def _render_calendar(
             weather_data = weather_by_type.get("race")
         elif weather_type == "current":
             weather_data = weather_by_type.get("current")
+
+    race_data = _maybe_convert_timezone(race_data, target_tz)
+
+    circuit_id = race_data.get("circuit", {}).get("circuitId", "")
+    historical_data = F1Service.get_historical_from_static(circuit_id) if circuit_id else None
 
     renderer = _get_renderer(display, translator)
     return renderer.render_calendar(

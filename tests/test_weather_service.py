@@ -74,8 +74,10 @@ class TestWeatherService:
     @pytest.fixture(autouse=True)
     def clear_cache(self):
         clear_weather_cache()
+        clear_circuit_weather_cache()
         yield
         clear_weather_cache()
+        clear_circuit_weather_cache()
 
     def test_invalid_coordinates_returns_none(self):
         import asyncio
@@ -326,19 +328,23 @@ class TestWeatherService:
     def test_get_weather_context_returns_race_forecast(monkeypatch):
         import asyncio
 
-        clear_circuit_weather_cache()
-
         race_data = {
             "circuit": {"circuitId": "test_circuit", "lat": "50.0", "long": "14.0"},
             "schedule": [
-                {"name": "Race", "datetime": datetime.now(timezone.utc).isoformat()},
+                {
+                    "name": "race",
+                    "datetime": "2026-03-08T15:00:00+02:00",
+                },
             ],
         }
+
+        captured: dict[str, datetime] = {}
 
         async def fake_current(self, lat, lon):
             return WeatherData(temperature_c=15.0, weather_code=1, precipitation_probability=10)
 
         async def fake_race(self, lat, lon, race_datetime):
+            captured["race_datetime"] = race_datetime
             return WeatherData(temperature_c=30.0, weather_code=3, precipitation_probability=80)
 
         monkeypatch.setattr(WeatherService, "get_current_weather", fake_current)
@@ -353,14 +359,13 @@ class TestWeatherService:
             assert weather_by_type["race"] is not None
             assert weather_by_type["current"].temperature_c == 15.0
             assert weather_by_type["race"].temperature_c == 30.0
+            assert captured["race_datetime"] == datetime(2026, 3, 8, 13, 0, tzinfo=timezone.utc)
 
         asyncio.run(run_test())
 
     @staticmethod
     def test_get_weather_context_invalid_coordinates(monkeypatch):
         import asyncio
-
-        clear_circuit_weather_cache()
 
         race_data = {
             "circuit": {"circuitId": "test_circuit", "lat": "invalid", "long": "14.0"},
