@@ -195,6 +195,7 @@ def test_header_contains_credits_dropdown():
     # LaskaKit link has full product URL
     assert 'href="https://www.laskakit.cz/' in html
     assert "jolpica" in html
+    assert 'href="https://open-meteo.com"' in html
 
 
 def test_configure_page_has_sidebar():
