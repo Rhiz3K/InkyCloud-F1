@@ -268,15 +268,35 @@ class WeatherService:
                     precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
                 )
 
-        logger.debug("Exact hour %s not found, finding closest", race_hour_str)
+        logger.debug("Exact hour %s not found, finding closest hour on race date", race_hour_str)
         race_date_str = race_dt_utc.strftime("%Y-%m-%d")
+
+        closest_index: Optional[int] = None
+        closest_delta_seconds: Optional[float] = None
         for i, t in enumerate(times):
-            if t.startswith(race_date_str):
-                return WeatherData(
-                    temperature_c=temps[i] if i < len(temps) else 20.0,
-                    weather_code=codes[i] if i < len(codes) else 0,
-                    precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
-                )
+            if not t.startswith(race_date_str):
+                continue
+
+            try:
+                candidate_dt = _to_utc_datetime(datetime.fromisoformat(t.replace("Z", "+00:00")))
+            except ValueError:
+                continue
+
+            delta_seconds = abs((candidate_dt - race_dt_utc).total_seconds())
+            if closest_delta_seconds is None or delta_seconds < closest_delta_seconds:
+                closest_delta_seconds = delta_seconds
+                closest_index = i
+
+        if closest_index is not None:
+            return WeatherData(
+                temperature_c=temps[closest_index] if closest_index < len(temps) else 20.0,
+                weather_code=codes[closest_index] if closest_index < len(codes) else 0,
+                precipitation_probability=(
+                    precip[closest_index]
+                    if closest_index < len(precip) and precip[closest_index]
+                    else 0
+                ),
+            )
 
         logger.warning("Could not find weather for %s", race_hour_str)
         return None
