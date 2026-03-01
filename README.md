@@ -24,19 +24,24 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 
 ### URL Parameters
 
-| Parameter | Options                      | Example                |
-| --------- | ---------------------------- | ---------------------- |
-| `lang`    | `cs` (Czech), `en` (English) | `?lang=en`             |
-| `tz`      | Any IANA timezone            | `?tz=America/New_York` |
-| `year`    | Season year                  | `?year=2026`           |
-| `round`   | Race round number            | `?year=2026&round=5`   |
+| Parameter      | Options                          | Example                              |
+| -------------- | -------------------------------- | ------------------------------------ |
+| `lang`         | `cs` (Czech), `en` (English)     | `?lang=en`                           |
+| `tz`           | Any IANA timezone                | `?tz=America/New_York`               |
+| `year`         | Season year                      | `?year=2026`                         |
+| `round`        | Race round number                | `?year=2026&round=5`                 |
+| `display`      | `1bit`, `spectra6`               | `?display=spectra6`                  |
+| `weather`      | `true`, `false`                  | `?weather=false`                     |
+| `weather_type` | `race_day`, `current`            | `?weather=true&weather_type=current` |
 
 **Examples:**
 
-```
+```text
 https://f1.inkycloud.click/calendar.bmp?lang=cs
 https://f1.inkycloud.click/calendar.bmp?lang=en&tz=America/New_York
 https://f1.inkycloud.click/calendar.bmp?lang=en&year=2026&round=5
+https://f1.inkycloud.click/calendar.bmp?lang=en&display=spectra6
+https://f1.inkycloud.click/calendar.bmp?lang=en&weather=true&weather_type=current
 ```
 
 ---
@@ -51,10 +56,11 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
 ## ✨ Features
 
-- **800×480 1-bit BMP** — Optimized for E-Ink displays (LaskaKit)
+- **800×480 BMP output** — `1bit` monochrome and `spectra6` 6-color mode for calendar screen
 - **Always Up-to-Date** — Automatically updated after each Grand Prix
 - **Multi-language** — Czech and English support
 - **Any Timezone** — Convert race times to your local timezone
+- **Optional Weather Overlay** — Current or race-day weather on calendar screen
 - **Historical Results** — Previous year's podium for each circuit
 - **Track Info** — Circuit map, length, laps, and first GP year
 - **Session Schedule** — FP1, FP2, FP3, Qualifying, Sprint, Race times
@@ -63,13 +69,13 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
 Planned features for future releases:
 
-- [ ] **Multi-color E-Ink displays** — Support for red/black/white and other color variants
+- [ ] **Multi-color E-Ink displays** — Support for red/black/white and other color variants (partial today: `display=spectra6` for calendar)
 - [ ] **Additional display sizes** — Beyond 800×480 (e.g., 4.2", 5.83", 12.48")
 - [ ] **More languages** — German, Spanish, Italian, and community translations
 - [x] **Championship standings** — Driver and constructor standings view
 - [x] **Teams & Drivers screen** — Full team grid with driver photos and points
 - [ ] **Dark mode variant** — Inverted colors for different display preferences
-- [ ] **Weather integration** — Race weekend weather forecast
+- [ ] **Extended weather integration** — Richer race weekend forecast and details (basic weather overlay is already available)
 - [ ] **Custom layouts** — Multiple layout options to choose from
 
 ---
@@ -101,25 +107,34 @@ if (httpCode == HTTP_CODE_OK) {
 
 The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides these endpoints:
 
-| Endpoint                       | Description                               |
-| ------------------------------ | ----------------------------------------- |
-| `GET /calendar.bmp`            | Generate F1 calendar as 1-bit BMP image   |
-| `GET /teams.bmp`               | Teams & drivers grid as 1-bit BMP image   |
-| `GET /`                        | Landing page with screen type selection   |
-| `GET /configure/{screen}`      | Interactive preview page (calendar/teams) |
-| `GET /api`                     | API documentation                         |
-| `GET /api/races/{year}`        | All races for a season (JSON)             |
-| `GET /api/race/{year}/{round}` | Specific race details (JSON)              |
-| `GET /api/teams/{year}`        | Teams and drivers for a season (JSON)     |
-| `GET /api/standings/leader`    | Current championship leader (JSON)        |
-| `GET /api/stats`               | Request statistics                        |
-| `GET /health`                  | Health check                              |
+| Endpoint                                 | Description                                             |
+| ---------------------------------------- | ------------------------------------------------------- |
+| `GET /calendar.bmp`                      | Calendar BMP with `display`, `weather`, and `tz` params |
+| `GET /teams.bmp`                         | Teams & drivers grid as 1-bit BMP image                |
+| `GET /`                                  | Landing page with screen type selection                 |
+| `GET /configure/{screen}`                | Interactive preview page (calendar/teams)               |
+| `GET /preview/{screen}.png`              | Pre-generated preview PNG                               |
+| `GET /preview/configure/{screen}.png`    | Pre-generated configure preview PNG                     |
+| `GET /api`                               | API documentation (JSON)                                |
+| `GET /api/docs`                          | Alias for `/api`                                        |
+| `GET /api/races/{year}`                  | All races for a season (JSON)                           |
+| `GET /api/race/{year}/{round}`           | Specific race details (JSON)                            |
+| `GET /api/teams/{year}`                  | Teams and drivers for a season (JSON)                   |
+| `GET /api/standings/leader`              | Current championship leader (JSON)                      |
+| `GET /api/standings/leader/{year}`       | Championship leader for a specific season (JSON)        |
+| `GET /api/stats`                         | Request statistics                                      |
+| `GET /api/stats/history`                 | Historical hourly request statistics                    |
+| `POST /api/perf-metrics`                 | Store frontend performance metrics (Core Web Vitals)    |
+| `GET /api/perf-metrics`                  | Read aggregated frontend performance metrics            |
+| `GET /health`                            | Health check                                            |
 
 ---
 
 ## 🏠 Self-Hosting
 
 Want to run your own instance? We've got you covered!
+
+Local development requires **Python 3.14.3+**.
 
 👉 **[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete guide for self-hosting including:
 

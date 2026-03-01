@@ -188,13 +188,15 @@ standings_*.png
 *.swp
 *.swo
 
-# AI assistant configs (keep AGENTS.md tracked)
+# AI assistant and planning artifacts
 .claude/
+.opencode/
+.serena/
+conductor/
+openspec/
 CLAUDE.md
 PLAN.md
-
-# Internal workflow (keep openspec tracked)
-conductor/
+AGENTS.md
 
 # Local environment files
 .env.local
@@ -205,6 +207,7 @@ conductor/
 .claude_settings.json
 bun.lock
 app/services/AGENTS.md
+scripts/AGENTS.md
 
 # Local assistant artifacts
 .sisyphus/

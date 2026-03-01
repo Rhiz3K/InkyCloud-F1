@@ -7,13 +7,12 @@ authors = [
     { name = "Rhiz3K" },
 ]
 license = "MIT"
-requires-python = ">=3.11"
+requires-python = ">=3.14.3"
 classifiers = [
     "Framework :: FastAPI",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "fastapi>=0.104.0",
@@ -64,7 +63,7 @@ include-package-data = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.6] - 2026-03-01
+
+### Backend
+
+<details markdown="1">
+<summary>Backend</summary>
+
+#### Changed
+
+- **Python runtime baseline** - Raised minimum supported version to `3.14.3` and aligned Ruff target to `py314`
+- **Docker runtime parity** - Updated builder and runtime images to `python:3.14.3-slim`
+- **CI runtime parity** - Updated workflows to run on Python `3.14.3` and moved CI dependency install to `pip install -e ".[dev]"`
+- **Dependency lock refresh** - Regenerated `uv.lock` for `requires-python = ">=3.14.3"` with compatible resolved versions
+- **Docs/runtime alignment** - Updated README and deployment docs to reflect the new Python baseline and current API surface
+
+</details>
+
+---
+
 ## [1.2.5] - 2026-03-01
 
 ### Backend
