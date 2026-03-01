@@ -36,7 +36,7 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 
 **Examples:**
 
-```
+```text
 https://f1.inkycloud.click/calendar.bmp?lang=cs
 https://f1.inkycloud.click/calendar.bmp?lang=en&tz=America/New_York
 https://f1.inkycloud.click/calendar.bmp?lang=en&year=2026&round=5
@@ -109,7 +109,7 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
-| `GET /calendar.bmp`                      | Calendar BMP (`display=1bit` or `display=spectra6`)    |
+| `GET /calendar.bmp`                      | Calendar BMP with `display`, `weather`, and `tz` params |
 | `GET /teams.bmp`                         | Teams & drivers grid as 1-bit BMP image                |
 | `GET /`                                  | Landing page with screen type selection                 |
 | `GET /configure/{screen}`                | Interactive preview page (calendar/teams)               |

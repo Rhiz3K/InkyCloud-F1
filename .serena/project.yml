@@ -17,7 +17,7 @@ languages:
 - python
 
 # the encoding used by text files in the project
-# For a list of possible encodings, see https://docs.python.org/3.11/library/codecs.html#standard-encodings
+# For a list of possible encodings, see https://docs.python.org/3.14/library/codecs.html#standard-encodings
 encoding: "utf-8"
 
 # whether to use the project's gitignore file to ignore files
