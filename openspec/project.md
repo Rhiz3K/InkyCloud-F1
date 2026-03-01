@@ -12,7 +12,7 @@ The public instance runs at [f1.inkycloud.click](https://f1.inkycloud.click) and
 
 ## Tech Stack
 
-- **Runtime**: Python 3.11+ (3.12 recommended)
+- **Runtime**: Python 3.14.3+
 - **Web Framework**: FastAPI with uvicorn
 - **Image Rendering**: Pillow (PIL) for 1-bit BMP generation
 - **HTTP Client**: httpx (async)

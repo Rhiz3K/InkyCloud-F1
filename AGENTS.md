@@ -102,7 +102,7 @@ docker run -p 8000:8000 f1-eink-cal:test
 ## Code Style Guidelines
 
 ### Python Version & Line Length
-- **Python**: 3.11+ required (3.12 recommended)
+- **Python**: 3.14.3+ required
 - **Line length**: 100 characters max (ruff enforces)
 - **Exception**: `app/main.py` allows longer lines for inline HTML templates
 

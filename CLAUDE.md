@@ -46,7 +46,7 @@ except Exception as e:
 Use `httpx.AsyncClient`, never `requests`. Analytics is fire-and-forget via `asyncio.create_task()`.
 
 ## Code Style
-- Python 3.11+ | Line length: 100 chars
+- Python 3.14.3+ | Line length: 100 chars
 - Imports: stdlib -> third-party -> local (ruff I rules)
 - `snake_case` functions/vars, `PascalCase` classes
 - Config from env vars only (`app/config.py`)

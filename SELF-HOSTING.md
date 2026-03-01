@@ -745,7 +745,7 @@ Name your track images using the `circuitId`:
 
 ## Tech Stack
 
-- **Python 3.11**: Modern Python with type hints
+- **Python 3.14.3**: Modern Python with type hints
 - **FastAPI**: High-performance web framework
 - **Pillow**: Image generation and manipulation
 - **HTTPX**: Async HTTP client for API calls
