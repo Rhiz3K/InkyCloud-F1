@@ -56,25 +56,19 @@ def historical_data():
         qualifying_results=[
             QualifyingResultEntry(
                 position=1,
-                driver=DriverInfo(
-                    code="VER", given_name="Max", family_name="Verstappen"
-                ),
+                driver=DriverInfo(code="VER", given_name="Max", family_name="Verstappen"),
                 constructor=ConstructorInfo(name="Red Bull"),
                 q3_time="1:29.708",
             ),
             QualifyingResultEntry(
                 position=2,
-                driver=DriverInfo(
-                    code="PER", given_name="Sergio", family_name="Perez"
-                ),
+                driver=DriverInfo(code="PER", given_name="Sergio", family_name="Perez"),
                 constructor=ConstructorInfo(name="Red Bull"),
                 q3_time="1:29.846",
             ),
             QualifyingResultEntry(
                 position=3,
-                driver=DriverInfo(
-                    code="LEC", given_name="Charles", family_name="Leclerc"
-                ),
+                driver=DriverInfo(code="LEC", given_name="Charles", family_name="Leclerc"),
                 constructor=ConstructorInfo(name="Ferrari"),
                 q3_time="1:30.012",
             ),
@@ -82,25 +76,19 @@ def historical_data():
         race_results=[
             RaceResultEntry(
                 position=1,
-                driver=DriverInfo(
-                    code="VER", given_name="Max", family_name="Verstappen"
-                ),
+                driver=DriverInfo(code="VER", given_name="Max", family_name="Verstappen"),
                 constructor=ConstructorInfo(name="Red Bull"),
                 time="1:33:56.736",
             ),
             RaceResultEntry(
                 position=2,
-                driver=DriverInfo(
-                    code="PER", given_name="Sergio", family_name="Perez"
-                ),
+                driver=DriverInfo(code="PER", given_name="Sergio", family_name="Perez"),
                 constructor=ConstructorInfo(name="Red Bull"),
                 time="+11.987",
             ),
             RaceResultEntry(
                 position=3,
-                driver=DriverInfo(
-                    code="ALO", given_name="Fernando", family_name="Alonso"
-                ),
+                driver=DriverInfo(code="ALO", given_name="Fernando", family_name="Alonso"),
                 constructor=ConstructorInfo(name="Aston Martin"),
                 time="+38.637",
             ),
@@ -133,54 +121,82 @@ def teams_data():
     """Teams and drivers data for a full 10-team grid."""
     teams = [
         _build_team(
-            "red_bull", "Red Bull", "Austrian",
-            [("VER", 1, "Max", "Verstappen", "Dutch"),
-             ("LAW", 30, "Liam", "Lawson", "New Zealander")],
+            "red_bull",
+            "Red Bull",
+            "Austrian",
+            [
+                ("VER", 1, "Max", "Verstappen", "Dutch"),
+                ("LAW", 30, "Liam", "Lawson", "New Zealander"),
+            ],
         ),
         _build_team(
-            "ferrari", "Ferrari", "Italian",
-            [("LEC", 16, "Charles", "Leclerc", "Monegasque"),
-             ("HAM", 44, "Lewis", "Hamilton", "British")],
+            "ferrari",
+            "Ferrari",
+            "Italian",
+            [
+                ("LEC", 16, "Charles", "Leclerc", "Monegasque"),
+                ("HAM", 44, "Lewis", "Hamilton", "British"),
+            ],
         ),
         _build_team(
-            "mclaren", "McLaren", "British",
-            [("NOR", 4, "Lando", "Norris", "British"),
-             ("PIA", 81, "Oscar", "Piastri", "Australian")],
+            "mclaren",
+            "McLaren",
+            "British",
+            [
+                ("NOR", 4, "Lando", "Norris", "British"),
+                ("PIA", 81, "Oscar", "Piastri", "Australian"),
+            ],
         ),
         _build_team(
-            "mercedes", "Mercedes", "German",
-            [("RUS", 63, "George", "Russell", "British"),
-             ("ANT", 12, "Andrea Kimi", "Antonelli", "Italian")],
+            "mercedes",
+            "Mercedes",
+            "German",
+            [
+                ("RUS", 63, "George", "Russell", "British"),
+                ("ANT", 12, "Andrea Kimi", "Antonelli", "Italian"),
+            ],
         ),
         _build_team(
-            "aston_martin", "Aston Martin", "British",
-            [("ALO", 14, "Fernando", "Alonso", "Spanish"),
-             ("STR", 18, "Lance", "Stroll", "Canadian")],
+            "aston_martin",
+            "Aston Martin",
+            "British",
+            [
+                ("ALO", 14, "Fernando", "Alonso", "Spanish"),
+                ("STR", 18, "Lance", "Stroll", "Canadian"),
+            ],
         ),
         _build_team(
-            "alpine", "Alpine", "French",
-            [("GAS", 10, "Pierre", "Gasly", "French"),
-             ("DOO", 7, "Jack", "Doohan", "Australian")],
+            "alpine",
+            "Alpine",
+            "French",
+            [("GAS", 10, "Pierre", "Gasly", "French"), ("DOO", 7, "Jack", "Doohan", "Australian")],
         ),
         _build_team(
-            "haas", "Haas", "American",
-            [("OCO", 31, "Esteban", "Ocon", "French"),
-             ("BEA", 87, "Oliver", "Bearman", "British")],
+            "haas",
+            "Haas",
+            "American",
+            [("OCO", 31, "Esteban", "Ocon", "French"), ("BEA", 87, "Oliver", "Bearman", "British")],
         ),
         _build_team(
-            "rb", "RB", "Italian",
-            [("TSU", 22, "Yuki", "Tsunoda", "Japanese"),
-             ("HAD", 6, "Isack", "Hadjar", "French")],
+            "rb",
+            "RB",
+            "Italian",
+            [("TSU", 22, "Yuki", "Tsunoda", "Japanese"), ("HAD", 6, "Isack", "Hadjar", "French")],
         ),
         _build_team(
-            "williams", "Williams", "British",
-            [("ALB", 23, "Alexander", "Albon", "Thai"),
-             ("SAI", 55, "Carlos", "Sainz", "Spanish")],
+            "williams",
+            "Williams",
+            "British",
+            [("ALB", 23, "Alexander", "Albon", "Thai"), ("SAI", 55, "Carlos", "Sainz", "Spanish")],
         ),
         _build_team(
-            "sauber", "Sauber", "Swiss",
-            [("HUL", 27, "Nico", "Hulkenberg", "German"),
-             ("BOR", 5, "Gabriel", "Bortoleto", "Brazilian")],
+            "sauber",
+            "Sauber",
+            "Swiss",
+            [
+                ("HUL", 27, "Nico", "Hulkenberg", "German"),
+                ("BOR", 5, "Gabriel", "Bortoleto", "Brazilian"),
+            ],
         ),
     ]
     return TeamsData(season=2025, teams=teams)
@@ -190,8 +206,16 @@ def teams_data():
 def driver_standings():
     """Driver championship standings."""
     codes = [
-        "VER", "NOR", "LEC", "SAI", "HAM",
-        "RUS", "PIA", "ALO", "STR", "OCO",
+        "VER",
+        "NOR",
+        "LEC",
+        "SAI",
+        "HAM",
+        "RUS",
+        "PIA",
+        "ALO",
+        "STR",
+        "OCO",
     ]
     return [
         DriverStanding(
@@ -256,9 +280,7 @@ def test_bench_render_teams_drivers(teams_data):
 
 
 @pytest.mark.benchmark
-def test_bench_render_standings_split(
-    driver_standings, constructor_standings
-):
+def test_bench_render_standings_split(driver_standings, constructor_standings):
     """Benchmark rendering the split standings view."""
     translator = get_translator("en")
     renderer = Renderer(translator)
@@ -296,9 +318,7 @@ def test_bench_spectra6_render_calendar(race_data):
 
 
 @pytest.mark.benchmark
-def test_bench_spectra6_render_calendar_with_historical(
-    race_data, historical_data
-):
+def test_bench_spectra6_render_calendar_with_historical(race_data, historical_data):
     """Benchmark Spectra 6 calendar with historical data overlay."""
     translator = get_translator("en")
     renderer = Spectra6Renderer(translator)
