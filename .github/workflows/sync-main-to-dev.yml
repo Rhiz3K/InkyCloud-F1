@@ -9,6 +9,7 @@ jobs:
   sync:
     runs-on: [self-hosted, linux]
     permissions:
+      actions: write
       contents: write
       pull-requests: write
 
@@ -99,6 +100,23 @@ jobs:
             }
 
             core.setOutput("number", String(pull.number));
+
+      - name: Trigger CI for sync PR branch
+        if: steps.prepare.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner,
+              repo,
+              workflow_id: "ci.yml",
+              ref: "sync/main-to-dev",
+            });
+
+            core.info("Triggered CI workflow_dispatch on sync/main-to-dev");
 
       - name: Enable auto-merge for sync PR
         if: steps.prepare.outputs.has_changes == 'true'
