@@ -352,7 +352,7 @@ Cloudflare R2 offers generous free tier (10GB storage, 1M requests/month) and no
 
    S3_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
    S3_ACCESS_KEY_ID=<your-access-key-id>
-   S3_SECRET_ACCESS_KEY=<your-secret-access-key>
+   S3_SECRET_ACCESS_KEY=<your-secret-access-key>  # skipcq: SCT-A000 (documentation placeholder)
    S3_BUCKET_NAME=f1-eink-backups
    S3_REGION=auto
    ```
@@ -366,7 +366,7 @@ BACKUP_RETENTION_DAYS=30
 
 S3_ENDPOINT_URL=https://s3.us-east-1.amazonaws.com
 S3_ACCESS_KEY_ID=<your-access-key-id>
-S3_SECRET_ACCESS_KEY=<your-secret-access-key>
+S3_SECRET_ACCESS_KEY=<your-secret-access-key>  # skipcq: SCT-A000 (documentation placeholder)
 S3_BUCKET_NAME=f1-eink-backups
 S3_REGION=us-east-1
 ```
