@@ -73,8 +73,6 @@ docker-compose*.yml
 !CHANGELOG.md
 CONTRIBUTING.md
 EXAMPLES.md
-AGENTS.md
-CLAUDE.md
 
 # Tests
 tests/
@@ -83,7 +81,6 @@ test_*.py
 
 # Local development
 quickstart.sh
-plan.md
 
 # Build artifacts
 *.pyc

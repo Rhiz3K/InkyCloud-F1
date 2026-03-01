@@ -271,13 +271,6 @@ data/benchmark_results.json
 
 # AI assistant configs
 .claude/
-CLAUDE.md
-AGENTS.md
-PLAN.md
-
-# Internal workflow
-conductor/
-openspec/
 
 # Local environment files
 .env.local

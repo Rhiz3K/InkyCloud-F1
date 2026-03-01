@@ -5,8 +5,6 @@ exclude_patterns = [
   "__pycache__/**",
   "*.egg-info/**",
   "app/assets/**",
-  "conductor/**",
-  "openspec/changes/archive/**",
   ".auto-claude/**"
 ]
 
