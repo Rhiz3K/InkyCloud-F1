@@ -44,7 +44,7 @@ jobs:
     
     - name: Run tests
       run: |
-        pytest tests/ -v
+        pytest tests/ -v -m "not benchmark"
     
     - name: Test Docker build
       run: |
