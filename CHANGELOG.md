@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.7] - 2026-03-05
+
+### Backend
+
+<details markdown="1">
+<summary>Backend</summary>
+
+#### Changed
+
+- **Albert Park track assets** - Replaced `app/assets/tracks/albert_park.png` with the latest map version and regenerated `app/assets/tracks_processed/albert_park.bmp`
+- **Main→dev sync timing** - Updated sync automation to run after published releases so `dev` is refreshed from `main` after each release
+
+</details>
+
+---
+
 ## [1.2.6] - 2026-03-01
 
 ### Backend
