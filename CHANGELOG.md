@@ -14,9 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-- **Albert Park track assets** - Updated `app/assets/tracks/albert_park.png` and regenerated `app/assets/tracks_processed/albert_park.bmp` for the latest circuit map
-- **Repository cleanup** - Removed local planning/agent metadata and archived spec artifacts that are not part of the runtime project
-- **CI and docs alignment** - Applied post-review updates across CI workflows and deployment/documentation references
+- **Albert Park track assets** - Replaced `app/assets/tracks/albert_park.png` with the latest map version and regenerated `app/assets/tracks_processed/albert_park.bmp`
 
 </details>
 
