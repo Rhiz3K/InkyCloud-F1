@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.7] - 2026-03-05
 
-### Backend
-
 <details markdown="1">
 <summary>Backend</summary>
 

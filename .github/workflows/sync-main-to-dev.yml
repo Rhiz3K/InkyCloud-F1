@@ -26,6 +26,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git fetch origin main dev
+          main_sha="$(git rev-parse origin/main)"
+          echo "main_sha=$main_sha" >> "$GITHUB_OUTPUT"
           git checkout -B sync/main-to-dev origin/dev
 
           if ! git merge --no-ff --no-edit origin/main; then
@@ -60,7 +62,8 @@ jobs:
             const body = [
               "Automated sync PR to keep `dev` aligned with `main` after published releases.",
               "",
-              `- Trigger commit: ${context.sha}`,
+              `- Release event commit: ${context.sha}`,
+              "- Synced main HEAD: ${{ steps.prepare.outputs.main_sha }}",
               "- Merge method: merge commit",
               "",
               "This PR is managed by CI.",
