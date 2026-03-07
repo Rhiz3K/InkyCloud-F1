@@ -14,6 +14,8 @@ def test_config_defaults():
     assert config.DISPLAY_WIDTH == 800
     assert config.DISPLAY_HEIGHT == 480
     assert config.DEFAULT_LANG in ["en", "cs"]
+    assert config.ASSET_API_URL is None
+    assert config.ASSET_CACHE_TTL_HOURS == 24
 
 
 def test_config_invalid_env_falls_back(monkeypatch):
@@ -24,6 +26,8 @@ def test_config_invalid_env_falls_back(monkeypatch):
     monkeypatch.setenv("DEFAULT_TIMEZONE", "Not/AZone")
     monkeypatch.setenv("UMAMI_API_URL", "not-a-url")
     monkeypatch.setenv("SENTRY_TRACES_SAMPLE_RATE", "2")
+    monkeypatch.setenv("ASSET_API_URL", "not-a-url")
+    monkeypatch.setenv("ASSET_CACHE_TTL_HOURS", "0")
 
     config_module._reset_config_cache_for_tests()
     importlib.reload(config_module)
@@ -34,6 +38,8 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert config.DEFAULT_TIMEZONE == "Europe/Prague"
     assert str(config.UMAMI_API_URL) == "https://analytics.example.com/api/send"
     assert config.SENTRY_TRACES_SAMPLE_RATE == 0.1
+    assert config.ASSET_API_URL is None
+    assert config.ASSET_CACHE_TTL_HOURS == 24
 
 
 def test_translator_english():

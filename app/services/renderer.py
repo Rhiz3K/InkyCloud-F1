@@ -11,6 +11,7 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import ConstructorStanding, DriverStanding, HistoricalData, TeamsData
+from app.services.asset_client import get_asset_client
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
@@ -978,8 +979,8 @@ class Renderer:
                 track_image = track_image.convert("1")
 
             final_w, final_h = track_image.size
-            paste_x = side_margin + (available_width - final_w) // 2
-            paste_y = track_top + (available_height - final_h) // 2
+            paste_x = int(side_margin + (available_width - final_w) // 2)
+            paste_y = int(track_top + (available_height - final_h) // 2)
 
             image.paste(track_image, (paste_x, paste_y))
         else:
@@ -1018,6 +1019,17 @@ class Renderer:
 
         if not circuit_id:
             return None
+
+        normalized_ids = [circuit_id]
+        mapped_id = CIRCUIT_ID_MAP.get(circuit_id)
+        if mapped_id:
+            normalized_ids.append(mapped_id)
+        if circuit_id.lower() != circuit_id:
+            normalized_ids.append(circuit_id.lower())
+
+        remote_track = get_asset_client().get_track_image(normalized_ids, variant="1bit")
+        if remote_track is not None:
+            return remote_track
 
         # Try pre-processed BMP first (much faster)
         processed_patterns = [

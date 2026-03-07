@@ -18,6 +18,7 @@ from app.models import (
     TeamsData,
 )
 from app.services import renderer as renderer_module
+from app.services import spectra6_renderer as spectra6_renderer_module
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
@@ -951,6 +952,27 @@ def test_render_calendar_with_rgb_track_image(mock_race_data, tmp_path, monkeypa
     assert img.mode == "1"
 
 
+def test_renderer_uses_remote_asset_client_first(mock_race_data, monkeypatch):
+    """Renderer prefers remote asset client before local glob fallback."""
+
+    remote_image = Image.new("1", (120, 80), 1)
+    draw = ImageDraw.Draw(remote_image)
+    draw.rectangle([20, 20, 100, 60], fill=0)
+
+    class FakeAssetClient:
+        def get_track_image(self, circuit_ids, variant):
+            assert variant == "1bit"
+            assert "test_circuit" in list(circuit_ids)
+            return remote_image
+
+    monkeypatch.setattr(renderer_module, "get_asset_client", lambda: FakeAssetClient())
+
+    image = Renderer._load_track_image(mock_race_data)
+
+    assert image is not None
+    assert image.size == (120, 80)
+
+
 # ============================================================================
 # Spectra 6 Renderer Tests (6-color E-Ink display)
 # ============================================================================
@@ -1017,6 +1039,25 @@ def test_spectra6_render_calendar_new_track(mock_race_data):
     assert img.format == "BMP"
     assert img.size == (800, 480)
     assert img.mode == "P"
+
+
+def test_spectra6_renderer_uses_remote_asset_client_first(mock_race_data, monkeypatch):
+    """Spectra6 renderer prefers remote asset client before local filesystem fallback."""
+
+    remote_image = Image.new("P", (140, 90), color=1)
+
+    class FakeAssetClient:
+        def get_track_image(self, circuit_ids, variant):
+            assert variant == "spectra6"
+            assert "test_circuit" in list(circuit_ids)
+            return remote_image
+
+    monkeypatch.setattr(spectra6_renderer_module, "get_asset_client", lambda: FakeAssetClient())
+
+    image = Spectra6Renderer._load_track_image(mock_race_data)
+
+    assert image is not None
+    assert image.size == (140, 90)
 
 
 def test_spectra6_render_error_english():

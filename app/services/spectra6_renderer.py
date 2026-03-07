@@ -11,6 +11,7 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import HistoricalData
+from app.services.asset_client import get_asset_client
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
@@ -287,10 +288,11 @@ class Spectra6Renderer:
 
             # Center horizontally and vertically in available space
             final_w, final_h = track_image.size
-            paste_x = side_margin + (available_width - final_w) // 2
-            paste_y = track_top + (available_height - final_h) // 2
+            paste_x = int(side_margin + (available_width - final_w) // 2)
+            paste_y = int(track_top + (available_height - final_h) // 2)
 
-            image.paste(track_image.convert("RGB"), (paste_x, paste_y))
+            paste_box = (int(paste_x), int(paste_y))
+            image.paste(track_image.convert("RGB"), paste_box)
         else:
             self._draw_track_placeholder(
                 draw,
@@ -322,7 +324,17 @@ class Spectra6Renderer:
         if not circuit_id:
             return None
 
-        normalized_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
+        circuit_id_str = str(circuit_id)
+        normalized_id = str(CIRCUIT_ID_MAP.get(circuit_id_str, circuit_id_str))
+        remote_candidate_ids: list[str] = [normalized_id, circuit_id_str]
+        lowered_id = circuit_id_str.lower()
+        if lowered_id not in remote_candidate_ids:
+            remote_candidate_ids.append(lowered_id)
+
+        remote_track = get_asset_client().get_track_image(remote_candidate_ids, variant="spectra6")
+        if remote_track is not None:
+            return remote_track
+
         track_path = TRACKS_SPECTRA6_DIR / f"{normalized_id}.bmp"
 
         if track_path.exists():

@@ -111,6 +111,25 @@ class Config(BaseSettings):
     S3_BUCKET_NAME: Optional[str] = Field(default=None, description="S3 bucket name for backups")
     S3_REGION: str = Field("auto", description="S3 region (use 'auto' for Cloudflare R2)")
 
+    # Remote asset API settings
+    ASSET_API_URL: Optional[str] = Field(default=None, description="Internal asset API base URL")
+    ASSET_API_TOKEN: Optional[str] = Field(
+        default=None, description="Bearer token for the internal asset API"
+    )
+    ASSET_CACHE_DIR: str = Field(
+        "/app/data/asset-cache",
+        description="Directory for cached remote asset binaries and manifests",
+    )
+    ASSET_CACHE_TTL_HOURS: int = Field(
+        24,
+        gt=0,
+        description="Remote asset cache lifetime in hours",
+    )
+    ASSET_PREFETCH_ENABLED: bool = Field(
+        False,
+        description="Enable optional asset prefetching hooks",
+    )
+
     @field_validator("APP_PORT", mode="before")
     @classmethod
     def validate_port(cls, value: object, info: ValidationInfo) -> int:
@@ -247,6 +266,49 @@ class Config(BaseSettings):
                 value,
             )
             return None
+
+    @field_validator("ASSET_API_URL", mode="before")
+    @classmethod
+    def validate_asset_api_url(cls, value: object, info: ValidationInfo) -> Optional[str]:
+        if info.field_name is None:
+            return None
+        if value is None or value == "":
+            return None
+        adapter = TypeAdapter(HttpUrl)
+        try:
+            validated = adapter.validate_python(value)
+            return str(validated)
+        except ValidationError:
+            logger.warning(
+                "Invalid value for %s=%r; must be a valid URL. Remote assets will be disabled.",
+                info.field_name,
+                value,
+            )
+            return None
+
+    @field_validator("ASSET_API_TOKEN", mode="before")
+    @classmethod
+    def normalize_asset_api_token(cls, value: object) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return None
+
+    @field_validator("ASSET_CACHE_TTL_HOURS", mode="before")
+    @classmethod
+    def validate_asset_cache_ttl(cls, value: object, info: ValidationInfo) -> int:
+        if info.field_name is None:
+            return 24
+        default: int = cls.model_fields[info.field_name].default
+        try:
+            ttl = int(value)  # type: ignore[call-overload]
+            if ttl > 0:
+                return ttl
+        except (TypeError, ValueError):
+            pass
+        return _warn_invalid(info.field_name, value, default, "must be a positive integer")
 
 
 @lru_cache()
