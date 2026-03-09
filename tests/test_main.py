@@ -554,6 +554,14 @@ def test_configure_teams_screen_type():
     assert 'currentScreenType = "teams"' in html
 
 
+def test_configure_teams_season_buttons_do_not_duplicate_current_year():
+    """Test teams season buttons derive extra seasons dynamically."""
+    response = client.get("/configure/teams")
+    html = response.text
+    assert "function getTeamsSeasonEntries()" in html
+    assert '{ label: "2026", year: 2026, disabled: true }' not in html
+
+
 def test_configure_calendar_screen_type():
     """Test configure calendar page has correct screen type."""
     response = client.get("/configure/calendar")

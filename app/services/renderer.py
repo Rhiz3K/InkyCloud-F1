@@ -3,6 +3,7 @@
 import io
 import json
 import logging
+import math
 from datetime import datetime
 from pathlib import Path
 
@@ -244,20 +245,19 @@ class Renderer:
         split_x = self.width // 2
         gap = col_padding
 
-        teams_per_col = 5
+        left_teams, right_teams = self._split_teams_for_columns(teams)
+        teams_per_col = max(len(left_teams), len(right_teams), 1)
         row_gap = 2
         available_height = self.height - header_height - 8 - (teams_per_col - 1) * row_gap
         row_height = available_height // teams_per_col
 
         y = header_height + 4
 
-        left_teams = teams[:teams_per_col]
         for team in left_teams:
             self._draw_team_row(image, draw, col_padding, y, split_x - gap // 2, team, row_height)
             y += row_height + row_gap
 
         y = header_height + 4
-        right_teams = teams[teams_per_col : teams_per_col * 2]
         for team in right_teams:
             self._draw_team_row(
                 image,
@@ -269,6 +269,14 @@ class Renderer:
                 row_height,
             )
             y += row_height + row_gap
+
+    @staticmethod
+    def _split_teams_for_columns(teams: list) -> tuple[list, list]:
+        if not teams:
+            return [], []
+
+        left_count = math.ceil(len(teams) / 2)
+        return teams[:left_count], teams[left_count:]
 
     def _draw_driver_photo(
         self,
@@ -292,17 +300,6 @@ class Renderer:
             .replace("è", "e")
         )
 
-        driver_img = self._driver_photos.get(surname) if self._driver_photos else None
-
-        if driver_img is not None:
-            orig_w, orig_h = driver_img.size
-            scale = size / orig_h
-            new_w = int(orig_w * scale)
-            new_h = size
-            photo_resized = driver_img.resize((new_w, new_h), Image.Resampling.NEAREST)
-            image.paste(photo_resized, (x, y))
-            return new_w + 2
-
         if driver_number is not None:
             draw = ImageDraw.Draw(image)
             num_text = str(driver_number)
@@ -313,6 +310,16 @@ class Renderer:
             text_y = y + (size - text_h) // 2 - int(bbox[1])
             draw.text((x, text_y), num_text, fill=0, font=font)
             return text_w + 4
+
+        driver_img = self._driver_photos.get(surname) if self._driver_photos else None
+        if driver_img is not None:
+            orig_w, orig_h = driver_img.size
+            scale = size / orig_h
+            new_w = int(orig_w * scale)
+            new_h = size
+            photo_resized = driver_img.resize((new_w, new_h), Image.Resampling.NEAREST)
+            image.paste(photo_resized, (x, y))
+            return new_w + 2
 
         return 0
 
@@ -429,8 +436,14 @@ class Renderer:
             bbox = draw.textbbox((0, 0), text, font=font)
             return int(right_edge - (bbox[2] - bbox[0]))
 
+        def text_width(text: str, font) -> int:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            return int(bbox[2] - bbox[0])
+
         pts_right_x = x_end - 4
-        team_pos_x = x_end - 70
+        team_pts_x = right_align_x(team_pts, pts_right_x, tech_font)
+        team_pos_x = team_pts_x - text_width(team_pos, tech_font) - 10
+        tech_right_limit = team_pos_x - 10
 
         name_x = x_start + 4
         draw.text((name_x, header_text_y), team_name, fill=1, font=team_font)
@@ -448,11 +461,12 @@ class Renderer:
         else:
             pu_x = chassis_x
 
-        draw.text((pu_x, tech_text_y), power_unit, fill=1, font=tech_font)
+        if pu_x < tech_right_limit:
+            draw.text((pu_x, tech_text_y), power_unit, fill=1, font=tech_font)
 
         draw.text((team_pos_x, tech_text_y), team_pos, fill=1, font=tech_font)
         draw.text(
-            (right_align_x(team_pts, pts_right_x, tech_font), tech_text_y),
+            (team_pts_x, tech_text_y),
             team_pts,
             fill=1,
             font=tech_font,
@@ -528,8 +542,8 @@ class Renderer:
             else:
                 draw.text((driver_pos_x, driver_small_y), pos_text, fill=0, font=small_font)
 
-        logo_container_right = driver_pos_x - 15
-        logo_container_left = driver_name_x + 130
+        logo_container_right = driver_pos_x - 8
+        logo_container_left = max(driver_name_x + 170, logo_container_right - 96)
         self._draw_team_logo(
             image,
             team,
@@ -542,6 +556,10 @@ class Renderer:
     @staticmethod
     def _get_team_logo_key(constructor: str) -> str | None:
         name = constructor.lower()
+        if "audi" in name:
+            return "audi"
+        if "cadillac" in name:
+            return "cadillac"
         if "mclaren" in name:
             return "mclaren"
         if "williams" in name:
@@ -587,7 +605,9 @@ class Renderer:
 
         orig_w, orig_h = logo.size
         container_w = container_right - container_left
-        max_w = container_w - 30
+        if container_w <= 0:
+            return
+        max_w = max(1, container_w - 12)
         max_h = driver_area_h - 2
 
         scale_w = max_w / orig_w
@@ -599,7 +619,7 @@ class Renderer:
 
         logo_resized = logo.resize((new_w, new_h), Image.Resampling.NEAREST)
 
-        logo_x = container_left + (container_w - new_w) // 2
+        logo_x = container_right - new_w
         logo_y = driver_area_y + (driver_area_h - new_h) // 2
 
         image.paste(logo_resized, (logo_x, logo_y))
@@ -978,8 +998,8 @@ class Renderer:
                 track_image = track_image.convert("1")
 
             final_w, final_h = track_image.size
-            paste_x = side_margin + (available_width - final_w) // 2
-            paste_y = track_top + (available_height - final_h) // 2
+            paste_x = int(side_margin + (available_width - final_w) // 2)
+            paste_y = int(track_top + (available_height - final_h) // 2)
 
             image.paste(track_image, (paste_x, paste_y))
         else:

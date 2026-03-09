@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import time
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -25,6 +26,34 @@ CACHE_TTL_SECONDS = 3600
 SEASON_START_DATES = {
     2025: datetime(2025, 3, 16, tzinfo=timezone.utc),
     2026: datetime(2026, 3, 8, tzinfo=timezone.utc),
+}
+
+MANUAL_DRIVER_NUMBER_OVERRIDES = {
+    2026: {
+        "norris": 1,
+        "verstappen": 3,
+        "hadjar": 6,
+        "lawson": 30,
+        "lindblad": 41,
+        "bortoleto": 5,
+        "hulkenberg": 27,
+        "perez": 11,
+        "bottas": 77,
+    }
+}
+
+MANUAL_DRIVER_NUMBER_OVERRIDE_NAME_FALLBACKS = {
+    2026: {
+        "lando norris": "norris",
+        "max verstappen": "verstappen",
+        "isack hadjar": "hadjar",
+        "liam lawson": "lawson",
+        "arvid lindblad": "lindblad",
+        "gabriel bortoleto": "bortoleto",
+        "nico hulkenberg": "hulkenberg",
+        "sergio perez": "perez",
+        "valtteri bottas": "bottas",
+    }
 }
 
 
@@ -73,6 +102,38 @@ class TeamsService:
         """Validate year is within acceptable F1 data range (1950-2030)."""
         return isinstance(year, int) and 1950 <= year <= 2030
 
+    @staticmethod
+    def _normalize_driver_lookup_key(name: str) -> str:
+        normalized = unicodedata.normalize("NFKD", name)
+        ascii_name = normalized.encode("ascii", "ignore").decode("ascii")
+        return " ".join(ascii_name.replace(" Jr.", "").replace(" jr.", "").lower().split())
+
+    @classmethod
+    def _get_override_driver_id(cls, driver: TeamDriverEntry, season: int) -> str | None:
+        if driver.driver_id:
+            return driver.driver_id
+
+        name_fallbacks = MANUAL_DRIVER_NUMBER_OVERRIDE_NAME_FALLBACKS.get(season, {})
+        normalized_name = cls._normalize_driver_lookup_key(driver.name)
+        return name_fallbacks.get(normalized_name)
+
+    @classmethod
+    def _apply_manual_overrides(cls, teams_data: TeamsData) -> TeamsData:
+        driver_number_overrides = MANUAL_DRIVER_NUMBER_OVERRIDES.get(teams_data.season, {})
+        if not driver_number_overrides:
+            return teams_data
+
+        for team in teams_data.teams:
+            for driver in team.drivers:
+                override_driver_id = cls._get_override_driver_id(driver, teams_data.season)
+                if override_driver_id is None:
+                    continue
+                override_number = driver_number_overrides.get(override_driver_id)
+                if override_number is not None:
+                    driver.driver_number = override_number
+
+        return teams_data
+
     def _load_from_json(self, year: int) -> Optional[TeamsData]:
         if not self._validate_year(year):
             logger.warning("Invalid year requested: %s", year)
@@ -107,6 +168,7 @@ class TeamsService:
                 for driver_data in team_data.get("drivers", []):
                     drivers.append(
                         TeamDriverEntry(
+                            driver_id=driver_data.get("driver_id", ""),
                             driver_number=driver_data.get("number"),
                             name=driver_data.get("name", ""),
                             nationality=driver_data.get("nationality", ""),
@@ -125,6 +187,7 @@ class TeamsService:
                 )
 
             result = TeamsData(season=data.get("year", year), teams=teams)
+            result = self._apply_manual_overrides(result)
             logger.info("Loaded %d teams from %s", len(teams), json_path)
             return result
 
@@ -226,6 +289,7 @@ class TeamsService:
             "racing bulls": "rb f1 team",
             "kick sauber": "sauber",
             "alpine": "alpine f1 team",
+            "williams": "williams",
         }
         for key, val in name_mappings.items():
             if key in json_lower:
@@ -239,6 +303,10 @@ class TeamsService:
         self, teams_data: TeamsData, driver_standings: dict, constructor_standings: dict
     ) -> TeamsData:
         api_names = list(constructor_standings.keys())
+        normalized_driver_standings = {
+            self._normalize_driver_lookup_key(name): stats
+            for name, stats in driver_standings.items()
+        }
 
         for team in teams_data.teams:
             matched_name = self._match_constructor_name(team.constructor_name, api_names)
@@ -256,11 +324,15 @@ class TeamsService:
                     driver_match = driver_standings.get(clean_name)
 
                 if not driver_match:
+                    normalized_name = self._normalize_driver_lookup_key(driver_name)
+                    driver_match = normalized_driver_standings.get(normalized_name)
+
+                if not driver_match:
                     for name, stats in driver_standings.items():
-                        name_parts = driver_name.replace(" Jr.", "").split()
+                        name_parts = self._normalize_driver_lookup_key(driver_name).split()
                         if len(name_parts) >= 2:
                             family = name_parts[-1]
-                            if family.lower() in name.lower():
+                            if family in self._normalize_driver_lookup_key(name):
                                 driver_match = stats
                                 break
 
@@ -434,7 +506,7 @@ class TeamsService:
                 )
 
             teams.sort(key=lambda x: x.position if x.position else 999)
-            return TeamsData(season=year, teams=teams)
+            return self._apply_manual_overrides(TeamsData(season=year, teams=teams))
 
     async def get_teams_and_drivers(self, year: Optional[int] = None) -> TeamsData:
         if year is None:
