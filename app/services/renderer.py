@@ -3,6 +3,7 @@
 import io
 import json
 import logging
+import math
 from datetime import datetime
 from pathlib import Path
 
@@ -268,20 +269,19 @@ class Renderer:
         split_x = self.width // 2
         gap = col_padding
 
-        teams_per_col = 5
+        left_teams, right_teams = self._split_teams_for_columns(teams)
+        teams_per_col = max(len(left_teams), len(right_teams), 1)
         row_gap = 2
         available_height = self.height - header_height - 8 - (teams_per_col - 1) * row_gap
         row_height = available_height // teams_per_col
 
         y = header_height + 4
 
-        left_teams = teams[:teams_per_col]
         for team in left_teams:
             self._draw_team_row(image, draw, col_padding, y, split_x - gap // 2, team, row_height)
             y += row_height + row_gap
 
         y = header_height + 4
-        right_teams = teams[teams_per_col : teams_per_col * 2]
         for team in right_teams:
             self._draw_team_row(
                 image,
@@ -293,6 +293,14 @@ class Renderer:
                 row_height,
             )
             y += row_height + row_gap
+
+    @staticmethod
+    def _split_teams_for_columns(teams: list) -> tuple[list, list]:
+        if not teams:
+            return [], []
+
+        left_count = math.ceil(len(teams) / 2)
+        return teams[:left_count], teams[left_count:]
 
     def _draw_driver_photo(
         self,

@@ -443,6 +443,15 @@ def test_team_logo_key_supports_2026_new_teams():
     assert Renderer._get_team_logo_key("Cadillac Formula 1 Team") == "cadillac"
 
 
+def test_split_teams_for_columns_keeps_11th_team_visible():
+    teams = list(range(11))
+
+    left, right = Renderer._split_teams_for_columns(teams)
+
+    assert left == [0, 1, 2, 3, 4, 5]
+    assert right == [6, 7, 8, 9, 10]
+
+
 def test_render_2026_teams_en():
     teams_data = TeamsService()._load_from_json(2026)
     assert teams_data is not None

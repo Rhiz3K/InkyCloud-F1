@@ -1027,12 +1027,7 @@ block content %}
     if (!container) return;
 
     const currentSeason = getCurrentSeason();
-    const seasons = [
-      { label: "CURRENT", year: currentSeason, isCurrent: true },
-      { label: "2026", year: 2026, disabled: true },
-      { label: "2025", year: 2025 },
-      { label: "2024", year: 2024 },
-    ];
+    const seasons = getTeamsSeasonEntries();
 
     let html = "";
 
@@ -1085,6 +1080,20 @@ block content %}
     container.innerHTML = html;
   }
 
+  function getTeamsSeasonEntries() {
+    const currentSeason = getCurrentSeason();
+    const explicitSeasons = [2026, 2025, 2024];
+    const seasons = [{ label: "CURRENT", year: currentSeason, isCurrent: true }];
+
+    explicitSeasons
+      .filter((year) => year !== currentSeason)
+      .forEach((year) => {
+        seasons.push({ label: String(year), year, disabled: year > currentSeason });
+      });
+
+    return seasons;
+  }
+
   function selectTeamsSeason(year) {
     selectedTeamsYear = year;
     renderTeamsSeasonButtons();
@@ -1105,24 +1114,16 @@ block content %}
     const select = document.getElementById("yearSelectMobile");
     if (!select) return;
 
-    const currentSeason = getCurrentSeason();
     const t = translations[currentUiLang] || translations.en;
 
     select.innerHTML = "";
 
-    const seasons = [
-      {
-        label: `${t.currentSeason || "Current"} (${currentSeason})`,
-        year: currentSeason,
-      },
-      { label: "2025", year: 2025 },
-      { label: "2024", year: 2024 },
-    ];
+    const seasons = getTeamsSeasonEntries().filter((season) => !season.disabled);
 
     seasons.forEach((s) => {
       const opt = document.createElement("option");
       opt.value = s.year;
-      opt.textContent = s.label;
+      opt.textContent = s.isCurrent ? `${t.currentSeason || "Current"} (${s.year})` : s.label;
       if (s.year === selectedTeamsYear) opt.selected = true;
       select.appendChild(opt);
     });
