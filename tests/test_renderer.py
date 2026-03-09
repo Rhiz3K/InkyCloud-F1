@@ -21,6 +21,7 @@ from app.services import renderer as renderer_module
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
+from app.services.teams_service import TeamsService
 
 
 @pytest.fixture
@@ -435,6 +436,25 @@ def test_render_teams_drivers_partial_data():
     assert img.format == "BMP"
     assert img.size == (800, 480)
     assert img.mode == "1"
+
+
+def test_team_logo_key_supports_2026_new_teams():
+    assert Renderer._get_team_logo_key("Audi") == "audi"
+    assert Renderer._get_team_logo_key("Cadillac Formula 1 Team") == "cadillac"
+
+
+def test_load_2026_teams_json_has_correct_red_bull_numbers():
+    teams_data = TeamsService()._load_from_json(2026)
+
+    assert teams_data is not None
+
+    red_bull = next(team for team in teams_data.teams if "Red Bull Racing" in team.constructor_name)
+    audi = next(team for team in teams_data.teams if team.constructor_name == "Audi")
+    cadillac = next(team for team in teams_data.teams if "Cadillac" in team.constructor_name)
+
+    assert [driver.driver_number for driver in red_bull.drivers] == [3, 6]
+    assert [driver.name for driver in audi.drivers] == ["Gabriel Bortoleto", "Nico Hülkenberg"]
+    assert [driver.name for driver in cadillac.drivers] == ["Sergio Pérez", "Valtteri Bottas"]
 
 
 def test_render_calendar_with_new_track(mock_race_data):

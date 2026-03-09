@@ -542,6 +542,10 @@ class Renderer:
     @staticmethod
     def _get_team_logo_key(constructor: str) -> str | None:
         name = constructor.lower()
+        if "audi" in name:
+            return "audi"
+        if "cadillac" in name:
+            return "cadillac"
         if "mclaren" in name:
             return "mclaren"
         if "williams" in name:
@@ -978,8 +982,8 @@ class Renderer:
                 track_image = track_image.convert("1")
 
             final_w, final_h = track_image.size
-            paste_x = side_margin + (available_width - final_w) // 2
-            paste_y = track_top + (available_height - final_h) // 2
+            paste_x = int(side_margin + (available_width - final_w) // 2)
+            paste_y = int(track_top + (available_height - final_h) // 2)
 
             image.paste(track_image, (paste_x, paste_y))
         else:
