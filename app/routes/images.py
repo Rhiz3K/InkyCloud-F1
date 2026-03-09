@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+TEAMS_BMP_CACHE_CONTROL = "no-store, max-age=0"
+
 
 def _normalize_lang(lang: str) -> str:
     return lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
@@ -485,7 +487,7 @@ async def get_teams_bmp(
             media_type="image/bmp",
             headers={
                 "Content-Disposition": 'inline; filename="teams.bmp"',
-                "Cache-Control": "public, max-age=3600",
+                "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
             },
         )
 
@@ -512,5 +514,8 @@ async def get_teams_bmp(
         return StreamingResponse(
             BytesIO(bmp_data),
             media_type="image/bmp",
-            headers={"Content-Disposition": 'inline; filename="teams.bmp"'},
+            headers={
+                "Content-Disposition": 'inline; filename="teams.bmp"',
+                "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
+            },
         )
