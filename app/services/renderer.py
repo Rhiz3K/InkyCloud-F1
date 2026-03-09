@@ -429,8 +429,14 @@ class Renderer:
             bbox = draw.textbbox((0, 0), text, font=font)
             return int(right_edge - (bbox[2] - bbox[0]))
 
+        def text_width(text: str, font) -> int:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            return int(bbox[2] - bbox[0])
+
         pts_right_x = x_end - 4
-        team_pos_x = x_end - 70
+        team_pts_x = right_align_x(team_pts, pts_right_x, tech_font)
+        team_pos_x = team_pts_x - text_width(team_pos, tech_font) - 10
+        tech_right_limit = team_pos_x - 10
 
         name_x = x_start + 4
         draw.text((name_x, header_text_y), team_name, fill=1, font=team_font)
@@ -448,11 +454,12 @@ class Renderer:
         else:
             pu_x = chassis_x
 
-        draw.text((pu_x, tech_text_y), power_unit, fill=1, font=tech_font)
+        if pu_x < tech_right_limit:
+            draw.text((pu_x, tech_text_y), power_unit, fill=1, font=tech_font)
 
         draw.text((team_pos_x, tech_text_y), team_pos, fill=1, font=tech_font)
         draw.text(
-            (right_align_x(team_pts, pts_right_x, tech_font), tech_text_y),
+            (team_pts_x, tech_text_y),
             team_pts,
             fill=1,
             font=tech_font,
