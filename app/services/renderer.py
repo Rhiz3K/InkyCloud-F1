@@ -292,17 +292,6 @@ class Renderer:
             .replace("è", "e")
         )
 
-        driver_img = self._driver_photos.get(surname) if self._driver_photos else None
-
-        if driver_img is not None:
-            orig_w, orig_h = driver_img.size
-            scale = size / orig_h
-            new_w = int(orig_w * scale)
-            new_h = size
-            photo_resized = driver_img.resize((new_w, new_h), Image.Resampling.NEAREST)
-            image.paste(photo_resized, (x, y))
-            return new_w + 2
-
         if driver_number is not None:
             draw = ImageDraw.Draw(image)
             num_text = str(driver_number)
@@ -313,6 +302,17 @@ class Renderer:
             text_y = y + (size - text_h) // 2 - int(bbox[1])
             draw.text((x, text_y), num_text, fill=0, font=font)
             return text_w + 4
+
+        driver_img = self._driver_photos.get(surname) if self._driver_photos else None
+
+        if driver_img is not None:
+            orig_w, orig_h = driver_img.size
+            scale = size / orig_h
+            new_w = int(orig_w * scale)
+            new_h = size
+            photo_resized = driver_img.resize((new_w, new_h), Image.Resampling.NEAREST)
+            image.paste(photo_resized, (x, y))
+            return new_w + 2
 
         return 0
 

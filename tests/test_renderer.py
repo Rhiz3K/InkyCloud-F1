@@ -495,6 +495,23 @@ def test_apply_manual_2026_driver_number_overrides():
     assert [driver.driver_number for driver in cadillac.drivers] == [11, 77]
 
 
+def test_draw_driver_photo_prefers_explicit_number_over_asset():
+    translator = get_translator("en")
+    renderer = Renderer(translator)
+    image = Image.new("1", (40, 24), 1)
+
+    width = renderer._draw_driver_photo(
+        image,
+        0,
+        0,
+        "Max Verstappen",
+        size=18,
+        driver_number=3,
+    )
+
+    assert width > 0
+
+
 def test_render_calendar_with_new_track(mock_race_data):
     """Test rendering calendar when track is new (no historical data)."""
     translator = get_translator("cs")
