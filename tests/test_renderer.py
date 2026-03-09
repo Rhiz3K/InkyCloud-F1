@@ -443,56 +443,36 @@ def test_team_logo_key_supports_2026_new_teams():
     assert Renderer._get_team_logo_key("Cadillac Formula 1 Team") == "cadillac"
 
 
-def test_load_2026_teams_json_has_correct_red_bull_numbers():
+def test_render_2026_teams_en():
     teams_data = TeamsService()._load_from_json(2026)
-
     assert teams_data is not None
 
-    red_bull = next(team for team in teams_data.teams if "Red Bull Racing" in team.constructor_name)
-    audi = next(team for team in teams_data.teams if team.constructor_name == "Audi")
-    cadillac = next(team for team in teams_data.teams if "Cadillac" in team.constructor_name)
+    renderer = Renderer(get_translator("en"))
+    bmp_data = renderer.render_teams_drivers(teams_data)
 
-    assert [driver.driver_number for driver in red_bull.drivers] == [3, 6]
-    assert [driver.name for driver in audi.drivers] == ["Gabriel Bortoleto", "Nico Hülkenberg"]
-    assert [driver.name for driver in cadillac.drivers] == ["Sergio Pérez", "Valtteri Bottas"]
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "1"
 
 
-def test_apply_manual_2026_driver_number_overrides():
-    teams_data = TeamsData(
-        season=2026,
-        teams=[
-            TeamEntry(
-                constructor_name="McLaren-Mercedes",
-                drivers=[
-                    TeamDriverEntry(name="Lando Norris", driver_number=4),
-                ],
-            ),
-            TeamEntry(
-                constructor_name="Red Bull Racing-Red Bull Ford",
-                drivers=[
-                    TeamDriverEntry(name="Max Verstappen", driver_number=1),
-                    TeamDriverEntry(name="Isack Hadjar", driver_number=99),
-                ],
-            ),
-            TeamEntry(
-                constructor_name="Cadillac-Ferrari",
-                drivers=[
-                    TeamDriverEntry(name="Sergio Pérez", driver_number=None),
-                    TeamDriverEntry(name="Valtteri Bottas", driver_number=0),
-                ],
-            ),
-        ],
-    )
+def test_render_2026_teams_cs():
+    teams_data = TeamsService()._load_from_json(2026)
+    assert teams_data is not None
 
-    updated = TeamsService()._apply_manual_overrides(teams_data)
+    renderer = Renderer(get_translator("cs"))
+    bmp_data = renderer.render_teams_drivers(teams_data)
 
-    mclaren = updated.teams[0]
-    red_bull = updated.teams[1]
-    cadillac = updated.teams[2]
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
 
-    assert [driver.driver_number for driver in mclaren.drivers] == [1]
-    assert [driver.driver_number for driver in red_bull.drivers] == [3, 6]
-    assert [driver.driver_number for driver in cadillac.drivers] == [11, 77]
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "1"
 
 
 def test_draw_driver_photo_prefers_explicit_number_over_asset():

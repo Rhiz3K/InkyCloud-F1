@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.7] - 2026-03-09
+
+### Backend
+
+<details markdown="1">
+<summary>Backend</summary>
+
+#### Fixed
+
+- **2026 teams bitmap data** - Added curated 2026 team data, corrected driver numbers, and normalized override handling so live and static team renders stay in sync
+- **Teams bitmap rendering** - Team logos now support Audi and Cadillac, driver numbers take precedence over legacy number assets, and team header layout avoids collisions with standings and driver names
+- **Teams bitmap freshness** - `/teams.bmp` now disables long-lived HTTP caching so lineup and standings changes appear immediately after deploys
+- **Teams data matching** - Driver standings merging now tolerates ASCII/diacritic name differences for 2026 driver names such as `Perez`/`Pérez` and `Hulkenberg`/`Hülkenberg`
+
+#### Added
+
+- **2026 regression coverage** - Added renderer and teams-service tests for 2026 team data, manual driver-number overrides, and full BMP rendering in English and Czech
+
+</details>
+
 ## [1.2.6] - 2026-03-01
 
 ### Backend
