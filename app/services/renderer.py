@@ -63,30 +63,6 @@ COUNTRY_MAP = {
     "United States": "us",
 }
 
-ASSET_DRIVER_NUMBERS = {
-    "albon": 23,
-    "alonso": 14,
-    "antonelli": 12,
-    "bearman": 87,
-    "bortoleto": 5,
-    "colapinto": 43,
-    "doohan": 7,
-    "gasly": 10,
-    "hadjar": 6,
-    "hamilton": 44,
-    "hulkenberg": 27,
-    "lawson": 30,
-    "leclerc": 16,
-    "norris": 4,
-    "ocon": 31,
-    "piastri": 81,
-    "russell": 63,
-    "sainz": 55,
-    "stroll": 18,
-    "tsunoda": 22,
-    "verstappen": 1,
-}
-
 # Asset directories
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
 TRACKS_DIR = ASSETS_DIR / "tracks"
@@ -324,20 +300,6 @@ class Renderer:
             .replace("è", "e")
         )
 
-        driver_img = self._driver_photos.get(surname) if self._driver_photos else None
-        asset_driver_number = ASSET_DRIVER_NUMBERS.get(surname)
-
-        if driver_img is not None and (
-            driver_number is None or asset_driver_number == driver_number
-        ):
-            orig_w, orig_h = driver_img.size
-            scale = size / orig_h
-            new_w = int(orig_w * scale)
-            new_h = size
-            photo_resized = driver_img.resize((new_w, new_h), Image.Resampling.NEAREST)
-            image.paste(photo_resized, (x, y))
-            return new_w + 2
-
         if driver_number is not None:
             draw = ImageDraw.Draw(image)
             num_text = str(driver_number)
@@ -348,6 +310,16 @@ class Renderer:
             text_y = y + (size - text_h) // 2 - int(bbox[1])
             draw.text((x, text_y), num_text, fill=0, font=font)
             return text_w + 4
+
+        driver_img = self._driver_photos.get(surname) if self._driver_photos else None
+        if driver_img is not None:
+            orig_w, orig_h = driver_img.size
+            scale = size / orig_h
+            new_w = int(orig_w * scale)
+            new_h = size
+            photo_resized = driver_img.resize((new_w, new_h), Image.Resampling.NEAREST)
+            image.paste(photo_resized, (x, y))
+            return new_w + 2
 
         return 0
 

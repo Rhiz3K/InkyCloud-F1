@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.7] - 2026-03-09
 
+### Frontend
+
+#### Fixed
+
+- **Teams & Drivers preview** - Corrected 2026 team ordering, standings placement, right-aligned logos, and season selector behavior so the configure preview matches the live championship layout
+- **Driver number rendering** - Switched `teams.bmp` to render cleaner font-based driver numbers instead of relying on stale number image assets
+
 ### Backend
 
 <details markdown="1">
@@ -15,9 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **2026 teams bitmap data** - Added curated 2026 team data, corrected driver numbers, and normalized override handling so live and static team renders stay in sync
-- **Teams bitmap rendering** - Team logos now support Audi and Cadillac, driver numbers take precedence over legacy number assets, and team header layout avoids collisions with standings and driver names
+- **Teams bitmap rendering** - Team logos now support Audi and Cadillac, constructor standings render in the correct order for 11-team 2026 grids, and team header layout avoids collisions with standings and driver names
 - **Teams bitmap freshness** - `/teams.bmp` now disables long-lived HTTP caching so lineup and standings changes appear immediately after deploys
-- **Teams data matching** - Driver standings merging now tolerates ASCII/diacritic name differences for 2026 driver names such as `Perez`/`Pérez` and `Hulkenberg`/`Hülkenberg`
+- **Teams data matching** - Driver standings merging now tolerates ASCII/diacritic name differences and sponsor-prefixed constructor names such as `Perez`/`Pérez`, `Hulkenberg`/`Hülkenberg`, and `Atlassian Williams`/`Williams`
 
 #### Added
 

@@ -487,7 +487,8 @@ def test_render_2026_teams_cs():
 def test_draw_driver_photo_prefers_explicit_number_over_asset():
     translator = get_translator("en")
     renderer = Renderer(translator)
-    image = Image.new("1", (40, 24), 1)
+    image = Image.new("1", (120, 24), 1)
+    renderer._driver_photos["verstappen"] = Image.new("1", (100, 20), 0)
 
     width = renderer._draw_driver_photo(
         image,
@@ -498,7 +499,7 @@ def test_draw_driver_photo_prefers_explicit_number_over_asset():
         driver_number=3,
     )
 
-    assert width > 0
+    assert 0 < width < 30
 
 
 def test_render_calendar_with_new_track(mock_race_data):
