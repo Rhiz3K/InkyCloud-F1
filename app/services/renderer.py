@@ -535,8 +535,8 @@ class Renderer:
             else:
                 draw.text((driver_pos_x, driver_small_y), pos_text, fill=0, font=small_font)
 
-        logo_container_right = driver_pos_x - 15
-        logo_container_left = driver_name_x + 130
+        logo_container_right = driver_pos_x - 8
+        logo_container_left = max(driver_name_x + 170, logo_container_right - 96)
         self._draw_team_logo(
             image,
             team,
@@ -598,7 +598,9 @@ class Renderer:
 
         orig_w, orig_h = logo.size
         container_w = container_right - container_left
-        max_w = container_w - 30
+        if container_w <= 0:
+            return
+        max_w = max(1, container_w - 12)
         max_h = driver_area_h - 2
 
         scale_w = max_w / orig_w
@@ -610,7 +612,7 @@ class Renderer:
 
         logo_resized = logo.resize((new_w, new_h), Image.Resampling.NEAREST)
 
-        logo_x = container_left + (container_w - new_w) // 2
+        logo_x = container_right - new_w
         logo_y = driver_area_y + (driver_area_h - new_h) // 2
 
         image.paste(logo_resized, (logo_x, logo_y))
