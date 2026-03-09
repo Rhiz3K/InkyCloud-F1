@@ -457,6 +457,36 @@ def test_load_2026_teams_json_has_correct_red_bull_numbers():
     assert [driver.name for driver in cadillac.drivers] == ["Sergio Pérez", "Valtteri Bottas"]
 
 
+def test_apply_manual_2026_driver_number_overrides():
+    teams_data = TeamsData(
+        season=2026,
+        teams=[
+            TeamEntry(
+                constructor_name="Red Bull Racing-Red Bull Ford",
+                drivers=[
+                    TeamDriverEntry(name="Max Verstappen", driver_number=1),
+                    TeamDriverEntry(name="Isack Hadjar", driver_number=99),
+                ],
+            ),
+            TeamEntry(
+                constructor_name="Cadillac-Ferrari",
+                drivers=[
+                    TeamDriverEntry(name="Sergio Pérez", driver_number=None),
+                    TeamDriverEntry(name="Valtteri Bottas", driver_number=0),
+                ],
+            ),
+        ],
+    )
+
+    updated = TeamsService()._apply_manual_overrides(teams_data)
+
+    red_bull = updated.teams[0]
+    cadillac = updated.teams[1]
+
+    assert [driver.driver_number for driver in red_bull.drivers] == [3, 6]
+    assert [driver.driver_number for driver in cadillac.drivers] == [11, 77]
+
+
 def test_render_calendar_with_new_track(mock_race_data):
     """Test rendering calendar when track is new (no historical data)."""
     translator = get_translator("cs")

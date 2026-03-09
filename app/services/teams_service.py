@@ -27,6 +27,19 @@ SEASON_START_DATES = {
     2026: datetime(2026, 3, 8, tzinfo=timezone.utc),
 }
 
+MANUAL_DRIVER_NUMBER_OVERRIDES = {
+    2026: {
+        "Max Verstappen": 3,
+        "Isack Hadjar": 6,
+        "Liam Lawson": 30,
+        "Arvid Lindblad": 41,
+        "Gabriel Bortoleto": 5,
+        "Nico Hülkenberg": 27,
+        "Sergio Pérez": 11,
+        "Valtteri Bottas": 77,
+    }
+}
+
 
 def _get_current_f1_season() -> int:
     now = datetime.now(timezone.utc)
@@ -72,6 +85,20 @@ class TeamsService:
     def _validate_year(year: int) -> bool:
         """Validate year is within acceptable F1 data range (1950-2030)."""
         return isinstance(year, int) and 1950 <= year <= 2030
+
+    @staticmethod
+    def _apply_manual_overrides(teams_data: TeamsData) -> TeamsData:
+        driver_number_overrides = MANUAL_DRIVER_NUMBER_OVERRIDES.get(teams_data.season, {})
+        if not driver_number_overrides:
+            return teams_data
+
+        for team in teams_data.teams:
+            for driver in team.drivers:
+                override_number = driver_number_overrides.get(driver.name)
+                if override_number is not None:
+                    driver.driver_number = override_number
+
+        return teams_data
 
     def _load_from_json(self, year: int) -> Optional[TeamsData]:
         if not self._validate_year(year):
@@ -125,6 +152,7 @@ class TeamsService:
                 )
 
             result = TeamsData(season=data.get("year", year), teams=teams)
+            result = self._apply_manual_overrides(result)
             logger.info("Loaded %d teams from %s", len(teams), json_path)
             return result
 
@@ -434,7 +462,7 @@ class TeamsService:
                 )
 
             teams.sort(key=lambda x: x.position if x.position else 999)
-            return TeamsData(season=year, teams=teams)
+            return self._apply_manual_overrides(TeamsData(season=year, teams=teams))
 
     async def get_teams_and_drivers(self, year: Optional[int] = None) -> TeamsData:
         if year is None:
