@@ -289,6 +289,7 @@ class TeamsService:
             "racing bulls": "rb f1 team",
             "kick sauber": "sauber",
             "alpine": "alpine f1 team",
+            "williams": "williams",
         }
         for key, val in name_mappings.items():
             if key in json_lower:

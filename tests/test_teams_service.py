@@ -88,3 +88,12 @@ def test_merge_standings_matches_ascii_names_against_diacritics():
 
     assert updated.teams[0].drivers[0].position == 9
     assert updated.teams[1].drivers[0].position == 16
+
+
+def test_match_constructor_name_handles_sponsor_prefixed_williams():
+    matched = TeamsService._match_constructor_name(
+        "Atlassian Williams-Mercedes",
+        ["Mercedes", "Ferrari", "Williams"],
+    )
+
+    assert matched == "Williams"
