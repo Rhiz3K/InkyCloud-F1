@@ -462,6 +462,12 @@ def test_apply_manual_2026_driver_number_overrides():
         season=2026,
         teams=[
             TeamEntry(
+                constructor_name="McLaren-Mercedes",
+                drivers=[
+                    TeamDriverEntry(name="Lando Norris", driver_number=4),
+                ],
+            ),
+            TeamEntry(
                 constructor_name="Red Bull Racing-Red Bull Ford",
                 drivers=[
                     TeamDriverEntry(name="Max Verstappen", driver_number=1),
@@ -480,9 +486,11 @@ def test_apply_manual_2026_driver_number_overrides():
 
     updated = TeamsService()._apply_manual_overrides(teams_data)
 
-    red_bull = updated.teams[0]
-    cadillac = updated.teams[1]
+    mclaren = updated.teams[0]
+    red_bull = updated.teams[1]
+    cadillac = updated.teams[2]
 
+    assert [driver.driver_number for driver in mclaren.drivers] == [1]
     assert [driver.driver_number for driver in red_bull.drivers] == [3, 6]
     assert [driver.driver_number for driver in cadillac.drivers] == [11, 77]
 

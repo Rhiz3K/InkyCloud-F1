@@ -29,6 +29,7 @@ SEASON_START_DATES = {
 
 MANUAL_DRIVER_NUMBER_OVERRIDES = {
     2026: {
+        "Lando Norris": 1,
         "Max Verstappen": 3,
         "Isack Hadjar": 6,
         "Liam Lawson": 30,
