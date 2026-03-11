@@ -21,6 +21,7 @@ from app.services import renderer as renderer_module
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
+from app.services.teams_service import TeamsService
 
 
 @pytest.fixture
@@ -435,6 +436,70 @@ def test_render_teams_drivers_partial_data():
     assert img.format == "BMP"
     assert img.size == (800, 480)
     assert img.mode == "1"
+
+
+def test_team_logo_key_supports_2026_new_teams():
+    assert Renderer._get_team_logo_key("Audi") == "audi"
+    assert Renderer._get_team_logo_key("Cadillac Formula 1 Team") == "cadillac"
+
+
+def test_split_teams_for_columns_keeps_11th_team_visible():
+    teams = list(range(11))
+
+    left, right = Renderer._split_teams_for_columns(teams)
+
+    assert left == [0, 1, 2, 3, 4, 5]
+    assert right == [6, 7, 8, 9, 10]
+
+
+def test_render_2026_teams_en():
+    teams_data = TeamsService()._load_from_json(2026)
+    assert teams_data is not None
+
+    renderer = Renderer(get_translator("en"))
+    bmp_data = renderer.render_teams_drivers(teams_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "1"
+
+
+def test_render_2026_teams_cs():
+    teams_data = TeamsService()._load_from_json(2026)
+    assert teams_data is not None
+
+    renderer = Renderer(get_translator("cs"))
+    bmp_data = renderer.render_teams_drivers(teams_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "1"
+
+
+def test_draw_driver_photo_prefers_explicit_number_over_asset():
+    translator = get_translator("en")
+    renderer = Renderer(translator)
+    image = Image.new("1", (120, 24), 1)
+    renderer._driver_photos["verstappen"] = Image.new("1", (100, 20), 0)
+
+    width = renderer._draw_driver_photo(
+        image,
+        0,
+        0,
+        "Max Verstappen",
+        size=18,
+        driver_number=3,
+    )
+
+    assert 0 < width < 30
 
 
 def test_render_calendar_with_new_track(mock_race_data):

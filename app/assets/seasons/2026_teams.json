@@ -1,0 +1,247 @@
+{
+  "year": 2026,
+  "teams": [
+    {
+      "entrant": "BWT Alpine F1 Team",
+      "constructor": "Alpine-Mercedes",
+      "chassis": "A526",
+      "power_unit": "Mercedes-AMG F1 M17",
+      "drivers": [
+        {
+          "driver_id": "gasly",
+          "number": 10,
+          "name": "Pierre Gasly",
+          "nationality": "France",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "colapinto",
+          "number": 43,
+          "name": "Franco Colapinto",
+          "nationality": "Argentina",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Aston Martin Aramco F1 Team",
+      "constructor": "Aston Martin Aramco-Honda",
+      "chassis": "AMR26",
+      "power_unit": "Honda RA626H",
+      "drivers": [
+        {
+          "driver_id": "alonso",
+          "number": 14,
+          "name": "Fernando Alonso",
+          "nationality": "Spain",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "stroll",
+          "number": 18,
+          "name": "Lance Stroll",
+          "nationality": "Canada",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Atlassian Williams F1 Team",
+      "constructor": "Atlassian Williams-Mercedes",
+      "chassis": "FW48",
+      "power_unit": "Mercedes-AMG F1 M17",
+      "drivers": [
+        {
+          "driver_id": "albon",
+          "number": 23,
+          "name": "Alexander Albon",
+          "nationality": "Thailand",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "sainz",
+          "number": 55,
+          "name": "Carlos Sainz Jr.",
+          "nationality": "Spain",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Audi Revolut F1 Team",
+      "constructor": "Audi",
+      "chassis": "R26",
+      "power_unit": "Audi AFR 26 Hybrid",
+      "drivers": [
+        {
+          "driver_id": "bortoleto",
+          "number": 5,
+          "name": "Gabriel Bortoleto",
+          "nationality": "Brazil",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "hulkenberg",
+          "number": 27,
+          "name": "Nico Hülkenberg",
+          "nationality": "Germany",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Cadillac Formula 1 Team",
+      "constructor": "Cadillac-Ferrari",
+      "chassis": "MAC-26",
+      "power_unit": "Ferrari 067/6",
+      "drivers": [
+        {
+          "driver_id": "perez",
+          "number": 11,
+          "name": "Sergio Pérez",
+          "nationality": "Mexico",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "bottas",
+          "number": 77,
+          "name": "Valtteri Bottas",
+          "nationality": "Finland",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Scuderia Ferrari HP",
+      "constructor": "Ferrari",
+      "chassis": "SF-26",
+      "power_unit": "Ferrari 067/6",
+      "drivers": [
+        {
+          "driver_id": "leclerc",
+          "number": 16,
+          "name": "Charles Leclerc",
+          "nationality": "Monaco",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "hamilton",
+          "number": 44,
+          "name": "Lewis Hamilton",
+          "nationality": "United Kingdom",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "TGR Haas F1 Team",
+      "constructor": "Haas-Ferrari",
+      "chassis": "VF-26",
+      "power_unit": "Ferrari 067/6",
+      "drivers": [
+        {
+          "driver_id": "ocon",
+          "number": 31,
+          "name": "Esteban Ocon",
+          "nationality": "France",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "bearman",
+          "number": 87,
+          "name": "Oliver Bearman",
+          "nationality": "United Kingdom",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "McLaren Mastercard F1 Team",
+      "constructor": "McLaren-Mercedes",
+      "chassis": "MCL40",
+      "power_unit": "Mercedes-AMG F1 M17",
+      "drivers": [
+        {
+          "driver_id": "norris",
+          "number": 1,
+          "name": "Lando Norris",
+          "nationality": "United Kingdom",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "piastri",
+          "number": 81,
+          "name": "Oscar Piastri",
+          "nationality": "Australia",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Mercedes-AMG Petronas F1 Team",
+      "constructor": "Mercedes",
+      "chassis": "F1 W17",
+      "power_unit": "Mercedes-AMG F1 M17",
+      "drivers": [
+        {
+          "driver_id": "antonelli",
+          "number": 12,
+          "name": "Andrea Kimi Antonelli",
+          "nationality": "Italy",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "russell",
+          "number": 63,
+          "name": "George Russell",
+          "nationality": "United Kingdom",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Visa Cash App Racing Bulls F1 Team",
+      "constructor": "Racing Bulls-Red Bull Ford",
+      "chassis": "VCARB 03",
+      "power_unit": "Red Bull Ford DM01",
+      "drivers": [
+        {
+          "driver_id": "lawson",
+          "number": 30,
+          "name": "Liam Lawson",
+          "nationality": "New Zealand",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "lindblad",
+          "number": 41,
+          "name": "Arvid Lindblad",
+          "nationality": "United Kingdom",
+          "rounds": "All"
+        }
+      ]
+    },
+    {
+      "entrant": "Oracle Red Bull Racing",
+      "constructor": "Red Bull Racing-Red Bull Ford",
+      "chassis": "RB22",
+      "power_unit": "Red Bull Ford DM01",
+      "drivers": [
+        {
+          "driver_id": "verstappen",
+          "number": 3,
+          "name": "Max Verstappen",
+          "nationality": "Netherlands",
+          "rounds": "All"
+        },
+        {
+          "driver_id": "hadjar",
+          "number": 6,
+          "name": "Isack Hadjar",
+          "nationality": "France",
+          "rounds": "All"
+        }
+      ]
+    }
+  ]
+}
