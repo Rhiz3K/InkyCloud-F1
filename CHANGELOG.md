@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.8] - 2026-03-11
+
+### Frontend
+
+#### Fixed
+
+- **Track map assets** - Refreshed `albert_park` and `shanghai` source track maps to improve circuit clarity in calendar previews
+
+### Backend
+
+<details markdown="1">
+<summary>Backend</summary>
+
+#### Changed
+
+- **Pre-processed track bitmaps** - Regenerated `albert_park.bmp` and `shanghai.bmp` in `tracks_processed` from the updated source maps to keep 1-bit rendering output aligned
+- **Spectra 6 track bitmap** - Updated `tracks_spectra6/albert_park.bmp` to match the refreshed Albert Park circuit source
+- **Main to dev sync automation** - Restored `.github/workflows/sync-main-to-dev.yml` with release-triggered sync PR automation
+
+</details>
+
 ## [1.2.7] - 2026-03-09
 
 ### Frontend
