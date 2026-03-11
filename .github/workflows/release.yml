@@ -22,6 +22,7 @@ jobs:
       - name: Create GitHub release from CHANGELOG
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.SYNC_PAT }}
           script: |
             const fs = require("node:fs");
 
