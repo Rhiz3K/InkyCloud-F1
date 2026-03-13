@@ -27,6 +27,11 @@ jobs:
           echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
           exit 1
         fi
+
+    - name: Validate release readiness for main PRs
+      if: github.event_name == 'pull_request' && github.base_ref == 'main'
+      run: |
+        python -m app.utils.release_validation
     
     - name: Set up Python 3.14.3
       uses: actions/setup-python@v6
