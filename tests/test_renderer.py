@@ -1525,3 +1525,19 @@ def test_map_to_bwr_palette_keeps_grayscale_pixels_off_red():
         BwrColors.IDX_BLACK,
         BwrColors.IDX_RED,
     ]
+
+
+def test_map_to_bwr_palette_preserves_near_white_text_edges():
+    """Light anti-aliased pixels in white-on-red text should stay white."""
+    image = Image.new("RGB", (3, 1), color=(255, 255, 255))
+    image.putdata([(255, 255, 255), (244, 204, 204), (160, 32, 32)])
+
+    indexed = map_to_bwr_palette(image, BwrColors.PALETTE)
+    pixels = indexed.load()
+
+    assert pixels is not None
+    assert [pixels[0, 0], pixels[1, 0], pixels[2, 0]] == [
+        BwrColors.IDX_WHITE,
+        BwrColors.IDX_WHITE,
+        BwrColors.IDX_RED,
+    ]

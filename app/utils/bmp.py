@@ -37,6 +37,9 @@ def map_to_bwr_palette(
     white_index: int = 1,
     red_index: int = 2,
     bw_threshold: int = 170,
+    white_preserve_threshold: int = 208,
+    black_preserve_threshold: int = 96,
+    red_max_luminance: int = 200,
     red_min: int = 96,
     red_margin: int = 24,
     red_dominance: float = 1.15,
@@ -64,6 +67,12 @@ def map_to_bwr_palette(
             else:
                 r = g = b = int(pixel)
 
+            luminance = int(0.299 * r + 0.587 * g + 0.114 * b)
+
+            if luminance >= white_preserve_threshold:
+                dst[x, y] = white_index  # type: ignore[index]
+                continue
+
             is_red = (
                 r >= red_min
                 and r - max(g, b) >= red_margin
@@ -71,11 +80,14 @@ def map_to_bwr_palette(
                 and r >= int(b * red_dominance)
             )
 
-            if is_red:
+            if is_red and luminance <= red_max_luminance:
                 dst[x, y] = red_index  # type: ignore[index]
                 continue
 
-            luminance = int(0.299 * r + 0.587 * g + 0.114 * b)
+            if luminance <= black_preserve_threshold:
+                dst[x, y] = black_index  # type: ignore[index]
+                continue
+
             dst[x, y] = black_index if luminance < bw_threshold else white_index  # type: ignore[index]
 
     return indexed
