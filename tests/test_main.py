@@ -683,6 +683,13 @@ def test_changelog_contains_version_history():
     assert "Changelog" in html or "Changes" in html
 
 
+def test_changelog_hides_empty_unreleased_heading():
+    """Test changelog page does not render an empty Unreleased section."""
+    response = client.get("/changelog?lang=en")
+    html = response.text
+    assert ">Unreleased<" not in html
+
+
 def test_changelog_lang_parameter():
     """Test changelog page respects lang parameter."""
     response_en = client.get("/changelog?lang=en")

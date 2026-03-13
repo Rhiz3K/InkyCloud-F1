@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 import markdown
@@ -190,6 +191,13 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
     changelog_path = Path(__file__).resolve().parents[2] / "CHANGELOG.md"
     if changelog_path.exists():
         changelog_content = changelog_path.read_text(encoding="utf-8")
+        changelog_content = re.sub(
+            r"^## \[Unreleased\]\n(?:\s*\n)+(?=## \[\d+\.\d+\.\d+\] - )",
+            "",
+            changelog_content,
+            count=1,
+            flags=re.MULTILINE,
+        )
         changelog_html = markdown.markdown(
             changelog_content,
             extensions=["extra", "toc", "md_in_html"],
