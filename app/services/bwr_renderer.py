@@ -17,9 +17,7 @@ from app.services.spectra6_renderer import (
     logger,
 )
 
-TRACKS_BWR_DIR = Path(__file__).parent.parent / "assets" / "tracks_bwr"
 TRACKS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "tracks_processed"
-FLAGS_BWR_DIR = Path(__file__).parent.parent / "assets" / "flags_bwr"
 FLAGS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "flags_processed"
 
 
@@ -44,7 +42,7 @@ class BwrRenderer(Spectra6Renderer):
 
     @staticmethod
     def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:
-        logo_candidates = [IMAGES_DIR / "f1_bwr.bmp", IMAGES_DIR / "eInkF1logo.jpg"]
+        logo_candidates = [IMAGES_DIR / "eInkF1logo.jpg"]
 
         for logo_path in logo_candidates:
             if not logo_path.exists():
@@ -70,10 +68,7 @@ class BwrRenderer(Spectra6Renderer):
             return None
 
         normalized_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
-        track_candidates = [
-            TRACKS_BWR_DIR / f"{normalized_id}.bmp",
-            TRACKS_FALLBACK_DIR / f"{normalized_id}.bmp",
-        ]
+        track_candidates = [TRACKS_FALLBACK_DIR / f"{normalized_id}.bmp"]
 
         for track_path in track_candidates:
             if not track_path.exists():
@@ -107,10 +102,7 @@ class BwrRenderer(Spectra6Renderer):
 
         flag_img: Image.Image | None = None
         if iso_code:
-            flag_candidates = [
-                FLAGS_BWR_DIR / f"{iso_code}.bmp",
-                FLAGS_FALLBACK_DIR / f"{iso_code}.bmp",
-            ]
+            flag_candidates = [FLAGS_FALLBACK_DIR / f"{iso_code}.bmp"]
             for flag_path in flag_candidates:
                 if not flag_path.exists():
                     continue
