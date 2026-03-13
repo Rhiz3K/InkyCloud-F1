@@ -62,7 +62,9 @@ class BwrRenderer(Spectra6Renderer):
 
                 logo = logo_file.convert("L")
                 threshold = 128
-                logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[arg-type,operator,misc]
+                logo = logo.point(  # type: ignore[arg-type,operator,misc]
+                    lambda p, threshold=threshold: 255 if p > threshold else 0
+                )
                 logo = logo.convert("1").convert("RGB")
 
                 x = (width - logo.width) // 2
