@@ -134,6 +134,7 @@ def _record_calendar_api_call(
     start_time: float,
     size_bytes: int,
     lang: str,
+    display: str,
     tz: str | None,
     actual_year: int | None,
     actual_round: int | None,
@@ -150,6 +151,7 @@ def _record_calendar_api_call(
         actual_round,
         actual_race_name,
         is_auto_selected,
+        display_type=display,
     )
 
 
@@ -327,6 +329,7 @@ async def get_calendar_bmp(
             start_time=start_time,
             size_bytes=len(cached_bmp),
             lang=lang,
+            display=display,
             tz=tz,
             actual_year=actual_year,
             actual_round=actual_round,
@@ -367,6 +370,7 @@ async def get_calendar_bmp(
             start_time=start_time,
             size_bytes=len(bmp_data),
             lang=lang,
+            display=display,
             tz=tz,
             actual_year=actual_year,
             actual_round=actual_round,
@@ -411,6 +415,7 @@ async def get_calendar_bmp(
             start_time=start_time,
             size_bytes=len(bmp_data),
             lang=lang,
+            display=display,
             tz=tz,
             actual_year=actual_year,
             actual_round=actual_round,
@@ -455,6 +460,7 @@ async def get_calendar_bmp(
             race_round,
             None,
             auto_selected,
+            display_type=display,
         )
 
         return StreamingResponse(

@@ -1,6 +1,7 @@
 """Version service for fetching release and commit info from GitHub API."""
 
 import logging
+import time
 from dataclasses import dataclass
 
 import httpx
@@ -15,6 +16,8 @@ GITHUB_REPO = "InkyCloud-F1"
 
 # Cache for version info (refreshed at midnight and on deployment)
 _version_cache: "VersionInfo | None" = None
+_version_cache_fetched_at: float | None = None
+VERSION_CACHE_TTL_SECONDS = 300
 
 
 @dataclass
@@ -42,7 +45,13 @@ class VersionInfo:
 
 
 def get_cached_version() -> VersionInfo | None:
-    """Get cached version info without fetching."""
+    """Get cached version info unless the cache is stale."""
+    if _version_cache is None or _version_cache_fetched_at is None:
+        return None
+
+    if time.time() - _version_cache_fetched_at > VERSION_CACHE_TTL_SECONDS:
+        return None
+
     return _version_cache
 
 
@@ -53,7 +62,7 @@ async def fetch_version_info() -> VersionInfo:
     Returns:
         VersionInfo with release and commit details
     """
-    global _version_cache
+    global _version_cache, _version_cache_fetched_at
 
     release_tag = None
     release_name = None
@@ -116,6 +125,7 @@ async def fetch_version_info() -> VersionInfo:
         commit_message=commit_message,
         last_updated=commit_date,
     )
+    _version_cache_fetched_at = time.time()
 
     return _version_cache
 

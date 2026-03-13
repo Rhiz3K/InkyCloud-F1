@@ -683,6 +683,13 @@ def test_changelog_contains_version_history():
     assert "Changelog" in html or "Changes" in html
 
 
+def test_changelog_hides_empty_unreleased_heading():
+    """Test changelog page does not render an empty Unreleased section."""
+    response = client.get("/changelog?lang=en")
+    html = response.text
+    assert ">Unreleased<" not in html
+
+
 def test_changelog_lang_parameter():
     """Test changelog page respects lang parameter."""
     response_en = client.get("/changelog?lang=en")
@@ -696,6 +703,26 @@ def test_changelog_header_nav():
     response = client.get("/changelog")
     html = response.text
     assert 'href="/"' in html
+
+
+def test_strip_empty_unreleased_section_removes_blank_heading_only():
+    """Empty Unreleased heading is removed without regex backtracking."""
+    from app.routes.pages import _strip_empty_unreleased_section
+
+    changelog = """# Changelog
+
+## [Unreleased]
+
+
+## [1.2.9] - 2026-03-13
+
+- Added release notes
+"""
+
+    stripped = _strip_empty_unreleased_section(changelog)
+
+    assert "## [Unreleased]" not in stripped
+    assert "## [1.2.9] - 2026-03-13" in stripped
 
 
 def test_convert_race_times_to_timezone():

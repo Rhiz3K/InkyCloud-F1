@@ -95,6 +95,7 @@ class Database:
                     tz TEXT,
                     year INTEGER,
                     round INTEGER,
+                    display_type TEXT,
                     race_name TEXT,
                     is_auto_selected INTEGER DEFAULT 0
                 );
@@ -174,6 +175,7 @@ class Database:
         migrations = [
             ("year", "INTEGER"),
             ("round", "INTEGER"),
+            ("display_type", "TEXT"),
             ("race_name", "TEXT"),
             ("is_auto_selected", "INTEGER DEFAULT 0"),
         ]
@@ -360,7 +362,7 @@ class Database:
         Args:
             calls: List of call dictionaries with keys:
                    timestamp, endpoint, response_time_ms, response_size_bytes, lang, tz,
-                   year, round, race_name, is_auto_selected
+                   year, round, display_type, race_name, is_auto_selected
 
         Returns:
             Number of inserted records
@@ -375,8 +377,8 @@ class Database:
                 """
                 INSERT INTO api_calls
                     (timestamp, endpoint, response_time_ms, response_size_bytes, lang, tz,
-                     year, round, race_name, is_auto_selected)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     year, round, display_type, race_name, is_auto_selected)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -388,6 +390,7 @@ class Database:
                         call.get("tz"),
                         call.get("year"),
                         call.get("round"),
+                        call.get("display_type"),
                         call.get("race_name"),
                         call.get("is_auto_selected", 0),
                     )
@@ -447,7 +450,8 @@ class Database:
 
         Returns:
             dict with total_requests, min/avg/max_response_ms, total_bytes,
-            endpoints, languages, timezones, hourly, and races breakdowns.
+            endpoints, languages, calendar-only display_types, timezones,
+            hourly, and races breakdowns.
         """
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
@@ -518,6 +522,25 @@ class Database:
                 rows = await cursor.fetchall()
                 language_stats = [{"lang": row["lang"], "count": row["count"]} for row in rows]
 
+            # Display breakdown - only for calendar requests
+            async with conn.execute(
+                """
+                SELECT display_type, COUNT(*) as count
+                FROM api_calls
+                WHERE timestamp > ?
+                    AND endpoint = '/calendar.bmp'
+                    AND display_type IS NOT NULL
+                    AND display_type != ''
+                GROUP BY display_type
+                ORDER BY count DESC
+                """,
+                (cutoff,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                display_stats = [
+                    {"display_type": row["display_type"], "count": row["count"]} for row in rows
+                ]
+
             # Timezone breakdown (top 10)
             async with conn.execute(
                 """
@@ -586,6 +609,7 @@ class Database:
                 **basic_stats,
                 "endpoints": endpoint_stats,
                 "languages": language_stats,
+                "display_types": display_stats,
                 "timezones": timezone_stats,
                 "hourly": hourly_stats,
                 "races": race_stats,

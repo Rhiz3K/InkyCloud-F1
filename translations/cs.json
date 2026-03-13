@@ -98,6 +98,7 @@
   "stats_by_endpoint": "Podle endpointu",
   "stats_by_race": "Podle závodu",
   "stats_by_language": "Podle jazyka",
+  "stats_by_display": "Podle displeje",
   "stats_top_timezones": "Nejčastější časová pásma",
   "stats_365d": "Posledních 365 dní",
   "stats_footer": "Data se aktualizují při načtení stránky. Vyberte časový rozsah výše.",

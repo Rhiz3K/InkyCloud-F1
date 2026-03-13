@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.10] - 2026-03-13
+
+### Frontend
+
+#### Added
+
+- **Stats display breakdown** - Added a new statistics card that shows calendar request share by `1bit`, `B/W/R`, and `Spectra 6` display type
+
+### Backend
+
+- **Display type analytics** - Persisted calendar display mode in API call statistics so the stats dashboard can aggregate usage by display type
+
 ## [1.2.9] - 2026-03-13
 
 ### Frontend

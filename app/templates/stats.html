@@ -34,7 +34,7 @@
 />
 {% endblock %} {% block body_class %} font-mono{% endblock %} {% block content
 %}
-<main class="max-w-6xl mx-auto px-4 py-8">
+<main class="w-full max-w-6xl mx-auto px-4 py-8 box-border">
   <!-- Title and Range Selector -->
   <div
     class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4"
@@ -335,8 +335,8 @@
     </div>
   </div>
 
-  <!-- Two Column Layout: Endpoints + Languages -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+  <!-- Breakdowns -->
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-8">
     <!-- Endpoints -->
     <div class="border-2 border-black bg-white p-6 shadow-neo">
       <h2
@@ -388,6 +388,34 @@
       </div>
       {% endfor %} {% else %}
       <p class="text-gray-500 text-sm">No data</p>
+      {% endif %}
+    </div>
+
+    <!-- Display Types -->
+    <div class="border-2 border-black bg-white p-6 shadow-neo">
+      <h2
+        class="font-bold uppercase tracking-wider mb-4 border-b-2 border-black pb-2"
+      >
+        {{ t.get("stats_by_display", "By Display") }}
+      </h2>
+      {% if stats.display_types %} {% set display_total = stats.display_types |
+      sum(attribute='count') %} {% for display_stat in stats.display_types %}
+      <div class="flex items-center gap-2 mb-2">
+        <span class="w-24 text-xs font-bold uppercase"
+          >{{ display_stat.display_label }}</span
+        >
+        <div class="flex-1 h-5 bg-gray-200 border border-black">
+          <div
+            class="h-full"
+            style="width: {{ calc_percent(display_stat.count, display_total) }}%; background-color: {{ display_stat.bar_color }}"
+          ></div>
+        </div>
+        <span class="w-16 text-right font-mono text-xs"
+          >{{ calc_percent(display_stat.count, display_total) }}%</span
+        >
+      </div>
+      {% endfor %} {% else %}
+      <p class="text-gray-500 text-sm">{{ t.get("no_data_yet", "No data yet") }}</p>
       {% endif %}
     </div>
   </div>

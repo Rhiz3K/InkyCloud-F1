@@ -64,6 +64,7 @@ class TestApiCallsBuffer:
             round_num=5,
             race_name="Monaco Grand Prix",
             is_auto_selected=True,
+            display_type="bwr",
         )
 
         calls = get_and_clear_api_calls_buffer()
@@ -75,6 +76,7 @@ class TestApiCallsBuffer:
         assert call["round"] == 5
         assert call["race_name"] == "Monaco Grand Prix"
         assert call["is_auto_selected"] == 1
+        assert call["display_type"] == "bwr"
 
     @staticmethod
     def test_record_api_call_is_auto_selected_false():
