@@ -33,8 +33,8 @@ jobs:
       with:
         python-version: "3.14.3"
 
-    - name: Validate release readiness for labeled release PRs
-      if: github.event_name == 'pull_request' && github.base_ref == 'main' && contains(github.event.pull_request.labels.*.name, 'release')
+    - name: Validate release readiness for main PRs
+      if: github.event_name == 'pull_request' && github.base_ref == 'main'
       run: |
         python -m app.utils.release_validation
     
