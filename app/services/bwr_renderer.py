@@ -51,7 +51,18 @@ class BwrRenderer(Spectra6Renderer):
                 continue
 
             try:
-                logo = Image.open(logo_path).convert("RGB")
+                logo_file = Image.open(logo_path)
+
+                pad = 2
+                target_w = width - (pad * 2)
+                target_h = height - (pad * 2)
+                logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+
+                logo = logo_file.convert("L")
+                threshold = 128
+                logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[arg-type]
+                logo = logo.convert("1").convert("RGB")
+
                 x = (width - logo.width) // 2
                 y = (height - logo.height) // 2
                 image.paste(logo, (x, y))
