@@ -299,8 +299,9 @@ async def get_calendar_bmp(
     display: str = Query(
         default="1bit",
         description=(
-            "Display type: '1bit' (800x480 monochrome), 'spectra6' (800x480 6-color), "
-            "or 'bwr' (800x480 black/white/red)"
+            f"Display type: '1bit' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} monochrome), "
+            f"'spectra6' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} 6-color), "
+            f"or 'bwr' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red)"
         ),
     ),
     f1_service: F1Service = Depends(get_f1_service),

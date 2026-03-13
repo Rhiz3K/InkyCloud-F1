@@ -619,6 +619,7 @@ def test_calendar_bmp_with_bwr_display():
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/bmp"
     assert response.content[:2] == b"BM"
+    assert int.from_bytes(response.content[28:30], byteorder="little") == 4
 
 
 def test_teams_bmp_default():

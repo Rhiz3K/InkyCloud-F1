@@ -46,7 +46,12 @@ async def get_configure_preview_png(
     """Serve pre-generated configure-preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
     allowed_langs = {"en": "en", "cs": "cs"}
-    allowed_weather = {"off": "off", "current": "current", "race": "race"}
+    allowed_weather = {
+        "off": "off",
+        "current": "current",
+        "race": "race",
+        "race_day": "race",
+    }
     allowed_display = {"1bit": "1bit", "spectra6": "spectra6", "bwr": "bwr"}
 
     safe_screen = allowed_screens.get(screen_type)

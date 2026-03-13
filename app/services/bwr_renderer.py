@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
-from PIL.ImageFont import FreeTypeFont
 
 from app.services.spectra6_renderer import (
     CIRCUIT_ID_MAP,
@@ -41,6 +40,9 @@ class BwrRenderer(Spectra6Renderer):
     def __init__(self, translator: dict):
         super().__init__(translator)
         self.colors = BwrColors
+        self.layout["results_flag_max_width_percent"] = 80  # type: ignore[index]
+        self.layout["results_flag_gap"] = 3  # type: ignore[index]
+        self.layout["results_flag_bottom_padding"] = 4  # type: ignore[index]
 
     @staticmethod
     def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:
@@ -60,7 +62,7 @@ class BwrRenderer(Spectra6Renderer):
 
                 logo = logo_file.convert("L")
                 threshold = 128
-                logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[arg-type]
+                logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[arg-type,operator,misc]
                 logo = logo.convert("1").convert("RGB")
 
                 x = (width - logo.width) // 2
@@ -91,7 +93,7 @@ class BwrRenderer(Spectra6Renderer):
                 continue
 
             try:
-                return Image.open(track_path)
+                return Image.open(track_path).convert("RGB")
             except Exception as exc:
                 logger.warning("Failed to load track %s: %s", track_path, exc)
 
@@ -133,10 +135,12 @@ class BwrRenderer(Spectra6Renderer):
                     logger.warning("Failed to load flag %s: %s", flag_path, exc)
 
         header_area_w = self.layout["results_col1_x"]
+        max_flag_width = int(header_area_w * self.layout["results_flag_max_width_percent"] / 100)
+        standard_gap = self.layout["results_flag_gap"]
+        flag_bottom_padding = self.layout["results_flag_bottom_padding"]
 
         flag_h = 0
         if flag_img:
-            max_flag_width = int(header_area_w * 0.8)
             if flag_img.width > max_flag_width:
                 ratio = max_flag_width / flag_img.width
                 flag_h = int(flag_img.height * ratio)
@@ -144,7 +148,6 @@ class BwrRenderer(Spectra6Renderer):
             else:
                 flag_h = flag_img.height
 
-        standard_gap = 3
         total_block_h_stable = text_h + (standard_gap if flag_h > 0 else 0) + flag_h
         y_offset_stable = (footer_height - total_block_h_stable) // 2
         visual_top = footer_y_start + y_offset_stable
@@ -155,7 +158,7 @@ class BwrRenderer(Spectra6Renderer):
 
         if flag_img:
             x = (header_area_w - flag_img.width) // 2
-            flag_top_y = int(self.height - flag_img.height - 4)
+            flag_top_y = int(self.height - flag_img.height - flag_bottom_padding)
 
             image.paste(flag_img, (x, flag_top_y))
 
@@ -172,11 +175,7 @@ class BwrRenderer(Spectra6Renderer):
 
         return int(visual_top)
 
-    @staticmethod
-    def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
-        return Spectra6Renderer._load_icon_font(size)
-
-    def _load_weather_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+    def _load_weather_icon_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
         try:
             return ImageFont.truetype(str(font_path), size)

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from app.services.spectra6_renderer import CIRCUIT_ID_MAP
 from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
 
 MAX_WIDTH = 490
@@ -45,20 +46,40 @@ def classify_pixel(r: int, g: int, b: int) -> tuple[int, int, int]:
 
 
 def process_track_image(input_path: Path, output_path: Path) -> dict:
-    original = Image.open(input_path).convert("RGB")
+    original_file = Image.open(input_path)
+    if original_file.mode in ("RGBA", "LA") or "transparency" in original_file.info:
+        rgba = original_file.convert("RGBA")
+        background = Image.new("RGB", rgba.size, WHITE)
+        background.paste(rgba, mask=rgba.getchannel("A"))
+        original = background
+    elif original_file.mode == "P":
+        rgba = original_file.convert("RGBA")
+        background = Image.new("RGB", rgba.size, WHITE)
+        background.paste(rgba, mask=rgba.getchannel("A"))
+        original = background
+    elif original_file.mode != "RGB":
+        original = original_file.convert("RGB")
+    else:
+        original = original_file
+
     original_size = input_path.stat().st_size
     original_dimensions = original.size
 
     gray = original.convert("L")
     gray_pixels = gray.load()
+    if gray_pixels is None:
+        raise ValueError("Failed to access grayscale track pixels")
     min_x = gray.width
     min_y = gray.height
     max_x = -1
     max_y = -1
     for y in range(gray.height):
         for x in range(gray.width):
-            pixel = gray_pixels[x, y]
-            value = int(pixel if isinstance(pixel, int) else pixel[0])
+            pixel = gray_pixels[x, y]  # type: ignore[index]
+            if isinstance(pixel, tuple):
+                value = int(pixel[0])
+            else:
+                value = int(pixel)
             if value <= 128:
                 min_x = min(min_x, x)
                 min_y = min(min_y, y)
@@ -76,13 +97,15 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
 
     source_pixels: list[tuple[int, int, int]] = []
     pixel_access = original.load()
+    if pixel_access is None:
+        raise ValueError("Failed to access track pixels")
     for y in range(original.height):
         for x in range(original.width):
             pixel = pixel_access[x, y]
             if isinstance(pixel, tuple):
                 r, g, b = pixel[:3]
             else:
-                r = g = b = pixel
+                r = g = b = int(pixel)
             source_pixels.append((int(r), int(g), int(b)))
 
     pixels = [classify_pixel(pixel[0], pixel[1], pixel[2]) for pixel in source_pixels]
@@ -107,6 +130,10 @@ def main() -> None:
     print(" BWR Track Image Pre-processor")
     print("=" * 60)
 
+    if not TRACKS_DIR.exists():
+        print(f"Input directory not found: {TRACKS_DIR}")
+        sys.exit(1)
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     track_files = list(TRACKS_DIR.glob("*.png")) + list(TRACKS_DIR.glob("*.jpg"))
 
@@ -117,7 +144,8 @@ def main() -> None:
     total_input_size = 0
     total_output_size = 0
     for track_path in sorted(track_files):
-        output_path = OUTPUT_DIR / f"{track_path.stem}.bmp"
+        normalized_stem = CIRCUIT_ID_MAP.get(track_path.stem, track_path.stem)
+        output_path = OUTPUT_DIR / f"{normalized_stem}.bmp"
         try:
             stats = process_track_image(track_path, output_path)
             total_input_size += stats["input_size"]

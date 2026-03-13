@@ -1451,7 +1451,9 @@ def test_bwr_render_calendar_with_datetime_schedule():
 
     assert bmp_data is not None
     img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
     assert img.size == (800, 480)
+    assert img.mode == "P"
 
 
 def test_bwr_render_calendar_las_vegas():
@@ -1477,7 +1479,9 @@ def test_bwr_render_calendar_las_vegas():
 
     assert bmp_data is not None
     img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
     assert img.size == (800, 480)
+    assert img.mode == "P"
 
 
 def test_bwr_bmp_uses_three_color_palette(mock_race_data):
