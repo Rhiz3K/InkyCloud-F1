@@ -57,7 +57,7 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
 ## ✨ Features
 
-- **800×480 BMP output** — `1bit` monochrome, `bwr` black/white/red, and `spectra6` 6-color mode for calendar screen
+- **800×480 BMP output** — `1bit` monochrome, `bwr` B/W/R, and `spectra6` 6-color mode for calendar screen
 - **Always Up-to-Date** — Automatically updated after each Grand Prix
 - **Multi-language** — Czech and English support
 - **Any Timezone** — Convert race times to your local timezone
