@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -64,9 +65,13 @@ def parse_latest_release_section(changelog: str) -> ReleaseValidationResult:
 
 
 def get_latest_git_tag() -> SemVer | None:
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        raise RuntimeError("git executable not found")
+
     try:
         output = subprocess.check_output(
-            ["git", "tag", "--list", "v*", "--sort=-v:refname"],
+            [git_executable, "tag", "--list", "v*", "--sort=-v:refname"],
             text=True,
         ).splitlines()
     except subprocess.CalledProcessError as exc:

@@ -27,22 +27,24 @@ _DISPLAY_TYPE_STYLES = {
 }
 
 
-def _strip_empty_unreleased_section(changelog: str) -> str:
+def _strip_empty_unreleased_section(changelog_text: str) -> str:
     """Remove an empty Unreleased heading before the first version section."""
     unreleased_heading = "## [Unreleased]"
-    unreleased_start = changelog.find(unreleased_heading)
+    unreleased_start = changelog_text.find(unreleased_heading)
     if unreleased_start == -1:
-        return changelog
+        return changelog_text
 
-    first_version_start = changelog.find("## [", unreleased_start + len(unreleased_heading))
+    first_version_start = changelog_text.find("## [", unreleased_start + len(unreleased_heading))
     if first_version_start == -1:
-        return changelog
+        return changelog_text
 
-    unreleased_body = changelog[unreleased_start + len(unreleased_heading) : first_version_start]
+    unreleased_body = changelog_text[
+        unreleased_start + len(unreleased_heading) : first_version_start
+    ]
     if unreleased_body.strip():
-        return changelog
+        return changelog_text
 
-    return changelog[:unreleased_start] + changelog[first_version_start:]
+    return changelog_text[:unreleased_start] + changelog_text[first_version_start:]
 
 
 def _enrich_display_type_stats(stats: dict) -> None:
