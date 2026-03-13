@@ -402,13 +402,16 @@
       sum(attribute='count') %} {% for display_stat in stats.display_types %} {% set
       display_key = display_stat.display_type %} {% set display_label = '1-BIT' if
       display_key == '1bit' else 'SPECTRA 6' if display_key == 'spectra6' else
-      'B/W/R' if display_key == 'bwr' else (display_key | upper) %}
+      'B/W/R' if display_key == 'bwr' else (display_key | upper) %} {% set
+      display_color = '#000000' if display_key == '1bit' else '#6b7280' if
+      display_key == 'spectra6' else '#dc2626' if display_key == 'bwr' else
+      '#111827' %}
       <div class="flex items-center gap-2 mb-2">
         <span class="w-24 text-xs font-bold uppercase">{{ display_label }}</span>
         <div class="flex-1 h-5 bg-gray-200 border border-black">
           <div
-            class="h-full {% if display_key == '1bit' %}bg-black{% elif display_key == 'spectra6' %}bg-gray-500{% else %}bg-racing-red{% endif %}"
-            style="width: {{ calc_percent(display_stat.count, display_total) }}%"
+            class="h-full"
+            style="width: {{ calc_percent(display_stat.count, display_total) }}%; background-color: {{ display_color }}"
           ></div>
         </div>
         <span class="w-16 text-right font-mono text-xs"
