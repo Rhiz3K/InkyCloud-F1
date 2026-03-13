@@ -1,6 +1,7 @@
 """Test database service."""
 
 import asyncio
+from datetime import datetime, timezone
 
 import pytest
 
@@ -52,7 +53,6 @@ class TestCircuitWeatherDatabase:
         """Test that saving same circuit updates the data."""
 
         async def run_test():
-            # First save
             await db.save_circuit_weather(
                 circuit_id="monaco",
                 circuit_name="Monaco",
@@ -61,7 +61,6 @@ class TestCircuitWeatherDatabase:
                 precipitation_probability=5,
             )
 
-            # Second save (update)
             await db.save_circuit_weather(
                 circuit_id="monaco",
                 circuit_name="Monaco Street Circuit",
@@ -85,7 +84,6 @@ class TestCircuitWeatherDatabase:
         async def run_test():
             result = await db.load_all_circuit_weather()
             assert isinstance(result, dict)
-            # May have data from other tests, so just check it's a dict
 
         asyncio.run(run_test())
 
@@ -94,7 +92,6 @@ class TestCircuitWeatherDatabase:
         """Test loading all circuit weather data."""
 
         async def run_test():
-            # Save multiple circuits
             await db.save_circuit_weather(
                 circuit_id="silverstone",
                 circuit_name="Silverstone",
@@ -116,5 +113,84 @@ class TestCircuitWeatherDatabase:
             assert "spa" in result
             assert result["silverstone"]["temperature_c"] == 18.0
             assert result["spa"]["weather_code"] == 61
+
+        asyncio.run(run_test())
+
+
+class TestApiCallStatsDatabase:
+    """Tests for API call statistics."""
+
+    @staticmethod
+    def test_get_stats_for_range_includes_display_breakdown(tmp_path):
+        """Calendar stats include display type counts."""
+
+        async def run_test():
+            db = Database(str(tmp_path / "stats.db"))
+            now = datetime.now(timezone.utc).isoformat()
+
+            await db.save_api_calls_batch(
+                [
+                    {
+                        "timestamp": now,
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 100.0,
+                        "response_size_bytes": 1024,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "1bit",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 0,
+                    },
+                    {
+                        "timestamp": now,
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 120.0,
+                        "response_size_bytes": 2048,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "bwr",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 0,
+                    },
+                    {
+                        "timestamp": now,
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 125.0,
+                        "response_size_bytes": 2048,
+                        "lang": "cs",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "bwr",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 1,
+                    },
+                    {
+                        "timestamp": now,
+                        "endpoint": "/teams.bmp",
+                        "response_time_ms": 80.0,
+                        "response_size_bytes": 512,
+                        "lang": "en",
+                        "tz": None,
+                        "year": 2026,
+                        "round": None,
+                        "display_type": None,
+                        "race_name": None,
+                        "is_auto_selected": 0,
+                    },
+                ]
+            )
+
+            stats = await db.get_stats_for_range(24)
+
+            assert stats["total_requests"] == 4
+            assert stats["display_types"] == [
+                {"display_type": "bwr", "count": 2},
+                {"display_type": "1bit", "count": 1},
+            ]
 
         asyncio.run(run_test())

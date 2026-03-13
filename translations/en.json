@@ -98,6 +98,7 @@
   "stats_by_endpoint": "By Endpoint",
   "stats_by_race": "By Race",
   "stats_by_language": "By Language",
+  "stats_by_display": "By Display",
   "stats_top_timezones": "Top Timezones",
   "stats_365d": "Last 365 Days",
   "stats_footer": "Data refreshes on page load. Select a time range above.",

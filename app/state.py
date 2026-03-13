@@ -29,6 +29,7 @@ def record_api_call(
     round_num: int | None = None,
     race_name: str | None = None,
     is_auto_selected: bool = False,
+    display_type: str | None = None,
 ) -> None:
     call = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -41,6 +42,7 @@ def record_api_call(
         "round": round_num,
         "race_name": race_name,
         "is_auto_selected": 1 if is_auto_selected else 0,
+        "display_type": display_type,
     }
     _api_calls_buffer.append(call)
 

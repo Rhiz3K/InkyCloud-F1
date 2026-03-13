@@ -335,8 +335,8 @@
     </div>
   </div>
 
-  <!-- Two Column Layout: Endpoints + Languages -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+  <!-- Breakdowns -->
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-8">
     <!-- Endpoints -->
     <div class="border-2 border-black bg-white p-6 shadow-neo">
       <h2
@@ -388,6 +388,35 @@
       </div>
       {% endfor %} {% else %}
       <p class="text-gray-500 text-sm">No data</p>
+      {% endif %}
+    </div>
+
+    <!-- Display Types -->
+    <div class="border-2 border-black bg-white p-6 shadow-neo">
+      <h2
+        class="font-bold uppercase tracking-wider mb-4 border-b-2 border-black pb-2"
+      >
+        {{ t.get("stats_by_display", "By Display") }}
+      </h2>
+      {% if stats.display_types %} {% set display_total = stats.display_types |
+      sum(attribute='count') %} {% for display_stat in stats.display_types %} {% set
+      display_key = display_stat.display_type %} {% set display_label = '1-BIT' if
+      display_key == '1bit' else 'SPECTRA 6' if display_key == 'spectra6' else
+      'B/W/R' if display_key == 'bwr' else (display_key | upper) %}
+      <div class="flex items-center gap-2 mb-2">
+        <span class="w-24 text-xs font-bold uppercase">{{ display_label }}</span>
+        <div class="flex-1 h-5 bg-gray-200 border border-black">
+          <div
+            class="h-full {% if display_key == '1bit' %}bg-black{% elif display_key == 'spectra6' %}bg-gray-500{% else %}bg-racing-red{% endif %}"
+            style="width: {{ calc_percent(display_stat.count, display_total) }}%"
+          ></div>
+        </div>
+        <span class="w-16 text-right font-mono text-xs"
+          >{{ calc_percent(display_stat.count, display_total) }}%</span
+        >
+      </div>
+      {% endfor %} {% else %}
+      <p class="text-gray-500 text-sm">{{ t.get("no_data_yet", "No data yet") }}</p>
       {% endif %}
     </div>
   </div>
