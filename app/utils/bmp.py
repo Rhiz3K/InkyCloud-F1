@@ -89,6 +89,8 @@ def encode_indexed_bmp_4bit(indexed: Image.Image, palette: list[RgbColor]) -> by
     """
     if indexed.mode != "P":
         raise ValueError(f"Expected image mode 'P', got {indexed.mode!r}")
+    if len(palette) > 16:
+        raise ValueError(f"4-bit BMP supports max 16 palette colors, got {len(palette)}")
 
     width, height = indexed.size
     row_stride = ((((width + 1) // 2) + 3) // 4) * 4
@@ -101,13 +103,15 @@ def encode_indexed_bmp_4bit(indexed: Image.Image, palette: list[RgbColor]) -> by
         row = bytearray()
         for x in range(0, width, 2):
             left_pixel = px[x, y]  # type: ignore[index]
-            left = (int(left_pixel[0]) if isinstance(left_pixel, tuple) else int(left_pixel)) & 0x0F
+            left = int(left_pixel[0]) if isinstance(left_pixel, tuple) else int(left_pixel)
+            if not 0 <= left <= 15:
+                raise ValueError(f"Pixel index out of 4-bit range at ({x}, {y}): {left}")
 
             if x + 1 < width:
                 right_pixel = px[x + 1, y]  # type: ignore[index]
-                right = (
-                    int(right_pixel[0]) if isinstance(right_pixel, tuple) else int(right_pixel)
-                ) & 0x0F
+                right = int(right_pixel[0]) if isinstance(right_pixel, tuple) else int(right_pixel)
+                if not 0 <= right <= 15:
+                    raise ValueError(f"Pixel index out of 4-bit range at ({x + 1}, {y}): {right}")
             else:
                 right = 0
             row.append((left << 4) | right)
@@ -116,7 +120,7 @@ def encode_indexed_bmp_4bit(indexed: Image.Image, palette: list[RgbColor]) -> by
 
     pixel_data = b"".join(rows)
 
-    palette_entries = list(palette[:16])
+    palette_entries = list(palette)
     filler = palette[-1] if palette else (255, 255, 255)
     while len(palette_entries) < 16:
         palette_entries.append(filler)

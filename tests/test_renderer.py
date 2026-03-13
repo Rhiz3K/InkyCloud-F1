@@ -1222,7 +1222,10 @@ def test_spectra6_render_calendar_with_datetime_schedule():
     bmp_data = renderer.render_calendar(race_data)
 
     assert bmp_data is not None
-    assert Image.open(BytesIO(bmp_data)).size == (800, 480)
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
 
 
 def test_spectra6_render_calendar_las_vegas():
@@ -1247,7 +1250,10 @@ def test_spectra6_render_calendar_las_vegas():
     bmp_data = renderer.render_calendar(race_data)
 
     assert bmp_data is not None
-    assert Image.open(BytesIO(bmp_data)).size == (800, 480)
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
 
 
 # ==========================================================================
