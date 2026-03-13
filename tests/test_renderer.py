@@ -23,6 +23,7 @@ from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 from app.services.teams_service import TeamsService
+from app.utils.bmp import map_to_bwr_palette
 
 
 @pytest.fixture
@@ -1498,3 +1499,19 @@ def test_bwr_bmp_is_smaller_than_spectra6_for_same_calendar(mock_race_data):
     spectra6_data = Spectra6Renderer(translator).render_calendar(mock_race_data)
 
     assert len(bwr_data) < len(spectra6_data)
+
+
+def test_map_to_bwr_palette_keeps_grayscale_pixels_off_red():
+    """Grayscale anti-aliasing should not turn black text edges red."""
+    image = Image.new("RGB", (3, 1), color=(255, 255, 255))
+    image.putdata([(0, 0, 0), (110, 110, 110), (160, 32, 32)])
+
+    indexed = map_to_bwr_palette(image, BwrColors.PALETTE)
+    pixels = indexed.load()
+
+    assert pixels is not None
+    assert [pixels[0, 0], pixels[1, 0], pixels[2, 0]] == [
+        BwrColors.IDX_BLACK,
+        BwrColors.IDX_BLACK,
+        BwrColors.IDX_RED,
+    ]

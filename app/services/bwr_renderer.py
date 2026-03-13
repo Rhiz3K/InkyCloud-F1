@@ -15,7 +15,7 @@ from app.services.spectra6_renderer import (
     Spectra6Renderer,
     logger,
 )
-from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
+from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwr_palette
 
 TRACKS_BWR_DIR = Path(__file__).parent.parent / "assets" / "tracks_bwr"
 TRACKS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "tracks_processed"
@@ -186,5 +186,11 @@ class BwrRenderer(Spectra6Renderer):
 
     def _to_indexed_bmp(self, image: Image.Image) -> bytes:
         """Convert RGB image to indexed 4-bit BMP optimized for BWR displays."""
-        indexed = quantize_to_palette(image, self.colors.PALETTE, colors=3)
+        indexed = map_to_bwr_palette(
+            image,
+            self.colors.PALETTE,
+            black_index=self.colors.IDX_BLACK,
+            white_index=self.colors.IDX_WHITE,
+            red_index=self.colors.IDX_RED,
+        )
         return encode_indexed_bmp_4bit(indexed, self.colors.PALETTE)
