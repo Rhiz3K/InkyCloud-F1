@@ -313,6 +313,14 @@ block content %}
           >
             SPECTRA 6
           </button>
+          <button
+            type="button"
+            onclick="setDisplayType('bwr')"
+            id="displayBwrBtn"
+            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+          >
+            BWR
+          </button>
         </div>
       </div>
     </div>
@@ -382,6 +390,14 @@ block content %}
           class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
         >
           SPECTRA 6
+        </button>
+        <button
+          type="button"
+          onclick="setDisplayType('bwr')"
+          id="displayBwrBtnMobile"
+          class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+        >
+          BWR
         </button>
       </div>
     </div>
@@ -1217,8 +1233,8 @@ block content %}
       } else if (weatherType === "current") {
         params.push(`weather_type=current`);
       }
-      if (currentDisplayType === "spectra6") {
-        params.push(`display=spectra6`);
+      if (currentDisplayType !== "1bit") {
+        params.push(`display=${currentDisplayType}`);
       }
       if (params.length > 0) url += '?' + params.join('&');
       return url;
@@ -1258,7 +1274,7 @@ block content %}
       let params = [];
       if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
       params.push(`weather_type=${finalWeather}`);
-      if (currentDisplayType === "spectra6") params.push(`display=spectra6`);
+      if (currentDisplayType !== "1bit") params.push(`display=${currentDisplayType}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else if (canUsePrerenderedPreview() && currentScreenType === "teams") {
@@ -1437,7 +1453,9 @@ block content %}
 
     img.onerror = function () {
       if (isPregenerated) {
-        const fallbackUrl = getApiUrl() + `&_t=${Date.now()}`;
+        const fallbackApiUrl = getApiUrl();
+        const fallbackSeparator = fallbackApiUrl.includes("?") ? "&" : "?";
+        const fallbackUrl = fallbackApiUrl + `${fallbackSeparator}_t=${Date.now()}`;
         img.onerror = function () {
           loadingOverlay.classList.add("hidden");
           errorOverlay.classList.remove("hidden");
@@ -1985,13 +2003,15 @@ block content %}
     const allBtns = [
       document.getElementById("display1bitBtn"),
       document.getElementById("displaySpectra6Btn"),
+      document.getElementById("displayBwrBtn"),
       document.getElementById("display1bitBtnMobile"),
       document.getElementById("displaySpectra6BtnMobile"),
+      document.getElementById("displayBwrBtnMobile"),
     ];
 
     allBtns.forEach((btn) => {
       if (btn) {
-        btn.classList.remove("bg-black", "text-white");
+        btn.classList.remove("bg-black", "bg-racing-red", "text-white");
         btn.classList.add("bg-white");
       }
     });
@@ -2003,6 +2023,10 @@ block content %}
     const spectra6Btns = [
       document.getElementById("displaySpectra6Btn"),
       document.getElementById("displaySpectra6BtnMobile"),
+    ];
+    const bwrBtns = [
+      document.getElementById("displayBwrBtn"),
+      document.getElementById("displayBwrBtnMobile"),
     ];
 
     if (type === "1bit") {
@@ -2019,11 +2043,19 @@ block content %}
           btn.classList.add("bg-black", "text-white");
         }
       });
+    } else if (type === "bwr") {
+      bwrBtns.forEach((btn) => {
+        if (btn) {
+          btn.classList.remove("bg-white");
+          btn.classList.add("bg-racing-red", "text-white");
+        }
+      });
     }
 
     const displayBadge = document.getElementById("displayBadge");
     if (displayBadge) {
-      displayBadge.textContent = type === "spectra6" ? "6-COLOR" : "1-BIT";
+      displayBadge.textContent =
+        type === "spectra6" ? "6-COLOR" : type === "bwr" ? "BWR" : "1-BIT";
     }
 
     updatePreview();

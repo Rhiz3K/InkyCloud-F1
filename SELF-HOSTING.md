@@ -642,7 +642,10 @@ Pre-generated files follow this pattern:
 
 ```
 calendar_{lang}.bmp                    # Default timezone
+calendar_{lang}_bwr.bmp                # Default timezone, BWR display
+calendar_{lang}_spectra6.bmp           # Default timezone, Spectra 6 display
 calendar_{lang}_{tz_safe}.bmp          # Specific timezone
+calendar_{lang}_{tz_safe}_bwr.bmp      # Specific timezone, BWR display
 ```
 
 Where `{tz_safe}` replaces `/` with `_` in timezone names:

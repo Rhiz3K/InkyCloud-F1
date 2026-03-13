@@ -47,7 +47,7 @@ async def get_configure_preview_png(
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
     allowed_langs = {"en": "en", "cs": "cs"}
     allowed_weather = {"off": "off", "current": "current", "race": "race"}
-    allowed_display = {"1bit": "1bit", "spectra6": "spectra6"}
+    allowed_display = {"1bit": "1bit", "spectra6": "spectra6", "bwr": "bwr"}
 
     safe_screen = allowed_screens.get(screen_type)
     if not safe_screen:
@@ -62,6 +62,8 @@ async def get_configure_preview_png(
         filename = f"configure_calendar_{safe_lang}"
         if safe_display == "spectra6":
             filename += "_spectra6"
+        elif safe_display == "bwr":
+            filename += "_bwr"
         if safe_weather != "off":
             filename += f"_weather_{safe_weather}"
         filename += ".png"

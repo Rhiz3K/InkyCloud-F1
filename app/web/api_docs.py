@@ -11,6 +11,7 @@ def build_api_docs_context(ui_lang: str) -> dict[str, Any]:
         curl_comment1 = "# Stáhnout kalendář dalšího závodu"
         curl_comment2 = "# S českým jazykem a časovým pásmem"
         curl_comment3 = "# Konkrétní závod (rok a kolo)"
+        curl_comment4 = "# BWR varianta pro černo-bílo-červený e-paper"
         python_docstring = "Stáhne F1 kalendář jako BMP obrázek."
         python_print = "Kalendář uložen jako calendar.bmp"
         python_usage = "# Použití"
@@ -27,7 +28,9 @@ def build_api_docs_context(ui_lang: str) -> dict[str, Any]:
                 f"{curl_comment2}\n"
                 'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?lang=cs&tz=Europe/Prague"\n\n'
                 f"{curl_comment3}\n"
-                'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?year=2025&round=5"'
+                'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?year=2025&round=5"\n\n'
+                f"{curl_comment4}\n"
+                'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?display=bwr"'
             ),
             "code_python": (
                 "import httpx\n\n"
@@ -72,8 +75,12 @@ def build_api_docs_context(ui_lang: str) -> dict[str, Any]:
             "year_desc": "Rok sezóny pro konkrétní závod",
             "round_desc": "Číslo kola (1-24) pro konkrétní závod",
             "tz_desc": "Časové pásmo pro časy v harmonogramu (IANA formát)",
+            "display_desc": "Režim výstupu pro 1bit, BWR nebo Spectra 6 displeje",
+            "weather_desc": "Zapnutí nebo vypnutí překrytí s počasím",
+            "weather_type_desc": "Typ zobrazených dat o počasí",
             "calendar_desc": (
-                "Generuje F1 kalendář jako 1-bit BMP obrázek (800×480) pro E-Ink displeje."
+                "Generuje F1 kalendář jako BMP obrázek (800×480) "
+                "pro 1bit, BWR a Spectra 6 E-Ink displeje."
             ),
             "eg": eg,
             "dimensions_label": "Rozměry",
@@ -95,6 +102,7 @@ def build_api_docs_context(ui_lang: str) -> dict[str, Any]:
     curl_comment1 = "# Download next race calendar"
     curl_comment2 = "# With Czech language and timezone"
     curl_comment3 = "# Specific race (year and round)"
+    curl_comment4 = "# Black/white/red output for tri-color E-Ink"
     python_docstring = "Download F1 calendar as BMP image."
     python_print = "Calendar saved as calendar.bmp"
     python_usage = "# Usage"
@@ -111,7 +119,9 @@ def build_api_docs_context(ui_lang: str) -> dict[str, Any]:
             f"{curl_comment2}\n"
             'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?lang=cs&tz=Europe/Prague"\n\n'
             f"{curl_comment3}\n"
-            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?year=2025&round=5"'
+            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?year=2025&round=5"\n\n'
+            f"{curl_comment4}\n"
+            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?display=bwr"'
         ),
         "code_python": (
             "import httpx\n\n"
@@ -156,7 +166,13 @@ def build_api_docs_context(ui_lang: str) -> dict[str, Any]:
         "year_desc": "Season year for specific race",
         "round_desc": "Round number (1-24) for specific race",
         "tz_desc": "Timezone for schedule times (IANA format)",
-        "calendar_desc": ("Generates F1 calendar as 1-bit BMP image (800×480) for E-Ink displays."),
+        "display_desc": "Output mode for 1bit, BWR, or Spectra 6 displays",
+        "weather_desc": "Enable or disable the weather overlay",
+        "weather_type_desc": "Which weather data variant to render",
+        "calendar_desc": (
+            "Generates F1 calendar as a BMP image (800×480) "
+            "for 1bit, BWR, and Spectra 6 E-Ink displays."
+        ),
         "eg": eg,
         "dimensions_label": "Dimensions",
         "color_depth_label": "Color depth",

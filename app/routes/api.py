@@ -28,9 +28,7 @@ async def api_info() -> dict:
     return {
         "service": "F1 E-Ink Calendar API",
         "version": "0.1.0",
-        "description": (
-            "Generate 800x480 1-bit BMP images for E-Ink displays showing F1 race schedules"
-        ),
+        "description": ("Generate 800x480 BMP images for E-Ink displays showing F1 race schedules"),
         "endpoints": {
             "/": {
                 "method": "GET",
@@ -38,7 +36,7 @@ async def api_info() -> dict:
             },
             "/calendar.bmp": {
                 "method": "GET",
-                "description": "Generate F1 calendar as 1-bit BMP image (800x480)",
+                "description": "Generate F1 calendar as BMP image (800x480)",
                 "parameters": {
                     "lang": {
                         "type": "string",
@@ -66,17 +64,43 @@ async def api_info() -> dict:
                         "default": "Europe/Prague",
                         "optional": True,
                     },
+                    "display": {
+                        "type": "string",
+                        "description": "Display output mode",
+                        "values": ["1bit", "spectra6", "bwr"],
+                        "default": "1bit",
+                        "example": "?display=bwr",
+                        "optional": True,
+                    },
+                    "weather": {
+                        "type": "boolean",
+                        "description": "Enable or disable weather overlay",
+                        "values": [True, False],
+                        "default": True,
+                        "example": "?weather=false",
+                        "optional": True,
+                    },
+                    "weather_type": {
+                        "type": "string",
+                        "description": "Weather source to render",
+                        "values": ["race_day", "current"],
+                        "default": "race_day",
+                        "example": "?weather_type=current",
+                        "optional": True,
+                    },
                 },
                 "response": {
                     "content_type": "image/bmp",
                     "dimensions": "800x480",
-                    "color_depth": "1-bit (black and white)",
+                    "color_depth": "1-bit, 3-color BWR, or 6-color Spectra 6",
                 },
                 "examples": [
                     "/calendar.bmp",
                     "/calendar.bmp?lang=cs",
                     "/calendar.bmp?year=2025&round=1",
                     "/calendar.bmp?lang=en&tz=America/Los_Angeles",
+                    "/calendar.bmp?display=bwr",
+                    "/calendar.bmp?display=spectra6&weather_type=current",
                 ],
             },
             "/api": {"method": "GET", "description": "API documentation (this endpoint)"},

@@ -18,6 +18,7 @@ from app.models import (
     TeamsData,
 )
 from app.services import renderer as renderer_module
+from app.services.bwr_renderer import BwrColors, BwrRenderer
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
@@ -1220,8 +1221,7 @@ def test_spectra6_render_calendar_with_datetime_schedule():
     bmp_data = renderer.render_calendar(race_data)
 
     assert bmp_data is not None
-    img = Image.open(BytesIO(bmp_data))
-    assert img.size == (800, 480)
+    assert Image.open(BytesIO(bmp_data)).size == (800, 480)
 
 
 def test_spectra6_render_calendar_las_vegas():
@@ -1246,5 +1246,247 @@ def test_spectra6_render_calendar_las_vegas():
     bmp_data = renderer.render_calendar(race_data)
 
     assert bmp_data is not None
+    assert Image.open(BytesIO(bmp_data)).size == (800, 480)
+
+
+# ==========================================================================
+# BWR Renderer Tests (black/white/red E-Ink display)
+# ==========================================================================
+
+
+def test_bwr_render_calendar_english(mock_race_data):
+    """Test BWR rendering calendar in English."""
+    translator = get_translator("en")
+    renderer = BwrRenderer(translator)
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
     img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+    assert img.getpalette() is not None
+
+
+def test_bwr_render_calendar_czech(mock_race_data):
+    """Test BWR rendering calendar in Czech."""
+    translator = get_translator("cs")
+    renderer = BwrRenderer(translator)
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_bwr_render_calendar_with_historical_data(mock_race_data, mock_historical_data):
+    """Test BWR rendering calendar with historical qualifying and race results."""
+    translator = get_translator("en")
+    renderer = BwrRenderer(translator)
+    bmp_data = renderer.render_calendar(mock_race_data, mock_historical_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_bwr_render_calendar_new_track(mock_race_data):
+    """Test BWR rendering calendar when track is new (no historical data)."""
+    translator = get_translator("en")
+    renderer = BwrRenderer(translator)
+
+    new_track_data = HistoricalData(is_new_track=True)
+    bmp_data = renderer.render_calendar(mock_race_data, new_track_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_bwr_render_error_english():
+    """Test BWR rendering error message in English."""
+    translator = get_translator("en")
+    renderer = BwrRenderer(translator)
+    bmp_data = renderer.render_error("Test error message")
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_bwr_render_error_czech():
+    """Test BWR rendering error message in Czech."""
+    translator = get_translator("cs")
+    renderer = BwrRenderer(translator)
+    bmp_data = renderer.render_error("Chybova zprava")
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_bwr_colors_palette():
+    assert BwrColors.BLACK == (0x00, 0x00, 0x00)
+    assert BwrColors.WHITE == (0xFF, 0xFF, 0xFF)
+    assert BwrColors.RED == (0xA0, 0x20, 0x20)
+
+    assert len(BwrColors.PALETTE) == 3
+    assert BwrColors.PALETTE[0] == BwrColors.BLACK
+    assert BwrColors.PALETTE[1] == BwrColors.WHITE
+    assert BwrColors.PALETTE[2] == BwrColors.RED
+
+
+def test_bwr_session_colors():
+    """Test BWR session color assignment - only Race is RED, all else BLACK."""
+    translator = get_translator("en")
+    renderer = BwrRenderer(translator)
+
+    assert renderer._get_session_color("Race") == BwrColors.RED
+    assert renderer._get_session_color("race") == BwrColors.RED
+
+    assert renderer._get_session_color("Qualifying") == BwrColors.BLACK
+    assert renderer._get_session_color("Q1") == BwrColors.BLACK
+    assert renderer._get_session_color("Q2") == BwrColors.BLACK
+    assert renderer._get_session_color("Q3") == BwrColors.BLACK
+
+    assert renderer._get_session_color("FP1") == BwrColors.BLACK
+    assert renderer._get_session_color("FP2") == BwrColors.BLACK
+    assert renderer._get_session_color("FP3") == BwrColors.BLACK
+    assert renderer._get_session_color("Practice 1") == BwrColors.BLACK
+
+    assert renderer._get_session_color("Sprint") == BwrColors.BLACK
+    assert renderer._get_session_color("Sprint Qualifying") == BwrColors.BLACK
+
+
+def test_bwr_render_calendar_with_weather():
+    """Test BWR rendering calendar with weather data."""
+    from datetime import datetime, timedelta
+
+    from app.services.weather_service import WeatherData
+
+    translator = get_translator("en")
+    renderer = BwrRenderer(translator)
+
+    race_datetime = datetime.now() + timedelta(days=3)
+    race_data = {
+        "race_name": "Monaco Grand Prix",
+        "round": "8",
+        "season": "2025",
+        "circuit": {
+            "circuitId": "monaco",
+            "name": "Circuit de Monaco",
+            "location": "Monte Carlo",
+            "country": "Monaco",
+        },
+        "schedule": [
+            {"name": "Race", "datetime": race_datetime},
+        ],
+    }
+
+    weather = WeatherData(
+        temperature_c=24.5,
+        precipitation_probability=10,
+        weather_code=0,
+    )
+
+    bmp_data = renderer.render_calendar(race_data, weather_data=weather)
+
+    assert bmp_data is not None
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_bwr_render_calendar_with_datetime_schedule():
+    """Test BWR rendering with datetime objects in schedule."""
+    from datetime import datetime, timedelta, timezone
+
+    translator = get_translator("en")
+    renderer = BwrRenderer(translator)
+
+    now = datetime.now(timezone.utc)
+    race_data = {
+        "race_name": "British Grand Prix",
+        "season": "2025",
+        "circuit": {
+            "circuitId": "silverstone",
+            "name": "Silverstone Circuit",
+            "location": "Silverstone",
+            "country": "UK",
+        },
+        "schedule": [
+            {"name": "FP1", "datetime": now + timedelta(days=1)},
+            {"name": "FP2", "datetime": now + timedelta(days=1, hours=4)},
+            {"name": "FP3", "datetime": now + timedelta(days=2)},
+            {"name": "Qualifying", "datetime": now + timedelta(days=2, hours=4)},
+            {"name": "Race", "datetime": now + timedelta(days=3)},
+        ],
+    }
+
+    bmp_data = renderer.render_calendar(race_data)
+
+    assert bmp_data is not None
+    img = Image.open(BytesIO(bmp_data))
+    assert img.size == (800, 480)
+
+
+def test_bwr_render_calendar_las_vegas():
+    """Test BWR rendering with Las Vegas circuit (tests CIRCUIT_ID_MAP)."""
+    translator = get_translator("en")
+    renderer = BwrRenderer(translator)
+
+    race_data = {
+        "race_name": "Las Vegas Grand Prix",
+        "season": "2025",
+        "circuit": {
+            "circuitId": "vegas",
+            "name": "Las Vegas Street Circuit",
+            "location": "Las Vegas",
+            "country": "USA",
+        },
+        "schedule": [
+            {"name": "Race", "display_time": "Sun 22:00"},
+        ],
+    }
+
+    bmp_data = renderer.render_calendar(race_data)
+
+    assert bmp_data is not None
+    img = Image.open(BytesIO(bmp_data))
+    assert img.size == (800, 480)
+
+
+def test_bwr_bmp_uses_three_color_palette(mock_race_data):
+    """Test BWR BMP palette starts with black, white, red entries."""
+    renderer = BwrRenderer(get_translator("en"))
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    img = Image.open(BytesIO(bmp_data))
+    palette = img.getpalette()
+
+    assert palette is not None
+    assert palette[:9] == [0, 0, 0, 255, 255, 255, 160, 32, 32]
     assert img.size == (800, 480)
