@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 - **B/W/R display mode** - Added `display=bwr` to the configure UI and preview routing for black/white/red calendar output
+- **Stats display breakdown** - Added a new statistics card that shows calendar request share by `1bit`, `B/W/R`, and `Spectra 6` display type
 
 ### Backend
 
 - **B/W/R renderer pipeline** - Added dedicated B/W/R rendering, scheduler generation, asset preprocessing scripts, and calendar API support alongside existing `1bit` and `spectra6` modes
+- **Display type analytics** - Persisted calendar display mode in API call statistics so the stats dashboard can aggregate usage by display type
 
 ## [1.2.8] - 2026-03-11
 

@@ -89,3 +89,20 @@ def test_validate_release_readiness_passes_for_bumped_version(tmp_path, monkeypa
     result = release_validation.validate_release_readiness(changelog)
 
     assert result.latest_version == SemVer(1, 3, 0)
+
+
+def test_parse_latest_release_section_ignores_footer_links(monkeypatch):
+    changelog = """# Changelog
+
+## [Unreleased]
+
+## [1.2.9] - 2026-03-13
+
+[Unreleased]: https://example.com/compare/v1.2.9...HEAD
+[1.2.9]: https://example.com/releases/tag/v1.2.9
+"""
+    monkeypatch.setattr(release_validation, "get_latest_git_tag", lambda: SemVer(1, 2, 8))
+
+    result = release_validation.parse_latest_release_section(changelog)
+
+    assert result.release_body == ""

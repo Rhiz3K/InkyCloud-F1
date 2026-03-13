@@ -399,19 +399,15 @@
         {{ t.get("stats_by_display", "By Display") }}
       </h2>
       {% if stats.display_types %} {% set display_total = stats.display_types |
-      sum(attribute='count') %} {% for display_stat in stats.display_types %} {% set
-      display_key = display_stat.display_type %} {% set display_label = '1-BIT' if
-      display_key == '1bit' else 'SPECTRA 6' if display_key == 'spectra6' else
-      'B/W/R' if display_key == 'bwr' else (display_key | upper) %} {% set
-      display_color = '#000000' if display_key == '1bit' else '#6b7280' if
-      display_key == 'spectra6' else '#dc2626' if display_key == 'bwr' else
-      '#111827' %}
+      sum(attribute='count') %} {% for display_stat in stats.display_types %}
       <div class="flex items-center gap-2 mb-2">
-        <span class="w-24 text-xs font-bold uppercase">{{ display_label }}</span>
+        <span class="w-24 text-xs font-bold uppercase"
+          >{{ display_stat.display_label }}</span
+        >
         <div class="flex-1 h-5 bg-gray-200 border border-black">
           <div
             class="h-full"
-            style="width: {{ calc_percent(display_stat.count, display_total) }}%; background-color: {{ display_color }}"
+            style="width: {{ calc_percent(display_stat.count, display_total) }}%; background-color: {{ display_stat.bar_color }}"
           ></div>
         </div>
         <span class="w-16 text-right font-mono text-xs"

@@ -450,7 +450,8 @@ class Database:
 
         Returns:
             dict with total_requests, min/avg/max_response_ms, total_bytes,
-            endpoints, languages, timezones, hourly, and races breakdowns.
+            endpoints, languages, calendar-only display_types, timezones,
+            hourly, and races breakdowns.
         """
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()

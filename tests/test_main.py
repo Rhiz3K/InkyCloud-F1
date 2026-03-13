@@ -705,6 +705,26 @@ def test_changelog_header_nav():
     assert 'href="/"' in html
 
 
+def test_strip_empty_unreleased_section_removes_blank_heading_only():
+    """Empty Unreleased heading is removed without regex backtracking."""
+    from app.routes.pages import _strip_empty_unreleased_section
+
+    changelog = """# Changelog
+
+## [Unreleased]
+
+
+## [1.2.9] - 2026-03-13
+
+- Added release notes
+"""
+
+    stripped = _strip_empty_unreleased_section(changelog)
+
+    assert "## [Unreleased]" not in stripped
+    assert "## [1.2.9] - 2026-03-13" in stripped
+
+
 def test_convert_race_times_to_timezone():
     """Test _convert_race_times_to_timezone correctly converts schedule times."""
     from app.main import _convert_race_times_to_timezone

@@ -11,6 +11,7 @@ from pathlib import Path
 CHANGELOG_PATH = Path(__file__).resolve().parents[2] / "CHANGELOG.md"
 UNRELEASED_HEADING = "## [Unreleased]"
 VERSION_HEADING_RE = re.compile(r"^## \[(\d+)\.(\d+)\.(\d+)\] - .*$", re.MULTILINE)
+FOOTER_LINK_RE = re.compile(r"^\[[^\]]+\]:\s*\S+", re.MULTILINE)
 
 
 @dataclass(frozen=True, order=True)
@@ -47,9 +48,12 @@ def parse_latest_release_section(changelog: str) -> ReleaseValidationResult:
         ].strip()
 
     next_match = matches[1] if len(matches) > 1 else None
-    release_body = changelog[
-        first_match.end() : next_match.start() if next_match else len(changelog)
-    ].strip()
+    release_end = next_match.start() if next_match else len(changelog)
+    release_body = changelog[first_match.end() : release_end]
+    footer_match = FOOTER_LINK_RE.search(release_body)
+    if footer_match:
+        release_body = release_body[: footer_match.start()]
+    release_body = release_body.strip()
 
     return ReleaseValidationResult(
         latest_version=latest_version,

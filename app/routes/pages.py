@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
 
 import markdown
@@ -20,6 +19,40 @@ from app.web.templates import calc_percent, get_template_context, lang_url, temp
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+_DISPLAY_TYPE_STYLES = {
+    "1bit": {"display_label": "1-BIT", "bar_color": "#000000"},
+    "spectra6": {"display_label": "SPECTRA 6", "bar_color": "#6b7280"},
+    "bwr": {"display_label": "B/W/R", "bar_color": "#dc2626"},
+}
+
+
+def _strip_empty_unreleased_section(changelog: str) -> str:
+    """Remove an empty Unreleased heading before the first version section."""
+    unreleased_heading = "## [Unreleased]"
+    unreleased_start = changelog.find(unreleased_heading)
+    if unreleased_start == -1:
+        return changelog
+
+    first_version_start = changelog.find("## [", unreleased_start + len(unreleased_heading))
+    if first_version_start == -1:
+        return changelog
+
+    unreleased_body = changelog[unreleased_start + len(unreleased_heading) : first_version_start]
+    if unreleased_body.strip():
+        return changelog
+
+    return changelog[:unreleased_start] + changelog[first_version_start:]
+
+
+def _enrich_display_type_stats(stats: dict) -> None:
+    """Add display labels and colors for stats template rendering."""
+    display_types = stats.get("display_types", [])
+    for display_stat in display_types:
+        mapping = _DISPLAY_TYPE_STYLES.get(display_stat.get("display_type"), {})
+        display_key = display_stat.get("display_type") or ""
+        display_stat["display_label"] = mapping.get("display_label", display_key.upper())
+        display_stat["bar_color"] = mapping.get("bar_color", "#111827")
 
 
 # ============================================================================
@@ -191,13 +224,7 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
     changelog_path = Path(__file__).resolve().parents[2] / "CHANGELOG.md"
     if changelog_path.exists():
         changelog_content = changelog_path.read_text(encoding="utf-8")
-        changelog_content = re.sub(
-            r"^## \[Unreleased\]\n(?:\s*\n)+(?=## \[\d+\.\d+\.\d+\] - )",
-            "",
-            changelog_content,
-            count=1,
-            flags=re.MULTILINE,
-        )
+        changelog_content = _strip_empty_unreleased_section(changelog_content)
         changelog_html = markdown.markdown(
             changelog_content,
             extensions=["extra", "toc", "md_in_html"],
@@ -299,6 +326,7 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
 
     db = Database()
     stats = await db.get_stats_for_range(hours)
+    _enrich_display_type_stats(stats)
     perf_stats = await db.get_perf_stats(hours)
     perf_by_page = await db.get_perf_stats_by_page(hours)
     perf_trends = await db.get_perf_trends(hours)
