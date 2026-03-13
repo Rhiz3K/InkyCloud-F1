@@ -30,7 +30,7 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 | `tz`           | Any IANA timezone                | `?tz=America/New_York`               |
 | `year`         | Season year                      | `?year=2026`                         |
 | `round`        | Race round number                | `?year=2026&round=5`                 |
-| `display`      | `1bit`, `spectra6`               | `?display=spectra6`                  |
+| `display`      | `1bit`, `bwr`, `spectra6`        | `?display=bwr`                       |
 | `weather`      | `true`, `false`                  | `?weather=false`                     |
 | `weather_type` | `race_day`, `current`            | `?weather=true&weather_type=current` |
 
@@ -40,6 +40,7 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 https://f1.inkycloud.click/calendar.bmp?lang=cs
 https://f1.inkycloud.click/calendar.bmp?lang=en&tz=America/New_York
 https://f1.inkycloud.click/calendar.bmp?lang=en&year=2026&round=5
+https://f1.inkycloud.click/calendar.bmp?lang=en&display=bwr
 https://f1.inkycloud.click/calendar.bmp?lang=en&display=spectra6
 https://f1.inkycloud.click/calendar.bmp?lang=en&weather=true&weather_type=current
 ```
@@ -56,7 +57,7 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
 ## ✨ Features
 
-- **800×480 BMP output** — `1bit` monochrome and `spectra6` 6-color mode for calendar screen
+- **800×480 BMP output** — `1bit` monochrome, `bwr` B/W/R, and `spectra6` 6-color mode for calendar screen
 - **Always Up-to-Date** — Automatically updated after each Grand Prix
 - **Multi-language** — Czech and English support
 - **Any Timezone** — Convert race times to your local timezone
@@ -69,7 +70,7 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
 Planned features for future releases:
 
-- [ ] **Multi-color E-Ink displays** — Support for red/black/white and other color variants (partial today: `display=spectra6` for calendar)
+- [x] **Multi-color E-Ink displays** — `display=bwr` for black/white/red and `display=spectra6` for 6-color calendar output
 - [ ] **Additional display sizes** — Beyond 800×480 (e.g., 4.2", 5.83", 12.48")
 - [ ] **More languages** — German, Spanish, Italian, and community translations
 - [x] **Championship standings** — Driver and constructor standings view

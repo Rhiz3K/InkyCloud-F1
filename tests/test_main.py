@@ -456,6 +456,15 @@ def test_configure_calendar_mobile_settings_button():
     assert "toggleSidebar()" in html
 
 
+def test_configure_calendar_contains_bwr_display_option():
+    """Test configure calendar page exposes BWR display selection."""
+    response = client.get("/configure/calendar")
+    html = response.text
+    assert 'id="displayBwrBtn"' in html
+    assert 'id="displayBwrBtnMobile"' in html
+    assert "setDisplayType('bwr')" in html
+
+
 def test_configure_calendar_mobile_timezone_selector():
     """Test configure calendar page has mobile timezone selector."""
     response = client.get("/configure/calendar")
@@ -602,6 +611,15 @@ def test_calendar_bmp_with_year_round():
     response = client.get("/calendar.bmp?year=2025&round=1")
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/bmp"
+
+
+def test_calendar_bmp_with_bwr_display():
+    """Test /calendar.bmp with BWR display parameter."""
+    response = client.get("/calendar.bmp?display=bwr")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+    assert response.content[:2] == b"BM"
+    assert int.from_bytes(response.content[28:30], byteorder="little") == 4
 
 
 def test_teams_bmp_default():

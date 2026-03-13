@@ -12,6 +12,7 @@ from apscheduler.triggers.cron import CronTrigger
 from PIL import Image
 
 from app.config import config
+from app.services.bwr_renderer import BwrRenderer
 from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
@@ -50,6 +51,8 @@ def _get_image_key(
         key += f"_{tz_safe}"
     if display == "spectra6":
         key += "_spectra6"
+    elif display == "bwr":
+        key += "_bwr"
     if weather != "off":
         key += f"_weather_{weather}"
     return key
@@ -65,7 +68,7 @@ def _bmp_to_png(
         bmp_data: Raw BMP image data.
         width: Target width (height scales proportionally).
         full_size: If True, skip resizing.
-        preserve_color: If True, keep RGB colors (for spectra6). Otherwise convert to grayscale.
+        preserve_color: If True, keep RGB colors (for spectra6/bwr). Otherwise convert to grayscale.
 
     Returns:
         PNG image data as bytes.
@@ -73,7 +76,7 @@ def _bmp_to_png(
     img_file = Image.open(BytesIO(bmp_data))
 
     if preserve_color:
-        # Keep colors for spectra6 displays
+        # Keep colors for multi-color displays
         img: Image.Image = img_file.convert("RGB")
     else:
         # Convert to grayscale for smoother edges (anti-aliasing on resize)
@@ -116,10 +119,11 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
                 _, _, weather_by_type = await get_weather_context(race_data)
                 weather_variants = list(weather_by_type.items())
 
-            # Display variants: 1bit and spectra6
+            # Display variants: 1bit, spectra6, and black/white/red
             display_variants = [
                 ("1bit", Renderer(translator)),
                 ("spectra6", Spectra6Renderer(translator)),
+                ("bwr", BwrRenderer(translator)),
             ]
 
             for display_name, display_renderer in display_variants:
@@ -133,10 +137,12 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
                         suffix = f"_{lang}"
                         if display_name == "spectra6":
                             suffix += "_spectra6"
+                        elif display_name == "bwr":
+                            suffix += "_bwr"
                         if weather_type != "off":
                             suffix += f"_weather_{weather_type}"
 
-                        is_color = display_name == "spectra6"
+                        is_color = display_name in {"spectra6", "bwr"}
 
                         # Homepage preview (small, only for default 1bit+off)
                         if display_name == "1bit" and weather_type == "off":
@@ -200,6 +206,8 @@ async def _generate_variant(
     translator = get_translator(lang)
     if display == "spectra6":
         renderer = Spectra6Renderer(translator)
+    elif display == "bwr":
+        renderer = BwrRenderer(translator)
     else:
         renderer = Renderer(translator)
 
@@ -360,7 +368,7 @@ async def collect_and_generate() -> None:
 
         _, _, weather_by_type = await _load_weather_context(race_data)
 
-        display_types = ["1bit", "spectra6"]
+        display_types = ["1bit", "spectra6", "bwr"]
         logger.info(
             "Generating variants: displays=%s, weather=%s",
             display_types,

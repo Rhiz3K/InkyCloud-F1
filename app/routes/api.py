@@ -7,6 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
+from app.config import config
 from app.services.analytics import track_event
 from app.services.database import Database
 from app.services.f1_service import F1Service
@@ -29,7 +30,8 @@ async def api_info() -> dict:
         "service": "F1 E-Ink Calendar API",
         "version": "0.1.0",
         "description": (
-            "Generate 800x480 1-bit BMP images for E-Ink displays showing F1 race schedules"
+            f"Generate {config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} BMP images "
+            "for E-Ink displays showing F1 race schedules"
         ),
         "endpoints": {
             "/": {
@@ -38,7 +40,10 @@ async def api_info() -> dict:
             },
             "/calendar.bmp": {
                 "method": "GET",
-                "description": "Generate F1 calendar as 1-bit BMP image (800x480)",
+                "description": (
+                    f"Generate F1 calendar as BMP image "
+                    f"({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT})"
+                ),
                 "parameters": {
                     "lang": {
                         "type": "string",
@@ -66,17 +71,46 @@ async def api_info() -> dict:
                         "default": "Europe/Prague",
                         "optional": True,
                     },
+                    "display": {
+                        "type": "string",
+                        "description": "Display output mode",
+                        "values": ["1bit", "spectra6", "bwr"],
+                        "default": "1bit",
+                        "example": "?display=bwr",
+                        "optional": True,
+                    },
+                    "weather": {
+                        "type": "boolean",
+                        "description": "Enable or disable weather overlay",
+                        "values": [True, False],
+                        "default": True,
+                        "example": "?weather=false",
+                        "optional": True,
+                    },
+                    "weather_type": {
+                        "type": "string",
+                        "description": (
+                            "Weather source to render "
+                            "('race' normalizes to 'race_day'; 'off' disables weather)"
+                        ),
+                        "values": ["race_day", "race", "current", "off"],
+                        "default": "race_day",
+                        "example": "?weather_type=current",
+                        "optional": True,
+                    },
                 },
                 "response": {
                     "content_type": "image/bmp",
-                    "dimensions": "800x480",
-                    "color_depth": "1-bit (black and white)",
+                    "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
+                    "color_depth": "1-bit monochrome, 4-bit indexed B/W/R, or indexed Spectra 6",
                 },
                 "examples": [
                     "/calendar.bmp",
                     "/calendar.bmp?lang=cs",
                     "/calendar.bmp?year=2025&round=1",
                     "/calendar.bmp?lang=en&tz=America/Los_Angeles",
+                    "/calendar.bmp?display=bwr",
+                    "/calendar.bmp?display=spectra6&weather_type=current",
                 ],
             },
             "/api": {"method": "GET", "description": "API documentation (this endpoint)"},
