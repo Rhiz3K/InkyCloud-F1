@@ -80,7 +80,7 @@ def build_api_docs_context(ui_lang: str) -> dict[str, Any]:
             "weather_type_desc": "Typ zobrazených dat o počasí",
             "calendar_desc": (
                 "Generuje F1 kalendář jako BMP obrázek (800×480) "
-                "pro 1bit, BWR a Spectra 6 E-Ink displeje."
+                "pro 1bit, 4bit BWR a Spectra 6 E-Ink displeje."
             ),
             "eg": eg,
             "dimensions_label": "Rozměry",
@@ -171,7 +171,7 @@ def build_api_docs_context(ui_lang: str) -> dict[str, Any]:
         "weather_type_desc": "Which weather data variant to render",
         "calendar_desc": (
             "Generates F1 calendar as a BMP image (800×480) "
-            "for 1bit, BWR, and Spectra 6 E-Ink displays."
+            "for 1bit, 4-bit BWR, and Spectra 6 E-Ink displays."
         ),
         "eg": eg,
         "dimensions_label": "Dimensions",

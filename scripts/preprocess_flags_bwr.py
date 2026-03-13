@@ -8,6 +8,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
+
 TARGET_WIDTH = 87
 TARGET_HEIGHT = 58
 RED_HUE_DOMINANCE = 1.18
@@ -55,36 +57,35 @@ def classify_pixel(r: int, g: int, b: int) -> tuple[int, int, int]:
     return BLACK if luminance < 150 else WHITE
 
 
-def to_palette_bmp(image: Image.Image) -> Image.Image:
-    palette_flat = []
-    for color in PALETTE:
-        palette_flat.extend(color)
-
-    while len(palette_flat) < 768:
-        palette_flat.extend([0, 0, 0])
-
-    palette_img = Image.new("P", (1, 1))
-    palette_img.putpalette(palette_flat)
-    return image.quantize(colors=3, palette=palette_img, dither=Image.Dither.NONE)
-
-
 def process_flag_image(input_path: Path, output_path: Path) -> dict:
     original = normalize_image(Image.open(input_path))
     original_size = input_path.stat().st_size
+    original_dimensions = original.size
     resized = original.resize((TARGET_WIDTH, TARGET_HEIGHT), Image.Resampling.LANCZOS)
 
-    pixels = [classify_pixel(*pixel) for pixel in resized.getdata()]
+    source_pixels: list[tuple[int, int, int]] = []
+    pixel_access = resized.load()
+    for y in range(resized.height):
+        for x in range(resized.width):
+            pixel = pixel_access[x, y]
+            if isinstance(pixel, tuple):
+                r, g, b = pixel[:3]
+            else:
+                r = g = b = pixel
+            source_pixels.append((int(r), int(g), int(b)))
+
+    pixels = [classify_pixel(pixel[0], pixel[1], pixel[2]) for pixel in source_pixels]
     mapped = Image.new("RGB", resized.size, WHITE)
     mapped.putdata(pixels)
 
-    final = to_palette_bmp(mapped)
-    final.save(output_path, format="BMP")
+    final = quantize_to_palette(mapped, PALETTE, colors=3)
+    output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 
     return {
         "input_size": original_size,
         "output_size": output_size,
-        "original_dimensions": original.size,
+        "original_dimensions": original_dimensions,
         "final_dimensions": final.size,
     }
 

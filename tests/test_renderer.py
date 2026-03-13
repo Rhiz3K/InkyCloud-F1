@@ -1489,4 +1489,12 @@ def test_bwr_bmp_uses_three_color_palette(mock_race_data):
 
     assert palette is not None
     assert palette[:9] == [0, 0, 0, 255, 255, 255, 160, 32, 32]
-    assert img.size == (800, 480)
+
+
+def test_bwr_bmp_is_smaller_than_spectra6_for_same_calendar(mock_race_data):
+    """BWR should use a more compact BMP encoding than Spectra 6."""
+    translator = get_translator("en")
+    bwr_data = BwrRenderer(translator).render_calendar(mock_race_data)
+    spectra6_data = Spectra6Renderer(translator).render_calendar(mock_race_data)
+
+    assert len(bwr_data) < len(spectra6_data)

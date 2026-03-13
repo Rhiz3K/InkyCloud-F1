@@ -92,7 +92,7 @@ async def api_info() -> dict:
                 "response": {
                     "content_type": "image/bmp",
                     "dimensions": "800x480",
-                    "color_depth": "1-bit, 3-color BWR, or 6-color Spectra 6",
+                    "color_depth": "1-bit monochrome, 4-bit indexed BWR, or indexed Spectra 6",
                 },
                 "examples": [
                     "/calendar.bmp",

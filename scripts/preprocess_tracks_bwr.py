@@ -6,7 +6,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image
+
+from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
 
 MAX_WIDTH = 490
 MAX_HEIGHT = 280
@@ -42,28 +44,29 @@ def classify_pixel(r: int, g: int, b: int) -> tuple[int, int, int]:
     return BLACK
 
 
-def to_palette_bmp(image: Image.Image) -> Image.Image:
-    palette_flat = []
-    for color in PALETTE:
-        palette_flat.extend(color)
-
-    while len(palette_flat) < 768:
-        palette_flat.extend([0, 0, 0])
-
-    palette_img = Image.new("P", (1, 1))
-    palette_img.putpalette(palette_flat)
-    return image.quantize(colors=3, palette=palette_img, dither=Image.Dither.NONE)
-
-
 def process_track_image(input_path: Path, output_path: Path) -> dict:
     original = Image.open(input_path).convert("RGB")
     original_size = input_path.stat().st_size
+    original_dimensions = original.size
 
     gray = original.convert("L")
-    binary = gray.point(lambda p: 255 if p > 128 else 0)
-    bbox = ImageOps.invert(binary).getbbox()
-    if bbox:
-        original = original.crop(bbox)
+    gray_pixels = gray.load()
+    min_x = gray.width
+    min_y = gray.height
+    max_x = -1
+    max_y = -1
+    for y in range(gray.height):
+        for x in range(gray.width):
+            pixel = gray_pixels[x, y]
+            value = int(pixel if isinstance(pixel, int) else pixel[0])
+            if value <= 128:
+                min_x = min(min_x, x)
+                min_y = min(min_y, y)
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+
+    if max_x >= 0 and max_y >= 0:
+        original = original.crop((min_x, min_y, max_x + 1, max_y + 1))
 
     img_w, img_h = original.size
     ratio = min(MAX_WIDTH / img_w, MAX_HEIGHT / img_h)
@@ -71,18 +74,29 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
         new_size = (int(img_w * ratio), int(img_h * ratio))
         original = original.resize(new_size, Image.Resampling.LANCZOS)
 
-    pixels = [classify_pixel(*pixel) for pixel in original.getdata()]
+    source_pixels: list[tuple[int, int, int]] = []
+    pixel_access = original.load()
+    for y in range(original.height):
+        for x in range(original.width):
+            pixel = pixel_access[x, y]
+            if isinstance(pixel, tuple):
+                r, g, b = pixel[:3]
+            else:
+                r = g = b = pixel
+            source_pixels.append((int(r), int(g), int(b)))
+
+    pixels = [classify_pixel(pixel[0], pixel[1], pixel[2]) for pixel in source_pixels]
     mapped = Image.new("RGB", original.size, WHITE)
     mapped.putdata(pixels)
 
-    final = to_palette_bmp(mapped)
-    final.save(output_path, format="BMP")
+    final = quantize_to_palette(mapped, PALETTE, colors=3)
+    output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 
     return {
         "input_size": original_size,
         "output_size": output_size,
-        "original_dimensions": Image.open(input_path).size,
+        "original_dimensions": original_dimensions,
         "final_dimensions": final.size,
         "compression_ratio": original_size / output_size if output_size > 0 else 0,
     }

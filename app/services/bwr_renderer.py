@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -16,6 +15,7 @@ from app.services.spectra6_renderer import (
     Spectra6Renderer,
     logger,
 )
+from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
 
 TRACKS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "tracks_processed"
 FLAGS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "flags_processed"
@@ -166,19 +166,6 @@ class BwrRenderer(Spectra6Renderer):
             return self._load_icon_font(size)
 
     def _to_indexed_bmp(self, image: Image.Image) -> bytes:
-        """Convert RGB image to indexed 3-color BMP for BWR displays."""
-        palette_flat = []
-        for color in self.colors.PALETTE:
-            palette_flat.extend(color)
-
-        while len(palette_flat) < 768:
-            palette_flat.extend([0, 0, 0])
-
-        palette_image = Image.new("P", (1, 1))
-        palette_image.putpalette(palette_flat)
-
-        indexed = image.quantize(colors=3, palette=palette_image, dither=Image.Dither.NONE)
-
-        buffer = io.BytesIO()
-        indexed.save(buffer, format="BMP")
-        return buffer.getvalue()
+        """Convert RGB image to indexed 4-bit BMP optimized for BWR displays."""
+        indexed = quantize_to_palette(image, self.colors.PALETTE, colors=3)
+        return encode_indexed_bmp_4bit(indexed, self.colors.PALETTE)
