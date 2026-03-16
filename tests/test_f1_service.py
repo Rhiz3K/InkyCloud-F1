@@ -76,15 +76,17 @@ class MockResponse:
 
 def test_get_season_races_keeps_cancelled_races_at_end():
     service = F1Service()
-    with patch.object(F1Service, "get_all_races_from_static", return_value=[]):
-        with patch("httpx.AsyncClient") as mock_client:
-            mock_instance = AsyncMock()
-            mock_instance.get = AsyncMock(return_value=MockResponse(MOCK_SEASON_RESPONSE))
-            mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
-            mock_instance.__aexit__ = AsyncMock(return_value=None)
-            mock_client.return_value = mock_instance
+    with (
+        patch.object(F1Service, "get_all_races_from_static", return_value=[]),
+        patch("httpx.AsyncClient") as mock_client,
+    ):
+        mock_instance = AsyncMock()
+        mock_instance.get = AsyncMock(return_value=MockResponse(MOCK_SEASON_RESPONSE))
+        mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
+        mock_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_client.return_value = mock_instance
 
-            races = asyncio.run(service.get_season_races(2026))
+        races = asyncio.run(service.get_season_races(2026))
 
     assert [race["race_name"] for race in races] == [
         "Australian Grand Prix",
