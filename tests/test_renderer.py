@@ -1196,6 +1196,29 @@ def test_renderer_load_track_image_falls_back_to_generic_source(
     assert track_image.getpixel((0, 0)) == (12, 34, 56)
 
 
+def test_renderer_load_track_image_uses_circuit_id_mapping(tmp_path, monkeypatch):
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    Image.new("1", (4, 4), color=1).save(processed_dir / "las_vegas.bmp", "BMP")
+
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+
+    race_data = {
+        "circuit": {
+            "circuitId": "vegas",
+            "location": "Las Vegas",
+        }
+    }
+
+    track_image = Renderer._load_track_image(race_data)
+
+    assert track_image is not None
+    assert track_image.size == (4, 4)
+
+
 def test_bwr_renderer_load_track_image_prefers_bwr_variant(mock_race_data, tmp_path, monkeypatch):
     tracks_dir = tmp_path / "tracks"
     tracks_dir.mkdir()

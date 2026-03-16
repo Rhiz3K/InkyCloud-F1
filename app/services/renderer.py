@@ -1037,8 +1037,9 @@ class Renderer:
         circuit = race_data.get("circuit", {})
         circuit_id = str(circuit.get("circuitId", "") or "")
         location = str(circuit.get("location", "") or "")
+        normalized_id = str(CIRCUIT_ID_MAP.get(circuit_id, circuit_id))
 
-        track_stems = build_track_stem_candidates(circuit_id, location)
+        track_stems = build_track_stem_candidates(normalized_id, circuit_id, location)
         if not track_stems:
             return None
 
