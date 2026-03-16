@@ -1252,6 +1252,33 @@ def test_spectra6_renderer_load_track_image_prefers_spectra6_variant(
     assert track_image.getpixel((0, 0)) == (80, 128, 184)
 
 
+def test_spectra6_renderer_load_track_image_can_fallback_to_location(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(45, 55, 65)).save(tracks_dir / "test_city_spectra6.png", "PNG")
+
+    spectra6_dir = tmp_path / "tracks_spectra6"
+    spectra6_dir.mkdir()
+    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_SPECTRA6_DIR", spectra6_dir)
+
+    race_data = {
+        **mock_race_data,
+        "circuit": {
+            **mock_race_data["circuit"],
+            "circuitId": "",
+            "location": "Test City",
+        },
+    }
+
+    track_image = Spectra6Renderer._load_track_image(race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (45, 55, 65)
+
+
 # ============================================================================
 # Spectra 6 Renderer Tests (6-color E-Ink display)
 # ============================================================================

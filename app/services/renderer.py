@@ -1038,10 +1038,9 @@ class Renderer:
         circuit_id = str(circuit.get("circuitId", "") or "")
         location = str(circuit.get("location", "") or "")
 
-        if not circuit_id:
-            return None
-
         track_stems = build_track_stem_candidates(circuit_id, location)
+        if not track_stems:
+            return None
 
         # Try pre-processed BMP first (much faster)
         for stem in track_stems:

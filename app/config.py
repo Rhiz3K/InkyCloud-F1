@@ -45,7 +45,9 @@ class Config(BaseSettings):
     )
 
     # Application settings
-    APP_HOST: str = Field(  # skipcq: BAN-B104 - required to serve Docker/self-hosted deployments
+    APP_HOST: str = Field(
+        # skipcq: BAN-B104 - required to serve Docker/self-hosted deployments;
+        # bound explicitly by env/network config
         "0.0.0.0",
         description="Host address the app binds to",
     )

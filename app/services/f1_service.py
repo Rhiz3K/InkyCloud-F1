@@ -49,16 +49,18 @@ RETRY_BASE_DELAY = 1.0  # seconds
 class F1Service:
     """Service for fetching F1 race data from Jolpica API."""
 
-    def __init__(self, timezone_name: str | None = None):
+    def __init__(self, timezone_name: str | None = None, timezone: str | None = None):
         """
         Initialize F1 service.
 
         Args:
-            timezone_name: Timezone string (e.g., 'Europe/Prague'). Defaults to config value.
+            timezone_name: Preferred timezone string (e.g., 'Europe/Prague').
+            timezone: Backward-compatible alias for legacy callers.
         """
         self.api_url = config.JOLPICA_API_URL
         self.timeout = config.REQUEST_TIMEOUT
-        self.timezone_str = timezone_name or config.DEFAULT_TIMEZONE
+        effective_timezone = timezone_name if timezone_name is not None else timezone
+        self.timezone_str = effective_timezone or config.DEFAULT_TIMEZONE
         try:
             self.target_tz = pytz.timezone(self.timezone_str)
         except pytz.UnknownTimeZoneError:

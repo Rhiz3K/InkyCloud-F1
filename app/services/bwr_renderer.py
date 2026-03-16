@@ -83,11 +83,10 @@ class BwrRenderer(Spectra6Renderer):
         circuit_id = str(circuit.get("circuitId", "") or "")
         location = str(circuit.get("location", "") or "")
 
-        if not circuit_id:
-            return None
-
         normalized_id = str(CIRCUIT_ID_MAP.get(circuit_id, circuit_id))
         track_stems = build_track_stem_candidates(normalized_id, circuit_id, location)
+        if not track_stems:
+            return None
 
         for stem in track_stems:
             track_path = TRACKS_BWR_DIR / f"{stem}.bmp"
