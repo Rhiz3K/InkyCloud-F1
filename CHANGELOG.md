@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.12] - 2026-03-16
+
+### Backend
+
+#### Removed
+
+- **`main` -> `dev` sync automation** - Removed the post-release sync workflow and retired the dedicated `dev` branch maintenance flow
+
+#### Fixed
+
+- **Post-merge quality issues** - Added Open-Meteo config validation at startup, cleaned up DeepSource-reported service/test patterns, and documented the safe `0.0.0.0` bind used for container deployments
+
 ## [1.2.11] - 2026-03-16
 
 ### Frontend

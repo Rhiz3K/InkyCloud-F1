@@ -19,32 +19,38 @@ from app.services.weather_service import (
 
 
 class TestWeatherData:
-    def test_icon_clear_sky(self):
+    @staticmethod
+    def test_icon_clear_sky():
         data = WeatherData(temperature_c=25.0, weather_code=0, precipitation_probability=10)
         assert data.icon == WEATHER_ICONS[0]
 
-    def test_icon_rain(self):
+    @staticmethod
+    def test_icon_rain():
         data = WeatherData(temperature_c=15.0, weather_code=61, precipitation_probability=80)
         assert data.icon == WEATHER_ICONS[61]
 
-    def test_icon_unknown_code_fallback(self):
+    @staticmethod
+    def test_icon_unknown_code_fallback():
         data = WeatherData(temperature_c=20.0, weather_code=999, precipitation_probability=0)
         assert data.icon == "\u2601"
 
-    def test_temp_display_rounds_correctly(self):
+    @staticmethod
+    def test_temp_display_rounds_correctly():
         data = WeatherData(temperature_c=25.7, weather_code=0, precipitation_probability=0)
         assert data.temp_display == "26\u00b0"
 
         data = WeatherData(temperature_c=25.4, weather_code=0, precipitation_probability=0)
         assert data.temp_display == "25\u00b0"
 
-    def test_precip_display(self):
+    @staticmethod
+    def test_precip_display():
         data = WeatherData(temperature_c=20.0, weather_code=0, precipitation_probability=45)
         assert data.precip_display == "45%"
 
 
 class TestWeatherIcons:
-    def test_all_codes_have_icons(self):
+    @staticmethod
+    def test_all_codes_have_icons():
         expected_codes = [
             0,
             1,
@@ -79,7 +85,8 @@ class TestWeatherService:
         clear_weather_cache()
         clear_circuit_weather_cache()
 
-    def test_invalid_coordinates_returns_none(self):
+    @staticmethod
+    def test_invalid_coordinates_returns_none():
         import asyncio
 
         async def run_test():
@@ -90,7 +97,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_past_race_returns_historical_weather(self, monkeypatch):
+    @staticmethod
+    def test_past_race_returns_historical_weather(monkeypatch):
         import asyncio
 
         captured = {}
@@ -147,7 +155,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_race_too_far_returns_none(self):
+    @staticmethod
+    def test_race_too_far_returns_none():
         import asyncio
 
         async def run_test():
@@ -158,7 +167,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_get_current_weather_invalid_coordinates(self):
+    @staticmethod
+    def test_get_current_weather_invalid_coordinates():
         import asyncio
 
         async def run_test():
@@ -168,7 +178,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_get_current_weather_invalid_longitude(self):
+    @staticmethod
+    def test_get_current_weather_invalid_longitude():
         import asyncio
 
         async def run_test():
@@ -178,7 +189,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_get_current_weather_success(self, monkeypatch):
+    @staticmethod
+    def test_get_current_weather_success(monkeypatch):
         import asyncio
 
         mock_response_data = {
@@ -188,7 +200,7 @@ class TestWeatherService:
 
         class MockResponse:
             def raise_for_status(self):
-                pass
+                return None
 
             def json(self):
                 return mock_response_data
@@ -221,7 +233,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_get_current_weather_cache_hit(self, monkeypatch):
+    @staticmethod
+    def test_get_current_weather_cache_hit(monkeypatch):
         import asyncio
 
         call_count = 0
@@ -232,7 +245,7 @@ class TestWeatherService:
 
         class MockResponse:
             def raise_for_status(self):
-                pass
+                return None
 
             def json(self):
                 return mock_response_data
@@ -272,7 +285,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_get_current_weather_timeout(self, monkeypatch):
+    @staticmethod
+    def test_get_current_weather_timeout(monkeypatch):
         import asyncio
 
         class MockAsyncClient:
@@ -297,7 +311,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_get_current_weather_http_error(self, monkeypatch):
+    @staticmethod
+    def test_get_current_weather_http_error(monkeypatch):
         import asyncio
 
         class MockResponse:
@@ -332,7 +347,8 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_get_current_weather_empty_precipitation(self, monkeypatch):
+    @staticmethod
+    def test_get_current_weather_empty_precipitation(monkeypatch):
         import asyncio
 
         mock_response_data = {
@@ -342,7 +358,7 @@ class TestWeatherService:
 
         class MockResponse:
             def raise_for_status(self):
-                pass
+                return None
 
             def json(self):
                 return mock_response_data

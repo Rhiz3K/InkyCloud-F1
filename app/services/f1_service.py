@@ -49,16 +49,16 @@ RETRY_BASE_DELAY = 1.0  # seconds
 class F1Service:
     """Service for fetching F1 race data from Jolpica API."""
 
-    def __init__(self, timezone: str | None = None):
+    def __init__(self, timezone_name: str | None = None):
         """
         Initialize F1 service.
 
         Args:
-            timezone: Timezone string (e.g., 'Europe/Prague'). Defaults to config value.
+            timezone_name: Timezone string (e.g., 'Europe/Prague'). Defaults to config value.
         """
         self.api_url = config.JOLPICA_API_URL
         self.timeout = config.REQUEST_TIMEOUT
-        self.timezone_str = timezone or config.DEFAULT_TIMEZONE
+        self.timezone_str = timezone_name or config.DEFAULT_TIMEZONE
         try:
             self.target_tz = pytz.timezone(self.timezone_str)
         except pytz.UnknownTimeZoneError:
@@ -66,8 +66,9 @@ class F1Service:
             self.target_tz = pytz.UTC
             self.timezone_str = "UTC"
 
+    @staticmethod
     async def _fetch_with_retry(
-        self, client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
+        client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
     ) -> httpx.Response:
         """
         Fetch URL with exponential backoff retry for rate limiting.
