@@ -48,6 +48,11 @@ def _validate_timezone_param(tz: str | None) -> None:
         raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
 
 
+def _validate_calendar_selection(year: int | None, race_key: str | None) -> None:
+    if race_key is not None and year is None:
+        raise HTTPException(status_code=400, detail="race_key requires year")
+
+
 def _get_cache_key(
     lang: str,
     year: int | None,
@@ -87,6 +92,9 @@ def _get_race_info_for_stats(
     actual_year = year
     actual_round = race_round
     actual_race_name: str | None = None
+
+    if race_key is not None and year is None:
+        return is_auto_selected, actual_year, actual_round, actual_race_name
 
     if year and (race_round or race_key):
         for race in f1_service.get_all_races_from_static(year):
@@ -252,6 +260,9 @@ def _get_race_data_from_static(
     race_round: int | None,
     race_key: str | None,
 ) -> dict | None:
+    if race_key is not None and year is None:
+        return None
+
     if year and (race_round or race_key):
         for race in f1_service.get_all_races_from_static(year):
             if race_key and race.get("race_key") == race_key:
@@ -348,6 +359,7 @@ async def get_calendar_bmp(
     display = _normalize_display(display)
     weather_type = _normalize_weather_type(weather_type)
     _validate_timezone_param(tz)
+    _validate_calendar_selection(year, race_key)
 
     is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(
         f1_service, year, race_round, race_key

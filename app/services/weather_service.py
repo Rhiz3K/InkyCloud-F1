@@ -50,8 +50,8 @@ WEATHER_ICONS: dict[int, str] = {
 
 RAINDROP_ICON = "\uf078"  # wi-raindrop
 
-OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
-OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+OPEN_METEO_URL = config.OPEN_METEO_URL
+OPEN_METEO_ARCHIVE_URL = config.OPEN_METEO_ARCHIVE_URL
 
 _weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
 

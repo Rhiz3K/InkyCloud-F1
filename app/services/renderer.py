@@ -1238,14 +1238,15 @@ class Renderer:
                 )
 
         if status_text:
+            show_weather = weather_data is not None and not is_cancelled
             status_bbox = draw.textbbox((0, 0), status_text, font=font)
             status_w = status_bbox[2] - status_bbox[0]
-            if weather_data:
+            if show_weather:
                 text_x = x_left + padding_x
             else:
                 text_x = x_left + ((x_right - x_left) - status_w) // 2
             draw.text((text_x, text_y), status_text, fill=1, font=font)
-            if not weather_data:
+            if not show_weather:
                 return int(y_bottom)
 
             temp_str = f"{weather_data.temp_display} "

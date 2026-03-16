@@ -617,6 +617,13 @@ def test_calendar_bmp_with_year_round():
     assert response.headers["content-type"] == "image/bmp"
 
 
+def test_calendar_bmp_rejects_race_key_without_year():
+    """Race-key selection should require an explicit year."""
+    response = client.get("/calendar.bmp?race_key=2026-round-1-albert-park-2026-03-08")
+    assert response.status_code == 400
+    assert response.json() == {"detail": "race_key requires year"}
+
+
 def test_get_race_info_for_stats_matches_string_round_values():
     """Round lookup should work even when static data stores rounds as strings."""
 
