@@ -205,6 +205,33 @@ class F1Service:
 
         return round_num if round_num > 0 else None
 
+    def _merge_static_cancelled_races(self, year: int, races: list[dict]) -> list[dict]:
+        """Merge cancelled races from static season data when live API omits them."""
+        merged = list(races)
+        existing_keys = {race.get("race_key") for race in merged}
+
+        try:
+            for static_race in self.get_all_races_from_static(year):
+                if not static_race.get("is_cancelled"):
+                    continue
+                if static_race.get("race_key") in existing_keys:
+                    continue
+
+                merged.append(static_race)
+                existing_keys.add(static_race.get("race_key"))
+        except Exception as exc:
+            logger.warning("Failed to merge static cancelled races for %s: %s", year, exc)
+
+        merged.sort(
+            key=lambda item: (
+                item.get("is_cancelled", False),
+                item.get("round") is None,
+                item.get("round") or 999,
+                item.get("date") or "9999-12-31",
+            )
+        )
+        return merged
+
     def _convert_race_times(self, race: Race) -> dict:
         """
         Convert Race UTC times to target timezone and return structured payload.
@@ -560,16 +587,7 @@ class F1Service:
                         logger.warning("Skipping malformed race: %s. Error: %s", race_name, e)
                         continue
 
-                result.sort(
-                    key=lambda item: (
-                        item.get("is_cancelled", False),
-                        item.get("round") is None,
-                        item.get("round") or 999,
-                        item.get("date") or "9999-12-31",
-                    )
-                )
-
-                return result
+                return self._merge_static_cancelled_races(year, result)
 
         except Exception as e:
             logger.error("Error fetching season races: %s", e, exc_info=True)
