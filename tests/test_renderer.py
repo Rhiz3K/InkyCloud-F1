@@ -1238,6 +1238,44 @@ def test_renderer_load_track_image_prefers_source_over_preprocessed(
     assert track_image.getpixel((0, 0)) == (200, 210, 220)
 
 
+def test_render_calendar_english_uses_track_source_variant(mock_race_data, tmp_path, monkeypatch):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (32, 32), color=(0, 0, 0)).save(tracks_dir / "test_circuit_bw.png", "PNG")
+
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+
+    renderer = Renderer(get_translator("en"))
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    image = Image.open(BytesIO(bmp_data))
+    assert image.format == "BMP"
+    assert image.size == (800, 480)
+    assert image.mode == "1"
+
+
+def test_render_calendar_czech_uses_track_source_variant(mock_race_data, tmp_path, monkeypatch):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (32, 32), color=(0, 0, 0)).save(tracks_dir / "test_circuit_bw.png", "PNG")
+
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+
+    renderer = Renderer(get_translator("cs"))
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    image = Image.open(BytesIO(bmp_data))
+    assert image.format == "BMP"
+    assert image.size == (800, 480)
+    assert image.mode == "1"
+
+
 def test_bwr_renderer_load_track_image_prefers_bwr_variant(mock_race_data, tmp_path, monkeypatch):
     tracks_dir = tmp_path / "tracks"
     tracks_dir.mkdir()
