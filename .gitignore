@@ -211,3 +211,6 @@ scripts/AGENTS.md
 
 # Local assistant artifacts
 .sisyphus/
+
+# Local dev runtime data
+.local-dev-data/
