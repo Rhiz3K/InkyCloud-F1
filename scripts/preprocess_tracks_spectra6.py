@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pre-process track images for black/white/red E-Ink rendering."""
+"""Pre-process track images for Spectra 6 E-Ink rendering."""
 
 from __future__ import annotations
 
@@ -9,26 +9,25 @@ from pathlib import Path
 
 from PIL import Image
 
-from app.services.spectra6_renderer import CIRCUIT_ID_MAP
+from app.services.spectra6_renderer import CIRCUIT_ID_MAP, Spectra6Colors
 from app.services.track_assets import (
     discover_track_source_stems,
     resolve_track_source_path,
     strip_track_variant_suffix,
 )
-from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwr_palette
+from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
 
 MAX_WIDTH = 490
 MAX_HEIGHT = 280
+NON_WHITE_THRESHOLD = 245
+
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 TRACKS_DIR = PROJECT_ROOT / "app" / "assets" / "tracks"
-OUTPUT_DIR = PROJECT_ROOT / "app" / "assets" / "tracks_bwr"
+OUTPUT_DIR = PROJECT_ROOT / "app" / "assets" / "tracks_spectra6"
 
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-PALETTE = [BLACK, WHITE, RED]
-NON_WHITE_THRESHOLD = 245
+WHITE = Spectra6Colors.WHITE
+PALETTE = Spectra6Colors.PALETTE
 
 
 def process_track_image(input_path: Path, output_path: Path) -> dict:
@@ -54,6 +53,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
     rgb_pixels = original.load()
     if rgb_pixels is None:
         raise ValueError("Failed to access track pixels")
+
     min_x = original.width
     min_y = original.height
     max_x = -1
@@ -65,6 +65,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
                 r, g, b = (int(channel) for channel in pixel[:3])
             else:
                 r = g = b = int(pixel)
+
             if min(r, g, b) < NON_WHITE_THRESHOLD:
                 min_x = min(min_x, x)
                 min_y = min(min_y, y)
@@ -80,7 +81,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
         new_size = (int(img_w * ratio), int(img_h * ratio))
         original = original.resize(new_size, Image.Resampling.LANCZOS)
 
-    final = map_to_bwr_palette(original, PALETTE)
+    final = quantize_to_palette(original, PALETTE, colors=len(PALETTE))
     output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 
@@ -95,7 +96,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
 
 def main(circuits: list[str] | None = None) -> None:
     print("=" * 60)
-    print(" BWR Track Image Pre-processor")
+    print(" Spectra 6 Track Image Pre-processor")
     print("=" * 60)
 
     if not TRACKS_DIR.exists():
@@ -109,7 +110,7 @@ def main(circuits: list[str] | None = None) -> None:
         track_stems = [stem for stem in track_stems if stem in wanted]
 
     track_files = [
-        resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bwr")
+        resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="spectra6")
         for track_stem in track_stems
     ]
     track_files = [track_path for track_path in track_files if track_path is not None]
@@ -141,7 +142,7 @@ def main(circuits: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Pre-process BWR track images")
+    parser = argparse.ArgumentParser(description="Pre-process Spectra 6 track images")
     parser.add_argument(
         "--circuits",
         type=str,

@@ -4,7 +4,8 @@ import asyncio
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 from pathlib import Path
 from typing import Optional
 
@@ -49,16 +50,18 @@ RETRY_BASE_DELAY = 1.0  # seconds
 class F1Service:
     """Service for fetching F1 race data from Jolpica API."""
 
-    def __init__(self, timezone: str | None = None):
+    def __init__(self, timezone_name: str | None = None, timezone: str | None = None):
         """
         Initialize F1 service.
 
         Args:
-            timezone: Timezone string (e.g., 'Europe/Prague'). Defaults to config value.
+            timezone_name: Preferred timezone string (e.g., 'Europe/Prague').
+            timezone: Backward-compatible alias for legacy callers.
         """
         self.api_url = config.JOLPICA_API_URL
         self.timeout = config.REQUEST_TIMEOUT
-        self.timezone_str = timezone or config.DEFAULT_TIMEZONE
+        effective_timezone = timezone_name if timezone_name is not None else timezone
+        self.timezone_str = effective_timezone or config.DEFAULT_TIMEZONE
         try:
             self.target_tz = pytz.timezone(self.timezone_str)
         except pytz.UnknownTimeZoneError:
@@ -66,8 +69,9 @@ class F1Service:
             self.target_tz = pytz.UTC
             self.timezone_str = "UTC"
 
+    @staticmethod
     async def _fetch_with_retry(
-        self, client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
+        client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
     ) -> httpx.Response:
         """
         Fetch URL with exponential backoff retry for rate limiting.
@@ -200,6 +204,33 @@ class F1Service:
             return None
 
         return round_num if round_num > 0 else None
+
+    def _merge_static_cancelled_races(self, year: int, races: list[dict]) -> list[dict]:
+        """Merge cancelled races from static season data when live API omits them."""
+        merged = list(races)
+        existing_keys = {race.get("race_key") for race in merged}
+
+        try:
+            for static_race in self.get_all_races_from_static(year):
+                if not static_race.get("is_cancelled"):
+                    continue
+                if static_race.get("race_key") in existing_keys:
+                    continue
+
+                merged.append(static_race)
+                existing_keys.add(static_race.get("race_key"))
+        except Exception as exc:
+            logger.warning("Failed to merge static cancelled races for %s: %s", year, exc)
+
+        merged.sort(
+            key=lambda item: (
+                item.get("is_cancelled", False),
+                item.get("round") is None,
+                item.get("round") or 999,
+                item.get("date") or "9999-12-31",
+            )
+        )
+        return merged
 
     def _convert_race_times(self, race: Race) -> dict:
         """
@@ -556,16 +587,7 @@ class F1Service:
                         logger.warning("Skipping malformed race: %s. Error: %s", race_name, e)
                         continue
 
-                result.sort(
-                    key=lambda item: (
-                        item.get("is_cancelled", False),
-                        item.get("round") is None,
-                        item.get("round") or 999,
-                        item.get("date") or "9999-12-31",
-                    )
-                )
-
-                return result
+                return self._merge_static_cancelled_races(year, result)
 
         except Exception as e:
             logger.error("Error fetching season races: %s", e, exc_info=True)
@@ -664,7 +686,7 @@ class F1Service:
         Returns:
             Dictionary with race data including converted times, or None if not found
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(dt_timezone.utc)
         current_year = now.year
 
         # Check current year and next year

@@ -11,13 +11,14 @@ from app.services.spectra6_renderer import (
     COUNTRY_MAP,
     FONTS_DIR,
     IMAGES_DIR,
+    TRACKS_DIR,
     Spectra6Renderer,
     logger,
 )
+from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwr_palette
 
 TRACKS_BWR_DIR = Path(__file__).parent.parent / "assets" / "tracks_bwr"
-TRACKS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "tracks_processed"
 FLAGS_BWR_DIR = Path(__file__).parent.parent / "assets" / "flags_bwr"
 FLAGS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "flags_processed"
 
@@ -25,7 +26,7 @@ FLAGS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "flags_processed"
 class BwrColors:
     BLACK = (0x00, 0x00, 0x00)
     WHITE = (0xFF, 0xFF, 0xFF)
-    RED = (0xA0, 0x20, 0x20)
+    RED = (0xFF, 0x00, 0x00)
 
     PALETTE = [BLACK, WHITE, RED]
 
@@ -79,18 +80,23 @@ class BwrRenderer(Spectra6Renderer):
     @staticmethod
     def _load_track_image(race_data: dict) -> Image.Image | None:
         circuit = race_data.get("circuit", {})
-        circuit_id = circuit.get("circuitId", "")
+        circuit_id = str(circuit.get("circuitId", "") or "")
+        location = str(circuit.get("location", "") or "")
 
-        if not circuit_id:
+        normalized_id = str(CIRCUIT_ID_MAP.get(circuit_id, circuit_id))
+        track_stems = build_track_stem_candidates(normalized_id, circuit_id, location)
+        if not track_stems:
             return None
 
-        normalized_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
-        track_candidates = [
-            TRACKS_BWR_DIR / f"{normalized_id}.bmp",
-            TRACKS_FALLBACK_DIR / f"{normalized_id}.bmp",
-        ]
+        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bwr")
+        if source_path:
+            try:
+                return Image.open(source_path).convert("RGB")
+            except Exception as exc:
+                logger.warning("Failed to load track %s: %s", source_path, exc)
 
-        for track_path in track_candidates:
+        for stem in track_stems:
+            track_path = TRACKS_BWR_DIR / f"{stem}.bmp"
             if not track_path.exists():
                 continue
 

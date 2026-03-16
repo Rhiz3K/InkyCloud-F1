@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.12] - 2026-03-16
+
+### Frontend
+
+#### Changed
+
+- **Track asset variants** - Track rendering now prefers display-specific source assets like `_bw`, `_bwr`, and `_spectra6`, with the plain circuit PNG kept as the generic fallback and `_bwry` naming prepared for future display support
+- **Track render quality** - `1bit`, `B/W/R`, and `Spectra 6` track maps now prefer source artwork over preprocessed BMP fallbacks so resized text and thin lines stay sharper in the final composed image
+- **Display palettes** - `B/W/R` now uses a vivid pure red palette and `Spectra 6` now uses more vivid red/yellow/green/blue output colors to better match the prepared source artwork
+- **BMP pipeline docs** - Added a dedicated `BMP_PROCESSING.md` guide that documents the current source naming, preprocessing steps, fallback order, and final BMP encoding flow for all active and prepared display variants
+
+### Backend
+
+#### Removed
+
+- **`main` -> `dev` sync automation** - Removed the post-release sync workflow and retired the dedicated `dev` branch maintenance flow
+
+#### Changed
+
+- **Track preprocessing scripts** - Added explicit preprocessing flows for `spectra6` and prepared `bwry` track assets, and aligned runtime/source resolution around per-display source variants with generic fallback assets
+
+#### Fixed
+
+- **Post-merge quality issues** - Added Open-Meteo config validation at startup, cleaned up DeepSource-reported service/test patterns, and documented the safe `0.0.0.0` bind used for container deployments
+- **Cancelled race persistence** - Season API responses now merge cancelled races back in from static season JSON when Jolpica omits them entirely, so removed Bahrain/Jeddah weekends still appear at the end of the calendar as cancelled entries
+
 ## [1.2.11] - 2026-03-16
 
 ### Frontend

@@ -18,6 +18,7 @@ from app.models import (
     TeamEntry,
     TeamsData,
 )
+from app.services import bwr_renderer as bwr_renderer_module
 from app.services import renderer as renderer_module
 from app.services import spectra6_renderer as spectra6_renderer_module
 from app.services.bwr_renderer import BwrColors, BwrRenderer
@@ -1159,6 +1160,246 @@ def test_render_calendar_with_rgb_track_image(mock_race_data, tmp_path, monkeypa
     assert img.mode == "1"
 
 
+def test_renderer_load_track_image_prefers_bw_variant(mock_race_data, tmp_path, monkeypatch):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(12, 34, 56)).save(tracks_dir / "test_circuit.png", "PNG")
+    Image.new("RGB", (4, 4), color=(200, 210, 220)).save(tracks_dir / "test_circuit_bw.png", "PNG")
+
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+
+    track_image = Renderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (200, 210, 220)
+
+
+def test_renderer_load_track_image_falls_back_to_generic_source(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(12, 34, 56)).save(tracks_dir / "test_circuit.png", "PNG")
+    Image.new("RGB", (4, 4), color=(220, 20, 20)).save(tracks_dir / "test_circuit_bwr.png", "PNG")
+
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+
+    track_image = Renderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (12, 34, 56)
+
+
+def test_renderer_load_track_image_uses_circuit_id_mapping(tmp_path, monkeypatch):
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    Image.new("1", (4, 4), color=1).save(processed_dir / "las_vegas.bmp", "BMP")
+
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+
+    race_data = {
+        "circuit": {
+            "circuitId": "vegas",
+            "location": "Las Vegas",
+        }
+    }
+
+    track_image = Renderer._load_track_image(race_data)
+
+    assert track_image is not None
+    assert track_image.size == (4, 4)
+
+
+def test_renderer_load_track_image_prefers_source_over_preprocessed(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(200, 210, 220)).save(tracks_dir / "test_circuit_bw.png", "PNG")
+
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    Image.new("1", (4, 4), color=0).save(processed_dir / "test_circuit.bmp", "BMP")
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+
+    track_image = Renderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (200, 210, 220)
+
+
+def test_render_calendar_english_uses_track_source_variant(mock_race_data, tmp_path, monkeypatch):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (32, 32), color=(0, 0, 0)).save(tracks_dir / "test_circuit_bw.png", "PNG")
+
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+
+    renderer = Renderer(get_translator("en"))
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    image = Image.open(BytesIO(bmp_data))
+    assert image.format == "BMP"
+    assert image.size == (800, 480)
+    assert image.mode == "1"
+
+
+def test_render_calendar_czech_uses_track_source_variant(mock_race_data, tmp_path, monkeypatch):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (32, 32), color=(0, 0, 0)).save(tracks_dir / "test_circuit_bw.png", "PNG")
+
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+
+    renderer = Renderer(get_translator("cs"))
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    image = Image.open(BytesIO(bmp_data))
+    assert image.format == "BMP"
+    assert image.size == (800, 480)
+    assert image.mode == "1"
+
+
+def test_bwr_renderer_load_track_image_prefers_bwr_variant(mock_race_data, tmp_path, monkeypatch):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(30, 40, 50)).save(tracks_dir / "test_circuit.png", "PNG")
+    Image.new("RGB", (4, 4), color=(255, 0, 0)).save(tracks_dir / "test_circuit_bwr.png", "PNG")
+
+    bwr_dir = tmp_path / "tracks_bwr"
+    bwr_dir.mkdir()
+    monkeypatch.setattr(bwr_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(bwr_renderer_module, "TRACKS_BWR_DIR", bwr_dir)
+
+    track_image = BwrRenderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (255, 0, 0)
+
+
+def test_bwr_renderer_load_track_image_prefers_source_over_preprocessed(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(255, 0, 0)).save(tracks_dir / "test_circuit_bwr.png", "PNG")
+
+    bwr_dir = tmp_path / "tracks_bwr"
+    bwr_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(123, 45, 67)).save(bwr_dir / "test_circuit.bmp", "BMP")
+
+    monkeypatch.setattr(bwr_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(bwr_renderer_module, "TRACKS_BWR_DIR", bwr_dir)
+
+    track_image = BwrRenderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (255, 0, 0)
+
+
+def test_bwr_renderer_load_track_image_falls_back_to_generic_source(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(30, 40, 50)).save(tracks_dir / "test_circuit.png", "PNG")
+
+    bwr_dir = tmp_path / "tracks_bwr"
+    bwr_dir.mkdir()
+    monkeypatch.setattr(bwr_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(bwr_renderer_module, "TRACKS_BWR_DIR", bwr_dir)
+
+    track_image = BwrRenderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (30, 40, 50)
+
+
+def test_spectra6_renderer_load_track_image_prefers_spectra6_variant(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(10, 10, 10)).save(tracks_dir / "test_circuit.png", "PNG")
+    Image.new("RGB", (4, 4), color=(80, 128, 184)).save(
+        tracks_dir / "test_circuit_spectra6.png", "PNG"
+    )
+
+    spectra6_dir = tmp_path / "tracks_spectra6"
+    spectra6_dir.mkdir()
+    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_SPECTRA6_DIR", spectra6_dir)
+
+    track_image = Spectra6Renderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (80, 128, 184)
+
+
+def test_spectra6_renderer_load_track_image_prefers_source_over_preprocessed(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(80, 128, 184)).save(
+        tracks_dir / "test_circuit_spectra6.png", "PNG"
+    )
+
+    spectra6_dir = tmp_path / "tracks_spectra6"
+    spectra6_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(12, 34, 56)).save(spectra6_dir / "test_circuit.bmp", "BMP")
+    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_SPECTRA6_DIR", spectra6_dir)
+
+    track_image = Spectra6Renderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (80, 128, 184)
+
+
+def test_spectra6_renderer_load_track_image_can_fallback_to_location(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(45, 55, 65)).save(tracks_dir / "test_city_spectra6.png", "PNG")
+
+    spectra6_dir = tmp_path / "tracks_spectra6"
+    spectra6_dir.mkdir()
+    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_SPECTRA6_DIR", spectra6_dir)
+
+    race_data = {
+        **mock_race_data,
+        "circuit": {
+            **mock_race_data["circuit"],
+            "circuitId": "",
+            "location": "Test City",
+        },
+    }
+
+    track_image = Spectra6Renderer._load_track_image(race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (45, 55, 65)
+
+
 # ============================================================================
 # Spectra 6 Renderer Tests (6-color E-Ink display)
 # ============================================================================
@@ -1260,10 +1501,10 @@ def test_spectra6_render_error_czech():
 def test_spectra6_colors_palette():
     assert Spectra6Colors.BLACK == (0x00, 0x00, 0x00)
     assert Spectra6Colors.WHITE == (0xFF, 0xFF, 0xFF)
-    assert Spectra6Colors.RED == (0xA0, 0x20, 0x20)
-    assert Spectra6Colors.YELLOW == (0xF0, 0xE0, 0x50)
-    assert Spectra6Colors.GREEN == (0x60, 0x80, 0x50)
-    assert Spectra6Colors.BLUE == (0x50, 0x80, 0xB8)
+    assert Spectra6Colors.RED == (0xFF, 0x00, 0x00)
+    assert Spectra6Colors.YELLOW == (0xFF, 0xD8, 0x00)
+    assert Spectra6Colors.GREEN == (0x00, 0xD8, 0x00)
+    assert Spectra6Colors.BLUE == (0x00, 0xA8, 0xFF)
 
     assert len(Spectra6Colors.PALETTE) == 6
     assert Spectra6Colors.PALETTE[0] == Spectra6Colors.BLACK
@@ -1492,7 +1733,7 @@ def test_bwr_render_error_czech():
 def test_bwr_colors_palette():
     assert BwrColors.BLACK == (0x00, 0x00, 0x00)
     assert BwrColors.WHITE == (0xFF, 0xFF, 0xFF)
-    assert BwrColors.RED == (0xA0, 0x20, 0x20)
+    assert BwrColors.RED == (0xFF, 0x00, 0x00)
 
     assert len(BwrColors.PALETTE) == 3
     assert BwrColors.PALETTE[0] == BwrColors.BLACK
@@ -1628,7 +1869,7 @@ def test_bwr_bmp_uses_three_color_palette(mock_race_data):
     palette = img.getpalette()
 
     assert palette is not None
-    assert palette[:9] == [0, 0, 0, 255, 255, 255, 160, 32, 32]
+    assert palette[:9] == [0, 0, 0, 255, 255, 255, 255, 0, 0]
 
 
 def test_bwr_bmp_is_smaller_than_spectra6_for_same_calendar(mock_race_data):
@@ -1643,7 +1884,7 @@ def test_bwr_bmp_is_smaller_than_spectra6_for_same_calendar(mock_race_data):
 def test_map_to_bwr_palette_keeps_grayscale_pixels_off_red():
     """Grayscale anti-aliasing should not turn black text edges red."""
     image = Image.new("RGB", (3, 1), color=(255, 255, 255))
-    image.putdata([(0, 0, 0), (110, 110, 110), (160, 32, 32)])
+    image.putdata([(0, 0, 0), (110, 110, 110), (255, 0, 0)])
 
     indexed = map_to_bwr_palette(image, BwrColors.PALETTE)
     pixels = indexed.load()
@@ -1659,7 +1900,7 @@ def test_map_to_bwr_palette_keeps_grayscale_pixels_off_red():
 def test_map_to_bwr_palette_preserves_near_white_text_edges():
     """Light anti-aliased pixels in white-on-red text should stay white."""
     image = Image.new("RGB", (3, 1), color=(255, 255, 255))
-    image.putdata([(255, 255, 255), (244, 204, 204), (160, 32, 32)])
+    image.putdata([(255, 255, 255), (244, 204, 204), (255, 0, 0)])
 
     indexed = map_to_bwr_palette(image, BwrColors.PALETTE)
     pixels = indexed.load()

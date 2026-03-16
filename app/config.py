@@ -45,7 +45,12 @@ class Config(BaseSettings):
     )
 
     # Application settings
-    APP_HOST: str = Field("0.0.0.0", description="Host address the app binds to")
+    APP_HOST: str = Field(
+        # skipcq: BAN-B104 - required to serve Docker/self-hosted deployments;
+        # bound explicitly by env/network config
+        "0.0.0.0",
+        description="Host address the app binds to",
+    )
     APP_PORT: int = Field(8000, gt=0, lt=65536, description="Port the app listens on")
     DEBUG: bool = Field(False, description="Enable debug logging")
     SITE_URL: str = Field(
