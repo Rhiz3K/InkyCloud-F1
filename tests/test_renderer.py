@@ -142,6 +142,13 @@ def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
     assert "CANCELLED" in captured_text
     assert bottom > 220
 
+    buffer = BytesIO()
+    image.save(buffer, format="BMP")
+    rendered = Image.open(BytesIO(buffer.getvalue()))
+    assert rendered.format == "BMP"
+    assert rendered.size == (800, 480)
+    assert rendered.mode == "1"
+
 
 def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
     """Spectra 6 renderer should also render the cancelled countdown label."""
@@ -168,6 +175,13 @@ def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
 
     assert "ZRUŠENO" in captured_text
     assert bottom > 220
+
+    buffer = BytesIO()
+    image.save(buffer, format="BMP")
+    rendered = Image.open(BytesIO(buffer.getvalue()))
+    assert rendered.format == "BMP"
+    assert rendered.size == (800, 480)
+    assert rendered.mode == "RGB"
 
 
 def test_renderer_draws_ongoing_label_for_recently_started_race(monkeypatch):
