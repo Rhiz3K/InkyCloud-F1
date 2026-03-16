@@ -2,7 +2,7 @@
 
 **Free F1 race calendar for your E-Ink display!** Use the public instance at **[f1.inkycloud.click](https://f1.inkycloud.click)** — no setup required.
 
-[![Try it Now](https://img.shields.io/badge/Try_it_Now-f1.inkycloud.click-E10600?style=for-the-badge&logo=f1&logoColor=white)](https://f1.inkycloud.click)
+[![Public Demo](https://img.shields.io/badge/Public_Demo-f1.inkycloud.click-E10600?style=for-the-badge)](https://f1.inkycloud.click)
 [![Self-Host](https://img.shields.io/badge/Self--Host-Guide-6C47FF?style=for-the-badge&logo=docker&logoColor=white)](./SELF-HOSTING.md)
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge/github/Rhiz3K/InkyCloud-F1&style=for-the-badge)](https://codspeed.io/Rhiz3K/InkyCloud-F1?utm_source=badge)
 
@@ -57,11 +57,13 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
 ## ✨ Features
 
-- **800×480 BMP output** — `1bit` monochrome, `bwr` B/W/R, and `spectra6` 6-color mode for calendar screen
+- **800x480 BMP output** — `1bit` monochrome, `bwr` B/W/R, and `spectra6` 6-color mode for the calendar screen
+- **Teams & Drivers screen** — Dedicated `teams.bmp` standings/lineup render for the current or selected season
 - **Always Up-to-Date** — Automatically updated after each Grand Prix
 - **Multi-language** — Czech and English support
 - **Any Timezone** — Convert race times to your local timezone
-- **Optional Weather Overlay** — Current or race-day weather on calendar screen
+- **Race Status States** — Upcoming countdown, `IN PROGRESS` / `PROBIHA`, `COMPLETED` / `DOKONCEN`, and cancelled race handling
+- **Optional Weather Overlay** — Current, race-day forecast, and historical race-time weather on the calendar screen
 - **Historical Results** — Previous year's podium for each circuit
 - **Track Info** — Circuit map, length, laps, and first GP year
 - **Session Schedule** — FP1, FP2, FP3, Qualifying, Sprint, Race times
@@ -70,14 +72,25 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
 Planned features for future releases:
 
-- [x] **Multi-color E-Ink displays** — `display=bwr` for black/white/red and `display=spectra6` for 6-color calendar output
-- [ ] **Additional display sizes** — Beyond 800×480 (e.g., 4.2", 5.83", 12.48")
-- [ ] **More languages** — German, Spanish, Italian, and community translations
+#### Display colors
+
+- [x] **1-BIT monochrome** — Initial calendar output introduced in `v1.0.0`
+- [x] **Spectra 6** — `display=spectra6` added in `v1.2.0`
+- [x] **B/W/R** — `display=bwr` added in `v1.2.9`
+- [ ] **B/W/R/Y** — Planned next color-mode expansion
+
+#### Screens and layouts
+
 - [x] **Championship standings** — Driver and constructor standings view
 - [x] **Teams & Drivers screen** — Full team grid with driver photos and points
-- [ ] **Dark mode variant** — Inverted colors for different display preferences
-- [ ] **Extended weather integration** — Richer race weekend forecast and details (basic weather overlay is already available)
 - [ ] **Custom layouts** — Multiple layout options to choose from
+- [ ] **Additional display sizes** — Beyond 800x480 (e.g. 4.2", 5.83", 12.48")
+
+#### Content and localization
+
+- [ ] **More languages** — German, Spanish, Italian, and community translations
+- [ ] **Extended weather integration** — Richer race weekend weather and extra weekend details
+- [ ] **Dark mode variant** — Inverted colors for different display preferences
 
 ---
 
@@ -111,13 +124,14 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
 | `GET /calendar.bmp`                      | Calendar BMP with `display`, `weather`, and `tz` params |
-| `GET /teams.bmp`                         | Teams & drivers grid as 1-bit BMP image                |
+| `GET /teams.bmp`                         | Teams & drivers grid as 1-bit BMP image (`lang`, `year`) |
 | `GET /`                                  | Landing page with screen type selection                 |
 | `GET /configure/{screen}`                | Interactive preview page (calendar/teams)               |
 | `GET /preview/{screen}.png`              | Pre-generated preview PNG                               |
 | `GET /preview/configure/{screen}.png`    | Pre-generated configure preview PNG                     |
-| `GET /api`                               | API documentation (JSON)                                |
+| `GET /api`                               | JSON API documentation                                  |
 | `GET /api/docs`                          | Alias for `/api`                                        |
+| `GET /api/docs/html`                     | Interactive HTML API docs                               |
 | `GET /api/races/{year}`                  | All races for a season (JSON)                           |
 | `GET /api/race/{year}/{round}`           | Specific race details (JSON)                            |
 | `GET /api/teams/{year}`                  | Teams and drivers for a season (JSON)                   |
