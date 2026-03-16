@@ -62,7 +62,7 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 - **Always Up-to-Date** — Automatically updated after each Grand Prix
 - **Multi-language** — Czech and English support
 - **Any Timezone** — Convert race times to your local timezone
-- **Race Status States** — Upcoming countdown, `IN PROGRESS` / `PROBIHA`, `COMPLETED` / `DOKONCEN`, and cancelled race handling
+- **Race Status States** — Upcoming countdown, `IN PROGRESS` / `PROBÍHÁ`, `COMPLETED` / `DOKONČEN`, and cancelled race handling
 - **Optional Weather Overlay** — Current, race-day forecast, and historical race-time weather on the calendar screen
 - **Historical Results** — Previous year's podium for each circuit
 - **Track Info** — Circuit map, length, laps, and first GP year
