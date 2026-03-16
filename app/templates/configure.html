@@ -1905,7 +1905,7 @@ block content %}
     const now = new Date();
     const raceDate = new Date(nextRaceDate);
     const daysUntilRace = Math.ceil((raceDate - now) / (1000 * 60 * 60 * 24));
-    return daysUntilRace <= 14 && daysUntilRace >= 0;
+    return daysUntilRace <= 14;
   }
 
   function setWeatherType(type) {

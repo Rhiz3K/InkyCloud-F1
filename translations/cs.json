@@ -7,6 +7,8 @@
   "countdown_hours": "hodin",
   "countdown_hours_short": "h",
   "cancelled": "ZRUŠENO",
+  "race_ongoing": "PROBÍHÁ",
+  "race_completed": "DOKONČEN",
   "countdown_in": "ZA",
   "error": "Chyba",
   "session_fp1": "Trénink 1",

@@ -90,14 +90,60 @@ class TestWeatherService:
 
         asyncio.run(run_test())
 
-    def test_past_race_returns_none(self):
+    def test_past_race_returns_historical_weather(self, monkeypatch):
         import asyncio
+
+        captured = {}
+
+        race_dt = datetime.now(timezone.utc) - timedelta(days=1)
+        race_hour = race_dt.strftime("%Y-%m-%dT%H:00")
+
+        mock_response_data = {
+            "hourly": {
+                "time": [race_hour],
+                "temperature_2m": [19.0],
+                "weather_code": [61],
+                "precipitation": [0.8],
+            }
+        }
+
+        class MockResponse:
+            @staticmethod
+            def raise_for_status() -> None:
+                return None
+
+            @staticmethod
+            def json():
+                return mock_response_data
+
+        class MockAsyncClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            @staticmethod
+            async def get(url, params=None):
+                captured["url"] = url
+                captured["params"] = params
+                return MockResponse()
+
+        monkeypatch.setattr(
+            "app.services.weather_service.httpx.AsyncClient",
+            lambda **kwargs: MockAsyncClient(),
+        )
 
         async def run_test():
             service = WeatherService()
-            race_dt = datetime.now(timezone.utc) - timedelta(days=1)
             result = await service.get_race_weather(lat=52.52, lon=13.41, race_datetime=race_dt)
-            assert result is None
+            assert result is not None
+            assert result.temperature_c == 19.0
+            assert result.weather_code == 61
+            assert result.precipitation_probability == 0
+            assert result.precip_display == "0.8 mm"
+            assert captured["url"] == "https://archive-api.open-meteo.com/v1/archive"
+            assert captured["params"]["start_date"] == race_dt.strftime("%Y-%m-%d")
 
         asyncio.run(run_test())
 
@@ -473,6 +519,43 @@ class TestWeatherService:
             assert weather_by_type["current"].temperature_c == 15.0
             assert weather_by_type["race"].temperature_c == 30.0
             assert captured["race_datetime"] == datetime(2026, 3, 8, 13, 0, tzinfo=timezone.utc)
+
+        asyncio.run(run_test())
+
+    @staticmethod
+    def test_get_weather_context_returns_historical_race_weather(monkeypatch):
+        import asyncio
+
+        race_data = {
+            "circuit": {"circuitId": "test_circuit", "lat": "50.0", "long": "14.0"},
+            "schedule": [
+                {
+                    "name": "Race",
+                    "datetime": "2026-03-01T15:00:00+00:00",
+                },
+            ],
+        }
+
+        async def fake_current(self, lat, lon):
+            return WeatherData(temperature_c=12.0, weather_code=2, precipitation_probability=5)
+
+        async def fake_race(self, lat, lon, race_datetime):
+            return WeatherData(
+                temperature_c=18.0,
+                weather_code=3,
+                precipitation_probability=0,
+                precipitation_display_override="1.4 mm",
+            )
+
+        monkeypatch.setattr(WeatherService, "get_current_weather", fake_current)
+        monkeypatch.setattr(WeatherService, "get_race_weather", fake_race)
+
+        async def run_test():
+            current, race, weather_by_type = await get_weather_context(race_data)
+            assert current is not None
+            assert race is not None
+            assert weather_by_type["race"] is not None
+            assert weather_by_type["race"].precip_display == "1.4 mm"
 
         asyncio.run(run_test())
 

@@ -1,4 +1,4 @@
-"""Weather service using Open-Meteo API for race weekend forecasts."""
+"""Weather service using Open-Meteo APIs for race weekend weather."""
 
 import logging
 from dataclasses import dataclass
@@ -51,6 +51,7 @@ WEATHER_ICONS: dict[int, str] = {
 RAINDROP_ICON = "\uf078"  # wi-raindrop
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 
 _weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
 
@@ -70,6 +71,7 @@ class WeatherData:
     temperature_c: float
     weather_code: int
     precipitation_probability: int
+    precipitation_display_override: str | None = None
 
     @property
     def icon(self) -> str:
@@ -81,6 +83,8 @@ class WeatherData:
 
     @property
     def precip_display(self) -> str:
+        if self.precipitation_display_override is not None:
+            return self.precipitation_display_override
         return f"{self.precipitation_probability}%"
 
 
@@ -186,8 +190,8 @@ class WeatherService:
 
         now = datetime.now(timezone.utc)
         if race_datetime_utc < now:
-            logger.debug("Race already started, no weather forecast needed")
-            return None
+            logger.debug("Race already started, fetching historical weather")
+            return await self.get_historical_race_weather(lat, lon, race_datetime_utc)
 
         # Open-Meteo forecast_days includes today, so to include race date
         # we need date_diff + 1 days.
@@ -213,6 +217,40 @@ class WeatherService:
             return None
         except Exception as e:
             logger.warning("Failed to fetch weather: %s", e)
+            return None
+
+    async def get_historical_race_weather(
+        self,
+        lat: float,
+        lon: float,
+        race_datetime: datetime,
+    ) -> Optional[WeatherData]:
+        race_datetime_utc = _to_utc_datetime(race_datetime)
+
+        cache_key = f"historical_{round(lat, 2)}_{round(lon, 2)}_{race_datetime_utc.isoformat()}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            logger.debug("Historical weather cache hit for %s", cache_key)
+            return cached
+
+        if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+            logger.warning("Invalid coordinates: lat=%s, lon=%s", lat, lon)
+            return None
+
+        try:
+            weather_data = await self._fetch_historical_weather(lat, lon, race_datetime_utc)
+            if weather_data:
+                self._set_cached(cache_key, weather_data)
+            return weather_data
+
+        except httpx.TimeoutException:
+            logger.warning("Historical weather API request timed out")
+            return None
+        except httpx.HTTPStatusError as e:
+            logger.warning("Historical weather API HTTP error: %s", e.response.status_code)
+            return None
+        except Exception as e:
+            logger.warning("Failed to fetch historical weather: %s", e)
             return None
 
     async def _fetch_weather(
@@ -247,59 +285,41 @@ class WeatherService:
             response.raise_for_status()
             data = response.json()
 
-        hourly = data.get("hourly", {})
-        times = hourly.get("time", [])
-        temps = hourly.get("temperature_2m", [])
-        codes = hourly.get("weather_code", [])
-        precip = hourly.get("precipitation_probability", [])
+        return _match_hourly_weather(
+            data.get("hourly", {}),
+            race_datetime,
+            precipitation_key="precipitation_probability",
+        )
 
-        if not times:
-            logger.warning("Empty weather response")
-            return None
-
+    async def _fetch_historical_weather(
+        self,
+        lat: float,
+        lon: float,
+        race_datetime: datetime,
+    ) -> Optional[WeatherData]:
         race_dt_utc = _to_utc_datetime(race_datetime)
-        race_hour_str = race_dt_utc.strftime("%Y-%m-%dT%H:00")
+        race_date = race_dt_utc.strftime("%Y-%m-%d")
 
-        for i, t in enumerate(times):
-            if t == race_hour_str:
-                return WeatherData(
-                    temperature_c=temps[i] if i < len(temps) else 20.0,
-                    weather_code=codes[i] if i < len(codes) else 0,
-                    precipitation_probability=(precip[i] if i < len(precip) and precip[i] else 0),
-                )
+        params: dict[str, str | int | float] = {
+            "latitude": round(lat, 2),
+            "longitude": round(lon, 2),
+            "start_date": race_date,
+            "end_date": race_date,
+            "hourly": "temperature_2m,weather_code,precipitation",
+            "timezone": "UTC",
+        }
 
-        logger.debug("Exact hour %s not found, finding closest hour on race date", race_hour_str)
-        race_date_str = race_dt_utc.strftime("%Y-%m-%d")
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(OPEN_METEO_ARCHIVE_URL, params=params)
+            response.raise_for_status()
+            data = response.json()
 
-        closest_index: Optional[int] = None
-        closest_delta_seconds: Optional[float] = None
-        for i, t in enumerate(times):
-            if not t.startswith(race_date_str):
-                continue
-
-            try:
-                candidate_dt = _to_utc_datetime(datetime.fromisoformat(t.replace("Z", "+00:00")))
-            except ValueError:
-                continue
-
-            delta_seconds = abs((candidate_dt - race_dt_utc).total_seconds())
-            if closest_delta_seconds is None or delta_seconds < closest_delta_seconds:
-                closest_delta_seconds = delta_seconds
-                closest_index = i
-
-        if closest_index is not None:
-            return WeatherData(
-                temperature_c=temps[closest_index] if closest_index < len(temps) else 20.0,
-                weather_code=codes[closest_index] if closest_index < len(codes) else 0,
-                precipitation_probability=(
-                    precip[closest_index]
-                    if closest_index < len(precip) and precip[closest_index]
-                    else 0
-                ),
-            )
-
-        logger.warning("Could not find weather for %s", race_hour_str)
-        return None
+        return _match_hourly_weather(
+            data.get("hourly", {}),
+            race_datetime,
+            precipitation_key="precipitation",
+            precipitation_as_amount=True,
+        )
 
     def _get_cached(self, key: str) -> Optional[WeatherData]:
         if key in _weather_cache:
@@ -422,6 +442,76 @@ def _extract_circuit_context(race_data: dict) -> tuple[str, Optional[float], Opt
         )
 
     return circuit_id, lat, lon
+
+
+def _format_precipitation_amount(value: float | int | None) -> str:
+    amount = float(value or 0)
+    formatted = f"{amount:.1f}".rstrip("0").rstrip(".")
+    return f"{formatted} mm"
+
+
+def _match_hourly_weather(
+    hourly: dict,
+    race_datetime: datetime,
+    *,
+    precipitation_key: str,
+    precipitation_as_amount: bool = False,
+) -> Optional[WeatherData]:
+    times = hourly.get("time", [])
+    temps = hourly.get("temperature_2m", [])
+    codes = hourly.get("weather_code", [])
+    precip_values = hourly.get(precipitation_key, [])
+
+    if not times:
+        logger.warning("Empty weather response")
+        return None
+
+    race_dt_utc = _to_utc_datetime(race_datetime)
+    race_hour_str = race_dt_utc.strftime("%Y-%m-%dT%H:00")
+
+    matched_index: Optional[int] = None
+    for i, t in enumerate(times):
+        if t == race_hour_str:
+            matched_index = i
+            break
+
+    if matched_index is None:
+        logger.debug("Exact hour %s not found, finding closest hour on race date", race_hour_str)
+        race_date_str = race_dt_utc.strftime("%Y-%m-%d")
+        closest_delta_seconds: Optional[float] = None
+
+        for i, t in enumerate(times):
+            if not t.startswith(race_date_str):
+                continue
+
+            try:
+                candidate_dt = _to_utc_datetime(datetime.fromisoformat(t.replace("Z", "+00:00")))
+            except ValueError:
+                continue
+
+            delta_seconds = abs((candidate_dt - race_dt_utc).total_seconds())
+            if closest_delta_seconds is None or delta_seconds < closest_delta_seconds:
+                closest_delta_seconds = delta_seconds
+                matched_index = i
+
+    if matched_index is None:
+        logger.warning("Could not find weather for %s", race_hour_str)
+        return None
+
+    precip_value = precip_values[matched_index] if matched_index < len(precip_values) else 0
+    precip_probability = 0
+    precip_display_override = None
+    if precipitation_as_amount:
+        precip_display_override = _format_precipitation_amount(precip_value)
+    else:
+        precip_probability = int(precip_value or 0)
+
+    return WeatherData(
+        temperature_c=temps[matched_index] if matched_index < len(temps) else 20.0,
+        weather_code=codes[matched_index] if matched_index < len(codes) else 0,
+        precipitation_probability=precip_probability,
+        precipitation_display_override=precip_display_override,
+    )
 
 
 def _extract_race_datetime(race_data: dict) -> Optional[datetime]:

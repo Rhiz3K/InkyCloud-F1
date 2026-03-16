@@ -1,5 +1,6 @@
 """Test renderer service."""
 
+from datetime import datetime, timezone
 from io import BytesIO
 
 import pytest
@@ -18,6 +19,7 @@ from app.models import (
     TeamsData,
 )
 from app.services import renderer as renderer_module
+from app.services import spectra6_renderer as spectra6_renderer_module
 from app.services.bwr_renderer import BwrColors, BwrRenderer
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
@@ -165,6 +167,76 @@ def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
     )
 
     assert "ZRUŠENO" in captured_text
+    assert bottom > 220
+
+
+def test_renderer_draws_ongoing_label_for_recently_started_race(monkeypatch):
+    """Races started less than three hours ago should render ongoing status."""
+    renderer = Renderer(get_translator("cs"))
+    image = Image.new("1", (800, 480), 1)
+    draw = ImageDraw.Draw(image)
+    captured_text = []
+    original_text = draw.text
+    fixed_now = datetime(2026, 4, 12, 16, 0, tzinfo=timezone.utc)
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            if tz is None:
+                return fixed_now.replace(tzinfo=None)
+            return fixed_now.astimezone(tz)
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured_text.append(text)
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(draw, "text", spy_text)
+    monkeypatch.setattr(renderer_module, "datetime", FixedDatetime)
+
+    bottom = renderer._draw_countdown_box(
+        draw,
+        {
+            "schedule": [{"name": "Race", "datetime": "2026-04-12T15:00:00+00:00"}],
+        },
+        220,
+    )
+
+    assert "PROBÍHÁ" in captured_text
+    assert bottom > 220
+
+
+def test_spectra6_renderer_draws_completed_label_for_finished_race(monkeypatch):
+    """Races started more than three hours ago should render completed status."""
+    renderer = Spectra6Renderer(get_translator("cs"))
+    image = Image.new("RGB", (800, 480), Spectra6Colors.WHITE)
+    draw = ImageDraw.Draw(image)
+    captured_text = []
+    original_text = draw.text
+    fixed_now = datetime(2026, 4, 12, 18, 30, tzinfo=timezone.utc)
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            if tz is None:
+                return fixed_now.replace(tzinfo=None)
+            return fixed_now.astimezone(tz)
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured_text.append(text)
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(draw, "text", spy_text)
+    monkeypatch.setattr(spectra6_renderer_module, "datetime", FixedDatetime)
+
+    bottom = renderer._draw_countdown_box(
+        draw,
+        {
+            "schedule": [{"name": "Race", "datetime": "2026-04-12T15:00:00+00:00"}],
+        },
+        220,
+    )
+
+    assert "DOKONČEN" in captured_text
     assert bottom > 220
 
 

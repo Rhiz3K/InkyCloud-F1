@@ -7,6 +7,8 @@
   "countdown_hours": "hours",
   "countdown_hours_short": "h",
   "cancelled": "CANCELLED",
+  "race_ongoing": "IN PROGRESS",
+  "race_completed": "COMPLETED",
   "countdown_in": "IN",
   "error": "Error",
   "session_fp1": "Practice 1",
