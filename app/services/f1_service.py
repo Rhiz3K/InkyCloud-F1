@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -137,6 +138,69 @@ class F1Service:
             logger.error("Error fetching race data: %s", str(e), exc_info=True)
             return None
 
+    @staticmethod
+    def _has_scheduled_round(race_data: dict) -> bool:
+        """Return True when the race has a valid round number assigned."""
+        round_value = race_data.get("round")
+
+        if round_value in (None, ""):
+            return False
+
+        try:
+            return int(round_value) > 0
+        except (TypeError, ValueError):
+            return False
+
+    @classmethod
+    def _is_cancelled_race(cls, race_data: dict) -> bool:
+        """Return True when the race has been removed from the active calendar."""
+        return not cls._has_scheduled_round(race_data)
+
+    @staticmethod
+    def _slugify_race_part(value: str) -> str:
+        """Convert a race identifier fragment into a stable ASCII slug."""
+        return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+    @classmethod
+    def _build_race_key(
+        cls,
+        *,
+        season: str | int | None,
+        round_value: str | int | None,
+        race_name: str,
+        circuit_id: str,
+        race_date: str,
+    ) -> str:
+        """Build a stable identifier for selecting a race from the UI/API."""
+        key_parts = [cls._slugify_race_part(str(season or "race"))]
+
+        if round_value not in (None, ""):
+            key_parts.append(f"round-{cls._slugify_race_part(str(round_value))}")
+        else:
+            key_parts.append("cancelled")
+
+        key_parts.append(cls._slugify_race_part(circuit_id or race_name or "grand-prix"))
+
+        if race_date:
+            key_parts.append(cls._slugify_race_part(race_date))
+
+        return "-".join(part for part in key_parts if part)
+
+    @classmethod
+    def _extract_round_number(cls, race_data: dict) -> Optional[int]:
+        """Return the integer round number when available."""
+        round_value = race_data.get("round")
+
+        if round_value in (None, ""):
+            return None
+
+        try:
+            round_num = int(round_value)
+        except (TypeError, ValueError):
+            return None
+
+        return round_num if round_num > 0 else None
+
     def _convert_race_times(self, race: Race) -> dict:
         """
         Convert Race UTC times to target timezone and return structured payload.
@@ -212,6 +276,14 @@ class F1Service:
         return {
             "race_name": race.raceName,
             "round": race.round,
+            "race_key": self._build_race_key(
+                season=race.season,
+                round_value=race.round,
+                race_name=race.raceName,
+                circuit_id=race.Circuit.circuitId,
+                race_date=race.date,
+            ),
+            "is_cancelled": race.round in (None, ""),
             "season": race.season,
             "circuit": {
                 "circuitId": race.Circuit.circuitId,
@@ -446,6 +518,7 @@ class F1Service:
                     try:
                         race_date_str = race.get("date", "")
                         race_time_str = race.get("time", "14:00:00Z")
+                        round_num = self._extract_round_number(race)
 
                         # Parse race datetime - if parsing fails, use None
                         dt_local = None
@@ -458,7 +531,14 @@ class F1Service:
 
                         result.append(
                             {
-                                "round": int(race.get("round", 0)),
+                                "round": round_num,
+                                "race_key": self._build_race_key(
+                                    season=race.get("season"),
+                                    round_value=race.get("round"),
+                                    race_name=race.get("raceName", ""),
+                                    circuit_id=race.get("Circuit", {}).get("circuitId", ""),
+                                    race_date=race_date_str,
+                                ),
                                 "race_name": race.get("raceName", ""),
                                 "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
                                 "circuit_name": race.get("Circuit", {}).get("circuitName", ""),
@@ -468,12 +548,22 @@ class F1Service:
                                 "date": race_date_str,
                                 "datetime": dt_local.isoformat() if dt_local else None,
                                 "is_past": is_past,
+                                "is_cancelled": self._is_cancelled_race(race),
                             }
                         )
                     except (KeyError, ValueError, TypeError) as e:
                         race_name = race.get("raceName", "N/A")
                         logger.warning("Skipping malformed race: %s. Error: %s", race_name, e)
                         continue
+
+                result.sort(
+                    key=lambda item: (
+                        item.get("is_cancelled", False),
+                        item.get("round") is None,
+                        item.get("round") or 999,
+                        item.get("date") or "9999-12-31",
+                    )
+                )
 
                 return result
 
@@ -583,6 +673,9 @@ class F1Service:
 
             for race in races:
                 try:
+                    if race.round in (None, ""):
+                        continue
+
                     # Parse race datetime
                     race_time = race.time or "14:00:00Z"
                     dt_str = f"{race.date}T{race_time}"

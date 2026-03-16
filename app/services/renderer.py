@@ -4,7 +4,7 @@ import io
 import json
 import logging
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -1177,6 +1177,7 @@ class Renderer:
         Returns:
             Bottom Y of drawn box, or schedule_bottom if no upcoming race.
         """
+        is_cancelled = race_data.get("is_cancelled", False)
         schedule = race_data.get("schedule", [])
         race_dt = None
         for event in schedule:
@@ -1188,17 +1189,8 @@ class Renderer:
                     race_dt = dt
                 break
 
-        if not race_dt:
+        if not is_cancelled and not race_dt:
             return schedule_bottom
-
-        now = datetime.now(race_dt.tzinfo) if race_dt.tzinfo else datetime.now()
-        delta = race_dt - now
-
-        if delta.total_seconds() <= 0:
-            return schedule_bottom
-
-        days = delta.days
-        hours = delta.seconds // 3600
 
         font = self.fonts["schedule_row_bold"]
         font_icon = self.fonts["icon_small"]
@@ -1222,6 +1214,76 @@ class Renderer:
         draw.rectangle([x_left, y_top, x_right, y_bottom], fill=0, outline=0)
 
         text_y = y_top + padding_y - ref_bbox[1]
+
+        status_text = None
+        if is_cancelled:
+            status_text = self.translator.get("cancelled", "CANCELLED")
+        else:
+            if race_dt is None:
+                return schedule_bottom
+
+            active_race_dt = race_dt
+            now = datetime.now(active_race_dt.tzinfo) if active_race_dt.tzinfo else datetime.now()
+            delta = active_race_dt - now
+
+            if delta.total_seconds() <= 0:
+                status_key = (
+                    "race_ongoing"
+                    if now < active_race_dt + timedelta(hours=3)
+                    else "race_completed"
+                )
+                status_text = self.translator.get(
+                    status_key,
+                    "IN PROGRESS" if status_key == "race_ongoing" else "COMPLETED",
+                )
+
+        if status_text:
+            show_weather = weather_data is not None and not is_cancelled
+            status_bbox = draw.textbbox((0, 0), status_text, font=font)
+            status_w = status_bbox[2] - status_bbox[0]
+            if show_weather:
+                text_x = x_left + padding_x
+            else:
+                text_x = x_left + ((x_right - x_left) - status_w) // 2
+            draw.text((text_x, text_y), status_text, fill=1, font=font)
+            if not show_weather:
+                return int(y_bottom)
+
+            temp_str = f"{weather_data.temp_display} "
+            precip_str = weather_data.precip_display
+
+            weather_icon_bbox = draw.textbbox((0, 0), weather_data.icon, font=font_weather_icon)
+            weather_icon_w = weather_icon_bbox[2] - weather_icon_bbox[0]
+            temp_bbox = draw.textbbox((0, 0), temp_str, font=font)
+            temp_w = temp_bbox[2] - temp_bbox[0]
+            rain_icon_bbox = draw.textbbox((0, 0), RAINDROP_ICON, font=font_weather_icon)
+            rain_icon_w = rain_icon_bbox[2] - rain_icon_bbox[0]
+            precip_bbox = draw.textbbox((0, 0), precip_str, font=font)
+            precip_w = precip_bbox[2] - precip_bbox[0]
+
+            total_w = weather_icon_w + 4 + temp_w + rain_icon_w + 3 + precip_w
+            cur_x = x_right - padding_x - total_w
+
+            draw.text((cur_x, text_y), weather_data.icon, fill=1, font=font_weather_icon)
+            cur_x += weather_icon_w + 4
+            draw.text((cur_x, text_y), temp_str, fill=1, font=font)
+            cur_x += temp_w
+            draw.text((cur_x, text_y), RAINDROP_ICON, fill=1, font=font_weather_icon)
+            cur_x += rain_icon_w + 3
+            draw.text((cur_x, text_y), precip_str, fill=1, font=font)
+            return int(y_bottom)
+
+        if race_dt is None:
+            return schedule_bottom
+        active_race_dt = race_dt
+        now = datetime.now(active_race_dt.tzinfo) if active_race_dt.tzinfo else datetime.now()
+        delta = active_race_dt - now
+
+        if delta.total_seconds() <= 0:
+            return schedule_bottom
+
+        days = delta.days
+        hours = delta.seconds // 3600
 
         flag_icon = "🏁"
         # Use short labels (d/h) for current and race-day aliases.

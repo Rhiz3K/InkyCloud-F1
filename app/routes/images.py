@@ -48,10 +48,16 @@ def _validate_timezone_param(tz: str | None) -> None:
         raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
 
 
+def _validate_calendar_selection(year: int | None, race_key: str | None) -> None:
+    if race_key is not None and year is None:
+        raise HTTPException(status_code=400, detail="race_key requires year")
+
+
 def _get_cache_key(
     lang: str,
     year: int | None,
     round_num: int | None,
+    race_key: str | None,
     tz: str | None,
     weather: bool,
     weather_type: str,
@@ -59,21 +65,44 @@ def _get_cache_key(
 ) -> str:
     weather_key = weather_type if weather else "no_weather"
     return (
-        f"{lang}:{year or 'next'}:{round_num or 'next'}:{tz or 'default'}:{weather_key}:{display}"
+        f"{lang}:{year or 'next'}:{round_num or 'next'}:{race_key or 'auto'}:"
+        f"{tz or 'default'}:{weather_key}:{display}"
     )
 
 
+def _to_round_number(round_value: str | int | None) -> int | None:
+    if round_value in (None, ""):
+        return None
+
+    try:
+        round_number = int(round_value)
+    except (TypeError, ValueError):
+        return None
+
+    return round_number if round_number > 0 else None
+
+
 def _get_race_info_for_stats(
-    f1_service: F1Service, year: int | None, race_round: int | None
+    f1_service: F1Service,
+    year: int | None,
+    race_round: int | None,
+    race_key: str | None,
 ) -> tuple[bool, int | None, int | None, str | None]:
-    is_auto_selected = year is None and race_round is None
+    is_auto_selected = year is None and race_round is None and race_key is None
     actual_year = year
     actual_round = race_round
     actual_race_name: str | None = None
 
-    if year and race_round:
+    if race_key is not None and year is None:
+        return is_auto_selected, actual_year, actual_round, actual_race_name
+
+    if year and (race_round or race_key):
         for race in f1_service.get_all_races_from_static(year):
-            if int(race.get("round", 0)) == race_round:
+            if race_key and race.get("race_key") == race_key:
+                actual_race_name = race.get("race_name", "Unknown")
+                actual_round = _to_round_number(race.get("round"))
+                break
+            if race_round is not None and _to_round_number(race.get("round")) == race_round:
                 actual_race_name = race.get("race_name", "Unknown")
                 break
         return is_auto_selected, actual_year, actual_round, actual_race_name
@@ -81,7 +110,7 @@ def _get_race_info_for_stats(
     race_info = f1_service.get_next_race_from_static()
     if race_info:
         actual_year = int(race_info.get("season", 0)) or None
-        actual_round = int(race_info.get("round", 0)) or None
+        actual_round = _to_round_number(race_info.get("round"))
         actual_race_name = race_info.get("race_name", "Next Race")
 
     return is_auto_selected, actual_year, actual_round, actual_race_name
@@ -93,6 +122,7 @@ async def _track_calendar_analytics(
     tz: str | None,
     year: int | None,
     race_round: int | None,
+    race_key: str | None,
     user_agent: str | None,
     referrer: str,
 ) -> None:
@@ -103,6 +133,8 @@ async def _track_calendar_analytics(
         query_params["year"] = str(year)
     if race_round is not None:
         query_params["round"] = str(race_round)
+    if race_key is not None:
+        query_params["race_key"] = race_key
 
     url = f"/calendar.bmp?{urlencode(query_params)}"
 
@@ -196,11 +228,12 @@ def _get_pregenerated_calendar_path(
     lang: str,
     year: int | None,
     race_round: int | None,
+    race_key: str | None,
     tz: str | None,
     display: str,
     weather_type: str,
 ) -> Path | None:
-    if year is not None or race_round is not None:
+    if year is not None or race_round is not None or race_key is not None:
         return None
 
     target_tz_for_key = tz or config.DEFAULT_TIMEZONE
@@ -222,11 +255,19 @@ def _get_pregenerated_calendar_path(
 
 
 def _get_race_data_from_static(
-    f1_service: F1Service, year: int | None, race_round: int | None
+    f1_service: F1Service,
+    year: int | None,
+    race_round: int | None,
+    race_key: str | None,
 ) -> dict | None:
-    if year and race_round:
+    if race_key is not None and year is None:
+        return None
+
+    if year and (race_round or race_key):
         for race in f1_service.get_all_races_from_static(year):
-            if int(race.get("round", 0)) == race_round:
+            if race_key and race.get("race_key") == race_key:
+                return race
+            if race_round is not None and _to_round_number(race.get("round")) == race_round:
                 return race
         return None
 
@@ -256,6 +297,7 @@ async def _render_calendar(
     lang: str,
     year: int | None,
     race_round: int | None,
+    race_key: str | None,
     target_tz: str,
     weather: bool,
     weather_type: str,
@@ -263,13 +305,13 @@ async def _render_calendar(
 ) -> tuple[bytes, dict | None]:
     translator = get_translator(lang)
 
-    race_data = _get_race_data_from_static(f1_service, year, race_round)
+    race_data = _get_race_data_from_static(f1_service, year, race_round, race_key)
     if not race_data:
         renderer = _get_renderer(display, translator)
         return renderer.render_error("Failed to fetch race data"), None
 
     weather_data = None
-    if weather and config.WEATHER_ENABLED:
+    if weather and config.WEATHER_ENABLED and not race_data.get("is_cancelled"):
         _, _, weather_by_type = await get_weather_context(race_data)
         if weather_type in ("race_day", "race"):
             weather_data = weather_by_type.get("race")
@@ -293,6 +335,7 @@ async def get_calendar_bmp(
     lang: str = Query(default="en", description="Language code (cs, en)"),
     year: int | None = Query(default=None, description="Season year (e.g., 2025)"),
     race_round: int | None = Query(default=None, description="Round number", alias="round"),
+    race_key: str | None = Query(default=None, description="Race identifier", alias="race_key"),
     tz: str | None = Query(default=None, description="Timezone"),
     weather: bool = Query(default=True, description="Show weather forecast"),
     weather_type: str = Query(
@@ -316,12 +359,13 @@ async def get_calendar_bmp(
     display = _normalize_display(display)
     weather_type = _normalize_weather_type(weather_type)
     _validate_timezone_param(tz)
+    _validate_calendar_selection(year, race_key)
 
     is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(
-        f1_service, year, race_round
+        f1_service, year, race_round, race_key
     )
 
-    cache_key = _get_cache_key(lang, year, race_round, tz, weather, weather_type, display)
+    cache_key = _get_cache_key(lang, year, race_round, race_key, tz, weather, weather_type, display)
     cached_bmp = get_bmp_cache().get(cache_key)
     if cached_bmp is not None:
         logger.debug("Cache hit for %s", cache_key)
@@ -341,6 +385,7 @@ async def get_calendar_bmp(
             tz=tz,
             year=year,
             race_round=race_round,
+            race_key=race_key,
             user_agent=user_agent,
             referrer=referrer,
         )
@@ -358,6 +403,7 @@ async def get_calendar_bmp(
         lang=lang,
         year=year,
         race_round=race_round,
+        race_key=race_key,
         tz=tz,
         display=display,
         weather_type=weather_type,
@@ -382,6 +428,7 @@ async def get_calendar_bmp(
             tz=tz,
             year=year,
             race_round=race_round,
+            race_key=race_key,
             user_agent=user_agent,
             referrer=referrer,
         )
@@ -399,6 +446,7 @@ async def get_calendar_bmp(
             lang=lang,
             year=year,
             race_round=race_round,
+            race_key=race_key,
             target_tz=target_tz,
             weather=weather,
             weather_type=weather_type,
@@ -408,7 +456,7 @@ async def get_calendar_bmp(
 
         if race_data:
             actual_year = int(race_data.get("season", 0)) or actual_year
-            actual_round = int(race_data.get("round", 0)) or actual_round
+            actual_round = _to_round_number(race_data.get("round")) or actual_round
             actual_race_name = race_data.get("race_name", actual_race_name)
 
         _record_calendar_api_call(
@@ -427,6 +475,7 @@ async def get_calendar_bmp(
             tz=tz,
             year=year,
             race_round=race_round,
+            race_key=race_key,
             user_agent=user_agent,
             referrer=referrer,
         )
@@ -449,7 +498,7 @@ async def get_calendar_bmp(
         renderer = _get_renderer(display, translator)
         bmp_data = renderer.render_error(str(exc))
 
-        auto_selected = year is None and race_round is None
+        auto_selected = year is None and race_round is None and race_key is None
         record_api_call(
             "/calendar.bmp",
             (time.time() - start_time) * 1000,

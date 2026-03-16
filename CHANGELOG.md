@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.11] - 2026-03-16
+
+### Frontend
+
+#### Changed
+
+- **Cancelled race selection** - Configure UI now keeps cancelled weekends at the end of the season list, highlights them in red, and lets previews request them via stable `race_key` identifiers
+
+### Backend
+
+#### Changed
+
+- **F1 data automation** - Scheduled `Update F1 Data` runs now refresh both historical circuit results and static season calendar JSON files under `app/assets/seasons/`
+
+#### Fixed
+
+- **Race status rendering** - `/calendar.bmp` keeps cancelled races addressable without breaking existing `year` + `round` requests, skips weather fetches for cancelled weekends, renders a centered `CANCELLED`/`ZRUŠENO` label in the countdown slot, and now shows `IN PROGRESS`/`PROBÍHÁ` for the first three hours after lights out before switching to `COMPLETED`/`DOKONČEN`
+
 ## [1.2.10] - 2026-03-13
 
 ### Frontend
@@ -41,16 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Changed
 
 - **Pre-processed track bitmaps** - Regenerated `albert_park.bmp` and `shanghai.bmp` in `tracks_processed` from the updated source maps to keep 1-bit rendering output aligned
 - **Spectra 6 track bitmap** - Updated `tracks_spectra6/albert_park.bmp` to match the refreshed Albert Park circuit source
 - **Release sync automation** - Updated release and sync workflows to publish releases with `SYNC_PAT`, trigger main-to-dev sync after published releases, and record the synced `main` SHA in the automation PR
-
-</details>
 
 ## [1.2.7] - 2026-03-09
 
@@ -63,9 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Fixed
 
 - **2026 teams bitmap data** - Added curated 2026 team data, corrected driver numbers, and normalized override handling so live and static team renders stay in sync
@@ -77,14 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **2026 regression coverage** - Added renderer and teams-service tests for 2026 team data, manual driver-number overrides, and full BMP rendering in English and Czech
 
-</details>
-
 ## [1.2.6] - 2026-03-01
 
 ### Backend
-
-<details markdown="1">
-<summary>Backend</summary>
 
 #### Changed
 
@@ -94,16 +99,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dependency lock refresh** - Regenerated `uv.lock` for `requires-python = ">=3.14.3"` with compatible resolved versions
 - **Docs/runtime alignment** - Updated README and deployment docs to reflect the new Python baseline and current API surface
 
-</details>
-
 ---
 
 ## [1.2.5] - 2026-03-01
 
 ### Backend
-
-<details markdown="1">
-<summary>Backend</summary>
 
 #### Added
 
@@ -113,8 +113,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 - **Benchmarking dependencies** - Added `pytest-codspeed` to dev dependencies and updated the lockfile for reproducible benchmark runs
-
-</details>
 
 ---
 
@@ -128,9 +126,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Fixed
 
 - **Forecast range boundary** - Race-day weather now requests a forecast window that always includes the race date (fixes missing data near the 14-day boundary)
@@ -141,8 +136,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Weather regression tests** - Added coverage for forecast-days window calculation and nearest-hour fallback selection
 - **Release automation** - Added CI workflow that creates GitHub releases from the latest `CHANGELOG.md` entry after pushes to `main`
 - **Main→dev sync automation** - Added CI workflow that opens/updates an auto-merge PR to sync `main` back into `dev` after each push to `main`
-
-</details>
 
 ---
 
@@ -158,9 +151,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Changed
 
 - **Weather context helper** - Added `get_weather_context()` to centralize current and race-day forecast loading
@@ -171,8 +161,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **Privacy i18n test stability** - Updated cookie handling in test client to make language preference checks deterministic
-
-</details>
 
 ---
 
@@ -187,9 +175,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Language switcher** - Updated to navigate between subdirectory URLs
 
 ### Backend
-
-<details markdown="1">
-<summary>Backend</summary>
 
 #### Added
 
@@ -208,24 +193,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Service Worker** - Removed non-existent `favicon.svg` from cache list (was causing SW install failure)
 - **Configure page preload** - Removed unused image preload that didn't match dynamically loaded variants
 
-</details>
-
 ---
 
 ## [1.2.1] - 2026-01-12
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Fixed
 
 - **Spectra 6 PNG previews** - Configure page previews now display colors instead of grayscale
 - **SEO: Sitemap HEAD support** - `/sitemap.xml` and `/robots.txt` now respond to HEAD requests (fixes Google Search Console)
 - **SEO: Canonical URLs** - Sitemap now uses clean URLs without `?lang=` parameter
-
-</details>
 
 ---
 
@@ -253,9 +231,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Preview weather sync** - Weather OFF/current/race buttons now show correct preview image
 
 ### Backend
-
-<details markdown="1">
-<summary>Backend</summary>
 
 #### Added
 
@@ -285,8 +260,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Track centering** - Spectra 6 renderer now centers track images horizontally and vertically
 - **Pre-generated image selection** - Correctly selects BMP file based on weather_type parameter
 
-</details>
-
 ---
 
 ## [1.1.4] - 2026-01-04
@@ -315,9 +288,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Added
 
 - `WeatherService` class with Open-Meteo API integration
@@ -334,22 +304,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `_draw_circuit_stats()` simplified - removed weather row
 - Weather params included in BMP cache key
 
-</details>
-
 ---
 
 ## [1.1.3] - 2026-01-02
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Fixed
 
 - **Font MIME Type** - TTF fonts served as `text/plain` instead of `font/ttf` - registered correct MIME types
-
-</details>
 
 ---
 
@@ -357,16 +320,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Fixed
 
 - **Font Loading** - SpaceMono TTF files were corrupted (HTML instead of binary) - re-downloaded from Google Fonts
 - **SEO** - Fixed hreflang x-default to include `?lang=en` for consistency with canonical URLs
 - **Performance** - Removed oversized favicon.svg (240KB embedded PNG) - using PNG favicon instead
-
-</details>
 
 ---
 
@@ -440,9 +398,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Added
 
 - Team logos integration in teams service
@@ -458,31 +413,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Teams "Current" season logic** - Now correctly returns 2025 data until March 8, 2026 (season start) instead of using calendar year
 
-</details>
-
 ---
 
 ## [1.0.2] - 2025-12-30
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Security
 
 - **Fix 7 CodeQL path injection vulnerabilities** (high severity) in `i18n.py`, `f1_service.py`, `main.py`
-
-</details>
 
 ---
 
 ## [1.0.1] - 2025-12-28
 
 ### Backend
-
-<details markdown="1">
-<summary>Backend</summary>
 
 #### Security
 
@@ -492,8 +437,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 - **Startup check for persistent storage** - Creates `.persistence_marker` file, warns if storage is non-persistent
-
-</details>
 
 ---
 
@@ -542,9 +485,6 @@ Initial public release.
 
 ### Backend
 
-<details markdown="1">
-<summary>Backend</summary>
-
 #### Added
 
 - FastAPI backend with async support
@@ -572,5 +512,3 @@ Initial public release.
 - Circuit ID mapping: `vegas` now correctly maps to `las_vegas` for circuit stats
 - Moved debug scripts to `scripts/` directory
 - Cleaned up root directory (removed test files, old Dockerfile)
-
-</details>

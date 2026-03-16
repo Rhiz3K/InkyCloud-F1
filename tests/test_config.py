@@ -23,6 +23,8 @@ def test_config_invalid_env_falls_back(monkeypatch):
     monkeypatch.setenv("REQUEST_TIMEOUT", "0")
     monkeypatch.setenv("DEFAULT_TIMEZONE", "Not/AZone")
     monkeypatch.setenv("UMAMI_API_URL", "not-a-url")
+    monkeypatch.setenv("OPEN_METEO_URL", "still-not-a-url")
+    monkeypatch.setenv("OPEN_METEO_ARCHIVE_URL", "bad-archive-url")
     monkeypatch.setenv("SENTRY_TRACES_SAMPLE_RATE", "2")
 
     config_module._reset_config_cache_for_tests()
@@ -33,6 +35,8 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert config.REQUEST_TIMEOUT == 10
     assert config.DEFAULT_TIMEZONE == "Europe/Prague"
     assert str(config.UMAMI_API_URL) == "https://analytics.example.com/api/send"
+    assert str(config.OPEN_METEO_URL) == "https://api.open-meteo.com/v1/forecast"
+    assert str(config.OPEN_METEO_ARCHIVE_URL) == "https://archive-api.open-meteo.com/v1/archive"
     assert config.SENTRY_TRACES_SAMPLE_RATE == 0.1
 
 

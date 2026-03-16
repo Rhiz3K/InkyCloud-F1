@@ -98,6 +98,14 @@ class Config(BaseSettings):
     WEATHER_CACHE_MINUTES: int = Field(
         60, gt=0, description="Weather data cache duration in minutes"
     )
+    OPEN_METEO_URL: str = Field(
+        "https://api.open-meteo.com/v1/forecast",
+        description="Open-Meteo forecast API endpoint",
+    )
+    OPEN_METEO_ARCHIVE_URL: str = Field(
+        "https://archive-api.open-meteo.com/v1/archive",
+        description="Open-Meteo archive API endpoint",
+    )
 
     # Backup settings
     BACKUP_ENABLED: bool = Field(False, description="Toggle S3 database backup")
@@ -192,7 +200,13 @@ class Config(BaseSettings):
             return value
         return _warn_invalid(info.field_name, value, default, "unknown timezone")
 
-    @field_validator("UMAMI_API_URL", "JOLPICA_API_URL", mode="before")
+    @field_validator(
+        "UMAMI_API_URL",
+        "JOLPICA_API_URL",
+        "OPEN_METEO_URL",
+        "OPEN_METEO_ARCHIVE_URL",
+        mode="before",
+    )
     @classmethod
     def validate_url(cls, value: object, info: ValidationInfo) -> str:
         if info.field_name is None:

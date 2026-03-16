@@ -1,5 +1,6 @@
 """Test renderer service."""
 
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 import pytest
@@ -18,11 +19,13 @@ from app.models import (
     TeamsData,
 )
 from app.services import renderer as renderer_module
+from app.services import spectra6_renderer as spectra6_renderer_module
 from app.services.bwr_renderer import BwrColors, BwrRenderer
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 from app.services.teams_service import TeamsService
+from app.services.weather_service import WeatherData
 from app.utils.bmp import map_to_bwr_palette
 
 
@@ -112,6 +115,144 @@ def test_render_calendar_english(mock_race_data):
     assert img.format == "BMP"
     assert img.size == (800, 480)
     assert img.mode == "1"
+
+
+def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
+    """Cancelled races should render a centred cancelled label instead of countdown."""
+    renderer = Renderer(get_translator("en"))
+    image = Image.new("1", (800, 480), 1)
+    draw = ImageDraw.Draw(image)
+    captured_text = []
+    original_text = draw.text
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured_text.append(text)
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(draw, "text", spy_text)
+
+    bottom = renderer._draw_countdown_box(
+        draw,
+        {
+            "is_cancelled": True,
+            "schedule": [{"name": "Race", "datetime": "2099-04-12T15:00:00+00:00"}],
+        },
+        220,
+    )
+
+    assert "CANCELLED" in captured_text
+    assert bottom > 220
+
+    buffer = BytesIO()
+    image.save(buffer, format="BMP")
+    rendered = Image.open(BytesIO(buffer.getvalue()))
+    assert rendered.format == "BMP"
+    assert rendered.size == (800, 480)
+    assert rendered.mode == "1"
+
+
+def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
+    """Spectra 6 renderer should also render the cancelled countdown label."""
+    renderer = Spectra6Renderer(get_translator("cs"))
+    image = Image.new("RGB", (800, 480), Spectra6Colors.WHITE)
+    draw = ImageDraw.Draw(image)
+    captured_text = []
+    original_text = draw.text
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured_text.append(text)
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(draw, "text", spy_text)
+
+    bottom = renderer._draw_countdown_box(
+        draw,
+        {
+            "is_cancelled": True,
+            "schedule": [{"name": "Race", "datetime": "2099-04-19T17:00:00+00:00"}],
+        },
+        220,
+    )
+
+    assert "ZRUŠENO" in captured_text
+    assert bottom > 220
+
+    buffer = BytesIO()
+    image.save(buffer, format="BMP")
+    rendered = Image.open(BytesIO(buffer.getvalue()))
+    assert rendered.format == "BMP"
+    assert rendered.size == (800, 480)
+    assert rendered.mode == "RGB"
+
+
+def test_renderer_draws_ongoing_label_for_recently_started_race(monkeypatch):
+    """Races started less than three hours ago should render ongoing status."""
+    renderer = Renderer(get_translator("cs"))
+    image = Image.new("1", (800, 480), 1)
+    draw = ImageDraw.Draw(image)
+    captured_text = []
+    original_text = draw.text
+    fixed_now = datetime(2026, 4, 12, 16, 0, tzinfo=timezone.utc)
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            if tz is None:
+                return fixed_now.replace(tzinfo=None)
+            return fixed_now.astimezone(tz)
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured_text.append(text)
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(draw, "text", spy_text)
+    monkeypatch.setattr(renderer_module, "datetime", FixedDatetime)
+
+    bottom = renderer._draw_countdown_box(
+        draw,
+        {
+            "schedule": [{"name": "Race", "datetime": "2026-04-12T15:00:00+00:00"}],
+        },
+        220,
+    )
+
+    assert "PROBÍHÁ" in captured_text
+    assert bottom > 220
+
+
+def test_spectra6_renderer_draws_completed_label_for_finished_race(monkeypatch):
+    """Races started more than three hours ago should render completed status."""
+    renderer = Spectra6Renderer(get_translator("cs"))
+    image = Image.new("RGB", (800, 480), Spectra6Colors.WHITE)
+    draw = ImageDraw.Draw(image)
+    captured_text = []
+    original_text = draw.text
+    fixed_now = datetime(2026, 4, 12, 18, 30, tzinfo=timezone.utc)
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            if tz is None:
+                return fixed_now.replace(tzinfo=None)
+            return fixed_now.astimezone(tz)
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured_text.append(text)
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(draw, "text", spy_text)
+    monkeypatch.setattr(spectra6_renderer_module, "datetime", FixedDatetime)
+
+    bottom = renderer._draw_countdown_box(
+        draw,
+        {
+            "schedule": [{"name": "Race", "datetime": "2026-04-12T15:00:00+00:00"}],
+        },
+        220,
+    )
+
+    assert "DOKONČEN" in captured_text
+    assert bottom > 220
 
 
 # ============================================================================
@@ -1155,10 +1296,6 @@ def test_spectra6_session_colors():
 
 def test_spectra6_render_calendar_with_weather():
     """Test Spectra 6 rendering calendar with weather data."""
-    from datetime import datetime, timedelta
-
-    from app.services.weather_service import WeatherData
-
     translator = get_translator("en")
     renderer = Spectra6Renderer(translator)
 
@@ -1195,8 +1332,6 @@ def test_spectra6_render_calendar_with_weather():
 
 def test_spectra6_render_calendar_with_datetime_schedule():
     """Test Spectra 6 rendering with datetime objects in schedule."""
-    from datetime import datetime, timedelta, timezone
-
     translator = get_translator("en")
     renderer = Spectra6Renderer(translator)
 
@@ -1389,10 +1524,6 @@ def test_bwr_session_colors():
 
 def test_bwr_render_calendar_with_weather():
     """Test BWR rendering calendar with weather data."""
-    from datetime import datetime, timedelta
-
-    from app.services.weather_service import WeatherData
-
     translator = get_translator("en")
     renderer = BwrRenderer(translator)
 
@@ -1429,8 +1560,6 @@ def test_bwr_render_calendar_with_weather():
 
 def test_bwr_render_calendar_with_datetime_schedule():
     """Test BWR rendering with datetime objects in schedule."""
-    from datetime import datetime, timedelta, timezone
-
     translator = get_translator("en")
     renderer = BwrRenderer(translator)
 

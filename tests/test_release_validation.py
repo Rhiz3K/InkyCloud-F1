@@ -91,6 +91,32 @@ def test_validate_release_readiness_passes_for_bumped_version(tmp_path, monkeypa
     assert result.latest_version == SemVer(1, 3, 0)
 
 
+def test_validate_release_readiness_rejects_collapsible_html(tmp_path, monkeypatch):
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(
+        """# Changelog
+
+## [Unreleased]
+
+## [1.3.0] - 2026-03-14
+
+### Backend
+
+<details markdown="1">
+<summary>Backend</summary>
+
+- Added release notes
+
+</details>
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(release_validation, "get_latest_git_tag", lambda: SemVer(1, 2, 9))
+
+    with pytest.raises(ValueError, match="must not contain HTML details/summary blocks"):
+        release_validation.validate_release_readiness(changelog)
+
+
 def test_parse_latest_release_section_ignores_footer_links(monkeypatch):
     changelog = """# Changelog
 

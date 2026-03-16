@@ -2,7 +2,7 @@ name: Update F1 Data
 
 on:
   schedule:
-    # Monday 06:00 UTC - after Sunday GP
+    # Monday 06:00 UTC - after Sunday GP; refresh historical results and season calendars
     - cron: '0 6 * * 1'
   workflow_dispatch:
     inputs:
@@ -36,11 +36,11 @@ jobs:
         run: pip install httpx
 
       - name: Update historical results
-        if: github.event.inputs.update_type != 'seasons'
+        if: github.event_name == 'schedule' || github.event.inputs.update_type != 'seasons'
         run: python scripts/update_historical.py
 
       - name: Update season calendars
-        if: github.event.inputs.update_type == 'seasons' || github.event.inputs.update_type == 'all'
+        if: github.event_name == 'schedule' || github.event.inputs.update_type == 'seasons' || github.event.inputs.update_type == 'all'
         run: python scripts/update_seasons.py
 
       - name: Check for changes
@@ -60,4 +60,4 @@ jobs:
           git add app/assets/
           git commit -m "chore: update F1 data"
           git push -u origin "$BRANCH"
-          gh pr create --title "chore: update F1 data" --body "Automated F1 data update (historical results)" --base main --head "$BRANCH"
+          gh pr create --title "chore: update F1 data" --body "Automated F1 data update" --base main --head "$BRANCH"
