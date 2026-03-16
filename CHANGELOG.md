@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Backend
 
+#### Changed
+
+- **F1 data automation** - Scheduled `Update F1 Data` runs now refresh both historical circuit results and static season calendar JSON files under `app/assets/seasons/`
+
 #### Fixed
 
 - **Race status rendering** - `/calendar.bmp` keeps cancelled races addressable without breaking existing `year` + `round` requests, skips weather fetches for cancelled weekends, renders a centered `CANCELLED`/`ZRUŠENO` label in the countdown slot, and now shows `IN PROGRESS`/`PROBÍHÁ` for the first three hours after lights out before switching to `COMPLETED`/`DOKONČEN`
@@ -508,4 +512,3 @@ Initial public release.
 - Circuit ID mapping: `vegas` now correctly maps to `las_vegas` for circuit stats
 - Moved debug scripts to `scripts/` directory
 - Cleaned up root directory (removed test files, old Dockerfile)
-
