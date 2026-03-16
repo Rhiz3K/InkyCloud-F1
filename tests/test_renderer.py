@@ -1219,6 +1219,25 @@ def test_renderer_load_track_image_uses_circuit_id_mapping(tmp_path, monkeypatch
     assert track_image.size == (4, 4)
 
 
+def test_renderer_load_track_image_prefers_source_over_preprocessed(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(200, 210, 220)).save(tracks_dir / "test_circuit_bw.png", "PNG")
+
+    processed_dir = tmp_path / "tracks_processed"
+    processed_dir.mkdir()
+    Image.new("1", (4, 4), color=0).save(processed_dir / "test_circuit.bmp", "BMP")
+    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+
+    track_image = Renderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (200, 210, 220)
+
+
 def test_bwr_renderer_load_track_image_prefers_bwr_variant(mock_race_data, tmp_path, monkeypatch):
     tracks_dir = tmp_path / "tracks"
     tracks_dir.mkdir()
@@ -1286,6 +1305,27 @@ def test_spectra6_renderer_load_track_image_prefers_spectra6_variant(
 
     spectra6_dir = tmp_path / "tracks_spectra6"
     spectra6_dir.mkdir()
+    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_SPECTRA6_DIR", spectra6_dir)
+
+    track_image = Spectra6Renderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (80, 128, 184)
+
+
+def test_spectra6_renderer_load_track_image_prefers_source_over_preprocessed(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(80, 128, 184)).save(
+        tracks_dir / "test_circuit_spectra6.png", "PNG"
+    )
+
+    spectra6_dir = tmp_path / "tracks_spectra6"
+    spectra6_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(12, 34, 56)).save(spectra6_dir / "test_circuit.bmp", "BMP")
     monkeypatch.setattr(spectra6_renderer_module, "TRACKS_DIR", tracks_dir)
     monkeypatch.setattr(spectra6_renderer_module, "TRACKS_SPECTRA6_DIR", spectra6_dir)
 

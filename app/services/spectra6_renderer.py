@@ -326,6 +326,13 @@ class Spectra6Renderer:
         if not track_stems:
             return None
 
+        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="spectra6")
+        if source_path:
+            try:
+                return Image.open(source_path)
+            except Exception as e:
+                logger.warning("Failed to load track %s: %s", source_path, e)
+
         for stem in track_stems:
             track_path = TRACKS_SPECTRA6_DIR / f"{stem}.bmp"
             if not track_path.exists():
@@ -335,13 +342,6 @@ class Spectra6Renderer:
                 return Image.open(track_path)
             except Exception as e:
                 logger.warning("Failed to load track %s: %s", track_path, e)
-
-        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="spectra6")
-        if source_path:
-            try:
-                return Image.open(source_path)
-            except Exception as e:
-                logger.warning("Failed to load track %s: %s", source_path, e)
 
         return None
 

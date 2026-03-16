@@ -1043,7 +1043,14 @@ class Renderer:
         if not track_stems:
             return None
 
-        # Try pre-processed BMP first (much faster)
+        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bw")
+        if source_path:
+            try:
+                return Image.open(source_path)
+            except Exception:
+                pass
+
+        # Fall back to pre-processed BMPs only when source artwork is unavailable.
         for stem in track_stems:
             track_path = TRACKS_PROCESSED_DIR / f"{stem}.bmp"
             if not track_path.exists():
@@ -1053,14 +1060,6 @@ class Renderer:
                 return Image.open(track_path)
             except Exception:
                 continue
-
-        # Fallback to display-specific source PNG/JPG, then generic source.
-        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bw")
-        if source_path:
-            try:
-                return Image.open(source_path)
-            except Exception:
-                pass
 
         # Last resort fallback
         all_processed = list(TRACKS_PROCESSED_DIR.glob("*.bmp"))
