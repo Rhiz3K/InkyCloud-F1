@@ -88,6 +88,13 @@ class BwrRenderer(Spectra6Renderer):
         if not track_stems:
             return None
 
+        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bwr")
+        if source_path:
+            try:
+                return Image.open(source_path).convert("RGB")
+            except Exception as exc:
+                logger.warning("Failed to load track %s: %s", source_path, exc)
+
         for stem in track_stems:
             track_path = TRACKS_BWR_DIR / f"{stem}.bmp"
             if not track_path.exists():
@@ -97,13 +104,6 @@ class BwrRenderer(Spectra6Renderer):
                 return Image.open(track_path).convert("RGB")
             except Exception as exc:
                 logger.warning("Failed to load track %s: %s", track_path, exc)
-
-        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bwr")
-        if source_path:
-            try:
-                return Image.open(source_path).convert("RGB")
-            except Exception as exc:
-                logger.warning("Failed to load track %s: %s", source_path, exc)
 
         return None
 

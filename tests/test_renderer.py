@@ -1236,6 +1236,26 @@ def test_bwr_renderer_load_track_image_prefers_bwr_variant(mock_race_data, tmp_p
     assert track_image.getpixel((0, 0)) == (255, 0, 0)
 
 
+def test_bwr_renderer_load_track_image_prefers_source_over_preprocessed(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(255, 0, 0)).save(tracks_dir / "test_circuit_bwr.png", "PNG")
+
+    bwr_dir = tmp_path / "tracks_bwr"
+    bwr_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(123, 45, 67)).save(bwr_dir / "test_circuit.bmp", "BMP")
+
+    monkeypatch.setattr(bwr_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(bwr_renderer_module, "TRACKS_BWR_DIR", bwr_dir)
+
+    track_image = BwrRenderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (255, 0, 0)
+
+
 def test_bwr_renderer_load_track_image_falls_back_to_generic_source(
     mock_race_data, tmp_path, monkeypatch
 ):
