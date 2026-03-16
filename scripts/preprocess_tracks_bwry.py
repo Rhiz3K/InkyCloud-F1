@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pre-process track images for black/white/red E-Ink rendering."""
+"""Pre-process track images for future black/white/red/yellow E-Ink rendering."""
 
 from __future__ import annotations
 
@@ -19,37 +19,18 @@ from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
 
 MAX_WIDTH = 490
 MAX_HEIGHT = 280
-WHITE_THRESHOLD = 210
-BLACK_THRESHOLD = 90
-RED_MIN = 120
-RED_DOMINANCE = 1.15
+NON_WHITE_THRESHOLD = 245
 
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 TRACKS_DIR = PROJECT_ROOT / "app" / "assets" / "tracks"
-OUTPUT_DIR = PROJECT_ROOT / "app" / "assets" / "tracks_bwr"
+OUTPUT_DIR = PROJECT_ROOT / "app" / "assets" / "tracks_bwry"
 
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-RED = (160, 32, 32)
-PALETTE = [BLACK, WHITE, RED]
-NON_WHITE_THRESHOLD = 245
-
-
-def is_red_pixel(r: int, g: int, b: int) -> bool:
-    return r >= RED_MIN and r >= int(g * RED_DOMINANCE) and r >= int(b * RED_DOMINANCE)
-
-
-def classify_pixel(r: int, g: int, b: int) -> tuple[int, int, int]:
-    if is_red_pixel(r, g, b):
-        return RED
-
-    luminance = int(0.299 * r + 0.587 * g + 0.114 * b)
-    if luminance >= WHITE_THRESHOLD:
-        return WHITE
-    if luminance <= BLACK_THRESHOLD:
-        return BLACK
-    return BLACK
+BLACK = (0x00, 0x00, 0x00)
+WHITE = (0xFF, 0xFF, 0xFF)
+RED = (0xA0, 0x20, 0x20)
+YELLOW = (0xF0, 0xE0, 0x50)
+PALETTE = [BLACK, WHITE, RED, YELLOW]
 
 
 def process_track_image(input_path: Path, output_path: Path) -> dict:
@@ -75,6 +56,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
     rgb_pixels = original.load()
     if rgb_pixels is None:
         raise ValueError("Failed to access track pixels")
+
     min_x = original.width
     min_y = original.height
     max_x = -1
@@ -86,6 +68,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
                 r, g, b = (int(channel) for channel in pixel[:3])
             else:
                 r = g = b = int(pixel)
+
             if min(r, g, b) < NON_WHITE_THRESHOLD:
                 min_x = min(min_x, x)
                 min_y = min(min_y, y)
@@ -101,24 +84,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
         new_size = (int(img_w * ratio), int(img_h * ratio))
         original = original.resize(new_size, Image.Resampling.LANCZOS)
 
-    source_pixels: list[tuple[int, int, int]] = []
-    pixel_access = original.load()
-    if pixel_access is None:
-        raise ValueError("Failed to access track pixels")
-    for y in range(original.height):
-        for x in range(original.width):
-            pixel = pixel_access[x, y]
-            if isinstance(pixel, tuple):
-                r, g, b = pixel[:3]
-            else:
-                r = g = b = int(pixel)
-            source_pixels.append((int(r), int(g), int(b)))
-
-    pixels = [classify_pixel(pixel[0], pixel[1], pixel[2]) for pixel in source_pixels]
-    mapped = Image.new("RGB", original.size, WHITE)
-    mapped.putdata(pixels)
-
-    final = quantize_to_palette(mapped, PALETTE, colors=3)
+    final = quantize_to_palette(original, PALETTE, colors=len(PALETTE))
     output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 
@@ -133,7 +99,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
 
 def main(circuits: list[str] | None = None) -> None:
     print("=" * 60)
-    print(" BWR Track Image Pre-processor")
+    print(" BWRY Track Image Pre-processor")
     print("=" * 60)
 
     if not TRACKS_DIR.exists():
@@ -147,7 +113,7 @@ def main(circuits: list[str] | None = None) -> None:
         track_stems = [stem for stem in track_stems if stem in wanted]
 
     track_files = [
-        resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bwr")
+        resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bwry")
         for track_stem in track_stems
     ]
     track_files = [track_path for track_path in track_files if track_path is not None]
@@ -179,7 +145,7 @@ def main(circuits: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Pre-process BWR track images")
+    parser = argparse.ArgumentParser(description="Pre-process BWRY track images")
     parser.add_argument(
         "--circuits",
         type=str,

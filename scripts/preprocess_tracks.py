@@ -14,12 +14,20 @@ Processing steps:
 
 Usage:
     python scripts/preprocess_tracks.py
+    python scripts/preprocess_tracks.py --circuits suzuka,monaco
 """
 
+import argparse
 import sys
 from pathlib import Path
 
 from PIL import Image, ImageOps
+
+from app.services.track_assets import (
+    discover_track_source_stems,
+    resolve_track_source_path,
+    strip_track_variant_suffix,
+)
 
 # Constants
 MAX_WIDTH = 490  # Maximum track image width
@@ -87,7 +95,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
     }
 
 
-def main():
+def main(circuits: list[str] | None = None) -> None:
     """Process all track images."""
     print("=" * 60)
     print(" Track Image Pre-processor")
@@ -96,8 +104,16 @@ def main():
     # Create output directory
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Find all track images
-    track_files = list(TRACKS_DIR.glob("*.png")) + list(TRACKS_DIR.glob("*.jpg"))
+    track_stems = discover_track_source_stems(TRACKS_DIR)
+    if circuits:
+        wanted = {circuit.strip().lower() for circuit in circuits if circuit.strip()}
+        track_stems = [stem for stem in track_stems if stem in wanted]
+
+    track_files = [
+        resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bw")
+        for track_stem in track_stems
+    ]
+    track_files = [track_path for track_path in track_files if track_path is not None]
 
     if not track_files:
         print(f"No track images found in {TRACKS_DIR}")
@@ -110,7 +126,8 @@ def main():
     total_output_size = 0
 
     for track_path in sorted(track_files):
-        output_path = OUTPUT_DIR / f"{track_path.stem}.bmp"
+        output_stem = strip_track_variant_suffix(track_path.stem)
+        output_path = OUTPUT_DIR / f"{output_stem}.bmp"
 
         try:
             stats = process_track_image(track_path, output_path)
@@ -133,4 +150,13 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Pre-process 1-bit track images")
+    parser.add_argument(
+        "--circuits",
+        type=str,
+        default=None,
+        help="Comma-separated list of circuit IDs to process",
+    )
+    args = parser.parse_args()
+    selected_circuits = args.circuits.split(",") if args.circuits else None
+    main(selected_circuits)

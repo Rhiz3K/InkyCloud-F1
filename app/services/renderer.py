@@ -12,6 +12,7 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import ConstructorStanding, DriverStanding, HistoricalData, TeamsData
+from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
@@ -1034,47 +1035,32 @@ class Renderer:
         falls back to original PNG/JPG from tracks/ if not found.
         """
         circuit = race_data.get("circuit", {})
-        circuit_id = circuit.get("circuitId", "")
+        circuit_id = str(circuit.get("circuitId", "") or "")
+        location = str(circuit.get("location", "") or "")
 
         if not circuit_id:
             return None
 
+        track_stems = build_track_stem_candidates(circuit_id, location)
+
         # Try pre-processed BMP first (much faster)
-        processed_patterns = [
-            f"*{circuit_id}*.bmp",
-            f"*{circuit_id.lower()}*.bmp",
-        ]
+        for stem in track_stems:
+            track_path = TRACKS_PROCESSED_DIR / f"{stem}.bmp"
+            if not track_path.exists():
+                continue
 
-        location = circuit.get("location", "").lower().replace(" ", "_")
-        if location:
-            processed_patterns.append(f"*{location}*.bmp")
+            try:
+                return Image.open(track_path)
+            except Exception:
+                continue
 
-        for pattern in processed_patterns:
-            matches = list(TRACKS_PROCESSED_DIR.glob(pattern))
-            if matches:
-                try:
-                    return Image.open(matches[0])
-                except Exception:
-                    continue
-
-        # Fallback to original PNG/JPG (slower, requires processing)
-        original_patterns = [
-            f"*{circuit_id}*.png",
-            f"*{circuit_id}*.jpg",
-            f"*{circuit_id.lower()}*.png",
-            f"*{circuit_id.lower()}*.jpg",
-        ]
-
-        if location:
-            original_patterns.extend([f"*{location}*.png", f"*{location}*.jpg"])
-
-        for pattern in original_patterns:
-            matches = list(TRACKS_DIR.glob(pattern))
-            if matches:
-                try:
-                    return Image.open(matches[0])
-                except Exception:
-                    continue
+        # Fallback to display-specific source PNG/JPG, then generic source.
+        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bw")
+        if source_path:
+            try:
+                return Image.open(source_path)
+            except Exception:
+                pass
 
         # Last resort fallback
         all_processed = list(TRACKS_PROCESSED_DIR.glob("*.bmp"))

@@ -11,6 +11,7 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import HistoricalData
+from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
@@ -317,19 +318,31 @@ class Spectra6Renderer:
     @staticmethod
     def _load_track_image(race_data: dict) -> Image.Image | None:
         circuit = race_data.get("circuit", {})
-        circuit_id = circuit.get("circuitId", "")
+        circuit_id = str(circuit.get("circuitId", "") or "")
+        location = str(circuit.get("location", "") or "")
 
         if not circuit_id:
             return None
 
-        normalized_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
-        track_path = TRACKS_SPECTRA6_DIR / f"{normalized_id}.bmp"
+        normalized_id = str(CIRCUIT_ID_MAP.get(circuit_id, circuit_id))
+        track_stems = build_track_stem_candidates(normalized_id, circuit_id, location)
 
-        if track_path.exists():
+        for stem in track_stems:
+            track_path = TRACKS_SPECTRA6_DIR / f"{stem}.bmp"
+            if not track_path.exists():
+                continue
+
             try:
                 return Image.open(track_path)
             except Exception as e:
                 logger.warning("Failed to load track %s: %s", track_path, e)
+
+        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="spectra6")
+        if source_path:
+            try:
+                return Image.open(source_path)
+            except Exception as e:
+                logger.warning("Failed to load track %s: %s", source_path, e)
 
         return None
 
