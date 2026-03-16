@@ -26,7 +26,7 @@ FLAGS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "flags_processed"
 class BwrColors:
     BLACK = (0x00, 0x00, 0x00)
     WHITE = (0xFF, 0xFF, 0xFF)
-    RED = (0xA0, 0x20, 0x20)
+    RED = (0xFF, 0x00, 0x00)
 
     PALETTE = [BLACK, WHITE, RED]
 

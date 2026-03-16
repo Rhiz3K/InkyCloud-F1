@@ -24,7 +24,7 @@ FLAGS_OUTPUT_DIR = PROJECT_ROOT / "app" / "assets" / "flags_bwr"
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
-RED = (160, 32, 32)
+RED = (255, 0, 0)
 PALETTE = [BLACK, WHITE, RED]
 
 

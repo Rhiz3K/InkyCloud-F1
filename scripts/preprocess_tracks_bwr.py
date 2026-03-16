@@ -15,15 +15,10 @@ from app.services.track_assets import (
     resolve_track_source_path,
     strip_track_variant_suffix,
 )
-from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
+from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwr_palette
 
 MAX_WIDTH = 490
 MAX_HEIGHT = 280
-WHITE_THRESHOLD = 210
-BLACK_THRESHOLD = 90
-RED_MIN = 120
-RED_DOMINANCE = 1.15
-
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 TRACKS_DIR = PROJECT_ROOT / "app" / "assets" / "tracks"
@@ -31,25 +26,9 @@ OUTPUT_DIR = PROJECT_ROOT / "app" / "assets" / "tracks_bwr"
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
-RED = (160, 32, 32)
+RED = (255, 0, 0)
 PALETTE = [BLACK, WHITE, RED]
 NON_WHITE_THRESHOLD = 245
-
-
-def is_red_pixel(r: int, g: int, b: int) -> bool:
-    return r >= RED_MIN and r >= int(g * RED_DOMINANCE) and r >= int(b * RED_DOMINANCE)
-
-
-def classify_pixel(r: int, g: int, b: int) -> tuple[int, int, int]:
-    if is_red_pixel(r, g, b):
-        return RED
-
-    luminance = int(0.299 * r + 0.587 * g + 0.114 * b)
-    if luminance >= WHITE_THRESHOLD:
-        return WHITE
-    if luminance <= BLACK_THRESHOLD:
-        return BLACK
-    return BLACK
 
 
 def process_track_image(input_path: Path, output_path: Path) -> dict:
@@ -101,24 +80,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
         new_size = (int(img_w * ratio), int(img_h * ratio))
         original = original.resize(new_size, Image.Resampling.LANCZOS)
 
-    source_pixels: list[tuple[int, int, int]] = []
-    pixel_access = original.load()
-    if pixel_access is None:
-        raise ValueError("Failed to access track pixels")
-    for y in range(original.height):
-        for x in range(original.width):
-            pixel = pixel_access[x, y]
-            if isinstance(pixel, tuple):
-                r, g, b = pixel[:3]
-            else:
-                r = g = b = int(pixel)
-            source_pixels.append((int(r), int(g), int(b)))
-
-    pixels = [classify_pixel(pixel[0], pixel[1], pixel[2]) for pixel in source_pixels]
-    mapped = Image.new("RGB", original.size, WHITE)
-    mapped.putdata(pixels)
-
-    final = quantize_to_palette(mapped, PALETTE, colors=3)
+    final = map_to_bwr_palette(original, PALETTE)
     output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 

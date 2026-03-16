@@ -1223,7 +1223,7 @@ def test_bwr_renderer_load_track_image_prefers_bwr_variant(mock_race_data, tmp_p
     tracks_dir = tmp_path / "tracks"
     tracks_dir.mkdir()
     Image.new("RGB", (4, 4), color=(30, 40, 50)).save(tracks_dir / "test_circuit.png", "PNG")
-    Image.new("RGB", (4, 4), color=(160, 32, 32)).save(tracks_dir / "test_circuit_bwr.png", "PNG")
+    Image.new("RGB", (4, 4), color=(255, 0, 0)).save(tracks_dir / "test_circuit_bwr.png", "PNG")
 
     bwr_dir = tmp_path / "tracks_bwr"
     bwr_dir.mkdir()
@@ -1233,7 +1233,7 @@ def test_bwr_renderer_load_track_image_prefers_bwr_variant(mock_race_data, tmp_p
     track_image = BwrRenderer._load_track_image(mock_race_data)
 
     assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (160, 32, 32)
+    assert track_image.getpixel((0, 0)) == (255, 0, 0)
 
 
 def test_bwr_renderer_load_track_image_falls_back_to_generic_source(
@@ -1635,7 +1635,7 @@ def test_bwr_render_error_czech():
 def test_bwr_colors_palette():
     assert BwrColors.BLACK == (0x00, 0x00, 0x00)
     assert BwrColors.WHITE == (0xFF, 0xFF, 0xFF)
-    assert BwrColors.RED == (0xA0, 0x20, 0x20)
+    assert BwrColors.RED == (0xFF, 0x00, 0x00)
 
     assert len(BwrColors.PALETTE) == 3
     assert BwrColors.PALETTE[0] == BwrColors.BLACK
@@ -1771,7 +1771,7 @@ def test_bwr_bmp_uses_three_color_palette(mock_race_data):
     palette = img.getpalette()
 
     assert palette is not None
-    assert palette[:9] == [0, 0, 0, 255, 255, 255, 160, 32, 32]
+    assert palette[:9] == [0, 0, 0, 255, 255, 255, 255, 0, 0]
 
 
 def test_bwr_bmp_is_smaller_than_spectra6_for_same_calendar(mock_race_data):
@@ -1786,7 +1786,7 @@ def test_bwr_bmp_is_smaller_than_spectra6_for_same_calendar(mock_race_data):
 def test_map_to_bwr_palette_keeps_grayscale_pixels_off_red():
     """Grayscale anti-aliasing should not turn black text edges red."""
     image = Image.new("RGB", (3, 1), color=(255, 255, 255))
-    image.putdata([(0, 0, 0), (110, 110, 110), (160, 32, 32)])
+    image.putdata([(0, 0, 0), (110, 110, 110), (255, 0, 0)])
 
     indexed = map_to_bwr_palette(image, BwrColors.PALETTE)
     pixels = indexed.load()
@@ -1802,7 +1802,7 @@ def test_map_to_bwr_palette_keeps_grayscale_pixels_off_red():
 def test_map_to_bwr_palette_preserves_near_white_text_edges():
     """Light anti-aliased pixels in white-on-red text should stay white."""
     image = Image.new("RGB", (3, 1), color=(255, 255, 255))
-    image.putdata([(255, 255, 255), (244, 204, 204), (160, 32, 32)])
+    image.putdata([(255, 255, 255), (244, 204, 204), (255, 0, 0)])
 
     indexed = map_to_bwr_palette(image, BwrColors.PALETTE)
     pixels = indexed.load()
