@@ -62,6 +62,18 @@ def _get_cache_key(
     return f"{lang}:{year or 'next'}:{round_num or 'next'}:{race_key or 'auto'}:{tz or 'default'}:{weather_key}:{display}"
 
 
+def _to_round_number(round_value: str | int | None) -> int | None:
+    if round_value in (None, ""):
+        return None
+
+    try:
+        round_number = int(round_value)
+    except (TypeError, ValueError):
+        return None
+
+    return round_number if round_number > 0 else None
+
+
 def _get_race_info_for_stats(
     f1_service: F1Service,
     year: int | None,
@@ -77,10 +89,9 @@ def _get_race_info_for_stats(
         for race in f1_service.get_all_races_from_static(year):
             if race_key and race.get("race_key") == race_key:
                 actual_race_name = race.get("race_name", "Unknown")
-                round_value = race.get("round")
-                actual_round = int(round_value) if round_value not in (None, "") else None
+                actual_round = _to_round_number(race.get("round"))
                 break
-            if race_round and race.get("round") == race_round:
+            if race_round is not None and _to_round_number(race.get("round")) == race_round:
                 actual_race_name = race.get("race_name", "Unknown")
                 break
         return is_auto_selected, actual_year, actual_round, actual_race_name
@@ -88,7 +99,7 @@ def _get_race_info_for_stats(
     race_info = f1_service.get_next_race_from_static()
     if race_info:
         actual_year = int(race_info.get("season", 0)) or None
-        actual_round = int(race_info.get("round", 0)) or None
+        actual_round = _to_round_number(race_info.get("round"))
         actual_race_name = race_info.get("race_name", "Next Race")
 
     return is_auto_selected, actual_year, actual_round, actual_race_name
@@ -242,7 +253,7 @@ def _get_race_data_from_static(
         for race in f1_service.get_all_races_from_static(year):
             if race_key and race.get("race_key") == race_key:
                 return race
-            if race_round and race.get("round") == race_round:
+            if race_round is not None and _to_round_number(race.get("round")) == race_round:
                 return race
         return None
 
@@ -430,8 +441,7 @@ async def get_calendar_bmp(
 
         if race_data:
             actual_year = int(race_data.get("season", 0)) or actual_year
-            round_value = race_data.get("round")
-            actual_round = int(round_value) if round_value not in (None, "") else actual_round
+            actual_round = _to_round_number(race_data.get("round")) or actual_round
             actual_race_name = race_data.get("race_name", actual_race_name)
 
         _record_calendar_api_call(

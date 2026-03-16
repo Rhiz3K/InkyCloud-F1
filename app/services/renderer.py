@@ -1223,7 +1223,8 @@ class Renderer:
             draw.text((text_x, text_y), cancelled_text, fill=1, font=font)
             return int(y_bottom)
 
-        assert race_dt is not None
+        if race_dt is None:
+            return schedule_bottom
         now = datetime.now(race_dt.tzinfo) if race_dt.tzinfo else datetime.now()
         delta = race_dt - now
 

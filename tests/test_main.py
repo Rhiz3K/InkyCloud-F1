@@ -1,9 +1,13 @@
 """Test main FastAPI application endpoints."""
 
+from typing import cast
+
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
+from app.services.f1_service import F1Service
+from app.routes.images import _get_race_data_from_static, _get_race_info_for_stats
 
 client = TestClient(app)
 
@@ -611,6 +615,47 @@ def test_calendar_bmp_with_year_round():
     response = client.get("/calendar.bmp?year=2025&round=1")
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/bmp"
+
+
+def test_get_race_info_for_stats_matches_string_round_values():
+    """Round lookup should work even when static data stores rounds as strings."""
+
+    class StubF1Service:
+        @staticmethod
+        def get_all_races_from_static(year):
+            assert year == 2026
+            return [{"round": "4", "race_name": "Bahrain Grand Prix"}]
+
+        @staticmethod
+        def get_next_race_from_static():
+            raise AssertionError("next race lookup should not be used")
+
+    is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(
+        cast(F1Service, StubF1Service()), 2026, 4, None
+    )
+
+    assert is_auto_selected is False
+    assert actual_year == 2026
+    assert actual_round == 4
+    assert actual_race_name == "Bahrain Grand Prix"
+
+
+def test_get_race_data_from_static_matches_string_round_values():
+    """Round-based race lookup should accept string rounds from cached static data."""
+
+    class StubF1Service:
+        @staticmethod
+        def get_all_races_from_static(year):
+            assert year == 2026
+            return [{"round": "4", "race_name": "Bahrain Grand Prix"}]
+
+        @staticmethod
+        def get_next_race_from_static():
+            raise AssertionError("next race lookup should not be used")
+
+    race = _get_race_data_from_static(cast(F1Service, StubF1Service()), 2026, 4, None)
+
+    assert race == {"round": "4", "race_name": "Bahrain Grand Prix"}
 
 
 def test_calendar_bmp_with_bwr_display():

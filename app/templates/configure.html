@@ -1251,6 +1251,20 @@ block content %}
     }
   }
 
+  function sortRacesWithCancelledLast(races) {
+    return [...(races || [])].sort((a, b) => {
+      if (Boolean(a.is_cancelled) !== Boolean(b.is_cancelled)) {
+        return a.is_cancelled ? 1 : -1;
+      }
+
+      const roundA = a.round ?? Number.MAX_SAFE_INTEGER;
+      const roundB = b.round ?? Number.MAX_SAFE_INTEGER;
+      if (roundA !== roundB) return roundA - roundB;
+
+      return String(a.date || "").localeCompare(String(b.date || ""));
+    });
+  }
+
   function canUsePrerenderedPreview() {
     if (currentScreenType === "calendar") {
       // Pre-rendered previews available for next race with default timezone
@@ -1296,17 +1310,7 @@ block content %}
     try {
       let response = await fetch(`/api/races/${currentYear}`);
       let data = await response.json();
-      racesData = [...(data.races || [])].sort((a, b) => {
-        if (Boolean(a.is_cancelled) !== Boolean(b.is_cancelled)) {
-          return a.is_cancelled ? 1 : -1;
-        }
-
-        const roundA = a.round ?? Number.MAX_SAFE_INTEGER;
-        const roundB = b.round ?? Number.MAX_SAFE_INTEGER;
-        if (roundA !== roundB) return roundA - roundB;
-
-        return String(a.date || "").localeCompare(String(b.date || ""));
-      });
+      racesData = sortRacesWithCancelledLast(data.races);
       activeSeasonYear = currentYear;
 
       // If no races or all past, try next year
@@ -1327,17 +1331,7 @@ block content %}
           if (!response.ok)
             throw new Error(`HTTP error! status: ${response.status}`);
           data = await response.json();
-          racesData = [...(data.races || [])].sort((a, b) => {
-            if (Boolean(a.is_cancelled) !== Boolean(b.is_cancelled)) {
-              return a.is_cancelled ? 1 : -1;
-            }
-
-            const roundA = a.round ?? Number.MAX_SAFE_INTEGER;
-            const roundB = b.round ?? Number.MAX_SAFE_INTEGER;
-            if (roundA !== roundB) return roundA - roundB;
-
-            return String(a.date || "").localeCompare(String(b.date || ""));
-          });
+          racesData = sortRacesWithCancelledLast(data.races);
           activeSeasonYear = currentYear + 1;
         } catch (e) {
           console.error("Failed to fetch next year races:", e);

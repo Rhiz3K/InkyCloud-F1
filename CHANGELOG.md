@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Frontend
+
+#### Changed
+
+- **Cancelled race selection** - Configure UI now keeps cancelled weekends at the end of the season list, highlights them in red, and lets previews request them via stable `race_key` identifiers
+
+### Backend
+
+#### Fixed
+
+- **Cancelled race rendering** - `/calendar.bmp` keeps cancelled races addressable without breaking existing `year` + `round` requests, skips weather fetches for cancelled weekends, and renders a centered `CANCELLED`/`ZRUŠENO` label in the countdown slot
+
 ## [1.2.10] - 2026-03-13
 
 ### Frontend
