@@ -66,6 +66,7 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 - **Optional Weather Overlay** — Current, race-day forecast, and historical race-time weather on the calendar screen
 - **Historical Results** — Previous year's podium for each circuit
 - **Track Info** — Circuit map, length, laps, and first GP year
+- **Display-Specific Track Art** — `1bit`, `bwr`, and `spectra6` now prefer per-display source artwork before falling back to generic circuit assets
 - **Session Schedule** — FP1, FP2, FP3, Qualifying, Sprint, Race times
 
 ### Roadmap
@@ -173,6 +174,7 @@ docker run -p 8000:8000 f1-eink-cal
 - **[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete self-hosting guide
 - **[COOLIFY.md](./COOLIFY.md)** — One-click Coolify deployment
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** — Docker, cloud platforms, manual setup
+- **[BMP_PROCESSING.md](./BMP_PROCESSING.md)** — Detailed image-to-BMP processing guide for `1bit`, `bwr`, `spectra6`, and prepared `bwry` assets
 
 ---
 
