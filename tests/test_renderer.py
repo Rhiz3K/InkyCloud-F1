@@ -1463,10 +1463,10 @@ def test_spectra6_render_error_czech():
 def test_spectra6_colors_palette():
     assert Spectra6Colors.BLACK == (0x00, 0x00, 0x00)
     assert Spectra6Colors.WHITE == (0xFF, 0xFF, 0xFF)
-    assert Spectra6Colors.RED == (0xA0, 0x20, 0x20)
-    assert Spectra6Colors.YELLOW == (0xF0, 0xE0, 0x50)
-    assert Spectra6Colors.GREEN == (0x60, 0x80, 0x50)
-    assert Spectra6Colors.BLUE == (0x50, 0x80, 0xB8)
+    assert Spectra6Colors.RED == (0xFF, 0x00, 0x00)
+    assert Spectra6Colors.YELLOW == (0xFF, 0xD8, 0x00)
+    assert Spectra6Colors.GREEN == (0x00, 0xD8, 0x00)
+    assert Spectra6Colors.BLUE == (0x00, 0xA8, 0xFF)
 
     assert len(Spectra6Colors.PALETTE) == 6
     assert Spectra6Colors.PALETTE[0] == Spectra6Colors.BLACK
