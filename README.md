@@ -4,7 +4,7 @@
 
 [![Public Demo](https://img.shields.io/badge/Public_Demo-f1.inkycloud.click-E10600?style=for-the-badge)](https://f1.inkycloud.click)
 [![Self-Host](https://img.shields.io/badge/Self--Host-Guide-6C47FF?style=for-the-badge&logo=docker&logoColor=white)](./SELF-HOSTING.md)
-[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge/github/Rhiz3K/InkyCloud-F1&style=for-the-badge)](https://codspeed.io/Rhiz3K/InkyCloud-F1?utm_source=badge)
+[![CodSpeed](https://img.shields.io/badge/CodSpeed-Performance-0A7BFF?style=for-the-badge)](https://codspeed.io/Rhiz3K/InkyCloud-F1?utm_source=badge)
 
 ---
 
