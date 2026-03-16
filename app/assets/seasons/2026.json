@@ -1,6 +1,6 @@
 {
   "season": "2026",
-  "generated_at": "2025-12-22T17:37:44.259187+00:00",
+  "generated_at": "2026-03-16T11:01:15.584898+00:00",
   "total_races": 24,
   "races": [
     {
@@ -111,76 +111,6 @@
     {
       "season": "2026",
       "round": "4",
-      "url": "https://en.wikipedia.org/wiki/2026_Bahrain_Grand_Prix",
-      "raceName": "Bahrain Grand Prix",
-      "Circuit": {
-        "circuitId": "bahrain",
-        "url": "https://en.wikipedia.org/wiki/Bahrain_International_Circuit",
-        "circuitName": "Bahrain International Circuit",
-        "Location": {
-          "lat": "26.0325",
-          "long": "50.5106",
-          "locality": "Sakhir",
-          "country": "Bahrain"
-        }
-      },
-      "date": "2026-04-12",
-      "time": "15:00:00Z",
-      "FirstPractice": {
-        "date": "2026-04-10",
-        "time": "11:30:00Z"
-      },
-      "SecondPractice": {
-        "date": "2026-04-10",
-        "time": "15:00:00Z"
-      },
-      "ThirdPractice": {
-        "date": "2026-04-11",
-        "time": "12:30:00Z"
-      },
-      "Qualifying": {
-        "date": "2026-04-11",
-        "time": "16:00:00Z"
-      }
-    },
-    {
-      "season": "2026",
-      "round": "5",
-      "url": "https://en.wikipedia.org/wiki/2026_Saudi_Arabian_Grand_Prix",
-      "raceName": "Saudi Arabian Grand Prix",
-      "Circuit": {
-        "circuitId": "jeddah",
-        "url": "https://en.wikipedia.org/wiki/Jeddah_Corniche_Circuit",
-        "circuitName": "Jeddah Corniche Circuit",
-        "Location": {
-          "lat": "21.6319",
-          "long": "39.1044",
-          "locality": "Jeddah",
-          "country": "Saudi Arabia"
-        }
-      },
-      "date": "2026-04-19",
-      "time": "17:00:00Z",
-      "FirstPractice": {
-        "date": "2026-04-17",
-        "time": "13:30:00Z"
-      },
-      "SecondPractice": {
-        "date": "2026-04-17",
-        "time": "17:00:00Z"
-      },
-      "ThirdPractice": {
-        "date": "2026-04-18",
-        "time": "13:30:00Z"
-      },
-      "Qualifying": {
-        "date": "2026-04-18",
-        "time": "17:00:00Z"
-      }
-    },
-    {
-      "season": "2026",
-      "round": "6",
       "url": "https://en.wikipedia.org/wiki/2026_Miami_Grand_Prix",
       "raceName": "Miami Grand Prix",
       "Circuit": {
@@ -215,7 +145,7 @@
     },
     {
       "season": "2026",
-      "round": "7",
+      "round": "5",
       "url": "https://en.wikipedia.org/wiki/2026_Canadian_Grand_Prix",
       "raceName": "Canadian Grand Prix",
       "Circuit": {
@@ -250,7 +180,7 @@
     },
     {
       "season": "2026",
-      "round": "8",
+      "round": "6",
       "url": "https://en.wikipedia.org/wiki/2026_Monaco_Grand_Prix",
       "raceName": "Monaco Grand Prix",
       "Circuit": {
@@ -285,7 +215,7 @@
     },
     {
       "season": "2026",
-      "round": "9",
+      "round": "7",
       "url": "https://en.wikipedia.org/wiki/2026_Barcelona-Catalunya",
       "raceName": "Barcelona Grand Prix",
       "Circuit": {
@@ -320,7 +250,7 @@
     },
     {
       "season": "2026",
-      "round": "10",
+      "round": "8",
       "url": "https://en.wikipedia.org/wiki/2026_Austrian_Grand_Prix",
       "raceName": "Austrian Grand Prix",
       "Circuit": {
@@ -355,7 +285,7 @@
     },
     {
       "season": "2026",
-      "round": "11",
+      "round": "9",
       "url": "https://en.wikipedia.org/wiki/2026_British_Grand_Prix",
       "raceName": "British Grand Prix",
       "Circuit": {
@@ -390,7 +320,7 @@
     },
     {
       "season": "2026",
-      "round": "12",
+      "round": "10",
       "url": "https://en.wikipedia.org/wiki/2026_Belgian_Grand_Prix",
       "raceName": "Belgian Grand Prix",
       "Circuit": {
@@ -425,7 +355,7 @@
     },
     {
       "season": "2026",
-      "round": "13",
+      "round": "11",
       "url": "https://en.wikipedia.org/wiki/2026_Hungarian_Grand_Prix",
       "raceName": "Hungarian Grand Prix",
       "Circuit": {
@@ -460,7 +390,7 @@
     },
     {
       "season": "2026",
-      "round": "14",
+      "round": "12",
       "url": "https://en.wikipedia.org/wiki/2026_Dutch_Grand_Prix",
       "raceName": "Dutch Grand Prix",
       "Circuit": {
@@ -495,7 +425,7 @@
     },
     {
       "season": "2026",
-      "round": "15",
+      "round": "13",
       "url": "https://en.wikipedia.org/wiki/2026_Italian_Grand_Prix",
       "raceName": "Italian Grand Prix",
       "Circuit": {
@@ -530,7 +460,7 @@
     },
     {
       "season": "2026",
-      "round": "16",
+      "round": "14",
       "url": "https://en.wikipedia.org/wiki/2026_Spanish_Grand_Prix",
       "raceName": "Spanish Grand Prix",
       "Circuit": {
@@ -538,8 +468,8 @@
         "url": "https://en.wikipedia.org/wiki/Madring",
         "circuitName": "Madring",
         "Location": {
-          "lat": null,
-          "long": null,
+          "lat": "40.46528",
+          "long": "-3.61528",
           "locality": "Madrid",
           "country": "Spain"
         }
@@ -565,7 +495,7 @@
     },
     {
       "season": "2026",
-      "round": "17",
+      "round": "15",
       "url": "https://en.wikipedia.org/wiki/2026_Azerbaijan_Grand_Prix",
       "raceName": "Azerbaijan Grand Prix",
       "Circuit": {
@@ -600,7 +530,7 @@
     },
     {
       "season": "2026",
-      "round": "18",
+      "round": "16",
       "url": "https://en.wikipedia.org/wiki/2026_Singapore_Grand_Prix",
       "raceName": "Singapore Grand Prix",
       "Circuit": {
@@ -618,7 +548,7 @@
       "time": "12:00:00Z",
       "FirstPractice": {
         "date": "2026-10-09",
-        "time": "09:30:00Z"
+        "time": "08:30:00Z"
       },
       "Qualifying": {
         "date": "2026-10-10",
@@ -635,7 +565,7 @@
     },
     {
       "season": "2026",
-      "round": "19",
+      "round": "17",
       "url": "https://en.wikipedia.org/wiki/2026_United_States_Grand_Prix",
       "raceName": "United States Grand Prix",
       "Circuit": {
@@ -670,7 +600,7 @@
     },
     {
       "season": "2026",
-      "round": "20",
+      "round": "18",
       "url": "https://en.wikipedia.org/wiki/2026_Mexico_City_Grand_Prix",
       "raceName": "Mexico City Grand Prix",
       "Circuit": {
@@ -705,7 +635,7 @@
     },
     {
       "season": "2026",
-      "round": "21",
+      "round": "19",
       "url": "https://en.wikipedia.org/wiki/2026_Brazilian_Grand_Prix",
       "raceName": "Brazilian Grand Prix",
       "Circuit": {
@@ -740,7 +670,7 @@
     },
     {
       "season": "2026",
-      "round": "22",
+      "round": "20",
       "url": "https://en.wikipedia.org/wiki/2026_Las_Vegas_Grand_Prix",
       "raceName": "Las Vegas Grand Prix",
       "Circuit": {
@@ -775,7 +705,7 @@
     },
     {
       "season": "2026",
-      "round": "23",
+      "round": "21",
       "url": "https://en.wikipedia.org/wiki/2026_Qatar_Grand_Prix",
       "raceName": "Qatar Grand Prix",
       "Circuit": {
@@ -810,7 +740,7 @@
     },
     {
       "season": "2026",
-      "round": "24",
+      "round": "22",
       "url": "https://en.wikipedia.org/wiki/2026_Abu_Dhabi_Grand_Prix",
       "raceName": "Abu Dhabi Grand Prix",
       "Circuit": {
@@ -841,6 +771,74 @@
       "Qualifying": {
         "date": "2026-12-05",
         "time": "14:00:00Z"
+      }
+    },
+    {
+      "season": "2026",
+      "url": "https://en.wikipedia.org/wiki/2026_Bahrain_Grand_Prix",
+      "raceName": "Bahrain Grand Prix",
+      "Circuit": {
+        "circuitId": "bahrain",
+        "url": "https://en.wikipedia.org/wiki/Bahrain_International_Circuit",
+        "circuitName": "Bahrain International Circuit",
+        "Location": {
+          "lat": "26.0325",
+          "long": "50.5106",
+          "locality": "Sakhir",
+          "country": "Bahrain"
+        }
+      },
+      "date": "2026-04-12",
+      "time": "15:00:00Z",
+      "FirstPractice": {
+        "date": "2026-04-10",
+        "time": "11:30:00Z"
+      },
+      "SecondPractice": {
+        "date": "2026-04-10",
+        "time": "15:00:00Z"
+      },
+      "ThirdPractice": {
+        "date": "2026-04-11",
+        "time": "12:30:00Z"
+      },
+      "Qualifying": {
+        "date": "2026-04-11",
+        "time": "16:00:00Z"
+      }
+    },
+    {
+      "season": "2026",
+      "url": "https://en.wikipedia.org/wiki/2026_Saudi_Arabian_Grand_Prix",
+      "raceName": "Saudi Arabian Grand Prix",
+      "Circuit": {
+        "circuitId": "jeddah",
+        "url": "https://en.wikipedia.org/wiki/Jeddah_Corniche_Circuit",
+        "circuitName": "Jeddah Corniche Circuit",
+        "Location": {
+          "lat": "21.6319",
+          "long": "39.1044",
+          "locality": "Jeddah",
+          "country": "Saudi Arabia"
+        }
+      },
+      "date": "2026-04-19",
+      "time": "17:00:00Z",
+      "FirstPractice": {
+        "date": "2026-04-17",
+        "time": "13:30:00Z"
+      },
+      "SecondPractice": {
+        "date": "2026-04-17",
+        "time": "17:00:00Z"
+      },
+      "ThirdPractice": {
+        "date": "2026-04-18",
+        "time": "13:30:00Z"
+      },
+      "Qualifying": {
+        "date": "2026-04-18",
+        "time": "17:00:00Z"
       }
     }
   ]

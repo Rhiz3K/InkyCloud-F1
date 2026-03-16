@@ -287,8 +287,8 @@ class Spectra6Renderer:
 
             # Center horizontally and vertically in available space
             final_w, final_h = track_image.size
-            paste_x = side_margin + (available_width - final_w) // 2
-            paste_y = track_top + (available_height - final_h) // 2
+            paste_x = int(side_margin + (available_width - final_w) // 2)
+            paste_y = int(track_top + (available_height - final_h) // 2)
 
             image.paste(track_image.convert("RGB"), (paste_x, paste_y))
         else:
@@ -421,6 +421,7 @@ class Spectra6Renderer:
         weather_data: WeatherData | None = None,
         weather_type: str = "",
     ) -> int:
+        is_cancelled = race_data.get("is_cancelled", False)
         schedule = race_data.get("schedule", [])
         race_dt = None
         for event in schedule:
@@ -432,17 +433,8 @@ class Spectra6Renderer:
                     race_dt = dt
                 break
 
-        if not race_dt:
+        if not is_cancelled and not race_dt:
             return schedule_bottom
-
-        now = datetime.now(race_dt.tzinfo) if race_dt.tzinfo else datetime.now()
-        delta = race_dt - now
-
-        if delta.total_seconds() <= 0:
-            return schedule_bottom
-
-        days = delta.days
-        hours = delta.seconds // 3600
 
         font = self.fonts["schedule_row_bold"]
         font_icon = self.fonts["icon_small"]
@@ -470,6 +462,25 @@ class Spectra6Renderer:
         )
 
         text_y = y_top + padding_y - ref_bbox[1]
+
+        if is_cancelled:
+            cancelled_text = self.translator.get("cancelled", "CANCELLED")
+            cancelled_bbox = draw.textbbox((0, 0), cancelled_text, font=font)
+            cancelled_w = cancelled_bbox[2] - cancelled_bbox[0]
+            text_x = x_left + ((x_right - x_left) - cancelled_w) // 2
+            draw.text((text_x, text_y), cancelled_text, fill=self.colors.WHITE, font=font)
+            return int(y_bottom)
+
+        if race_dt is None:
+            return schedule_bottom
+        now = datetime.now(race_dt.tzinfo) if race_dt.tzinfo else datetime.now()
+        delta = race_dt - now
+
+        if delta.total_seconds() <= 0:
+            return schedule_bottom
+
+        days = delta.days
+        hours = delta.seconds // 3600
 
         flag_icon = "🏁"
         # Use short labels (d/h) for current and race-day aliases.

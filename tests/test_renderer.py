@@ -114,6 +114,60 @@ def test_render_calendar_english(mock_race_data):
     assert img.mode == "1"
 
 
+def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
+    """Cancelled races should render a centred cancelled label instead of countdown."""
+    renderer = Renderer(get_translator("en"))
+    image = Image.new("1", (800, 480), 1)
+    draw = ImageDraw.Draw(image)
+    captured_text = []
+    original_text = draw.text
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured_text.append(text)
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(draw, "text", spy_text)
+
+    bottom = renderer._draw_countdown_box(
+        draw,
+        {
+            "is_cancelled": True,
+            "schedule": [{"name": "Race", "datetime": "2099-04-12T15:00:00+00:00"}],
+        },
+        220,
+    )
+
+    assert "CANCELLED" in captured_text
+    assert bottom > 220
+
+
+def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
+    """Spectra 6 renderer should also render the cancelled countdown label."""
+    renderer = Spectra6Renderer(get_translator("cs"))
+    image = Image.new("RGB", (800, 480), Spectra6Colors.WHITE)
+    draw = ImageDraw.Draw(image)
+    captured_text = []
+    original_text = draw.text
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured_text.append(text)
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(draw, "text", spy_text)
+
+    bottom = renderer._draw_countdown_box(
+        draw,
+        {
+            "is_cancelled": True,
+            "schedule": [{"name": "Race", "datetime": "2099-04-19T17:00:00+00:00"}],
+        },
+        220,
+    )
+
+    assert "ZRUŠENO" in captured_text
+    assert bottom > 220
+
+
 # ============================================================================
 # Teams & Drivers Tests
 # ============================================================================

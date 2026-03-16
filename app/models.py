@@ -89,7 +89,7 @@ class Race(BaseModel):
     """Race information from Jolpica API."""
 
     season: str
-    round: str
+    round: Optional[str] = None
     raceName: str
     Circuit: Circuit
     date: str

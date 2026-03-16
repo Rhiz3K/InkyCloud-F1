@@ -910,6 +910,7 @@ block content %}
       refreshBtn: "REFRESH",
       nextRace: "NEXT RACE",
       seasonTitle: "Calendar",
+      cancelled: "CANCELLED",
       footerPrivacy: "Privacy Policy",
       epaperSetupTitle: "ePaper Display Setup",
       epaperStep1:
@@ -944,6 +945,7 @@ block content %}
       refreshBtn: "OBNOVIT",
       nextRace: "DALŠÍ ZÁVOD",
       seasonTitle: "Kalendář",
+      cancelled: "ZRUŠENO",
       footerPrivacy: "Ochrana soukromí",
       epaperSetupTitle: "Nastavení ePaper Displeje",
       epaperStep1:
@@ -969,6 +971,7 @@ block content %}
   let racesData = [];
   let selectedYear = null;
   let selectedRound = null;
+  let selectedRaceKey = null;
   let activeSeasonYear = new Date().getFullYear();
   let activeContinent = "ALL";
   let selectedTeamsYear = null;
@@ -1224,9 +1227,9 @@ block content %}
       let params = [];
       if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
       if (tz) params.push(`tz=${encodeURIComponent(tz)}`);
-      if (selectedYear && selectedRound) {
+      if (selectedYear && selectedRaceKey) {
         params.push(`year=${selectedYear}`);
-        params.push(`round=${selectedRound}`);
+        params.push(`race_key=${encodeURIComponent(selectedRaceKey)}`);
       }
       if (!showWeather) {
         params.push(`weather=false`);
@@ -1252,7 +1255,7 @@ block content %}
     if (currentScreenType === "calendar") {
       // Pre-rendered previews available for next race with default timezone
       const isDefaultTz = !selectedTz || selectedTz === browserTz;
-      return !selectedYear && !selectedRound && isDefaultTz;
+      return !selectedYear && !selectedRound && !selectedRaceKey && isDefaultTz;
     } else if (currentScreenType === "teams") {
       return selectedTeamsYear === getCurrentSeason();
     }
@@ -1293,11 +1296,21 @@ block content %}
     try {
       let response = await fetch(`/api/races/${currentYear}`);
       let data = await response.json();
-      racesData = data.races || [];
+      racesData = [...(data.races || [])].sort((a, b) => {
+        if (Boolean(a.is_cancelled) !== Boolean(b.is_cancelled)) {
+          return a.is_cancelled ? 1 : -1;
+        }
+
+        const roundA = a.round ?? Number.MAX_SAFE_INTEGER;
+        const roundB = b.round ?? Number.MAX_SAFE_INTEGER;
+        if (roundA !== roundB) return roundA - roundB;
+
+        return String(a.date || "").localeCompare(String(b.date || ""));
+      });
       activeSeasonYear = currentYear;
 
       // If no races or all past, try next year
-      const futureRaces = racesData.filter((r) => !r.is_past);
+      const futureRaces = racesData.filter((r) => !r.is_past && !r.is_cancelled);
       if (futureRaces.length === 0) {
         // Update loading text to indicate switching years
         raceList.innerHTML =
@@ -1314,7 +1327,17 @@ block content %}
           if (!response.ok)
             throw new Error(`HTTP error! status: ${response.status}`);
           data = await response.json();
-          racesData = data.races || [];
+          racesData = [...(data.races || [])].sort((a, b) => {
+            if (Boolean(a.is_cancelled) !== Boolean(b.is_cancelled)) {
+              return a.is_cancelled ? 1 : -1;
+            }
+
+            const roundA = a.round ?? Number.MAX_SAFE_INTEGER;
+            const roundB = b.round ?? Number.MAX_SAFE_INTEGER;
+            if (roundA !== roundB) return roundA - roundB;
+
+            return String(a.date || "").localeCompare(String(b.date || ""));
+          });
           activeSeasonYear = currentYear + 1;
         } catch (e) {
           console.error("Failed to fetch next year races:", e);
@@ -1333,7 +1356,7 @@ block content %}
       updateWeatherTypeAvailability();
 
       // Build race list (desktop) - compact layout
-      let html = `<button class="race-item w-full px-2 py-0.5 text-left text-xs border-2 border-transparent hover:border-black flex items-center justify-between group selected" data-round="" onclick="selectRaceFromList(null, null)">
+      let html = `<button class="race-item w-full px-2 py-0.5 text-left text-xs border-2 border-transparent hover:border-black flex items-center justify-between group selected" data-round="" data-race-key="" onclick="selectRaceFromList(null, null, null)">
                 <span class="font-bold uppercase flex items-center gap-1.5"><span class="text-racing-red">⚡</span> ${t.nextRace}</span>
                 <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-gray-500 uppercase">AUTO</span>
             </button>`;
@@ -1352,12 +1375,23 @@ block content %}
           .replace(" Grand Prix", "")
           .replace("Grand Prix", "");
         const isPast = race.is_past;
+        const isCancelled = Boolean(race.is_cancelled);
+        const raceKey = race.race_key || "";
+        const roundValue = race.round ?? "";
+        const roundArg = race.round ?? "null";
+        const stateClass = isCancelled ? "" : (isPast ? "opacity-40 grayscale" : "");
+        const dateClass = isCancelled ? "text-racing-red" : "text-gray-400 group-hover:text-black";
+        const nameClass = isCancelled ? "text-racing-red" : "";
+        const statusBadge = isCancelled
+          ? `<span class="text-[9px] font-black uppercase tracking-wide text-racing-red">${t.cancelled}</span>`
+          : "";
 
-        html += `<button class="race-item w-full px-2 py-0.5 text-left text-[11px] border-2 border-transparent hover:border-black flex items-center gap-2 ${isPast ? "opacity-40 grayscale" : ""}" 
-                    data-round="${race.round}" onclick="selectRaceFromList(${activeSeasonYear}, ${race.round})">
-                    <span class="race-date font-mono font-bold w-10 text-gray-400 group-hover:text-black">${dateStr}</span>
+        html += `<button class="race-item group w-full px-2 py-0.5 text-left text-[11px] border-2 border-transparent hover:border-black flex items-center gap-2 ${stateClass}" 
+                    data-round="${roundValue}" data-race-key="${raceKey}" onclick="selectRaceFromList(${activeSeasonYear}, ${roundArg}, '${raceKey}')">
+                    <span class="race-date font-mono font-bold w-10 ${dateClass}">${dateStr}</span>
                     <span class="flex-shrink-0">${flagHtml}</span>
-                    <span class="font-bold truncate">${name.trim()}</span>
+                    <span class="font-bold truncate flex-1 ${nameClass}">${name.trim()}</span>
+                    ${statusBadge}
                 </button>`;
       });
 
@@ -1377,7 +1411,8 @@ block content %}
         const iso = COUNTRY_ISO[country] || "";
         const isoDisplay = iso ? iso.toUpperCase() : "🏁";
         const name = race.race_name.replace(" Grand Prix", " GP");
-        mobileSelect.innerHTML += `<option value="${race.round}">${dateStr} ${isoDisplay} ${name}</option>`;
+        const cancelledLabel = race.is_cancelled ? ` [${t.cancelled}]` : "";
+        mobileSelect.innerHTML += `<option value="${race.race_key}">${dateStr} ${isoDisplay} ${name}${cancelledLabel}</option>`;
       });
     } catch (e) {
       console.error("Failed to load races:", e);
@@ -1386,9 +1421,10 @@ block content %}
     }
   }
 
-  function selectRaceFromList(year, round) {
+  function selectRaceFromList(year, round, raceKey = null) {
     selectedYear = year;
     selectedRound = round;
+    selectedRaceKey = raceKey;
 
     // Update selection UI
     document
@@ -1396,14 +1432,14 @@ block content %}
       .forEach((el) =>
         el.classList.remove("selected", "border-black", "shadow-neo-sm"),
       );
-    const selector = round ? `[data-round="${round}"]` : '[data-round=""]';
+    const selector = raceKey ? `[data-race-key="${raceKey}"]` : '[data-race-key=""]';
     const selected = document.querySelector(selector);
     if (selected) {
       selected.classList.add("selected", "border-black", "shadow-neo-sm");
     }
 
     // Sync mobile select
-    document.getElementById("raceSelectMobile").value = round || "";
+    document.getElementById("raceSelectMobile").value = raceKey || "";
 
     // Re-evaluate race day weather availability for selected race
     nextRaceDate = getReferenceRaceDate();
@@ -1413,11 +1449,12 @@ block content %}
   }
 
   function selectRaceMobile() {
-    const round = document.getElementById("raceSelectMobile").value;
-    if (round) {
-      selectRaceFromList(activeSeasonYear, parseInt(round));
+    const raceKey = document.getElementById("raceSelectMobile").value;
+    if (raceKey) {
+      const race = racesData.find((item) => item.race_key === raceKey);
+      selectRaceFromList(activeSeasonYear, race?.round ?? null, raceKey);
     } else {
-      selectRaceFromList(null, null);
+      selectRaceFromList(null, null, null);
     }
   }
 
@@ -1853,16 +1890,16 @@ block content %}
   let currentWeatherType = "race_day";
 
   function getReferenceRaceDate() {
-    if (selectedRound) {
+    if (selectedRaceKey) {
       const selectedRace = racesData.find(
-        (race) => Number(race.round) === Number(selectedRound),
+        (race) => race.race_key === selectedRaceKey,
       );
-      if (selectedRace?.date) {
+      if (selectedRace?.date && !selectedRace?.is_cancelled) {
         return selectedRace.date;
       }
     }
 
-    const upcomingRace = racesData.find((race) => !race.is_past && race.date);
+    const upcomingRace = racesData.find((race) => !race.is_past && !race.is_cancelled && race.date);
     return upcomingRace?.date || null;
   }
 
