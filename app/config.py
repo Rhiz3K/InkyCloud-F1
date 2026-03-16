@@ -200,7 +200,13 @@ class Config(BaseSettings):
             return value
         return _warn_invalid(info.field_name, value, default, "unknown timezone")
 
-    @field_validator("UMAMI_API_URL", "JOLPICA_API_URL", mode="before")
+    @field_validator(
+        "UMAMI_API_URL",
+        "JOLPICA_API_URL",
+        "OPEN_METEO_URL",
+        "OPEN_METEO_ARCHIVE_URL",
+        mode="before",
+    )
     @classmethod
     def validate_url(cls, value: object, info: ValidationInfo) -> str:
         if info.field_name is None:
