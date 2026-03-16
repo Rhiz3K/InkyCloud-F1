@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, patch
 from app.services import f1_service as f1_service_module
 from app.services.f1_service import F1Service
 
-
 MOCK_SEASON_RESPONSE = {
     "MRData": {
         "RaceTable": {

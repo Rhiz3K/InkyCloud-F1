@@ -1,6 +1,6 @@
 """Test renderer service."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 import pytest
@@ -25,6 +25,7 @@ from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 from app.services.teams_service import TeamsService
+from app.services.weather_service import WeatherData
 from app.utils.bmp import map_to_bwr_palette
 
 
@@ -1295,10 +1296,6 @@ def test_spectra6_session_colors():
 
 def test_spectra6_render_calendar_with_weather():
     """Test Spectra 6 rendering calendar with weather data."""
-    from datetime import datetime, timedelta
-
-    from app.services.weather_service import WeatherData
-
     translator = get_translator("en")
     renderer = Spectra6Renderer(translator)
 
@@ -1335,8 +1332,6 @@ def test_spectra6_render_calendar_with_weather():
 
 def test_spectra6_render_calendar_with_datetime_schedule():
     """Test Spectra 6 rendering with datetime objects in schedule."""
-    from datetime import datetime, timedelta, timezone
-
     translator = get_translator("en")
     renderer = Spectra6Renderer(translator)
 
@@ -1529,10 +1524,6 @@ def test_bwr_session_colors():
 
 def test_bwr_render_calendar_with_weather():
     """Test BWR rendering calendar with weather data."""
-    from datetime import datetime, timedelta
-
-    from app.services.weather_service import WeatherData
-
     translator = get_translator("en")
     renderer = BwrRenderer(translator)
 
@@ -1569,8 +1560,6 @@ def test_bwr_render_calendar_with_weather():
 
 def test_bwr_render_calendar_with_datetime_schedule():
     """Test BWR rendering with datetime objects in schedule."""
-    from datetime import datetime, timedelta, timezone
-
     translator = get_translator("en")
     renderer = BwrRenderer(translator)
 
