@@ -199,10 +199,12 @@ class TestWeatherService:
         }
 
         class MockResponse:
-            def raise_for_status(self):
+            @staticmethod
+            def raise_for_status():
                 return None
 
-            def json(self):
+            @staticmethod
+            def json():
                 return mock_response_data
 
         class MockAsyncClient:
@@ -244,10 +246,12 @@ class TestWeatherService:
         }
 
         class MockResponse:
-            def raise_for_status(self):
+            @staticmethod
+            def raise_for_status():
                 return None
 
-            def json(self):
+            @staticmethod
+            def json():
                 return mock_response_data
 
         class MockAsyncClient:
@@ -357,10 +361,12 @@ class TestWeatherService:
         }
 
         class MockResponse:
-            def raise_for_status(self):
+            @staticmethod
+            def raise_for_status():
                 return None
 
-            def json(self):
+            @staticmethod
+            def json():
                 return mock_response_data
 
         class MockAsyncClient:

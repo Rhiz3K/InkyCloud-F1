@@ -4,7 +4,8 @@ import asyncio
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 from pathlib import Path
 from typing import Optional
 
@@ -667,7 +668,7 @@ class F1Service:
         Returns:
             Dictionary with race data including converted times, or None if not found
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(dt_timezone.utc)
         current_year = now.year
 
         # Check current year and next year
