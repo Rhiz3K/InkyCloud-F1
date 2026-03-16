@@ -6,8 +6,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
-from app.services.f1_service import F1Service
 from app.routes.images import _get_race_data_from_static, _get_race_info_for_stats
+from app.services.f1_service import F1Service
 
 client = TestClient(app)
 

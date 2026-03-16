@@ -1888,7 +1888,10 @@ block content %}
       const selectedRace = racesData.find(
         (race) => race.race_key === selectedRaceKey,
       );
-      if (selectedRace?.date && !selectedRace?.is_cancelled) {
+      if (selectedRace?.is_cancelled) {
+        return null;
+      }
+      if (selectedRace?.date) {
         return selectedRace.date;
       }
     }

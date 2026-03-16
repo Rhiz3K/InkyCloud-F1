@@ -59,7 +59,10 @@ def _get_cache_key(
     display: str,
 ) -> str:
     weather_key = weather_type if weather else "no_weather"
-    return f"{lang}:{year or 'next'}:{round_num or 'next'}:{race_key or 'auto'}:{tz or 'default'}:{weather_key}:{display}"
+    return (
+        f"{lang}:{year or 'next'}:{round_num or 'next'}:{race_key or 'auto'}:"
+        f"{tz or 'default'}:{weather_key}:{display}"
+    )
 
 
 def _to_round_number(round_value: str | int | None) -> int | None:
