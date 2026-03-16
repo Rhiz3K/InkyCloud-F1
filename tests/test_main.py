@@ -742,6 +742,14 @@ def test_changelog_hides_empty_unreleased_heading():
     assert ">Unreleased<" not in html
 
 
+def test_changelog_has_no_collapsible_sections():
+    """Changelog page should render backend sections expanded by default."""
+    response = client.get("/changelog?lang=en")
+    html = response.text
+    assert "<details" not in html
+    assert "<summary>Backend</summary>" not in html
+
+
 def test_changelog_lang_parameter():
     """Test changelog page respects lang parameter."""
     response_en = client.get("/changelog?lang=en")

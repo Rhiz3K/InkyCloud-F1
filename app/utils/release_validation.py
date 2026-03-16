@@ -13,6 +13,7 @@ CHANGELOG_PATH = Path(__file__).resolve().parents[2] / "CHANGELOG.md"
 UNRELEASED_HEADING = "## [Unreleased]"
 VERSION_HEADING_RE = re.compile(r"^## \[(\d+)\.(\d+)\.(\d+)\] - .*$", re.MULTILINE)
 FOOTER_LINK_RE = re.compile(r"^\[[^\]]+\]:\s*\S+", re.MULTILINE)
+COLLAPSIBLE_HTML_RE = re.compile(r"<details\b|</details>|<summary\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True, order=True)
@@ -88,6 +89,9 @@ def get_latest_git_tag() -> SemVer | None:
 def validate_release_readiness(changelog_path: Path = CHANGELOG_PATH) -> ReleaseValidationResult:
     changelog = changelog_path.read_text(encoding="utf-8")
     result = parse_latest_release_section(changelog)
+
+    if COLLAPSIBLE_HTML_RE.search(changelog):
+        raise ValueError("CHANGELOG must not contain HTML details/summary blocks")
 
     if result.unreleased_body:
         raise ValueError("Unreleased section must be empty before merging a release PR to main")

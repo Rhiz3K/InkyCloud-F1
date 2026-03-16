@@ -45,22 +45,6 @@ jobs:
             let body = changelog.slice(bodyStart, bodyEnd).trim();
             body = body.replace(/\n---\s*$/, "").trim();
 
-            const backendHeadingMatch = body.match(/^### Backend\s*$/m);
-            if (backendHeadingMatch?.index !== undefined) {
-              const headingStart = backendHeadingMatch.index;
-              const headingEnd = headingStart + backendHeadingMatch[0].length;
-              const nextHeadingMatch = body.slice(headingEnd).match(/\n### /);
-              const sectionEnd = nextHeadingMatch
-                ? headingEnd + nextHeadingMatch.index
-                : body.length;
-              const sectionBody = body.slice(headingEnd, sectionEnd).trim();
-
-              if (sectionBody && !sectionBody.includes("<details")) {
-                const suffix = body.slice(sectionEnd).trimStart();
-                body = `${body.slice(0, headingEnd).trimEnd()}\n\n<details markdown="1">\n<summary>Backend</summary>\n\n${sectionBody}\n\n</details>${suffix ? `\n\n${suffix}` : ""}`.trim();
-              }
-            }
-
             const previousTag = nextHeading ? `v${nextHeading[1]}` : null;
             const compareUrl = previousTag
               ? `https://github.com/${context.repo.owner}/${context.repo.repo}/compare/${previousTag}...${tag}`
