@@ -1935,10 +1935,39 @@ def test_bwry_render_calendar_english(mock_race_data):
     assert img.getpalette() is not None
 
 
+def test_bwry_render_calendar_czech(mock_race_data):
+    """Test BWRY rendering calendar in Czech."""
+    renderer = BwryRenderer(get_translator("cs"))
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+    assert img.getpalette() is not None
+
+
 def test_bwry_render_error_english():
     """Test BWRY rendering error message in English."""
     renderer = BwryRenderer(get_translator("en"))
     bmp_data = renderer.render_error("Test error message")
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_bwry_render_error_czech():
+    """Test BWRY rendering error message in Czech."""
+    renderer = BwryRenderer(get_translator("cs"))
+    bmp_data = renderer.render_error("Chybova zprava")
 
     assert bmp_data is not None
     assert len(bmp_data) > 0
