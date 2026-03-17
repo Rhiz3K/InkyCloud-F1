@@ -2,6 +2,7 @@
 
 from typing import cast
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -84,6 +85,33 @@ def test_root_page_contains_required_elements():
     assert "/configure/calendar" in html
     assert "/configure/teams" in html
     assert "Credits" in html
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/",
+        "/cs/",
+        "/configure/calendar",
+        "/cs/configure/calendar",
+        "/configure/teams",
+        "/cs/configure/teams",
+        "/api/docs/html",
+        "/cs/api/docs/html",
+        "/changelog",
+        "/cs/changelog",
+        "/stats",
+        "/cs/stats",
+        "/privacy",
+        "/cs/privacy",
+    ],
+)
+def test_public_html_pages_support_head(path: str):
+    """Test public HTML pages accept HEAD requests for crawler validation."""
+    response = client.request("HEAD", path)
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert response.content == b""
 
 
 def test_preview_redirect():

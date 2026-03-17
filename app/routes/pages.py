@@ -19,6 +19,7 @@ from app.web.templates import calc_percent, get_template_context, lang_url, temp
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+_HTML_ROUTE_METHODS = ["GET", "HEAD"]
 
 _DISPLAY_TYPE_STYLES = {
     "1bit": {"display_label": "1-BIT", "bar_color": "#000000"},
@@ -91,7 +92,7 @@ async def _home_handler(request: Request, ui_lang: str) -> HTMLResponse:
     return templates.TemplateResponse(request, "home.html", context)
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.api_route("/", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def root(request: Request, lang: str = Query(default=None)):
     """Home page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
@@ -101,7 +102,7 @@ async def root(request: Request, lang: str = Query(default=None)):
     return await _home_handler(request, "en")
 
 
-@router.get("/{lang_prefix}/", response_class=HTMLResponse)
+@router.api_route("/{lang_prefix}/", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def root_lang(request: Request, lang_prefix: str, lang: str = Query(default=None)):
     """Home page with language prefix."""
     if lang_prefix not in VALID_LANGUAGES:
@@ -140,7 +141,9 @@ async def _configure_handler(request: Request, screen_type: str, ui_lang: str) -
     return templates.TemplateResponse(request, "configure.html", context)
 
 
-@router.get("/configure/{screen_type}", response_class=HTMLResponse)
+@router.api_route(
+    "/configure/{screen_type}", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse
+)
 async def configure_screen(request: Request, screen_type: str, lang: str = Query(default=None)):
     """Configure page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
@@ -150,7 +153,11 @@ async def configure_screen(request: Request, screen_type: str, lang: str = Query
     return await _configure_handler(request, screen_type, "en")
 
 
-@router.get("/{lang_prefix}/configure/{screen_type}", response_class=HTMLResponse)
+@router.api_route(
+    "/{lang_prefix}/configure/{screen_type}",
+    methods=_HTML_ROUTE_METHODS,
+    response_class=HTMLResponse,
+)
 async def configure_screen_lang(
     request: Request, lang_prefix: str, screen_type: str, lang: str = Query(default=None)
 ):
@@ -185,7 +192,7 @@ async def _privacy_handler(request: Request, ui_lang: str) -> HTMLResponse:
     return templates.TemplateResponse(request, "privacy.html", context)
 
 
-@router.get("/privacy", response_class=HTMLResponse)
+@router.api_route("/privacy", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def privacy(request: Request, lang: str = Query(default=None)):
     """Privacy page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
@@ -195,7 +202,9 @@ async def privacy(request: Request, lang: str = Query(default=None)):
     return await _privacy_handler(request, "en")
 
 
-@router.get("/{lang_prefix}/privacy", response_class=HTMLResponse)
+@router.api_route(
+    "/{lang_prefix}/privacy", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse
+)
 async def privacy_lang(request: Request, lang_prefix: str, lang: str = Query(default=None)):
     """Privacy page with language prefix."""
     if lang_prefix not in VALID_LANGUAGES:
@@ -249,7 +258,7 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
     return templates.TemplateResponse(request, "changelog.html", context)
 
 
-@router.get("/changelog", response_class=HTMLResponse)
+@router.api_route("/changelog", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def changelog(request: Request, lang: str = Query(default=None)):
     """Changelog page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
@@ -259,7 +268,9 @@ async def changelog(request: Request, lang: str = Query(default=None)):
     return await _changelog_handler(request, "en")
 
 
-@router.get("/{lang_prefix}/changelog", response_class=HTMLResponse)
+@router.api_route(
+    "/{lang_prefix}/changelog", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse
+)
 async def changelog_lang(request: Request, lang_prefix: str, lang: str = Query(default=None)):
     """Changelog page with language prefix."""
     if lang_prefix not in VALID_LANGUAGES:
@@ -294,7 +305,7 @@ async def _api_docs_handler(request: Request, ui_lang: str) -> HTMLResponse:
     return templates.TemplateResponse(request, "api_docs.html", context)
 
 
-@router.get("/api/docs/html", response_class=HTMLResponse)
+@router.api_route("/api/docs/html", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def api_docs_html(request: Request, lang: str = Query(default=None)):
     """API docs page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
@@ -304,7 +315,11 @@ async def api_docs_html(request: Request, lang: str = Query(default=None)):
     return await _api_docs_handler(request, "en")
 
 
-@router.get("/{lang_prefix}/api/docs/html", response_class=HTMLResponse)
+@router.api_route(
+    "/{lang_prefix}/api/docs/html",
+    methods=_HTML_ROUTE_METHODS,
+    response_class=HTMLResponse,
+)
 async def api_docs_html_lang(request: Request, lang_prefix: str, lang: str = Query(default=None)):
     """API docs page with language prefix."""
     if lang_prefix not in VALID_LANGUAGES:
@@ -367,7 +382,7 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
     return templates.TemplateResponse(request, "stats.html", context)
 
 
-@router.get("/stats", response_class=HTMLResponse)
+@router.api_route("/stats", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def stats_dashboard(
     request: Request,
     time_range: str = Query(default="24h", pattern="^(1h|24h|7d|30d|365d)$", alias="range"),
@@ -387,7 +402,7 @@ async def stats_dashboard(
     return await _stats_handler(request, time_range, "en")
 
 
-@router.get("/{lang_prefix}/stats", response_class=HTMLResponse)
+@router.api_route("/{lang_prefix}/stats", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def stats_dashboard_lang(
     request: Request,
     lang_prefix: str,
