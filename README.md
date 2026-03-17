@@ -30,7 +30,7 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 | `tz`           | Any IANA timezone                | `?tz=America/New_York`               |
 | `year`         | Season year                      | `?year=2026`                         |
 | `round`        | Race round number                | `?year=2026&round=5`                 |
-| `display`      | `1bit`, `bwr`, `spectra6`        | `?display=bwr`                       |
+| `display`      | `1bit`, `bwr`, `bwry`, `spectra6` | `?display=bwry`                      |
 | `weather`      | `true`, `false`                  | `?weather=false`                     |
 | `weather_type` | `race_day`, `current`            | `?weather=true&weather_type=current` |
 
@@ -41,6 +41,7 @@ https://f1.inkycloud.click/calendar.bmp?lang=cs
 https://f1.inkycloud.click/calendar.bmp?lang=en&tz=America/New_York
 https://f1.inkycloud.click/calendar.bmp?lang=en&year=2026&round=5
 https://f1.inkycloud.click/calendar.bmp?lang=en&display=bwr
+https://f1.inkycloud.click/calendar.bmp?lang=en&display=bwry
 https://f1.inkycloud.click/calendar.bmp?lang=en&display=spectra6
 https://f1.inkycloud.click/calendar.bmp?lang=en&weather=true&weather_type=current
 ```
@@ -57,7 +58,7 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
 ## ✨ Features
 
-- **800x480 BMP output** — `1bit` monochrome, `bwr` B/W/R, and `spectra6` 6-color mode for the calendar screen
+- **800x480 BMP output** — `1bit` monochrome, `bwr` B/W/R, `bwry` B/W/R/Y, and `spectra6` 6-color mode for the calendar screen
 - **Teams & Drivers screen** — Dedicated `teams.bmp` standings/lineup render for the current or selected season
 - **Always Up-to-Date** — Automatically updated after each Grand Prix
 - **Multi-language** — Czech and English support
@@ -66,7 +67,7 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 - **Optional Weather Overlay** — Current, race-day forecast, and historical race-time weather on the calendar screen
 - **Historical Results** — Previous year's podium for each circuit
 - **Track Info** — Circuit map, length, laps, and first GP year
-- **Display-Specific Track Art** — `1bit`, `bwr`, and `spectra6` now prefer per-display source artwork before falling back to generic circuit assets
+- **Display-Specific Track Art** — `1bit`, `bwr`, `bwry`, and `spectra6` now prefer per-display source artwork before falling back to generic circuit assets
 - **Session Schedule** — FP1, FP2, FP3, Qualifying, Sprint, Race times
 
 ### Roadmap
@@ -78,7 +79,7 @@ Planned features for future releases:
 - [x] **1-BIT monochrome** — Initial calendar output introduced in `v1.0.0`
 - [x] **Spectra 6** — `display=spectra6` added in `v1.2.0`
 - [x] **B/W/R** — `display=bwr` added in `v1.2.9`
-- [ ] **B/W/R/Y** — Planned next color-mode expansion
+- [x] **B/W/R/Y** — `display=bwry` added in `v1.2.13` for the calendar screen
 
 #### Screens and layouts
 
@@ -174,7 +175,7 @@ docker run -p 8000:8000 f1-eink-cal
 - **[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete self-hosting guide
 - **[COOLIFY.md](./COOLIFY.md)** — One-click Coolify deployment
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** — Docker, cloud platforms, manual setup
-- **[BMP_PROCESSING.md](./BMP_PROCESSING.md)** — Detailed image-to-BMP processing guide for `1bit`, `bwr`, `spectra6`, and prepared `bwry` assets
+- **[BMP_PROCESSING.md](./BMP_PROCESSING.md)** — Detailed image-to-BMP processing guide for `1bit`, `bwr`, `bwry`, and `spectra6` assets
 
 ---
 

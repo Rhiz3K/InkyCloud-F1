@@ -488,13 +488,16 @@ def test_configure_calendar_mobile_settings_button():
     assert "toggleSidebar()" in html
 
 
-def test_configure_calendar_contains_bwr_display_option():
-    """Test configure calendar page exposes BWR display selection."""
+def test_configure_calendar_contains_color_display_options():
+    """Test configure calendar page exposes BWR and BWRY display selections."""
     response = client.get("/configure/calendar")
     html = response.text
     assert 'id="displayBwrBtn"' in html
     assert 'id="displayBwrBtnMobile"' in html
     assert "setDisplayType('bwr')" in html
+    assert 'id="displayBwryBtn"' in html
+    assert 'id="displayBwryBtnMobile"' in html
+    assert "setDisplayType('bwry')" in html
 
 
 def test_configure_calendar_mobile_timezone_selector():
@@ -696,6 +699,15 @@ def test_get_race_data_from_static_matches_string_round_values():
 def test_calendar_bmp_with_bwr_display():
     """Test /calendar.bmp with BWR display parameter."""
     response = client.get("/calendar.bmp?display=bwr")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+    assert response.content[:2] == b"BM"
+    assert int.from_bytes(response.content[28:30], byteorder="little") == 4
+
+
+def test_calendar_bmp_with_bwry_display():
+    """Test /calendar.bmp with BWRY display parameter."""
+    response = client.get("/calendar.bmp?display=bwry")
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/bmp"
     assert response.content[:2] == b"BM"

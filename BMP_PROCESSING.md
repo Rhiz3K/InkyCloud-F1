@@ -9,7 +9,7 @@ It covers:
 - flag preprocessing scripts
 - runtime asset resolution order
 - final calendar/team BMP encoding behavior
-- currently active and prepared display variants
+- currently active display variants
 
 ## 1. Display Variants
 
@@ -18,7 +18,7 @@ The project currently works with these display modes:
 - `1bit` - monochrome black/white
 - `bwr` - black/white/red
 - `spectra6` - black/white/red/yellow/blue/green
-- `bwry` - prepared only, not exposed yet in the API/UI
+- `bwry` - black/white/red/yellow
 
 ## 2. Source Asset Naming Convention
 
@@ -29,7 +29,7 @@ The current naming convention is:
 - `<circuit>_bw.png` - preferred source for `1bit`
 - `<circuit>_bwr.png` - preferred source for `bwr`
 - `<circuit>_spectra6.png` - preferred source for `spectra6`
-- `<circuit>_bwry.png` - preferred source for future `bwry`
+- `<circuit>_bwry.png` - preferred source for `bwry`
 - `<circuit>.png` - generic fallback if no display-specific source exists
 
 Examples:
@@ -110,14 +110,15 @@ Current order:
 
 Again, source-first loading is intentional to preserve track text and thin colored lines.
 
-### 4.4 `bwry` (prepared)
+### 4.4 `bwry`
 
-The naming and preprocessing conventions are already prepared, but runtime loading is not exposed as a selectable display mode yet.
+File: `app/services/bwry_renderer.py`
 
-Prepared source expectation:
+Current order:
 
 1. `<circuit>_bwry.(png|jpg|jpeg)`
 2. `<circuit>.(png|jpg|jpeg)`
+3. `app/assets/tracks_bwry/<circuit>.bmp`
 
 ## 5. Track Preprocessing Scripts
 
@@ -180,7 +181,7 @@ Processing steps:
 5. encode as indexed 4-bit BMP via `encode_indexed_bmp_4bit(...)`
 6. save as `app/assets/tracks_spectra6/<circuit>.bmp`
 
-### 5.4 `bwry` (prepared)
+### 5.4 `bwry`
 
 File: `scripts/preprocess_tracks_bwry.py`
 
@@ -194,11 +195,11 @@ Processing steps:
 1. load source image and flatten transparency onto white
 2. crop whitespace
 3. resize to fit `490x280`
-4. quantize to prepared `BLACK/WHITE/RED/YELLOW` palette
+4. map pixels with `map_to_bwry_palette(...)`
 5. encode as indexed 4-bit BMP
 6. save as `app/assets/tracks_bwry/<circuit>.bmp`
 
-This is preparation only; `bwry` is not enabled in the public display selection yet.
+This variant is now available in the public calendar display selection.
 
 ## 6. Final Full-Image BMP Encoding
 
@@ -241,6 +242,17 @@ Current final render flow:
 2. paste track source artwork after scaling it into the layout
 3. quantize/export using the Spectra 6 palette
 
+### 6.4 `bwry`
+
+File: `app/services/bwry_renderer.py`
+
+Current final render flow:
+
+1. compose the full screen in RGB
+2. use `bwry` source assets where available
+3. convert the full image with `map_to_bwry_palette(...)`
+4. encode as indexed 4-bit BMP with palette `[BLACK, WHITE, RED, YELLOW]`
+
 The same source-first reasoning applies here too.
 
 ## 7. Current Active Palettes
@@ -274,7 +286,7 @@ Relevant file:
 
 - `app/services/spectra6_renderer.py`
 
-### 7.3 `bwry` (prepared)
+### 7.3 `bwry`
 
 Current prepared palette in the preprocessing script:
 
@@ -287,7 +299,7 @@ Relevant file:
 
 - `scripts/preprocess_tracks_bwry.py`
 
-This can be updated later once the test display is available.
+This can still be tuned later once more real hardware comparisons are available.
 
 ## 8. Flag Processing
 
@@ -327,6 +339,18 @@ Current state:
 - there is currently no dedicated `preprocess_flags_spectra6.py` script in the repo
 
 So Spectra 6 flag assets are present, but their regeneration pipeline is not yet documented in a dedicated script.
+
+### 8.4 `bwry` flags
+
+File: `scripts/preprocess_flags_bwry.py`
+
+High-level steps:
+
+1. flatten transparency onto white
+2. resize to target size
+3. map pixels with `map_to_bwry_palette(...)`
+4. encode as indexed 4-bit BMP with the `B/W/R/Y` palette
+5. save to `app/assets/flags_bwry/*.bmp`
 
 ## 9. Why Source-First Loading Matters
 
@@ -371,15 +395,17 @@ Useful commands for the current pipeline:
 
 # B/W/R flags
 .venv/bin/python scripts/preprocess_flags_bwr.py
+
+# B/W/R/Y flags
+.venv/bin/python scripts/preprocess_flags_bwry.py
 ```
 
 ## 11. Current Open Items
 
 The following items are still intentionally unfinished or future-facing:
 
-- public runtime support for `bwry`
 - dedicated preprocessing script for `flags_spectra6`
-- possible vivid palette update for future `bwry`
+- possible palette tuning for `bwry`
 - possible additional per-display art tuning once real hardware comparison is finished
 
 ## 12. Summary

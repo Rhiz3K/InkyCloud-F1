@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Frontend
+
+#### Added
+
+- **B/W/R/Y display mode** - Added `display=bwry` to the calendar configure UI, preview routing, API docs, and stats labeling for the four-color calendar output
+
+### Backend
+
+#### Added
+
+- **B/W/R/Y renderer pipeline** - Added dedicated `bwry` calendar rendering, scheduler generation, track/flag preprocessing scripts, and calendar API support alongside existing `1bit`, `bwr`, and `spectra6` modes
+
 ## [1.2.12] - 2026-03-16
 
 ### Frontend

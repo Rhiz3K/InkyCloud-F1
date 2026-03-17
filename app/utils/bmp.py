@@ -93,6 +93,87 @@ def map_to_bwr_palette(
     return indexed
 
 
+def map_to_bwry_palette(
+    image: Image.Image,
+    palette: list[RgbColor],
+    *,
+    black_index: int = 0,
+    white_index: int = 1,
+    red_index: int = 2,
+    yellow_index: int = 3,
+    bw_threshold: int = 172,
+    white_preserve_threshold: int = 220,
+    black_preserve_threshold: int = 96,
+    red_max_luminance: int = 200,
+    red_min: int = 96,
+    red_margin: int = 24,
+    red_dominance: float = 1.15,
+    yellow_min: int = 112,
+    yellow_margin: int = 28,
+    yellow_dominance: float = 1.08,
+    yellow_rg_distance: int = 74,
+    yellow_max_luminance: int = 236,
+) -> Image.Image:
+    """Map RGB image to a strict black/white/red/yellow palette.
+
+    Grayscale pixels are forced to black/white so anti-aliased text and line art do
+    not pick up unwanted red or yellow fringes.
+    """
+    rgb = image.convert("RGB")
+    indexed = Image.new("P", rgb.size, color=white_index)
+    palette_data = _build_palette_image(palette).getpalette() or []
+    indexed.putpalette(palette_data)  # type: ignore[arg-type]
+
+    src = rgb.load()
+    dst = indexed.load()
+    if src is None or dst is None:
+        raise ValueError("Failed to access image pixel data")
+
+    for y in range(rgb.height):
+        for x in range(rgb.width):
+            pixel = src[x, y]  # type: ignore[index]
+            if isinstance(pixel, tuple):
+                r, g, b = pixel[:3]
+            else:
+                r = g = b = int(pixel)
+
+            luminance = int(0.299 * r + 0.587 * g + 0.114 * b)
+
+            if luminance >= white_preserve_threshold:
+                dst[x, y] = white_index  # type: ignore[index]
+                continue
+
+            is_yellow = (
+                r >= yellow_min
+                and g >= yellow_min
+                and abs(r - g) <= yellow_rg_distance
+                and min(r, g) - b >= yellow_margin
+                and r >= int(b * yellow_dominance)
+                and g >= int(b * yellow_dominance)
+            )
+            if is_yellow and luminance <= yellow_max_luminance:
+                dst[x, y] = yellow_index  # type: ignore[index]
+                continue
+
+            is_red = (
+                r >= red_min
+                and r - max(g, b) >= red_margin
+                and r >= int(g * red_dominance)
+                and r >= int(b * red_dominance)
+            )
+            if is_red and luminance <= red_max_luminance:
+                dst[x, y] = red_index  # type: ignore[index]
+                continue
+
+            if luminance <= black_preserve_threshold:
+                dst[x, y] = black_index  # type: ignore[index]
+                continue
+
+            dst[x, y] = black_index if luminance < bw_threshold else white_index  # type: ignore[index]
+
+    return indexed
+
+
 def encode_indexed_bmp_4bit(indexed: Image.Image, palette: list[RgbColor]) -> bytes:
     """Encode a palette image as an uncompressed 4-bit BMP.
 

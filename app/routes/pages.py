@@ -25,6 +25,7 @@ _DISPLAY_TYPE_STYLES = {
     "1bit": {"display_label": "1-BIT", "bar_color": "#000000"},
     "spectra6": {"display_label": "SPECTRA 6", "bar_color": "#6b7280"},
     "bwr": {"display_label": "B/W/R", "bar_color": "#dc2626"},
+    "bwry": {"display_label": "B/W/R/Y", "bar_color": "#d97706"},
 }
 
 

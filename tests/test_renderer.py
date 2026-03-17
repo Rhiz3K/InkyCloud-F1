@@ -18,16 +18,18 @@ from app.models import (
     TeamEntry,
     TeamsData,
 )
+from app.services import bwry_renderer as bwry_renderer_module
 from app.services import bwr_renderer as bwr_renderer_module
 from app.services import renderer as renderer_module
 from app.services import spectra6_renderer as spectra6_renderer_module
+from app.services.bwry_renderer import BwryColors, BwryRenderer
 from app.services.bwr_renderer import BwrColors, BwrRenderer
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 from app.services.teams_service import TeamsService
 from app.services.weather_service import WeatherData
-from app.utils.bmp import map_to_bwr_palette
+from app.utils.bmp import map_to_bwr_palette, map_to_bwry_palette
 
 
 @pytest.fixture
@@ -1331,6 +1333,43 @@ def test_bwr_renderer_load_track_image_falls_back_to_generic_source(
     assert track_image.getpixel((0, 0)) == (30, 40, 50)
 
 
+def test_bwry_renderer_load_track_image_prefers_bwry_variant(mock_race_data, tmp_path, monkeypatch):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(30, 40, 50)).save(tracks_dir / "test_circuit.png", "PNG")
+    Image.new("RGB", (4, 4), color=(244, 208, 42)).save(tracks_dir / "test_circuit_bwry.png", "PNG")
+
+    bwry_dir = tmp_path / "tracks_bwry"
+    bwry_dir.mkdir()
+    monkeypatch.setattr(bwry_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(bwry_renderer_module, "TRACKS_BWRY_DIR", bwry_dir)
+
+    track_image = BwryRenderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (244, 208, 42)
+
+
+def test_bwry_renderer_load_track_image_prefers_source_over_preprocessed(
+    mock_race_data, tmp_path, monkeypatch
+):
+    tracks_dir = tmp_path / "tracks"
+    tracks_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(244, 208, 42)).save(tracks_dir / "test_circuit_bwry.png", "PNG")
+
+    bwry_dir = tmp_path / "tracks_bwry"
+    bwry_dir.mkdir()
+    Image.new("RGB", (4, 4), color=(12, 34, 56)).save(bwry_dir / "test_circuit.bmp", "BMP")
+
+    monkeypatch.setattr(bwry_renderer_module, "TRACKS_DIR", tracks_dir)
+    monkeypatch.setattr(bwry_renderer_module, "TRACKS_BWRY_DIR", bwry_dir)
+
+    track_image = BwryRenderer._load_track_image(mock_race_data)
+
+    assert track_image is not None
+    assert track_image.getpixel((0, 0)) == (244, 208, 42)
+
+
 def test_spectra6_renderer_load_track_image_prefers_spectra6_variant(
     mock_race_data, tmp_path, monkeypatch
 ):
@@ -1881,6 +1920,67 @@ def test_bwr_bmp_is_smaller_than_spectra6_for_same_calendar(mock_race_data):
     assert len(bwr_data) < len(spectra6_data)
 
 
+def test_bwry_render_calendar_english(mock_race_data):
+    """Test BWRY rendering calendar in English."""
+    renderer = BwryRenderer(get_translator("en"))
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+    assert img.getpalette() is not None
+
+
+def test_bwry_render_error_english():
+    """Test BWRY rendering error message in English."""
+    renderer = BwryRenderer(get_translator("en"))
+    bmp_data = renderer.render_error("Test error message")
+
+    assert bmp_data is not None
+    assert len(bmp_data) > 0
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_bwry_colors_palette():
+    assert BwryColors.BLACK == (0x00, 0x00, 0x00)
+    assert BwryColors.WHITE == (0xFF, 0xFF, 0xFF)
+    assert BwryColors.RED == (0xD9, 0x18, 0x18)
+    assert BwryColors.YELLOW == (0xF4, 0xD0, 0x2A)
+
+    assert len(BwryColors.PALETTE) == 4
+    assert BwryColors.PALETTE[3] == BwryColors.YELLOW
+
+
+def test_bwry_session_colors():
+    """Test BWRY session colors reserve yellow for qualifying-style sessions."""
+    renderer = BwryRenderer(get_translator("en"))
+
+    assert renderer._get_session_color("Race") == BwryColors.RED
+    assert renderer._get_session_color("Qualifying") == BwryColors.YELLOW
+    assert renderer._get_session_color("Sprint") == BwryColors.YELLOW
+    assert renderer._get_session_color("FP1") == BwryColors.BLACK
+
+
+def test_bwry_bmp_uses_four_color_palette(mock_race_data):
+    """Test BWRY BMP palette starts with black, white, red, yellow entries."""
+    renderer = BwryRenderer(get_translator("en"))
+    bmp_data = renderer.render_calendar(mock_race_data)
+
+    img = Image.open(BytesIO(bmp_data))
+    palette = img.getpalette()
+
+    assert palette is not None
+    assert palette[:12] == [0, 0, 0, 255, 255, 255, 217, 24, 24, 244, 208, 42]
+
+
 def test_map_to_bwr_palette_keeps_grayscale_pixels_off_red():
     """Grayscale anti-aliasing should not turn black text edges red."""
     image = Image.new("RGB", (3, 1), color=(255, 255, 255))
@@ -1910,4 +2010,37 @@ def test_map_to_bwr_palette_preserves_near_white_text_edges():
         BwrColors.IDX_WHITE,
         BwrColors.IDX_WHITE,
         BwrColors.IDX_RED,
+    ]
+
+
+def test_map_to_bwry_palette_detects_yellow_without_bleeding_grayscale():
+    """BWRY mapping should keep grayscale pixels neutral while detecting yellow."""
+    image = Image.new("RGB", (4, 1), color=(255, 255, 255))
+    image.putdata([(0, 0, 0), (140, 140, 140), (255, 0, 0), (244, 208, 42)])
+
+    indexed = map_to_bwry_palette(image, BwryColors.PALETTE)
+    pixels = indexed.load()
+
+    assert pixels is not None
+    assert [pixels[0, 0], pixels[1, 0], pixels[2, 0], pixels[3, 0]] == [
+        BwryColors.IDX_BLACK,
+        BwryColors.IDX_BLACK,
+        BwryColors.IDX_RED,
+        BwryColors.IDX_YELLOW,
+    ]
+
+
+def test_map_to_bwry_palette_preserves_near_white_edges():
+    """Light anti-aliased pixels should stay white instead of turning yellow."""
+    image = Image.new("RGB", (3, 1), color=(255, 255, 255))
+    image.putdata([(255, 255, 255), (246, 236, 182), (244, 208, 42)])
+
+    indexed = map_to_bwry_palette(image, BwryColors.PALETTE)
+    pixels = indexed.load()
+
+    assert pixels is not None
+    assert [pixels[0, 0], pixels[1, 0], pixels[2, 0]] == [
+        BwryColors.IDX_WHITE,
+        BwryColors.IDX_WHITE,
+        BwryColors.IDX_YELLOW,
     ]
