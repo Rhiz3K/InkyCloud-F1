@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pre-process track images for future black/white/red/yellow E-Ink rendering."""
+"""Pre-process track images for black/white/red/yellow E-Ink rendering."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from app.services.track_assets import (
     resolve_track_source_path,
     strip_track_variant_suffix,
 )
-from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
+from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwry_palette
 
 MAX_WIDTH = 490
 MAX_HEIGHT = 280
@@ -28,8 +28,8 @@ OUTPUT_DIR = PROJECT_ROOT / "app" / "assets" / "tracks_bwry"
 
 BLACK = (0x00, 0x00, 0x00)
 WHITE = (0xFF, 0xFF, 0xFF)
-RED = (0xA0, 0x20, 0x20)
-YELLOW = (0xF0, 0xE0, 0x50)
+RED = (0xFF, 0x00, 0x00)
+YELLOW = (0xFF, 0xD8, 0x00)
 PALETTE = [BLACK, WHITE, RED, YELLOW]
 
 
@@ -84,7 +84,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
         new_size = (int(img_w * ratio), int(img_h * ratio))
         original = original.resize(new_size, Image.Resampling.LANCZOS)
 
-    final = quantize_to_palette(original, PALETTE, colors=len(PALETTE))
+    final = map_to_bwry_palette(original, PALETTE)
     output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 

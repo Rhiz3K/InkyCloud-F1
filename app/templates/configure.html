@@ -321,6 +321,14 @@ block content %}
           >
             B/W/R
           </button>
+          <button
+            type="button"
+            onclick="setDisplayType('bwry')"
+            id="displayBwryBtn"
+            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+          >
+            B/W/R/Y
+          </button>
         </div>
       </div>
     </div>
@@ -336,7 +344,7 @@ block content %}
         id="weatherLabelMobile"
         >Weather</label
       >
-      <div class="flex gap-1">
+       <div class="flex gap-1">
         <button
           type="button"
           onclick="setWeatherType('off')"
@@ -391,16 +399,24 @@ block content %}
         >
           SPECTRA 6
         </button>
-        <button
-          type="button"
-          onclick="setDisplayType('bwr')"
-          id="displayBwrBtnMobile"
-          class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
-        >
-          B/W/R
-        </button>
-      </div>
-    </div>
+         <button
+           type="button"
+           onclick="setDisplayType('bwr')"
+           id="displayBwrBtnMobile"
+           class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+         >
+           B/W/R
+         </button>
+         <button
+           type="button"
+           onclick="setDisplayType('bwry')"
+           id="displayBwryBtnMobile"
+           class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+         >
+           B/W/R/Y
+         </button>
+       </div>
+     </div>
 
     <!-- Mobile Race Selector (Calendar only) -->
     <div
@@ -2038,14 +2054,21 @@ block content %}
       document.getElementById("display1bitBtn"),
       document.getElementById("displaySpectra6Btn"),
       document.getElementById("displayBwrBtn"),
+      document.getElementById("displayBwryBtn"),
       document.getElementById("display1bitBtnMobile"),
       document.getElementById("displaySpectra6BtnMobile"),
       document.getElementById("displayBwrBtnMobile"),
+      document.getElementById("displayBwryBtnMobile"),
     ];
 
     allBtns.forEach((btn) => {
       if (btn) {
-        btn.classList.remove("bg-black", "bg-racing-red", "text-white");
+        btn.classList.remove(
+          "bg-black",
+          "bg-racing-red",
+          "text-white",
+          "text-black",
+        );
         btn.classList.add("bg-white");
       }
     });
@@ -2061,6 +2084,10 @@ block content %}
     const bwrBtns = [
       document.getElementById("displayBwrBtn"),
       document.getElementById("displayBwrBtnMobile"),
+    ];
+    const bwryBtns = [
+      document.getElementById("displayBwryBtn"),
+      document.getElementById("displayBwryBtnMobile"),
     ];
 
     if (type === "1bit") {
@@ -2084,12 +2111,34 @@ block content %}
           btn.classList.add("bg-racing-red", "text-white");
         }
       });
+    } else if (type === "bwry") {
+      bwryBtns.forEach((btn) => {
+        if (btn) {
+          btn.classList.remove("bg-white");
+          btn.classList.add("bg-black", "text-white");
+        }
+      });
     }
 
     const displayBadge = document.getElementById("displayBadge");
     if (displayBadge) {
+      displayBadge.classList.remove("bg-black", "bg-white", "bg-racing-red", "text-white", "text-black");
       displayBadge.textContent =
-        type === "spectra6" ? "6-COLOR" : type === "bwr" ? "B/W/R" : "1-BIT";
+        type === "spectra6"
+          ? "6-COLOR"
+          : type === "bwr"
+            ? "B/W/R"
+            : type === "bwry"
+              ? "B/W/R/Y"
+              : "1-BIT";
+
+      if (type === "1bit" || type === "spectra6") {
+        displayBadge.classList.add("bg-black", "text-white");
+      } else if (type === "bwr") {
+        displayBadge.classList.add("bg-racing-red", "text-white");
+      } else if (type === "bwry") {
+        displayBadge.classList.add("bg-black", "text-white");
+      }
     }
 
     updatePreview();

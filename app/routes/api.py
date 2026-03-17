@@ -74,9 +74,9 @@ async def api_info() -> dict:
                     "display": {
                         "type": "string",
                         "description": "Display output mode",
-                        "values": ["1bit", "spectra6", "bwr"],
+                        "values": ["1bit", "spectra6", "bwr", "bwry"],
                         "default": "1bit",
-                        "example": "?display=bwr",
+                        "example": "?display=bwry",
                         "optional": True,
                     },
                     "weather": {
@@ -102,7 +102,10 @@ async def api_info() -> dict:
                 "response": {
                     "content_type": "image/bmp",
                     "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
-                    "color_depth": "1-bit monochrome, 4-bit indexed B/W/R, or indexed Spectra 6",
+                    "color_depth": (
+                        "1-bit monochrome, 4-bit indexed B/W/R, "
+                        "4-bit indexed B/W/R/Y, or indexed Spectra 6"
+                    ),
                 },
                 "examples": [
                     "/calendar.bmp",
@@ -110,6 +113,7 @@ async def api_info() -> dict:
                     "/calendar.bmp?year=2025&round=1",
                     "/calendar.bmp?lang=en&tz=America/Los_Angeles",
                     "/calendar.bmp?display=bwr",
+                    "/calendar.bmp?display=bwry",
                     "/calendar.bmp?display=spectra6&weather_type=current",
                 ],
             },

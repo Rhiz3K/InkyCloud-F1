@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from app.config import VALID_LANGUAGES, config
 from app.services.analytics import track_event, track_pageview
 from app.services.bwr_renderer import BwrRenderer
+from app.services.bwry_renderer import BwryRenderer
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
@@ -40,7 +41,7 @@ def _normalize_lang(lang: str) -> str:
 
 
 def _normalize_display(display: str) -> str:
-    return display if display in ("1bit", "spectra6", "bwr") else "1bit"
+    return display if display in ("1bit", "spectra6", "bwr", "bwry") else "1bit"
 
 
 def _validate_timezone_param(tz: str | None) -> None:
@@ -208,6 +209,10 @@ _VALID_CALENDAR_FILENAMES: dict[tuple[str, str, str], str] = {
     ("en", "bwr", "current"): "calendar_en_bwr_weather_current.bmp",
     ("en", "bwr", "race"): "calendar_en_bwr_weather_race.bmp",
     ("en", "bwr", "race_day"): "calendar_en_bwr_weather_race.bmp",
+    ("en", "bwry", "off"): "calendar_en_bwry.bmp",
+    ("en", "bwry", "current"): "calendar_en_bwry_weather_current.bmp",
+    ("en", "bwry", "race"): "calendar_en_bwry_weather_race.bmp",
+    ("en", "bwry", "race_day"): "calendar_en_bwry_weather_race.bmp",
     ("cs", "1bit", "off"): "calendar_cs.bmp",
     ("cs", "1bit", "current"): "calendar_cs_weather_current.bmp",
     ("cs", "1bit", "race"): "calendar_cs_weather_race.bmp",
@@ -220,6 +225,10 @@ _VALID_CALENDAR_FILENAMES: dict[tuple[str, str, str], str] = {
     ("cs", "bwr", "current"): "calendar_cs_bwr_weather_current.bmp",
     ("cs", "bwr", "race"): "calendar_cs_bwr_weather_race.bmp",
     ("cs", "bwr", "race_day"): "calendar_cs_bwr_weather_race.bmp",
+    ("cs", "bwry", "off"): "calendar_cs_bwry.bmp",
+    ("cs", "bwry", "current"): "calendar_cs_bwry_weather_current.bmp",
+    ("cs", "bwry", "race"): "calendar_cs_bwry_weather_race.bmp",
+    ("cs", "bwry", "race_day"): "calendar_cs_bwry_weather_race.bmp",
 }
 
 
@@ -242,7 +251,7 @@ def _get_pregenerated_calendar_path(
 
     # Normalize inputs to allowed values
     safe_lang = "cs" if lang == "cs" else "en"
-    safe_display = display if display in {"spectra6", "bwr"} else "1bit"
+    safe_display = display if display in {"spectra6", "bwr", "bwry"} else "1bit"
     safe_weather = _normalize_weather_type(weather_type)
 
     # Lookup filename from whitelist (no user input in path construction)
@@ -283,11 +292,15 @@ def _maybe_convert_timezone(race_data: dict, target_tz: str) -> dict:
     return convert_race_times_to_timezone(race_data, target_tz)
 
 
-def _get_renderer(display: str, translator) -> Renderer | Spectra6Renderer | BwrRenderer:
+def _get_renderer(
+    display: str, translator
+) -> Renderer | Spectra6Renderer | BwrRenderer | BwryRenderer:
     if display == "spectra6":
         return Spectra6Renderer(translator)
     if display == "bwr":
         return BwrRenderer(translator)
+    if display == "bwry":
+        return BwryRenderer(translator)
     return Renderer(translator)
 
 
@@ -346,7 +359,8 @@ async def get_calendar_bmp(
         description=(
             f"Display type: '1bit' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} monochrome), "
             f"'spectra6' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} 6-color), "
-            f"or 'bwr' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red)"
+            f"'bwr' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red), "
+            f"or 'bwry' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red/yellow)"
         ),
     ),
     f1_service: F1Service = Depends(get_f1_service),

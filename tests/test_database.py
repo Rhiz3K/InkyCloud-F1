@@ -171,6 +171,19 @@ class TestApiCallStatsDatabase:
                     },
                     {
                         "timestamp": now,
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 110.0,
+                        "response_size_bytes": 2048,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "bwry",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 0,
+                    },
+                    {
+                        "timestamp": now,
                         "endpoint": "/teams.bmp",
                         "response_time_ms": 80.0,
                         "response_size_bytes": 512,
@@ -187,10 +200,11 @@ class TestApiCallStatsDatabase:
 
             stats = await db.get_stats_for_range(24)
 
-            assert stats["total_requests"] == 4
-            assert stats["display_types"] == [
-                {"display_type": "bwr", "count": 2},
-                {"display_type": "1bit", "count": 1},
-            ]
+            assert stats["total_requests"] == 5
+            assert {tuple(item.items()) for item in stats["display_types"]} == {
+                (("display_type", "bwr"), ("count", 2)),
+                (("display_type", "1bit"), ("count", 1)),
+                (("display_type", "bwry"), ("count", 1)),
+            }
 
         asyncio.run(run_test())
