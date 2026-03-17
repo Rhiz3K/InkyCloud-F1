@@ -34,25 +34,6 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   content="{{ site_url }}/static/images/og-preview.png"
 />
 {% endblock %} {% block head %}
-<style>
-  .bwry-chip {
-    background-image: linear-gradient(135deg, #ff0000 0 48%, #ffd800 52% 100%);
-  }
-
-  .bwry-chip-hover:hover {
-    background-image: linear-gradient(135deg, #ff0000 0 48%, #ffd800 52% 100%);
-  }
-
-  .bwry-chip-active {
-    background-image: linear-gradient(135deg, #ff0000 0 48%, #ffd800 52% 100%);
-    color: #111111;
-    box-shadow: inset 0 0 0 2px #111111;
-  }
-
-  .bwry-chip-label {
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
-  }
-</style>
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -344,7 +325,7 @@ block content %}
             type="button"
             onclick="setDisplayType('bwry')"
             id="displayBwryBtn"
-            class="display-type-btn bwry-chip-hover bwry-chip-label flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white"
+            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
           >
             B/W/R/Y
           </button>
@@ -430,7 +411,7 @@ block content %}
            type="button"
            onclick="setDisplayType('bwry')"
            id="displayBwryBtnMobile"
-           class="display-type-btn-mobile bwry-chip-hover bwry-chip-label flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white"
+           class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
          >
            B/W/R/Y
          </button>
@@ -2085,10 +2066,8 @@ block content %}
         btn.classList.remove(
           "bg-black",
           "bg-racing-red",
-          "bg-yellow-400",
           "text-white",
           "text-black",
-          "bwry-chip-active",
         );
         btn.classList.add("bg-white");
       }
@@ -2136,14 +2115,14 @@ block content %}
       bwryBtns.forEach((btn) => {
         if (btn) {
           btn.classList.remove("bg-white");
-          btn.classList.add("bwry-chip-active", "text-black");
+          btn.classList.add("bg-black", "text-white");
         }
       });
     }
 
     const displayBadge = document.getElementById("displayBadge");
     if (displayBadge) {
-      displayBadge.classList.remove("bg-black", "bg-white", "bg-racing-red", "text-white", "text-black", "bwry-chip-active");
+      displayBadge.classList.remove("bg-black", "bg-white", "bg-racing-red", "text-white", "text-black");
       displayBadge.textContent =
         type === "spectra6"
           ? "6-COLOR"
@@ -2158,7 +2137,7 @@ block content %}
       } else if (type === "bwr") {
         displayBadge.classList.add("bg-racing-red", "text-white");
       } else if (type === "bwry") {
-        displayBadge.classList.add("bwry-chip-active", "text-black");
+        displayBadge.classList.add("bg-black", "text-white");
       }
     }
 
