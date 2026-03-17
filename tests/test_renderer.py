@@ -1981,8 +1981,8 @@ def test_bwry_render_error_czech():
 def test_bwry_colors_palette():
     assert BwryColors.BLACK == (0x00, 0x00, 0x00)
     assert BwryColors.WHITE == (0xFF, 0xFF, 0xFF)
-    assert BwryColors.RED == (0xD9, 0x18, 0x18)
-    assert BwryColors.YELLOW == (0xF4, 0xD0, 0x2A)
+    assert BwryColors.RED == (0xFF, 0x00, 0x00)
+    assert BwryColors.YELLOW == (0xFF, 0xD8, 0x00)
 
     assert len(BwryColors.PALETTE) == 4
     assert BwryColors.PALETTE[3] == BwryColors.YELLOW
@@ -2007,7 +2007,7 @@ def test_bwry_bmp_uses_four_color_palette(mock_race_data):
     palette = img.getpalette()
 
     assert palette is not None
-    assert palette[:12] == [0, 0, 0, 255, 255, 255, 217, 24, 24, 244, 208, 42]
+    assert palette[:12] == [0, 0, 0, 255, 255, 255, 255, 0, 0, 255, 216, 0]
 
 
 def test_map_to_bwr_palette_keeps_grayscale_pixels_off_red():

@@ -292,8 +292,8 @@ Current active palette:
 
 - black: `#000000`
 - white: `#FFFFFF`
-- red: `#D91818`
-- yellow: `#F4D02A`
+- red: `#FF0000`
+- yellow: `#FFD800`
 
 Relevant file:
 
