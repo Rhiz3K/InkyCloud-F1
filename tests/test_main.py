@@ -1,6 +1,7 @@
 """Test main FastAPI application endpoints."""
 
 from typing import cast
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -112,6 +113,43 @@ def test_public_html_pages_support_head(path: str):
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert response.content == b""
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/",
+        "/cs/",
+        "/configure/calendar",
+        "/cs/configure/calendar",
+        "/configure/teams",
+        "/cs/configure/teams",
+        "/api/docs/html",
+        "/cs/api/docs/html",
+        "/changelog",
+        "/cs/changelog",
+        "/privacy",
+        "/cs/privacy",
+    ],
+)
+def test_public_html_pages_head_does_not_track_pageview(path: str):
+    """HEAD requests should skip analytics tracking on public HTML pages."""
+    with patch("app.routes.pages.track_pageview", new_callable=AsyncMock) as mock_track:
+        response = client.request("HEAD", path)
+
+    assert response.status_code == 200
+    mock_track.assert_not_awaited()
+
+
+def test_stats_head_does_not_query_database():
+    """HEAD requests to stats should avoid expensive database queries."""
+    with patch(
+        "app.routes.pages.Database.get_stats_for_range", new_callable=AsyncMock
+    ) as mock_stats:
+        response = client.request("HEAD", "/stats")
+
+    assert response.status_code == 200
+    mock_stats.assert_not_awaited()
 
 
 def test_preview_redirect():

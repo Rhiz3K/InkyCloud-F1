@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.13] - 2026-03-17
+
 ### Frontend
 
 #### Added
@@ -18,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 - **B/W/R/Y renderer pipeline** - Added dedicated `bwry` calendar rendering, scheduler generation, track/flag preprocessing scripts, and calendar API support alongside existing `1bit`, `bwr`, and `spectra6` modes
+
+#### Fixed
+
+- **SEO: lightweight HTML HEAD responses** - Public HTML page routes now short-circuit `HEAD` requests before analytics or stats queries, preventing 405 responses in Search Console without adding crawler-only pageview noise or extra DB load
 
 ## [1.2.12] - 2026-03-16
 

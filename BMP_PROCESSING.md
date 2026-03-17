@@ -288,16 +288,18 @@ Relevant file:
 
 ### 7.3 `bwry`
 
-Current prepared palette in the preprocessing script:
+Current active palette:
 
 - black: `#000000`
 - white: `#FFFFFF`
-- red: `#A02020`
-- yellow: `#F0E050`
+- red: `#D91818`
+- yellow: `#F4D02A`
 
 Relevant file:
 
+- `app/services/bwry_renderer.py`
 - `scripts/preprocess_tracks_bwry.py`
+- `scripts/preprocess_flags_bwry.py`
 
 This can still be tuned later once more real hardware comparisons are available.
 

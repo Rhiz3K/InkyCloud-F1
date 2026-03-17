@@ -19,7 +19,7 @@ from app.web.templates import calc_percent, get_template_context, lang_url, temp
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-_HTML_ROUTE_METHODS = ["GET", "HEAD"]
+_HTML_ROUTE_METHODS = ("GET", "HEAD")
 
 _DISPLAY_TYPE_STYLES = {
     "1bit": {"display_label": "1-BIT", "bar_color": "#000000"},
@@ -57,6 +57,11 @@ def _enrich_display_type_stats(stats: dict) -> None:
         display_key = display_stat.get("display_type") or ""
         display_stat["display_label"] = mapping.get("display_label", display_key.upper())
         display_stat["bar_color"] = mapping.get("bar_color", "#111827")
+
+
+def _head_ok() -> HTMLResponse:
+    """Return a lightweight HTML response for HEAD requests."""
+    return HTMLResponse(content="", media_type="text/html")
 
 
 # ============================================================================
@@ -100,6 +105,8 @@ async def root(request: Request, lang: str = Query(default=None)):
         return RedirectResponse(url=f"/{lang}/", status_code=301)
     if lang is not None and lang not in VALID_LANGUAGES:
         return RedirectResponse(url="/", status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _home_handler(request, "en")
 
 
@@ -112,6 +119,8 @@ async def root_lang(request: Request, lang_prefix: str, lang: str = Query(defaul
         return RedirectResponse(url="/", status_code=301)
     if lang is not None:
         return RedirectResponse(url=f"/{lang_prefix}/", status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _home_handler(request, lang_prefix)
 
 
@@ -151,6 +160,8 @@ async def configure_screen(request: Request, screen_type: str, lang: str = Query
         return RedirectResponse(url=f"/{lang}/configure/{screen_type}", status_code=301)
     if lang is not None and lang not in VALID_LANGUAGES:
         return RedirectResponse(url=f"/configure/{screen_type}", status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _configure_handler(request, screen_type, "en")
 
 
@@ -169,6 +180,8 @@ async def configure_screen_lang(
         return RedirectResponse(url=f"/configure/{screen_type}", status_code=301)
     if lang is not None:
         return RedirectResponse(url=f"/{lang_prefix}/configure/{screen_type}", status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _configure_handler(request, screen_type, lang_prefix)
 
 
@@ -200,6 +213,8 @@ async def privacy(request: Request, lang: str = Query(default=None)):
         return RedirectResponse(url=f"/{lang}/privacy", status_code=301)
     if lang is not None and lang not in VALID_LANGUAGES:
         return RedirectResponse(url="/privacy", status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _privacy_handler(request, "en")
 
 
@@ -214,6 +229,8 @@ async def privacy_lang(request: Request, lang_prefix: str, lang: str = Query(def
         return RedirectResponse(url="/privacy", status_code=301)
     if lang is not None:
         return RedirectResponse(url=f"/{lang_prefix}/privacy", status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _privacy_handler(request, lang_prefix)
 
 
@@ -266,6 +283,8 @@ async def changelog(request: Request, lang: str = Query(default=None)):
         return RedirectResponse(url=f"/{lang}/changelog", status_code=301)
     if lang is not None and lang not in VALID_LANGUAGES:
         return RedirectResponse(url="/changelog", status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _changelog_handler(request, "en")
 
 
@@ -280,6 +299,8 @@ async def changelog_lang(request: Request, lang_prefix: str, lang: str = Query(d
         return RedirectResponse(url="/changelog", status_code=301)
     if lang is not None:
         return RedirectResponse(url=f"/{lang_prefix}/changelog", status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _changelog_handler(request, lang_prefix)
 
 
@@ -313,6 +334,8 @@ async def api_docs_html(request: Request, lang: str = Query(default=None)):
         return RedirectResponse(url=f"/{lang}/api/docs/html", status_code=301)
     if lang is not None and lang not in VALID_LANGUAGES:
         return RedirectResponse(url="/api/docs/html", status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _api_docs_handler(request, "en")
 
 
@@ -329,6 +352,8 @@ async def api_docs_html_lang(request: Request, lang_prefix: str, lang: str = Que
         return RedirectResponse(url="/api/docs/html", status_code=301)
     if lang is not None:
         return RedirectResponse(url=f"/{lang_prefix}/api/docs/html", status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _api_docs_handler(request, lang_prefix)
 
 
@@ -400,6 +425,8 @@ async def stats_dashboard(
         if time_range != "24h":
             redirect_url += f"?range={time_range}"
         return RedirectResponse(url=redirect_url, status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _stats_handler(request, time_range, "en")
 
 
@@ -423,4 +450,6 @@ async def stats_dashboard_lang(
         if time_range != "24h":
             redirect_url += f"?range={time_range}"
         return RedirectResponse(url=redirect_url, status_code=301)
+    if request.method == "HEAD":
+        return _head_ok()
     return await _stats_handler(request, time_range, lang_prefix)

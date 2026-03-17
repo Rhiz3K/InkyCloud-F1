@@ -53,7 +53,8 @@ class TestApiCallsBuffer:
         assert calls[0]["response_size_bytes"] == 1024
 
     @staticmethod
-    def test_record_api_call_full():
+    @pytest.mark.parametrize("display_type", ["bwr", "bwry"])
+    def test_record_api_call_full(display_type: str):
         record_api_call(
             "/calendar.bmp",
             150.5,
@@ -64,7 +65,7 @@ class TestApiCallsBuffer:
             round_num=5,
             race_name="Monaco Grand Prix",
             is_auto_selected=True,
-            display_type="bwry",
+            display_type=display_type,
         )
 
         calls = get_and_clear_api_calls_buffer()
@@ -76,7 +77,7 @@ class TestApiCallsBuffer:
         assert call["round"] == 5
         assert call["race_name"] == "Monaco Grand Prix"
         assert call["is_auto_selected"] == 1
-        assert call["display_type"] == "bwry"
+        assert call["display_type"] == display_type
 
     @staticmethod
     def test_record_api_call_is_auto_selected_false():
