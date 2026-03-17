@@ -12,8 +12,8 @@ from apscheduler.triggers.cron import CronTrigger
 from PIL import Image
 
 from app.config import config
-from app.services.bwry_renderer import BwryRenderer
 from app.services.bwr_renderer import BwrRenderer
+from app.services.bwry_renderer import BwryRenderer
 from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
@@ -71,7 +71,8 @@ def _bmp_to_png(
         bmp_data: Raw BMP image data.
         width: Target width (height scales proportionally).
         full_size: If True, skip resizing.
-        preserve_color: If True, keep RGB colors (for spectra6/bwr/bwry). Otherwise convert to grayscale.
+        preserve_color: If True, keep RGB colors (for spectra6/bwr/bwry).
+            Otherwise convert to grayscale.
 
     Returns:
         PNG image data as bytes.

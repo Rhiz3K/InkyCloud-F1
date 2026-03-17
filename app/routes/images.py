@@ -15,8 +15,8 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from app.config import VALID_LANGUAGES, config
 from app.services.analytics import track_event, track_pageview
-from app.services.bwry_renderer import BwryRenderer
 from app.services.bwr_renderer import BwrRenderer
+from app.services.bwry_renderer import BwryRenderer
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from app.services.bwr_renderer import BwrRenderer, FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR
+from app.services.bwr_renderer import FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR, BwrRenderer
 from app.services.spectra6_renderer import CIRCUIT_ID_MAP, COUNTRY_MAP, TRACKS_DIR, logger
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwry_palette

@@ -18,12 +18,12 @@ from app.models import (
     TeamEntry,
     TeamsData,
 )
-from app.services import bwry_renderer as bwry_renderer_module
 from app.services import bwr_renderer as bwr_renderer_module
+from app.services import bwry_renderer as bwry_renderer_module
 from app.services import renderer as renderer_module
 from app.services import spectra6_renderer as spectra6_renderer_module
-from app.services.bwry_renderer import BwryColors, BwryRenderer
 from app.services.bwr_renderer import BwrColors, BwrRenderer
+from app.services.bwry_renderer import BwryColors, BwryRenderer
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
