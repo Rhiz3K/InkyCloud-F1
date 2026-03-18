@@ -682,6 +682,34 @@ def test_configure_teams_no_timezone_selector():
     assert "Season Leaders" in html
 
 
+def test_configure_teams_urls_do_not_include_timezone_params():
+    """Teams configure JS should not add timezone to API or preview URLs."""
+    response = client.get("/configure/teams")
+    html = response.text
+
+    api_url_block = html.split("function getApiUrl() {", 1)[1].split(
+        "function sortRacesWithCancelledLast", 1
+    )[0]
+    teams_api_branch = api_url_block.split("} else {", 1)[1]
+    assert "`${window.location.origin}/teams.bmp`" in teams_api_branch
+    assert "params.push(`year=${selectedTeamsYear}`)" in teams_api_branch
+    assert "params.push(`lang=${currentUiLang}`)" in teams_api_branch
+    assert "params.push(`tz=" not in teams_api_branch
+
+    preview_url_block = html.split("function getPreviewUrl() {", 1)[1].split(
+        "async function loadRaces()", 1
+    )[0]
+    teams_preview_branch = preview_url_block.split(
+        '} else if (canUsePrerenderedPreview() && currentScreenType === "teams") {', 1
+    )[1].split("return getApiUrl();", 1)[0]
+    assert (
+        "`${window.location.origin}/preview/configure/${currentScreenType}.png`"
+        in teams_preview_branch
+    )
+    assert "?lang=${currentUiLang}" in teams_preview_branch
+    assert "tz=" not in teams_preview_branch
+
+
 def test_configure_sidebar_mobile_nav_links():
     """Test configure page sidebar has navigation links for mobile."""
     response = client.get("/configure/calendar?lang=en")
