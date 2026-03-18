@@ -500,15 +500,21 @@ def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
     language_card = soup.find(attrs={"data-testid": "stats-card-languages"})
     assert language_card is not None
     language_fill_bars = language_card.find_all(attrs={"data-testid": "stats-fill-bar"})
+    language_summaries = language_card.find_all(attrs={"data-testid": "stats-row-summary"})
     assert len(language_fill_bars) == 2
+    assert len(language_summaries) == 2
     language_bar_classes = [cast(list[str], bar.get("class") or []) for bar in language_fill_bars]
     assert "bg-racing-red" in language_bar_classes[0]
     assert "bg-white" in language_bar_classes[1]
+    assert "7 req" in language_summaries[0].get_text(" ", strip=True)
+    assert "70.0%" in language_summaries[0].get_text(" ", strip=True)
 
     display_card = soup.find(attrs={"data-testid": "stats-card-display"})
     assert display_card is not None
     display_fill_bars = display_card.find_all(attrs={"data-testid": "stats-fill-bar"})
+    display_summaries = display_card.find_all(attrs={"data-testid": "stats-row-summary"})
     assert len(display_fill_bars) == 4
+    assert len(display_summaries) == 4
     display_bar_classes = [cast(list[str], bar.get("class") or []) for bar in display_fill_bars]
     assert "bg-racing-red" in display_bar_classes[0]
     assert "bg-black" in display_bar_classes[1]
@@ -550,6 +556,7 @@ def test_stats_dashboard_localizes_range_and_fallback_labels():
     assert "Žádná data" in html
     assert "Neznámé" in html
     assert "výchozí" in html
+    assert "3 pož." in html
 
 
 def test_api_stats_endpoint_returns_correct_structure():

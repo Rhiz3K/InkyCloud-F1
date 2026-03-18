@@ -111,6 +111,7 @@
   "stats_unknown": "Unknown",
   "stats_default_value": "default",
   "stats_auto_label": "auto",
+  "stats_requests_short": "req",
   "stats_scope_all_requests": "Share of all requests",
   "stats_scope_known_languages": "Share of requests with known language",
   "stats_scope_calendar_requests": "Share of calendar requests",

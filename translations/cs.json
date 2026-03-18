@@ -111,6 +111,7 @@
   "stats_unknown": "Neznámé",
   "stats_default_value": "výchozí",
   "stats_auto_label": "auto",
+  "stats_requests_short": "pož.",
   "stats_scope_all_requests": "Podíl ze všech požadavků",
   "stats_scope_known_languages": "Podíl požadavků se známým jazykem",
   "stats_scope_calendar_requests": "Podíl požadavků na calendar.bmp",
