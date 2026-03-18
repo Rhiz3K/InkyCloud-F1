@@ -144,6 +144,7 @@ block content %}
       </a>
     </div>
 
+    {% if screen_type == 'calendar' %}
     <!-- Timezone - Mobile -->
     <div class="lg:hidden p-4 border-b-2 border-black" id="mobileTzContainer">
       <label class="block text-xs font-bold uppercase mb-2" id="tzLabelMobile"
@@ -333,6 +334,7 @@ block content %}
       </div>
     </div>
     <input type="hidden" id="tz" value="" />
+    {% endif %}
 
     <!-- Weather - Mobile -->
     <div
@@ -420,7 +422,7 @@ block content %}
 
     <!-- Mobile Race Selector (Calendar only) -->
     <div
-      class="lg:hidden p-4 border-t-2 border-black bg-gray-50"
+      class="lg:hidden p-4 border-t-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
       id="mobileRaceContainer"
     >
       <label class="block text-xs font-bold uppercase mb-2" id="raceLabel"
@@ -437,7 +439,7 @@ block content %}
 
     <!-- Mobile Year Selector (Teams only) -->
     <div
-      class="lg:hidden p-4 border-t-2 border-black bg-gray-50 hidden"
+      class="lg:hidden p-4 border-t-2 border-black bg-gray-50 {% if screen_type != 'teams' %}hidden{% endif %}"
       id="mobileYearContainer"
     >
       <label class="block text-xs font-bold uppercase mb-2" id="yearLabelMobile"
@@ -846,7 +848,7 @@ block content %}
                 d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
               ></path>
             </svg>
-            <span id="rankingsTitle">Teams & Drivers Rankings</span>
+            <span id="rankingsTitle">{{ t.get('season_leaders', 'Season Leaders') }}</span>
           </h2>
         </div>
 
@@ -934,6 +936,7 @@ block content %}
       epaperStep2:
         '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Copy the URL above into the image URL field</span>',
       currentRankings: "Current Rankings",
+      seasonLeaders: "Season Leaders",
       currentSeason: "Current",
       leaderTeam: "Team",
       leaderDriver: "Driver",
@@ -969,6 +972,7 @@ block content %}
       epaperStep2:
         '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Vložte URL výše do pole pro URL obrázku</span>',
       currentRankings: "Aktuální pořadí",
+      seasonLeaders: "Lídři sezóny",
       currentSeason: "Aktuální",
       leaderTeam: "Tým",
       leaderDriver: "Jezdec",
@@ -1193,11 +1197,16 @@ block content %}
   function setUiLanguage(lang) {
     currentUiLang = lang;
     const t = translations[lang] || translations.en;
-    document.getElementById("tzLabel").textContent = t.tzLabel;
+    const tzLabel = document.getElementById("tzLabel");
+    if (tzLabel) tzLabel.textContent = t.tzLabel;
+    const tzLabelMobile = document.getElementById("tzLabelMobile");
+    if (tzLabelMobile) tzLabelMobile.textContent = t.tzLabel;
     const raceLabel = document.getElementById("raceLabel");
     if (raceLabel) raceLabel.textContent = t.raceLabel;
     const yearLabelMobile = document.getElementById("yearLabelMobile");
     if (yearLabelMobile) yearLabelMobile.textContent = t.yearLabel;
+    const rankingsTitle = document.getElementById("rankingsTitle");
+    if (rankingsTitle) rankingsTitle.textContent = t.seasonLeaders;
     const settingsBtnText = document.getElementById("settingsBtnText");
     if (settingsBtnText) settingsBtnText.textContent = t.settingsBtn;
     document.getElementById("einkBadge").textContent = t.einkBadge;

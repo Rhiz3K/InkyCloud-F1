@@ -1,10 +1,10 @@
 """Test main FastAPI application endpoints."""
 
-import re
 from typing import cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -490,28 +490,66 @@ def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
             "app.routes.pages.Database.get_perf_stats",
             new=AsyncMock(return_value={"sample_count": 0}),
         ),
-        patch("app.routes.pages.Database.get_perf_stats_by_page", new=AsyncMock(return_value=[])),
-        patch("app.routes.pages.Database.get_perf_trends", new=AsyncMock(return_value=[])),
         patch("app.routes.pages.track_pageview", new=AsyncMock()),
     ):
         response = client.get("/stats")
 
     assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    language_card = soup.find(attrs={"data-testid": "stats-card-languages"})
+    assert language_card is not None
+    language_fill_bars = language_card.find_all(attrs={"data-testid": "stats-fill-bar"})
+    assert len(language_fill_bars) == 2
+    language_bar_classes = [cast(list[str], bar.get("class") or []) for bar in language_fill_bars]
+    assert "bg-racing-red" in language_bar_classes[0]
+    assert "bg-white" in language_bar_classes[1]
+
+    display_card = soup.find(attrs={"data-testid": "stats-card-display"})
+    assert display_card is not None
+    display_fill_bars = display_card.find_all(attrs={"data-testid": "stats-fill-bar"})
+    assert len(display_fill_bars) == 4
+    display_bar_classes = [cast(list[str], bar.get("class") or []) for bar in display_fill_bars]
+    assert "bg-racing-red" in display_bar_classes[0]
+    assert "bg-black" in display_bar_classes[1]
+    assert "bg-black" in display_bar_classes[2]
+    assert "bg-white" in display_bar_classes[3]
+    assert all("background-color:" not in (bar.get("style") or "") for bar in display_fill_bars)
+
+
+def test_stats_dashboard_localizes_range_and_fallback_labels():
+    """Stats page uses localized range labels and fallback strings."""
+    mock_stats = {
+        "total_requests": 3,
+        "avg_response_ms": 120,
+        "min_response_ms": 20,
+        "max_response_ms": 400,
+        "total_bytes": 4096,
+        "endpoints": [],
+        "languages": [],
+        "display_types": [],
+        "races": [{"race_name": None, "count": 3, "is_auto_selected": 1}],
+        "timezones": [{"tz": None, "count": 3}],
+    }
+
+    with (
+        patch(
+            "app.routes.pages.Database.get_stats_for_range", new=AsyncMock(return_value=mock_stats)
+        ),
+        patch(
+            "app.routes.pages.Database.get_perf_stats",
+            new=AsyncMock(return_value={"sample_count": 0}),
+        ),
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        response = client.get("/cs/stats")
+
+    assert response.status_code == 200
     html = response.text
-
-    language_section = re.search(r"By Language.*?By Display", html, re.S)
-    assert language_section is not None
-    assert "bg-racing-red" in language_section.group(0)
-    assert "bg-white" in language_section.group(0)
-
-    assert "stats-card-display" in html
-
-    display_section = re.search(r"stats-card-display.*?Races - Full Width", html, re.S)
-    assert display_section is not None
-    assert "bg-racing-red" in display_section.group(0)
-    assert "bg-black" in display_section.group(0)
-    assert "bg-white" in display_section.group(0)
-    assert "background-color:" not in display_section.group(0)
+    assert "Posledních 24 hodin" in html
+    assert "Žádná data" in html
+    assert "Neznámé" in html
+    assert "výchozí" in html
 
 
 def test_api_stats_endpoint_returns_correct_structure():
@@ -632,11 +670,16 @@ def test_configure_teams_mobile_year_selector():
 
 
 def test_configure_teams_no_timezone_selector():
-    """Test configure teams page hides timezone selector."""
+    """Test configure teams page omits timezone controls entirely."""
     response = client.get("/configure/teams")
     html = response.text
-    assert 'id="mobileTzContainer"' in html
-    assert 'id="mobileRaceContainer"' in html
+    assert 'id="mobileTzContainer"' not in html
+    assert 'id="desktopTzContainer"' not in html
+    assert 'id="tzSelectMobile"' not in html
+    assert 'id="tzSearch"' not in html
+    assert 'id="tz"' not in html
+    assert 'id="mobileYearContainer"' in html
+    assert "Season Leaders" in html
 
 
 def test_configure_sidebar_mobile_nav_links():
