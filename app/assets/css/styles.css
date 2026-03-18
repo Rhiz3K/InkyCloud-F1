@@ -170,3 +170,9 @@ button.control-btn:active {
     max-width: 800px;
     width: 100%;
 }
+
+@media (min-width: 768px) {
+    .stats-card-display {
+        grid-column: 1 / -1;
+    }
+}

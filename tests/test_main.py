@@ -1,5 +1,6 @@
 """Test main FastAPI application endpoints."""
 
+import re
 from typing import cast
 from unittest.mock import AsyncMock, patch
 
@@ -444,6 +445,73 @@ def test_stats_dashboard_lang_parameter():
     response_cs = client.get("/stats?lang=cs")
     assert response_cs.status_code == 200
     assert "Statistiky" in response_cs.text
+
+
+def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
+    """Stats breakdown bars use a consistent rank-based color order."""
+    mock_stats = {
+        "total_requests": 10,
+        "avg_response_ms": 120,
+        "min_response_ms": 20,
+        "max_response_ms": 400,
+        "total_bytes": 4096,
+        "endpoints": [
+            {"endpoint": "/calendar.bmp", "count": 7},
+            {"endpoint": "/teams.bmp", "count": 2},
+            {"endpoint": "/health", "count": 1},
+        ],
+        "languages": [
+            {"lang": "cs", "count": 7},
+            {"lang": "en", "count": 3},
+        ],
+        "display_types": [
+            {"display_type": "1bit", "count": 5},
+            {"display_type": "spectra6", "count": 3},
+            {"display_type": "bwr", "count": 2},
+            {"display_type": "bwry", "count": 1},
+        ],
+        "races": [
+            {"race_name": "Japanese Grand Prix", "count": 7, "is_auto_selected": 1},
+            {"race_name": "Chinese Grand Prix", "count": 2, "is_auto_selected": 0},
+            {"race_name": "Miami Grand Prix", "count": 1, "is_auto_selected": 0},
+        ],
+        "timezones": [
+            {"tz": "Europe/Prague", "count": 6},
+            {"tz": "UTC", "count": 3},
+            {"tz": "America/New_York", "count": 1},
+        ],
+    }
+
+    with (
+        patch(
+            "app.routes.pages.Database.get_stats_for_range", new=AsyncMock(return_value=mock_stats)
+        ),
+        patch(
+            "app.routes.pages.Database.get_perf_stats",
+            new=AsyncMock(return_value={"sample_count": 0}),
+        ),
+        patch("app.routes.pages.Database.get_perf_stats_by_page", new=AsyncMock(return_value=[])),
+        patch("app.routes.pages.Database.get_perf_trends", new=AsyncMock(return_value=[])),
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        response = client.get("/stats")
+
+    assert response.status_code == 200
+    html = response.text
+
+    language_section = re.search(r"By Language.*?By Display", html, re.S)
+    assert language_section is not None
+    assert "bg-racing-red" in language_section.group(0)
+    assert "bg-white" in language_section.group(0)
+
+    assert "stats-card-display" in html
+
+    display_section = re.search(r"stats-card-display.*?Races - Full Width", html, re.S)
+    assert display_section is not None
+    assert "bg-racing-red" in display_section.group(0)
+    assert "bg-black" in display_section.group(0)
+    assert "bg-white" in display_section.group(0)
+    assert "background-color:" not in display_section.group(0)
 
 
 def test_api_stats_endpoint_returns_correct_structure():

@@ -33,6 +33,11 @@
   content="{{ site_url }}/static/images/og-preview.png"
 />
 {% endblock %} {% block body_class %} font-mono{% endblock %} {% block content
+%} {% macro ranked_bar_class(index0, total_items) -%} {%- if total_items <= 1
+-%}bg-racing-red{%- elif total_items == 2 -%} {%- if index0 == 0
+-%}bg-racing-red{%- else -%}bg-white{%- endif -%} {%- else -%} {%- if
+index0 == 0 -%}bg-racing-red{%- elif index0 == total_items - 1
+-%}bg-white{%- else -%}bg-black{%- endif -%} {%- endif -%} {%- endmacro
 %}
 <main class="w-full max-w-6xl mx-auto px-4 py-8 box-border">
   <!-- Title and Range Selector -->
@@ -336,7 +341,7 @@
   </div>
 
   <!-- Breakdowns -->
-  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-8">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
     <!-- Endpoints -->
     <div class="border-2 border-black bg-white p-6 shadow-neo">
       <h2
@@ -344,19 +349,21 @@
       >
         {{ t.get("stats_by_endpoint", "By Endpoint") }}
       </h2>
-      {% if stats.endpoints %} {% for ep in stats.endpoints[:5] %}
+      {% if stats.endpoints %} {% set endpoint_items = stats.endpoints[:5] %} {% set
+      endpoint_item_count = endpoint_items | length %} {% for ep in endpoint_items
+      %} {% set endpoint_pct = calc_percent(ep.count, stats.total_requests) %}
       <div class="flex items-center gap-2 mb-2">
         <span class="w-32 text-xs font-mono truncate" title="{{ ep.endpoint }}"
           >{{ ep.endpoint }}</span
         >
         <div class="flex-1 h-5 bg-gray-200 border border-black">
           <div
-            class="h-full bg-racing-red"
-            style="width: {{ calc_percent(ep.count, stats.total_requests) }}%"
+            class="h-full {{ ranked_bar_class(loop.index0, endpoint_item_count) }}"
+            style="width: {% if ep.count > 0 %}max(2px, {{ endpoint_pct }}%){% else %}0{% endif %}"
           ></div>
         </div>
         <span class="w-16 text-right font-mono text-xs"
-          >{{ calc_percent(ep.count, stats.total_requests) }}%</span
+          >{{ endpoint_pct }}%</span
         >
       </div>
       {% endfor %} {% else %}
@@ -372,18 +379,20 @@
         {{ t.get("stats_by_language", "By Language") }}
       </h2>
       {% if stats.languages %} {% set lang_total = stats.languages |
-      sum(attribute='count') %} {% for lang_stat in stats.languages %} {% set
-      lang_code = (lang_stat.lang | upper) if lang_stat.lang else "?" %}
+      sum(attribute='count') %} {% set language_item_count = stats.languages | length
+      %} {% for lang_stat in stats.languages %} {% set lang_code = (lang_stat.lang |
+      upper) if lang_stat.lang else "?" %} {% set lang_pct = calc_percent(lang_stat.count,
+      lang_total) %}
       <div class="flex items-center gap-2 mb-2">
         <span class="w-8 font-bold text-sm">{{ lang_code }}</span>
         <div class="flex-1 h-5 bg-gray-200 border border-black">
           <div
-            class="h-full {% if lang_code == 'EN' %}bg-racing-red{% else %}bg-black{% endif %}"
-            style="width: {{ calc_percent(lang_stat.count, lang_total) }}%"
+            class="h-full {{ ranked_bar_class(loop.index0, language_item_count) }}"
+            style="width: {% if lang_stat.count > 0 %}max(2px, {{ lang_pct }}%){% else %}0{% endif %}"
           ></div>
         </div>
         <span class="w-16 text-right font-mono text-xs"
-          >{{ calc_percent(lang_stat.count, lang_total) }}%</span
+          >{{ lang_pct }}%</span
         >
       </div>
       {% endfor %} {% else %}
@@ -392,26 +401,28 @@
     </div>
 
     <!-- Display Types -->
-    <div class="border-2 border-black bg-white p-6 shadow-neo">
+    <div class="border-2 border-black bg-white p-6 shadow-neo stats-card-display">
       <h2
         class="font-bold uppercase tracking-wider mb-4 border-b-2 border-black pb-2"
       >
         {{ t.get("stats_by_display", "By Display") }}
       </h2>
       {% if stats.display_types %} {% set display_total = stats.display_types |
-      sum(attribute='count') %} {% for display_stat in stats.display_types %}
+      sum(attribute='count') %} {% set display_item_count = stats.display_types |
+      length %} {% for display_stat in stats.display_types %} {% set display_pct =
+      calc_percent(display_stat.count, display_total) %}
       <div class="flex items-center gap-2 mb-2">
         <span class="w-24 text-xs font-bold uppercase"
           >{{ display_stat.display_label }}</span
         >
         <div class="flex-1 h-5 bg-gray-200 border border-black">
           <div
-            class="h-full"
-            style="width: {{ calc_percent(display_stat.count, display_total) }}%; background-color: {{ display_stat.bar_color }}"
+            class="h-full {{ ranked_bar_class(loop.index0, display_item_count) }}"
+            style="width: {% if display_stat.count > 0 %}max(2px, {{ display_pct }}%){% else %}0{% endif %}"
           ></div>
         </div>
         <span class="w-16 text-right font-mono text-xs"
-          >{{ calc_percent(display_stat.count, display_total) }}%</span
+          >{{ display_pct }}%</span
         >
       </div>
       {% endfor %} {% else %}
@@ -429,7 +440,8 @@
     </h2>
     <div class="flex flex-col gap-2">
       {% if stats.races %} {% set race_total = stats.races |
-      sum(attribute='count') %} {% for race_stat in stats.races[:5] %} {% set
+      sum(attribute='count') %} {% set race_items = stats.races[:5] %} {% set
+      race_item_count = race_items | length %} {% for race_stat in race_items %} {% set
       display_name = race_stat.race_name if race_stat.race_name else "Unknown"
       %} {% set is_auto = race_stat.is_auto_selected %}
       <div class="flex items-center gap-2 mb-2">
@@ -440,14 +452,15 @@
           {% if is_auto %}<span class="text-racing-red">⚡</span>{% endif %} {{
           display_name }}
         </span>
+        {% set race_pct = calc_percent(race_stat.count, race_total) %}
         <div class="flex-1 h-5 bg-gray-200 border border-black">
           <div
-            class="h-full {% if loop.first %}bg-racing-red{% else %}bg-black{% endif %}"
-            style="width: {{ calc_percent(race_stat.count, race_total) }}%"
+            class="h-full {{ ranked_bar_class(loop.index0, race_item_count) }}"
+            style="width: {% if race_stat.count > 0 %}max(2px, {{ race_pct }}%){% else %}0{% endif %}"
           ></div>
         </div>
         <span class="w-12 text-right font-mono text-xs"
-          >{{ calc_percent(race_stat.count, race_total) }}%</span
+          >{{ race_pct }}%</span
         >
       </div>
       {% endfor %} {% else %}
@@ -465,20 +478,22 @@
     </h2>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       {% if stats.timezones %} {% set tz_total = stats.timezones |
-      sum(attribute='count') %} {% for tz_stat in stats.timezones[:5] %} {% set
-      tz_name = tz_stat.tz if tz_stat.tz else "default" %}
+      sum(attribute='count') %} {% set timezone_items = stats.timezones[:5] %} {% set
+      timezone_item_count = timezone_items | length %} {% for tz_stat in timezone_items
+      %} {% set tz_name = tz_stat.tz if tz_stat.tz else "default" %} {% set tz_pct =
+      calc_percent(tz_stat.count, tz_total) %}
       <div class="flex items-center gap-2 mb-2">
         <span class="w-36 text-xs font-mono truncate" title="{{ tz_name }}"
           >{{ tz_name }}</span
         >
         <div class="flex-1 h-5 bg-gray-200 border border-black">
           <div
-            class="h-full {% if loop.first %}bg-racing-red{% else %}bg-black{% endif %}"
-            style="width: {{ calc_percent(tz_stat.count, tz_total) }}%"
+            class="h-full {{ ranked_bar_class(loop.index0, timezone_item_count) }}"
+            style="width: {% if tz_stat.count > 0 %}max(2px, {{ tz_pct }}%){% else %}0{% endif %}"
           ></div>
         </div>
         <span class="w-12 text-right font-mono text-xs"
-          >{{ calc_percent(tz_stat.count, tz_total) }}%</span
+          >{{ tz_pct }}%</span
         >
       </div>
       {% endfor %} {% else %}
