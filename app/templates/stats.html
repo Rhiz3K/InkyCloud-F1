@@ -442,14 +442,16 @@ index0 == 0 -%}bg-racing-red{%- elif index0 == total_items - 1
       sum(attribute='count') %} {% set race_items = stats.races[:5] %} {% set
       race_item_count = race_items | length %} {% for race_stat in race_items %} {% set
       display_name = race_stat.race_name if race_stat.race_name else t.get("stats_unknown", "Unknown")
+      %} {% set display_name_short = display_name.replace(" Grand Prix", " GP").replace("Grand Prix", "GP")
       %} {% set is_auto = race_stat.is_auto_selected %}
       <div class="flex items-center gap-3 mb-2">
         <span
-          class="w-56 flex-shrink-0 text-xs font-mono flex items-center gap-1"
+          class="w-32 sm:w-56 flex-shrink-0 text-xs font-mono flex items-center gap-1 truncate"
           title="{{ display_name }}{% if is_auto %} ({{ t.get('stats_auto_label', 'auto') }}){% endif %}"
         >
-          {% if is_auto %}<span class="text-racing-red">⚡</span>{% endif %} {{
-          display_name }}
+          {% if is_auto %}<span class="text-racing-red flex-shrink-0">⚡</span>{% endif %}
+          <span class="truncate sm:hidden">{{ display_name_short }}</span>
+          <span class="hidden truncate sm:inline">{{ display_name }}</span>
         </span>
         {% set race_pct = calc_percent(race_stat.count, race_total) %}
         {{ breakdown_fill(race_pct, loop.index0, race_item_count) }}

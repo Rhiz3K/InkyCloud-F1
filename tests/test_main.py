@@ -520,6 +520,7 @@ def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
     assert "bg-black" in display_bar_classes[2]
     assert "bg-white" in display_bar_classes[3]
     assert all("background-color:" not in (bar.get("style") or "") for bar in display_fill_bars)
+    assert "Japanese GP" in response.text
 
 
 def test_stats_dashboard_localizes_range_and_fallback_labels():
@@ -697,6 +698,30 @@ def test_configure_calendar_omits_teams_specific_controls():
     assert 'id="teamsSeasonButtons"' not in html
     assert 'id="rightPanelTeams"' not in html
     assert 'id="rightPanelCalendar"' in html
+
+
+def test_configure_calendar_display_menu_is_compact_and_reordered():
+    """Calendar configure menu uses compact display labels and expected ordering."""
+    response = client.get("/configure/calendar")
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    assert 'overflow-y-auto' in response.text
+
+    desktop_buttons = [
+        soup.find(id="display1bitBtn"),
+        soup.find(id="displayBwrBtn"),
+        soup.find(id="displayBwryBtn"),
+        soup.find(id="displaySpectra6Btn"),
+    ]
+    mobile_buttons = [
+        soup.find(id="display1bitBtnMobile"),
+        soup.find(id="displayBwrBtnMobile"),
+        soup.find(id="displayBwryBtnMobile"),
+        soup.find(id="displaySpectra6BtnMobile"),
+    ]
+
+    assert [btn.get_text(" ", strip=True) for btn in desktop_buttons] == ["B/W", "B/W/R", "B/W/R/Y", "6C"]
+    assert [btn.get_text(" ", strip=True) for btn in mobile_buttons] == ["B/W", "B/W/R", "B/W/R/Y", "6C"]
 
 
 def test_configure_teams_urls_do_not_include_timezone_params():
