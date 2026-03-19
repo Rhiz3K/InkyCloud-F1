@@ -687,6 +687,17 @@ def test_configure_teams_no_timezone_selector():
     assert 'id="tz"' not in html
     assert 'id="mobileYearContainer"' in html
     assert "Season Leaders" in html
+    assert 'id="rightPanelCalendar"' not in html
+
+
+def test_configure_calendar_omits_teams_specific_controls():
+    """Calendar configure page renders only calendar-specific partials."""
+    response = client.get("/configure/calendar")
+    html = response.text
+    assert 'id="mobileYearContainer"' not in html
+    assert 'id="teamsSeasonButtons"' not in html
+    assert 'id="rightPanelTeams"' not in html
+    assert 'id="rightPanelCalendar"' in html
 
 
 def test_configure_teams_urls_do_not_include_timezone_params():

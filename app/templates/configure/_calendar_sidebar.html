@@ -1,0 +1,267 @@
+<!-- Timezone - Mobile -->
+<div class="lg:hidden p-4 border-b-2 border-black" id="mobileTzContainer">
+  <label class="block text-xs font-bold uppercase mb-2" id="tzLabelMobile"
+    >Timezone</label
+  >
+  <select
+    id="tzSelectMobile"
+    onchange="selectTimezoneMobile()"
+    class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm"
+  ></select>
+</div>
+
+<!-- Timezone - Desktop (hidden on mobile via 'hidden', shown on lg+ via 'lg:flex') -->
+<div id="desktopTzContainer" class="hidden lg:flex flex-1 flex-col min-h-0">
+  <div
+    class="px-3 py-2 border-b-2 border-black bg-gray-50 flex-shrink-0 flex items-center justify-between gap-2"
+  >
+    <label class="text-xs font-bold uppercase" id="tzLabel">Timezone</label>
+    <input
+      type="text"
+      id="tzSearch"
+      placeholder="SEARCH..."
+      class="flex-1 min-w-0 px-2 py-1 text-xs bg-white border-2 border-black focus:outline-none focus:bg-racing-red focus:text-white placeholder-gray-400"
+      oninput="onTzSearch()"
+    />
+  </div>
+  <div
+    class="px-2 py-1.5 border-b-2 border-black bg-white flex-shrink-0 flex flex-wrap items-center gap-1"
+    id="tzContinents"
+  >
+    <button
+      onclick="filterTzContinent('ALL')"
+      class="tz-filter-btn active whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      ALL
+    </button>
+    <button
+      onclick="filterTzContinent('DETECTED')"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      DETECTED
+    </button>
+    <button
+      onclick="filterTzContinent('EUROPE')"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      EUROPE
+    </button>
+    <button
+      onclick="filterTzContinent('AMERICA')"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      AMERICA
+    </button>
+    <button
+      onclick="filterTzContinent('ASIA')"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      ASIA
+    </button>
+    <button
+      onclick="filterTzContinent('AFRICA')"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      AFRICA
+    </button>
+    <button
+      onclick="filterTzContinent('OCEANIA')"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      OCEANIA
+    </button>
+    <button
+      onclick="filterTzContinent('OTHER')"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      OTHER
+    </button>
+  </div>
+  <div id="tzList" class="flex-1 overflow-y-auto text-xs p-2 space-y-0.5"></div>
+
+  <div class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50" id="weatherContainer">
+    <label class="text-xs font-bold uppercase mb-1.5 block" id="weatherLabel"
+      >Weather</label
+    >
+    <input
+      type="checkbox"
+      id="weatherToggle"
+      checked
+      onchange="
+        updateWeatherTypeAvailability();
+        updatePreview();
+      "
+      class="hidden"
+    />
+    <div class="flex gap-1" id="weatherTypeContainer">
+      <button
+        type="button"
+        onclick="setWeatherType('off')"
+        id="weatherOffBtn"
+        class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+      >
+        OFF
+      </button>
+      <button
+        type="button"
+        onclick="setWeatherType('current')"
+        id="weatherCurrentBtn"
+        class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+      >
+        <span id="weatherCurrentLabel">Current</span>
+      </button>
+      <button
+        type="button"
+        onclick="setWeatherType('race_day')"
+        id="weatherRaceDayBtn"
+        class="weather-type-btn group relative flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
+      >
+        <span id="weatherRaceDayText">Race day</span>
+        <span
+          id="weatherRaceDayTooltip"
+          class="invisible group-hover:visible group-disabled:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap z-50 border-2 border-white"
+        >
+          <span id="weatherTooltipText">Activates 14 days before race</span>
+        </span>
+      </button>
+    </div>
+    <input type="radio" name="weatherType" value="current" class="hidden" />
+    <input
+      type="radio"
+      name="weatherType"
+      value="race_day"
+      checked
+      class="hidden"
+      id="weatherRaceDayRadio"
+    />
+  </div>
+
+  <div class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50" id="displayContainer">
+    <label class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
+      >Display</label
+    >
+    <div class="flex gap-1" id="displayTypeContainer">
+      <button
+        type="button"
+        onclick="setDisplayType('1bit')"
+        id="display1bitBtn"
+        class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-black text-white"
+      >
+        1-BIT
+      </button>
+      <button
+        type="button"
+        onclick="setDisplayType('spectra6')"
+        id="displaySpectra6Btn"
+        class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+      >
+        SPECTRA 6
+      </button>
+      <button
+        type="button"
+        onclick="setDisplayType('bwr')"
+        id="displayBwrBtn"
+        class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+      >
+        B/W/R
+      </button>
+      <button
+        type="button"
+        onclick="setDisplayType('bwry')"
+        id="displayBwryBtn"
+        class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+      >
+        B/W/R/Y
+      </button>
+    </div>
+  </div>
+</div>
+<input type="hidden" id="tz" value="" />
+
+<!-- Weather - Mobile -->
+<div class="lg:hidden p-4 border-b-2 border-black bg-gray-50" id="mobileWeatherContainer">
+  <label class="block text-xs font-bold uppercase mb-2" id="weatherLabelMobile"
+    >Weather</label
+  >
+  <div class="flex gap-1">
+    <button
+      type="button"
+      onclick="setWeatherType('off')"
+      id="weatherOffBtnMobile"
+      class="weather-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
+    >
+      OFF
+    </button>
+    <button
+      type="button"
+      onclick="setWeatherType('current')"
+      id="weatherCurrentBtnMobile"
+      class="weather-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
+    >
+      Current
+    </button>
+    <button
+      type="button"
+      onclick="setWeatherType('race_day')"
+      id="weatherRaceDayBtnMobile"
+      class="weather-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-racing-red text-white"
+    >
+      Race day
+    </button>
+  </div>
+</div>
+
+<!-- Display Type - Mobile -->
+<div class="lg:hidden p-4 border-b-2 border-black bg-gray-50" id="mobileDisplayContainer">
+  <label class="block text-xs font-bold uppercase mb-2" id="displayLabelMobile"
+    >Display</label
+  >
+  <div class="flex gap-1">
+    <button
+      type="button"
+      onclick="setDisplayType('1bit')"
+      id="display1bitBtnMobile"
+      class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-black text-white"
+    >
+      1-BIT
+    </button>
+    <button
+      type="button"
+      onclick="setDisplayType('spectra6')"
+      id="displaySpectra6BtnMobile"
+      class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
+    >
+      SPECTRA 6
+    </button>
+    <button
+      type="button"
+      onclick="setDisplayType('bwr')"
+      id="displayBwrBtnMobile"
+      class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+    >
+      B/W/R
+    </button>
+    <button
+      type="button"
+      onclick="setDisplayType('bwry')"
+      id="displayBwryBtnMobile"
+      class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+    >
+      B/W/R/Y
+    </button>
+  </div>
+</div>
+
+<!-- Mobile Race Selector (Calendar only) -->
+<div class="lg:hidden p-4 border-t-2 border-black bg-gray-50" id="mobileRaceContainer">
+  <label class="block text-xs font-bold uppercase mb-2" id="raceLabel"
+    >Race</label
+  >
+  <select
+    id="raceSelectMobile"
+    onchange="selectRaceMobile()"
+    class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm"
+  >
+    <option value="">Next Race</option>
+  </select>
+</div>
