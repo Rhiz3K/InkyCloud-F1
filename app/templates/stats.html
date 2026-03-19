@@ -33,15 +33,26 @@
   content="{{ site_url }}/static/images/og-preview.png"
 />
 {% endblock %} {% block body_class %} font-mono{% endblock %} {% block content
-%} {% macro ranked_bar_class(index0, total_items) -%} {%- if total_items <= 1
--%}bg-racing-red{%- elif total_items == 2 -%} {%- if index0 == 0
--%}bg-racing-red{%- else -%}bg-white{%- endif -%} {%- else -%} {%- if
-index0 == 0 -%}bg-racing-red{%- elif index0 == total_items - 1
--%}bg-white{%- else -%}bg-black{%- endif -%} {%- endif -%} {%- endmacro
-%} {% macro breakdown_fill(fill_pct, index0, total_items) -%}
+%} {% macro ranked_bar_class(index0, total_items) -%}
+{%- if total_items <= 1 -%}
+bg-racing-red
+{%- elif total_items == 2 -%}
+  {%- if index0 == 0 -%}bg-racing-red{%- else -%}bg-white{%- endif -%}
+{%- else -%}
+  {%- if index0 == 0 -%}
+bg-racing-red
+  {%- elif index0 == total_items - 1 -%}
+bg-white
+  {%- else -%}
+bg-black
+  {%- endif -%}
+{%- endif -%}
+{%- endmacro %} {% macro ranked_bar_outline_class(index0, total_items) -%}
+{%- if total_items > 1 and index0 == total_items - 1 -%} border-l border-r border-black{%- endif -%}
+{%- endmacro %} {% macro breakdown_fill(fill_pct, index0, total_items) -%}
 <div class="flex-1 h-6 bg-gray-200 border border-black overflow-hidden">
   <div
-    class="h-full {{ ranked_bar_class(index0, total_items) }}{% if total_items > 1 and index0 == total_items - 1 %} border-r border-black{% endif %}"
+    class="h-full box-border {{ ranked_bar_class(index0, total_items) }} {{ ranked_bar_outline_class(index0, total_items) }}"
     data-testid="stats-fill-bar"
     style="width: {% if fill_pct > 0 %}max(2px, {{ fill_pct }}%){% else %}0{% endif %}"
   ></div>

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Frontend
+
+#### Changed
+
+- **Configure and stats mobile polish** - Tightened the mobile configure sidebar layout, renamed/reordered display mode buttons in the configure menu, shortened mobile race labels to `GP`, and refined stats breakdown rendering so percentage bars stay aligned while the lowest-ranked white bars remain visible
+
 ## [1.2.13] - 2026-03-17
 
 ### Frontend

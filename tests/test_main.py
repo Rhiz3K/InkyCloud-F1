@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -506,6 +507,8 @@ def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
     language_bar_classes = [cast(list[str], bar.get("class") or []) for bar in language_fill_bars]
     assert "bg-racing-red" in language_bar_classes[0]
     assert "bg-white" in language_bar_classes[1]
+    assert "border-l" in language_bar_classes[1]
+    assert "border-r" in language_bar_classes[1]
     assert "70.0%" in language_summaries[0].get_text(" ", strip=True)
 
     display_card = soup.find(attrs={"data-testid": "stats-card-display"})
@@ -519,6 +522,8 @@ def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
     assert "bg-black" in display_bar_classes[1]
     assert "bg-black" in display_bar_classes[2]
     assert "bg-white" in display_bar_classes[3]
+    assert "border-l" in display_bar_classes[3]
+    assert "border-r" in display_bar_classes[3]
     assert all("background-color:" not in (bar.get("style") or "") for bar in display_fill_bars)
     assert "Japanese GP" in response.text
 
@@ -720,13 +725,16 @@ def test_configure_calendar_display_menu_is_compact_and_reordered():
         soup.find(id="displaySpectra6BtnMobile"),
     ]
 
-    assert [btn.get_text(" ", strip=True) for btn in desktop_buttons] == [
+    assert all(btn is not None for btn in desktop_buttons)
+    assert all(btn is not None for btn in mobile_buttons)
+
+    assert [cast(Tag, btn).get_text(" ", strip=True) for btn in desktop_buttons] == [
         "B/W",
         "B/W/R",
         "B/W/R/Y",
         "6C",
     ]
-    assert [btn.get_text(" ", strip=True) for btn in mobile_buttons] == [
+    assert [cast(Tag, btn).get_text(" ", strip=True) for btn in mobile_buttons] == [
         "B/W",
         "B/W/R",
         "B/W/R/Y",
