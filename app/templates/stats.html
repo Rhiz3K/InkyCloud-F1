@@ -38,23 +38,25 @@
 -%}bg-racing-red{%- else -%}bg-white{%- endif -%} {%- else -%} {%- if
 index0 == 0 -%}bg-racing-red{%- elif index0 == total_items - 1
 -%}bg-white{%- else -%}bg-black{%- endif -%} {%- endif -%} {%- endmacro
-%} {% macro breakdown_fill(fill_pct, index0, total_items) -%}
-<div class="flex-1 h-5 bg-gray-200 border border-black">
+%} {% macro breakdown_bar(fill_pct, index0, total_items, count, pct) -%}
+<div class="relative flex-1 h-6 bg-gray-200 border border-black overflow-hidden">
   <div
-    class="h-full {{ ranked_bar_class(index0, total_items) }}"
+    class="absolute inset-y-0 left-0 {{ ranked_bar_class(index0, total_items) }}{% if total_items > 1 and index0 == total_items - 1 %} border-r border-black{% endif %}"
     data-testid="stats-fill-bar"
     style="width: {% if fill_pct > 0 %}max(2px, {{ fill_pct }}%){% else %}0{% endif %}"
   ></div>
+  <span
+    class="absolute inset-y-0 right-0 z-10 flex items-center justify-end px-2 font-mono text-xs whitespace-nowrap bg-gray-200 border-l border-black"
+    data-testid="stats-row-summary"
+    style="width: 6.75rem"
+    >{{ "{:,}".format(count) }} {{ t.get("stats_requests_short", "req") }}
+    &middot; {{ pct }}%</span
+  >
 </div>
 {%- endmacro %} {% macro breakdown_scope(text) -%}
 <p class="text-xs text-gray-400 mb-4">{{ text }}</p>
 {%- endmacro %} {% macro breakdown_empty() -%}
 <p class="text-gray-500 text-sm">{{ t.get("stats_no_data", "No data") }}</p>
-{%- endmacro %} {% macro breakdown_summary(count, pct) -%}
-<span class="w-24 text-right font-mono text-xs" data-testid="stats-row-summary"
-  >{{ "{:,}".format(count) }} {{ t.get("stats_requests_short", "req") }}
-  &middot; {{ pct }}%</span
->
 {%- endmacro
 %}
 <main class="w-full max-w-6xl mx-auto px-4 py-8 box-border">
@@ -372,12 +374,11 @@ index0 == 0 -%}bg-racing-red{%- elif index0 == total_items - 1
       {% if stats.endpoints %} {% set endpoint_items = stats.endpoints[:5] %} {% set
       endpoint_item_count = endpoint_items | length %} {% for ep in endpoint_items
       %} {% set endpoint_pct = calc_percent(ep.count, stats.total_requests) %}
-      <div class="flex items-center gap-2 mb-2">
-        <span class="w-32 text-xs font-mono truncate" title="{{ ep.endpoint }}"
+      <div class="flex items-center gap-3 mb-2">
+        <span class="w-32 flex-shrink-0 text-xs font-mono truncate" title="{{ ep.endpoint }}"
           >{{ ep.endpoint }}</span
         >
-        {{ breakdown_fill(endpoint_pct, loop.index0, endpoint_item_count) }}
-        {{ breakdown_summary(ep.count, endpoint_pct) }}
+        {{ breakdown_bar(endpoint_pct, loop.index0, endpoint_item_count, ep.count, endpoint_pct) }}
       </div>
       {% endfor %} {% else %} {{ breakdown_empty() }} {% endif %}
     </div>
@@ -395,10 +396,9 @@ index0 == 0 -%}bg-racing-red{%- elif index0 == total_items - 1
       %} {% for lang_stat in stats.languages %} {% set lang_code = (lang_stat.lang |
       upper) if lang_stat.lang else "?" %} {% set lang_pct = calc_percent(lang_stat.count,
       lang_total) %}
-      <div class="flex items-center gap-2 mb-2">
-        <span class="w-8 font-bold text-sm">{{ lang_code }}</span>
-        {{ breakdown_fill(lang_pct, loop.index0, language_item_count) }}
-        {{ breakdown_summary(lang_stat.count, lang_pct) }}
+      <div class="flex items-center gap-3 mb-2">
+        <span class="w-8 flex-shrink-0 font-bold text-sm">{{ lang_code }}</span>
+        {{ breakdown_bar(lang_pct, loop.index0, language_item_count, lang_stat.count, lang_pct) }}
       </div>
       {% endfor %} {% else %} {{ breakdown_empty() }} {% endif %}
     </div>
@@ -415,12 +415,12 @@ index0 == 0 -%}bg-racing-red{%- elif index0 == total_items - 1
       sum(attribute='count') %} {% set display_item_count = stats.display_types |
       length %} {% for display_stat in stats.display_types %} {% set display_pct =
       calc_percent(display_stat.count, display_total) %}
-      <div class="flex items-center gap-2 mb-2">
-        <span class="w-24 text-xs font-bold uppercase"
+      <div class="flex items-center gap-3 mb-2">
+        <span class="flex-shrink-0 text-xs font-bold uppercase"
+          style="width: 6rem"
           >{{ display_stat.display_label }}</span
         >
-        {{ breakdown_fill(display_pct, loop.index0, display_item_count) }}
-        {{ breakdown_summary(display_stat.count, display_pct) }}
+        {{ breakdown_bar(display_pct, loop.index0, display_item_count, display_stat.count, display_pct) }}
       </div>
       {% endfor %} {% else %} {{ breakdown_empty() }} {% endif %}
     </div>
@@ -440,17 +440,16 @@ index0 == 0 -%}bg-racing-red{%- elif index0 == total_items - 1
       race_item_count = race_items | length %} {% for race_stat in race_items %} {% set
       display_name = race_stat.race_name if race_stat.race_name else t.get("stats_unknown", "Unknown")
       %} {% set is_auto = race_stat.is_auto_selected %}
-      <div class="flex items-center gap-2 mb-2">
+      <div class="flex items-center gap-3 mb-2">
         <span
-          class="w-56 text-xs font-mono flex items-center gap-1"
+          class="w-56 flex-shrink-0 text-xs font-mono flex items-center gap-1"
           title="{{ display_name }}{% if is_auto %} ({{ t.get('stats_auto_label', 'auto') }}){% endif %}"
         >
           {% if is_auto %}<span class="text-racing-red">⚡</span>{% endif %} {{
           display_name }}
         </span>
         {% set race_pct = calc_percent(race_stat.count, race_total) %}
-        {{ breakdown_fill(race_pct, loop.index0, race_item_count) }}
-        {{ breakdown_summary(race_stat.count, race_pct) }}
+        {{ breakdown_bar(race_pct, loop.index0, race_item_count, race_stat.count, race_pct) }}
       </div>
       {% endfor %} {% else %} {{ breakdown_empty() }} {% endif %}
     </div>
@@ -470,12 +469,11 @@ index0 == 0 -%}bg-racing-red{%- elif index0 == total_items - 1
       timezone_item_count = timezone_items | length %} {% for tz_stat in timezone_items
       %} {% set tz_name = tz_stat.tz if tz_stat.tz else t.get("stats_default_value", "default") %} {% set tz_pct =
       calc_percent(tz_stat.count, tz_total) %}
-      <div class="flex items-center gap-2 mb-2">
-        <span class="w-36 text-xs font-mono truncate" title="{{ tz_name }}"
+      <div class="flex items-center gap-3 mb-2">
+        <span class="w-36 flex-shrink-0 text-xs font-mono truncate" title="{{ tz_name }}"
           >{{ tz_name }}</span
         >
-        {{ breakdown_fill(tz_pct, loop.index0, timezone_item_count) }}
-        {{ breakdown_summary(tz_stat.count, tz_pct) }}
+        {{ breakdown_bar(tz_pct, loop.index0, timezone_item_count, tz_stat.count, tz_pct) }}
       </div>
       {% endfor %} {% else %} {{ breakdown_empty() }} {% endif %}
     </div>
