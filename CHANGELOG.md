@@ -7,11 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.14] - 2026-03-19
+
 ### Frontend
 
 #### Changed
 
-- **Configure and stats mobile polish** - Tightened the mobile configure sidebar layout, renamed/reordered display mode buttons in the configure menu, shortened mobile race labels to `GP`, and refined stats breakdown rendering so percentage bars stay aligned while the lowest-ranked white bars remain visible
+- **Configure cleanup** - Split the shared configure screen into calendar/teams partials, removed dead teams timezone controls, renamed the teams side panel to `Season Leaders`, and tightened the mobile sidebar layout with compact display mode labels (`B/W`, `B/W/R`, `B/W/R/Y`, `6C`)
+- **Stats dashboard polish** - Unified breakdown color ranking across cards, widened the display breakdown, clarified range/fallback copy, shortened mobile race labels to `GP`, and kept percentage bars aligned while preserving a visible white lowest-rank bar
+
+### Backend
+
+#### Changed
+
+- **Stats shaping cleanup** - Removed unused display color metadata and dropped unused performance dashboard queries from the stats page route while keeping localized range labels in the rendered context
+
+#### Fixed
+
+- **Race stats aggregation** - Combined auto-selected and manually selected requests for the same race into a single breakdown row while retaining an `auto_selected_count` signal for display hints
 
 ## [1.2.13] - 2026-03-17
 
