@@ -705,7 +705,7 @@ def test_configure_calendar_display_menu_is_compact_and_reordered():
     response = client.get("/configure/calendar")
     soup = BeautifulSoup(response.text, "html.parser")
 
-    assert 'overflow-y-auto' in response.text
+    assert "overflow-y-auto" in response.text
 
     desktop_buttons = [
         soup.find(id="display1bitBtn"),
@@ -720,8 +720,18 @@ def test_configure_calendar_display_menu_is_compact_and_reordered():
         soup.find(id="displaySpectra6BtnMobile"),
     ]
 
-    assert [btn.get_text(" ", strip=True) for btn in desktop_buttons] == ["B/W", "B/W/R", "B/W/R/Y", "6C"]
-    assert [btn.get_text(" ", strip=True) for btn in mobile_buttons] == ["B/W", "B/W/R", "B/W/R/Y", "6C"]
+    assert [btn.get_text(" ", strip=True) for btn in desktop_buttons] == [
+        "B/W",
+        "B/W/R",
+        "B/W/R/Y",
+        "6C",
+    ]
+    assert [btn.get_text(" ", strip=True) for btn in mobile_buttons] == [
+        "B/W",
+        "B/W/R",
+        "B/W/R/Y",
+        "6C",
+    ]
 
 
 def test_configure_teams_urls_do_not_include_timezone_params():
