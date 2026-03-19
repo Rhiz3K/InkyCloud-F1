@@ -4,6 +4,8 @@ from typing import cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from bs4 import BeautifulSoup
+from bs4.element import Tag
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -446,6 +448,122 @@ def test_stats_dashboard_lang_parameter():
     assert "Statistiky" in response_cs.text
 
 
+def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
+    """Stats breakdown bars use a consistent rank-based color order."""
+    mock_stats = {
+        "total_requests": 10,
+        "avg_response_ms": 120,
+        "min_response_ms": 20,
+        "max_response_ms": 400,
+        "total_bytes": 4096,
+        "endpoints": [
+            {"endpoint": "/calendar.bmp", "count": 7},
+            {"endpoint": "/teams.bmp", "count": 2},
+            {"endpoint": "/health", "count": 1},
+        ],
+        "languages": [
+            {"lang": "cs", "count": 7},
+            {"lang": "en", "count": 3},
+        ],
+        "display_types": [
+            {"display_type": "1bit", "count": 5},
+            {"display_type": "spectra6", "count": 3},
+            {"display_type": "bwr", "count": 2},
+            {"display_type": "bwry", "count": 1},
+        ],
+        "races": [
+            {"race_name": "Japanese Grand Prix", "count": 7, "is_auto_selected": 1},
+            {"race_name": "Chinese Grand Prix", "count": 2, "is_auto_selected": 0},
+            {"race_name": "Miami Grand Prix", "count": 1, "is_auto_selected": 0},
+        ],
+        "timezones": [
+            {"tz": "Europe/Prague", "count": 6},
+            {"tz": "UTC", "count": 3},
+            {"tz": "America/New_York", "count": 1},
+        ],
+    }
+
+    with (
+        patch(
+            "app.routes.pages.Database.get_stats_for_range", new=AsyncMock(return_value=mock_stats)
+        ),
+        patch(
+            "app.routes.pages.Database.get_perf_stats",
+            new=AsyncMock(return_value={"sample_count": 0}),
+        ),
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        response = client.get("/stats")
+
+    assert response.status_code == 200
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    language_card = soup.find(attrs={"data-testid": "stats-card-languages"})
+    assert language_card is not None
+    language_fill_bars = language_card.find_all(attrs={"data-testid": "stats-fill-bar"})
+    language_summaries = language_card.find_all(attrs={"data-testid": "stats-row-summary"})
+    assert len(language_fill_bars) == 2
+    assert len(language_summaries) == 2
+    language_bar_classes = [cast(list[str], bar.get("class") or []) for bar in language_fill_bars]
+    assert "bg-racing-red" in language_bar_classes[0]
+    assert "bg-white" in language_bar_classes[1]
+    assert "border-l" in language_bar_classes[1]
+    assert "border-r" in language_bar_classes[1]
+    assert "70.0%" in language_summaries[0].get_text(" ", strip=True)
+
+    display_card = soup.find(attrs={"data-testid": "stats-card-display"})
+    assert display_card is not None
+    display_fill_bars = display_card.find_all(attrs={"data-testid": "stats-fill-bar"})
+    display_summaries = display_card.find_all(attrs={"data-testid": "stats-row-summary"})
+    assert len(display_fill_bars) == 4
+    assert len(display_summaries) == 4
+    display_bar_classes = [cast(list[str], bar.get("class") or []) for bar in display_fill_bars]
+    assert "bg-racing-red" in display_bar_classes[0]
+    assert "bg-black" in display_bar_classes[1]
+    assert "bg-black" in display_bar_classes[2]
+    assert "bg-white" in display_bar_classes[3]
+    assert "border-l" in display_bar_classes[3]
+    assert "border-r" in display_bar_classes[3]
+    assert all("background-color:" not in (bar.get("style") or "") for bar in display_fill_bars)
+    assert "Japanese GP" in response.text
+
+
+def test_stats_dashboard_localizes_range_and_fallback_labels():
+    """Stats page uses localized range labels and fallback strings."""
+    mock_stats = {
+        "total_requests": 3,
+        "avg_response_ms": 120,
+        "min_response_ms": 20,
+        "max_response_ms": 400,
+        "total_bytes": 4096,
+        "endpoints": [],
+        "languages": [],
+        "display_types": [],
+        "races": [{"race_name": None, "count": 3, "is_auto_selected": 1}],
+        "timezones": [{"tz": None, "count": 3}],
+    }
+
+    with (
+        patch(
+            "app.routes.pages.Database.get_stats_for_range", new=AsyncMock(return_value=mock_stats)
+        ),
+        patch(
+            "app.routes.pages.Database.get_perf_stats",
+            new=AsyncMock(return_value={"sample_count": 0}),
+        ),
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        response = client.get("/cs/stats")
+
+    assert response.status_code == 200
+    html = response.text
+    assert "Posledních 24 hodin" in html
+    assert "Žádná data" in html
+    assert "Neznámé" in html
+    assert "výchozí" in html
+    assert "100.0%" in html
+
+
 def test_api_stats_endpoint_returns_correct_structure():
     """Test /api/stats endpoint returns new structure with 24h stats."""
     response = client.get("/api/stats")
@@ -564,11 +682,92 @@ def test_configure_teams_mobile_year_selector():
 
 
 def test_configure_teams_no_timezone_selector():
-    """Test configure teams page hides timezone selector."""
+    """Test configure teams page omits timezone controls entirely."""
     response = client.get("/configure/teams")
     html = response.text
-    assert 'id="mobileTzContainer"' in html
-    assert 'id="mobileRaceContainer"' in html
+    assert 'id="mobileTzContainer"' not in html
+    assert 'id="desktopTzContainer"' not in html
+    assert 'id="tzSelectMobile"' not in html
+    assert 'id="tzSearch"' not in html
+    assert 'id="tz"' not in html
+    assert 'id="mobileYearContainer"' in html
+    assert "Season Leaders" in html
+    assert 'id="rightPanelCalendar"' not in html
+
+
+def test_configure_calendar_omits_teams_specific_controls():
+    """Calendar configure page renders only calendar-specific partials."""
+    response = client.get("/configure/calendar")
+    html = response.text
+    assert 'id="mobileYearContainer"' not in html
+    assert 'id="teamsSeasonButtons"' not in html
+    assert 'id="rightPanelTeams"' not in html
+    assert 'id="rightPanelCalendar"' in html
+
+
+def test_configure_calendar_display_menu_is_compact_and_reordered():
+    """Calendar configure menu uses compact display labels and expected ordering."""
+    response = client.get("/configure/calendar")
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    assert "overflow-y-auto" in response.text
+
+    desktop_buttons = [
+        soup.find(id="display1bitBtn"),
+        soup.find(id="displayBwrBtn"),
+        soup.find(id="displayBwryBtn"),
+        soup.find(id="displaySpectra6Btn"),
+    ]
+    mobile_buttons = [
+        soup.find(id="display1bitBtnMobile"),
+        soup.find(id="displayBwrBtnMobile"),
+        soup.find(id="displayBwryBtnMobile"),
+        soup.find(id="displaySpectra6BtnMobile"),
+    ]
+
+    assert all(btn is not None for btn in desktop_buttons)
+    assert all(btn is not None for btn in mobile_buttons)
+
+    assert [cast(Tag, btn).get_text(" ", strip=True) for btn in desktop_buttons] == [
+        "B/W",
+        "B/W/R",
+        "B/W/R/Y",
+        "6C",
+    ]
+    assert [cast(Tag, btn).get_text(" ", strip=True) for btn in mobile_buttons] == [
+        "B/W",
+        "B/W/R",
+        "B/W/R/Y",
+        "6C",
+    ]
+
+
+def test_configure_teams_urls_do_not_include_timezone_params():
+    """Teams configure JS should not add timezone to API or preview URLs."""
+    response = client.get("/configure/teams")
+    html = response.text
+
+    api_url_block = html.split("function getApiUrl() {", 1)[1].split(
+        "function sortRacesWithCancelledLast", 1
+    )[0]
+    teams_api_branch = api_url_block.split("} else {", 1)[1]
+    assert "`${window.location.origin}/teams.bmp`" in teams_api_branch
+    assert "params.push(`year=${selectedTeamsYear}`)" in teams_api_branch
+    assert "params.push(`lang=${currentUiLang}`)" in teams_api_branch
+    assert "params.push(`tz=" not in teams_api_branch
+
+    preview_url_block = html.split("function getPreviewUrl() {", 1)[1].split(
+        "async function loadRaces()", 1
+    )[0]
+    teams_preview_branch = preview_url_block.split(
+        '} else if (canUsePrerenderedPreview() && currentScreenType === "teams") {', 1
+    )[1].split("return getApiUrl();", 1)[0]
+    assert (
+        "`${window.location.origin}/preview/configure/${currentScreenType}.png`"
+        in teams_preview_branch
+    )
+    assert "?lang=${currentUiLang}" in teams_preview_branch
+    assert "tz=" not in teams_preview_branch
 
 
 def test_configure_sidebar_mobile_nav_links():

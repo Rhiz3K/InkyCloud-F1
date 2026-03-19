@@ -65,7 +65,7 @@ block content %}
   <!-- Left Panel - Settings -->
   <div
     id="settingsSidebar"
-    class="fixed inset-y-0 left-0 w-80 bg-white border-r-4 border-black transform -translate-x-full lg:translate-x-0 transition-transform duration-200 z-40 flex flex-col lg:static lg:h-full lg:flex-shrink-0"
+    class="fixed inset-y-0 left-0 w-80 bg-white border-r-4 border-black transform -translate-x-full lg:translate-x-0 transition-transform duration-200 z-40 flex flex-col overflow-y-auto lg:static lg:h-full lg:flex-shrink-0"
   >
     <!-- Close button (mobile only) -->
     <button
@@ -144,311 +144,11 @@ block content %}
       </a>
     </div>
 
-    <!-- Timezone - Mobile -->
-    <div class="lg:hidden p-4 border-b-2 border-black" id="mobileTzContainer">
-      <label class="block text-xs font-bold uppercase mb-2" id="tzLabelMobile"
-        >Timezone</label
-      >
-      <select
-        id="tzSelectMobile"
-        onchange="selectTimezoneMobile()"
-        class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm"
-      ></select>
-    </div>
-
-    <!-- Timezone - Desktop (hidden on mobile via 'hidden', shown on lg+ via 'lg:flex') -->
-    <div id="desktopTzContainer" class="hidden lg:flex flex-1 flex-col min-h-0">
-      <div
-        class="px-3 py-2 border-b-2 border-black bg-gray-50 flex-shrink-0 flex items-center justify-between gap-2"
-      >
-        <label class="text-xs font-bold uppercase" id="tzLabel">Timezone</label>
-        <input
-          type="text"
-          id="tzSearch"
-          placeholder="SEARCH..."
-          class="flex-1 min-w-0 px-2 py-1 text-xs bg-white border-2 border-black focus:outline-none focus:bg-racing-red focus:text-white placeholder-gray-400"
-          oninput="onTzSearch()"
-        />
-      </div>
-      <!-- Continent Filter -->
-      <div
-        class="px-2 py-1.5 border-b-2 border-black bg-white flex-shrink-0 flex flex-wrap items-center gap-1"
-        id="tzContinents"
-      >
-        <button
-          onclick="filterTzContinent('ALL')"
-          class="tz-filter-btn active whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
-        >
-          ALL
-        </button>
-        <button
-          onclick="filterTzContinent('DETECTED')"
-          class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
-        >
-          DETECTED
-        </button>
-        <button
-          onclick="filterTzContinent('EUROPE')"
-          class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
-        >
-          EUROPE
-        </button>
-        <button
-          onclick="filterTzContinent('AMERICA')"
-          class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
-        >
-          AMERICA
-        </button>
-        <button
-          onclick="filterTzContinent('ASIA')"
-          class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
-        >
-          ASIA
-        </button>
-        <button
-          onclick="filterTzContinent('AFRICA')"
-          class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
-        >
-          AFRICA
-        </button>
-        <button
-          onclick="filterTzContinent('OCEANIA')"
-          class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
-        >
-          OCEANIA
-        </button>
-        <button
-          onclick="filterTzContinent('OTHER')"
-          class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
-        >
-          OTHER
-        </button>
-      </div>
-      <div
-        id="tzList"
-        class="flex-1 overflow-y-auto text-xs p-2 space-y-0.5"
-      ></div>
-      <!-- Weather - Desktop (inside timezone container for proper flex layout) -->
-      <div
-        class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
-        id="weatherContainer"
-      >
-        <label class="text-xs font-bold uppercase mb-1.5 block" id="weatherLabel"
-          >Weather</label
-        >
-        <input
-          type="checkbox"
-          id="weatherToggle"
-          checked
-          onchange="
-            updateWeatherTypeAvailability();
-            updatePreview();
-          "
-          class="hidden"
-        />
-        <div class="flex gap-1" id="weatherTypeContainer">
-          <button
-            type="button"
-            onclick="setWeatherType('off')"
-            id="weatherOffBtn"
-            class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
-          >
-            OFF
-          </button>
-          <button
-            type="button"
-            onclick="setWeatherType('current')"
-            id="weatherCurrentBtn"
-            class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
-          >
-            <span id="weatherCurrentLabel">Current</span>
-          </button>
-          <button
-            type="button"
-            onclick="setWeatherType('race_day')"
-            id="weatherRaceDayBtn"
-            class="weather-type-btn group relative flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
-          >
-            <span id="weatherRaceDayText">Race day</span>
-            <span
-              id="weatherRaceDayTooltip"
-              class="invisible group-hover:visible group-disabled:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap z-50 border-2 border-white"
-            >
-              <span id="weatherTooltipText">Activates 14 days before race</span>
-            </span>
-          </button>
-        </div>
-        <input type="radio" name="weatherType" value="current" class="hidden" />
-        <input
-          type="radio"
-          name="weatherType"
-          value="race_day"
-          checked
-          class="hidden"
-          id="weatherRaceDayRadio"
-        />
-      </div>
-      <!-- Display Type - Desktop -->
-      <div
-        class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
-        id="displayContainer"
-      >
-        <label class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
-          >Display</label
-        >
-        <div class="flex gap-1" id="displayTypeContainer">
-          <button
-            type="button"
-            onclick="setDisplayType('1bit')"
-            id="display1bitBtn"
-            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-black text-white"
-          >
-            1-BIT
-          </button>
-          <button
-            type="button"
-            onclick="setDisplayType('spectra6')"
-            id="displaySpectra6Btn"
-            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
-          >
-            SPECTRA 6
-          </button>
-          <button
-            type="button"
-            onclick="setDisplayType('bwr')"
-            id="displayBwrBtn"
-            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
-          >
-            B/W/R
-          </button>
-          <button
-            type="button"
-            onclick="setDisplayType('bwry')"
-            id="displayBwryBtn"
-            class="display-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
-          >
-            B/W/R/Y
-          </button>
-        </div>
-      </div>
-    </div>
-    <input type="hidden" id="tz" value="" />
-
-    <!-- Weather - Mobile -->
-    <div
-      class="lg:hidden p-4 border-b-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
-      id="mobileWeatherContainer"
-    >
-      <label
-        class="block text-xs font-bold uppercase mb-2"
-        id="weatherLabelMobile"
-        >Weather</label
-      >
-       <div class="flex gap-1">
-        <button
-          type="button"
-          onclick="setWeatherType('off')"
-          id="weatherOffBtnMobile"
-          class="weather-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
-        >
-          OFF
-        </button>
-        <button
-          type="button"
-          onclick="setWeatherType('current')"
-          id="weatherCurrentBtnMobile"
-          class="weather-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
-        >
-          Current
-        </button>
-        <button
-          type="button"
-          onclick="setWeatherType('race_day')"
-          id="weatherRaceDayBtnMobile"
-          class="weather-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-racing-red text-white"
-        >
-          Race day
-        </button>
-      </div>
-    </div>
-
-    <!-- Display Type - Mobile -->
-    <div
-      class="lg:hidden p-4 border-b-2 border-black bg-gray-50 {% if screen_type != 'calendar' %}hidden{% endif %}"
-      id="mobileDisplayContainer"
-    >
-      <label
-        class="block text-xs font-bold uppercase mb-2"
-        id="displayLabelMobile"
-        >Display</label
-      >
-      <div class="flex gap-1">
-        <button
-          type="button"
-          onclick="setDisplayType('1bit')"
-          id="display1bitBtnMobile"
-          class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-black text-white"
-        >
-          1-BIT
-        </button>
-        <button
-          type="button"
-          onclick="setDisplayType('spectra6')"
-          id="displaySpectra6BtnMobile"
-          class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
-        >
-          SPECTRA 6
-        </button>
-         <button
-           type="button"
-           onclick="setDisplayType('bwr')"
-           id="displayBwrBtnMobile"
-           class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
-         >
-           B/W/R
-         </button>
-         <button
-           type="button"
-           onclick="setDisplayType('bwry')"
-           id="displayBwryBtnMobile"
-           class="display-type-btn-mobile flex-1 px-3 py-2 text-xs font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
-         >
-           B/W/R/Y
-         </button>
-       </div>
-     </div>
-
-    <!-- Mobile Race Selector (Calendar only) -->
-    <div
-      class="lg:hidden p-4 border-t-2 border-black bg-gray-50"
-      id="mobileRaceContainer"
-    >
-      <label class="block text-xs font-bold uppercase mb-2" id="raceLabel"
-        >Race</label
-      >
-      <select
-        id="raceSelectMobile"
-        onchange="selectRaceMobile()"
-        class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm"
-      >
-        <option value="">Next Race</option>
-      </select>
-    </div>
-
-    <!-- Mobile Year Selector (Teams only) -->
-    <div
-      class="lg:hidden p-4 border-t-2 border-black bg-gray-50 hidden"
-      id="mobileYearContainer"
-    >
-      <label class="block text-xs font-bold uppercase mb-2" id="yearLabelMobile"
-        >Season</label
-      >
-      <select
-        id="yearSelectMobile"
-        onchange="selectYearMobile()"
-        class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm"
-      ></select>
-    </div>
+    {% if screen_type == 'calendar' %}
+      {% include "configure/_calendar_sidebar.html" %}
+    {% else %}
+      {% include "configure/_teams_sidebar.html" %}
+    {% endif %}
 
     <!-- Links & Credits Section (mobile) -->
     <div class="lg:hidden mt-auto border-t-2 border-black">
@@ -788,77 +488,11 @@ block content %}
       id="rightPanel"
       class="hidden lg:flex lg:w-72 flex-shrink-0 bg-white border-l-4 border-black flex-col z-0"
     >
-      <!-- Calendar Content -->
-      <div
-        id="rightPanelCalendar"
-        class="flex flex-col flex-1 {% if screen_type != 'calendar' %}hidden{% endif %}"
-      >
-        <div
-          class="px-4 py-3 border-b-2 border-black bg-black text-white flex-shrink-0"
-        >
-          <h2
-            class="font-bold uppercase tracking-widest text-sm flex items-center gap-2"
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="square"
-                stroke-linejoin="miter"
-                stroke-width="2"
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              ></path>
-            </svg>
-            <span id="seasonTitle">2025 Calendar</span>
-          </h2>
-        </div>
-        <div id="raceList" class="flex-1 overflow-y-auto p-2 space-y-0.5">
-          <div class="p-4 text-center text-gray-400 text-xs font-mono">
-            Loading data...
-          </div>
-        </div>
-      </div>
-
-      <!-- Teams Content -->
-      <div
-        id="rightPanelTeams"
-        class="flex flex-col flex-1 {% if screen_type != 'teams' %}hidden{% endif %}"
-      >
-        <div
-          class="px-4 py-3 border-b-2 border-black bg-black text-white flex-shrink-0"
-        >
-          <h2
-            class="font-bold uppercase tracking-widest text-sm flex items-center gap-2"
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="square"
-                stroke-linejoin="miter"
-                stroke-width="2"
-                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-              ></path>
-            </svg>
-            <span id="rankingsTitle">Teams & Drivers Rankings</span>
-          </h2>
-        </div>
-
-        <div
-          id="teamsSeasonButtons"
-          class="flex-1 overflow-y-auto p-2 space-y-1"
-        >
-          <div class="p-4 text-center text-gray-400 text-xs font-mono">
-            Loading...
-          </div>
-        </div>
-      </div>
+      {% if screen_type == 'calendar' %}
+        {% include "configure/_calendar_right_panel.html" %}
+      {% else %}
+        {% include "configure/_teams_right_panel.html" %}
+      {% endif %}
     </div>
   </main>
 </div>
@@ -934,6 +568,7 @@ block content %}
       epaperStep2:
         '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Copy the URL above into the image URL field</span>',
       currentRankings: "Current Rankings",
+      seasonLeaders: "Season Leaders",
       currentSeason: "Current",
       leaderTeam: "Team",
       leaderDriver: "Driver",
@@ -969,6 +604,7 @@ block content %}
       epaperStep2:
         '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Vložte URL výše do pole pro URL obrázku</span>',
       currentRankings: "Aktuální pořadí",
+      seasonLeaders: "Lídři sezóny",
       currentSeason: "Aktuální",
       leaderTeam: "Tým",
       leaderDriver: "Jezdec",
@@ -1193,11 +829,16 @@ block content %}
   function setUiLanguage(lang) {
     currentUiLang = lang;
     const t = translations[lang] || translations.en;
-    document.getElementById("tzLabel").textContent = t.tzLabel;
+    const tzLabel = document.getElementById("tzLabel");
+    if (tzLabel) tzLabel.textContent = t.tzLabel;
+    const tzLabelMobile = document.getElementById("tzLabelMobile");
+    if (tzLabelMobile) tzLabelMobile.textContent = t.tzLabel;
     const raceLabel = document.getElementById("raceLabel");
     if (raceLabel) raceLabel.textContent = t.raceLabel;
     const yearLabelMobile = document.getElementById("yearLabelMobile");
     if (yearLabelMobile) yearLabelMobile.textContent = t.yearLabel;
+    const rankingsTitle = document.getElementById("rankingsTitle");
+    if (rankingsTitle) rankingsTitle.textContent = t.seasonLeaders;
     const settingsBtnText = document.getElementById("settingsBtnText");
     if (settingsBtnText) settingsBtnText.textContent = t.settingsBtn;
     document.getElementById("einkBadge").textContent = t.einkBadge;
@@ -1206,8 +847,10 @@ block content %}
     if (loadingText) loadingText.textContent = t.loadingText;
     document.getElementById("retryBtn").textContent = t.retryBtn;
     document.getElementById("refreshBtnText").textContent = t.refreshBtn;
-    document.getElementById("seasonTitle").textContent =
-      `${activeSeasonYear} ${t.seasonTitle}`;
+    const seasonTitle = document.getElementById("seasonTitle");
+    if (seasonTitle) {
+      seasonTitle.textContent = `${activeSeasonYear} ${t.seasonTitle}`;
+    }
     const footerPrivacy = document.getElementById("footerPrivacy");
     if (footerPrivacy) footerPrivacy.textContent = t.footerPrivacy;
     document.getElementById("epaperSetupTitle").textContent =

@@ -581,13 +581,13 @@ class Database:
                     year,
                     round,
                     race_name,
-                    is_auto_selected,
+                    SUM(CASE WHEN is_auto_selected = 1 THEN 1 ELSE 0 END) as auto_selected_count,
                     COUNT(*) as count
                 FROM api_calls
                 WHERE timestamp > ?
                     AND endpoint = '/calendar.bmp'
                     AND race_name IS NOT NULL
-                GROUP BY year, round, race_name, is_auto_selected
+                GROUP BY year, round, race_name
                 ORDER BY count DESC
                 LIMIT 10
                 """,
@@ -599,7 +599,8 @@ class Database:
                         "year": row["year"],
                         "round": row["round"],
                         "race_name": row["race_name"],
-                        "is_auto_selected": bool(row["is_auto_selected"]),
+                        "is_auto_selected": bool(row["auto_selected_count"]),
+                        "auto_selected_count": row["auto_selected_count"],
                         "count": row["count"],
                     }
                     for row in rows

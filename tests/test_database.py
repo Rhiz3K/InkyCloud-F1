@@ -208,3 +208,78 @@ class TestApiCallStatsDatabase:
             }
 
         asyncio.run(run_test())
+
+    @staticmethod
+    def test_get_stats_for_range_aggregates_race_rows_across_auto_selection(tmp_path):
+        """Race breakdown aggregates one race even when requests mix auto/manual selection."""
+
+        async def run_test():
+            db = Database(str(tmp_path / "race-stats.db"))
+            now = datetime.now(timezone.utc).isoformat()
+
+            await db.save_api_calls_batch(
+                [
+                    {
+                        "timestamp": now,
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 100.0,
+                        "response_size_bytes": 1024,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "1bit",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 1,
+                    },
+                    {
+                        "timestamp": now,
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 110.0,
+                        "response_size_bytes": 1024,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "1bit",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 0,
+                    },
+                    {
+                        "timestamp": now,
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 120.0,
+                        "response_size_bytes": 1024,
+                        "lang": "cs",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "bwr",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 0,
+                    },
+                    {
+                        "timestamp": now,
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 130.0,
+                        "response_size_bytes": 1024,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 2,
+                        "display_type": "1bit",
+                        "race_name": "Chinese Grand Prix",
+                        "is_auto_selected": 0,
+                    },
+                ]
+            )
+
+            stats = await db.get_stats_for_range(24)
+
+            assert len(stats["races"]) == 2
+            assert stats["races"][0]["race_name"] == "Australian Grand Prix"
+            assert stats["races"][0]["count"] == 3
+            assert stats["races"][0]["is_auto_selected"] is True
+            assert stats["races"][0]["auto_selected_count"] == 1
+
+        asyncio.run(run_test())
