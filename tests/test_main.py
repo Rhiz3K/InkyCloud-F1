@@ -506,7 +506,6 @@ def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
     language_bar_classes = [cast(list[str], bar.get("class") or []) for bar in language_fill_bars]
     assert "bg-racing-red" in language_bar_classes[0]
     assert "bg-white" in language_bar_classes[1]
-    assert "7 req" in language_summaries[0].get_text(" ", strip=True)
     assert "70.0%" in language_summaries[0].get_text(" ", strip=True)
 
     display_card = soup.find(attrs={"data-testid": "stats-card-display"})
@@ -556,7 +555,7 @@ def test_stats_dashboard_localizes_range_and_fallback_labels():
     assert "Žádná data" in html
     assert "Neznámé" in html
     assert "výchozí" in html
-    assert "3 pož." in html
+    assert "100.0%" in html
 
 
 def test_api_stats_endpoint_returns_correct_structure():
