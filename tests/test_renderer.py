@@ -2013,9 +2013,7 @@ def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch)
     teams_color_dir.mkdir(parents=True)
 
     Image.new("RGBA", (4, 4), color=(0, 0, 0, 255)).save(teams_dir / "mclaren.png", "PNG")
-    Image.new("RGBA", (4, 4), color=(255, 135, 0, 255)).save(
-        teams_color_dir / "mclaren.png", "PNG"
-    )
+    Image.new("RGBA", (4, 4), color=(255, 135, 0, 255)).save(teams_color_dir / "mclaren.png", "PNG")
 
     monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", images_dir)
     monkeypatch.setattr(spectra6_renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
