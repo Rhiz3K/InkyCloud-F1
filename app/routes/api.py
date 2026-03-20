@@ -117,6 +117,51 @@ async def api_info() -> dict:
                     "/calendar.bmp?display=spectra6&weather_type=current",
                 ],
             },
+            "/teams.bmp": {
+                "method": "GET",
+                "description": (
+                    f"Generate F1 teams and drivers BMP image "
+                    f"({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT})"
+                ),
+                "parameters": {
+                    "lang": {
+                        "type": "string",
+                        "description": "Language code for teams text",
+                        "values": ["en", "cs"],
+                        "default": "en",
+                        "example": "?lang=cs",
+                    },
+                    "year": {
+                        "type": "integer",
+                        "description": "Season year for team data",
+                        "example": "?year=2026",
+                        "optional": True,
+                    },
+                    "display": {
+                        "type": "string",
+                        "description": "Display output mode",
+                        "values": ["1bit", "spectra6", "bwr", "bwry"],
+                        "default": "1bit",
+                        "example": "?display=bwr",
+                        "optional": True,
+                    },
+                },
+                "response": {
+                    "content_type": "image/bmp",
+                    "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
+                    "color_depth": (
+                        "1-bit monochrome, 4-bit indexed B/W/R, "
+                        "4-bit indexed B/W/R/Y, or indexed Spectra 6"
+                    ),
+                },
+                "examples": [
+                    "/teams.bmp",
+                    "/teams.bmp?lang=cs",
+                    "/teams.bmp?year=2026",
+                    "/teams.bmp?display=bwr",
+                    "/teams.bmp?display=spectra6",
+                ],
+            },
             "/api": {"method": "GET", "description": "API documentation (this endpoint)"},
             "/api/docs": {"method": "GET", "description": "API documentation (alias for /api)"},
             "/api/stats": {

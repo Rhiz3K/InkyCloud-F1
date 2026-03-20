@@ -59,7 +59,7 @@ _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 ## ✨ Features
 
 - **800x480 BMP output** — `1bit` monochrome, `bwr` B/W/R, `bwry` B/W/R/Y, and `spectra6` 6-color mode for the calendar screen
-- **Teams & Drivers screen** — Dedicated `teams.bmp` standings/lineup render for the current or selected season
+- **Teams & Drivers screen** — Dedicated `teams.bmp` standings/lineup render for the current or selected season with `1bit`, `bwr`, `bwry`, and `spectra6` output modes
 - **Always Up-to-Date** — Automatically updated after each Grand Prix
 - **Multi-language** — Czech and English support
 - **Any Timezone** — Convert race times to your local timezone
@@ -126,7 +126,7 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
 | `GET /calendar.bmp`                      | Calendar BMP with `display`, `weather`, and `tz` params |
-| `GET /teams.bmp`                         | Teams & drivers grid as 1-bit BMP image (`lang`, `year`) |
+| `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`) |
 | `GET /`                                  | Landing page with screen type selection                 |
 | `GET /configure/{screen}`                | Interactive preview page (calendar/teams)               |
 | `GET /preview/{screen}.png`              | Pre-generated preview PNG                               |

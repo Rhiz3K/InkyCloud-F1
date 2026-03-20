@@ -1,5 +1,6 @@
 """Test main FastAPI application endpoints."""
 
+from pathlib import Path
 from typing import cast
 from unittest.mock import AsyncMock, patch
 
@@ -7,7 +8,9 @@ import pytest
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from fastapi.testclient import TestClient
+from PIL import Image
 
+from app.config import config
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
 from app.routes.images import _get_race_data_from_static, _get_race_info_for_stats
@@ -471,6 +474,10 @@ def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
             {"display_type": "bwr", "count": 2},
             {"display_type": "bwry", "count": 1},
         ],
+        "teams_display_types": [
+            {"display_type": "bwr", "count": 4},
+            {"display_type": "spectra6", "count": 2},
+        ],
         "races": [
             {"race_name": "Japanese Grand Prix", "count": 7, "is_auto_selected": 1},
             {"race_name": "Chinese Grand Prix", "count": 2, "is_auto_selected": 0},
@@ -525,6 +532,24 @@ def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
     assert "border-l" in display_bar_classes[3]
     assert "border-r" in display_bar_classes[3]
     assert all("background-color:" not in (bar.get("style") or "") for bar in display_fill_bars)
+
+    teams_display_card = soup.find(attrs={"data-testid": "stats-card-teams-display"})
+    assert teams_display_card is not None
+    teams_display_fill_bars = teams_display_card.find_all(attrs={"data-testid": "stats-fill-bar"})
+    teams_display_summaries = teams_display_card.find_all(
+        attrs={"data-testid": "stats-row-summary"}
+    )
+    assert len(teams_display_fill_bars) == 2
+    assert len(teams_display_summaries) == 2
+    teams_display_bar_classes = [
+        cast(list[str], bar.get("class") or []) for bar in teams_display_fill_bars
+    ]
+    assert "bg-racing-red" in teams_display_bar_classes[0]
+    assert "bg-white" in teams_display_bar_classes[1]
+    assert "border-l" in teams_display_bar_classes[1]
+    assert "border-r" in teams_display_bar_classes[1]
+    assert "66.7%" in teams_display_summaries[0].get_text(" ", strip=True)
+
     assert "Japanese GP" in response.text
 
 
@@ -539,6 +564,7 @@ def test_stats_dashboard_localizes_range_and_fallback_labels():
         "endpoints": [],
         "languages": [],
         "display_types": [],
+        "teams_display_types": [],
         "races": [{"race_name": None, "count": 3, "is_auto_selected": 1}],
         "timezones": [{"tz": None, "count": 3}],
     }
@@ -681,6 +707,41 @@ def test_configure_teams_mobile_year_selector():
     assert "selectYearMobile()" in html
 
 
+def test_configure_teams_display_menu_matches_calendar_variants():
+    """Teams configure page should expose the same display variants as calendar."""
+    response = client.get("/configure/teams")
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    desktop_buttons = [
+        soup.find(id="display1bitBtn"),
+        soup.find(id="displayBwrBtn"),
+        soup.find(id="displayBwryBtn"),
+        soup.find(id="displaySpectra6Btn"),
+    ]
+    mobile_buttons = [
+        soup.find(id="display1bitBtnMobile"),
+        soup.find(id="displayBwrBtnMobile"),
+        soup.find(id="displayBwryBtnMobile"),
+        soup.find(id="displaySpectra6BtnMobile"),
+    ]
+
+    assert all(btn is not None for btn in desktop_buttons)
+    assert all(btn is not None for btn in mobile_buttons)
+
+    assert [cast(Tag, btn).get_text(" ", strip=True) for btn in desktop_buttons] == [
+        "B/W",
+        "B/W/R",
+        "B/W/R/Y",
+        "6C",
+    ]
+    assert [cast(Tag, btn).get_text(" ", strip=True) for btn in mobile_buttons] == [
+        "B/W",
+        "B/W/R",
+        "B/W/R/Y",
+        "6C",
+    ]
+
+
 def test_configure_teams_no_timezone_selector():
     """Test configure teams page omits timezone controls entirely."""
     response = client.get("/configure/teams")
@@ -754,6 +815,7 @@ def test_configure_teams_urls_do_not_include_timezone_params():
     assert "`${window.location.origin}/teams.bmp`" in teams_api_branch
     assert "params.push(`year=${selectedTeamsYear}`)" in teams_api_branch
     assert "params.push(`lang=${currentUiLang}`)" in teams_api_branch
+    assert "params.push(`display=${currentDisplayType}`)" in teams_api_branch
     assert "params.push(`tz=" not in teams_api_branch
 
     preview_url_block = html.split("function getPreviewUrl() {", 1)[1].split(
@@ -766,8 +828,22 @@ def test_configure_teams_urls_do_not_include_timezone_params():
         "`${window.location.origin}/preview/configure/${currentScreenType}.png`"
         in teams_preview_branch
     )
-    assert "?lang=${currentUiLang}" in teams_preview_branch
+    assert "params.push(`lang=${currentUiLang}`)" in teams_preview_branch
+    assert "params.push(`display=${currentDisplayType}`)" in teams_preview_branch
     assert "tz=" not in teams_preview_branch
+
+
+def test_teams_configure_preview_route_supports_display_variants():
+    """Teams configure preview route should resolve display-specific filenames."""
+    images_dir = Path(config.IMAGES_PATH)
+    images_dir.mkdir(parents=True, exist_ok=True)
+    preview_path = images_dir / "configure_teams_en_bwr.png"
+    Image.new("RGB", (2, 2), color=(255, 0, 0)).save(preview_path, format="PNG")
+
+    response = client.get("/preview/configure/teams.png?display=bwr")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
 
 
 def test_configure_sidebar_mobile_nav_links():
@@ -972,6 +1048,33 @@ def test_teams_bmp_with_lang():
     response = client.get("/teams.bmp?lang=cs")
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/bmp"
+
+
+def test_teams_bmp_with_bwr_display():
+    """Test /teams.bmp with BWR display parameter."""
+    response = client.get("/teams.bmp?display=bwr")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+    assert response.content[:2] == b"BM"
+    assert int.from_bytes(response.content[28:30], byteorder="little") == 4
+
+
+def test_teams_bmp_with_bwry_display():
+    """Test /teams.bmp with BWRY display parameter."""
+    response = client.get("/teams.bmp?display=bwry")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+    assert response.content[:2] == b"BM"
+    assert int.from_bytes(response.content[28:30], byteorder="little") == 4
+
+
+def test_teams_bmp_with_spectra6_display():
+    """Test /teams.bmp with Spectra 6 display parameter."""
+    response = client.get("/teams.bmp?display=spectra6")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+    assert response.content[:2] == b"BM"
+    assert int.from_bytes(response.content[28:30], byteorder="little") == 8
 
 
 # ============================================================================

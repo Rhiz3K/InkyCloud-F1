@@ -392,8 +392,9 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         <code class="text-lg font-mono">/teams.bmp</code>
       </div>
       <p class="text-sm mb-4">
-        {{ t.get("api_docs_teams_desc", "Generate a 1-bit BMP image showing all
-        F1 teams with their drivers, photos, and championship points.") }}
+        {{ t.get("api_docs_teams_desc", "Generate a BMP image showing all F1
+        teams with their drivers, photos, and championship points in 1bit,
+        B/W/R, B/W/R/Y, or Spectra 6 output modes.") }}
       </p>
 
       <!-- Parameters -->
@@ -446,6 +447,24 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 >
               </td>
             </tr>
+            <tr>
+              <td class="px-3 py-2 font-mono text-racing-red font-bold">
+                display
+              </td>
+              <td class="px-3 py-2">string</td>
+              <td class="px-3 py-2">
+                {{ t.get("api_docs_display_desc", "Display output mode") }}
+                <br /><span class="text-xs text-gray-500"
+                  >{{ t.get("api_docs_values", "Values") }}:
+                  <code class="bg-gray-100 px-1">1bit</code>,
+                  <code class="bg-gray-100 px-1">bwr</code>,
+                  <code class="bg-gray-100 px-1">bwry</code>,
+                  <code class="bg-gray-100 px-1">spectra6</code> ({{
+                  t.get("api_docs_default", "default") }}:
+                  <code class="bg-gray-100 px-1">1bit</code>)</span
+                >
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -474,11 +493,11 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             <span class="text-gray-500 block text-xs uppercase"
               >{{ color_depth_label }}</span
             >
-            <code class="font-bold">1-bit</code>
+            <code class="font-bold">1-bit / 4-bit / Spectra 6</code>
           </div>
           <div>
             <span class="text-gray-500 block text-xs uppercase">Cache</span>
-            <code class="font-bold">1 hour</code>
+            <code class="font-bold">no-store</code>
           </div>
         </div>
       </div>

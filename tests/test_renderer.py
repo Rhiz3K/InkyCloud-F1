@@ -103,6 +103,62 @@ def mock_historical_data():
     )
 
 
+@pytest.fixture
+def mock_teams_data():
+    """Create sample teams data for team screen rendering."""
+    return TeamsData(
+        season=2026,
+        teams=[
+            TeamEntry(
+                constructor_name="McLaren-Mercedes",
+                chassis="MCL40",
+                power_unit="Mercedes-AMG F1 M17",
+                position=1,
+                points=38.0,
+                drivers=[
+                    TeamDriverEntry(
+                        driver_id="norris",
+                        name="Lando Norris",
+                        driver_number=1,
+                        position=1,
+                        points=25.0,
+                    ),
+                    TeamDriverEntry(
+                        driver_id="piastri",
+                        name="Oscar Piastri",
+                        driver_number=81,
+                        position=3,
+                        points=13.0,
+                    ),
+                ],
+            ),
+            TeamEntry(
+                constructor_name="Ferrari",
+                chassis="SF-26",
+                power_unit="Ferrari 067/6",
+                position=2,
+                points=27.0,
+                drivers=[
+                    TeamDriverEntry(
+                        driver_id="leclerc",
+                        name="Charles Leclerc",
+                        driver_number=16,
+                        position=2,
+                        points=18.0,
+                    ),
+                    TeamDriverEntry(
+                        driver_id="hamilton",
+                        name="Lewis Hamilton",
+                        driver_number=44,
+                        position=5,
+                        points=9.0,
+                    ),
+                ],
+            ),
+        ],
+    )
+
+
 def test_render_calendar_english(mock_race_data):
     """Test rendering calendar in English."""
     translator = get_translator("en")
@@ -1918,6 +1974,47 @@ def test_bwr_bmp_is_smaller_than_spectra6_for_same_calendar(mock_race_data):
     spectra6_data = Spectra6Renderer(translator).render_calendar(mock_race_data)
 
     assert len(bwr_data) < len(spectra6_data)
+
+
+def test_spectra6_render_teams_drivers(mock_teams_data):
+    """Teams screen should render in Spectra 6 mode."""
+    renderer = Spectra6Renderer(get_translator("en"))
+    bmp_data = renderer.render_teams_drivers(mock_teams_data)
+
+    img = Image.open(BytesIO(bmp_data))
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+
+
+def test_bwr_render_teams_drivers_uses_bwr_palette(mock_teams_data):
+    """Teams screen should render in BWR mode with the expected palette prefix."""
+    renderer = BwrRenderer(get_translator("en"))
+    bmp_data = renderer.render_teams_drivers(mock_teams_data)
+
+    img = Image.open(BytesIO(bmp_data))
+    palette = img.getpalette()
+
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+    assert palette is not None
+    assert palette[:9] == [0, 0, 0, 255, 255, 255, 255, 0, 0]
+
+
+def test_bwry_render_teams_drivers_uses_bwry_palette(mock_teams_data):
+    """Teams screen should render in BWRY mode with the expected palette prefix."""
+    renderer = BwryRenderer(get_translator("en"))
+    bmp_data = renderer.render_teams_drivers(mock_teams_data)
+
+    img = Image.open(BytesIO(bmp_data))
+    palette = img.getpalette()
+
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
+    assert palette is not None
+    assert palette[:12] == [0, 0, 0, 255, 255, 255, 255, 0, 0, 255, 216, 0]
 
 
 def test_bwry_render_calendar_english(mock_race_data):

@@ -905,6 +905,9 @@ block content %}
       let params = [];
       if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
       if (selectedTeamsYear) params.push(`year=${selectedTeamsYear}`);
+      if (currentDisplayType !== "1bit") {
+        params.push(`display=${currentDisplayType}`);
+      }
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     }
@@ -955,7 +958,10 @@ block content %}
       return url;
     } else if (canUsePrerenderedPreview() && currentScreenType === "teams") {
       let url = `${window.location.origin}/preview/configure/${currentScreenType}.png`;
-      if (currentUiLang !== 'en') url += `?lang=${currentUiLang}`;
+      let params = [];
+      if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
+      if (currentDisplayType !== "1bit") params.push(`display=${currentDisplayType}`);
+      if (params.length > 0) url += `?${params.join("&")}`;
       return url;
     }
     return getApiUrl();

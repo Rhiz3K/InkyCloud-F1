@@ -450,7 +450,7 @@ class Database:
 
         Returns:
             dict with total_requests, min/avg/max_response_ms, total_bytes,
-            endpoints, languages, calendar-only display_types, timezones,
+            endpoints, languages, calendar display_types, teams_display_types, timezones,
             hourly, and races breakdowns.
         """
         await self._init_db_if_needed()
@@ -522,7 +522,7 @@ class Database:
                 rows = await cursor.fetchall()
                 language_stats = [{"lang": row["lang"], "count": row["count"]} for row in rows]
 
-            # Display breakdown - only for calendar requests
+            # Display breakdown - calendar requests
             async with conn.execute(
                 """
                 SELECT display_type, COUNT(*) as count
@@ -538,6 +538,25 @@ class Database:
             ) as cursor:
                 rows = await cursor.fetchall()
                 display_stats = [
+                    {"display_type": row["display_type"], "count": row["count"]} for row in rows
+                ]
+
+            # Display breakdown - teams requests
+            async with conn.execute(
+                """
+                SELECT display_type, COUNT(*) as count
+                FROM api_calls
+                WHERE timestamp > ?
+                    AND endpoint = '/teams.bmp'
+                    AND display_type IS NOT NULL
+                    AND display_type != ''
+                GROUP BY display_type
+                ORDER BY count DESC
+                """,
+                (cutoff,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                teams_display_stats = [
                     {"display_type": row["display_type"], "count": row["count"]} for row in rows
                 ]
 
@@ -611,6 +630,7 @@ class Database:
                 "endpoints": endpoint_stats,
                 "languages": language_stats,
                 "display_types": display_stats,
+                "teams_display_types": teams_display_stats,
                 "timezones": timezone_stats,
                 "hourly": hourly_stats,
                 "races": race_stats,

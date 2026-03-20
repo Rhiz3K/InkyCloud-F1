@@ -255,6 +255,31 @@ Current final render flow:
 
 The same source-first reasoning applies here too.
 
+### 6.5 `teams` dashboard
+
+Files:
+
+- `app/services/renderer.py`
+- `app/services/spectra6_renderer.py`
+- `app/services/bwr_renderer.py`
+- `app/services/bwry_renderer.py`
+
+Current teams render flow:
+
+1. load source PNG assets for driver silhouettes and team logos from `app/assets/images/`
+2. compose the full teams dashboard first
+3. only then reduce the final image to the target display format
+
+Per-display behavior:
+
+- `1bit` keeps the existing monochrome render path
+- `spectra6` composes in RGB and exports via Spectra 6 indexed BMP
+- `bwr` composes in RGB and converts the final dashboard with `map_to_bwr_palette(...)`
+- `bwry` composes in RGB and converts the final dashboard with `map_to_bwry_palette(...)`
+
+This follows the same late-reduction rule as the calendar screen: preserve source detail
+for logos, text edges, and small UI elements until the final export step.
+
 ## 7. Current Active Palettes
 
 ### 7.1 `bwr`

@@ -538,11 +538,21 @@ async def get_teams_bmp(
     request: Request,
     lang: str = Query(default="en", description="Language code (cs, en)"),
     year: int | None = Query(default=None, description="Season year"),
+    display: str = Query(
+        default="1bit",
+        description=(
+            f"Display type: '1bit' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} monochrome), "
+            f"'spectra6' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} 6-color), "
+            f"'bwr' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red), "
+            f"or 'bwry' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red/yellow)"
+        ),
+    ),
 ):
     start_time = time.time()
 
     try:
         lang = _normalize_lang(lang)
+        display = _normalize_display(display)
 
         if year is None:
             year = get_current_f1_season()
@@ -551,7 +561,7 @@ async def get_teams_bmp(
         teams_service = TeamsService()
         teams_data = await teams_service.get_teams_and_drivers(year)
 
-        renderer = Renderer(translator)
+        renderer = _get_renderer(display, translator)
         bmp_data = renderer.render_teams_drivers(teams_data)
 
         record_api_call(
@@ -564,6 +574,7 @@ async def get_teams_bmp(
             None,
             None,
             False,
+            display_type=display,
         )
 
         return StreamingResponse(
@@ -580,7 +591,8 @@ async def get_teams_bmp(
         sentry_sdk.capture_exception(exc)
 
         translator = get_translator(lang)
-        renderer = Renderer(translator)
+        display = _normalize_display(display)
+        renderer = _get_renderer(display, translator)
         bmp_data = renderer.render_error(str(exc))
 
         record_api_call(
@@ -593,6 +605,7 @@ async def get_teams_bmp(
             None,
             None,
             False,
+            display_type=display,
         )
 
         return StreamingResponse(

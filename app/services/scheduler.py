@@ -182,19 +182,44 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
         try:
             teams_service = TeamsService()
             teams_data = await teams_service.get_teams_and_drivers()
-            bmp_data = renderer.render_teams_drivers(teams_data)
+            display_variants = [
+                ("1bit", Renderer(translator)),
+                ("spectra6", Spectra6Renderer(translator)),
+                ("bwr", BwrRenderer(translator)),
+                ("bwry", BwryRenderer(translator)),
+            ]
 
-            homepage_png = _bmp_to_png(bmp_data, width=400)
             homepage_path = images_dir / f"preview_teams_{lang}.png"
-            async with aiofiles.open(homepage_path, "wb") as f:
-                await f.write(homepage_png)
+            configure_paths: list[Path] = []
 
-            configure_png = _bmp_to_png(bmp_data, full_size=True)
-            configure_path = images_dir / f"configure_teams_{lang}.png"
-            async with aiofiles.open(configure_path, "wb") as f:
-                await f.write(configure_png)
+            for display_name, display_renderer in display_variants:
+                bmp_data = display_renderer.render_teams_drivers(teams_data)
+                is_color = display_name in {"spectra6", "bwr", "bwry"}
 
-            logger.info("Generated teams previews: %s, %s", homepage_path, configure_path)
+                if display_name == "1bit":
+                    homepage_png = _bmp_to_png(bmp_data, width=400)
+                    async with aiofiles.open(homepage_path, "wb") as f:
+                        await f.write(homepage_png)
+
+                suffix = f"_{lang}"
+                if display_name == "spectra6":
+                    suffix += "_spectra6"
+                elif display_name == "bwr":
+                    suffix += "_bwr"
+                elif display_name == "bwry":
+                    suffix += "_bwry"
+
+                configure_png = _bmp_to_png(
+                    bmp_data,
+                    full_size=True,
+                    preserve_color=is_color,
+                )
+                configure_path = images_dir / f"configure_teams{suffix}.png"
+                async with aiofiles.open(configure_path, "wb") as f:
+                    await f.write(configure_png)
+                configure_paths.append(configure_path)
+
+            logger.info("Generated teams previews: %s, %s", homepage_path, configure_paths)
         except Exception as e:
             logger.error("Error generating teams preview (%s): %s", lang, e)
 
