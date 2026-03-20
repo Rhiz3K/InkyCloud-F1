@@ -1987,6 +1987,23 @@ def test_spectra6_render_teams_drivers(mock_teams_data):
     assert img.mode == "P"
 
 
+def test_spectra6_team_row_header_uses_black_fill():
+    """Teams card headers should stay black while the screen header remains red."""
+    renderer = Spectra6Renderer(get_translator("en"))
+    image = Image.new("RGB", (renderer.width, renderer.height), renderer.colors.WHITE)
+    draw = ImageDraw.Draw(image)
+    team = TeamEntry(
+        constructor_name="Audi",
+        chassis="",
+        power_unit="",
+        drivers=[],
+    )
+
+    renderer._draw_team_row(image, draw, 5, 100, 395, team, 80)
+
+    assert image.getpixel((200, 110)) == renderer.colors.BLACK
+
+
 def test_bwr_render_teams_drivers_uses_bwr_palette(mock_teams_data):
     """Teams screen should render in BWR mode with the expected palette prefix."""
     renderer = BwrRenderer(get_translator("en"))

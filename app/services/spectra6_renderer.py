@@ -335,11 +335,12 @@ class Spectra6Renderer:
         small_font = self.fonts["circuit_stats_value"]
         driver_font = self.fonts["circuit_name"]
         tech_font = self.fonts["circuit_stats"]
+        header_fill = self.colors.BLACK
 
         header_height = 23
         box_y_end = y + row_height - 2
         draw.rectangle([(x_start, y), (x_end, box_y_end)], outline=self.colors.BLACK, width=1)
-        draw.rectangle([(x_start, y), (x_end, y + header_height)], fill=self.colors.RED)
+        draw.rectangle([(x_start, y), (x_end, y + header_height)], fill=header_fill)
 
         def get_text_y(font, row_h: int, row_y: int) -> int:
             bbox = draw.textbbox((0, 0), "Ay", font=font)
