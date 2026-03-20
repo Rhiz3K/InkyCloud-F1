@@ -55,7 +55,9 @@ def _enrich_display_type_stats(stats: dict) -> None:
         display_types = stats.get(key, [])
         for display_stat in display_types:
             display_key = display_stat.get("display_type") or ""
-            display_stat["display_label"] = _DISPLAY_TYPE_LABELS.get(display_key, display_key.upper())
+            display_stat["display_label"] = _DISPLAY_TYPE_LABELS.get(
+                display_key, display_key.upper()
+            )
 
 
 def _head_ok() -> HTMLResponse:

@@ -430,7 +430,12 @@ class Spectra6Renderer:
                 driver_number=driver.driver_number,
             )
 
-            draw.text((driver_name_x, driver_text_y), display_name, fill=self.colors.BLACK, font=driver_font)
+            draw.text(
+                (driver_name_x, driver_text_y),
+                display_name,
+                fill=self.colors.BLACK,
+                font=driver_font,
+            )
 
             driver_pts = str(int(driver.points)) if driver.points else "0"
             pos_text = f"P{driver.position}" if driver.position else "—"
@@ -460,7 +465,12 @@ class Spectra6Renderer:
                     font=small_font,
                 )
             else:
-                draw.text((driver_pos_x, driver_small_y), pos_text, fill=self.colors.BLACK, font=small_font)
+                draw.text(
+                    (driver_pos_x, driver_small_y),
+                    pos_text,
+                    fill=self.colors.BLACK,
+                    font=small_font,
+                )
 
         logo_container_right = driver_pos_x - 8
         logo_container_left = max(driver_name_x + 170, logo_container_right - 96)
