@@ -2023,6 +2023,29 @@ def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch)
     assert renderer._team_logos["mclaren"].getpixel((0, 0))[:3] == (255, 135, 0)
 
 
+def test_renderer_prefers_color_team_logo_assets_for_1bit_sizing(tmp_path, monkeypatch):
+    """1-bit renderer should use teams_color assets first so crop/size matches color renders."""
+    images_dir = tmp_path / "images"
+    teams_dir = images_dir / "teams"
+    teams_color_dir = images_dir / "teams_color"
+    teams_dir.mkdir(parents=True)
+    teams_color_dir.mkdir(parents=True)
+
+    Image.new("RGBA", (4, 4), color=(0, 0, 0, 255)).save(teams_dir / "mclaren.png", "PNG")
+    color_logo = Image.new("RGBA", (10, 6), color=(0, 0, 0, 0))
+    for x in range(1, 9):
+        for y in range(1, 5):
+            color_logo.putpixel((x, y), (255, 135, 0, 255))
+    color_logo.save(teams_color_dir / "mclaren.png", "PNG")
+
+    monkeypatch.setattr(renderer_module, "IMAGES_DIR", images_dir)
+    monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
+
+    renderer = Renderer(get_translator("en"))
+
+    assert renderer._team_logos["mclaren"].size == (8, 4)
+
+
 def test_bwr_render_teams_drivers_uses_bwr_palette(mock_teams_data):
     """Teams screen should render in BWR mode with the expected palette prefix."""
     renderer = BwrRenderer(get_translator("en"))

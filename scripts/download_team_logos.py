@@ -25,11 +25,24 @@ TEAM_SLUGS = {
     "alpine": "alpine",
 }
 
+SPECIAL_LOGO_URLS = {
+    "audi": (
+        "https://uploads.audi-mediacenter.com/system/production/media/129183/images/"
+        "3fa11fecbd09344e7b9370c9e4a26e923c2eb491/A251983_large.png"
+    ),
+    "cadillac": (
+        "https://news.cadillac.com/content/Pages/news/us/en/2025/may/0503-f1/"
+        "_jcr_content/boilerplate/image.img.png/Cadillac-Formula-1-Team-Logo.png"
+    ),
+}
+
 BASE_URL = "https://media.formula1.com/image/upload"
 LOGO_HEIGHT = 200
 
 
 def get_logo_url(team_id: str, team_slug: str) -> str:
+    if team_id in SPECIAL_LOGO_URLS:
+        return SPECIAL_LOGO_URLS[team_id]
     variant = "logo"
     return (
         f"{BASE_URL}/c_fit,h_{LOGO_HEIGHT}/q_auto/v1740000000/"
@@ -68,6 +81,12 @@ async def main():
             download_team_logo(client, team_id, slug, output_dir)
             for team_id, slug in TEAM_SLUGS.items()
         ]
+        tasks.extend(
+            [
+                download_team_logo(client, "audi", "audi", output_dir),
+                download_team_logo(client, "cadillac", "cadillac", output_dir),
+            ]
+        )
         results = await asyncio.gather(*tasks)
 
     success = sum(results)

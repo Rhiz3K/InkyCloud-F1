@@ -71,6 +71,7 @@ TRACKS_PROCESSED_DIR = ASSETS_DIR / "tracks_processed"
 IMAGES_DIR = ASSETS_DIR / "images"
 FONTS_DIR = ASSETS_DIR / "fonts"
 FLAGS_DIR = ASSETS_DIR / "flags_processed"
+TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
 
 # Reference text for consistent text positioning across languages
 # Contains characters with maximum ascent (diacritics) and descent (g, y)
@@ -1709,31 +1710,48 @@ class Renderer:
         Returns:
             dict mapping lowercase filename stem to 1-bit PIL Image.
         """
-        teams_dir = IMAGES_DIR / "teams"
         logos: dict[str, Image.Image] = {}
+        for teams_dir in (TEAMS_COLOR_DIR, IMAGES_DIR / "teams"):
+            if not teams_dir.exists():
+                continue
 
-        if not teams_dir.exists():
-            return logos
-
-        for logo_path in teams_dir.glob("*.png"):
-            try:
-                img_file = Image.open(logo_path)
-                img: Image.Image = img_file.convert("1") if img_file.mode != "1" else img_file
-                img = self._crop_to_content(img)
+            for logo_path in teams_dir.glob("*.png"):
                 team_key = logo_path.stem.lower()
-                logos[team_key] = img
-            except Exception as e:
-                logger.warning("Failed to load team logo %s: %s", logo_path, e)
+                if team_key in logos:
+                    continue
+                try:
+                    img_file = Image.open(logo_path).convert("RGBA")
+                    img = self._crop_to_content(img_file)
+                    logos[team_key] = self._logo_to_1bit(img)
+                except Exception as e:
+                    logger.warning("Failed to load team logo %s: %s", logo_path, e)
 
         return logos
 
     @staticmethod
     def _crop_to_content(img: Image.Image) -> Image.Image:
+        if "A" in img.getbands():
+            alpha = img.getchannel("A")
+            bbox = alpha.getbbox()
+            if bbox:
+                return img.crop(bbox)
         inverted = ImageOps.invert(img.convert("L")).convert("1")
         bbox = inverted.getbbox()
         if bbox:
             return img.crop(bbox)
         return img
+
+    @staticmethod
+    def _logo_to_1bit(img: Image.Image) -> Image.Image:
+        if "A" in img.getbands():
+            alpha = img.getchannel("A")
+            if alpha.getbbox() is not None and alpha.getextrema()[0] < 255:
+                return alpha.point(lambda p: 0 if p > 32 else 255).convert("1")
+
+        flattened = Image.new("RGB", img.size, (255, 255, 255))
+        flattened.paste(img.convert("RGBA"), mask=img.convert("RGBA").split()[3])
+        grayscale = flattened.convert("L")
+        return grayscale.point(lambda p: 255 if p > 245 else 0).convert("1")
 
     @staticmethod
     def _fit_text(
