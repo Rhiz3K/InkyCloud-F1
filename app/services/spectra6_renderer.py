@@ -69,6 +69,7 @@ TRACKS_PROCESSED_DIR = ASSETS_DIR / "tracks_processed"
 IMAGES_DIR = ASSETS_DIR / "images"
 FONTS_DIR = ASSETS_DIR / "fonts"
 FLAGS_DIR = ASSETS_DIR / "flags_spectra6"
+TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
 
 TEXT_BASELINE_REF = "ÁŽÝgy"
 
@@ -1311,18 +1312,22 @@ class Spectra6Renderer:
         return photos
 
     def _load_team_logos(self) -> dict[str, Image.Image]:
-        teams_dir = IMAGES_DIR / "teams"
         logos: dict[str, Image.Image] = {}
+        search_dirs = [TEAMS_COLOR_DIR, IMAGES_DIR / "teams"]
 
-        if not teams_dir.exists():
-            return logos
+        for teams_dir in search_dirs:
+            if not teams_dir.exists():
+                continue
 
-        for logo_path in teams_dir.glob("*.png"):
-            try:
-                img = Image.open(logo_path).convert("RGBA")
-                logos[logo_path.stem.lower()] = self._crop_to_content(img)
-            except Exception as e:
-                logger.warning("Failed to load team logo %s: %s", logo_path, e)
+            for logo_path in teams_dir.glob("*.png"):
+                team_key = logo_path.stem.lower()
+                if team_key in logos:
+                    continue
+                try:
+                    img = Image.open(logo_path).convert("RGBA")
+                    logos[team_key] = self._crop_to_content(img)
+                except Exception as e:
+                    logger.warning("Failed to load team logo %s: %s", logo_path, e)
 
         return logos
 

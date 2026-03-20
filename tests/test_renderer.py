@@ -2004,6 +2004,27 @@ def test_spectra6_team_row_header_uses_black_fill():
     assert image.getpixel((200, 110)) == renderer.colors.BLACK
 
 
+def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch):
+    """Color renderers should prefer teams_color assets over monochrome teams assets."""
+    images_dir = tmp_path / "images"
+    teams_dir = images_dir / "teams"
+    teams_color_dir = images_dir / "teams_color"
+    teams_dir.mkdir(parents=True)
+    teams_color_dir.mkdir(parents=True)
+
+    Image.new("RGBA", (4, 4), color=(0, 0, 0, 255)).save(teams_dir / "mclaren.png", "PNG")
+    Image.new("RGBA", (4, 4), color=(255, 135, 0, 255)).save(
+        teams_color_dir / "mclaren.png", "PNG"
+    )
+
+    monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", images_dir)
+    monkeypatch.setattr(spectra6_renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
+
+    renderer = Spectra6Renderer(get_translator("en"))
+
+    assert renderer._team_logos["mclaren"].getpixel((0, 0))[:3] == (255, 135, 0)
+
+
 def test_bwr_render_teams_drivers_uses_bwr_palette(mock_teams_data):
     """Teams screen should render in BWR mode with the expected palette prefix."""
     renderer = BwrRenderer(get_translator("en"))
