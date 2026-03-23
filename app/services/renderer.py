@@ -72,7 +72,7 @@ IMAGES_DIR = ASSETS_DIR / "images"
 FONTS_DIR = ASSETS_DIR / "fonts"
 FLAGS_DIR = ASSETS_DIR / "flags_processed"
 TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
-MONOCHROME_1BIT_TEAM_LOGOS = {"ferrari", "cadillac"}
+MONOCHROME_1BIT_TEAM_LOGOS = {"ferrari", "cadillac", "red_bull"}
 
 # Reference text for consistent text positioning across languages
 # Contains characters with maximum ascent (diacritics) and descent (g, y)

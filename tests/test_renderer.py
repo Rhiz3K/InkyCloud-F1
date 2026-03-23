@@ -2148,6 +2148,27 @@ def test_renderer_uses_monochrome_override_for_ferrari_in_1bit(tmp_path, monkeyp
     assert renderer._team_logos["ferrari"].getpixel((0, 0))[:3] == (0, 0, 0)
 
 
+def test_renderer_uses_monochrome_override_for_red_bull_in_1bit(tmp_path, monkeypatch):
+    """Red Bull should use the dedicated mono asset in 1-bit mode."""
+    images_dir = tmp_path / "images"
+    teams_dir = images_dir / "teams"
+    teams_color_dir = images_dir / "teams_color"
+    teams_dir.mkdir(parents=True)
+    teams_color_dir.mkdir(parents=True)
+
+    Image.new("RGBA", (8, 8), color=(255, 0, 0, 255)).save(teams_color_dir / "red_bull.png", "PNG")
+    mono_logo = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+    mono_logo.putpixel((0, 0), (0, 0, 0, 255))
+    mono_logo.save(teams_dir / "red_bull.png", "PNG")
+
+    monkeypatch.setattr(renderer_module, "IMAGES_DIR", images_dir)
+    monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
+
+    renderer = Renderer(get_translator("en"))
+
+    assert renderer._team_logos["red_bull"].getpixel((0, 0))[:3] == (0, 0, 0)
+
+
 def test_bwr_render_teams_drivers_uses_bwr_palette(mock_teams_data):
     """Teams screen should render in BWR mode with the expected palette prefix."""
     renderer = BwrRenderer(get_translator("en"))
