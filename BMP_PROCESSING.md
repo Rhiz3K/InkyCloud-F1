@@ -272,7 +272,10 @@ Current teams render flow:
 
 Per-display behavior:
 
-- `1bit` keeps the existing monochrome render path
+- `1bit` keeps a monochrome output path, but now follows the same source-first rule as calendar tracks:
+  - keep the cropped source logo in RGBA until draw time
+  - resize from the original logo first
+  - flatten onto white and threshold to `1bit` only after scaling
 - `spectra6` composes in RGB and exports via Spectra 6 indexed BMP
 - `bwr` composes in RGB and converts the final dashboard with `map_to_bwr_palette(...)`
 - `bwry` composes in RGB and converts the final dashboard with `map_to_bwry_palette(...)`

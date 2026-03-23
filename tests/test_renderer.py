@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from io import BytesIO
 
 import pytest
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from app.models import (
     ConstructorInfo,
@@ -2068,6 +2068,39 @@ def test_renderer_crops_audi_wordmark_to_primary_band_before_1bit_conversion():
     prepared = Renderer._prepare_team_logo("audi", logo)
 
     assert prepared.size == (101, 46)
+
+
+def test_renderer_crop_to_content_ignores_fully_opaque_alpha_for_white_background():
+    """Opaque logos on white backgrounds should crop by visible content, not full alpha bounds."""
+    logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
+    draw = ImageDraw.Draw(logo)
+    draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
+
+    prepared = Renderer._crop_to_content(logo)
+
+    assert prepared.size == (101, 46)
+
+
+def test_renderer_draw_team_logo_centers_logo_in_1bit_mode():
+    """1-bit teams logos should be centered in the logo container like color renderers."""
+    renderer = Renderer(get_translator("en"))
+    renderer._team_logos = {"audi": Image.new("RGBA", (40, 20), (0, 0, 0, 255))}
+    image = Image.new("1", (220, 80), 1)
+    team = TeamEntry(constructor_name="Audi", chassis="", power_unit="", drivers=[])
+
+    renderer._draw_team_logo(
+        image,
+        team,
+        driver_area_y=10,
+        driver_area_h=30,
+        container_left=100,
+        container_right=180,
+    )
+
+    bbox = ImageOps.invert(image.convert("L")).getbbox()
+
+    assert bbox is not None
+    assert (bbox[0] + bbox[2]) // 2 == 140
 
 
 def test_bwr_render_teams_drivers_uses_bwr_palette(mock_teams_data):

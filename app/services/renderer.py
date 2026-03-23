@@ -616,15 +616,16 @@ class Renderer:
         scale_h = max_h / orig_h
         scale = min(scale_w, scale_h)
 
-        new_w = int(orig_w * scale)
-        new_h = int(orig_h * scale)
+        new_w = max(1, int(orig_w * scale))
+        new_h = max(1, int(orig_h * scale))
 
-        logo_resized = logo.resize((new_w, new_h), Image.Resampling.NEAREST)
+        logo_resized = logo.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        logo_bitmap = self._logo_to_1bit(logo_resized)
 
-        logo_x = container_right - new_w
+        logo_x = container_left + (container_w - new_w) // 2
         logo_y = driver_area_y + (driver_area_h - new_h) // 2
 
-        image.paste(logo_resized, (logo_x, logo_y))
+        image.paste(logo_bitmap, (logo_x, logo_y))
 
     def _draw_standings_header(
         self,
@@ -1705,10 +1706,10 @@ class Renderer:
 
     def _load_team_logos(self) -> dict[str, Image.Image]:
         """
-        Load team logos from assets/teams as 1-bit cropped images.
+        Load team logos from assets/teams as cropped source images.
 
         Returns:
-            dict mapping lowercase filename stem to 1-bit PIL Image.
+            dict mapping lowercase filename stem to cropped PIL Image.
         """
         logos: dict[str, Image.Image] = {}
         for teams_dir in (TEAMS_COLOR_DIR, IMAGES_DIR / "teams"):
@@ -1721,8 +1722,7 @@ class Renderer:
                     continue
                 try:
                     img_file = Image.open(logo_path).convert("RGBA")
-                    img = self._prepare_team_logo(team_key, img_file)
-                    logos[team_key] = self._logo_to_1bit(img)
+                    logos[team_key] = self._prepare_team_logo(team_key, img_file)
                 except Exception as e:
                     logger.warning("Failed to load team logo %s: %s", logo_path, e)
 
@@ -1799,15 +1799,11 @@ class Renderer:
 
     @staticmethod
     def _logo_to_1bit(img: Image.Image) -> Image.Image:
-        if "A" in img.getbands():
-            alpha = img.getchannel("A")
-            if alpha.getbbox() is not None and alpha.getextrema()[0] < 255:
-                return alpha.point(lambda p: 0 if p > 32 else 255).convert("1")
-
         flattened = Image.new("RGB", img.size, (255, 255, 255))
-        flattened.paste(img.convert("RGBA"), mask=img.convert("RGBA").split()[3])
-        grayscale = flattened.convert("L")
-        return grayscale.point(lambda p: 255 if p > 245 else 0).convert("1")
+        rgba = img.convert("RGBA")
+        flattened.paste(rgba, mask=rgba.getchannel("A"))
+        grayscale = ImageOps.autocontrast(flattened.convert("L"))
+        return grayscale.point(lambda p: 255 if p > 240 else 0).convert("1")
 
     @staticmethod
     def _fit_text(
