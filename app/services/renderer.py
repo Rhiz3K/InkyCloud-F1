@@ -72,6 +72,7 @@ IMAGES_DIR = ASSETS_DIR / "images"
 FONTS_DIR = ASSETS_DIR / "fonts"
 FLAGS_DIR = ASSETS_DIR / "flags_processed"
 TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
+MONOCHROME_1BIT_TEAM_LOGOS = {"ferrari", "cadillac"}
 
 # Reference text for consistent text positioning across languages
 # Contains characters with maximum ascent (diacritics) and descent (g, y)
@@ -1718,7 +1719,9 @@ class Renderer:
 
             for logo_path in teams_dir.glob("*.png"):
                 team_key = logo_path.stem.lower()
-                if team_key in logos:
+                if team_key in logos and not (
+                    teams_dir.name == "teams" and team_key in MONOCHROME_1BIT_TEAM_LOGOS
+                ):
                     continue
                 try:
                     img_file = Image.open(logo_path).convert("RGBA")
@@ -1731,7 +1734,7 @@ class Renderer:
     @classmethod
     def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
         cropped = cls._crop_to_content(img)
-        if team_key == "audi":
+        if team_key in {"audi", "cadillac"}:
             return cls._crop_primary_horizontal_band(cropped)
         return cropped
 

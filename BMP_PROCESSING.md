@@ -289,6 +289,8 @@ Team logo source notes:
 - `audi` uses the explicit override `https://upload.wikimedia.org/wikipedia/commons/a/ae/Logo_audi.jpg`
 - `cadillac` uses the explicit override `https://pngimg.com/d/cadillac_PNG42.png`
 - color renderers prefer `app/assets/images/teams_color/`, while `1bit` also uses the same source set and reduces it during final monochrome rendering so logo sizing and centering stay aligned across displays
+- `audi` and `cadillac` are cropped to their primary upper mark band so the lower wordmarks do not shrink the logo area
+- `1bit` intentionally overrides some logos such as `ferrari` and `cadillac` with the dedicated monochrome assets from `app/assets/images/teams/` when those assets preserve shape/detail better than thresholding the color logo
 
 ## 7. Current Active Palettes
 

@@ -1334,7 +1334,7 @@ class Spectra6Renderer:
     @classmethod
     def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
         cropped = cls._crop_to_content(img)
-        if team_key == "audi":
+        if team_key in {"audi", "cadillac"}:
             return cls._crop_primary_horizontal_band(cropped)
         return cropped
 

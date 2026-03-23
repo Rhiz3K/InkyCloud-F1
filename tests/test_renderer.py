@@ -2070,6 +2070,30 @@ def test_renderer_crops_audi_wordmark_to_primary_band_before_1bit_conversion():
     assert prepared.size == (101, 46)
 
 
+def test_spectra6_renderer_crops_cadillac_wordmark_to_primary_band():
+    """Cadillac logo should keep only the crest without the lower wordmark."""
+    logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
+    draw = ImageDraw.Draw(logo)
+    draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
+    draw.rectangle((30, 80, 90, 100), fill=(0, 0, 0, 255))
+
+    prepared = Spectra6Renderer._prepare_team_logo("cadillac", logo)
+
+    assert prepared.size == (101, 46)
+
+
+def test_renderer_crops_cadillac_wordmark_to_primary_band_before_1bit_conversion():
+    """1-bit teams logos should remove the Cadillac wordmark before conversion."""
+    logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
+    draw = ImageDraw.Draw(logo)
+    draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
+    draw.rectangle((30, 80, 90, 100), fill=(0, 0, 0, 255))
+
+    prepared = Renderer._prepare_team_logo("cadillac", logo)
+
+    assert prepared.size == (101, 46)
+
+
 def test_renderer_crop_to_content_ignores_fully_opaque_alpha_for_white_background():
     """Opaque logos on white backgrounds should crop by visible content, not full alpha bounds."""
     logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
@@ -2101,6 +2125,27 @@ def test_renderer_draw_team_logo_centers_logo_in_1bit_mode():
 
     assert bbox is not None
     assert (bbox[0] + bbox[2]) // 2 == 140
+
+
+def test_renderer_uses_monochrome_override_for_ferrari_in_1bit(tmp_path, monkeypatch):
+    """Ferrari should use the dedicated mono asset in 1-bit mode to preserve shield detail."""
+    images_dir = tmp_path / "images"
+    teams_dir = images_dir / "teams"
+    teams_color_dir = images_dir / "teams_color"
+    teams_dir.mkdir(parents=True)
+    teams_color_dir.mkdir(parents=True)
+
+    Image.new("RGBA", (8, 8), color=(255, 220, 0, 255)).save(teams_color_dir / "ferrari.png", "PNG")
+    mono_logo = Image.new("1", (8, 8), 1)
+    mono_logo.putpixel((0, 0), 0)
+    mono_logo.save(teams_dir / "ferrari.png", "PNG")
+
+    monkeypatch.setattr(renderer_module, "IMAGES_DIR", images_dir)
+    monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
+
+    renderer = Renderer(get_translator("en"))
+
+    assert renderer._team_logos["ferrari"].getpixel((0, 0))[:3] == (0, 0, 0)
 
 
 def test_bwr_render_teams_drivers_uses_bwr_palette(mock_teams_data):
