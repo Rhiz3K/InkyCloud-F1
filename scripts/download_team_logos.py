@@ -3,6 +3,7 @@
 
 import asyncio
 import logging
+import subprocess
 from io import BytesIO
 from pathlib import Path
 
@@ -26,18 +27,16 @@ TEAM_SLUGS = {
 }
 
 SPECIAL_LOGO_URLS = {
-    "audi": (
-        "https://uploads.audi-mediacenter.com/system/production/media/129183/images/"
-        "3fa11fecbd09344e7b9370c9e4a26e923c2eb491/A251983_large.png"
-    ),
-    "cadillac": (
-        "https://news.cadillac.com/content/Pages/news/us/en/2025/may/0503-f1/"
-        "_jcr_content/boilerplate/image.img.png/Cadillac-Formula-1-Team-Logo.png"
-    ),
+    "audi": "https://upload.wikimedia.org/wikipedia/commons/a/ae/Logo_audi.jpg",
+    "cadillac": "https://pngimg.com/d/cadillac_PNG42.png",
 }
 
 BASE_URL = "https://media.formula1.com/image/upload"
 LOGO_HEIGHT = 200
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+}
 
 
 def get_logo_url(team_id: str, team_slug: str) -> str:
@@ -50,6 +49,26 @@ def get_logo_url(team_id: str, team_slug: str) -> str:
     )
 
 
+def download_with_curl(url: str) -> bytes:
+    result = subprocess.run(
+        [
+            "curl",
+            "-L",
+            "-A",
+            DEFAULT_HEADERS["User-Agent"],
+            "-e",
+            "https://commons.wikimedia.org/",
+            "--fail",
+            "--silent",
+            "--show-error",
+            url,
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return result.stdout
+
+
 async def download_team_logo(
     client: httpx.AsyncClient, team_id: str, team_slug: str, output_dir: Path
 ) -> bool:
@@ -57,10 +76,16 @@ async def download_team_logo(
     output_path = output_dir / f"{team_id}.png"
 
     try:
-        response = await client.get(url)
-        response.raise_for_status()
+        try:
+            response = await client.get(url, headers=DEFAULT_HEADERS)
+            response.raise_for_status()
+            content = response.content
+        except Exception:
+            if team_id not in SPECIAL_LOGO_URLS:
+                raise
+            content = await asyncio.to_thread(download_with_curl, url)
 
-        img = Image.open(BytesIO(response.content)).convert("RGBA")
+        img = Image.open(BytesIO(content)).convert("RGBA")
         img.save(output_path, "PNG")
         logger.info("Saved %s color logo to %s (%s)", team_id, output_path, img.size)
         return True
@@ -90,7 +115,7 @@ async def main():
         results = await asyncio.gather(*tasks)
 
     success = sum(results)
-    logger.info(f"Downloaded {success}/{len(TEAM_SLUGS)} team logos")
+    logger.info(f"Downloaded {success}/{len(results)} team logos")
 
 
 if __name__ == "__main__":

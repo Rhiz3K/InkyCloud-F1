@@ -280,6 +280,13 @@ Per-display behavior:
 This follows the same late-reduction rule as the calendar screen: preserve source detail
 for logos, text edges, and small UI elements until the final export step.
 
+Team logo source notes:
+
+- default current-team color logos are downloaded by `scripts/download_team_logos.py` from Formula 1 media assets and stored in `app/assets/images/teams_color/`
+- `audi` uses the explicit override `https://upload.wikimedia.org/wikipedia/commons/a/ae/Logo_audi.jpg`
+- `cadillac` uses the explicit override `https://pngimg.com/d/cadillac_PNG42.png`
+- color renderers prefer `app/assets/images/teams_color/`, while `1bit` also uses the same source set and reduces it during final monochrome rendering so logo sizing and centering stay aligned across displays
+
 ## 7. Current Active Palettes
 
 ### 7.1 `bwr`
