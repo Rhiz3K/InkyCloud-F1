@@ -2046,6 +2046,30 @@ def test_renderer_prefers_color_team_logo_assets_for_1bit_sizing(tmp_path, monke
     assert renderer._team_logos["mclaren"].size == (8, 4)
 
 
+def test_spectra6_renderer_crops_audi_wordmark_to_primary_band():
+    """Audi logo should keep the rings band so it renders larger in the teams card."""
+    logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
+    draw = ImageDraw.Draw(logo)
+    draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
+    draw.rectangle((30, 80, 90, 100), fill=(0, 0, 0, 255))
+
+    prepared = Spectra6Renderer._prepare_team_logo("audi", logo)
+
+    assert prepared.size == (101, 46)
+
+
+def test_renderer_crops_audi_wordmark_to_primary_band_before_1bit_conversion():
+    """1-bit teams logos should use the same Audi crop as color renderers."""
+    logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
+    draw = ImageDraw.Draw(logo)
+    draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
+    draw.rectangle((30, 80, 90, 100), fill=(0, 0, 0, 255))
+
+    prepared = Renderer._prepare_team_logo("audi", logo)
+
+    assert prepared.size == (101, 46)
+
+
 def test_bwr_render_teams_drivers_uses_bwr_palette(mock_teams_data):
     """Teams screen should render in BWR mode with the expected palette prefix."""
     renderer = BwrRenderer(get_translator("en"))

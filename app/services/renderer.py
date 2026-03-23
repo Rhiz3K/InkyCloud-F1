@@ -1721,25 +1721,81 @@ class Renderer:
                     continue
                 try:
                     img_file = Image.open(logo_path).convert("RGBA")
-                    img = self._crop_to_content(img_file)
+                    img = self._prepare_team_logo(team_key, img_file)
                     logos[team_key] = self._logo_to_1bit(img)
                 except Exception as e:
                     logger.warning("Failed to load team logo %s: %s", logo_path, e)
 
         return logos
 
+    @classmethod
+    def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
+        cropped = cls._crop_to_content(img)
+        if team_key == "audi":
+            return cls._crop_primary_horizontal_band(cropped)
+        return cropped
+
     @staticmethod
     def _crop_to_content(img: Image.Image) -> Image.Image:
         if "A" in img.getbands():
             alpha = img.getchannel("A")
-            bbox = alpha.getbbox()
-            if bbox:
-                return img.crop(bbox)
+            if alpha.getextrema()[0] < 255:
+                bbox = alpha.getbbox()
+                if bbox:
+                    return img.crop(bbox)
         inverted = ImageOps.invert(img.convert("L")).convert("1")
         bbox = inverted.getbbox()
         if bbox:
             return img.crop(bbox)
         return img
+
+    @staticmethod
+    def _crop_primary_horizontal_band(img: Image.Image) -> Image.Image:
+        if "A" in img.getbands() and img.getchannel("A").getextrema()[0] < 255:
+            mask = img.getchannel("A")
+        else:
+            mask = ImageOps.invert(img.convert("L"))
+        rows = []
+        for y in range(mask.height):
+            active = 0
+            for x in range(mask.width):
+                if mask.getpixel((x, y)) > 16:
+                    active += 1
+            rows.append(active)
+
+        segments: list[tuple[int, int, int]] = []
+        start: int | None = None
+        for index, count in enumerate(rows):
+            if count > 5 and start is None:
+                start = index
+            elif count <= 5 and start is not None:
+                segment_rows = rows[start:index]
+                segments.append((start, index, max(segment_rows) if segment_rows else 0))
+                start = None
+        if start is not None:
+            segment_rows = rows[start:]
+            segments.append((start, len(rows), max(segment_rows) if segment_rows else 0))
+
+        if len(segments) < 2:
+            return img
+
+        first_start, first_end, first_peak = segments[0]
+        second_start, second_end, second_peak = segments[1]
+        first_height = first_end - first_start
+        second_height = second_end - second_start
+        gap = second_start - first_end
+
+        min_gap = max(8, img.height // 30)
+        min_primary_height = max(12, img.height // 5)
+        if (
+            gap < min_gap
+            or first_height < min_primary_height
+            or first_height < second_height
+            or first_peak < second_peak
+        ):
+            return img
+
+        return img.crop((0, first_start, img.width, first_end))
 
     @staticmethod
     def _logo_to_1bit(img: Image.Image) -> Image.Image:
