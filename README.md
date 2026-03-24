@@ -54,9 +54,9 @@ https://f1.inkycloud.click/calendar.bmp?lang=en&weather=true&weather_type=curren
 
 _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
-![SVERIO B/W/R/Y Placeholder](./assets/device_sverio_bwry_placeholder.svg)
+![SVERIO B/W/R/Y](./assets/device_sverio_bwry.png)
 
-_Placeholder for a tested SVERIO PaperBoard 7.5" GDEM075F52 screenshot with black frame: four-color 800×480 ePaper (black/white/yellow/red), readable in direct sunlight, no backlight._
+_SVERIO PaperBoard 7.5" GDEM075F52 four-color 800×480 ePaper (black/white/yellow/red)_
 
 ---
 
