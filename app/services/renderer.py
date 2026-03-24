@@ -414,6 +414,172 @@ class Renderer:
 
         return w + 4
 
+    @staticmethod
+    def _get_text_y(
+        draw: ImageDraw.ImageDraw,
+        font,
+        row_h: int,
+        row_y: int,
+    ) -> int:
+        """Align text vertically within a row using font metrics."""
+        bbox = draw.textbbox((0, 0), "Ay", font=font)
+        h = bbox[3] - bbox[1]
+        top_off = bbox[1]
+        return int(row_y + (row_h - h) // 2 - top_off)
+
+    @staticmethod
+    def _right_align_x(draw: ImageDraw.ImageDraw, text: str, right_edge: int, font) -> int:
+        """Return the x-coordinate that right-aligns text to the given edge."""
+        bbox = draw.textbbox((0, 0), text, font=font)
+        return int(right_edge - (bbox[2] - bbox[0]))
+
+    @staticmethod
+    def _text_width(draw: ImageDraw.ImageDraw, text: str, font) -> int:
+        """Measure rendered text width for the active draw context."""
+        bbox = draw.textbbox((0, 0), text, font=font)
+        return int(bbox[2] - bbox[0])
+
+    @classmethod
+    def _clamp_text(cls, draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> str:
+        """Clamp text to fit into a maximum width using an ellipsis."""
+        if max_width <= 0:
+            return ""
+        if cls._text_width(draw, text, font) <= max_width:
+            return text
+
+        ellipsis = "..."
+        trimmed = text
+        while trimmed and cls._text_width(draw, trimmed + ellipsis, font) > max_width:
+            trimmed = trimmed[:-1]
+        return (trimmed + ellipsis) if trimmed else ""
+
+    @staticmethod
+    def _build_team_header_values(team) -> tuple[str, str, str, str]:
+        """Build normalized constructor header strings for a team card."""
+        constructor = team.constructor_name or team.entrant or ""
+        team_name = constructor.split("-")[0].replace(" Aramco", "").replace("Kick ", "").strip()
+        chassis = team.chassis or ""
+        power_unit = team.power_unit.replace("-AMG", "") if team.power_unit else ""
+        meta_text = " | ".join(part for part in (chassis, power_unit) if part)
+        team_pos = str(team.position) if team.position else "—"
+        return team_name, meta_text, team_pos, Renderer._format_points(team.points)
+
+    @staticmethod
+    def _format_team_driver_display_name(name: str) -> str:
+        """Format a driver name as `Given SURNAME` for team cards."""
+        name_parts = name.replace(" Jr.", "").replace(" jr.", "").split()
+        if len(name_parts) >= 2:
+            given = name_parts[0]
+            surname = " ".join(name_parts[1:]).upper()
+            return f"{given} {surname}"
+        return name.upper()
+
+    def _draw_team_stats_panel_mono(
+        self,
+        draw: ImageDraw.ImageDraw,
+        y: int,
+        header_height: int,
+        panel_x: int,
+        panel_right_x: int,
+        team_pos: str,
+        team_pts: str,
+        stats_font,
+        points_font,
+    ) -> int:
+        """Draw the shared monochrome position/points panel and return its left x."""
+        panel_y = y + 2
+        panel_h = header_height - 4
+        panel_w = panel_right_x - panel_x
+        stats_gap = 4
+        pos_col_w = 24
+        points_col_w = panel_w - pos_col_w - stats_gap
+        pos_box_x = panel_x
+        points_box_x = panel_x + pos_col_w + stats_gap
+
+        def draw_panel_stat(text: str, box_x: int, box_w: int, font, align: str = "center") -> None:
+            text_bbox = draw.textbbox((0, 0), text, font=font)
+            text_w = int(text_bbox[2] - text_bbox[0])
+            text_h = int(text_bbox[3] - text_bbox[1])
+            if align == "right":
+                text_x = box_x + box_w - 4 - text_w - int(text_bbox[0])
+            else:
+                text_x = box_x + (box_w - text_w) // 2 - int(text_bbox[0])
+            text_y = panel_y + (panel_h - text_h) // 2 - int(text_bbox[1])
+            draw.text((text_x, text_y), text, fill=0, font=font)
+
+        draw.rectangle([(panel_x, panel_y), (panel_right_x, panel_y + panel_h)], fill=1, outline=0)
+        draw_panel_stat(team_pos, pos_box_x, pos_col_w, stats_font)
+        draw_panel_stat(team_pts, points_box_x, points_col_w, points_font, align="right")
+        return pos_box_x
+
+    def _draw_team_driver_row_mono(
+        self,
+        draw: ImageDraw.ImageDraw,
+        image: Image.Image,
+        driver,
+        driver_y: int,
+        driver_row_height: int,
+        photo_x: int,
+        photo_size: int,
+        pts_right_x: int,
+        driver_pos_x: int,
+        badge_pad_x: int,
+        small_font,
+        driver_font,
+    ) -> None:
+        """Draw a single monochrome driver row inside a team card."""
+        name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
+        if not name:
+            name = driver.driver_code or "TBA"
+
+        display_name = self._format_team_driver_display_name(name)
+        center_y = driver_y + driver_row_height // 2
+        driver_text_y = self._get_text_y(draw, driver_font, driver_row_height, driver_y)
+        driver_small_y = self._get_text_y(draw, small_font, driver_row_height, driver_y)
+
+        photo_y = center_y - photo_size // 2
+        photo_width = self._draw_driver_photo(
+            draw,
+            image,
+            photo_x,
+            photo_y,
+            name,
+            size=photo_size,
+            driver_number=driver.driver_number,
+        )
+        driver_name_x = photo_x + photo_width + self.layout["driver_name_padding"]
+        draw.text((driver_name_x, driver_text_y), display_name, fill=0, font=driver_font)
+
+        driver_pts = self._format_points(driver.points)
+        pos_text = f"P{driver.position}" if driver.position else "—"
+        pts_x = self._right_align_x(draw, driver_pts, pts_right_x, small_font)
+        draw.text((pts_x, driver_small_y), driver_pts, fill=0, font=small_font)
+
+        if driver.position and driver.position <= 4:
+            pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
+            pos_w = pos_bbox[2] - pos_bbox[0]
+            pos_h = pos_bbox[3] - pos_bbox[1]
+            badge_pad_y = 3
+            badge_w = int(pos_w) + badge_pad_x * 2
+            badge_h = int(pos_h) + badge_pad_y * 2
+            badge_x = driver_pos_x - badge_pad_x
+            badge_y = driver_y + (driver_row_height - badge_h) // 2
+            is_dark_badge = driver.position in {2, 3}
+            draw.rectangle(
+                [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h)],
+                fill=0 if is_dark_badge else 1,
+                outline=0,
+            )
+            draw.text(
+                (badge_x + badge_pad_x, badge_y + badge_pad_y - pos_bbox[1]),
+                pos_text,
+                fill=1 if is_dark_badge else 0,
+                font=small_font,
+            )
+            return
+
+        draw.text((driver_pos_x, driver_small_y), pos_text, fill=0, font=small_font)
+
     def _draw_team_row(
         self,
         image: Image.Image,
@@ -437,84 +603,25 @@ class Renderer:
         draw.rectangle([(x_start, y), (x_end, box_y_end)], outline=0, width=1)
         draw.rectangle([(x_start, y), (x_end, y + header_height)], fill=0)
 
-        def get_text_y(font, row_h: int, row_y: int) -> int:
-            """Align text vertically within a row using font metrics."""
-            bbox = draw.textbbox((0, 0), "Ay", font=font)
-            h = bbox[3] - bbox[1]
-            top_off = bbox[1]
-            return int(row_y + (row_h - h) // 2 - top_off)
-
-        header_text_y = get_text_y(team_font, header_height, y)
-        tech_text_y = get_text_y(tech_font, header_height, y)
-
-        constructor = team.constructor_name or team.entrant or ""
-        team_name = constructor.split("-")[0].replace(" Aramco", "").replace("Kick ", "").strip()
-        chassis = team.chassis or ""
-        power_unit = team.power_unit.replace("-AMG", "") if team.power_unit else ""
-        meta_text = " | ".join(part for part in (chassis, power_unit) if part)
-        team_pos = str(team.position) if team.position else "—"
-        team_pts = self._format_points(team.points)
-
-        def right_align_x(text: str, right_edge: int, font) -> int:
-            """Return the x-coordinate that right-aligns text to the given edge."""
-            bbox = draw.textbbox((0, 0), text, font=font)
-            return int(right_edge - (bbox[2] - bbox[0]))
-
-        def text_width(text: str, font) -> int:
-            """Measure rendered text width for the active draw context."""
-            bbox = draw.textbbox((0, 0), text, font=font)
-            return int(bbox[2] - bbox[0])
-
-        def clamp_text(text: str, font, max_width: int) -> str:
-            """Clamp text to fit into a maximum width using an ellipsis."""
-            if max_width <= 0:
-                return ""
-            if text_width(text, font) <= max_width:
-                return text
-            ellipsis = "..."
-            trimmed = text
-            while trimmed and text_width(trimmed + ellipsis, font) > max_width:
-                trimmed = trimmed[:-1]
-            return (trimmed + ellipsis) if trimmed else ""
-
-        def draw_panel_stat(
-            text: str,
-            box_x: int,
-            box_w: int,
-            font,
-            fill: int,
-            align: str = "center",
-        ) -> None:
-            """Draw text inside the shared header panel with the requested alignment."""
-            text_bbox = draw.textbbox((0, 0), text, font=font)
-            text_w = int(text_bbox[2] - text_bbox[0])
-            text_h = int(text_bbox[3] - text_bbox[1])
-            if align == "right":
-                text_x = box_x + box_w - 4 - text_w - int(text_bbox[0])
-            else:
-                text_x = box_x + (box_w - text_w) // 2 - int(text_bbox[0])
-            text_y = panel_y + (panel_h - text_h) // 2 - int(text_bbox[1])
-            draw.text((text_x, text_y), text, fill=fill, font=font)
+        header_text_y = self._get_text_y(draw, team_font, header_height, y)
+        tech_text_y = self._get_text_y(draw, tech_font, header_height, y)
+        team_name, meta_text, team_pos, team_pts = self._build_team_header_values(team)
 
         badge_pad_x = 5
         driver_pos_x = x_end - 72
         panel_x = driver_pos_x - badge_pad_x
-        panel_y = y + 2
-        panel_h = header_height - 4
         panel_right_x = x_end - 4
-        panel_w = panel_right_x - panel_x
-        stats_gap = 4
-        pos_col_w = 24
-        points_col_w = panel_w - pos_col_w - stats_gap
-        pos_box_x = panel_x
-        points_box_x = panel_x + pos_col_w + stats_gap
-        draw.rectangle(
-            [(panel_x, panel_y), (panel_right_x, panel_y + panel_h)],
-            fill=1,
-            outline=0,
+        pos_box_x = self._draw_team_stats_panel_mono(
+            draw,
+            y,
+            header_height,
+            panel_x,
+            panel_right_x,
+            team_pos,
+            team_pts,
+            stats_font,
+            points_font,
         )
-        draw_panel_stat(team_pos, pos_box_x, pos_col_w, stats_font, 0)
-        draw_panel_stat(team_pts, points_box_x, points_col_w, points_font, 0, align="right")
 
         name_x = x_start + 4
         draw.text((name_x, header_text_y), team_name, fill=1, font=team_font)
@@ -523,7 +630,7 @@ class Renderer:
         name_w = name_bbox[2] - name_bbox[0]
         meta_x = int(name_x + name_w + 8)
         meta_max_w = pos_box_x - meta_x - 6
-        meta_text = clamp_text(meta_text, tech_font, meta_max_w)
+        meta_text = self._clamp_text(draw, meta_text, tech_font, meta_max_w)
         if meta_text:
             draw.text((meta_x, tech_text_y), meta_text, fill=1, font=tech_font)
 
@@ -537,67 +644,21 @@ class Renderer:
 
         sorted_drivers = sorted(team.drivers[:2], key=lambda d: d.position or 99)
         for i, driver in enumerate(sorted_drivers):
-            name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
-            if not name:
-                name = driver.driver_code or "TBA"
-
-            name_parts = name.replace(" Jr.", "").replace(" jr.", "").split()
-            if len(name_parts) >= 2:
-                given = name_parts[0]
-                surname = " ".join(name_parts[1:]).upper()
-                display_name = f"{given} {surname}"
-            else:
-                display_name = name.upper()
-
             driver_y = driver_y_start + i * driver_row_height
-            center_y = driver_y + driver_row_height // 2
-            driver_text_y = get_text_y(driver_font, driver_row_height, driver_y)
-            driver_small_y = get_text_y(small_font, driver_row_height, driver_y)
-
-            photo_y = center_y - photo_size // 2
-            photo_width = self._draw_driver_photo(
+            self._draw_team_driver_row_mono(
                 draw,
                 image,
+                driver,
+                driver_y,
+                driver_row_height,
                 photo_x,
-                photo_y,
-                name,
-                size=photo_size,
-                driver_number=driver.driver_number,
+                photo_size,
+                pts_right_x,
+                driver_pos_x,
+                badge_pad_x,
+                small_font,
+                driver_font,
             )
-            driver_name_x = photo_x + photo_width + self.layout["driver_name_padding"]
-
-            draw.text((driver_name_x, driver_text_y), display_name, fill=0, font=driver_font)
-
-            driver_pts = self._format_points(driver.points)
-            pos_text = f"P{driver.position}" if driver.position else "—"
-
-            pts_x = right_align_x(driver_pts, pts_right_x, small_font)
-            draw.text((pts_x, driver_small_y), driver_pts, fill=0, font=small_font)
-
-            if driver.position and driver.position <= 4:
-                pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
-                pos_w = pos_bbox[2] - pos_bbox[0]
-                pos_h = pos_bbox[3] - pos_bbox[1]
-                badge_pad_y = 3
-                badge_w = int(pos_w) + badge_pad_x * 2
-                badge_h = int(pos_h) + badge_pad_y * 2
-                badge_x = driver_pos_x - badge_pad_x
-                badge_y = driver_y + (driver_row_height - badge_h) // 2
-
-                is_dark_badge = driver.position in {2, 3}
-                draw.rectangle(
-                    [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h)],
-                    fill=0 if is_dark_badge else 1,
-                    outline=0,
-                )
-                draw.text(
-                    (badge_x + badge_pad_x, badge_y + badge_pad_y - pos_bbox[1]),
-                    pos_text,
-                    fill=1 if is_dark_badge else 0,
-                    font=small_font,
-                )
-            else:
-                draw.text((driver_pos_x, driver_small_y), pos_text, fill=0, font=small_font)
 
         logo_container_right = driver_pos_x - 8
         driver_name_base_x = photo_x + photo_size + self.layout["driver_name_padding"]
