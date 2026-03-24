@@ -463,7 +463,9 @@ class Spectra6Renderer:
                 badge_fill = (
                     self.colors.RED
                     if driver.position == 1
-                    else self.colors.BLACK if driver.position in {2, 3} else self.colors.WHITE
+                    else self.colors.BLACK
+                    if driver.position in {2, 3}
+                    else self.colors.WHITE
                 )
 
                 draw.rectangle(
