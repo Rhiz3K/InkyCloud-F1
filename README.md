@@ -32,7 +32,7 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 | `round`        | Race round number                | `?year=2026&round=5`                 |
 | `display`      | `1bit`, `bwr`, `bwry`, `spectra6` | `?display=bwry`                      |
 | `weather`      | `true`, `false`                  | `?weather=false`                     |
-| `weather_type` | `race_day`, `current`            | `?weather=true&weather_type=current` |
+| `weather_type` | `race_day`, `race`, `current`, `off` | `?weather=true&weather_type=current` |
 
 **Examples:**
 
@@ -79,7 +79,7 @@ Planned features for future releases:
 - [x] **1-BIT monochrome** — Initial calendar output introduced in `v1.0.0`
 - [x] **Spectra 6** — `display=spectra6` added in `v1.2.0`
 - [x] **B/W/R** — `display=bwr` added in `v1.2.9`
-- [x] **B/W/R/Y** — `display=bwry` added in `v1.2.13` for the calendar screen
+- [x] **B/W/R/Y** — `display=bwry` added in `v1.2.13` for the calendar screen and extended to the teams screen in `v1.2.15`
 
 #### Screens and layouts
 

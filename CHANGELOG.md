@@ -26,8 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Teams logo/render polish** - Refined logo sourcing and 1-bit/logo conversion behavior across teams renderers, added dedicated 1-bit overrides for problematic team marks, preserved half-points in standings output, and treated legacy teams analytics rows without `display_type` as `1bit`
 - **Teams header layout** - Reworked the team-card header stats area into a shared aligned panel, improved vertical/horizontal centering, right-aligned points across teams, highlighted the leading constructor position in color-capable displays, and improved `B/W/R` and `B/W/R/Y` meta-text readability
+- **Teams row alignment** - Fixed driver-name column alignment by anchoring names to a shared slot, centering driver numbers inside that slot, and keeping spacing consistent across mixed-width number/photo assets
+- **Sauber logo fallback** - Non-`Spectra 6` teams renders now remap Sauber's green accent to a mono-friendly white-on-black mark so `1bit`, `B/W/R`, and `B/W/R/Y` variants stay legible in 2024/2025 layouts
 - **Calendar session color mapping** - `Spectra 6` now uses red/yellow/green/blue accents for `Race`/`Qualifying`/`Sprint`/`Practice`, while `B/W/R` and `B/W/R/Y` gracefully fall back to supported palette colors
-- **Benchmark and quality follow-ups** - Lazy-loaded teams assets for the 1-bit renderer to avoid unrelated benchmark regressions, restored CodSpeed to the GitHub-hosted runner, resolved DeepSource findings, and split complex team-row renderer methods into smaller helpers
+- **Benchmark and quality follow-ups** - Lazy-loaded teams assets for the 1-bit renderer to avoid unrelated benchmark regressions, restored CodSpeed to the GitHub-hosted runner, resolved DeepSource findings (including helper visibility/static-method cleanup), and split complex team-row renderer methods into smaller helpers
 
 ## [1.2.14] - 2026-03-19
 

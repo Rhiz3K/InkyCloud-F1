@@ -622,13 +622,14 @@ The scheduler runs hourly and intelligently pre-generates BMP files based on act
 
 **Always generated (defaults):**
 
-- `calendar_en.bmp` - English, next race, default timezone
-- `calendar_cs.bmp` - Czech, next race, default timezone
+- All `(lang, display, weather)` combinations for the next race in the default timezone
+- Example: `calendar_en.bmp`, `calendar_en_bwr.bmp`, `calendar_en_bwry_weather_current.bmp`
 
 **Dynamically generated (based on popularity):**
 
-- Up to 20 additional variants based on the most popular `(language, timezone)` combinations from the last 24 hours
-- Example: `calendar_en_America_New_York.bmp`, `calendar_cs_Europe_London.bmp`
+- Up to 20 additional timezone combinations based on the most popular `(language, timezone)` pairs from the last 24 hours
+- Each selected timezone gets the full display/weather matrix for the next race
+- Example: `calendar_en_America_New_York.bmp`, `calendar_cs_Europe_London_bwry_weather_race.bmp`
 
 **Selection criteria:**
 
@@ -643,10 +644,27 @@ Pre-generated files follow this pattern:
 ```
 calendar_{lang}.bmp                    # Default timezone
 calendar_{lang}_bwr.bmp                # Default timezone, B/W/R display
+calendar_{lang}_bwry.bmp               # Default timezone, B/W/R/Y display
 calendar_{lang}_spectra6.bmp           # Default timezone, Spectra 6 display
+calendar_{lang}_weather_current.bmp    # Default timezone, current weather
+calendar_{lang}_weather_race.bmp       # Default timezone, race-day weather
 calendar_{lang}_{tz_safe}.bmp          # Specific timezone
 calendar_{lang}_{tz_safe}_bwr.bmp      # Specific timezone, B/W/R display
+calendar_{lang}_{tz_safe}_bwry.bmp     # Specific timezone, B/W/R/Y display
 calendar_{lang}_{tz_safe}_spectra6.bmp # Specific timezone, Spectra 6 display
+calendar_{lang}_{tz_safe}_weather_current.bmp      # Specific timezone, current weather
+calendar_{lang}_{tz_safe}_weather_race.bmp         # Specific timezone, race-day weather
+calendar_{lang}_{tz_safe}_bwr_weather_race.bmp     # Specific timezone, B/W/R + race-day weather
+calendar_{lang}_{tz_safe}_bwry_weather_current.bmp # Specific timezone, B/W/R/Y + current weather
+
+configure_calendar_{lang}.png          # Full-size configure preview (1bit)
+configure_calendar_{lang}_bwr.png      # Full-size configure preview (B/W/R)
+configure_calendar_{lang}_bwry.png     # Full-size configure preview (B/W/R/Y)
+configure_calendar_{lang}_spectra6.png # Full-size configure preview (Spectra 6)
+configure_teams_{lang}.png             # Full-size teams configure preview (1bit)
+configure_teams_{lang}_bwr.png         # Full-size teams configure preview (B/W/R)
+configure_teams_{lang}_bwry.png        # Full-size teams configure preview (B/W/R/Y)
+configure_teams_{lang}_spectra6.png    # Full-size teams configure preview (Spectra 6)
 ```
 
 Where `{tz_safe}` replaces `/` with `_` in timezone names:
@@ -659,8 +677,8 @@ Where `{tz_safe}` replaces `/` with `_` in timezone names:
 The `/calendar.bmp` endpoint checks for pre-generated files before rendering:
 
 1. **Next race requests** (no `year`/`round` params):
-   - First checks for `calendar_{lang}_{tz_safe}.bmp`
-   - Falls back to `calendar_{lang}.bmp` if using default timezone
+   - First checks for the exact `calendar_{lang}_{tz_safe}_{display}_weather_{type}.bmp` variant
+   - Falls back to the matching default-timezone variant when `tz` is omitted
    - Renders on-the-fly if no pre-generated file exists
 
 2. **Specific race requests** (`year` and `round` params):

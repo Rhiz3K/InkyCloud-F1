@@ -18,10 +18,14 @@ curl http://localhost:8000/calendar.bmp?lang=cs -o calendar.bmp
 curl http://localhost:8000/health
 ```
 
-### Get API Info
+### Get Landing Page / API Info
 
 ```bash
+# Landing page
 curl http://localhost:8000/
+
+# JSON API documentation
+curl http://localhost:8000/api
 ```
 
 ### Fetch with Timezone
@@ -66,29 +70,29 @@ curl "http://localhost:8000/api/stats/history?limit=720"
 ### Championship Standings
 
 ```bash
-# Get standings BMP image (split view - drivers left, constructors right)
-curl http://localhost:8000/standings.bmp -o standings.bmp
+# Get current championship leaders (JSON)
+curl http://localhost:8000/api/standings/leader
 
-# Get drivers-only view
-curl "http://localhost:8000/standings.bmp?view=drivers" -o standings_drivers.bmp
+# Get championship leaders for a specific year
+curl http://localhost:8000/api/standings/leader/2025
+```
 
-# Get constructors-only view
-curl "http://localhost:8000/standings.bmp?view=constructors" -o standings_constructors.bmp
+### Teams & Drivers BMP
 
-# Get standings in Czech
-curl "http://localhost:8000/standings.bmp?lang=cs" -o standings_cs.bmp
+```bash
+# Current season teams screen
+curl http://localhost:8000/teams.bmp -o teams.bmp
 
-# Get standings for specific year
-curl "http://localhost:8000/standings.bmp?year=2024" -o standings_2024.bmp
+# Specific season
+curl "http://localhost:8000/teams.bmp?year=2025" -o teams_2025.bmp
 
-# Get JSON standings data
-curl http://localhost:8000/api/standings/2025
+# Czech language
+curl "http://localhost:8000/teams.bmp?lang=cs" -o teams_cs.bmp
 
-# Get driver standings only (JSON)
-curl http://localhost:8000/api/standings/2025/drivers
-
-# Get constructor standings only (JSON)
-curl http://localhost:8000/api/standings/2025/constructors
+# Display variants
+curl "http://localhost:8000/teams.bmp?display=bwr" -o teams_bwr.bmp
+curl "http://localhost:8000/teams.bmp?display=bwry" -o teams_bwry.bmp
+curl "http://localhost:8000/teams.bmp?display=spectra6" -o teams_spectra6.bmp
 ```
 
 ### Interactive API Documentation
@@ -198,6 +202,7 @@ fetch_calendar("cs")
 curl http://localhost:8000/
 curl http://localhost:8000/health
 curl http://localhost:8000/calendar.bmp?lang=en -o test.bmp
+curl http://localhost:8000/teams.bmp -o teams_test.bmp
 
 # Verify BMP format
 file test.bmp
