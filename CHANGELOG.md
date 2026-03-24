@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Teams display parity** - Added `1bit`, `B/W/R`, `B/W/R/Y`, and `Spectra 6` variants to the teams configure flow, previews, API docs, and a dedicated teams display breakdown in the stats dashboard
 - **Display-aware session accents** - Multi-color calendar outputs now color `Race`, `Qualifying`, `Sprint`, and `Practice` labels according to the active display palette, with unsupported colors falling back to black
+- **SVERIO hardware docs** - Added SVERIO `B/W/R/Y` PaperBoard hardware references to the site credits/README and documented a tested 7.5" `GDEM075F52` screenshot placeholder for the four-color panel
 
 ### Backend
 
@@ -30,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sauber logo fallback** - Non-`Spectra 6` teams renders now remap Sauber's green accent to a mono-friendly white-on-black mark so `1bit`, `B/W/R`, and `B/W/R/Y` variants stay legible in 2024/2025 layouts
 - **Calendar session color mapping** - `Spectra 6` now uses red/yellow/green/blue accents for `Race`/`Qualifying`/`Sprint`/`Practice`, while `B/W/R` and `B/W/R/Y` gracefully fall back to supported palette colors
 - **Benchmark and quality follow-ups** - Lazy-loaded teams assets for the 1-bit renderer to avoid unrelated benchmark regressions, restored CodSpeed to the GitHub-hosted runner, resolved DeepSource findings (including helper visibility/static-method cleanup), and split complex team-row renderer methods into smaller helpers
+- **Documentation sync** - Updated README/examples/self-hosting/BMP pipeline docs so public documentation matches the current endpoints, display variants, generated preview naming, and teams rendering behavior
 
 ## [1.2.14] - 2026-03-19
 
