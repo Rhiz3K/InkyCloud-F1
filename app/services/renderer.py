@@ -477,10 +477,39 @@ class Renderer:
                 trimmed = trimmed[:-1]
             return (trimmed + ellipsis) if trimmed else ""
 
+        def draw_header_stat_box(text: str, box_x: int, font) -> int:
+            """Draw a boxed header stat with centered text and return its width."""
+            text_bbox = draw.textbbox((0, 0), text, font=font)
+            text_w = int(text_bbox[2] - text_bbox[0])
+            text_h = int(text_bbox[3] - text_bbox[1])
+            pad_x = 5
+            box_y = y + 2
+            box_h = header_height - 4
+            box_w = max(text_w + (pad_x * 2), 24)
+
+            draw.rectangle(
+                [(box_x, box_y), (box_x + box_w, box_y + box_h)],
+                fill=1,
+                outline=0,
+            )
+            text_x = box_x + (box_w - text_w) // 2 - int(text_bbox[0])
+            text_y = box_y + (box_h - text_h) // 2 - int(text_bbox[1])
+            draw.text((text_x, text_y), text, fill=0, font=font)
+            return box_w
+
         badge_pad_x = 5
         driver_pos_x = x_end - 72
         separator_x = driver_pos_x - badge_pad_x
         draw.line([(separator_x, y + 2), (separator_x, y + header_height - 2)], fill=1, width=1)
+
+        stats_gap = 4
+        points_box_w = max(text_width(team_pts, points_font) + 10, 24)
+        points_box_x = x_end - 4 - points_box_w
+        pos_box_w = max(text_width(team_pos, stats_font) + 10, 24)
+        pos_box_x = points_box_x - stats_gap - pos_box_w
+
+        draw_header_stat_box(team_pos, pos_box_x, stats_font)
+        draw_header_stat_box(team_pts, points_box_x, points_font)
 
         name_x = x_start + 4
         draw.text((name_x, header_text_y), team_name, fill=1, font=team_font)
@@ -488,35 +517,10 @@ class Renderer:
         name_bbox = draw.textbbox((0, 0), team_name, font=team_font)
         name_w = name_bbox[2] - name_bbox[0]
         meta_x = int(name_x + name_w + 8)
-        meta_max_w = separator_x - meta_x - 6
+        meta_max_w = pos_box_x - meta_x - 6
         meta_text = clamp_text(meta_text, tech_font, meta_max_w)
         if meta_text:
             draw.text((meta_x, tech_text_y), meta_text, fill=1, font=tech_font)
-
-        pts_bbox = draw.textbbox((0, 0), team_pts, font=points_font)
-        pts_text_w = int(pts_bbox[2] - pts_bbox[0])
-        pts_text_h = int(pts_bbox[3] - pts_bbox[1])
-        pts_pad_x = 5
-        pts_pad_y = 2
-        pts_box_w = pts_text_w + (pts_pad_x * 2)
-        pts_box_h = pts_text_h + (pts_pad_y * 2)
-        pts_box_x = x_end - 4 - pts_box_w
-        pts_box_y = y + (header_height - pts_box_h) // 2
-
-        team_pos_right_x = pts_box_x - 8
-        team_pos_x = right_align_x(team_pos, team_pos_right_x, stats_font)
-        draw.text((team_pos_x, header_text_y), team_pos, fill=1, font=stats_font)
-        draw.rectangle(
-            [(pts_box_x, pts_box_y), (pts_box_x + pts_box_w, pts_box_y + pts_box_h)],
-            fill=1,
-            outline=0,
-        )
-        draw.text(
-            (pts_box_x + pts_pad_x, pts_box_y + pts_pad_y - pts_bbox[1]),
-            team_pts,
-            fill=0,
-            font=points_font,
-        )
 
         driver_area_height = row_height - header_height - 4
         driver_row_height = driver_area_height // 2
