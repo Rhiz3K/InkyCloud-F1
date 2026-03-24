@@ -339,7 +339,8 @@ class Spectra6Renderer:
         team_font = self.fonts["circuit_name"]
         small_font = self.fonts["circuit_stats_value"]
         driver_font = self.fonts["circuit_name"]
-        tech_font = self.fonts["circuit_stats"]
+        tech_font = self.fonts["circuit_location"]
+        stats_font = self.fonts["circuit_stats"]
         header_fill = self.colors.BLACK
 
         header_height = 23
@@ -360,6 +361,7 @@ class Spectra6Renderer:
         team_name = constructor.split("-")[0].replace(" Aramco", "").replace("Kick ", "").strip()
         chassis = team.chassis or ""
         power_unit = team.power_unit.replace("-AMG", "") if team.power_unit else ""
+        meta_text = " | ".join(part for part in (chassis, power_unit) if part)
         team_pos = str(team.position) if team.position else "—"
         team_pts = self._format_points(team.points)
 
@@ -371,32 +373,42 @@ class Spectra6Renderer:
             bbox = draw.textbbox((0, 0), text, font=font)
             return int(bbox[2] - bbox[0])
 
-        pts_right_x = x_end - 4
-        team_pts_x = right_align_x(team_pts, pts_right_x, tech_font)
-        team_pos_x = team_pts_x - text_width(team_pos, tech_font) - 10
-        tech_right_limit = team_pos_x - 10
+        def clamp_text(text: str, font, max_width: int) -> str:
+            if max_width <= 0:
+                return ""
+            if text_width(text, font) <= max_width:
+                return text
+            ellipsis = "..."
+            trimmed = text
+            while trimmed and text_width(trimmed + ellipsis, font) > max_width:
+                trimmed = trimmed[:-1]
+            return (trimmed + ellipsis) if trimmed else ""
+
+        stats_block_w = 66
+        stats_left_x = x_end - stats_block_w
+        separator_x = stats_left_x - 4
+        draw.line(
+            [(separator_x, y + 2), (separator_x, y + header_height - 2)],
+            fill=self.colors.WHITE,
+            width=1,
+        )
 
         name_x = x_start + 4
         draw.text((name_x, header_text_y), team_name, fill=self.colors.WHITE, font=team_font)
 
         name_bbox = draw.textbbox((0, 0), team_name, font=team_font)
         name_w = name_bbox[2] - name_bbox[0]
-        chassis_x = int(name_x + name_w + 8)
+        meta_x = int(name_x + name_w + 8)
+        meta_max_w = separator_x - meta_x - 6
+        meta_text = clamp_text(meta_text, tech_font, meta_max_w)
+        if meta_text:
+            draw.text((meta_x, tech_text_y), meta_text, fill=self.colors.WHITE, font=tech_font)
 
-        draw.text((chassis_x, tech_text_y), chassis, fill=self.colors.WHITE, font=tech_font)
-
-        if chassis:
-            chassis_bbox = draw.textbbox((0, 0), chassis, font=tech_font)
-            chassis_w = chassis_bbox[2] - chassis_bbox[0]
-            pu_x = int(chassis_x + chassis_w + 8)
-        else:
-            pu_x = chassis_x
-
-        if pu_x < tech_right_limit:
-            draw.text((pu_x, tech_text_y), power_unit, fill=self.colors.WHITE, font=tech_font)
-
-        draw.text((team_pos_x, tech_text_y), team_pos, fill=self.colors.WHITE, font=tech_font)
-        draw.text((team_pts_x, tech_text_y), team_pts, fill=self.colors.WHITE, font=tech_font)
+        pts_right_x = x_end - 4
+        team_pts_x = right_align_x(team_pts, pts_right_x, stats_font)
+        team_pos_x = stats_left_x + 4
+        draw.text((team_pos_x, header_text_y), team_pos, fill=self.colors.WHITE, font=stats_font)
+        draw.text((team_pts_x, header_text_y), team_pts, fill=self.colors.WHITE, font=stats_font)
 
         driver_area_height = row_height - header_height - 4
         driver_row_height = driver_area_height // 2

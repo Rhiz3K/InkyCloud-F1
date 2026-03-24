@@ -2007,6 +2007,32 @@ def test_spectra6_team_row_header_uses_black_fill():
     assert image.getpixel((200, 110)) == renderer.colors.BLACK
 
 
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_team_row_header_separates_right_stats_block(renderer_cls):
+    """Teams card header should keep a visible separator before the right stats block."""
+    renderer = renderer_cls(get_translator("en"))
+    background = 1 if renderer_cls is Renderer else renderer.colors.WHITE
+    image_mode = "1" if renderer_cls is Renderer else "RGB"
+    image = Image.new(image_mode, (800, 480), background)
+    draw = ImageDraw.Draw(image)
+    team = TeamEntry(
+        constructor_name="Oracle Red Bull Racing",
+        chassis="RB22",
+        power_unit="Honda RBPT",
+        position=1,
+        points=38.0,
+        drivers=[],
+    )
+
+    renderer._draw_team_row(image, draw, 5, 100, 395, team, 80)
+
+    separator_pixel = image.getpixel((325, 110))
+    if renderer_cls is Renderer:
+        assert separator_pixel == 1
+    else:
+        assert separator_pixel == renderer.colors.WHITE
+
+
 def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch):
     """Color renderers should prefer teams_color assets over monochrome teams assets."""
     images_dir = tmp_path / "images"
