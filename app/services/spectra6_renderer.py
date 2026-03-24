@@ -450,15 +450,21 @@ class Spectra6Renderer:
             pts_x = right_align_x(driver_pts, pts_right_x, small_font)
             draw.text((pts_x, driver_small_y), driver_pts, fill=self.colors.BLACK, font=small_font)
 
-            if driver.position and driver.position <= 3:
+            if driver.position and driver.position <= 4:
                 pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
+                pos_w = pos_bbox[2] - pos_bbox[0]
                 pos_h = pos_bbox[3] - pos_bbox[1]
-                badge_pad = 4
-                badge_w = 28
-                badge_h = int(pos_h) + badge_pad * 2
-                badge_x = driver_pos_x - badge_pad
+                badge_pad_x = 5
+                badge_pad_y = 3
+                badge_w = int(pos_w) + badge_pad_x * 2
+                badge_h = int(pos_h) + badge_pad_y * 2
+                badge_x = driver_pos_x - badge_pad_x
                 badge_y = driver_y + (driver_row_height - badge_h) // 2
-                badge_fill = self.colors.RED if driver.position == 1 else self.colors.BLACK
+                badge_fill = (
+                    self.colors.RED
+                    if driver.position == 1
+                    else self.colors.BLACK if driver.position in {2, 3} else self.colors.WHITE
+                )
 
                 draw.rectangle(
                     [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h)],
@@ -466,9 +472,9 @@ class Spectra6Renderer:
                     outline=self.colors.BLACK,
                 )
                 draw.text(
-                    (driver_pos_x, badge_y + badge_pad - pos_bbox[1]),
+                    (badge_x + badge_pad_x, badge_y + badge_pad_y - pos_bbox[1]),
                     pos_text,
-                    fill=self.colors.WHITE,
+                    fill=self.colors.WHITE if driver.position in {1, 2, 3} else self.colors.BLACK,
                     font=small_font,
                 )
             else:
