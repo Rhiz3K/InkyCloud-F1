@@ -2023,6 +2023,28 @@ def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch)
     assert renderer._team_logos["mclaren"].getpixel((0, 0))[:3] == (255, 135, 0)
 
 
+def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch):
+    """Spectra 6 should render the header F1 logo in monochrome like the other display modes."""
+    images_dir = tmp_path / "images"
+    images_dir.mkdir(parents=True)
+
+    mono_logo = Image.new("RGB", (40, 20), (255, 255, 255))
+    mono_draw = ImageDraw.Draw(mono_logo)
+    mono_draw.rectangle((5, 5, 35, 15), fill=(0, 0, 0))
+    mono_logo.save(images_dir / "eInkF1logo.jpg", "JPEG")
+
+    color_logo = Image.new("RGB", (40, 20), (255, 0, 0))
+    color_logo.save(images_dir / "f1_spectra_6.bmp", "BMP")
+
+    monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", images_dir)
+
+    image = Image.new("RGB", (80, 30), (255, 255, 255))
+    Spectra6Renderer._draw_f1_logo(image, 80, 30)
+
+    center = image.getpixel((40, 15))
+    assert center[0] == center[1] == center[2]
+
+
 def test_renderer_prefers_color_team_logo_assets_for_1bit_sizing(tmp_path, monkeypatch):
     """1-bit renderer should use teams_color assets first so crop/size matches color renders."""
     images_dir = tmp_path / "images"

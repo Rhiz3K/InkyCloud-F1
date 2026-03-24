@@ -585,18 +585,29 @@ class Spectra6Renderer:
 
     @staticmethod
     def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:
-        logo_path = IMAGES_DIR / "f1_spectra_6.bmp"
+        logo_path = IMAGES_DIR / "eInkF1logo.jpg"
 
         if not logo_path.exists():
             logger.warning("F1 logo not found at %s", logo_path)
             return
 
         try:
-            logo = Image.open(logo_path).convert("RGB")
+            logo_file = Image.open(logo_path)
+
+            pad = 2
+            target_w = width - (pad * 2)
+            target_h = height - (pad * 2)
+            logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+
+            logo = logo_file.convert("L")
+            threshold = 128
+            logo = logo.point(  # type: ignore[arg-type,operator,misc]
+                lambda p, threshold=threshold: 255 if p > threshold else 0
+            )
+            logo = logo.convert("1").convert("RGB")
 
             x = (width - logo.width) // 2
             y = (height - logo.height) // 2
-
             image.paste(logo, (x, y))
 
         except Exception as e:
