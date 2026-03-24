@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Frontend
+
+#### Added
+
+- **Teams display parity** - Added `1bit`, `B/W/R`, `B/W/R/Y`, and `Spectra 6` variants to the teams configure flow, previews, API docs, and a dedicated teams display breakdown in the stats dashboard
+
+### Backend
+
+#### Added
+
+- **Teams display renderers** - Extended `/teams.bmp` to support the same display selection flow as `/calendar.bmp`, including color-aware teams rendering, per-display preview generation, and analytics tagging
+
+#### Fixed
+
+- **Teams logo/render polish** - Refined logo sourcing and 1-bit/logo conversion behavior across teams renderers, preserved half-points in standings output, and treated legacy teams analytics rows without `display_type` as `1bit`
+
 ## [1.2.14] - 2026-03-19
 
 ### Frontend

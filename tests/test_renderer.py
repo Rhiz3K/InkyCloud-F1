@@ -104,7 +104,7 @@ def mock_historical_data():
 
 
 @pytest.fixture
-def mock_teams_data():
+def mock_ranked_teams_data():
     """Create sample teams data for team screen rendering."""
     return TeamsData(
         season=2026,
@@ -690,9 +690,11 @@ def test_draw_driver_photo_prefers_explicit_number_over_asset():
     translator = get_translator("en")
     renderer = Renderer(translator)
     image = Image.new("1", (120, 24), 1)
+    draw = ImageDraw.Draw(image)
     renderer._driver_photos["verstappen"] = Image.new("1", (100, 20), 0)
 
     width = renderer._draw_driver_photo(
+        draw,
         image,
         0,
         0,
@@ -1976,10 +1978,11 @@ def test_bwr_bmp_is_smaller_than_spectra6_for_same_calendar(mock_race_data):
     assert len(bwr_data) < len(spectra6_data)
 
 
-def test_spectra6_render_teams_drivers(mock_teams_data):
+@pytest.mark.parametrize("lang", ["en", "cs"])
+def test_spectra6_render_teams_drivers(mock_ranked_teams_data, lang):
     """Teams screen should render in Spectra 6 mode."""
-    renderer = Spectra6Renderer(get_translator("en"))
-    bmp_data = renderer.render_teams_drivers(mock_teams_data)
+    renderer = Spectra6Renderer(get_translator(lang))
+    bmp_data = renderer.render_teams_drivers(mock_ranked_teams_data)
 
     img = Image.open(BytesIO(bmp_data))
     assert img.format == "BMP"
@@ -2019,6 +2022,7 @@ def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch)
     monkeypatch.setattr(spectra6_renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
 
     renderer = Spectra6Renderer(get_translator("en"))
+    renderer._ensure_teams_assets()
 
     assert renderer._team_logos["mclaren"].getpixel((0, 0))[:3] == (255, 135, 0)
 
@@ -2191,10 +2195,55 @@ def test_renderer_uses_monochrome_override_for_red_bull_in_1bit(tmp_path, monkey
     assert renderer._team_logos["red_bull"].getpixel((0, 0))[:3] == (0, 0, 0)
 
 
-def test_bwr_render_teams_drivers_uses_bwr_palette(mock_teams_data):
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_renderer_preserves_half_points_in_team_rows(renderer_cls):
+    """Teams renderers should preserve half-points instead of truncating them."""
+    renderer = renderer_cls(get_translator("en"))
+    background = 1 if renderer_cls is Renderer else renderer.colors.WHITE
+    image_mode = "1" if renderer_cls is Renderer else "RGB"
+    image = Image.new(image_mode, (800, 480), background)
+    draw = ImageDraw.Draw(image)
+    captured_text = []
+    original_text = draw.text
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured_text.append(text)
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(draw, "text", spy_text)
+    try:
+        team = TeamEntry(
+            constructor_name="Ferrari",
+            chassis="SF-26",
+            power_unit="Ferrari 067/6",
+            position=2,
+            points=27.5,
+            drivers=[
+                TeamDriverEntry(name="Charles Leclerc", driver_number=16, position=2, points=18.5),
+                TeamDriverEntry(name="Lewis Hamilton", driver_number=44, position=5, points=9.0),
+            ],
+        )
+
+        renderer._draw_team_row(image, draw, 5, 100, 395, team, 80)
+    finally:
+        monkeypatch.undo()
+
+    assert "27.5" in captured_text
+    assert "18.5" in captured_text
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_renderer_maps_exact_rb_constructor_name(renderer_cls):
+    """The RB constructor alias should resolve to the Racing Bulls logo key."""
+    assert renderer_cls._get_team_logo_key("RB") == "racing_bulls"
+
+
+@pytest.mark.parametrize("lang", ["en", "cs"])
+def test_bwr_render_teams_drivers_uses_bwr_palette(mock_ranked_teams_data, lang):
     """Teams screen should render in BWR mode with the expected palette prefix."""
-    renderer = BwrRenderer(get_translator("en"))
-    bmp_data = renderer.render_teams_drivers(mock_teams_data)
+    renderer = BwrRenderer(get_translator(lang))
+    bmp_data = renderer.render_teams_drivers(mock_ranked_teams_data)
 
     img = Image.open(BytesIO(bmp_data))
     palette = img.getpalette()
@@ -2206,10 +2255,11 @@ def test_bwr_render_teams_drivers_uses_bwr_palette(mock_teams_data):
     assert palette[:9] == [0, 0, 0, 255, 255, 255, 255, 0, 0]
 
 
-def test_bwry_render_teams_drivers_uses_bwry_palette(mock_teams_data):
+@pytest.mark.parametrize("lang", ["en", "cs"])
+def test_bwry_render_teams_drivers_uses_bwry_palette(mock_ranked_teams_data, lang):
     """Teams screen should render in BWRY mode with the expected palette prefix."""
-    renderer = BwryRenderer(get_translator("en"))
-    bmp_data = renderer.render_teams_drivers(mock_teams_data)
+    renderer = BwryRenderer(get_translator(lang))
+    bmp_data = renderer.render_teams_drivers(mock_ranked_teams_data)
 
     img = Image.open(BytesIO(bmp_data))
     palette = img.getpalette()

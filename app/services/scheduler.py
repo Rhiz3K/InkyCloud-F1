@@ -114,7 +114,6 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
 
     for lang in SUPPORTED_LANGUAGES:
         translator = get_translator(lang)
-        renderer = Renderer(translator)
 
         # Calendar preview - generate variants for different weather types and displays
         if race_data:
@@ -202,12 +201,8 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
                         await f.write(homepage_png)
 
                 suffix = f"_{lang}"
-                if display_name == "spectra6":
-                    suffix += "_spectra6"
-                elif display_name == "bwr":
-                    suffix += "_bwr"
-                elif display_name == "bwry":
-                    suffix += "_bwry"
+                if display_name != "1bit":
+                    suffix += f"_{display_name}"
 
                 configure_png = _bmp_to_png(
                     bmp_data,

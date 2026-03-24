@@ -544,13 +544,11 @@ class Database:
             # Display breakdown - teams requests
             async with conn.execute(
                 """
-                SELECT display_type, COUNT(*) as count
+                SELECT COALESCE(NULLIF(display_type, ''), '1bit') as display_type, COUNT(*) as count
                 FROM api_calls
                 WHERE timestamp > ?
                     AND endpoint = '/teams.bmp'
-                    AND display_type IS NOT NULL
-                    AND display_type != ''
-                GROUP BY display_type
+                GROUP BY COALESCE(NULLIF(display_type, ''), '1bit')
                 ORDER BY count DESC
                 """,
                 (cutoff,),

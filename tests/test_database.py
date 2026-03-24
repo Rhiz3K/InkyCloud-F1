@@ -208,18 +208,45 @@ class TestApiCallStatsDatabase:
                         "race_name": None,
                         "is_auto_selected": 0,
                     },
+                    {
+                        "timestamp": now,
+                        "endpoint": "/teams.bmp",
+                        "response_time_ms": 81.0,
+                        "response_size_bytes": 580,
+                        "lang": "en",
+                        "tz": None,
+                        "year": 2025,
+                        "round": None,
+                        "display_type": None,
+                        "race_name": None,
+                        "is_auto_selected": 0,
+                    },
+                    {
+                        "timestamp": now,
+                        "endpoint": "/teams.bmp",
+                        "response_time_ms": 83.0,
+                        "response_size_bytes": 590,
+                        "lang": "cs",
+                        "tz": None,
+                        "year": 2025,
+                        "round": None,
+                        "display_type": "",
+                        "race_name": None,
+                        "is_auto_selected": 0,
+                    },
                 ]
             )
 
             stats = await db.get_stats_for_range(24)
 
-            assert stats["total_requests"] == 6
+            assert stats["total_requests"] == 8
             assert {tuple(item.items()) for item in stats["display_types"]} == {
                 (("display_type", "bwr"), ("count", 2)),
                 (("display_type", "1bit"), ("count", 1)),
                 (("display_type", "bwry"), ("count", 1)),
             }
             assert {tuple(item.items()) for item in stats["teams_display_types"]} == {
+                (("display_type", "1bit"), ("count", 2)),
                 (("display_type", "spectra6"), ("count", 1)),
                 (("display_type", "bwr"), ("count", 1)),
             }

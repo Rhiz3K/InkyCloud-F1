@@ -91,7 +91,7 @@ async def download_team_logo(
         return True
 
     except Exception as e:
-        logger.error(f"Failed to download {team_id}: {e}")
+        logger.error("Failed to download %s: %s", team_id, e)
         return False
 
 
@@ -99,7 +99,7 @@ async def main():
     output_dir = Path(__file__).parent.parent / "app" / "assets" / "images" / "teams_color"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Downloading team logos to {output_dir}")
+    logger.info("Downloading team logos to %s", output_dir)
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         tasks = [
@@ -115,7 +115,7 @@ async def main():
         results = await asyncio.gather(*tasks)
 
     success = sum(results)
-    logger.info(f"Downloaded {success}/{len(results)} team logos")
+    logger.info("Downloaded %s/%s team logos", success, len(results))
 
 
 if __name__ == "__main__":

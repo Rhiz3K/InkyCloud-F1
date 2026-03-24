@@ -100,6 +100,7 @@ class Spectra6Renderer:
         self.height = config.DISPLAY_HEIGHT
         self.translator = translator
         self.colors = Spectra6Colors
+        self._racing_fonts = {22: self._load_racing_font(22)}
 
         self.fonts = {
             "header_title": self._load_font(36, bold=True),
@@ -121,11 +122,11 @@ class Spectra6Renderer:
             "weather": self._load_font(12, bold=True),
             "weather_icon": self._load_icon_font(40),
             "weather_icon_font": self._load_weather_icon_font(22),
-            "driver_number": self._load_racing_font(22),
+            "driver_number": self._racing_fonts[22],
         }
 
-        self._driver_photos = self._load_driver_photos()
-        self._team_logos = self._load_team_logos()
+        self._driver_photos: dict[str, Image.Image] | None = None
+        self._team_logos: dict[str, Image.Image] | None = None
 
         self.layout = {
             "header_height": 90,
@@ -153,6 +154,7 @@ class Spectra6Renderer:
             "results_data_y_offset": 4,
             "circuit_stats_y": 320,
             "circuit_stats_row_height": 24,
+            "driver_name_padding": 4,
             "padding": 15,
             "separator_width": 2,
         }
@@ -176,6 +178,7 @@ class Spectra6Renderer:
         return self._to_indexed_bmp(image)
 
     def render_teams_drivers(self, teams_data: TeamsData) -> bytes:
+        self._ensure_teams_assets()
         image = Image.new("RGB", (self.width, self.height), self.colors.WHITE)
         draw = ImageDraw.Draw(image)
 
@@ -279,6 +282,7 @@ class Spectra6Renderer:
 
     def _draw_driver_photo(
         self,
+        draw: ImageDraw.ImageDraw,
         image: Image.Image,
         x: int,
         y: int,
@@ -286,6 +290,7 @@ class Spectra6Renderer:
         size: int = 18,
         driver_number: int | None = None,
     ) -> int:
+        self._ensure_teams_assets()
         surname = driver_name.split()[-1].lower() if driver_name else ""
         if surname in ("jr.", "jr"):
             parts = driver_name.split()
@@ -300,9 +305,8 @@ class Spectra6Renderer:
         )
 
         if driver_number is not None:
-            draw = ImageDraw.Draw(image)
             num_text = str(driver_number)
-            font = self.fonts["driver_number"]
+            font = self._get_racing_font(size)
             bbox = draw.textbbox((0, 0), num_text, font=font)
             text_w = int(bbox[2] - bbox[0])
             text_h = int(bbox[3] - bbox[1])
@@ -357,7 +361,7 @@ class Spectra6Renderer:
         chassis = team.chassis or ""
         power_unit = team.power_unit.replace("-AMG", "") if team.power_unit else ""
         team_pos = str(team.position) if team.position else "—"
-        team_pts = str(int(team.points)) if team.points else "0"
+        team_pts = self._format_points(team.points)
 
         def right_align_x(text: str, right_edge: int, font) -> int:
             bbox = draw.textbbox((0, 0), text, font=font)
@@ -399,8 +403,7 @@ class Spectra6Renderer:
         driver_y_start = y + header_height + 2
 
         photo_size = driver_row_height - 2
-        photo_w = int(photo_size * 1.8) if self._driver_photos else 0
-        driver_name_x = x_start + 4 + photo_w + 4
+        photo_x = x_start + 4
         driver_pos_x = x_end - 72
 
         sorted_drivers = sorted(team.drivers[:2], key=lambda d: d.position or 99)
@@ -423,14 +426,16 @@ class Spectra6Renderer:
             driver_small_y = get_text_y(small_font, driver_row_height, driver_y)
 
             photo_y = center_y - photo_size // 2
-            self._draw_driver_photo(
+            photo_width = self._draw_driver_photo(
+                draw,
                 image,
-                x_start + 4,
+                photo_x,
                 photo_y,
                 name,
                 size=photo_size,
                 driver_number=driver.driver_number,
             )
+            driver_name_x = photo_x + photo_width + self.layout["driver_name_padding"]
 
             draw.text(
                 (driver_name_x, driver_text_y),
@@ -439,7 +444,7 @@ class Spectra6Renderer:
                 font=driver_font,
             )
 
-            driver_pts = str(int(driver.points)) if driver.points else "0"
+            driver_pts = self._format_points(driver.points)
             pos_text = f"P{driver.position}" if driver.position else "—"
 
             pts_x = right_align_x(driver_pts, pts_right_x, small_font)
@@ -475,7 +480,8 @@ class Spectra6Renderer:
                 )
 
         logo_container_right = driver_pos_x - 8
-        logo_container_left = max(driver_name_x + 170, logo_container_right - 96)
+        driver_name_base_x = photo_x + photo_size + self.layout["driver_name_padding"]
+        logo_container_left = max(driver_name_base_x + 170, logo_container_right - 96)
         self._draw_team_logo(
             image,
             team,
@@ -498,7 +504,13 @@ class Spectra6Renderer:
             return "williams"
         if "aston martin" in name:
             return "aston_martin"
-        if "racing bulls" in name or "rb " in name or "visa" in name:
+        if (
+            name == "rb"
+            or name.startswith("rb ")
+            or " rb " in name
+            or "racing bulls" in name
+            or "visa" in name
+        ):
             return "racing_bulls"
         if "red bull" in name:
             return "red_bull"
@@ -523,6 +535,7 @@ class Spectra6Renderer:
         container_left: int,
         container_right: int,
     ) -> None:
+        self._ensure_teams_assets()
         if not self._team_logos:
             return
 
@@ -612,6 +625,12 @@ class Spectra6Renderer:
 
         except Exception as e:
             logger.warning("Failed to load F1 logo: %s", e)
+
+    def _ensure_teams_assets(self) -> None:
+        if self._driver_photos is None:
+            self._driver_photos = self._load_driver_photos()
+        if self._team_logos is None:
+            self._team_logos = self._load_team_logos()
 
     def _draw_track_section(
         self,
@@ -1305,6 +1324,20 @@ class Spectra6Renderer:
             except Exception as e:
                 logger.warning("Failed to load Racing Sans One: %s", e)
         return self._load_font(size, bold=True)
+
+    def _get_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        if size not in self._racing_fonts:
+            self._racing_fonts[size] = self._load_racing_font(size)
+        return self._racing_fonts[size]
+
+    @staticmethod
+    def _format_points(value: float | int | None) -> str:
+        if value in (None, 0):
+            return "0"
+        value_float = float(value)
+        if value_float.is_integer():
+            return str(int(value_float))
+        return f"{value_float:.1f}"
 
     @staticmethod
     def _load_driver_photos() -> dict[str, Image.Image]:

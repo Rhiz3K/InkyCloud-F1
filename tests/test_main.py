@@ -10,7 +10,6 @@ from bs4.element import Tag
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from app.config import config
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
 from app.routes.images import _get_race_data_from_static, _get_race_info_for_stats
@@ -833,17 +832,19 @@ def test_configure_teams_urls_do_not_include_timezone_params():
     assert "tz=" not in teams_preview_branch
 
 
-def test_teams_configure_preview_route_supports_display_variants():
+def test_teams_configure_preview_route_supports_display_variants(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """Teams configure preview route should resolve display-specific filenames."""
-    images_dir = Path(config.IMAGES_PATH)
-    images_dir.mkdir(parents=True, exist_ok=True)
-    preview_path = images_dir / "configure_teams_en_bwr.png"
+    monkeypatch.setattr("app.routes.previews.config.IMAGES_PATH", str(tmp_path))
+    preview_path = tmp_path / "configure_teams_en_bwr.png"
     Image.new("RGB", (2, 2), color=(255, 0, 0)).save(preview_path, format="PNG")
 
     response = client.get("/preview/configure/teams.png?display=bwr")
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
+    assert response.content == preview_path.read_bytes()
 
 
 def test_configure_sidebar_mobile_nav_links():
