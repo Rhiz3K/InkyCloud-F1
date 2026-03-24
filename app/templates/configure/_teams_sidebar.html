@@ -1,3 +1,86 @@
+<div class="hidden lg:flex flex-1 flex-col min-h-0">
+  <div class="flex-shrink-0 px-2 py-1.5 border-b-2 border-black bg-gray-50" id="displayContainer">
+    <label class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
+      >Display</label
+    >
+    <div class="grid grid-cols-4 gap-1" id="displayTypeContainer">
+      <button
+        type="button"
+        onclick="setDisplayType('1bit')"
+        id="display1bitBtn"
+        class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-black text-white"
+      >
+        B/W
+      </button>
+      <button
+        type="button"
+        onclick="setDisplayType('bwr')"
+        id="displayBwrBtn"
+        class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+      >
+        B/W/R
+      </button>
+      <button
+        type="button"
+        onclick="setDisplayType('bwry')"
+        id="displayBwryBtn"
+        class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+      >
+        B/W/R/Y
+      </button>
+      <button
+        type="button"
+        onclick="setDisplayType('spectra6')"
+        id="displaySpectra6Btn"
+        class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+      >
+        6C
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Display Type - Mobile -->
+<div class="lg:hidden p-3 border-b-2 border-black bg-gray-50" id="mobileDisplayContainer">
+  <label class="block text-xs font-bold uppercase mb-2" id="displayLabelMobile"
+    >Display</label
+  >
+  <div class="grid grid-cols-4 gap-1">
+    <button
+      type="button"
+      onclick="setDisplayType('1bit')"
+      id="display1bitBtnMobile"
+      class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-black text-white"
+    >
+      B/W
+    </button>
+    <button
+      type="button"
+      onclick="setDisplayType('bwr')"
+      id="displayBwrBtnMobile"
+      class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+    >
+      B/W/R
+    </button>
+    <button
+      type="button"
+      onclick="setDisplayType('bwry')"
+      id="displayBwryBtnMobile"
+      class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
+    >
+      B/W/R/Y
+    </button>
+    <button
+      type="button"
+      onclick="setDisplayType('spectra6')"
+      id="displaySpectra6BtnMobile"
+      class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
+    >
+      6C
+    </button>
+  </div>
+</div>
+
 <!-- Mobile Year Selector (Teams only) -->
 <div class="lg:hidden p-4 border-t-2 border-black bg-gray-50" id="mobileYearContainer">
   <label class="block text-xs font-bold uppercase mb-2" id="yearLabelMobile"

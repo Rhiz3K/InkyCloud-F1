@@ -255,6 +255,45 @@ Current final render flow:
 
 The same source-first reasoning applies here too.
 
+### 6.5 `teams` dashboard
+
+Files:
+
+- `app/services/renderer.py`
+- `app/services/spectra6_renderer.py`
+- `app/services/bwr_renderer.py`
+- `app/services/bwry_renderer.py`
+
+Current teams render flow:
+
+1. load source PNG assets for driver silhouettes and team logos from `app/assets/images/`
+2. compose the full teams dashboard first
+3. only then reduce the final image to the target display format
+
+Per-display behavior:
+
+- `1bit` keeps a monochrome output path, but now follows the same source-first rule as calendar tracks:
+  - keep the cropped source logo in RGBA until draw time
+  - resize from the original logo first
+  - flatten onto white and threshold to `1bit` only after scaling
+- `spectra6` composes in RGB and exports via Spectra 6 indexed BMP
+- `bwr` composes in RGB and converts the final dashboard with `map_to_bwr_palette(...)`
+- `bwry` composes in RGB and converts the final dashboard with `map_to_bwry_palette(...)`
+
+This follows the same late-reduction rule as the calendar screen: preserve source detail
+for logos, text edges, and small UI elements until the final export step.
+
+Team logo source notes:
+
+- default current-team color logos are downloaded by `scripts/download_team_logos.py` from Formula 1 media assets and stored in `app/assets/images/teams_color/`
+- `audi` uses the explicit override `https://upload.wikimedia.org/wikipedia/commons/a/ae/Logo_audi.jpg`
+- `cadillac` uses the explicit override `https://pngimg.com/d/cadillac_PNG42.png`
+- color renderers prefer `app/assets/images/teams_color/`, while `1bit` also uses the same source set and reduces it during final monochrome rendering so logo sizing and centering stay aligned across displays
+- `audi` and `cadillac` are cropped to their primary upper mark band so the lower wordmarks do not shrink the logo area
+- `1bit` intentionally overrides some logos such as `ferrari`, `cadillac`, and `red_bull` with the dedicated monochrome assets from `app/assets/images/teams/` when those assets preserve shape/detail better than thresholding the color logo
+- `sauber` keeps its original green mark in `spectra6`, but non-`spectra6` variants remap that green accent to white-on-black during logo preparation so `1bit`, `bwr`, and `bwry` remain legible
+- the `red_bull` 1bit override is sourced from `https://images.icon-icons.com/2845/PNG/512/redbull_logo_icon_181345.png`
+
 ## 7. Current Active Palettes
 
 ### 7.1 `bwr`

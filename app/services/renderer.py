@@ -71,6 +71,8 @@ TRACKS_PROCESSED_DIR = ASSETS_DIR / "tracks_processed"
 IMAGES_DIR = ASSETS_DIR / "images"
 FONTS_DIR = ASSETS_DIR / "fonts"
 FLAGS_DIR = ASSETS_DIR / "flags_processed"
+TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
+MONOCHROME_1BIT_TEAM_LOGOS = {"ferrari", "cadillac", "red_bull"}
 
 # Reference text for consistent text positioning across languages
 # Contains characters with maximum ascent (diacritics) and descent (g, y)
@@ -80,6 +82,11 @@ TEXT_BASELINE_REF = "ÁŽÝgy"
 
 class Renderer:
     """Renderer for generating 1-bit BMP images in FoxeeLab style."""
+
+    _cached_driver_photos: dict[str, Image.Image] | None = None
+    _cached_driver_photos_key: str | None = None
+    _cached_team_logos: dict[str, Image.Image] | None = None
+    _cached_team_logos_key: tuple[str, str] | None = None
 
     def __init__(self, translator: dict):
         """
@@ -91,6 +98,7 @@ class Renderer:
         self.width = config.DISPLAY_WIDTH
         self.height = config.DISPLAY_HEIGHT
         self.translator = translator
+        self._racing_fonts = {22: self._load_racing_font(22)}
 
         # Load fonts - prefer TitilliumWeb, fallback to system fonts
         self.fonts = {
@@ -110,14 +118,14 @@ class Renderer:
             "circuit_stats_value": self._load_font(18, bold=True),
             "icon": self._load_icon_font(22),
             "icon_small": self._load_icon_font(22),
-            "driver_number": self._load_racing_font(22),
+            "driver_number": self._racing_fonts[22],
             "weather": self._load_font(12, bold=True),
             "weather_icon": self._load_icon_font(40),
             "weather_icon_font": self._load_weather_icon_font(22),
         }
 
-        self._driver_photos = self._load_driver_photos()
-        self._team_logos = self._load_team_logos()
+        self._driver_photos: dict[str, Image.Image] | None = None
+        self._team_logos: dict[str, Image.Image] | None = None
 
         # Layout constants (all in pixels)
         self.layout = {
@@ -152,6 +160,7 @@ class Renderer:
             # Circuit stats (between schedule and results)
             "circuit_stats_y": 320,  # Y position for circuit stats
             "circuit_stats_row_height": 24,  # Height per stat row
+            "driver_name_padding": 4,
             # General
             "padding": 15,
             "separator_width": 2,
@@ -171,6 +180,7 @@ class Renderer:
         weather_data: WeatherData | None = None,
         weather_type: str = "",
     ) -> bytes:
+        """Render the main calendar screen as a 1-bit BMP."""
         image = Image.new("1", (self.width, self.height), 1)
         draw = ImageDraw.Draw(image)
 
@@ -207,6 +217,8 @@ class Renderer:
         return self._to_bmp(image)
 
     def render_teams_drivers(self, teams_data: TeamsData) -> bytes:
+        """Render the teams and drivers dashboard as a 1-bit BMP."""
+        self._ensure_teams_assets()
         image = Image.new("1", (self.width, self.height), 1)
         draw = ImageDraw.Draw(image)
 
@@ -218,6 +230,7 @@ class Renderer:
     def _draw_teams_header(
         self, draw: ImageDraw.ImageDraw, image: Image.Image, season: int
     ) -> None:
+        """Draw the red-style teams screen header in monochrome form."""
         header_height = self.layout["header_height"]
         split_x = self.layout["header_split_x"]
 
@@ -241,6 +254,7 @@ class Renderer:
     def _draw_teams_content(
         self, image: Image.Image, draw: ImageDraw.ImageDraw, teams: list
     ) -> None:
+        """Lay out the team cards into two balanced columns."""
         header_height = self.layout["header_height"]
         col_padding = 5
         split_x = self.width // 2
@@ -273,6 +287,7 @@ class Renderer:
 
     @staticmethod
     def _split_teams_for_columns(teams: list) -> tuple[list, list]:
+        """Split teams into left and right columns while keeping counts balanced."""
         if not teams:
             return [], []
 
@@ -281,6 +296,7 @@ class Renderer:
 
     def _draw_driver_photo(
         self,
+        draw: ImageDraw.ImageDraw,
         image: Image.Image,
         x: int,
         y: int,
@@ -288,6 +304,8 @@ class Renderer:
         size: int = 18,
         driver_number: int | None = None,
     ) -> int:
+        """Draw either a driver number or silhouette and return the occupied width."""
+        self._ensure_teams_assets()
         surname = driver_name.split()[-1].lower() if driver_name else ""
         if surname in ("jr.", "jr"):
             parts = driver_name.split()
@@ -302,15 +320,15 @@ class Renderer:
         )
 
         if driver_number is not None:
-            draw = ImageDraw.Draw(image)
             num_text = str(driver_number)
-            font = self.fonts["driver_number"]
+            font = self._get_racing_font(size)
             bbox = draw.textbbox((0, 0), num_text, font=font)
             text_w = int(bbox[2] - bbox[0])
             text_h = int(bbox[3] - bbox[1])
+            text_x = x + max(0, (size - text_w) // 2) - int(bbox[0])
             text_y = y + (size - text_h) // 2 - int(bbox[1])
-            draw.text((x, text_y), num_text, fill=0, font=font)
-            return text_w + 4
+            draw.text((text_x, text_y), num_text, fill=0, font=font)
+            return size
 
         driver_img = self._driver_photos.get(surname) if self._driver_photos else None
         if driver_img is not None:
@@ -397,6 +415,172 @@ class Renderer:
 
         return w + 4
 
+    @staticmethod
+    def _get_text_y(
+        draw: ImageDraw.ImageDraw,
+        font,
+        row_h: int,
+        row_y: int,
+    ) -> int:
+        """Align text vertically within a row using font metrics."""
+        bbox = draw.textbbox((0, 0), "Ay", font=font)
+        h = bbox[3] - bbox[1]
+        top_off = bbox[1]
+        return int(row_y + (row_h - h) // 2 - top_off)
+
+    @staticmethod
+    def _right_align_x(draw: ImageDraw.ImageDraw, text: str, right_edge: int, font) -> int:
+        """Return the x-coordinate that right-aligns text to the given edge."""
+        bbox = draw.textbbox((0, 0), text, font=font)
+        return int(right_edge - (bbox[2] - bbox[0]))
+
+    @staticmethod
+    def _text_width(draw: ImageDraw.ImageDraw, text: str, font) -> int:
+        """Measure rendered text width for the active draw context."""
+        bbox = draw.textbbox((0, 0), text, font=font)
+        return int(bbox[2] - bbox[0])
+
+    @classmethod
+    def _clamp_text(cls, draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> str:
+        """Clamp text to fit into a maximum width using an ellipsis."""
+        if max_width <= 0:
+            return ""
+        if cls._text_width(draw, text, font) <= max_width:
+            return text
+
+        ellipsis = "..."
+        trimmed = text
+        while trimmed and cls._text_width(draw, trimmed + ellipsis, font) > max_width:
+            trimmed = trimmed[:-1]
+        return (trimmed + ellipsis) if trimmed else ""
+
+    @staticmethod
+    def _build_team_header_values(team) -> tuple[str, str, str, str]:
+        """Build normalized constructor header strings for a team card."""
+        constructor = team.constructor_name or team.entrant or ""
+        team_name = constructor.split("-")[0].replace(" Aramco", "").replace("Kick ", "").strip()
+        chassis = team.chassis or ""
+        power_unit = team.power_unit.replace("-AMG", "") if team.power_unit else ""
+        meta_text = " | ".join(part for part in (chassis, power_unit) if part)
+        team_pos = str(team.position) if team.position else "—"
+        return team_name, meta_text, team_pos, Renderer._format_points(team.points)
+
+    @staticmethod
+    def _format_team_driver_display_name(name: str) -> str:
+        """Format a driver name as `Given SURNAME` for team cards."""
+        name_parts = name.replace(" Jr.", "").replace(" jr.", "").split()
+        if len(name_parts) >= 2:
+            given = name_parts[0]
+            surname = " ".join(name_parts[1:]).upper()
+            return f"{given} {surname}"
+        return name.upper()
+
+    @staticmethod
+    def _draw_team_stats_panel_mono(
+        draw: ImageDraw.ImageDraw,
+        y: int,
+        header_height: int,
+        panel_x: int,
+        panel_right_x: int,
+        team_pos: str,
+        team_pts: str,
+        stats_font,
+        points_font,
+    ) -> int:
+        """Draw the shared monochrome position/points panel and return its left x."""
+        panel_y = y + 2
+        panel_h = header_height - 4
+        panel_w = panel_right_x - panel_x
+        stats_gap = 4
+        pos_col_w = 24
+        points_col_w = panel_w - pos_col_w - stats_gap
+        pos_box_x = panel_x
+        points_box_x = panel_x + pos_col_w + stats_gap
+
+        def draw_panel_stat(text: str, box_x: int, box_w: int, font, align: str = "center") -> None:
+            text_bbox = draw.textbbox((0, 0), text, font=font)
+            text_w = int(text_bbox[2] - text_bbox[0])
+            text_h = int(text_bbox[3] - text_bbox[1])
+            if align == "right":
+                text_x = box_x + box_w - 4 - text_w - int(text_bbox[0])
+            else:
+                text_x = box_x + (box_w - text_w) // 2 - int(text_bbox[0])
+            text_y = panel_y + (panel_h - text_h) // 2 - int(text_bbox[1])
+            draw.text((text_x, text_y), text, fill=0, font=font)
+
+        draw.rectangle([(panel_x, panel_y), (panel_right_x, panel_y + panel_h)], fill=1, outline=0)
+        draw_panel_stat(team_pos, pos_box_x, pos_col_w, stats_font)
+        draw_panel_stat(team_pts, points_box_x, points_col_w, points_font, align="right")
+        return pos_box_x
+
+    def _draw_team_driver_row_mono(
+        self,
+        draw: ImageDraw.ImageDraw,
+        image: Image.Image,
+        driver,
+        driver_y: int,
+        driver_row_height: int,
+        photo_x: int,
+        photo_size: int,
+        pts_right_x: int,
+        driver_pos_x: int,
+        badge_pad_x: int,
+        small_font,
+        driver_font,
+    ) -> None:
+        """Draw a single monochrome driver row inside a team card."""
+        name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
+        if not name:
+            name = driver.driver_code or "TBA"
+
+        display_name = self._format_team_driver_display_name(name)
+        center_y = driver_y + driver_row_height // 2
+        driver_text_y = self._get_text_y(draw, driver_font, driver_row_height, driver_y)
+        driver_small_y = self._get_text_y(draw, small_font, driver_row_height, driver_y)
+
+        photo_y = center_y - photo_size // 2
+        self._draw_driver_photo(
+            draw,
+            image,
+            photo_x,
+            photo_y,
+            name,
+            size=photo_size,
+            driver_number=driver.driver_number,
+        )
+        driver_name_x = photo_x + photo_size + self.layout["driver_name_padding"] + 4
+        draw.text((driver_name_x, driver_text_y), display_name, fill=0, font=driver_font)
+
+        driver_pts = self._format_points(driver.points)
+        pos_text = f"P{driver.position}" if driver.position else "—"
+        pts_x = self._right_align_x(draw, driver_pts, pts_right_x, small_font)
+        draw.text((pts_x, driver_small_y), driver_pts, fill=0, font=small_font)
+
+        if driver.position and driver.position <= 4:
+            pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
+            pos_w = pos_bbox[2] - pos_bbox[0]
+            pos_h = pos_bbox[3] - pos_bbox[1]
+            badge_pad_y = 3
+            badge_w = int(pos_w) + badge_pad_x * 2
+            badge_h = int(pos_h) + badge_pad_y * 2
+            badge_x = driver_pos_x - badge_pad_x
+            badge_y = driver_y + (driver_row_height - badge_h) // 2
+            is_dark_badge = driver.position in {2, 3}
+            draw.rectangle(
+                [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h)],
+                fill=0 if is_dark_badge else 1,
+                outline=0,
+            )
+            draw.text(
+                (badge_x + badge_pad_x, badge_y + badge_pad_y - pos_bbox[1]),
+                pos_text,
+                fill=1 if is_dark_badge else 0,
+                font=small_font,
+            )
+            return
+
+        draw.text((driver_pos_x, driver_small_y), pos_text, fill=0, font=small_font)
+
     def _draw_team_row(
         self,
         image: Image.Image,
@@ -407,144 +591,79 @@ class Renderer:
         team,
         row_height: int,
     ) -> None:
+        """Draw a single team card with header, drivers, points, and logo."""
         team_font = self.fonts["circuit_name"]
         small_font = self.fonts["circuit_stats_value"]
         driver_font = self.fonts["circuit_name"]
-        tech_font = self.fonts["circuit_stats"]
+        tech_font = self.fonts["circuit_location"]
+        stats_font = self.fonts["circuit_stats_value"]
+        points_font = self.fonts["circuit_stats_value"]
 
         header_height = 23
         box_y_end = y + row_height - 2
         draw.rectangle([(x_start, y), (x_end, box_y_end)], outline=0, width=1)
         draw.rectangle([(x_start, y), (x_end, y + header_height)], fill=0)
 
-        def get_text_y(font, row_h: int, row_y: int) -> int:
-            bbox = draw.textbbox((0, 0), "Ay", font=font)
-            h = bbox[3] - bbox[1]
-            top_off = bbox[1]
-            return int(row_y + (row_h - h) // 2 - top_off)
+        header_text_y = self._get_text_y(draw, team_font, header_height, y)
+        tech_text_y = self._get_text_y(draw, tech_font, header_height, y)
+        team_name, meta_text, team_pos, team_pts = self._build_team_header_values(team)
 
-        header_text_y = get_text_y(team_font, header_height, y)
-        tech_text_y = get_text_y(tech_font, header_height, y)
-
-        constructor = team.constructor_name or team.entrant or ""
-        team_name = constructor.split("-")[0].replace(" Aramco", "").replace("Kick ", "").strip()
-        chassis = team.chassis or ""
-        power_unit = team.power_unit.replace("-AMG", "") if team.power_unit else ""
-        team_pos = str(team.position) if team.position else "—"
-        team_pts = str(int(team.points)) if team.points else "0"
-
-        def right_align_x(text: str, right_edge: int, font) -> int:
-            bbox = draw.textbbox((0, 0), text, font=font)
-            return int(right_edge - (bbox[2] - bbox[0]))
-
-        def text_width(text: str, font) -> int:
-            bbox = draw.textbbox((0, 0), text, font=font)
-            return int(bbox[2] - bbox[0])
-
-        pts_right_x = x_end - 4
-        team_pts_x = right_align_x(team_pts, pts_right_x, tech_font)
-        team_pos_x = team_pts_x - text_width(team_pos, tech_font) - 10
-        tech_right_limit = team_pos_x - 10
+        badge_pad_x = 5
+        driver_pos_x = x_end - 72
+        panel_x = driver_pos_x - badge_pad_x
+        panel_right_x = x_end - 4
+        pos_box_x = self._draw_team_stats_panel_mono(
+            draw,
+            y,
+            header_height,
+            panel_x,
+            panel_right_x,
+            team_pos,
+            team_pts,
+            stats_font,
+            points_font,
+        )
 
         name_x = x_start + 4
         draw.text((name_x, header_text_y), team_name, fill=1, font=team_font)
 
         name_bbox = draw.textbbox((0, 0), team_name, font=team_font)
         name_w = name_bbox[2] - name_bbox[0]
-        chassis_x = int(name_x + name_w + 8)
-
-        draw.text((chassis_x, tech_text_y), chassis, fill=1, font=tech_font)
-
-        if chassis:
-            chassis_bbox = draw.textbbox((0, 0), chassis, font=tech_font)
-            chassis_w = chassis_bbox[2] - chassis_bbox[0]
-            pu_x = int(chassis_x + chassis_w + 8)
-        else:
-            pu_x = chassis_x
-
-        if pu_x < tech_right_limit:
-            draw.text((pu_x, tech_text_y), power_unit, fill=1, font=tech_font)
-
-        draw.text((team_pos_x, tech_text_y), team_pos, fill=1, font=tech_font)
-        draw.text(
-            (team_pts_x, tech_text_y),
-            team_pts,
-            fill=1,
-            font=tech_font,
-        )
+        meta_x = int(name_x + name_w + 8)
+        meta_max_w = pos_box_x - meta_x - 6
+        meta_text = self._clamp_text(draw, meta_text, tech_font, meta_max_w)
+        if meta_text:
+            draw.text((meta_x, tech_text_y), meta_text, fill=1, font=tech_font)
 
         driver_area_height = row_height - header_height - 4
         driver_row_height = driver_area_height // 2
         driver_y_start = y + header_height + 2
+        pts_right_x = x_end - 4
 
         photo_size = driver_row_height - 2
-        photo_w = int(photo_size * 1.8) if self._driver_photos else 0
-        driver_name_x = x_start + 4 + photo_w + 4
-        driver_pos_x = x_end - 72
+        photo_x = x_start + 4
 
         sorted_drivers = sorted(team.drivers[:2], key=lambda d: d.position or 99)
         for i, driver in enumerate(sorted_drivers):
-            name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
-            if not name:
-                name = driver.driver_code or "TBA"
-
-            name_parts = name.replace(" Jr.", "").replace(" jr.", "").split()
-            if len(name_parts) >= 2:
-                given = name_parts[0]
-                surname = " ".join(name_parts[1:]).upper()
-                display_name = f"{given} {surname}"
-            else:
-                display_name = name.upper()
-
             driver_y = driver_y_start + i * driver_row_height
-            center_y = driver_y + driver_row_height // 2
-            driver_text_y = get_text_y(driver_font, driver_row_height, driver_y)
-            driver_small_y = get_text_y(small_font, driver_row_height, driver_y)
-
-            photo_y = center_y - photo_size // 2
-            self._draw_driver_photo(
+            self._draw_team_driver_row_mono(
+                draw,
                 image,
-                x_start + 4,
-                photo_y,
-                name,
-                size=photo_size,
-                driver_number=driver.driver_number,
+                driver,
+                driver_y,
+                driver_row_height,
+                photo_x,
+                photo_size,
+                pts_right_x,
+                driver_pos_x,
+                badge_pad_x,
+                small_font,
+                driver_font,
             )
 
-            draw.text((driver_name_x, driver_text_y), display_name, fill=0, font=driver_font)
-
-            driver_pts = str(int(driver.points)) if driver.points else "0"
-            pos_text = f"P{driver.position}" if driver.position else "—"
-
-            pts_x = right_align_x(driver_pts, pts_right_x, small_font)
-            draw.text((pts_x, driver_small_y), driver_pts, fill=0, font=small_font)
-
-            if driver.position and driver.position <= 3:
-                pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
-                pos_h = pos_bbox[3] - pos_bbox[1]
-                badge_pad = 4
-                badge_w = 28
-                badge_h = int(pos_h) + badge_pad * 2
-                badge_x = driver_pos_x - badge_pad
-                badge_y = driver_y + (driver_row_height - badge_h) // 2
-
-                is_p1 = driver.position == 1
-                draw.rectangle(
-                    [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h)],
-                    fill=1 if is_p1 else 0,
-                    outline=0,
-                )
-                draw.text(
-                    (driver_pos_x, badge_y + badge_pad - pos_bbox[1]),
-                    pos_text,
-                    fill=0 if is_p1 else 1,
-                    font=small_font,
-                )
-            else:
-                draw.text((driver_pos_x, driver_small_y), pos_text, fill=0, font=small_font)
-
         logo_container_right = driver_pos_x - 8
-        logo_container_left = max(driver_name_x + 170, logo_container_right - 96)
+        driver_name_base_x = photo_x + photo_size + self.layout["driver_name_padding"] + 4
+        logo_container_left = max(driver_name_base_x + 170, logo_container_right - 96)
         self._draw_team_logo(
             image,
             team,
@@ -556,6 +675,7 @@ class Renderer:
 
     @staticmethod
     def _get_team_logo_key(constructor: str) -> str | None:
+        """Map a constructor name to the corresponding team logo asset key."""
         name = constructor.lower()
         if "audi" in name:
             return "audi"
@@ -567,7 +687,13 @@ class Renderer:
             return "williams"
         if "aston martin" in name:
             return "aston_martin"
-        if "racing bulls" in name or "rb " in name or "visa" in name:
+        if (
+            name == "rb"
+            or name.startswith("rb ")
+            or " rb " in name
+            or "racing bulls" in name
+            or "visa" in name
+        ):
             return "racing_bulls"
         if "red bull" in name:
             return "red_bull"
@@ -583,6 +709,22 @@ class Renderer:
             return "ferrari"
         return None
 
+    def _get_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Return a cached racing-style font at the requested size."""
+        if size not in self._racing_fonts:
+            self._racing_fonts[size] = self._load_racing_font(size)
+        return self._racing_fonts[size]
+
+    @staticmethod
+    def _format_points(value: float | int | None) -> str:
+        """Format points while preserving half-points for display."""
+        if value in (None, 0):
+            return "0"
+        value_float = float(value)
+        if value_float.is_integer():
+            return str(int(value_float))
+        return f"{value_float:.1f}"
+
     def _draw_team_logo(
         self,
         image: Image.Image,
@@ -592,6 +734,8 @@ class Renderer:
         container_left: int,
         container_right: int,
     ) -> None:
+        """Draw the team logo centered inside the reserved logo container."""
+        self._ensure_teams_assets()
         if not self._team_logos:
             return
 
@@ -615,15 +759,23 @@ class Renderer:
         scale_h = max_h / orig_h
         scale = min(scale_w, scale_h)
 
-        new_w = int(orig_w * scale)
-        new_h = int(orig_h * scale)
+        new_w = max(1, int(orig_w * scale))
+        new_h = max(1, int(orig_h * scale))
 
-        logo_resized = logo.resize((new_w, new_h), Image.Resampling.NEAREST)
+        logo_resized = logo.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        logo_bitmap = self._logo_to_1bit(logo_resized)
 
-        logo_x = container_right - new_w
+        logo_x = container_left + (container_w - new_w) // 2
         logo_y = driver_area_y + (driver_area_h - new_h) // 2
 
-        image.paste(logo_resized, (logo_x, logo_y))
+        image.paste(logo_bitmap, (logo_x, logo_y))
+
+    def _ensure_teams_assets(self) -> None:
+        """Lazy-load cached driver and team assets used by the teams screen."""
+        if self._driver_photos is None:
+            self._driver_photos = self._get_cached_driver_photos()
+        if self._team_logos is None:
+            self._team_logos = self._get_cached_team_logos()
 
     def _draw_standings_header(
         self,
@@ -632,6 +784,7 @@ class Renderer:
         season: int,
         after_round: int,
     ) -> None:
+        """Draw the shared standings screen header."""
         header_height = self.layout["header_height"]
         split_x = self.layout["header_split_x"]
 
@@ -658,6 +811,7 @@ class Renderer:
         standings: list[DriverStanding],
         full_width: bool = False,
     ) -> None:
+        """Draw the driver standings in split or full-width mode."""
         header_height = self.layout["header_height"]
         col_padding = self.layout["standings_col_padding"] + 5
         pos_width = self.layout["standings_pos_width"]
@@ -780,6 +934,7 @@ class Renderer:
         standings: list[ConstructorStanding],
         full_width: bool = False,
     ) -> None:
+        """Draw the constructor standings in split or full-width mode."""
         header_height = self.layout["header_height"]
         row_height = self.layout["standings_row_height"]
         col_padding = self.layout["standings_col_padding"] + 5
@@ -943,6 +1098,7 @@ class Renderer:
         image: Image.Image,
         race_data: dict,
     ) -> None:
+        """Draw the left-side circuit map and circuit label block."""
         x_start = 0
 
         circuit = race_data.get("circuit", {})
@@ -1082,6 +1238,7 @@ class Renderer:
         weather_data: WeatherData | None = None,
         weather_type: str = "",
     ) -> int:
+        """Draw the weekend schedule and return the bottom of the countdown area."""
         x_start = self.layout["right_column_x"]
         y_start = self.layout["schedule_title_y"]
 
@@ -1428,6 +1585,7 @@ class Renderer:
         race_data: dict,
         historical_data: HistoricalData | None,
     ) -> None:
+        """Draw the footer historical results section."""
         y_start = self.layout["results_y_start"]
 
         draw.line(
@@ -1642,6 +1800,7 @@ class Renderer:
 
     @staticmethod
     def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the icon fallback font used for symbols and emoji-style glyphs."""
         symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
         try:
             return ImageFont.truetype(symbola_path, size)
@@ -1650,6 +1809,7 @@ class Renderer:
             return ImageFont.load_default()
 
     def _load_weather_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the weather icon font with a symbol fallback."""
         font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
         try:
             return ImageFont.truetype(str(font_path), size)
@@ -1658,6 +1818,7 @@ class Renderer:
             return self._load_icon_font(size)
 
     def _load_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the stylized racing number font used for driver numbers."""
         font_path = FONTS_DIR / "RacingSansOne-Regular.ttf"
         if font_path.exists():
             try:
@@ -1702,38 +1863,151 @@ class Renderer:
 
         return photos
 
+    @classmethod
+    def _get_cached_driver_photos(cls) -> dict[str, Image.Image]:
+        """Return the process-wide cache of prepared driver silhouettes."""
+        cache_key = str(IMAGES_DIR)
+        if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
+            cls._cached_driver_photos = cls._load_driver_photos()
+            cls._cached_driver_photos_key = cache_key
+        return cls._cached_driver_photos
+
     def _load_team_logos(self) -> dict[str, Image.Image]:
         """
-        Load team logos from assets/teams as 1-bit cropped images.
+        Load team logos from assets/teams as cropped source images.
 
         Returns:
-            dict mapping lowercase filename stem to 1-bit PIL Image.
+            dict mapping lowercase filename stem to cropped PIL Image.
         """
-        teams_dir = IMAGES_DIR / "teams"
         logos: dict[str, Image.Image] = {}
+        for teams_dir in (TEAMS_COLOR_DIR, IMAGES_DIR / "teams"):
+            if not teams_dir.exists():
+                continue
 
-        if not teams_dir.exists():
-            return logos
-
-        for logo_path in teams_dir.glob("*.png"):
-            try:
-                img_file = Image.open(logo_path)
-                img: Image.Image = img_file.convert("1") if img_file.mode != "1" else img_file
-                img = self._crop_to_content(img)
+            for logo_path in teams_dir.glob("*.png"):
                 team_key = logo_path.stem.lower()
-                logos[team_key] = img
-            except Exception as e:
-                logger.warning("Failed to load team logo %s: %s", logo_path, e)
+                if team_key in logos and not (
+                    teams_dir.name == "teams" and team_key in MONOCHROME_1BIT_TEAM_LOGOS
+                ):
+                    continue
+                try:
+                    img_file = Image.open(logo_path).convert("RGBA")
+                    logos[team_key] = self._prepare_team_logo(team_key, img_file)
+                except Exception as e:
+                    logger.warning("Failed to load team logo %s: %s", logo_path, e)
 
         return logos
 
+    @classmethod
+    def _get_cached_team_logos(cls) -> dict[str, Image.Image]:
+        """Return the process-wide cache of prepared team logo source images."""
+        cache_key = (str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
+        if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
+            temp_renderer = cls.__new__(cls)
+            cls._cached_team_logos = cls._load_team_logos(temp_renderer)
+            cls._cached_team_logos_key = cache_key
+        return cls._cached_team_logos
+
+    @classmethod
+    def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
+        """Crop a team logo to the content area and apply team-specific trims."""
+        cropped = cls._crop_to_content(img)
+        if team_key == "sauber":
+            return cls.normalize_sauber_logo_for_non_spectra(cropped)
+        if team_key in {"audi", "cadillac"}:
+            return cls._crop_primary_horizontal_band(cropped)
+        return cropped
+
     @staticmethod
     def _crop_to_content(img: Image.Image) -> Image.Image:
+        """Crop a logo to visible content, respecting transparency when present."""
+        if "A" in img.getbands():
+            alpha = img.getchannel("A")
+            if alpha.getextrema()[0] < 255:
+                bbox = alpha.getbbox()
+                if bbox:
+                    return img.crop(bbox)
         inverted = ImageOps.invert(img.convert("L")).convert("1")
         bbox = inverted.getbbox()
         if bbox:
             return img.crop(bbox)
         return img
+
+    @staticmethod
+    def _crop_primary_horizontal_band(img: Image.Image) -> Image.Image:
+        """Keep only the dominant upper band for tall stacked logo assets."""
+        if "A" in img.getbands() and img.getchannel("A").getextrema()[0] < 255:
+            mask = img.getchannel("A")
+        else:
+            mask = ImageOps.invert(img.convert("L"))
+        rows = []
+        for y in range(mask.height):
+            active = 0
+            for x in range(mask.width):
+                if mask.getpixel((x, y)) > 16:
+                    active += 1
+            rows.append(active)
+
+        segments: list[tuple[int, int, int]] = []
+        start: int | None = None
+        for index, count in enumerate(rows):
+            if count > 5 and start is None:
+                start = index
+            elif count <= 5 and start is not None:
+                segment_rows = rows[start:index]
+                segments.append((start, index, max(segment_rows) if segment_rows else 0))
+                start = None
+        if start is not None:
+            segment_rows = rows[start:]
+            segments.append((start, len(rows), max(segment_rows) if segment_rows else 0))
+
+        if len(segments) < 2:
+            return img
+
+        first_start, first_end, first_peak = segments[0]
+        second_start, second_end, second_peak = segments[1]
+        first_height = first_end - first_start
+        second_height = second_end - second_start
+        gap = second_start - first_end
+
+        min_gap = max(8, img.height // 30)
+        min_primary_height = max(12, img.height // 5)
+        if (
+            gap < min_gap
+            or first_height < min_primary_height
+            or first_height < second_height
+            or first_peak < second_peak
+        ):
+            return img
+
+        return img.crop((0, first_start, img.width, first_end))
+
+    @staticmethod
+    def normalize_sauber_logo_for_non_spectra(img: Image.Image) -> Image.Image:
+        """Map Sauber's green accent to white while preserving its black background."""
+        rgba = img.convert("RGBA")
+        normalized = Image.new("RGBA", rgba.size, (0, 0, 0, 0))
+
+        for x in range(rgba.width):
+            for y in range(rgba.height):
+                r, g, b, a = rgba.getpixel((x, y))
+                if a == 0:
+                    continue
+                if r < 48 and g < 48 and b < 48:
+                    normalized.putpixel((x, y), (0, 0, 0, a))
+                else:
+                    normalized.putpixel((x, y), (255, 255, 255, a))
+
+        return normalized
+
+    @staticmethod
+    def _logo_to_1bit(img: Image.Image) -> Image.Image:
+        """Convert a color logo into a high-contrast 1-bit bitmap."""
+        flattened = Image.new("RGB", img.size, (255, 255, 255))
+        rgba = img.convert("RGBA")
+        flattened.paste(rgba, mask=rgba.getchannel("A"))
+        grayscale = ImageOps.autocontrast(flattened.convert("L"))
+        return grayscale.point(lambda p: 255 if p > 240 else 0).convert("1")
 
     @staticmethod
     def _fit_text(
@@ -1747,6 +2021,7 @@ class Renderer:
         """Fit text into max_width by truncating team then driver."""
 
         def get_width(t: str) -> int:
+            """Measure a candidate text width for truncation decisions."""
             return int(draw.textbbox((0, 0), t, font=font)[2])
 
         # full text

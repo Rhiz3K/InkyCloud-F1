@@ -65,17 +65,16 @@ async def get_configure_preview_png(
     # Build filename matching scheduler's format
     if safe_screen == "calendar":
         filename = f"configure_calendar_{safe_lang}"
-        if safe_display == "spectra6":
-            filename += "_spectra6"
-        elif safe_display == "bwr":
-            filename += "_bwr"
-        elif safe_display == "bwry":
-            filename += "_bwry"
+        if safe_display != "1bit":
+            filename += f"_{safe_display}"
         if safe_weather != "off":
             filename += f"_weather_{safe_weather}"
         filename += ".png"
     else:
-        filename = f"configure_{safe_screen}_{safe_lang}.png"
+        filename = f"configure_{safe_screen}_{safe_lang}"
+        if safe_display != "1bit":
+            filename += f"_{safe_display}"
+        filename += ".png"
 
     configure_path = Path(config.IMAGES_PATH) / filename
     if configure_path.exists():

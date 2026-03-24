@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Download F1 team logos and convert to 1-bit for E-Ink display."""
+"""Download F1 team logos and save original color PNGs for color renderers."""
 
 import asyncio
 import logging
+import shutil
+import subprocess
 from io import BytesIO
 from pathlib import Path
 
 import httpx
-from PIL import Image, ImageOps
+from PIL import Image
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,86 +27,105 @@ TEAM_SLUGS = {
     "alpine": "alpine",
 }
 
-DARK_LOGO_TEAMS = {"ferrari", "sauber"}
+SPECIAL_LOGO_URLS = {
+    "audi": "https://upload.wikimedia.org/wikipedia/commons/a/ae/Logo_audi.jpg",
+    "cadillac": "https://pngimg.com/d/cadillac_PNG42.png",
+}
 
 BASE_URL = "https://media.formula1.com/image/upload"
 LOGO_HEIGHT = 200
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+}
 
 
 def get_logo_url(team_id: str, team_slug: str) -> str:
-    variant = "logo" if team_id in DARK_LOGO_TEAMS else "logowhite"
+    """Return the source URL for a team logo download."""
+    if team_id in SPECIAL_LOGO_URLS:
+        return SPECIAL_LOGO_URLS[team_id]
+    variant = "logo"
     return (
         f"{BASE_URL}/c_fit,h_{LOGO_HEIGHT}/q_auto/v1740000000/"
         f"common/f1/2025/{team_slug}/2025{team_slug}{variant}.webp"
     )
 
 
-def convert_to_1bit(img: Image.Image, use_luminance: bool = False) -> Image.Image:
-    if use_luminance:
-        if img.mode == "RGBA":
-            bg = Image.new("RGB", img.size, (255, 255, 255))
-            bg.paste(img, mask=img.split()[3])
-            img = bg
-        grayscale = img.convert("L")
-        binary = grayscale.point(lambda p: 255 if p > 128 else 0)
-        return binary.convert("1")
+def download_with_curl(url: str) -> bytes:
+    """Download a logo with curl for sources that reject the default HTTP client."""
+    curl_executable = shutil.which("curl")
+    if curl_executable is None:
+        msg = "curl executable not found"
+        raise RuntimeError(msg)
 
-    if img.mode == "RGBA":
-        alpha = img.split()[3]
-        inverted_alpha = ImageOps.invert(alpha)
-        binary = inverted_alpha.point(lambda p: 0 if p < 128 else 255)
-        return binary.convert("1")
-    elif img.mode == "LA":
-        _, alpha = img.split()
-        inverted_alpha = ImageOps.invert(alpha)
-        binary = inverted_alpha.point(lambda p: 0 if p < 128 else 255)
-        return binary.convert("1")
-    else:
-        if img.mode != "RGB":
-            img = img.convert("RGB")
-        grayscale = img.convert("L")
-        inverted = ImageOps.invert(grayscale)
-        binary = inverted.point(lambda p: 0 if p < 128 else 255)
-        return binary.convert("1")
+    result = subprocess.run(
+        [
+            curl_executable,
+            "-L",
+            "-A",
+            DEFAULT_HEADERS["User-Agent"],
+            "-e",
+            "https://commons.wikimedia.org/",
+            "--fail",
+            "--silent",
+            "--show-error",
+            url,
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return result.stdout
 
 
 async def download_team_logo(
     client: httpx.AsyncClient, team_id: str, team_slug: str, output_dir: Path
 ) -> bool:
+    """Download and convert a single team logo into the teams_color asset directory."""
     url = get_logo_url(team_id, team_slug)
     output_path = output_dir / f"{team_id}.png"
 
     try:
-        response = await client.get(url)
-        response.raise_for_status()
+        try:
+            response = await client.get(url, headers=DEFAULT_HEADERS)
+            response.raise_for_status()
+            content = response.content
+        except Exception:
+            if team_id not in SPECIAL_LOGO_URLS:
+                raise
+            content = await asyncio.to_thread(download_with_curl, url)
 
-        img = Image.open(BytesIO(response.content))
-        use_luminance = team_id in DARK_LOGO_TEAMS
-        logo_1bit = convert_to_1bit(img, use_luminance=use_luminance)
-        logo_1bit.save(output_path, "PNG")
-        logger.info(f"Saved {team_id} logo to {output_path} ({logo_1bit.size})")
+        img = Image.open(BytesIO(content)).convert("RGBA")
+        img.save(output_path, "PNG")
+        logger.info("Saved %s color logo to %s (%s)", team_id, output_path, img.size)
         return True
 
     except Exception as e:
-        logger.error(f"Failed to download {team_id}: {e}")
+        logger.error("Failed to download %s: %s", team_id, e)
         return False
 
 
 async def main():
-    output_dir = Path(__file__).parent.parent / "app" / "assets" / "images" / "teams"
+    """Download all configured color team logo assets."""
+    output_dir = Path(__file__).parent.parent / "app" / "assets" / "images" / "teams_color"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Downloading team logos to {output_dir}")
+    logger.info("Downloading team logos to %s", output_dir)
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         tasks = [
             download_team_logo(client, team_id, slug, output_dir)
             for team_id, slug in TEAM_SLUGS.items()
         ]
+        tasks.extend(
+            [
+                download_team_logo(client, "audi", "audi", output_dir),
+                download_team_logo(client, "cadillac", "cadillac", output_dir),
+            ]
+        )
         results = await asyncio.gather(*tasks)
 
     success = sum(results)
-    logger.info(f"Downloaded {success}/{len(TEAM_SLUGS)} team logos")
+    logger.info("Downloaded %s/%s team logos", success, len(results))
 
 
 if __name__ == "__main__":
