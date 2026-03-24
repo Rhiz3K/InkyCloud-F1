@@ -76,6 +76,7 @@ TEXT_BASELINE_REF = "ÁŽÝgy"
 
 class Spectra6Colors:
     """Named RGB values and palette indexes for the Spectra 6 display."""
+
     BLACK = (0x00, 0x00, 0x00)
     WHITE = (0xFF, 0xFF, 0xFF)
     RED = (0xFF, 0x00, 0x00)
@@ -1311,6 +1312,7 @@ class Spectra6Renderer:
         team: str,
     ) -> str:
         """Fit historical results text into the available width."""
+
         def get_width(t: str) -> int:
             """Measure a candidate text width for truncation decisions."""
             return int(draw.textbbox((0, 0), t, font=font)[2])
