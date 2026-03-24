@@ -83,6 +83,11 @@ TEXT_BASELINE_REF = "ÁŽÝgy"
 class Renderer:
     """Renderer for generating 1-bit BMP images in FoxeeLab style."""
 
+    _cached_driver_photos: dict[str, Image.Image] | None = None
+    _cached_driver_photos_key: str | None = None
+    _cached_team_logos: dict[str, Image.Image] | None = None
+    _cached_team_logos_key: tuple[str, str] | None = None
+
     def __init__(self, translator: dict):
         """
         Initialize renderer.
@@ -119,8 +124,8 @@ class Renderer:
             "weather_icon_font": self._load_weather_icon_font(22),
         }
 
-        self._driver_photos = self._load_driver_photos()
-        self._team_logos = self._load_team_logos()
+        self._driver_photos: dict[str, Image.Image] | None = None
+        self._team_logos: dict[str, Image.Image] | None = None
 
         # Layout constants (all in pixels)
         self.layout = {
@@ -211,6 +216,7 @@ class Renderer:
         return self._to_bmp(image)
 
     def render_teams_drivers(self, teams_data: TeamsData) -> bytes:
+        self._ensure_teams_assets()
         image = Image.new("1", (self.width, self.height), 1)
         draw = ImageDraw.Draw(image)
 
@@ -293,6 +299,7 @@ class Renderer:
         size: int = 18,
         driver_number: int | None = None,
     ) -> int:
+        self._ensure_teams_assets()
         surname = driver_name.split()[-1].lower() if driver_name else ""
         if surname in ("jr.", "jr"):
             parts = driver_name.split()
@@ -618,6 +625,7 @@ class Renderer:
         container_left: int,
         container_right: int,
     ) -> None:
+        self._ensure_teams_assets()
         if not self._team_logos:
             return
 
@@ -651,6 +659,12 @@ class Renderer:
         logo_y = driver_area_y + (driver_area_h - new_h) // 2
 
         image.paste(logo_bitmap, (logo_x, logo_y))
+
+    def _ensure_teams_assets(self) -> None:
+        if self._driver_photos is None:
+            self._driver_photos = self._get_cached_driver_photos()
+        if self._team_logos is None:
+            self._team_logos = self._get_cached_team_logos()
 
     def _draw_standings_header(
         self,
@@ -1729,6 +1743,14 @@ class Renderer:
 
         return photos
 
+    @classmethod
+    def _get_cached_driver_photos(cls) -> dict[str, Image.Image]:
+        cache_key = str(IMAGES_DIR)
+        if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
+            cls._cached_driver_photos = cls._load_driver_photos()
+            cls._cached_driver_photos_key = cache_key
+        return cls._cached_driver_photos
+
     def _load_team_logos(self) -> dict[str, Image.Image]:
         """
         Load team logos from assets/teams as cropped source images.
@@ -1754,6 +1776,15 @@ class Renderer:
                     logger.warning("Failed to load team logo %s: %s", logo_path, e)
 
         return logos
+
+    @classmethod
+    def _get_cached_team_logos(cls) -> dict[str, Image.Image]:
+        cache_key = (str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
+        if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
+            temp_renderer = cls.__new__(cls)
+            cls._cached_team_logos = cls._load_team_logos(temp_renderer)
+            cls._cached_team_logos_key = cache_key
+        return cls._cached_team_logos
 
     @classmethod
     def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:

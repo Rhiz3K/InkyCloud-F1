@@ -691,7 +691,7 @@ def test_draw_driver_photo_prefers_explicit_number_over_asset():
     renderer = Renderer(translator)
     image = Image.new("1", (120, 24), 1)
     draw = ImageDraw.Draw(image)
-    renderer._driver_photos["verstappen"] = Image.new("1", (100, 20), 0)
+    renderer._driver_photos = {"verstappen": Image.new("1", (100, 20), 0)}
 
     width = renderer._draw_driver_photo(
         draw,
@@ -2068,6 +2068,7 @@ def test_renderer_prefers_color_team_logo_assets_for_1bit_sizing(tmp_path, monke
     monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
 
     renderer = Renderer(get_translator("en"))
+    renderer._ensure_teams_assets()
 
     assert renderer._team_logos["mclaren"].size == (8, 4)
 
@@ -2170,6 +2171,7 @@ def test_renderer_uses_monochrome_override_for_ferrari_in_1bit(tmp_path, monkeyp
     monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
 
     renderer = Renderer(get_translator("en"))
+    renderer._ensure_teams_assets()
 
     assert renderer._team_logos["ferrari"].getpixel((0, 0))[:3] == (0, 0, 0)
 
@@ -2191,6 +2193,7 @@ def test_renderer_uses_monochrome_override_for_red_bull_in_1bit(tmp_path, monkey
     monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
 
     renderer = Renderer(get_translator("en"))
+    renderer._ensure_teams_assets()
 
     assert renderer._team_logos["red_bull"].getpixel((0, 0))[:3] == (0, 0, 0)
 
