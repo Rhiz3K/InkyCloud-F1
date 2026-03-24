@@ -2026,14 +2026,44 @@ def test_team_row_header_draws_shared_stats_panel(renderer_cls):
 
     renderer._draw_team_row(image, draw, 5, 100, 395, team, 80)
 
-    panel_left_edge_pixel = image.getpixel((333, 104))
-    panel_fill_pixel = image.getpixel((334, 104))
+    panel_left_edge_pixel = image.getpixel((317, 104))
+    panel_fill_pixel = image.getpixel((319, 104))
     if renderer_cls is Renderer:
         assert panel_left_edge_pixel == 0
         assert panel_fill_pixel == 1
     else:
         assert panel_left_edge_pixel == renderer.colors.BLACK
         assert panel_fill_pixel == renderer.colors.WHITE
+
+
+def test_spectra6_team_row_highlights_first_team_position_in_red():
+    """Color team headers should highlight the leading constructor position in red."""
+    renderer = Spectra6Renderer(get_translator("en"))
+    image = Image.new("RGB", (renderer.width, renderer.height), renderer.colors.WHITE)
+    draw = ImageDraw.Draw(image)
+    captured = []
+    original_text = draw.text
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured.append((text, kwargs.get("fill")))
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(draw, "text", spy_text)
+    try:
+        team = TeamEntry(
+            constructor_name="McLaren",
+            chassis="MCL40",
+            power_unit="Mercedes-AMG F1 M17",
+            position=1,
+            points=38.0,
+            drivers=[],
+        )
+        renderer._draw_team_row(image, draw, 5, 100, 395, team, 80)
+    finally:
+        monkeypatch.undo()
+
+    assert ("1", renderer.colors.RED) in captured
 
 
 def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch):

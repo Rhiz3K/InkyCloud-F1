@@ -400,38 +400,37 @@ class Spectra6Renderer:
                 trimmed = trimmed[:-1]
             return (trimmed + ellipsis) if trimmed else ""
 
-        def text_box_width(text: str, font) -> int:
-            """Return the minimum stat box width for the given text."""
-            text_bbox = draw.textbbox((0, 0), text, font=font)
-            text_w = int(text_bbox[2] - text_bbox[0])
-            return max(text_w + 10, 24)
-
-        def draw_panel_stat(text: str, box_x: int, box_w: int, font) -> None:
+        def draw_panel_stat(
+            text: str, box_x: int, box_w: int, font, fill: tuple[int, int, int]
+        ) -> None:
             """Draw centered stat text inside the shared header panel."""
             text_bbox = draw.textbbox((0, 0), text, font=font)
             text_w = int(text_bbox[2] - text_bbox[0])
             text_h = int(text_bbox[3] - text_bbox[1])
             text_x = box_x + (box_w - text_w) // 2 - int(text_bbox[0])
             text_y = panel_y + (panel_h - text_h) // 2 - int(text_bbox[1])
-            draw.text((text_x, text_y), text, fill=self.colors.BLACK, font=font)
+            draw.text((text_x, text_y), text, fill=fill, font=font)
 
         badge_pad_x = 5
         driver_pos_x = x_end - 72
-        stats_gap = 4
-        points_box_w = text_box_width(team_pts, points_font)
-        pos_box_w = text_box_width(team_pos, stats_font)
-        panel_x = x_end - 4 - (pos_box_w + stats_gap + points_box_w)
+        panel_x = driver_pos_x - badge_pad_x
         panel_y = y + 2
         panel_h = header_height - 4
+        panel_right_x = x_end - 4
+        panel_w = panel_right_x - panel_x
+        stats_gap = 4
+        pos_col_w = 24
+        points_col_w = panel_w - pos_col_w - stats_gap
+        pos_box_x = panel_x
+        points_box_x = panel_x + pos_col_w + stats_gap
         draw.rectangle(
-            [(panel_x, panel_y), (x_end - 4, panel_y + panel_h)],
+            [(panel_x, panel_y), (panel_right_x, panel_y + panel_h)],
             fill=self.colors.WHITE,
             outline=self.colors.BLACK,
         )
-        pos_box_x = panel_x
-        points_box_x = panel_x + pos_box_w + stats_gap
-        draw_panel_stat(team_pos, pos_box_x, pos_box_w, stats_font)
-        draw_panel_stat(team_pts, points_box_x, points_box_w, points_font)
+        pos_fill = self.colors.RED if team.position == 1 else self.colors.BLACK
+        draw_panel_stat(team_pos, pos_box_x, pos_col_w, stats_font, pos_fill)
+        draw_panel_stat(team_pts, points_box_x, points_col_w, points_font, self.colors.BLACK)
 
         name_x = x_start + 4
         draw.text((name_x, header_text_y), team_name, fill=self.colors.WHITE, font=team_font)
