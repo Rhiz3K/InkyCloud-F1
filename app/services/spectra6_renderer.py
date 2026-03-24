@@ -816,6 +816,10 @@ class Spectra6Renderer:
 
         return None
 
+    def _session_palette_color(self, color_name: str) -> tuple[int, int, int]:
+        """Return a session accent color, falling back to black when unsupported."""
+        return getattr(self.colors, color_name, self.colors.BLACK)
+
     def _draw_schedule_section(
         self,
         draw: ImageDraw.ImageDraw,
@@ -853,9 +857,27 @@ class Spectra6Renderer:
         return countdown_bottom
 
     def _get_session_color(self, session_name: str) -> tuple[int, int, int]:
-        """Return the highlight color for a schedule row session name."""
-        if session_name.lower() == "race":
-            return self.colors.RED
+        """Return the accent color for a schedule session in the active palette."""
+        normalized = session_name.strip().lower()
+        if normalized == "race":
+            return self._session_palette_color("RED")
+        if normalized in {
+            "qualifying",
+            "q1",
+            "q2",
+            "q3",
+            "sprint qualifying",
+            "sprint shootout",
+            "shootout",
+            "sq1",
+            "sq2",
+            "sq3",
+        }:
+            return self._session_palette_color("YELLOW")
+        if normalized == "sprint":
+            return self._session_palette_color("GREEN")
+        if normalized.startswith("fp") or normalized.startswith("practice"):
+            return self._session_palette_color("BLUE")
         return self.colors.BLACK
 
     def _draw_schedule_row(self, draw: ImageDraw.ImageDraw, y: int, event: dict) -> None:

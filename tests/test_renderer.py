@@ -1609,27 +1609,25 @@ def test_spectra6_colors_palette():
 
 
 def test_spectra6_session_colors():
-    """Test Spectra 6 session color assignment - only Race is RED, all else BLACK."""
+    """Test Spectra 6 session color assignment by session type."""
     translator = get_translator("en")
     renderer = Spectra6Renderer(translator)
 
-    # Only "Race" session should be RED
     assert renderer._get_session_color("Race") == Spectra6Colors.RED
     assert renderer._get_session_color("race") == Spectra6Colors.RED
 
-    # All other sessions should be BLACK (simplified color scheme)
-    assert renderer._get_session_color("Qualifying") == Spectra6Colors.BLACK
-    assert renderer._get_session_color("Q1") == Spectra6Colors.BLACK
-    assert renderer._get_session_color("Q2") == Spectra6Colors.BLACK
-    assert renderer._get_session_color("Q3") == Spectra6Colors.BLACK
+    assert renderer._get_session_color("Qualifying") == Spectra6Colors.YELLOW
+    assert renderer._get_session_color("Q1") == Spectra6Colors.YELLOW
+    assert renderer._get_session_color("Q2") == Spectra6Colors.YELLOW
+    assert renderer._get_session_color("Q3") == Spectra6Colors.YELLOW
 
-    assert renderer._get_session_color("FP1") == Spectra6Colors.BLACK
-    assert renderer._get_session_color("FP2") == Spectra6Colors.BLACK
-    assert renderer._get_session_color("FP3") == Spectra6Colors.BLACK
-    assert renderer._get_session_color("Practice 1") == Spectra6Colors.BLACK
+    assert renderer._get_session_color("FP1") == Spectra6Colors.BLUE
+    assert renderer._get_session_color("FP2") == Spectra6Colors.BLUE
+    assert renderer._get_session_color("FP3") == Spectra6Colors.BLUE
+    assert renderer._get_session_color("Practice 1") == Spectra6Colors.BLUE
 
-    assert renderer._get_session_color("Sprint") == Spectra6Colors.BLACK
-    assert renderer._get_session_color("Sprint Qualifying") == Spectra6Colors.BLACK
+    assert renderer._get_session_color("Sprint") == Spectra6Colors.GREEN
+    assert renderer._get_session_color("Sprint Qualifying") == Spectra6Colors.YELLOW
 
 
 def test_spectra6_render_calendar_with_weather():
@@ -2402,12 +2400,13 @@ def test_bwry_colors_palette():
 
 
 def test_bwry_session_colors():
-    """Test BWRY session colors reserve yellow for qualifying-style sessions."""
+    """Test BWRY session colors fall back to black for unsupported accents."""
     renderer = BwryRenderer(get_translator("en"))
 
     assert renderer._get_session_color("Race") == BwryColors.RED
     assert renderer._get_session_color("Qualifying") == BwryColors.YELLOW
-    assert renderer._get_session_color("Sprint") == BwryColors.YELLOW
+    assert renderer._get_session_color("Sprint") == BwryColors.BLACK
+    assert renderer._get_session_color("Sprint Qualifying") == BwryColors.YELLOW
     assert renderer._get_session_color("FP1") == BwryColors.BLACK
 
 

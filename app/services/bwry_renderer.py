@@ -66,14 +66,6 @@ class BwryRenderer(BwrRenderer):
 
         return None
 
-    def _get_session_color(self, session_name: str) -> tuple[int, int, int]:
-        normalized = session_name.lower()
-        if normalized == "race":
-            return self.colors.RED
-        if normalized in {"q1", "q2", "q3", "qualifying", "sprint", "sprint qualifying"}:
-            return self.colors.YELLOW
-        return self.colors.BLACK
-
     def _draw_results_header(
         self,
         draw: ImageDraw.ImageDraw,
