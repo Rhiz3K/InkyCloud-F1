@@ -3,6 +3,7 @@
 
 import asyncio
 import logging
+import shutil
 import subprocess
 from io import BytesIO
 from pathlib import Path
@@ -50,9 +51,14 @@ def get_logo_url(team_id: str, team_slug: str) -> str:
 
 
 def download_with_curl(url: str) -> bytes:
+    curl_executable = shutil.which("curl")
+    if curl_executable is None:
+        msg = "curl executable not found"
+        raise RuntimeError(msg)
+
     result = subprocess.run(
         [
-            "curl",
+            curl_executable,
             "-L",
             "-A",
             DEFAULT_HEADERS["User-Agent"],
