@@ -474,8 +474,8 @@ class Renderer:
             return f"{given} {surname}"
         return name.upper()
 
+    @staticmethod
     def _draw_team_stats_panel_mono(
-        self,
         draw: ImageDraw.ImageDraw,
         y: int,
         header_height: int,
