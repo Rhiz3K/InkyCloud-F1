@@ -710,6 +710,7 @@ class Database:
         connection_type: str | None = None,
         device_memory: float | None = None,
     ) -> None:
+        """Persist a single client-side performance metric payload."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
             await self._configure_connection(conn)
@@ -736,6 +737,7 @@ class Database:
             await conn.commit()
 
     async def get_perf_stats(self, hours: int = 24) -> dict:
+        """Return aggregate Web Vitals statistics for the lookback window."""
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
@@ -862,6 +864,7 @@ class Database:
             }
 
     async def get_perf_stats_by_page(self, hours: int = 24) -> list[dict]:
+        """Return aggregate Web Vitals statistics grouped by page path."""
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
@@ -900,6 +903,7 @@ class Database:
 
     @staticmethod
     def _calculate_percentile(values: list[float], percentile: int) -> float | None:
+        """Calculate a rounded percentile for coarse timing metrics."""
         if not values:
             return None
         n = len(values)
@@ -913,6 +917,7 @@ class Database:
 
     @staticmethod
     def _calculate_percentile_fine(values: list[float], percentile: int) -> float | None:
+        """Calculate a rounded percentile for fine-grained floating-point metrics."""
         if not values:
             return None
         n = len(values)

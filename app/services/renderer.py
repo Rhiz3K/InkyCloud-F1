@@ -180,6 +180,7 @@ class Renderer:
         weather_data: WeatherData | None = None,
         weather_type: str = "",
     ) -> bytes:
+        """Render the main calendar screen as a 1-bit BMP."""
         image = Image.new("1", (self.width, self.height), 1)
         draw = ImageDraw.Draw(image)
 
@@ -216,6 +217,7 @@ class Renderer:
         return self._to_bmp(image)
 
     def render_teams_drivers(self, teams_data: TeamsData) -> bytes:
+        """Render the teams and drivers dashboard as a 1-bit BMP."""
         self._ensure_teams_assets()
         image = Image.new("1", (self.width, self.height), 1)
         draw = ImageDraw.Draw(image)
@@ -228,6 +230,7 @@ class Renderer:
     def _draw_teams_header(
         self, draw: ImageDraw.ImageDraw, image: Image.Image, season: int
     ) -> None:
+        """Draw the red-style teams screen header in monochrome form."""
         header_height = self.layout["header_height"]
         split_x = self.layout["header_split_x"]
 
@@ -251,6 +254,7 @@ class Renderer:
     def _draw_teams_content(
         self, image: Image.Image, draw: ImageDraw.ImageDraw, teams: list
     ) -> None:
+        """Lay out the team cards into two balanced columns."""
         header_height = self.layout["header_height"]
         col_padding = 5
         split_x = self.width // 2
@@ -283,6 +287,7 @@ class Renderer:
 
     @staticmethod
     def _split_teams_for_columns(teams: list) -> tuple[list, list]:
+        """Split teams into left and right columns while keeping counts balanced."""
         if not teams:
             return [], []
 
@@ -299,6 +304,7 @@ class Renderer:
         size: int = 18,
         driver_number: int | None = None,
     ) -> int:
+        """Draw either a driver number or silhouette and return the occupied width."""
         self._ensure_teams_assets()
         surname = driver_name.split()[-1].lower() if driver_name else ""
         if surname in ("jr.", "jr"):
@@ -418,6 +424,7 @@ class Renderer:
         team,
         row_height: int,
     ) -> None:
+        """Draw a single team card with header, drivers, points, and logo."""
         team_font = self.fonts["circuit_name"]
         small_font = self.fonts["circuit_stats_value"]
         driver_font = self.fonts["circuit_name"]
@@ -430,6 +437,7 @@ class Renderer:
         draw.rectangle([(x_start, y), (x_end, y + header_height)], fill=0)
 
         def get_text_y(font, row_h: int, row_y: int) -> int:
+            """Align text vertically within a row using font metrics."""
             bbox = draw.textbbox((0, 0), "Ay", font=font)
             h = bbox[3] - bbox[1]
             top_off = bbox[1]
@@ -447,14 +455,17 @@ class Renderer:
         team_pts = self._format_points(team.points)
 
         def right_align_x(text: str, right_edge: int, font) -> int:
+            """Return the x-coordinate that right-aligns text to the given edge."""
             bbox = draw.textbbox((0, 0), text, font=font)
             return int(right_edge - (bbox[2] - bbox[0]))
 
         def text_width(text: str, font) -> int:
+            """Measure rendered text width for the active draw context."""
             bbox = draw.textbbox((0, 0), text, font=font)
             return int(bbox[2] - bbox[0])
 
         def clamp_text(text: str, font, max_width: int) -> str:
+            """Clamp text to fit into a maximum width using an ellipsis."""
             if max_width <= 0:
                 return ""
             if text_width(text, font) <= max_width:
@@ -579,6 +590,7 @@ class Renderer:
 
     @staticmethod
     def _get_team_logo_key(constructor: str) -> str | None:
+        """Map a constructor name to the corresponding team logo asset key."""
         name = constructor.lower()
         if "audi" in name:
             return "audi"
@@ -613,12 +625,14 @@ class Renderer:
         return None
 
     def _get_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Return a cached racing-style font at the requested size."""
         if size not in self._racing_fonts:
             self._racing_fonts[size] = self._load_racing_font(size)
         return self._racing_fonts[size]
 
     @staticmethod
     def _format_points(value: float | int | None) -> str:
+        """Format points while preserving half-points for display."""
         if value in (None, 0):
             return "0"
         value_float = float(value)
@@ -635,6 +649,7 @@ class Renderer:
         container_left: int,
         container_right: int,
     ) -> None:
+        """Draw the team logo centered inside the reserved logo container."""
         self._ensure_teams_assets()
         if not self._team_logos:
             return
@@ -671,6 +686,7 @@ class Renderer:
         image.paste(logo_bitmap, (logo_x, logo_y))
 
     def _ensure_teams_assets(self) -> None:
+        """Lazy-load cached driver and team assets used by the teams screen."""
         if self._driver_photos is None:
             self._driver_photos = self._get_cached_driver_photos()
         if self._team_logos is None:
@@ -683,6 +699,7 @@ class Renderer:
         season: int,
         after_round: int,
     ) -> None:
+        """Draw the shared standings screen header."""
         header_height = self.layout["header_height"]
         split_x = self.layout["header_split_x"]
 
@@ -709,6 +726,7 @@ class Renderer:
         standings: list[DriverStanding],
         full_width: bool = False,
     ) -> None:
+        """Draw the driver standings in split or full-width mode."""
         header_height = self.layout["header_height"]
         col_padding = self.layout["standings_col_padding"] + 5
         pos_width = self.layout["standings_pos_width"]
@@ -831,6 +849,7 @@ class Renderer:
         standings: list[ConstructorStanding],
         full_width: bool = False,
     ) -> None:
+        """Draw the constructor standings in split or full-width mode."""
         header_height = self.layout["header_height"]
         row_height = self.layout["standings_row_height"]
         col_padding = self.layout["standings_col_padding"] + 5
@@ -994,6 +1013,7 @@ class Renderer:
         image: Image.Image,
         race_data: dict,
     ) -> None:
+        """Draw the left-side circuit map and circuit label block."""
         x_start = 0
 
         circuit = race_data.get("circuit", {})
@@ -1133,6 +1153,7 @@ class Renderer:
         weather_data: WeatherData | None = None,
         weather_type: str = "",
     ) -> int:
+        """Draw the weekend schedule and return the bottom of the countdown area."""
         x_start = self.layout["right_column_x"]
         y_start = self.layout["schedule_title_y"]
 
@@ -1479,6 +1500,7 @@ class Renderer:
         race_data: dict,
         historical_data: HistoricalData | None,
     ) -> None:
+        """Draw the footer historical results section."""
         y_start = self.layout["results_y_start"]
 
         draw.line(
@@ -1693,6 +1715,7 @@ class Renderer:
 
     @staticmethod
     def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the icon fallback font used for symbols and emoji-style glyphs."""
         symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
         try:
             return ImageFont.truetype(symbola_path, size)
@@ -1701,6 +1724,7 @@ class Renderer:
             return ImageFont.load_default()
 
     def _load_weather_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the weather icon font with a symbol fallback."""
         font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
         try:
             return ImageFont.truetype(str(font_path), size)
@@ -1709,6 +1733,7 @@ class Renderer:
             return self._load_icon_font(size)
 
     def _load_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the stylized racing number font used for driver numbers."""
         font_path = FONTS_DIR / "RacingSansOne-Regular.ttf"
         if font_path.exists():
             try:
@@ -1755,6 +1780,7 @@ class Renderer:
 
     @classmethod
     def _get_cached_driver_photos(cls) -> dict[str, Image.Image]:
+        """Return the process-wide cache of prepared driver silhouettes."""
         cache_key = str(IMAGES_DIR)
         if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
             cls._cached_driver_photos = cls._load_driver_photos()
@@ -1789,6 +1815,7 @@ class Renderer:
 
     @classmethod
     def _get_cached_team_logos(cls) -> dict[str, Image.Image]:
+        """Return the process-wide cache of prepared team logo source images."""
         cache_key = (str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
         if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
             temp_renderer = cls.__new__(cls)
@@ -1798,6 +1825,7 @@ class Renderer:
 
     @classmethod
     def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
+        """Crop a team logo to the content area and apply team-specific trims."""
         cropped = cls._crop_to_content(img)
         if team_key in {"audi", "cadillac"}:
             return cls._crop_primary_horizontal_band(cropped)
@@ -1805,6 +1833,7 @@ class Renderer:
 
     @staticmethod
     def _crop_to_content(img: Image.Image) -> Image.Image:
+        """Crop a logo to visible content, respecting transparency when present."""
         if "A" in img.getbands():
             alpha = img.getchannel("A")
             if alpha.getextrema()[0] < 255:
@@ -1819,6 +1848,7 @@ class Renderer:
 
     @staticmethod
     def _crop_primary_horizontal_band(img: Image.Image) -> Image.Image:
+        """Keep only the dominant upper band for tall stacked logo assets."""
         if "A" in img.getbands() and img.getchannel("A").getextrema()[0] < 255:
             mask = img.getchannel("A")
         else:
@@ -1867,6 +1897,7 @@ class Renderer:
 
     @staticmethod
     def _logo_to_1bit(img: Image.Image) -> Image.Image:
+        """Convert a color logo into a high-contrast 1-bit bitmap."""
         flattened = Image.new("RGB", img.size, (255, 255, 255))
         rgba = img.convert("RGBA")
         flattened.paste(rgba, mask=rgba.getchannel("A"))
@@ -1885,6 +1916,7 @@ class Renderer:
         """Fit text into max_width by truncating team then driver."""
 
         def get_width(t: str) -> int:
+            """Measure a candidate text width for truncation decisions."""
             return int(draw.textbbox((0, 0), t, font=font)[2])
 
         # full text

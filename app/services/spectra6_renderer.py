@@ -75,6 +75,7 @@ TEXT_BASELINE_REF = "ÁŽÝgy"
 
 
 class Spectra6Colors:
+    """Named RGB values and palette indexes for the Spectra 6 display."""
     BLACK = (0x00, 0x00, 0x00)
     WHITE = (0xFF, 0xFF, 0xFF)
     RED = (0xFF, 0x00, 0x00)
@@ -96,6 +97,7 @@ class Spectra6Renderer:
     """Renderer for generating 6-color images for Spectra 6 E-Ink displays."""
 
     def __init__(self, translator: dict):
+        """Initialize the Spectra 6 renderer, fonts, and layout constants."""
         self.width = config.DISPLAY_WIDTH
         self.height = config.DISPLAY_HEIGHT
         self.translator = translator
@@ -166,6 +168,7 @@ class Spectra6Renderer:
         weather_data: WeatherData | None = None,
         weather_type: str = "",
     ) -> bytes:
+        """Render the main calendar screen as a Spectra 6 BMP."""
         image = Image.new("RGB", (self.width, self.height), self.colors.WHITE)
         draw = ImageDraw.Draw(image)
 
@@ -178,6 +181,7 @@ class Spectra6Renderer:
         return self._to_indexed_bmp(image)
 
     def render_teams_drivers(self, teams_data: TeamsData) -> bytes:
+        """Render the teams and drivers dashboard as a Spectra 6 BMP."""
         self._ensure_teams_assets()
         image = Image.new("RGB", (self.width, self.height), self.colors.WHITE)
         draw = ImageDraw.Draw(image)
@@ -188,6 +192,7 @@ class Spectra6Renderer:
         return self._to_indexed_bmp(image)
 
     def render_error(self, error_message: str) -> bytes:
+        """Render an error placeholder image for Spectra 6 displays."""
         image = Image.new("RGB", (self.width, self.height), self.colors.WHITE)
         draw = ImageDraw.Draw(image)
 
@@ -211,6 +216,7 @@ class Spectra6Renderer:
     def _draw_teams_header(
         self, draw: ImageDraw.ImageDraw, image: Image.Image, season: int
     ) -> None:
+        """Draw the red teams screen header for the Spectra 6 layout."""
         header_height = self.layout["header_height"]
         split_x = self.layout["header_split_x"]
 
@@ -243,6 +249,7 @@ class Spectra6Renderer:
     def _draw_teams_content(
         self, image: Image.Image, draw: ImageDraw.ImageDraw, teams: list
     ) -> None:
+        """Lay out the team cards into two balanced columns."""
         header_height = self.layout["header_height"]
         col_padding = 5
         split_x = self.width // 2
@@ -274,6 +281,7 @@ class Spectra6Renderer:
 
     @staticmethod
     def _split_teams_for_columns(teams: list) -> tuple[list, list]:
+        """Split teams into balanced left and right columns."""
         if not teams:
             return [], []
 
@@ -290,6 +298,7 @@ class Spectra6Renderer:
         size: int = 18,
         driver_number: int | None = None,
     ) -> int:
+        """Draw a driver number or portrait and return the consumed width."""
         self._ensure_teams_assets()
         surname = driver_name.split()[-1].lower() if driver_name else ""
         if surname in ("jr.", "jr"):
@@ -336,6 +345,7 @@ class Spectra6Renderer:
         team,
         row_height: int,
     ) -> None:
+        """Draw a single Spectra 6 team card."""
         team_font = self.fonts["circuit_name"]
         small_font = self.fonts["circuit_stats_value"]
         driver_font = self.fonts["circuit_name"]
@@ -349,6 +359,7 @@ class Spectra6Renderer:
         draw.rectangle([(x_start, y), (x_end, y + header_height)], fill=header_fill)
 
         def get_text_y(font, row_h: int, row_y: int) -> int:
+            """Align text vertically within a row using font metrics."""
             bbox = draw.textbbox((0, 0), "Ay", font=font)
             h = bbox[3] - bbox[1]
             top_off = bbox[1]
@@ -366,14 +377,17 @@ class Spectra6Renderer:
         team_pts = self._format_points(team.points)
 
         def right_align_x(text: str, right_edge: int, font) -> int:
+            """Return the x-coordinate that right-aligns text to the given edge."""
             bbox = draw.textbbox((0, 0), text, font=font)
             return int(right_edge - (bbox[2] - bbox[0]))
 
         def text_width(text: str, font) -> int:
+            """Measure rendered text width for the current draw context."""
             bbox = draw.textbbox((0, 0), text, font=font)
             return int(bbox[2] - bbox[0])
 
         def clamp_text(text: str, font, max_width: int) -> str:
+            """Clamp text to a maximum width using an ellipsis."""
             if max_width <= 0:
                 return ""
             if text_width(text, font) <= max_width:
@@ -513,6 +527,7 @@ class Spectra6Renderer:
 
     @staticmethod
     def _get_team_logo_key(constructor: str) -> str | None:
+        """Map a constructor name to the corresponding team logo asset key."""
         name = constructor.lower()
         if "audi" in name:
             return "audi"
@@ -555,6 +570,7 @@ class Spectra6Renderer:
         container_left: int,
         container_right: int,
     ) -> None:
+        """Draw a centered team logo inside the reserved card area."""
         self._ensure_teams_assets()
         if not self._team_logos:
             return
@@ -585,6 +601,7 @@ class Spectra6Renderer:
         image.paste(logo_resized, (x, y), logo_resized)
 
     def _draw_header(self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict) -> None:
+        """Draw the Spectra 6 race header with monochrome logo and red title block."""
         header_height = self.layout["header_height"]
         split_x = self.layout["header_split_x"]
 
@@ -618,6 +635,7 @@ class Spectra6Renderer:
 
     @staticmethod
     def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:
+        """Draw the shared monochrome F1 logo inside the header logo area."""
         logo_path = IMAGES_DIR / "eInkF1logo.jpg"
 
         if not logo_path.exists():
@@ -647,6 +665,7 @@ class Spectra6Renderer:
             logger.warning("Failed to load F1 logo: %s", e)
 
     def _ensure_teams_assets(self) -> None:
+        """Lazy-load cached driver and team assets used by the teams screen."""
         if self._driver_photos is None:
             self._driver_photos = self._load_driver_photos()
         if self._team_logos is None:
@@ -658,6 +677,7 @@ class Spectra6Renderer:
         image: Image.Image,
         race_data: dict,
     ) -> None:
+        """Draw the left-side track map and circuit label for Spectra 6."""
         x_start = 0
 
         circuit = race_data.get("circuit", {})
@@ -719,6 +739,7 @@ class Spectra6Renderer:
     def _draw_track_placeholder(
         draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
     ) -> None:
+        """Draw a fallback placeholder when no track image is available."""
         draw.rounded_rectangle(
             [(x + 20, y + 20), (x + width - 20, y + height - 20)],
             radius=20,
@@ -728,6 +749,7 @@ class Spectra6Renderer:
 
     @staticmethod
     def _load_track_image(race_data: dict) -> Image.Image | None:
+        """Load the best available Spectra 6 track image for a race."""
         circuit = race_data.get("circuit", {})
         circuit_id = str(circuit.get("circuitId", "") or "")
         location = str(circuit.get("location", "") or "")
@@ -763,6 +785,7 @@ class Spectra6Renderer:
         weather_data: WeatherData | None = None,
         weather_type: str = "",
     ) -> int:
+        """Draw the weekend schedule and return the bottom of the countdown area."""
         x_start = self.layout["right_column_x"]
         y_start = self.layout["schedule_title_y"]
 
@@ -792,11 +815,13 @@ class Spectra6Renderer:
         return countdown_bottom
 
     def _get_session_color(self, session_name: str) -> tuple[int, int, int]:
+        """Return the highlight color for a schedule row session name."""
         if session_name.lower() == "race":
             return self.colors.RED
         return self.colors.BLACK
 
     def _draw_schedule_row(self, draw: ImageDraw.ImageDraw, y: int, event: dict) -> None:
+        """Draw a single schedule row with localized labels and session color."""
         dt = event.get("datetime")
         name = event.get("name", "")
 
@@ -844,6 +869,7 @@ class Spectra6Renderer:
         weather_data: WeatherData | None = None,
         weather_type: str = "",
     ) -> int:
+        """Draw the countdown/status box and return its bottom y-coordinate."""
         is_cancelled = race_data.get("is_cancelled", False)
         schedule = race_data.get("schedule", [])
         race_dt = None
@@ -1022,6 +1048,7 @@ class Spectra6Renderer:
         race_data: dict,
         schedule_bottom: int,
     ) -> None:
+        """Draw the right-column circuit facts between schedule and results."""
         circuit_id = race_data.get("circuit", {}).get("circuitId", "")
         mapped_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
         circuit_data = CIRCUITS_DATA.get(mapped_id, {})
@@ -1106,6 +1133,7 @@ class Spectra6Renderer:
         race_data: dict,
         historical_data: HistoricalData | None,
     ) -> None:
+        """Draw the footer historical results section."""
         y_start = self.layout["results_y_start"]
 
         draw.line(
@@ -1141,6 +1169,7 @@ class Spectra6Renderer:
         )
 
     def _draw_new_track_message(self, draw: ImageDraw.ImageDraw, y_start: int) -> None:
+        """Draw a centered new-track message when historical data is unavailable."""
         message = self.translator.get("new_track", "NEW TRACK")
         bbox = draw.textbbox((0, 0), message, font=self.fonts["schedule_title"])
         text_width = bbox[2] - bbox[0]
@@ -1156,6 +1185,7 @@ class Spectra6Renderer:
         season: int | str,
         country_name: str,
     ) -> int:
+        """Draw the year and optional country flag for the results footer."""
         year_text = str(season)
         year_font = self.fonts["results_year"]
         bbox = draw.textbbox((0, 0), year_text, font=year_font)
@@ -1225,6 +1255,7 @@ class Spectra6Renderer:
         results: list,
         is_qualifying: bool,
     ) -> None:
+        """Draw one historical results column aligned with the footer header."""
         font_title = self.fonts["results_title"]
 
         ref_bbox = draw.textbbox((0, 0), TEXT_BASELINE_REF, font=font_title)
@@ -1279,7 +1310,9 @@ class Spectra6Renderer:
         driver: str,
         team: str,
     ) -> str:
+        """Fit historical results text into the available width."""
         def get_width(t: str) -> int:
+            """Measure a candidate text width for truncation decisions."""
             return int(draw.textbbox((0, 0), t, font=font)[2])
 
         full = f"{pos}. {driver} ({team})"
@@ -1304,6 +1337,7 @@ class Spectra6Renderer:
 
     @staticmethod
     def _load_font(size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the main UI font with a system fallback."""
         font_filename = "TitilliumWeb-Bold.ttf" if bold else "TitilliumWeb-Regular.ttf"
         font_path = FONTS_DIR / font_filename
 
@@ -1321,6 +1355,7 @@ class Spectra6Renderer:
 
     @staticmethod
     def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the fallback icon font used for symbols."""
         symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
         try:
             return ImageFont.truetype(symbola_path, size)
@@ -1329,6 +1364,7 @@ class Spectra6Renderer:
             return ImageFont.load_default()
 
     def _load_weather_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the weather icon font with a symbol fallback."""
         font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
         try:
             return ImageFont.truetype(str(font_path), size)
@@ -1337,6 +1373,7 @@ class Spectra6Renderer:
             return self._load_icon_font(size)
 
     def _load_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the stylized racing number font used for driver numbers."""
         font_path = FONTS_DIR / "RacingSansOne-Regular.ttf"
         if font_path.exists():
             try:
@@ -1346,12 +1383,14 @@ class Spectra6Renderer:
         return self._load_font(size, bold=True)
 
     def _get_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
+        """Return a cached racing-style font at the requested size."""
         if size not in self._racing_fonts:
             self._racing_fonts[size] = self._load_racing_font(size)
         return self._racing_fonts[size]
 
     @staticmethod
     def _format_points(value: float | int | None) -> str:
+        """Format points while preserving half-points for display."""
         if value in (None, 0):
             return "0"
         value_float = float(value)
@@ -1361,6 +1400,7 @@ class Spectra6Renderer:
 
     @staticmethod
     def _load_driver_photos() -> dict[str, Image.Image]:
+        """Load driver portraits used by the teams screen."""
         drivers_dir = IMAGES_DIR / "drivers"
         photos: dict[str, Image.Image] = {}
 
@@ -1376,6 +1416,7 @@ class Spectra6Renderer:
         return photos
 
     def _load_team_logos(self) -> dict[str, Image.Image]:
+        """Load and prepare color team logos for Spectra 6 rendering."""
         logos: dict[str, Image.Image] = {}
         search_dirs = [TEAMS_COLOR_DIR, IMAGES_DIR / "teams"]
 
@@ -1397,6 +1438,7 @@ class Spectra6Renderer:
 
     @classmethod
     def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
+        """Crop a team logo to visible content and apply team-specific trims."""
         cropped = cls._crop_to_content(img)
         if team_key in {"audi", "cadillac"}:
             return cls._crop_primary_horizontal_band(cropped)
@@ -1404,6 +1446,7 @@ class Spectra6Renderer:
 
     @staticmethod
     def _crop_to_content(img: Image.Image) -> Image.Image:
+        """Crop a logo to visible content, respecting transparency when present."""
         if "A" in img.getbands():
             alpha = img.getchannel("A")
             if alpha.getextrema()[0] < 255:
@@ -1419,6 +1462,7 @@ class Spectra6Renderer:
 
     @staticmethod
     def _crop_primary_horizontal_band(img: Image.Image) -> Image.Image:
+        """Keep only the dominant upper band for tall stacked logo assets."""
         if "A" in img.getbands() and img.getchannel("A").getextrema()[0] < 255:
             mask = img.getchannel("A")
         else:

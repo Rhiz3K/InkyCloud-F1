@@ -37,19 +37,23 @@ TEAMS_BMP_CACHE_CONTROL = "no-store, max-age=0"
 
 
 def _normalize_lang(lang: str) -> str:
+    """Normalize language input to a supported locale code."""
     return lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
 
 
 def _normalize_display(display: str) -> str:
+    """Normalize display input to a supported renderer key."""
     return display if display in ("1bit", "spectra6", "bwr", "bwry") else "1bit"
 
 
 def _validate_timezone_param(tz: str | None) -> None:
+    """Reject invalid timezone query values."""
     if tz and tz not in pytz.all_timezones_set:
         raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
 
 
 def _validate_calendar_selection(year: int | None, race_key: str | None) -> None:
+    """Validate query combinations for explicit calendar selection."""
     if race_key is not None and year is None:
         raise HTTPException(status_code=400, detail="race_key requires year")
 
@@ -64,6 +68,7 @@ def _get_cache_key(
     weather_type: str,
     display: str,
 ) -> str:
+    """Build the cache key for calendar render variants."""
     weather_key = weather_type if weather else "no_weather"
     return (
         f"{lang}:{year or 'next'}:{round_num or 'next'}:{race_key or 'auto'}:"
@@ -72,6 +77,7 @@ def _get_cache_key(
 
 
 def _to_round_number(round_value: str | int | None) -> int | None:
+    """Convert a round identifier to a positive integer when possible."""
     if round_value in (None, ""):
         return None
 
@@ -89,6 +95,7 @@ def _get_race_info_for_stats(
     race_round: int | None,
     race_key: str | None,
 ) -> tuple[bool, int | None, int | None, str | None]:
+    """Resolve the race metadata that should be recorded in analytics."""
     is_auto_selected = year is None and race_round is None and race_key is None
     actual_year = year
     actual_round = race_round
@@ -127,6 +134,7 @@ async def _track_calendar_analytics(
     user_agent: str | None,
     referrer: str,
 ) -> None:
+    """Send calendar download analytics events for direct BMP requests."""
     query_params: dict[str, str] = {"lang": lang}
     if tz:
         query_params["tz"] = tz
@@ -174,6 +182,7 @@ def _record_calendar_api_call(
     actual_race_name: str | None,
     is_auto_selected: bool,
 ) -> None:
+    """Persist a calendar API call with render metadata."""
     record_api_call(
         "/calendar.bmp",
         (time.time() - start_time) * 1000,
@@ -242,6 +251,7 @@ def _get_pregenerated_calendar_path(
     display: str,
     weather_type: str,
 ) -> Path | None:
+    """Return a pregenerated calendar BMP path when the request matches one."""
     if year is not None or race_round is not None or race_key is not None:
         return None
 
@@ -269,6 +279,7 @@ def _get_race_data_from_static(
     race_round: int | None,
     race_key: str | None,
 ) -> dict | None:
+    """Load race data for either an explicit selection or the next race."""
     if race_key is not None and year is None:
         return None
 
@@ -284,6 +295,7 @@ def _get_race_data_from_static(
 
 
 def _maybe_convert_timezone(race_data: dict, target_tz: str) -> dict:
+    """Convert cached race times only when the target timezone differs."""
     cached_tz = race_data.get("timezone", config.DEFAULT_TIMEZONE)
     if cached_tz == target_tz:
         return race_data
@@ -295,6 +307,7 @@ def _maybe_convert_timezone(race_data: dict, target_tz: str) -> dict:
 def _get_renderer(
     display: str, translator
 ) -> Renderer | Spectra6Renderer | BwrRenderer | BwryRenderer:
+    """Instantiate the renderer for the requested display mode."""
     if display == "spectra6":
         return Spectra6Renderer(translator)
     if display == "bwr":
@@ -316,6 +329,7 @@ async def _render_calendar(
     weather_type: str,
     display: str,
 ) -> tuple[bytes, dict | None]:
+    """Render a calendar BMP and return the output plus source race data."""
     translator = get_translator(lang)
 
     race_data = _get_race_data_from_static(f1_service, year, race_round, race_key)
@@ -365,6 +379,7 @@ async def get_calendar_bmp(
     ),
     f1_service: F1Service = Depends(get_f1_service),
 ):
+    """Render the calendar endpoint for the requested display and selection."""
     start_time = time.time()
     user_agent = request.headers.get("User-Agent")
     referrer = request.headers.get("Referer", "")
@@ -548,6 +563,7 @@ async def get_teams_bmp(
         ),
     ),
 ):
+    """Render the teams and drivers dashboard as a BMP image."""
     start_time = time.time()
 
     try:

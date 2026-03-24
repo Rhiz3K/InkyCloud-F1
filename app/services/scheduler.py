@@ -46,6 +46,7 @@ def _get_image_key(
     display: str = "1bit",
     weather: str = "off",
 ) -> str:
+    """Build a deterministic image key for generated calendar variants."""
     key = f"calendar_{lang}"
     if tz and tz != config.DEFAULT_TIMEZONE:
         tz_safe = tz.replace("/", "_")
@@ -230,6 +231,7 @@ async def _generate_variant(
     display: str,
     weather_type: str,
 ) -> bool:
+    """Render and save a single pregenerated calendar variant."""
     translator = get_translator(lang)
     if display == "spectra6":
         renderer = Spectra6Renderer(translator)
@@ -254,6 +256,7 @@ async def _generate_variant(
 
 
 def _delete_existing_bmps(images_dir: Path) -> int:
+    """Delete previously generated BMP files before a fresh generation run."""
     deleted_count = 0
     for bmp_file in images_dir.glob("*.bmp"):
         bmp_file.unlink()
@@ -262,6 +265,7 @@ def _delete_existing_bmps(images_dir: Path) -> int:
 
 
 def _load_historical_data(race_data: dict) -> object | None:
+    """Load historical race data for the current circuit when available."""
     circuit_id = race_data.get("circuit", {}).get("circuitId", "")
     if not circuit_id:
         return None
@@ -285,6 +289,7 @@ def _load_historical_data(race_data: dict) -> object | None:
 async def _load_weather_context(
     race_data: dict,
 ) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
+    """Load current and race-day weather variants for generation."""
     current_weather, race_weather, weather_by_type = await get_weather_context(race_data)
 
     circuit_id = race_data.get("circuit", {}).get("circuitId")
@@ -305,6 +310,7 @@ async def _generate_base_variants(
     display_types: list[str],
     weather_by_type: dict[str, WeatherData | None],
 ) -> int:
+    """Generate the base language/display/weather combinations."""
     generated_count = 0
 
     for lang in SUPPORTED_LANGUAGES:
@@ -335,6 +341,7 @@ async def _generate_popular_tz_variants(
     display_types: list[str],
     weather_by_type: dict[str, WeatherData | None],
 ) -> int:
+    """Generate extra calendar variants for the most-used non-default timezones."""
     generated_count = 0
 
     popular_variants = await db.get_popular_tz_variants(
@@ -373,6 +380,7 @@ async def _generate_popular_tz_variants(
 
 
 async def collect_and_generate() -> None:
+    """Generate all cached calendar BMP variants from static race data."""
     logger.info("Starting image generation from static data")
 
     try:

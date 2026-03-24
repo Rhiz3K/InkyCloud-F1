@@ -41,6 +41,7 @@ DEFAULT_HEADERS = {
 
 
 def get_logo_url(team_id: str, team_slug: str) -> str:
+    """Return the source URL for a team logo download."""
     if team_id in SPECIAL_LOGO_URLS:
         return SPECIAL_LOGO_URLS[team_id]
     variant = "logo"
@@ -51,6 +52,7 @@ def get_logo_url(team_id: str, team_slug: str) -> str:
 
 
 def download_with_curl(url: str) -> bytes:
+    """Download a logo with curl for sources that reject the default HTTP client."""
     curl_executable = shutil.which("curl")
     if curl_executable is None:
         msg = "curl executable not found"
@@ -78,6 +80,7 @@ def download_with_curl(url: str) -> bytes:
 async def download_team_logo(
     client: httpx.AsyncClient, team_id: str, team_slug: str, output_dir: Path
 ) -> bool:
+    """Download and convert a single team logo into the teams_color asset directory."""
     url = get_logo_url(team_id, team_slug)
     output_path = output_dir / f"{team_id}.png"
 
@@ -102,6 +105,7 @@ async def download_team_logo(
 
 
 async def main():
+    """Download all configured color team logo assets."""
     output_dir = Path(__file__).parent.parent / "app" / "assets" / "images" / "teams_color"
     output_dir.mkdir(parents=True, exist_ok=True)
 
