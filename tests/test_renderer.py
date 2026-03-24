@@ -2008,8 +2008,8 @@ def test_spectra6_team_row_header_uses_black_fill():
 
 
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
-def test_team_row_header_separates_right_stats_block(renderer_cls):
-    """Teams card header should keep a visible separator before the right stats block."""
+def test_team_row_header_draws_shared_stats_panel(renderer_cls):
+    """Teams card header should use a shared white panel for position and points."""
     renderer = renderer_cls(get_translator("en"))
     background = 1 if renderer_cls is Renderer else renderer.colors.WHITE
     image_mode = "1" if renderer_cls is Renderer else "RGB"
@@ -2026,11 +2026,14 @@ def test_team_row_header_separates_right_stats_block(renderer_cls):
 
     renderer._draw_team_row(image, draw, 5, 100, 395, team, 80)
 
-    separator_pixel = image.getpixel((318, 110))
+    panel_left_edge_pixel = image.getpixel((333, 104))
+    panel_fill_pixel = image.getpixel((334, 104))
     if renderer_cls is Renderer:
-        assert separator_pixel == 1
+        assert panel_left_edge_pixel == 0
+        assert panel_fill_pixel == 1
     else:
-        assert separator_pixel == renderer.colors.WHITE
+        assert panel_left_edge_pixel == renderer.colors.BLACK
+        assert panel_fill_pixel == renderer.colors.WHITE
 
 
 def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch):

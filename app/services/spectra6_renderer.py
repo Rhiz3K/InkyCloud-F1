@@ -351,7 +351,7 @@ class Spectra6Renderer:
         small_font = self.fonts["circuit_stats_value"]
         driver_font = self.fonts["circuit_name"]
         tech_font = self.fonts["circuit_location"]
-        stats_font = self.fonts["circuit_stats"]
+        stats_font = self.fonts["circuit_stats_value"]
         points_font = self.fonts["circuit_stats_value"]
         header_fill = self.colors.BLACK
 
@@ -400,43 +400,38 @@ class Spectra6Renderer:
                 trimmed = trimmed[:-1]
             return (trimmed + ellipsis) if trimmed else ""
 
-        def draw_header_stat_box(text: str, box_x: int, font) -> int:
-            """Draw a boxed header stat with centered text and return its width."""
+        def text_box_width(text: str, font) -> int:
+            """Return the minimum stat box width for the given text."""
+            text_bbox = draw.textbbox((0, 0), text, font=font)
+            text_w = int(text_bbox[2] - text_bbox[0])
+            return max(text_w + 10, 24)
+
+        def draw_panel_stat(text: str, box_x: int, box_w: int, font) -> None:
+            """Draw centered stat text inside the shared header panel."""
             text_bbox = draw.textbbox((0, 0), text, font=font)
             text_w = int(text_bbox[2] - text_bbox[0])
             text_h = int(text_bbox[3] - text_bbox[1])
-            pad_x = 5
-            box_y = y + 2
-            box_h = header_height - 4
-            box_w = max(text_w + (pad_x * 2), 24)
-
-            draw.rectangle(
-                [(box_x, box_y), (box_x + box_w, box_y + box_h)],
-                fill=self.colors.WHITE,
-                outline=self.colors.BLACK,
-            )
             text_x = box_x + (box_w - text_w) // 2 - int(text_bbox[0])
-            text_y = box_y + (box_h - text_h) // 2 - int(text_bbox[1])
+            text_y = panel_y + (panel_h - text_h) // 2 - int(text_bbox[1])
             draw.text((text_x, text_y), text, fill=self.colors.BLACK, font=font)
-            return box_w
 
         badge_pad_x = 5
         driver_pos_x = x_end - 72
-        separator_x = driver_pos_x - badge_pad_x
-        draw.line(
-            [(separator_x, y + 2), (separator_x, y + header_height - 2)],
-            fill=self.colors.WHITE,
-            width=1,
-        )
-
         stats_gap = 4
-        points_box_w = max(text_width(team_pts, points_font) + 10, 24)
-        points_box_x = x_end - 4 - points_box_w
-        pos_box_w = max(text_width(team_pos, stats_font) + 10, 24)
-        pos_box_x = points_box_x - stats_gap - pos_box_w
-
-        draw_header_stat_box(team_pos, pos_box_x, stats_font)
-        draw_header_stat_box(team_pts, points_box_x, points_font)
+        points_box_w = text_box_width(team_pts, points_font)
+        pos_box_w = text_box_width(team_pos, stats_font)
+        panel_x = x_end - 4 - (pos_box_w + stats_gap + points_box_w)
+        panel_y = y + 2
+        panel_h = header_height - 4
+        draw.rectangle(
+            [(panel_x, panel_y), (x_end - 4, panel_y + panel_h)],
+            fill=self.colors.WHITE,
+            outline=self.colors.BLACK,
+        )
+        pos_box_x = panel_x
+        points_box_x = panel_x + pos_box_w + stats_gap
+        draw_panel_stat(team_pos, pos_box_x, pos_box_w, stats_font)
+        draw_panel_stat(team_pts, points_box_x, points_box_w, points_font)
 
         name_x = x_start + 4
         draw.text((name_x, header_text_y), team_name, fill=self.colors.WHITE, font=team_font)
