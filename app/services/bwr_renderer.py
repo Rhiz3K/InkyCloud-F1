@@ -51,7 +51,7 @@ class BwrRenderer(Spectra6Renderer):
         """Prepare team logos, using a mono-friendly Sauber variant outside Spectra 6."""
         prepared = super()._prepare_team_logo(team_key, img)
         if team_key == "sauber":
-            return Renderer._normalize_sauber_logo_for_non_spectra(prepared)
+            return Renderer.normalize_sauber_logo_for_non_spectra(prepared)
         return prepared
 
     @staticmethod

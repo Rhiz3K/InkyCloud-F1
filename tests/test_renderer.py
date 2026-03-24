@@ -2183,7 +2183,7 @@ def test_renderer_maps_sauber_green_to_white_for_non_spectra_variants():
     logo = Image.new("RGBA", (2, 1), (0, 0, 0, 255))
     logo.putpixel((1, 0), (0, 255, 0, 255))
 
-    prepared = Renderer._normalize_sauber_logo_for_non_spectra(logo)
+    prepared = Renderer.normalize_sauber_logo_for_non_spectra(logo)
 
     assert prepared.getpixel((0, 0))[:3] == (0, 0, 0)
     assert prepared.getpixel((1, 0))[:3] == (255, 255, 255)
