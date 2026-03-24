@@ -477,12 +477,22 @@ class Renderer:
                 trimmed = trimmed[:-1]
             return (trimmed + ellipsis) if trimmed else ""
 
-        def draw_panel_stat(text: str, box_x: int, box_w: int, font, fill: int) -> None:
-            """Draw centered stat text inside the shared header panel."""
+        def draw_panel_stat(
+            text: str,
+            box_x: int,
+            box_w: int,
+            font,
+            fill: int,
+            align: str = "center",
+        ) -> None:
+            """Draw text inside the shared header panel with the requested alignment."""
             text_bbox = draw.textbbox((0, 0), text, font=font)
             text_w = int(text_bbox[2] - text_bbox[0])
             text_h = int(text_bbox[3] - text_bbox[1])
-            text_x = box_x + (box_w - text_w) // 2 - int(text_bbox[0])
+            if align == "right":
+                text_x = box_x + box_w - 4 - text_w - int(text_bbox[0])
+            else:
+                text_x = box_x + (box_w - text_w) // 2 - int(text_bbox[0])
             text_y = panel_y + (panel_h - text_h) // 2 - int(text_bbox[1])
             draw.text((text_x, text_y), text, fill=fill, font=font)
 
@@ -504,7 +514,7 @@ class Renderer:
             outline=0,
         )
         draw_panel_stat(team_pos, pos_box_x, pos_col_w, stats_font, 0)
-        draw_panel_stat(team_pts, points_box_x, points_col_w, points_font, 0)
+        draw_panel_stat(team_pts, points_box_x, points_col_w, points_font, 0, align="right")
 
         name_x = x_start + 4
         draw.text((name_x, header_text_y), team_name, fill=1, font=team_font)
