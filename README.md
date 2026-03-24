@@ -54,6 +54,10 @@ https://f1.inkycloud.click/calendar.bmp?lang=en&weather=true&weather_type=curren
 
 _LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
 
+![SVERIO B/W/R/Y Placeholder](./assets/device_sverio_bwry_placeholder.svg)
+
+_Placeholder for a tested SVERIO PaperBoard 7.5" GDEM075F52 screenshot with black frame: four-color 800×480 ePaper (black/white/yellow/red), readable in direct sunlight, no backlight._
+
 ---
 
 ## ✨ Features
@@ -193,5 +197,5 @@ Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelin
 - F1 data from [Jolpica F1 API](https://github.com/jolpica/jolpica-f1)
 - Weather forecast data from [Open-Meteo](https://open-meteo.com)
 - Weather icons from [Weather Icons](https://github.com/erikflowers/weather-icons) by Erik Flowers (SIL OFL 1.1)
-- Built for [LaskaKit](https://www.laskakit.cz/) E-Ink displays
+- Built for [LaskaKit](https://www.laskakit.cz/) and [SVERIO ePaper](https://pajenicko.cz/sverio-paperboard-ctyrbarevny-7.5-gdem075f52-s-cernym-rameckem) displays
 - Public instance hosted on [Coolify](https://coolify.io) + [Hetzner](https://www.hetzner.com/)
