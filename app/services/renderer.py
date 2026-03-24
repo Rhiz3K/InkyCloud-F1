@@ -325,9 +325,10 @@ class Renderer:
             bbox = draw.textbbox((0, 0), num_text, font=font)
             text_w = int(bbox[2] - bbox[0])
             text_h = int(bbox[3] - bbox[1])
+            text_x = x + max(0, (size - text_w) // 2) - int(bbox[0])
             text_y = y + (size - text_h) // 2 - int(bbox[1])
-            draw.text((x, text_y), num_text, fill=0, font=font)
-            return text_w + 4
+            draw.text((text_x, text_y), num_text, fill=0, font=font)
+            return size
 
         driver_img = self._driver_photos.get(surname) if self._driver_photos else None
         if driver_img is not None:
@@ -538,7 +539,7 @@ class Renderer:
         driver_small_y = self._get_text_y(draw, small_font, driver_row_height, driver_y)
 
         photo_y = center_y - photo_size // 2
-        photo_width = self._draw_driver_photo(
+        self._draw_driver_photo(
             draw,
             image,
             photo_x,
@@ -547,7 +548,7 @@ class Renderer:
             size=photo_size,
             driver_number=driver.driver_number,
         )
-        driver_name_x = photo_x + photo_width + self.layout["driver_name_padding"]
+        driver_name_x = photo_x + photo_size + self.layout["driver_name_padding"] + 4
         draw.text((driver_name_x, driver_text_y), display_name, fill=0, font=driver_font)
 
         driver_pts = self._format_points(driver.points)
@@ -661,7 +662,7 @@ class Renderer:
             )
 
         logo_container_right = driver_pos_x - 8
-        driver_name_base_x = photo_x + photo_size + self.layout["driver_name_padding"]
+        driver_name_base_x = photo_x + photo_size + self.layout["driver_name_padding"] + 4
         logo_container_left = max(driver_name_base_x + 170, logo_container_right - 96)
         self._draw_team_logo(
             image,

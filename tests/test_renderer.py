@@ -2034,6 +2034,49 @@ def test_team_row_header_draws_shared_stats_panel(renderer_cls):
         assert panel_fill_pixel == renderer.colors.WHITE
 
 
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_team_row_aligns_driver_names_to_fixed_column(renderer_cls):
+    """Driver names should start at the same x even when photo assets have different widths."""
+    renderer = renderer_cls(get_translator("en"))
+    background = 1 if renderer_cls is Renderer else renderer.colors.WHITE
+    image_mode = "1" if renderer_cls is Renderer else "RGB"
+    image = Image.new(image_mode, (800, 480), background)
+    draw = ImageDraw.Draw(image)
+    team = TeamEntry(
+        constructor_name="McLaren",
+        chassis="MCL40",
+        power_unit="Mercedes-AMG F1 M17",
+        position=1,
+        points=38.0,
+        drivers=[
+            TeamDriverEntry(name="Lando Norris", position=1, points=25.0, driver_number=4),
+            TeamDriverEntry(name="Oscar Piastri", position=2, points=18.0, driver_number=81),
+        ],
+    )
+
+    original_text = draw.text
+    captured_name_x: dict[str, int] = {}
+
+    def fake_draw_driver_photo(*args, **kwargs):
+        driver_name = args[4]
+        return 8 if "Lando" in driver_name else 20
+
+    def spy_text(xy, text, *args, **kwargs):
+        if text in {"Lando NORRIS", "Oscar PIASTRI"}:
+            captured_name_x[text] = int(xy[0])
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(renderer, "_draw_driver_photo", fake_draw_driver_photo)
+    monkeypatch.setattr(draw, "text", spy_text)
+    try:
+        renderer._draw_team_row(image, draw, 5, 100, 395, team, 80)
+    finally:
+        monkeypatch.undo()
+
+    assert captured_name_x["Lando NORRIS"] == captured_name_x["Oscar PIASTRI"]
+
+
 def test_spectra6_team_row_highlights_first_team_position_in_red():
     """Color team headers should highlight the leading constructor position in red."""
     renderer = Spectra6Renderer(get_translator("en"))
