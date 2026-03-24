@@ -111,6 +111,7 @@ class Spectra6Renderer:
             "race_name": self._load_font(20, bold=True),
             "circuit_name": self._load_font(18, bold=True),
             "circuit_location": self._load_font(14),
+            "circuit_location_bold": self._load_font(14, bold=True),
             "schedule_title": self._load_font(24, bold=True),
             "schedule_row": self._load_font(20),
             "schedule_row_bold": self._load_font(20, bold=True),
@@ -350,7 +351,11 @@ class Spectra6Renderer:
         team_font = self.fonts["circuit_name"]
         small_font = self.fonts["circuit_stats_value"]
         driver_font = self.fonts["circuit_name"]
-        tech_font = self.fonts["circuit_location"]
+        tech_font = (
+            self.fonts["circuit_location_bold"]
+            if len(self.colors.PALETTE) <= 4
+            else self.fonts["circuit_location"]
+        )
         stats_font = self.fonts["circuit_stats_value"]
         points_font = self.fonts["circuit_stats_value"]
         header_fill = self.colors.BLACK
