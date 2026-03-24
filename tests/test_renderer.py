@@ -2178,6 +2178,39 @@ def test_renderer_crops_cadillac_wordmark_to_primary_band_before_1bit_conversion
     assert prepared.size == (101, 46)
 
 
+def test_renderer_maps_sauber_green_to_white_for_non_spectra_variants():
+    """1-bit logo prep should convert Sauber's green mark into a white-on-black logo."""
+    logo = Image.new("RGBA", (2, 1), (0, 0, 0, 255))
+    logo.putpixel((1, 0), (0, 255, 0, 255))
+
+    prepared = Renderer._normalize_sauber_logo_for_non_spectra(logo)
+
+    assert prepared.getpixel((0, 0))[:3] == (0, 0, 0)
+    assert prepared.getpixel((1, 0))[:3] == (255, 255, 255)
+
+
+def test_bwr_renderer_maps_sauber_green_to_white_for_non_spectra_variants():
+    """BWR/BWRY logo prep should use the same white-on-black Sauber treatment."""
+    logo = Image.new("RGBA", (4, 1), (0, 0, 0, 0))
+    logo.putpixel((1, 0), (0, 0, 0, 255))
+    logo.putpixel((2, 0), (0, 255, 0, 255))
+
+    prepared = BwrRenderer._prepare_team_logo("sauber", logo)
+
+    assert prepared.getpixel((0, 0))[:3] == (0, 0, 0)
+    assert prepared.getpixel((1, 0))[:3] == (255, 255, 255)
+
+
+def test_spectra6_renderer_preserves_sauber_green_logo():
+    """Spectra 6 should keep Sauber's green accent instead of forcing mono output."""
+    logo = Image.new("RGBA", (2, 1), (0, 0, 0, 255))
+    logo.putpixel((1, 0), (0, 255, 0, 255))
+
+    prepared = Spectra6Renderer._prepare_team_logo("sauber", logo)
+
+    assert prepared.getpixel((1, 0))[:3] == (0, 255, 0)
+
+
 def test_renderer_crop_to_content_ignores_fully_opaque_alpha_for_white_background():
     """Opaque logos on white backgrounds should crop by visible content, not full alpha bounds."""
     logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))

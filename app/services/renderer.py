@@ -1911,6 +1911,8 @@ class Renderer:
     def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
         """Crop a team logo to the content area and apply team-specific trims."""
         cropped = cls._crop_to_content(img)
+        if team_key == "sauber":
+            return cls._normalize_sauber_logo_for_non_spectra(cropped)
         if team_key in {"audi", "cadillac"}:
             return cls._crop_primary_horizontal_band(cropped)
         return cropped
@@ -1978,6 +1980,24 @@ class Renderer:
             return img
 
         return img.crop((0, first_start, img.width, first_end))
+
+    @staticmethod
+    def _normalize_sauber_logo_for_non_spectra(img: Image.Image) -> Image.Image:
+        """Map Sauber's green accent to white while preserving its black background."""
+        rgba = img.convert("RGBA")
+        normalized = Image.new("RGBA", rgba.size, (0, 0, 0, 0))
+
+        for x in range(rgba.width):
+            for y in range(rgba.height):
+                r, g, b, a = rgba.getpixel((x, y))
+                if a == 0:
+                    continue
+                if r < 48 and g < 48 and b < 48:
+                    normalized.putpixel((x, y), (0, 0, 0, a))
+                else:
+                    normalized.putpixel((x, y), (255, 255, 255, a))
+
+        return normalized
 
     @staticmethod
     def _logo_to_1bit(img: Image.Image) -> Image.Image:
