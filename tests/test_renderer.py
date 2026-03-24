@@ -2026,7 +2026,7 @@ def test_team_row_header_separates_right_stats_block(renderer_cls):
 
     renderer._draw_team_row(image, draw, 5, 100, 395, team, 80)
 
-    separator_pixel = image.getpixel((325, 110))
+    separator_pixel = image.getpixel((318, 110))
     if renderer_cls is Renderer:
         assert separator_pixel == 1
     else:

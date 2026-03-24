@@ -352,6 +352,7 @@ class Spectra6Renderer:
         driver_font = self.fonts["circuit_name"]
         tech_font = self.fonts["circuit_location"]
         stats_font = self.fonts["circuit_stats"]
+        points_font = self.fonts["circuit_stats_value"]
         header_fill = self.colors.BLACK
 
         header_height = 23
@@ -399,9 +400,9 @@ class Spectra6Renderer:
                 trimmed = trimmed[:-1]
             return (trimmed + ellipsis) if trimmed else ""
 
-        stats_block_w = 66
-        stats_left_x = x_end - stats_block_w
-        separator_x = stats_left_x - 4
+        badge_pad_x = 5
+        driver_pos_x = x_end - 72
+        separator_x = driver_pos_x - badge_pad_x
         draw.line(
             [(separator_x, y + 2), (separator_x, y + header_height - 2)],
             fill=self.colors.WHITE,
@@ -419,19 +420,38 @@ class Spectra6Renderer:
         if meta_text:
             draw.text((meta_x, tech_text_y), meta_text, fill=self.colors.WHITE, font=tech_font)
 
-        pts_right_x = x_end - 4
-        team_pts_x = right_align_x(team_pts, pts_right_x, stats_font)
-        team_pos_x = stats_left_x + 4
+        pts_bbox = draw.textbbox((0, 0), team_pts, font=points_font)
+        pts_text_w = int(pts_bbox[2] - pts_bbox[0])
+        pts_text_h = int(pts_bbox[3] - pts_bbox[1])
+        pts_pad_x = 5
+        pts_pad_y = 2
+        pts_box_w = pts_text_w + (pts_pad_x * 2)
+        pts_box_h = pts_text_h + (pts_pad_y * 2)
+        pts_box_x = x_end - 4 - pts_box_w
+        pts_box_y = y + (header_height - pts_box_h) // 2
+
+        team_pos_right_x = pts_box_x - 8
+        team_pos_x = right_align_x(team_pos, team_pos_right_x, stats_font)
         draw.text((team_pos_x, header_text_y), team_pos, fill=self.colors.WHITE, font=stats_font)
-        draw.text((team_pts_x, header_text_y), team_pts, fill=self.colors.WHITE, font=stats_font)
+        draw.rectangle(
+            [(pts_box_x, pts_box_y), (pts_box_x + pts_box_w, pts_box_y + pts_box_h)],
+            fill=self.colors.WHITE,
+            outline=self.colors.BLACK,
+        )
+        draw.text(
+            (pts_box_x + pts_pad_x, pts_box_y + pts_pad_y - pts_bbox[1]),
+            team_pts,
+            fill=self.colors.BLACK,
+            font=points_font,
+        )
 
         driver_area_height = row_height - header_height - 4
         driver_row_height = driver_area_height // 2
         driver_y_start = y + header_height + 2
+        pts_right_x = x_end - 4
 
         photo_size = driver_row_height - 2
         photo_x = x_start + 4
-        driver_pos_x = x_end - 72
 
         sorted_drivers = sorted(team.drivers[:2], key=lambda d: d.position or 99)
         for i, driver in enumerate(sorted_drivers):
@@ -481,7 +501,6 @@ class Spectra6Renderer:
                 pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
                 pos_w = pos_bbox[2] - pos_bbox[0]
                 pos_h = pos_bbox[3] - pos_bbox[1]
-                badge_pad_x = 5
                 badge_pad_y = 3
                 badge_w = int(pos_w) + badge_pad_x * 2
                 badge_h = int(pos_h) + badge_pad_y * 2
