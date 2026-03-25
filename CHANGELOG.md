@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.16] - 2026-03-25
+
+### Backend
+
+#### Fixed
+
+- **Cancelled season refresh persistence** - Static season updates now preserve previously tracked cancelled races such as Bahrain and Jeddah when Jolpica omits them, and season JSON refreshes now end with a trailing newline for cleaner diffs and POSIX-friendly tooling
+
 ## [1.2.15] - 2026-03-24
 
 ### Frontend
