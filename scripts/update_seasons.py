@@ -91,6 +91,11 @@ def preserve_cancelled_races(
     }
 
 
+def write_season_file(output_path: Path, season_payload: dict[str, Any]) -> None:
+    """Write season JSON with a trailing newline for POSIX-friendly diffs."""
+    output_path.write_text(json.dumps(season_payload, indent=2) + "\n", encoding="utf-8")
+
+
 async def fetch_season(client: httpx.AsyncClient, year: int) -> dict:
     """Fetch full season calendar from API."""
     url = f"{API_BASE}/{year}.json?limit=30"
@@ -121,9 +126,7 @@ async def main(target_years: list[int]) -> None:
                 existing_data = _load_existing_season(output_path)
                 data = preserve_cancelled_races(await fetch_season(client, year), existing_data)
 
-                with open(output_path, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=2)
-
+                write_season_file(output_path, data)
                 print(f"  Saved {data['total_races']} races to {output_path}")
 
                 # Rate limiting

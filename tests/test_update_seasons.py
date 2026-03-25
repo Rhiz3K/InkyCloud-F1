@@ -140,6 +140,22 @@ def test_preserve_cancelled_races_skips_duplicates_when_api_restores_race():
     assert merged["races"][1]["round"] == "3"
 
 
+def test_write_season_file_appends_trailing_newline(tmp_path):
+    output_path = tmp_path / "2027.json"
+
+    update_seasons.write_season_file(
+        output_path,
+        {
+            "season": "2027",
+            "generated_at": "2026-03-25T00:00:00+00:00",
+            "total_races": 0,
+            "races": [],
+        },
+    )
+
+    assert output_path.read_bytes().endswith(b"\n")
+
+
 def test_static_2026_calendar_keeps_cancelled_bahrain_and_jeddah():
     season_path = Path(__file__).resolve().parents[1] / "app" / "assets" / "seasons" / "2026.json"
     season_data = json.loads(season_path.read_text(encoding="utf-8"))
