@@ -416,7 +416,7 @@ bg-black
       {% endfor %} {% else %} {{ breakdown_empty() }} {% endif %}
     </div>
 
-    <!-- Display Types -->
+    <!-- Calendar Display Types -->
     <div class="border-2 border-black bg-white p-6 shadow-neo stats-card-display" data-testid="stats-card-display">
       <h2
         class="font-bold uppercase tracking-wider mb-4 border-b-2 border-black pb-2"
@@ -434,6 +434,29 @@ bg-black
           >{{ display_stat.display_label }}</span
         >
         {{ breakdown_fill(display_pct, loop.index0, display_item_count) }}
+        {{ breakdown_summary(display_pct) }}
+      </div>
+      {% endfor %} {% else %} {{ breakdown_empty() }} {% endif %}
+    </div>
+
+    <!-- Teams Display Types -->
+    <div class="border-2 border-black bg-white p-6 shadow-neo" data-testid="stats-card-teams-display">
+      <h2
+        class="font-bold uppercase tracking-wider mb-4 border-b-2 border-black pb-2"
+      >
+        {{ t.get("stats_by_teams_display", "By Teams Display") }}
+      </h2>
+      {{ breakdown_scope(t.get("stats_scope_teams_requests", "Share of teams requests")) }}
+      {% if stats.teams_display_types %} {% set teams_display_total = stats.teams_display_types |
+      sum(attribute='count') %} {% set teams_display_item_count = stats.teams_display_types |
+      length %} {% for display_stat in stats.teams_display_types %} {% set display_pct =
+      calc_percent(display_stat.count, teams_display_total) %}
+      <div class="flex items-center gap-3 mb-2">
+        <span class="flex-shrink-0 text-xs font-bold uppercase"
+          style="width: 6rem"
+          >{{ display_stat.display_label }}</span
+        >
+        {{ breakdown_fill(display_pct, loop.index0, teams_display_item_count) }}
         {{ breakdown_summary(display_pct) }}
       </div>
       {% endfor %} {% else %} {{ breakdown_empty() }} {% endif %}

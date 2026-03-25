@@ -7,13 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.15] - 2026-03-25
+## [1.2.15] - 2026-03-24
+
+### Frontend
+
+#### Added
+
+- **Teams display parity** - Added `1bit`, `B/W/R`, `B/W/R/Y`, and `Spectra 6` variants to the teams configure flow, previews, API docs, and a dedicated teams display breakdown in the stats dashboard
+- **Display-aware session accents** - Multi-color calendar outputs now color `Race`, `Qualifying`, `Sprint`, and `Practice` labels according to the active display palette, with unsupported colors falling back to black
+- **SVERIO hardware docs** - Added SVERIO `B/W/R/Y` PaperBoard hardware references to the site credits/README and documented a tested 7.5" `GDEM075F52` screenshot placeholder for the four-color panel
 
 ### Backend
 
+#### Added
+
+- **Teams display renderers** - Extended `/teams.bmp` to support the same display selection flow as `/calendar.bmp`, including color-aware teams rendering, per-display preview generation, analytics tagging, and scheduler/configure preview generation for all display modes
+
 #### Fixed
 
+- **Teams logo/render polish** - Refined logo sourcing and 1-bit/logo conversion behavior across teams renderers, added dedicated 1-bit overrides for problematic team marks, preserved half-points in standings output, and treated legacy teams analytics rows without `display_type` as `1bit`
+- **Teams header layout** - Reworked the team-card header stats area into a shared aligned panel, improved vertical/horizontal centering, right-aligned points across teams, highlighted the leading constructor position in color-capable displays, and improved `B/W/R` and `B/W/R/Y` meta-text readability
+- **Teams row alignment** - Fixed driver-name column alignment by anchoring names to a shared slot, centering driver numbers inside that slot, and keeping spacing consistent across mixed-width number/photo assets
+- **Sauber logo fallback** - Non-`Spectra 6` teams renders now remap Sauber's green accent to a mono-friendly white-on-black mark so `1bit`, `B/W/R`, and `B/W/R/Y` variants stay legible in 2024/2025 layouts
+- **Calendar session color mapping** - `Spectra 6` now uses red/yellow/green/blue accents for `Race`/`Qualifying`/`Sprint`/`Practice`, while `B/W/R` and `B/W/R/Y` gracefully fall back to supported palette colors
 - **Cancelled season refresh persistence** - Static season updates now preserve previously tracked cancelled races such as Bahrain and Jeddah when Jolpica omits them, and the 2026 static calendar keeps those weekends available as cancelled entries
+- **Benchmark and quality follow-ups** - Lazy-loaded teams assets for the 1-bit renderer to avoid unrelated benchmark regressions, restored CodSpeed to the GitHub-hosted runner, resolved DeepSource findings (including helper visibility/static-method cleanup), and split complex team-row renderer methods into smaller helpers
+- **Documentation sync** - Updated README/examples/self-hosting/BMP pipeline docs so public documentation matches the current endpoints, display variants, generated preview naming, and teams rendering behavior
 
 ## [1.2.14] - 2026-03-19
 

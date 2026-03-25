@@ -6,6 +6,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+from app.services.renderer import Renderer
 from app.services.spectra6_renderer import (
     CIRCUIT_ID_MAP,
     COUNTRY_MAP,
@@ -44,6 +45,14 @@ class BwrRenderer(Spectra6Renderer):
         self.layout["results_flag_max_width_percent"] = 80  # type: ignore[index]
         self.layout["results_flag_gap"] = 3  # type: ignore[index]
         self.layout["results_flag_bottom_padding"] = 4  # type: ignore[index]
+
+    @classmethod
+    def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
+        """Prepare team logos, using a mono-friendly Sauber variant outside Spectra 6."""
+        prepared = super()._prepare_team_logo(team_key, img)
+        if team_key == "sauber":
+            return Renderer.normalize_sauber_logo_for_non_spectra(prepared)
+        return prepared
 
     @staticmethod
     def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:

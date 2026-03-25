@@ -117,6 +117,51 @@ async def api_info() -> dict:
                     "/calendar.bmp?display=spectra6&weather_type=current",
                 ],
             },
+            "/teams.bmp": {
+                "method": "GET",
+                "description": (
+                    f"Generate F1 teams and drivers BMP image "
+                    f"({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT})"
+                ),
+                "parameters": {
+                    "lang": {
+                        "type": "string",
+                        "description": "Language code for teams text",
+                        "values": ["en", "cs"],
+                        "default": "en",
+                        "example": "?lang=cs",
+                    },
+                    "year": {
+                        "type": "integer",
+                        "description": "Season year for team data",
+                        "example": "?year=2026",
+                        "optional": True,
+                    },
+                    "display": {
+                        "type": "string",
+                        "description": "Display output mode",
+                        "values": ["1bit", "spectra6", "bwr", "bwry"],
+                        "default": "1bit",
+                        "example": "?display=bwr",
+                        "optional": True,
+                    },
+                },
+                "response": {
+                    "content_type": "image/bmp",
+                    "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
+                    "color_depth": (
+                        "1-bit monochrome, 4-bit indexed B/W/R, "
+                        "4-bit indexed B/W/R/Y, or indexed Spectra 6"
+                    ),
+                },
+                "examples": [
+                    "/teams.bmp",
+                    "/teams.bmp?lang=cs",
+                    "/teams.bmp?year=2026",
+                    "/teams.bmp?display=bwr",
+                    "/teams.bmp?display=spectra6",
+                ],
+            },
             "/api": {"method": "GET", "description": "API documentation (this endpoint)"},
             "/api/docs": {"method": "GET", "description": "API documentation (alias for /api)"},
             "/api/stats": {
@@ -170,6 +215,7 @@ async def get_stats() -> dict:
 
 @router.post("/api/perf-metrics")
 async def post_perf_metrics(request: Request) -> dict[str, str]:
+    """Store client-side Web Vitals metrics for later aggregation."""
     from app.models import PerfMetricsPayload
 
     try:
@@ -212,6 +258,7 @@ async def post_perf_metrics(request: Request) -> dict[str, str]:
 
 @router.get("/api/perf-metrics")
 async def get_perf_metrics(hours: int = Query(default=24, le=720)) -> dict:
+    """Return aggregated performance metrics for the requested lookback window."""
     db = Database()
     stats = await db.get_perf_stats(hours)
     by_page = await db.get_perf_stats_by_page(hours)
@@ -220,6 +267,7 @@ async def get_perf_metrics(hours: int = Query(default=24, le=720)) -> dict:
 
 @router.get("/api/stats/history")
 async def get_stats_history(limit: int = Query(default=168, le=720)) -> dict:
+    """Return recent hourly request history for the stats dashboard."""
     db = Database()
     history = await db.get_request_stats_history(limit=limit)
     return {"history": history, "count": len(history)}
@@ -227,6 +275,7 @@ async def get_stats_history(limit: int = Query(default=168, le=720)) -> dict:
 
 @router.get("/api/races/{year}")
 async def get_season_races(year: int, f1_service: F1Service = Depends(get_f1_service)) -> dict:
+    """Return all races for a given season."""
     races = await f1_service.get_season_races(year)
     return {"year": year, "races": races}
 
@@ -235,6 +284,7 @@ async def get_season_races(year: int, f1_service: F1Service = Depends(get_f1_ser
 async def get_race_detail(
     year: int, round_num: int, f1_service: F1Service = Depends(get_f1_service)
 ) -> dict:
+    """Return details for a single race round."""
     race = await f1_service.get_race_by_round(year, round_num)
     if not race:
         raise HTTPException(status_code=404, detail="Race not found")
@@ -297,10 +347,12 @@ TEAM_ID_MAP = {
 
 
 def _get_driver_number(driver_code: str, _year: int) -> int | None:
+    """Map a driver code to the display number used in leader payloads."""
     return DRIVER_NUMBERS.get(driver_code)
 
 
 def _get_team_id(team_name: str) -> str | None:
+    """Resolve a standings constructor name to the frontend team asset key."""
     for key, team_id in TEAM_ID_MAP.items():
         if key.lower() in team_name.lower():
             return team_id
@@ -310,6 +362,7 @@ def _get_team_id(team_name: str) -> str | None:
 @router.get("/api/standings/leader")
 @router.get("/api/standings/leader/{year}")
 async def get_standings_leader(year: int | None = None) -> dict:
+    """Return the current driver and constructor leaders for a season."""
     from app.services.standings_service import StandingsService
 
     if year is None:

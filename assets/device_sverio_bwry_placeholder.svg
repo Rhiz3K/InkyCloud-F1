@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" role="img" aria-labelledby="title desc">
+  <title id="title">SVERIO PaperBoard screenshot placeholder</title>
+  <desc id="desc">Placeholder for a future screenshot of the SVERIO PaperBoard 7.5 inch four-color ePaper display.</desc>
+  <rect width="800" height="480" fill="#f7f7f7"/>
+  <rect x="36" y="36" width="728" height="408" fill="#ffffff" stroke="#000000" stroke-width="8"/>
+  <rect x="72" y="72" width="656" height="68" fill="#ff0000"/>
+  <text x="96" y="116" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" fill="#ffffff">
+    SVERIO B/W/R/Y Placeholder
+  </text>
+  <rect x="72" y="168" width="300" height="208" fill="#ffffff" stroke="#000000" stroke-width="4"/>
+  <rect x="428" y="168" width="300" height="208" fill="#ffffff" stroke="#000000" stroke-width="4"/>
+  <circle cx="220" cy="272" r="52" fill="#ffd800" stroke="#000000" stroke-width="8"/>
+  <rect x="488" y="214" width="180" height="116" rx="20" fill="#ffd800" stroke="#000000" stroke-width="8"/>
+  <text x="96" y="410" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" fill="#000000">
+    Add tested screenshot here
+  </text>
+  <text x="96" y="438" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#000000">
+    7.5&quot; GDEM075F52, 800×480, black/white/yellow/red
+  </text>
+</svg>
