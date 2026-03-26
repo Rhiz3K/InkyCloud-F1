@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from typing import Dict
 
-from app.config import VALID_LANGUAGES, config
+from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +15,7 @@ _translations_cache: Dict[str, dict] = {}
 # Pre-defined translation file paths (prevents path injection by avoiding user input in paths)
 _TRANSLATIONS_DIR = Path(__file__).parent.parent.parent / "translations"
 _TRANSLATION_FILES: Dict[str, Path] = {
-    "en": _TRANSLATIONS_DIR / "en.json",
-    "cs": _TRANSLATIONS_DIR / "cs.json",
+    lang: _TRANSLATIONS_DIR / f"{lang}.json" for lang in LANGUAGE_CODES
 }
 
 

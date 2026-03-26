@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
-from app.config import VALID_LANGUAGES, config
+from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.services.analytics import get_umami_script_tag
 from app.services.i18n import get_translator
 
@@ -18,6 +18,21 @@ mimetypes.add_type("font/woff", ".woff")
 mimetypes.add_type("font/woff2", ".woff2")
 
 templates = Jinja2Templates(directory="app/templates")
+
+LANGUAGE_LABELS: dict[str, str] = {
+    "en": "EN",
+    "cs": "CZ",
+    "de": "DE",
+    "es": "ES",
+    "it": "IT",
+    "fr": "FR",
+    "pt-BR": "PT-BR",
+    "nl": "NL",
+    "pl": "PL",
+    "tr": "TR",
+    "ja": "JA",
+    "zh-CN": "ZH-CN",
+}
 
 
 def format_bytes(bytes_val: int) -> str:
@@ -75,16 +90,25 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
     # Get base path without language prefix for hreflang generation
     request_path = request.url.path
     base_path = request_path
-    for prefix in ["/cs", "/en"]:
+    for lang_code in LANGUAGE_CODES:
+        prefix = f"/{lang_code}"
         if request_path.startswith(prefix + "/") or request_path == prefix:
             base_path = request_path[len(prefix) :] or "/"
             break
 
+    supported_languages = [
+        {
+            "code": code,
+            "label": LANGUAGE_LABELS.get(code, code.upper()),
+            "selected": "selected" if ui_lang == code else "",
+            "url": lang_url(base_path, code),
+        }
+        for code in LANGUAGE_CODES
+    ]
+
     return {
         "request": request,
         "ui_lang": ui_lang,
-        "lang_selected_en": "selected" if ui_lang == "en" else "",
-        "lang_selected_cs": "selected" if ui_lang == "cs" else "",
         "umami_script": get_umami_script_tag(),
         "t": t,
         "nav": nav,
@@ -93,4 +117,5 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "calc_percent": calc_percent,
         "lang_url": lambda path: lang_url(path, ui_lang),
         "base_path": base_path,  # Path without language prefix (for hreflang)
+        "supported_languages": supported_languages,
     }

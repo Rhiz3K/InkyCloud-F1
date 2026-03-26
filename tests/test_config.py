@@ -1,6 +1,8 @@
 """Test configuration and i18n services."""
 
 import importlib
+import json
+from pathlib import Path
 
 import app.config as config_module
 from app.services.i18n import get_translator
@@ -13,7 +15,7 @@ def test_config_defaults():
 
     assert config.DISPLAY_WIDTH == 800
     assert config.DISPLAY_HEIGHT == 480
-    assert config.DEFAULT_LANG in ["en", "cs"]
+    assert config.DEFAULT_LANG in config_module.LANGUAGE_CODES
 
 
 def test_config_invalid_env_falls_back(monkeypatch):
@@ -61,3 +63,13 @@ def test_translator_fallback():
     translator = get_translator("unknown")
     # Should fall back to default language
     assert "next_race" in translator
+
+
+def test_all_translation_files_match_english_keys():
+    """All supported locales should ship a translation file with the full key set."""
+    translations_dir = Path(__file__).resolve().parent.parent / "translations"
+    reference = json.loads((translations_dir / "en.json").read_text(encoding="utf-8"))
+
+    for lang in config_module.LANGUAGE_CODES:
+        data = json.loads((translations_dir / f"{lang}.json").read_text(encoding="utf-8"))
+        assert set(data) == set(reference)

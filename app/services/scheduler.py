@@ -11,7 +11,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from PIL import Image
 
-from app.config import config
+from app.config import LANGUAGE_CODES, config
 from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.database import Database
@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 scheduler: AsyncIOScheduler | None = None
 
 # Supported languages for image generation
-SUPPORTED_LANGUAGES = ["en", "cs"]
+SUPPORTED_LANGUAGES = list(LANGUAGE_CODES)
 
 
 def _get_image_key(

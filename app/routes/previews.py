@@ -7,22 +7,22 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
-from app.config import config
+from app.config import LANGUAGE_CODES, config
 
 router = APIRouter()
+_ALLOWED_LANGS = {lang: lang for lang in LANGUAGE_CODES}
 
 
 @router.get("/preview/{screen_type}.png")
 async def get_preview_png(screen_type: str, lang: str = Query(default="en")) -> FileResponse:
     """Serve pre-generated preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
-    allowed_langs = {"en": "en", "cs": "cs"}
 
     safe_screen = allowed_screens.get(screen_type)
     if not safe_screen:
         raise HTTPException(status_code=404, detail="Unknown screen type")
 
-    safe_lang = allowed_langs.get(lang, "en")
+    safe_lang = _ALLOWED_LANGS.get(lang, "en")
 
     filename = f"preview_{safe_screen}_{safe_lang}.png"
     preview_path = Path(config.IMAGES_PATH) / filename
@@ -45,7 +45,6 @@ async def get_configure_preview_png(
 ) -> FileResponse:
     """Serve pre-generated configure-preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
-    allowed_langs = {"en": "en", "cs": "cs"}
     allowed_weather = {
         "off": "off",
         "current": "current",
@@ -58,7 +57,7 @@ async def get_configure_preview_png(
     if not safe_screen:
         raise HTTPException(status_code=404, detail="Unknown screen type")
 
-    safe_lang = allowed_langs.get(lang, "en")
+    safe_lang = _ALLOWED_LANGS.get(lang, "en")
     safe_weather = allowed_weather.get(weather_type, "off")
     safe_display = allowed_display.get(display, "1bit")
 

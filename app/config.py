@@ -282,6 +282,22 @@ def _reset_config_cache_for_tests() -> None:
 
 config = get_config()
 
+# Ordered language codes used across routing, UI, and API docs.
+LANGUAGE_CODES: tuple[str, ...] = (
+    "en",
+    "cs",
+    "de",
+    "es",
+    "it",
+    "fr",
+    "pt-BR",
+    "nl",
+    "pl",
+    "tr",
+    "ja",
+    "zh-CN",
+)
+
 # Valid language codes (allowlist for security - prevents path injection)
 # Defined as module-level constant for easy import across the application
-VALID_LANGUAGES: frozenset[str] = frozenset({"en", "cs"})
+VALID_LANGUAGES: frozenset[str] = frozenset(LANGUAGE_CODES)

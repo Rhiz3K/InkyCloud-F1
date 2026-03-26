@@ -7,7 +7,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from app.config import config
+from app.config import LANGUAGE_CODES, config
 from app.services.analytics import track_event
 from app.services.database import Database
 from app.services.f1_service import F1Service
@@ -20,6 +20,7 @@ from .deps import get_f1_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+_LANGUAGE_VALUES = list(LANGUAGE_CODES)
 
 
 @router.get("/api")
@@ -48,7 +49,7 @@ async def api_info() -> dict:
                     "lang": {
                         "type": "string",
                         "description": "Language code for calendar text",
-                        "values": ["en", "cs"],
+                        "values": _LANGUAGE_VALUES,
                         "default": "en",
                         "example": "?lang=cs",
                     },
@@ -127,7 +128,7 @@ async def api_info() -> dict:
                     "lang": {
                         "type": "string",
                         "description": "Language code for teams text",
-                        "values": ["en", "cs"],
+                        "values": _LANGUAGE_VALUES,
                         "default": "en",
                         "example": "?lang=cs",
                     },

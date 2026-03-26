@@ -1216,7 +1216,7 @@ block content %}
     const uiSwitch = document.getElementById("uiLangSwitch");
 
     // If saved preference differs from current, redirect
-    if (saved && saved !== currentUiLang && ["en", "cs"].includes(saved)) {
+    if (saved && saved !== currentUiLang && ["en", "cs", "de", "es", "it", "fr", "pt-BR", "nl", "pl", "tr", "ja", "zh-CN"].includes(saved)) {
       window.location.href = saved !== 'en' ? "/?lang=" + saved : "/";
       return false; // Signal that redirect is happening
     }

@@ -25,16 +25,13 @@
       href="{{ site_url }}{{ lang_url(base_path) }}"
     />
     {% endblock %}
+    {% for language in supported_languages %}
     <link
       rel="alternate"
-      hreflang="en"
-      href="{{ site_url }}{{ base_path }}"
+      hreflang="{{ language.code }}"
+      href="{{ site_url }}{{ language.url }}"
     />
-    <link
-      rel="alternate"
-      hreflang="cs"
-      href="{{ site_url }}/cs{{ base_path }}"
-    />
+    {% endfor %}
     <link
       rel="alternate"
       hreflang="x-default"

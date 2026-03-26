@@ -3,13 +3,28 @@
  * Shared utilities and functions across all pages
  */
 
+const SUPPORTED_LANGUAGE_CODES = [
+    "en",
+    "cs",
+    "de",
+    "es",
+    "it",
+    "fr",
+    "pt-BR",
+    "nl",
+    "pl",
+    "tr",
+    "ja",
+    "zh-CN",
+];
+
 /**
  * Get the base path without language prefix
  * @param {string} path - Current path
  * @returns {string} Path without language prefix
  */
 function getBasePath(path) {
-    const langPrefixes = ["/cs", "/en"];
+    const langPrefixes = SUPPORTED_LANGUAGE_CODES.map((code) => "/" + code);
     for (const prefix of langPrefixes) {
         if (path === prefix || path === prefix + "/") {
             return "/";
@@ -27,8 +42,13 @@ function getBasePath(path) {
  */
 function getCurrentLang() {
     const path = window.location.pathname;
-    if (path.startsWith("/cs/") || path === "/cs") {
-        return "cs";
+    for (const lang of SUPPORTED_LANGUAGE_CODES) {
+        if (lang === "en") {
+            continue;
+        }
+        if (path.startsWith("/" + lang + "/") || path === "/" + lang) {
+            return lang;
+        }
     }
     return "en";
 }

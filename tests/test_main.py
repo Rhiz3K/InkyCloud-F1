@@ -87,6 +87,8 @@ def test_root_page_contains_required_elements():
     assert 'id="uiLangSwitch"' in html
     assert 'value="en"' in html
     assert 'value="cs"' in html
+    assert 'value="de"' in html
+    assert 'value="zh-CN"' in html
     assert "/configure/calendar" in html
     assert "/configure/teams" in html
     assert "Credits" in html
