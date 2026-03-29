@@ -19,7 +19,6 @@ from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
-from app.services.image_keys import get_teams_image_key
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Renderer
 from app.services.teams_service import TeamsService, get_default_teams_year
@@ -228,6 +227,15 @@ _VALID_CALENDAR_FILENAMES: dict[tuple[str, str, str], str] = {
 }
 
 
+def _get_valid_teams_filenames(year: int) -> dict[tuple[str, str], str]:
+    """Return the whitelist of valid teams BMP filenames for a specific season."""
+    return {
+        (lang, display): f"teams_{year}_{lang}{_DISPLAY_FILE_SUFFIXES[display]}.bmp"
+        for lang in LANGUAGE_CODES
+        for display in _DISPLAY_FILE_SUFFIXES
+    }
+
+
 def _get_pregenerated_calendar_path(
     *,
     lang: str,
@@ -269,7 +277,9 @@ def _get_pregenerated_teams_path(*, lang: str, year: int | None, display: str) -
 
     safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
     safe_display = display if display in {"spectra6", "bwr", "bwry"} else "1bit"
-    filename = f"{get_teams_image_key(safe_lang, default_year, display=safe_display)}.bmp"
+    filename = _get_valid_teams_filenames(default_year).get((safe_lang, safe_display))
+    if not filename:
+        return None
 
     image_path = Path(config.IMAGES_PATH) / filename
     return image_path if image_path.exists() else None
