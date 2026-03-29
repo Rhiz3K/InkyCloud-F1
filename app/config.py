@@ -212,7 +212,7 @@ class Config(BaseSettings):
             rate = float(value)  # type: ignore[arg-type]
             if 0.0 <= rate <= 1.0:
                 return rate
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             pass
         return _warn_invalid(info.field_name, value, default, "must be between 0.0 and 1.0")
 
@@ -275,7 +275,7 @@ class Config(BaseSettings):
             days = int(value)  # type: ignore[call-overload]
             if days >= 0:
                 return days
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             pass
         return _warn_invalid(info.field_name, value, default, "must be a non-negative integer")
 
