@@ -745,10 +745,7 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
     teams_per_col = max(len(left_teams), len(right_teams), 1)
     row_gap = 2
     row_height = (
-        renderer.height
-        - renderer.layout["header_height"]
-        - 8
-        - (teams_per_col - 1) * row_gap
+        renderer.height - renderer.layout["header_height"] - 8 - (teams_per_col - 1) * row_gap
     ) // teams_per_col
     card_header_height = 23
     card_header_gap = 1

@@ -563,7 +563,9 @@ class Renderer:
                 min_size=12,
                 bold=True,
             )
-        driver_text_y = self._get_text_y(draw, driver_font, driver_row_height, driver_y, display_name)
+        driver_text_y = self._get_text_y(
+            draw, driver_font, driver_row_height, driver_y, display_name
+        )
         draw.text((driver_name_x, driver_text_y), display_name, fill=0, font=driver_font)
 
         driver_pts = self._format_points(driver.points)
