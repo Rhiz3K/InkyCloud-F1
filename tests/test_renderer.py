@@ -266,9 +266,7 @@ def test_translate_session_name_uses_full_localized_sprint_qualifying_labels(
     ],
 )
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
-def test_build_sprint_qualifying_label_uses_localized_abbreviation(
-    renderer_cls, lang, expected
-):
+def test_build_sprint_qualifying_label_uses_localized_abbreviation(renderer_cls, lang, expected):
     """Abbreviated sprint qualifying labels should use each locale's qualifying initial."""
     renderer = renderer_cls(get_translator(lang), lang)
     assert renderer._build_sprint_qualifying_label(abbreviated=True) == expected
