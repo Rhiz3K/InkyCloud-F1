@@ -400,7 +400,12 @@ async def _generate_teams_bmp_variants(
 
     teams_year = get_default_teams_year()
     teams_service = TeamsService()
-    teams_data = await teams_service.get_teams_and_drivers(teams_year)
+    try:
+        teams_data = await teams_service.get_teams_and_drivers(teams_year)
+    except Exception as exc:
+        logger.error("Error fetching teams BMP data for %d: %s", teams_year, exc, exc_info=True)
+        return 0
+
     if not teams_data.teams:
         logger.warning("Skipping teams BMP generation: no teams data for %d", teams_year)
         return 0
@@ -411,37 +416,47 @@ async def _generate_teams_bmp_variants(
     for lang in SUPPORTED_LANGUAGES:
         translator = get_translator(lang)
         for display in display_variants:
-            if display == "spectra6":
-                renderer = Spectra6Renderer(translator, lang)
-            elif display == "bwr":
-                renderer = BwrRenderer(translator, lang)
-            elif display == "bwry":
-                renderer = BwryRenderer(translator, lang)
-            else:
-                renderer = Renderer(translator, lang)
+            try:
+                if display == "spectra6":
+                    renderer = Spectra6Renderer(translator, lang)
+                elif display == "bwr":
+                    renderer = BwrRenderer(translator, lang)
+                elif display == "bwry":
+                    renderer = BwryRenderer(translator, lang)
+                else:
+                    renderer = Renderer(translator, lang)
 
-            bmp_data = renderer.render_teams_drivers(teams_data)
-            suffix = ""
-            if display == "spectra6":
-                suffix = "_spectra6"
-            elif display == "bwr":
-                suffix = "_bwr"
-            elif display == "bwry":
-                suffix = "_bwry"
+                bmp_data = renderer.render_teams_drivers(teams_data)
+                suffix = ""
+                if display == "spectra6":
+                    suffix = "_spectra6"
+                elif display == "bwr":
+                    suffix = "_bwr"
+                elif display == "bwry":
+                    suffix = "_bwry"
 
-            image_key = f"teams_{lang}{suffix}"
-            image_path = images_dir / f"{image_key}.bmp"
+                image_key = f"teams_{lang}{suffix}"
+                image_path = images_dir / f"{image_key}.bmp"
 
-            async with aiofiles.open(image_path, "wb") as f:
-                await f.write(bmp_data)
+                async with aiofiles.open(image_path, "wb") as f:
+                    await f.write(bmp_data)
 
-            await db.save_generated_image(
-                image_key=image_key,
-                image_path=str(image_path),
-                lang=lang,
-                season=teams_year,
-            )
-            generated_count += 1
+                await db.save_generated_image(
+                    image_key=image_key,
+                    image_path=str(image_path),
+                    lang=lang,
+                    season=teams_year,
+                )
+                generated_count += 1
+            except Exception as exc:
+                logger.error(
+                    "Error generating teams BMP (%s, %s, %d): %s",
+                    lang,
+                    display,
+                    teams_year,
+                    exc,
+                    exc_info=True,
+                )
 
     logger.info(
         "Generated teams BMP variants for %d languages x %d displays (%d total)",

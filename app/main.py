@@ -98,7 +98,11 @@ async def lifespan(_app: FastAPI):
     logger.info("Starting F1 E-Ink calendar service")
 
     _check_persistent_storage()
-    await asyncio.to_thread(warm_teams_renderer_assets)
+    try:
+        await asyncio.to_thread(warm_teams_renderer_assets)
+    except Exception as exc:
+        logger.error("Teams renderer warmup failed: %s", exc, exc_info=True)
+        sentry_sdk.capture_exception(exc)
 
     start_scheduler()
     asyncio.create_task(run_initial_generation())
