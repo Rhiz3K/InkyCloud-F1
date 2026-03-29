@@ -7,7 +7,7 @@ from io import BytesIO
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 from PIL import Image
 
 from app.config import LANGUAGE_CODES, config
@@ -74,10 +74,10 @@ async def _render_teams_preview(
     )
 
 
-@router.get("/preview/{screen_type}.png")
+@router.get("/preview/{screen_type}.png", response_model=None)
 async def get_preview_png(
     screen_type: str, lang: str = Query(default="en")
-) -> FileResponse | StreamingResponse:
+) -> Response:
     """Serve pre-generated preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
 
@@ -105,13 +105,13 @@ async def get_preview_png(
     raise HTTPException(status_code=404, detail="Preview not generated yet")
 
 
-@router.get("/preview/configure/{screen_type}.png")
+@router.get("/preview/configure/{screen_type}.png", response_model=None)
 async def get_configure_preview_png(
     screen_type: str,
     lang: str = Query(default="en"),
     weather_type: str = Query(default="off"),
     display: str = Query(default="1bit"),
-) -> FileResponse | StreamingResponse:
+) -> Response:
     """Serve pre-generated configure-preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
     allowed_weather = {
