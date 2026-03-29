@@ -472,7 +472,7 @@ block content %}
                 >1</span
               >
               <span
-                >In
+                >{{ configure_ui_text.epaperStep1BeforeLink }}
                 <a
                   href="https://zivyobraz.eu"
                   target="_blank"
@@ -480,14 +480,14 @@ block content %}
                   class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white"
                   >Živýobraz.eu</a
                 >
-                select <strong>URL</strong> as content source</span
+                {{ configure_ui_text.epaperStep1BetweenLinkAndUrl }}<strong>URL</strong>{{ configure_ui_text.epaperStep1AfterUrl }}</span
               >
             </p>
             <p id="epaperStep2" class="flex items-start gap-2">
               <span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5"
                 >2</span
               >
-              <span>Copy the URL above into the image URL field</span>
+              <span>{{ configure_ui_text.epaperStep2Text }}</span>
             </p>
           </div>
         </div>
@@ -773,6 +773,57 @@ block content %}
     renderTzList();
   }
 
+  function renderEpaperSetupText(t) {
+    const buildStepBadge = (step) => {
+      const badge = document.createElement("span");
+      badge.className = "bg-black text-white px-1.5 font-bold text-xs mt-0.5";
+      badge.textContent = String(step);
+      return badge;
+    };
+
+    const buildStepText = (text) => {
+      const span = document.createElement("span");
+      span.textContent = text;
+      return span;
+    };
+
+    const step1 = document.getElementById("epaperStep1");
+    if (step1) {
+      step1.replaceChildren();
+      step1.appendChild(buildStepBadge(1));
+
+      const content = document.createElement("span");
+      content.append(document.createTextNode(t.epaperStep1BeforeLink || ""));
+
+      const link = document.createElement("a");
+      link.href = "https://zivyobraz.eu";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.className =
+        "underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white";
+      link.textContent = "Živýobraz.eu";
+      content.appendChild(link);
+
+      content.append(
+        document.createTextNode(t.epaperStep1BetweenLinkAndUrl || "")
+      );
+
+      const strong = document.createElement("strong");
+      strong.textContent = "URL";
+      content.appendChild(strong);
+      content.append(document.createTextNode(t.epaperStep1AfterUrl || ""));
+
+      step1.appendChild(content);
+    }
+
+    const step2 = document.getElementById("epaperStep2");
+    if (step2) {
+      step2.replaceChildren();
+      step2.appendChild(buildStepBadge(2));
+      step2.appendChild(buildStepText(t.epaperStep2Text || ""));
+    }
+  }
+
   function setUiLanguage(lang) {
     currentUiLang = lang;
     const t = uiText;
@@ -804,8 +855,7 @@ block content %}
     if (footerPrivacy) footerPrivacy.textContent = t.footerPrivacy;
     document.getElementById("epaperSetupTitle").textContent =
       t.epaperSetupTitle;
-    document.getElementById("epaperStep1").innerHTML = t.epaperStep1;
-    document.getElementById("epaperStep2").innerHTML = t.epaperStep2;
+    renderEpaperSetupText(t);
     const weatherLabel = document.getElementById("weatherLabel");
     if (weatherLabel) weatherLabel.textContent = t.weatherLabel;
     const weatherLabelMobile = document.getElementById("weatherLabelMobile");

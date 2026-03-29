@@ -175,8 +175,6 @@
     "retryBtn": "再試行",
     "refreshBtn": "更新",
     "epaperSetupTitle": "ePaperディスプレイ設定",
-    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span><a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> でコンテンツソースとして <strong>URL</strong> を選択</span>",
-    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>上のURLを画像URL欄に貼り付け</span>",
     "weatherLabel": "天気",
     "weatherCurrentLabel": "現在",
     "weatherRaceDayLabel": "レース当日",
@@ -197,6 +195,10 @@
       "AFRICA": "アフリカ",
       "OCEANIA": "オセアニア",
       "OTHER": "その他"
-    }
+    },
+    "epaperStep1BeforeLink": "",
+    "epaperStep1BetweenLinkAndUrl": " でコンテンツソースとして ",
+    "epaperStep1AfterUrl": " を選択",
+    "epaperStep2Text": "上のURLを画像URL欄に貼り付け"
   }
 }

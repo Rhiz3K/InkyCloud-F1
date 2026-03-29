@@ -80,8 +80,12 @@ def _build_configure_ui_text(translations: dict[str, Any]) -> dict[str, Any]:
         "retryBtn": configure.get("retryBtn", "RETRY"),
         "refreshBtn": configure.get("refreshBtn", "REFRESH"),
         "epaperSetupTitle": configure.get("epaperSetupTitle", "ePaper Display Setup"),
-        "epaperStep1": configure.get("epaperStep1", ""),
-        "epaperStep2": configure.get("epaperStep2", ""),
+        "epaperStep1BeforeLink": configure.get("epaperStep1BeforeLink", "In "),
+        "epaperStep1BetweenLinkAndUrl": configure.get("epaperStep1BetweenLinkAndUrl", " select "),
+        "epaperStep1AfterUrl": configure.get("epaperStep1AfterUrl", " as content source"),
+        "epaperStep2Text": configure.get(
+            "epaperStep2Text", "Copy the URL above into the image URL field"
+        ),
         "weatherLabel": configure.get("weatherLabel", "Weather"),
         "weatherCurrentLabel": configure.get("weatherCurrentLabel", "Current"),
         "weatherRaceDayLabel": configure.get("weatherRaceDayLabel", "Race day"),

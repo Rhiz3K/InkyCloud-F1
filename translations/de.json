@@ -175,8 +175,6 @@
     "retryBtn": "ERNEUT",
     "refreshBtn": "AKTUALISIEREN",
     "epaperSetupTitle": "ePaper-Display-Einrichtung",
-    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span>In <a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> <strong>URL</strong> als Inhaltsquelle auswählen</span>",
-    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>Die obige URL in das Bild-URL-Feld einfügen</span>",
     "weatherLabel": "Wetter",
     "weatherCurrentLabel": "Aktuell",
     "weatherRaceDayLabel": "Am Renntag",
@@ -197,6 +195,10 @@
       "AFRICA": "AFRIKA",
       "OCEANIA": "OZEANIEN",
       "OTHER": "SONSTIGE"
-    }
+    },
+    "epaperStep1BeforeLink": "In ",
+    "epaperStep1BetweenLinkAndUrl": " ",
+    "epaperStep1AfterUrl": " als Inhaltsquelle auswählen",
+    "epaperStep2Text": "Die obige URL in das Bild-URL-Feld einfügen"
   }
 }

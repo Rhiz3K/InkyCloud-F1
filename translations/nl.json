@@ -175,8 +175,6 @@
     "retryBtn": "OPNIEUW",
     "refreshBtn": "VERNIEUWEN",
     "epaperSetupTitle": "ePaper-display instellen",
-    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span>Selecteer in <a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> <strong>URL</strong> als contentbron</span>",
-    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>Plak de URL hierboven in het afbeeldings-URL-veld</span>",
     "weatherLabel": "Weer",
     "weatherCurrentLabel": "Huidig",
     "weatherRaceDayLabel": "Racedag",
@@ -197,6 +195,10 @@
       "AFRICA": "AFRIKA",
       "OCEANIA": "OCEANIË",
       "OTHER": "OVERIG"
-    }
+    },
+    "epaperStep1BeforeLink": "Selecteer in ",
+    "epaperStep1BetweenLinkAndUrl": " ",
+    "epaperStep1AfterUrl": " als contentbron",
+    "epaperStep2Text": "Plak de URL hierboven in het afbeeldings-URL-veld"
   }
 }

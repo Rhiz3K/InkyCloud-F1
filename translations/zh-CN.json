@@ -175,8 +175,6 @@
     "retryBtn": "重试",
     "refreshBtn": "刷新",
     "epaperSetupTitle": "ePaper 显示设置",
-    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span>在 <a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> 中选择 <strong>URL</strong> 作为内容来源</span>",
-    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>将上面的 URL 粘贴到图片 URL 字段</span>",
     "weatherLabel": "天气",
     "weatherCurrentLabel": "当前",
     "weatherRaceDayLabel": "比赛日",
@@ -197,6 +195,10 @@
       "AFRICA": "非洲",
       "OCEANIA": "大洋洲",
       "OTHER": "其他"
-    }
+    },
+    "epaperStep1BeforeLink": "在 ",
+    "epaperStep1BetweenLinkAndUrl": " 中选择 ",
+    "epaperStep1AfterUrl": " 作为内容来源",
+    "epaperStep2Text": "将上面的 URL 粘贴到图片 URL 字段"
   }
 }

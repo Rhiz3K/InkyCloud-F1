@@ -175,8 +175,6 @@
     "retryBtn": "TEKRAR DENE",
     "refreshBtn": "YENİLE",
     "epaperSetupTitle": "ePaper ekran kurulumu",
-    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span><a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> içinde içerik kaynağı olarak <strong>URL</strong> seçin</span>",
-    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>Yukarıdaki URL'yi görsel URL alanına yapıştırın</span>",
     "weatherLabel": "Hava durumu",
     "weatherCurrentLabel": "Güncel",
     "weatherRaceDayLabel": "Yarış günü",
@@ -197,6 +195,10 @@
       "AFRICA": "AFRİKA",
       "OCEANIA": "OKYANUSYA",
       "OTHER": "DİĞER"
-    }
+    },
+    "epaperStep1BeforeLink": "",
+    "epaperStep1BetweenLinkAndUrl": " içinde içerik kaynağı olarak ",
+    "epaperStep1AfterUrl": " seçin",
+    "epaperStep2Text": "Yukarıdaki URL'yi görsel URL alanına yapıştırın"
   }
 }

@@ -175,8 +175,6 @@
     "retryBtn": "SKÚSIŤ ZNOVA",
     "refreshBtn": "OBNOVIŤ",
     "epaperSetupTitle": "Nastavenie ePaper displeja",
-    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span>V <a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> vyberte <strong>URL</strong> ako zdroj obsahu</span>",
-    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>Vložte vyššie uvedenú URL do poľa URL obrázka</span>",
     "weatherLabel": "Počasie",
     "weatherCurrentLabel": "Aktuálne",
     "weatherRaceDayLabel": "Deň pretekov",
@@ -197,6 +195,10 @@
       "AFRICA": "AFRIKA",
       "OCEANIA": "OCEÁNIA",
       "OTHER": "OSTATNÉ"
-    }
+    },
+    "epaperStep1BeforeLink": "V ",
+    "epaperStep1BetweenLinkAndUrl": " vyberte ",
+    "epaperStep1AfterUrl": " ako zdroj obsahu",
+    "epaperStep2Text": "Vložte vyššie uvedenú URL do poľa URL obrázka"
   }
 }
