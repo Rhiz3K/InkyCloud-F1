@@ -18,6 +18,7 @@ from app.services.analytics import track_event, track_pageview
 from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.f1_service import F1Service
+from app.services.image_keys import get_teams_image_key
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Renderer
@@ -226,13 +227,6 @@ _VALID_CALENDAR_FILENAMES: dict[tuple[str, str, str], str] = {
     for weather in _WEATHER_FILE_SUFFIXES
 }
 
-_VALID_TEAMS_FILENAMES: dict[tuple[str, str], str] = {
-    (lang, display): f"teams_{lang}{_DISPLAY_FILE_SUFFIXES[display]}.bmp"
-    for lang in LANGUAGE_CODES
-    for display in _DISPLAY_FILE_SUFFIXES
-}
-
-
 def _get_pregenerated_calendar_path(
     *,
     lang: str,
@@ -241,6 +235,7 @@ def _get_pregenerated_calendar_path(
     race_key: str | None,
     tz: str | None,
     display: str,
+    weather: bool,
     weather_type: str,
 ) -> Path | None:
     """Return a pregenerated calendar BMP path when the request matches one."""
@@ -254,7 +249,7 @@ def _get_pregenerated_calendar_path(
     # Normalize inputs to allowed values
     safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
     safe_display = display if display in {"spectra6", "bwr", "bwry"} else "1bit"
-    safe_weather = _normalize_weather_type(weather_type)
+    safe_weather = "off" if not weather else _normalize_weather_type(weather_type)
 
     # Lookup filename from whitelist (no user input in path construction)
     filename = _VALID_CALENDAR_FILENAMES.get((safe_lang, safe_display, safe_weather))
@@ -273,10 +268,7 @@ def _get_pregenerated_teams_path(*, lang: str, year: int | None, display: str) -
 
     safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
     safe_display = display if display in {"spectra6", "bwr", "bwry"} else "1bit"
-
-    filename = _VALID_TEAMS_FILENAMES.get((safe_lang, safe_display))
-    if not filename:
-        return None
+    filename = f"{get_teams_image_key(safe_lang, default_year, display=safe_display)}.bmp"
 
     image_path = Path(config.IMAGES_PATH) / filename
     return image_path if image_path.exists() else None
@@ -337,14 +329,14 @@ async def _render_calendar(
     weather: bool,
     weather_type: str,
     display: str,
-) -> tuple[bytes, dict | None]:
+) -> tuple[bytes, dict | None, bool]:
     """Render a calendar BMP and return the output plus source race data."""
     translator = get_translator(lang)
 
     race_data = _get_race_data_from_static(f1_service, year, race_round, race_key)
     if not race_data:
         renderer = _get_renderer(display, translator, lang)
-        return renderer.render_error("Failed to fetch race data"), None
+        return renderer.render_error("Failed to fetch race data"), None, False
 
     weather_data = None
     if weather and config.WEATHER_ENABLED and not race_data.get("is_cancelled"):
@@ -360,9 +352,11 @@ async def _render_calendar(
     historical_data = F1Service.get_historical_from_static(circuit_id) if circuit_id else None
 
     renderer = _get_renderer(display, translator, lang)
-    return renderer.render_calendar(
-        race_data, historical_data, weather_data, weather_type
-    ), race_data
+    return (
+        renderer.render_calendar(race_data, historical_data, weather_data, weather_type),
+        race_data,
+        True,
+    )
 
 
 @router.get("/calendar.bmp")
@@ -444,6 +438,7 @@ async def get_calendar_bmp(
         race_key=race_key,
         tz=tz,
         display=display,
+        weather=weather,
         weather_type=weather_type,
     )
     if image_path is not None:
@@ -479,7 +474,7 @@ async def get_calendar_bmp(
 
     try:
         target_tz = tz or config.DEFAULT_TIMEZONE
-        bmp_data, race_data = await _render_calendar(
+        bmp_data, race_data, is_cacheable = await _render_calendar(
             f1_service=f1_service,
             lang=lang,
             year=year,
@@ -490,7 +485,8 @@ async def get_calendar_bmp(
             weather_type=weather_type,
             display=display,
         )
-        get_bmp_cache()[cache_key] = bmp_data
+        if is_cacheable:
+            get_bmp_cache()[cache_key] = bmp_data
 
         if race_data:
             actual_year = int(race_data.get("season", 0)) or actual_year

@@ -14,7 +14,14 @@ from PIL import Image
 from app.config import LANGUAGE_CODES
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
-from app.routes.images import _get_race_data_from_static, _get_race_info_for_stats
+from app.routes import images as images_routes
+from app.routes.images import (
+    _get_pregenerated_calendar_path,
+    _get_pregenerated_teams_path,
+    _get_race_data_from_static,
+    _get_race_info_for_stats,
+)
+from app.state import clear_bmp_cache, get_bmp_cache
 from app.services.f1_service import F1Service
 
 client = TestClient(app)
@@ -1030,6 +1037,41 @@ def test_calendar_bmp_with_bwry_display():
     assert int.from_bytes(response.content[28:30], byteorder="little") == 4
 
 
+def test_calendar_bmp_error_response_is_not_cached(monkeypatch):
+    """Transient calendar errors must not poison the normal BMP cache."""
+    clear_bmp_cache()
+    monkeypatch.setattr(images_routes, "_get_race_data_from_static", lambda *args, **kwargs: None)
+
+    response = client.get("/calendar.bmp?year=2099&round=1")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+    assert response.content[:2] == b"BM"
+    assert get_bmp_cache() == {}
+
+
+def test_pregenerated_calendar_path_uses_off_variant_when_weather_disabled(tmp_path, monkeypatch):
+    """`weather=false` should never resolve to a weather-overlay pregenerated BMP."""
+    monkeypatch.setattr(images_routes.config, "IMAGES_PATH", str(tmp_path))
+    off_path = tmp_path / "calendar_en.bmp"
+    weather_path = tmp_path / "calendar_en_weather_race.bmp"
+    off_path.write_bytes(b"off")
+    weather_path.write_bytes(b"weather")
+
+    image_path = _get_pregenerated_calendar_path(
+        lang="en",
+        year=None,
+        race_round=None,
+        race_key=None,
+        tz=None,
+        display="1bit",
+        weather=False,
+        weather_type="race_day",
+    )
+
+    assert image_path == off_path
+
+
 def test_teams_bmp_default():
     """Test /teams.bmp returns BMP image."""
     response = client.get("/teams.bmp")
@@ -1078,6 +1120,20 @@ def test_teams_bmp_with_spectra6_display():
     assert response.headers["content-type"] == "image/bmp"
     assert response.content[:2] == b"BM"
     assert int.from_bytes(response.content[28:30], byteorder="little") == 8
+
+
+def test_get_pregenerated_teams_path_uses_default_year_in_filename(tmp_path, monkeypatch):
+    """Pregenerated teams lookup should select the current season-specific BMP."""
+    monkeypatch.setattr(images_routes.config, "IMAGES_PATH", str(tmp_path))
+    monkeypatch.setattr(images_routes, "get_default_teams_year", lambda: 2026)
+    old_path = tmp_path / "teams_2025_en.bmp"
+    current_path = tmp_path / "teams_2026_en.bmp"
+    old_path.write_bytes(b"old")
+    current_path.write_bytes(b"current")
+
+    image_path = _get_pregenerated_teams_path(lang="en", year=None, display="1bit")
+
+    assert image_path == current_path
 
 
 # ============================================================================

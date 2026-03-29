@@ -16,6 +16,7 @@ from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.database import Database
 from app.services.f1_service import F1Service
+from app.services.image_keys import get_calendar_image_key, get_teams_image_key
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Renderer
@@ -47,19 +48,13 @@ def _get_image_key(
     weather: str = "off",
 ) -> str:
     """Build a deterministic image key for generated calendar variants."""
-    key = f"calendar_{lang}"
-    if tz and tz != config.DEFAULT_TIMEZONE:
-        tz_safe = tz.replace("/", "_")
-        key += f"_{tz_safe}"
-    if display == "spectra6":
-        key += "_spectra6"
-    elif display == "bwr":
-        key += "_bwr"
-    elif display == "bwry":
-        key += "_bwry"
-    if weather != "off":
-        key += f"_weather_{weather}"
-    return key
+    return get_calendar_image_key(
+        lang,
+        tz=tz,
+        default_timezone=config.DEFAULT_TIMEZONE,
+        display=display,
+        weather=weather,
+    )
 
 
 def _bmp_to_png(
@@ -435,7 +430,7 @@ async def _generate_teams_bmp_variants(
                 elif display == "bwry":
                     suffix = "_bwry"
 
-                image_key = f"teams_{lang}{suffix}"
+                image_key = get_teams_image_key(lang, teams_year, display=display)
                 image_path = images_dir / f"{image_key}.bmp"
 
                 async with aiofiles.open(image_path, "wb") as f:
