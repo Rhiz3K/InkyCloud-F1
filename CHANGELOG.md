@@ -11,19 +11,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Frontend
 
+#### Added
+
+- **Top-10 locale expansion** - Added localized site/UI coverage for `de`, `es`, `fr`, `it`, `nl`, `pl`, `pt-BR`, `tr`, `ja`, `zh-CN`, and `sk`, including locale metadata, alphabetized language selectors, and shared frontend locale handling
+
 #### Changed
 
-- **Localized configure source-of-truth** - Moved configure-page UI copy into the shared translation files, injected canonical locale codes into shared frontend helpers, and kept language switching/redirect behavior aligned with the current route and query string
+- **Localized configure/docs source-of-truth** - Moved configure-page UI copy into the shared translation files, injected canonical locale codes into shared frontend helpers, aligned language switching/redirect behavior with the current route and query string, and updated localized HTML API docs to expose the full supported language set
+- **README and public docs refresh** - Updated README/examples/self-hosting guidance to match the current localized configure flow, teams endpoints, startup warmup behavior, and generated localized preview assets
 
 ### Backend
 
 #### Changed
 
-- **Localized asset generation and startup warmup** - Expanded scheduled/startup generation to cover all configured locales for calendar and teams assets, moved version refresh to hourly `:05`, and warmed teams render assets on startup to cut cold-start render latency
+- **Localized asset generation and startup warmup** - Expanded scheduled/startup generation to cover all configured locales for calendar and teams assets, kept timezone-specific calendar generation for popular non-default TZs, moved version refresh to hourly `:05`, and warmed teams render assets on startup to cut cold-start render latency
+- **Pregenerated localized image serving** - `/calendar.bmp` and `/teams.bmp` now reuse pregenerated localized assets across all supported locales instead of special-casing only `en`/`cs`
 
 #### Fixed
 
-- **Renderer and preview reliability** - Added locale-aware CJK font coverage to image rendering, restored teams previews/static loading paths, disabled invalid FastAPI preview response-model inference, validated `DEFAULT_LANG` against supported locales, and reused scheduler preview data across languages to avoid redundant fetches
+- **Localized page consistency** - Fixed localized configure/API docs routes, corrected `og:locale` metadata, aligned shared locale lists across backend/frontend, and localized configure race/session copy so non-`en`/`cs` pages no longer fall back to stale English strings
+- **Renderer and preview reliability** - Added locale-aware CJK font coverage to image rendering, fit long translated schedule labels, shortened sprint qualifying schedule labels per locale, kept CJK teams driver names clear of the team-card header, restored teams previews/static loading paths, disabled invalid FastAPI preview response-model inference, and reused scheduler preview data across languages to avoid redundant fetches
+- **Teams configure resiliency** - Fixed `Season Leaders`/teams configure loading regressions caused by page-specific JS assumptions and made teams previews prefer pregenerated localized PNGs with dynamic fallback
+- **Security and release validation follow-ups** - Removed unsafe `innerHTML` usage from the ePaper setup flow, hardened client-side language redirects, fixed DeepSource validator findings, and kept changelog/release validation metadata in sync for release-readiness checks
 
 ## [1.2.16] - 2026-03-25
 
