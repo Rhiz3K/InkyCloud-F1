@@ -236,6 +236,9 @@
       </nav>
     </div>
 
+    <script>
+      window.SERVER_LANGUAGE_CODES = {{ supported_language_codes | tojson }};
+    </script>
     <script src="/static/js/common.js" defer></script>
     {% block scripts %}{% endblock %}
   </body>

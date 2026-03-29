@@ -176,6 +176,26 @@ def test_render_calendar_english(mock_race_data):
     assert img.mode == "1"
 
 
+@pytest.mark.parametrize(
+    ("lang", "sample_text"),
+    [
+        ("ja", "週末スケジュール"),
+        ("zh-CN", "周末赛程"),
+    ],
+)
+def test_renderer_loads_cjk_font_glyphs(lang, sample_text):
+    """Locale-aware font loading should render visible CJK glyphs on 1-bit canvases."""
+    renderer = Renderer(get_translator(lang), lang)
+    font = renderer._load_font(24, bold=True)
+    image = Image.new("1", (240, 80), 1)
+    draw = ImageDraw.Draw(image)
+
+    draw.text((8, 8), sample_text, font=font, fill=0)
+
+    black_pixels = image.convert("L").histogram()[0]
+    assert black_pixels > 0
+
+
 def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
     """Cancelled races should render a centred cancelled label instead of countdown."""
     renderer = Renderer(get_translator("en"))

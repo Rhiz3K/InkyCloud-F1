@@ -165,5 +165,38 @@
   "current_season": "Huidig",
   "leader_team": "Team",
   "leader_driver": "Coureur",
-  "no_data_yet": "Nog geen gegevens"
+  "no_data_yet": "Nog geen gegevens",
+  "configure": {
+    "tzLabel": "Tijdzone",
+    "raceLabel": "Race",
+    "yearLabel": "Seizoen",
+    "settingsBtn": "Instellingen",
+    "errorText": "LADEN MISLUKT",
+    "retryBtn": "OPNIEUW",
+    "refreshBtn": "VERNIEUWEN",
+    "epaperSetupTitle": "ePaper-display instellen",
+    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span>Selecteer in <a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> <strong>URL</strong> als contentbron</span>",
+    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>Plak de URL hierboven in het afbeeldings-URL-veld</span>",
+    "weatherLabel": "Weer",
+    "weatherCurrentLabel": "Huidig",
+    "weatherRaceDayLabel": "Racedag",
+    "weatherTooltipText": "Wordt 14 dagen voor de race geactiveerd",
+    "displayLabel": "Scherm",
+    "searchPlaceholder": "ZOEKEN...",
+    "noResults": "Geen resultaten",
+    "detectedLabel": "GEDETECTEERD",
+    "failedToLoadRaces": "RACES KONDEN NIET WORDEN GELADEN",
+    "loadingSeason": "Seizoen {year} laden...",
+    "autoLabel": "AUTO",
+    "filterLabels": {
+      "ALL": "ALLES",
+      "DETECTED": "GEDETECTEERD",
+      "EUROPE": "EUROPA",
+      "AMERICA": "AMERIKA",
+      "ASIA": "AZIË",
+      "AFRICA": "AFRIKA",
+      "OCEANIA": "OCEANIË",
+      "OTHER": "OVERIG"
+    }
+  }
 }

@@ -21,6 +21,27 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+# Ordered language codes used across routing, UI, and API docs.
+LANGUAGE_CODES: tuple[str, ...] = (
+    "cs",
+    "de",
+    "en",
+    "es",
+    "fr",
+    "it",
+    "ja",
+    "nl",
+    "pl",
+    "pt-BR",
+    "sk",
+    "tr",
+    "zh-CN",
+)
+
+# Valid language codes (allowlist for security - prevents path injection)
+# Defined as module-level constant for easy import across the application
+VALID_LANGUAGES: frozenset[str] = frozenset(LANGUAGE_CODES)
+
 
 T = TypeVar("T")
 
@@ -149,7 +170,7 @@ class Config(BaseSettings):
             port = int(value)  # type: ignore[call-overload]
             if 0 < port < 65536:
                 return port
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer < 65536")
 
@@ -177,7 +198,7 @@ class Config(BaseSettings):
             timeout = int(value)  # type: ignore[call-overload]
             if timeout > 0:
                 return timeout
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer")
 
@@ -191,7 +212,7 @@ class Config(BaseSettings):
             rate = float(value)  # type: ignore[arg-type]
             if 0.0 <= rate <= 1.0:
                 return rate
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be between 0.0 and 1.0")
 
@@ -204,6 +225,16 @@ class Config(BaseSettings):
         if isinstance(value, str) and value in pytz.all_timezones:
             return value
         return _warn_invalid(info.field_name, value, default, "unknown timezone")
+
+    @field_validator("DEFAULT_LANG", mode="before")
+    @classmethod
+    def validate_default_lang(cls, value: object, info: ValidationInfo) -> str:
+        if info.field_name is None:
+            return "en"
+        default: str = cls.model_fields[info.field_name].default
+        if isinstance(value, str) and value in LANGUAGE_CODES:
+            return value
+        return _warn_invalid(info.field_name, value, default, "unsupported language code")
 
     @field_validator(
         "UMAMI_API_URL",
@@ -244,7 +275,7 @@ class Config(BaseSettings):
             days = int(value)  # type: ignore[call-overload]
             if days >= 0:
                 return days
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be a non-negative integer")
 
@@ -281,24 +312,3 @@ def _reset_config_cache_for_tests() -> None:
 
 
 config = get_config()
-
-# Ordered language codes used across routing, UI, and API docs.
-LANGUAGE_CODES: tuple[str, ...] = (
-    "cs",
-    "de",
-    "en",
-    "es",
-    "fr",
-    "it",
-    "ja",
-    "nl",
-    "pl",
-    "pt-BR",
-    "sk",
-    "tr",
-    "zh-CN",
-)
-
-# Valid language codes (allowlist for security - prevents path injection)
-# Defined as module-level constant for easy import across the application
-VALID_LANGUAGES: frozenset[str] = frozenset(LANGUAGE_CODES)

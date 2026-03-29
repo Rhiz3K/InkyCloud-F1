@@ -113,16 +113,24 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
     images_dir = Path(config.IMAGES_PATH)
     images_dir.mkdir(parents=True, exist_ok=True)
 
+    teams_year = get_default_teams_year()
+    teams_data = None
+    try:
+        teams_service = TeamsService()
+        teams_data = await teams_service.get_teams_and_drivers(teams_year)
+    except Exception as e:
+        logger.error("Error fetching teams preview data for %d: %s", teams_year, e)
+
+    weather_variants: list[tuple[str, WeatherData | None]] = [("off", None)]
+    if race_data and config.WEATHER_ENABLED:
+        _, _, weather_by_type = await get_weather_context(race_data)
+        weather_variants = list(weather_by_type.items())
+
     for lang in SUPPORTED_LANGUAGES:
         translator = get_translator(lang)
 
         # Calendar preview - generate variants for different weather types and displays
         if race_data:
-            weather_variants: list[tuple[str, WeatherData | None]] = [("off", None)]
-            if config.WEATHER_ENABLED:
-                _, _, weather_by_type = await get_weather_context(race_data)
-                weather_variants = list(weather_by_type.items())
-
             # Display variants: 1bit, spectra6, black/white/red, and black/white/red/yellow
             display_variants = [
                 ("1bit", Renderer(translator, lang)),
@@ -180,10 +188,7 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
 
         # Teams preview
         try:
-            teams_service = TeamsService()
-            teams_year = get_default_teams_year()
-            teams_data = await teams_service.get_teams_and_drivers(teams_year)
-            if not teams_data.teams:
+            if teams_data is None or not teams_data.teams:
                 logger.warning(
                     "Skipping teams previews for %s: no teams data for %d", lang, teams_year
                 )

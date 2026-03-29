@@ -165,5 +165,38 @@
   "current_season": "当前",
   "leader_team": "车队",
   "leader_driver": "车手",
-  "no_data_yet": "暂无数据"
+  "no_data_yet": "暂无数据",
+  "configure": {
+    "tzLabel": "时区",
+    "raceLabel": "比赛",
+    "yearLabel": "赛季",
+    "settingsBtn": "设置",
+    "errorText": "加载失败",
+    "retryBtn": "重试",
+    "refreshBtn": "刷新",
+    "epaperSetupTitle": "ePaper 显示设置",
+    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span>在 <a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> 中选择 <strong>URL</strong> 作为内容来源</span>",
+    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>将上面的 URL 粘贴到图片 URL 字段</span>",
+    "weatherLabel": "天气",
+    "weatherCurrentLabel": "当前",
+    "weatherRaceDayLabel": "比赛日",
+    "weatherTooltipText": "比赛前 14 天启用",
+    "displayLabel": "显示",
+    "searchPlaceholder": "搜索...",
+    "noResults": "无结果",
+    "detectedLabel": "已检测",
+    "failedToLoadRaces": "加载比赛失败",
+    "loadingSeason": "正在加载 {year} 赛季...",
+    "autoLabel": "AUTO",
+    "filterLabels": {
+      "ALL": "全部",
+      "DETECTED": "已检测",
+      "EUROPE": "欧洲",
+      "AMERICA": "美洲",
+      "ASIA": "亚洲",
+      "AFRICA": "非洲",
+      "OCEANIA": "大洋洲",
+      "OTHER": "其他"
+    }
+  }
 }

@@ -165,5 +165,38 @@
   "current_season": "En cours",
   "leader_team": "Équipe",
   "leader_driver": "Pilote",
-  "no_data_yet": "Pas encore de données"
+  "no_data_yet": "Pas encore de données",
+  "configure": {
+    "tzLabel": "Fuseau horaire",
+    "raceLabel": "Course",
+    "yearLabel": "Saison",
+    "settingsBtn": "Paramètres",
+    "errorText": "ÉCHEC DU CHARGEMENT",
+    "retryBtn": "RÉESSAYER",
+    "refreshBtn": "ACTUALISER",
+    "epaperSetupTitle": "Configuration de l'écran ePaper",
+    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span>Dans <a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> sélectionnez <strong>URL</strong> comme source de contenu</span>",
+    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>Collez l’URL ci-dessus dans le champ URL de l’image</span>",
+    "weatherLabel": "Météo",
+    "weatherCurrentLabel": "Actuelle",
+    "weatherRaceDayLabel": "Jour de course",
+    "weatherTooltipText": "S'active 14 jours avant la course",
+    "displayLabel": "Affichage",
+    "searchPlaceholder": "RECHERCHER...",
+    "noResults": "Aucun résultat",
+    "detectedLabel": "DÉTECTÉ",
+    "failedToLoadRaces": "ÉCHEC DU CHARGEMENT DES COURSES",
+    "loadingSeason": "Chargement de la saison {year}...",
+    "autoLabel": "AUTO",
+    "filterLabels": {
+      "ALL": "TOUS",
+      "DETECTED": "DÉTECTÉ",
+      "EUROPE": "EUROPE",
+      "AMERICA": "AMÉRIQUE",
+      "ASIA": "ASIE",
+      "AFRICA": "AFRIQUE",
+      "OCEANIA": "OCÉANIE",
+      "OTHER": "AUTRES"
+    }
+  }
 }

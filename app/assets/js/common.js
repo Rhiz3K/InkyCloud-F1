@@ -3,7 +3,7 @@
  * Shared utilities and functions across all pages
  */
 
-const SUPPORTED_LANGUAGE_CODES = [
+const FALLBACK_LANGUAGE_CODES = [
     "cs",
     "de",
     "en",
@@ -19,22 +19,37 @@ const SUPPORTED_LANGUAGE_CODES = [
     "zh-CN",
 ];
 
+const SUPPORTED_LANGUAGE_CODES =
+    Array.isArray(window.SERVER_LANGUAGE_CODES) &&
+    window.SERVER_LANGUAGE_CODES.length > 0
+        ? window.SERVER_LANGUAGE_CODES
+        : FALLBACK_LANGUAGE_CODES;
+
+function isSupportedLanguage(code) {
+    return SUPPORTED_LANGUAGE_CODES.includes(code);
+}
+
+function stripLanguagePrefix(path) {
+    const normalizedPath = path || "/";
+    const langPrefixes = SUPPORTED_LANGUAGE_CODES.map((code) => "/" + code);
+    for (const prefix of langPrefixes) {
+        if (normalizedPath === prefix || normalizedPath === prefix + "/") {
+            return "/";
+        }
+        if (normalizedPath.startsWith(prefix + "/")) {
+            return normalizedPath.substring(prefix.length);
+        }
+    }
+    return normalizedPath;
+}
+
 /**
  * Get the base path without language prefix
  * @param {string} path - Current path
  * @returns {string} Path without language prefix
  */
 function getBasePath(path) {
-    const langPrefixes = SUPPORTED_LANGUAGE_CODES.map((code) => "/" + code);
-    for (const prefix of langPrefixes) {
-        if (path === prefix || path === prefix + "/") {
-            return "/";
-        }
-        if (path.startsWith(prefix + "/")) {
-            return path.substring(prefix.length);
-        }
-    }
-    return path;
+    return stripLanguagePrefix(path);
 }
 
 /**
@@ -83,7 +98,7 @@ function buildLangUrl(basePath, lang) {
         const currentLang = getCurrentLang();
 
         // Redirect if stored language differs from current URL language
-        if (currentLang !== storedLang) {
+        if (isSupportedLanguage(storedLang) && currentLang !== storedLang) {
             const basePath = getBasePath(window.location.pathname);
             window.location.replace(buildLangUrl(basePath, storedLang));
         }

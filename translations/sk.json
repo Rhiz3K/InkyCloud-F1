@@ -165,5 +165,38 @@
   "current_season": "Aktuálna",
   "leader_team": "Tím",
   "leader_driver": "Jazdec",
-  "no_data_yet": "Zatiaľ žiadne dáta"
+  "no_data_yet": "Zatiaľ žiadne dáta",
+  "configure": {
+    "tzLabel": "Časové pásmo",
+    "raceLabel": "Preteky",
+    "yearLabel": "Sezóna",
+    "settingsBtn": "Nastavenia",
+    "errorText": "NAČÍTANIE ZLYHALO",
+    "retryBtn": "SKÚSIŤ ZNOVA",
+    "refreshBtn": "OBNOVIŤ",
+    "epaperSetupTitle": "Nastavenie ePaper displeja",
+    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span>V <a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> vyberte <strong>URL</strong> ako zdroj obsahu</span>",
+    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>Vložte vyššie uvedenú URL do poľa URL obrázka</span>",
+    "weatherLabel": "Počasie",
+    "weatherCurrentLabel": "Aktuálne",
+    "weatherRaceDayLabel": "Deň pretekov",
+    "weatherTooltipText": "Aktivuje sa 14 dní pred pretekmi",
+    "displayLabel": "Displej",
+    "searchPlaceholder": "HĽADAŤ...",
+    "noResults": "Žiadne výsledky",
+    "detectedLabel": "ZISTENÉ",
+    "failedToLoadRaces": "NEPODARILO SA NAČÍTAŤ PRETEKY",
+    "loadingSeason": "Načítava sa sezóna {year}...",
+    "autoLabel": "AUTO",
+    "filterLabels": {
+      "ALL": "VŠETKO",
+      "DETECTED": "ZISTENÉ",
+      "EUROPE": "EURÓPA",
+      "AMERICA": "AMERIKA",
+      "ASIA": "ÁZIA",
+      "AFRICA": "AFRIKA",
+      "OCEANIA": "OCEÁNIA",
+      "OTHER": "OSTATNÉ"
+    }
+  }
 }

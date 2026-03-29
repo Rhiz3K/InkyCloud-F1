@@ -1,5 +1,6 @@
 """Test main FastAPI application endpoints."""
 
+import json
 from pathlib import Path
 from typing import cast
 from unittest.mock import AsyncMock, patch
@@ -10,6 +11,7 @@ from bs4.element import Tag
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from app.config import LANGUAGE_CODES
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
 from app.routes.images import _get_race_data_from_static, _get_race_info_for_stats
@@ -85,10 +87,8 @@ def test_root_page_contains_required_elements():
     html = response.text
 
     assert 'id="uiLangSwitch"' in html
-    assert 'value="en"' in html
-    assert 'value="cs"' in html
-    assert 'value="de"' in html
-    assert 'value="zh-CN"' in html
+    for code in LANGUAGE_CODES:
+        assert f'value="{code}"' in html
     assert "/configure/calendar" in html
     assert "/configure/teams" in html
     assert "Credits" in html
@@ -876,18 +876,18 @@ def test_configure_page_translations_english():
     """Test configure page English translations."""
     response = client.get("/configure/calendar?lang=en")
     html = response.text
-    assert 'settingsBtn: "Settings"' in html
-    assert 'yearLabel: "Season"' in html
-    assert 'loadingText: "Loading..."' in html
+    assert f'"settingsBtn": {json.dumps("Settings")}' in html
+    assert f'"yearLabel": {json.dumps("Season")}' in html
+    assert f'"loadingText": {json.dumps("Loading...")}' in html
 
 
 def test_configure_page_translations_czech():
     """Test configure page Czech translations."""
     response = client.get("/configure/calendar?lang=cs")
     html = response.text
-    assert 'settingsBtn: "Nastavení"' in html
-    assert 'yearLabel: "Sezóna"' in html
-    assert 'loadingText: "Načítání..."' in html
+    assert f'"settingsBtn": {json.dumps("Nastavení")}' in html
+    assert f'"yearLabel": {json.dumps("Sezóna")}' in html
+    assert f'"loadingText": {json.dumps("Načítání...")}' in html
 
 
 def test_configure_page_loading_overlay():

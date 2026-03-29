@@ -165,5 +165,38 @@
   "current_season": "Aktuální",
   "leader_team": "Tým",
   "leader_driver": "Jezdec",
-  "no_data_yet": "Zatím žádná data"
+  "no_data_yet": "Zatím žádná data",
+  "configure": {
+    "tzLabel": "Časové pásmo",
+    "raceLabel": "Závod",
+    "yearLabel": "Sezóna",
+    "settingsBtn": "Nastavení",
+    "errorText": "CHYBA NAČÍTÁNÍ",
+    "retryBtn": "ZNOVU",
+    "refreshBtn": "OBNOVIT",
+    "epaperSetupTitle": "Nastavení ePaper Displeje",
+    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span>V <a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> vyberte <strong>URL</strong> jako zdroj obsahu</span>",
+    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>Vložte URL výše do pole pro URL obrázku</span>",
+    "weatherLabel": "Počasí",
+    "weatherCurrentLabel": "Aktuální",
+    "weatherRaceDayLabel": "V den závodu",
+    "weatherTooltipText": "Aktivuje se 14 dní před závodem",
+    "displayLabel": "Displej",
+    "searchPlaceholder": "HLEDAT...",
+    "noResults": "Bez výsledků",
+    "detectedLabel": "DETEKOVÁNO",
+    "failedToLoadRaces": "CHYBA NAČÍTÁNÍ ZÁVODŮ",
+    "loadingSeason": "Načítání sezóny {year}...",
+    "autoLabel": "AUTO",
+    "filterLabels": {
+      "ALL": "VŠE",
+      "DETECTED": "DETEKOVÁNO",
+      "EUROPE": "EVROPA",
+      "AMERICA": "AMERIKA",
+      "ASIA": "ASIE",
+      "AFRICA": "AFRIKA",
+      "OCEANIA": "OCEÁNIE",
+      "OTHER": "OSTATNÍ"
+    }
+  }
 }

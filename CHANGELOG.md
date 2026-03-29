@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Frontend
+
+#### Changed
+
+- **Localized configure source-of-truth** - Moved configure-page UI copy into the shared translation files, injected canonical locale codes into shared frontend helpers, and kept language switching/redirect behavior aligned with the current route and query string
+
+### Backend
+
+#### Changed
+
+- **Localized asset generation and startup warmup** - Expanded scheduled/startup generation to cover all configured locales for calendar and teams assets, moved version refresh to hourly `:05`, and warmed teams render assets on startup to cut cold-start render latency
+
+#### Fixed
+
+- **Renderer and preview reliability** - Added locale-aware CJK font coverage to image rendering, restored teams previews/static loading paths, disabled invalid FastAPI preview response-model inference, validated `DEFAULT_LANG` against supported locales, and reused scheduler preview data across languages to avoid redundant fetches
+
 ## [1.2.16] - 2026-03-25
 
 ### Backend

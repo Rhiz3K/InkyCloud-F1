@@ -165,5 +165,38 @@
   "current_season": "現在",
   "leader_team": "チーム",
   "leader_driver": "ドライバー",
-  "no_data_yet": "まだデータがありません"
+  "no_data_yet": "まだデータがありません",
+  "configure": {
+    "tzLabel": "タイムゾーン",
+    "raceLabel": "レース",
+    "yearLabel": "シーズン",
+    "settingsBtn": "設定",
+    "errorText": "読み込み失敗",
+    "retryBtn": "再試行",
+    "refreshBtn": "更新",
+    "epaperSetupTitle": "ePaperディスプレイ設定",
+    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span><a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> でコンテンツソースとして <strong>URL</strong> を選択</span>",
+    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>上のURLを画像URL欄に貼り付け</span>",
+    "weatherLabel": "天気",
+    "weatherCurrentLabel": "現在",
+    "weatherRaceDayLabel": "レース当日",
+    "weatherTooltipText": "レース14日前から有効",
+    "displayLabel": "ディスプレイ",
+    "searchPlaceholder": "検索...",
+    "noResults": "結果なし",
+    "detectedLabel": "検出済み",
+    "failedToLoadRaces": "レースの読み込みに失敗しました",
+    "loadingSeason": "{year} シーズンを読み込み中...",
+    "autoLabel": "AUTO",
+    "filterLabels": {
+      "ALL": "すべて",
+      "DETECTED": "検出済み",
+      "EUROPE": "ヨーロッパ",
+      "AMERICA": "アメリカ",
+      "ASIA": "アジア",
+      "AFRICA": "アフリカ",
+      "OCEANIA": "オセアニア",
+      "OTHER": "その他"
+    }
+  }
 }

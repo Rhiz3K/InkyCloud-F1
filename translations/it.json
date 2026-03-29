@@ -165,5 +165,38 @@
   "current_season": "Attuale",
   "leader_team": "Team",
   "leader_driver": "Pilota",
-  "no_data_yet": "Ancora nessun dato"
+  "no_data_yet": "Ancora nessun dato",
+  "configure": {
+    "tzLabel": "Fuso orario",
+    "raceLabel": "Gara",
+    "yearLabel": "Stagione",
+    "settingsBtn": "Impostazioni",
+    "errorText": "CARICAMENTO NON RIUSCITO",
+    "retryBtn": "RIPROVA",
+    "refreshBtn": "AGGIORNA",
+    "epaperSetupTitle": "Configurazione display ePaper",
+    "epaperStep1": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">1</span> <span>In <a href=\"https://zivyobraz.eu\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white\">Živýobraz.eu</a> seleziona <strong>URL</strong> come sorgente contenuto</span>",
+    "epaperStep2": "<span class=\"bg-black text-white px-1.5 font-bold text-xs mt-0.5\">2</span> <span>Incolla l’URL qui sopra nel campo URL immagine</span>",
+    "weatherLabel": "Meteo",
+    "weatherCurrentLabel": "Attuale",
+    "weatherRaceDayLabel": "Giorno gara",
+    "weatherTooltipText": "Si attiva 14 giorni prima della gara",
+    "displayLabel": "Display",
+    "searchPlaceholder": "CERCA...",
+    "noResults": "Nessun risultato",
+    "detectedLabel": "RILEVATO",
+    "failedToLoadRaces": "IMPOSSIBILE CARICARE LE GARE",
+    "loadingSeason": "Caricamento stagione {year}...",
+    "autoLabel": "AUTO",
+    "filterLabels": {
+      "ALL": "TUTTE",
+      "DETECTED": "RILEVATO",
+      "EUROPE": "EUROPA",
+      "AMERICA": "AMERICA",
+      "ASIA": "ASIA",
+      "AFRICA": "AFRICA",
+      "OCEANIA": "OCEANIA",
+      "OTHER": "ALTRO"
+    }
+  }
 }

@@ -52,6 +52,60 @@ OG_LOCALES: dict[str, str] = {
 }
 
 
+def _build_configure_ui_text(translations: dict[str, Any]) -> dict[str, Any]:
+    """Build the client-side configure UI translation payload."""
+    configure = translations.get("configure", {})
+    if not isinstance(configure, dict):
+        configure = {}
+
+    filter_labels = configure.get("filterLabels", {})
+    if not isinstance(filter_labels, dict):
+        filter_labels = {}
+
+    return {
+        "nextRace": translations.get("next_race", "Next Race"),
+        "seasonTitle": translations.get("screen_calendar_name", "Calendar"),
+        "cancelled": translations.get("cancelled", "CANCELLED"),
+        "footerPrivacy": translations.get("footer_privacy", "Privacy Policy"),
+        "seasonLeaders": translations.get("season_leaders", "Season Leaders"),
+        "currentSeason": translations.get("current_season", "Current"),
+        "loadingText": translations.get("loading", "Loading..."),
+        "copyLabel": translations.get("api_docs_copy", "Copy"),
+        "einkBadge": "E-INK",
+        "tzLabel": configure.get("tzLabel", "Timezone"),
+        "raceLabel": configure.get("raceLabel", "Race"),
+        "yearLabel": configure.get("yearLabel", "Season"),
+        "settingsBtn": configure.get("settingsBtn", "Settings"),
+        "errorText": configure.get("errorText", "FAILED TO LOAD"),
+        "retryBtn": configure.get("retryBtn", "RETRY"),
+        "refreshBtn": configure.get("refreshBtn", "REFRESH"),
+        "epaperSetupTitle": configure.get("epaperSetupTitle", "ePaper Display Setup"),
+        "epaperStep1": configure.get("epaperStep1", ""),
+        "epaperStep2": configure.get("epaperStep2", ""),
+        "weatherLabel": configure.get("weatherLabel", "Weather"),
+        "weatherCurrentLabel": configure.get("weatherCurrentLabel", "Current"),
+        "weatherRaceDayLabel": configure.get("weatherRaceDayLabel", "Race day"),
+        "weatherTooltipText": configure.get("weatherTooltipText", "Activates 14 days before race"),
+        "displayLabel": configure.get("displayLabel", "Display"),
+        "searchPlaceholder": configure.get("searchPlaceholder", "SEARCH..."),
+        "noResults": configure.get("noResults", "No results"),
+        "detectedLabel": configure.get("detectedLabel", "DETECTED"),
+        "failedToLoadRaces": configure.get("failedToLoadRaces", "FAILED TO LOAD RACES"),
+        "loadingSeason": configure.get("loadingSeason", "Loading {year} season..."),
+        "autoLabel": configure.get("autoLabel", "AUTO"),
+        "filterLabels": {
+            "ALL": filter_labels.get("ALL", "ALL"),
+            "DETECTED": filter_labels.get("DETECTED", "DETECTED"),
+            "EUROPE": filter_labels.get("EUROPE", "EUROPE"),
+            "AMERICA": filter_labels.get("AMERICA", "AMERICA"),
+            "ASIA": filter_labels.get("ASIA", "ASIA"),
+            "AFRICA": filter_labels.get("AFRICA", "AFRICA"),
+            "OCEANIA": filter_labels.get("OCEANIA", "OCEANIA"),
+            "OTHER": filter_labels.get("OTHER", "OTHER"),
+        },
+    }
+
+
 def format_bytes(bytes_val: int) -> str:
     """Format bytes to a human readable string."""
     if bytes_val >= 1_000_000_000:
@@ -136,4 +190,6 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "base_path": base_path,  # Path without language prefix (for hreflang)
         "og_locale": OG_LOCALES.get(ui_lang, "en_US"),
         "supported_languages": supported_languages,
+        "supported_language_codes": list(LANGUAGE_CODES),
+        "configure_ui_text": _build_configure_ui_text(t),
     }
