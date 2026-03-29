@@ -227,6 +227,7 @@ _VALID_CALENDAR_FILENAMES: dict[tuple[str, str, str], str] = {
     for weather in _WEATHER_FILE_SUFFIXES
 }
 
+
 def _get_pregenerated_calendar_path(
     *,
     lang: str,
