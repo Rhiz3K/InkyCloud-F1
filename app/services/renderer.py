@@ -2018,7 +2018,8 @@ class Renderer:
             cls._cached_driver_photos_key = cache_key
         return cls._cached_driver_photos
 
-    def _load_team_logos(self) -> dict[str, Image.Image]:
+    @classmethod
+    def _load_team_logos(cls) -> dict[str, Image.Image]:
         """
         Load team logos from assets/teams as cropped source images.
 
@@ -2038,7 +2039,7 @@ class Renderer:
                     continue
                 try:
                     img_file = Image.open(logo_path).convert("RGBA")
-                    logos[team_key] = self._prepare_team_logo(team_key, img_file)
+                    logos[team_key] = cls._prepare_team_logo(team_key, img_file)
                 except Exception as e:
                     logger.warning("Failed to load team logo %s: %s", logo_path, e)
 
@@ -2049,8 +2050,7 @@ class Renderer:
         """Return the process-wide cache of prepared team logo source images."""
         cache_key = (str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
         if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
-            temp_renderer = cls.__new__(cls)
-            cls._cached_team_logos = cls._load_team_logos(temp_renderer)
+            cls._cached_team_logos = cls._load_team_logos()
             cls._cached_team_logos_key = cache_key
         return cls._cached_team_logos
 

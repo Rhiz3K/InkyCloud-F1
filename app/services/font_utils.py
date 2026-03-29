@@ -34,7 +34,7 @@ def load_brand_font(size: int, *, bold: bool = False) -> FreeTypeFont | ImageFon
     if font_path.exists():
         try:
             return ImageFont.truetype(str(font_path), size)
-        except Exception as exc:
+        except OSError as exc:
             logger.warning("Failed to load TitilliumWeb %s: %s", font_path.name, exc)
 
     fallback_name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"

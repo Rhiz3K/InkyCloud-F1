@@ -18,6 +18,7 @@ from app.services.analytics import track_event, track_pageview
 from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.f1_service import F1Service
+from app.services.image_keys import get_teams_image_key
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Renderer
@@ -589,7 +590,7 @@ async def get_teams_bmp(
         if year is None:
             year = get_default_teams_year()
 
-        cache_key = f"teams:{lang}:{year}:{display}"
+        cache_key = get_teams_image_key(lang, year, display=display)
         cached_bmp = get_bmp_cache().get(cache_key)
         if cached_bmp:
             record_api_call(

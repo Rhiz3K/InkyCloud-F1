@@ -22,6 +22,7 @@ from app.routes.images import (
     _get_race_info_for_stats,
 )
 from app.services.f1_service import F1Service
+from app.services.image_keys import get_teams_image_key
 from app.state import clear_bmp_cache, get_bmp_cache
 
 client = TestClient(app)
@@ -1134,6 +1135,21 @@ def test_get_pregenerated_teams_path_uses_default_year_in_filename(tmp_path, mon
     image_path = _get_pregenerated_teams_path(lang="en", year=None, display="1bit")
 
     assert image_path == current_path
+
+
+def test_teams_bmp_caches_pregenerated_assets_with_shared_image_key(tmp_path, monkeypatch):
+    """Teams endpoint should cache pregenerated BMPs under the shared image-key helper."""
+    clear_bmp_cache()
+    monkeypatch.setattr(images_routes.config, "IMAGES_PATH", str(tmp_path))
+    image_path = tmp_path / "teams_2026_en_bwr.bmp"
+    image_path.write_bytes(b"BMpregenerated")
+
+    response = client.get("/teams.bmp?year=2026&display=bwr")
+
+    assert response.status_code == 200
+    expected_key = get_teams_image_key("en", 2026, display="bwr")
+    assert get_bmp_cache()[expected_key] == b"BMpregenerated"
+    assert "teams:en:2026:bwr" not in get_bmp_cache()
 
 
 # ============================================================================

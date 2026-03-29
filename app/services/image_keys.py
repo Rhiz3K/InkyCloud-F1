@@ -3,13 +3,15 @@
 
 def _display_suffix(display: str) -> str:
     """Return the filename/key suffix for a display variant."""
+    if display == "1bit":
+        return ""
     if display == "spectra6":
         return "_spectra6"
     if display == "bwr":
         return "_bwr"
     if display == "bwry":
         return "_bwry"
-    return ""
+    raise ValueError(f"Unsupported display mode: {display}")
 
 
 def get_calendar_image_key(

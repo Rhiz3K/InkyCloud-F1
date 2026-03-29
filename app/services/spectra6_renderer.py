@@ -1711,7 +1711,8 @@ class Spectra6Renderer:
             cls._cached_driver_photos_key = cache_key
         return cls._cached_driver_photos
 
-    def _load_team_logos(self) -> dict[str, Image.Image]:
+    @classmethod
+    def _load_team_logos(cls) -> dict[str, Image.Image]:
         """Load and prepare color team logos for Spectra 6 rendering."""
         logos: dict[str, Image.Image] = {}
         search_dirs = [TEAMS_COLOR_DIR, IMAGES_DIR / "teams"]
@@ -1726,7 +1727,7 @@ class Spectra6Renderer:
                     continue
                 try:
                     img = Image.open(logo_path).convert("RGBA")
-                    logos[team_key] = self._prepare_team_logo(team_key, img)
+                    logos[team_key] = cls._prepare_team_logo(team_key, img)
                 except Exception as e:
                     logger.warning("Failed to load team logo %s: %s", logo_path, e)
 
@@ -1737,8 +1738,7 @@ class Spectra6Renderer:
         """Return the process-wide cache of prepared color team logos."""
         cache_key = (str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
         if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
-            temp_renderer = cls.__new__(cls)
-            cls._cached_team_logos = cls._load_team_logos(temp_renderer)
+            cls._cached_team_logos = cls._load_team_logos()
             cls._cached_team_logos_key = cache_key
         return cls._cached_team_logos
 
