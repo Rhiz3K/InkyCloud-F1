@@ -242,8 +242,7 @@ class Renderer:
         self._draw_f1_logo(image, split_x, header_height)
 
         title = self.translator.get("teams_drivers_title", "TEAMS & DRIVERS")
-        championship_title = self.translator.get("championship_title", "FIA F1 World Championship")
-        line1 = f"{season} {championship_title}"
+        line1 = f"{season} FIA F1 World Championship"
         line2 = title.upper()
 
         text_x = split_x + 15
@@ -1030,8 +1029,7 @@ class Renderer:
         race_name = race_data.get("race_name", "Grand Prix")
         season = race_data.get("season", "")
 
-        championship_title = self.translator.get("championship_title", "FIA F1 World Championship")
-        line1 = f"{season} {championship_title}"
+        line1 = f"{season} FIA F1 World Championship"
         line2 = f"{race_name.upper()}"
 
         # Positioning - Shifted left due to narrower split
