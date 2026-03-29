@@ -25,7 +25,9 @@ _CJK_FACE_INDEX = {
 }
 
 
-def load_ui_font(lang_code: str, size: int, *, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
+def load_ui_font(
+    lang_code: str, size: int, *, bold: bool = False
+) -> FreeTypeFont | ImageFont.ImageFont:
     """Load the main UI font with locale-aware fallbacks."""
     if lang_code in _CJK_FACE_INDEX:
         cjk_font = _load_cjk_font(lang_code, size)
