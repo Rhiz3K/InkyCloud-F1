@@ -35,9 +35,11 @@ class CacheEntry:
 class StandingsService:
     """Service for fetching F1 championship standings from Jolpica API."""
 
+    _shared_cache: dict[str, CacheEntry] = {}
+
     def __init__(self):
         self.timeout = config.REQUEST_TIMEOUT
-        self._cache: dict[str, CacheEntry] = {}
+        self._cache = self._shared_cache
 
     @staticmethod
     def _get_cache_key(year: int, standings_type: str) -> str:

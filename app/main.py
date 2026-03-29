@@ -26,6 +26,7 @@ from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
 from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
+from app.services.warmup import warm_teams_renderer_assets
 from app.utils.race_times import (  # noqa: F401
     convert_race_times_to_timezone as _convert_race_times_to_timezone,
 )
@@ -97,6 +98,7 @@ async def lifespan(_app: FastAPI):
     logger.info("Starting F1 E-Ink calendar service")
 
     _check_persistent_storage()
+    await asyncio.to_thread(warm_teams_renderer_assets)
 
     start_scheduler()
     asyncio.create_task(run_initial_generation())

@@ -573,12 +573,37 @@ async def get_teams_bmp(
         if year is None:
             year = get_default_teams_year()
 
+        cache_key = f"teams:{lang}:{year}:{display}"
+        cached_bmp = get_bmp_cache().get(cache_key)
+        if cached_bmp:
+            record_api_call(
+                "/teams.bmp",
+                (time.time() - start_time) * 1000,
+                len(cached_bmp),
+                lang,
+                None,
+                year,
+                None,
+                None,
+                False,
+                display_type=display,
+            )
+            return StreamingResponse(
+                BytesIO(cached_bmp),
+                media_type="image/bmp",
+                headers={
+                    "Content-Disposition": 'inline; filename="teams.bmp"',
+                    "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
+                },
+            )
+
         translator = get_translator(lang)
         teams_service = TeamsService()
         teams_data = await teams_service.get_teams_and_drivers(year)
 
         renderer = _get_renderer(display, translator, lang)
         bmp_data = renderer.render_teams_drivers(teams_data)
+        get_bmp_cache()[cache_key] = bmp_data
 
         record_api_call(
             "/teams.bmp",

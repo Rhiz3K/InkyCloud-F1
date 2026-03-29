@@ -1049,19 +1049,29 @@ block content %}
 
   async function loadAllSeasonLeaders() {
     const years = [2024, 2025, 2026];
+    renderTeamsSeasonButtons();
 
-    await Promise.all(
+    await Promise.allSettled(
       years.map(async (year) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
         try {
-          const response = await fetch(`/api/standings/leader/${year}`);
+          const response = await fetch(`/api/standings/leader/${year}`, {
+            signal: controller.signal,
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
           leaderData[year] = await response.json();
         } catch (e) {
           leaderData[year] = { has_data: false, season: year };
+        } finally {
+          clearTimeout(timeoutId);
+          renderTeamsSeasonButtons();
         }
       }),
     );
-
-    renderTeamsSeasonButtons();
   }
 
   function renderTeamsSeasonButtons() {

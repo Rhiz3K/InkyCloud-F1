@@ -98,9 +98,11 @@ class CacheEntry:
 
 
 class TeamsService:
+    _shared_cache: dict[str, CacheEntry] = {}
+
     def __init__(self):
         self.timeout = config.REQUEST_TIMEOUT
-        self._cache: dict[str, CacheEntry] = {}
+        self._cache = self._shared_cache
 
     @staticmethod
     def _get_cache_key(year: int) -> str:

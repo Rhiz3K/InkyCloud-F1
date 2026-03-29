@@ -98,6 +98,11 @@ class Spectra6Colors:
 class Spectra6Renderer:
     """Renderer for generating 6-color images for Spectra 6 E-Ink displays."""
 
+    _cached_driver_photos: dict[str, Image.Image] | None = None
+    _cached_driver_photos_key: str | None = None
+    _cached_team_logos: dict[str, Image.Image] | None = None
+    _cached_team_logos_key: tuple[str, str] | None = None
+
     def __init__(self, translator: dict, lang_code: str = "en"):
         """Initialize the Spectra 6 renderer, fonts, and layout constants."""
         self.width = config.DISPLAY_WIDTH
@@ -776,9 +781,9 @@ class Spectra6Renderer:
     def _ensure_teams_assets(self) -> None:
         """Lazy-load cached driver and team assets used by the teams screen."""
         if self._driver_photos is None:
-            self._driver_photos = self._load_driver_photos()
+            self._driver_photos = self._get_cached_driver_photos()
         if self._team_logos is None:
-            self._team_logos = self._load_team_logos()
+            self._team_logos = self._get_cached_team_logos()
 
     def _draw_track_section(
         self,
@@ -1575,6 +1580,15 @@ class Spectra6Renderer:
 
         return photos
 
+    @classmethod
+    def _get_cached_driver_photos(cls) -> dict[str, Image.Image]:
+        """Return the process-wide cache of color driver portraits."""
+        cache_key = str(IMAGES_DIR)
+        if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
+            cls._cached_driver_photos = cls._load_driver_photos()
+            cls._cached_driver_photos_key = cache_key
+        return cls._cached_driver_photos
+
     def _load_team_logos(self) -> dict[str, Image.Image]:
         """Load and prepare color team logos for Spectra 6 rendering."""
         logos: dict[str, Image.Image] = {}
@@ -1595,6 +1609,16 @@ class Spectra6Renderer:
                     logger.warning("Failed to load team logo %s: %s", logo_path, e)
 
         return logos
+
+    @classmethod
+    def _get_cached_team_logos(cls) -> dict[str, Image.Image]:
+        """Return the process-wide cache of prepared color team logos."""
+        cache_key = (str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
+        if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
+            temp_renderer = cls.__new__(cls)
+            cls._cached_team_logos = cls._load_team_logos(temp_renderer)
+            cls._cached_team_logos_key = cache_key
+        return cls._cached_team_logos
 
     @classmethod
     def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
