@@ -184,7 +184,9 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
             teams_year = get_default_teams_year()
             teams_data = await teams_service.get_teams_and_drivers(teams_year)
             if not teams_data.teams:
-                logger.warning("Skipping teams previews for %s: no teams data for %d", lang, teams_year)
+                logger.warning(
+                    "Skipping teams previews for %s: no teams data for %d", lang, teams_year
+                )
                 continue
             display_variants = [
                 ("1bit", Renderer(translator, lang)),
