@@ -258,21 +258,40 @@ def test_translate_session_name_uses_full_localized_sprint_qualifying_labels(
 @pytest.mark.parametrize(
     ("lang", "expected"),
     [
+        ("en", "Sprint Q."),
+        ("cs", "Sprint K."),
         ("pt-BR", "Sprint C."),
-        ("cs", "Sprint Kvalifikace"),
+        ("ja", "スプリント予"),
+        ("zh-CN", "冲刺赛排"),
+    ],
+)
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_build_sprint_qualifying_label_uses_localized_abbreviation(
+    renderer_cls, lang, expected
+):
+    """Abbreviated sprint qualifying labels should use each locale's qualifying initial."""
+    renderer = renderer_cls(get_translator(lang), lang)
+    assert renderer._build_sprint_qualifying_label(abbreviated=True) == expected
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
         ("en", "Sprint Qualifying"),
+        ("cs", "Sprint Kvalifikace"),
+        ("pt-BR", "Sprint Classificação"),
         ("ja", "スプリント予選"),
         ("zh-CN", "冲刺赛排位赛"),
     ],
 )
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
-def test_format_schedule_session_name_shortens_only_qualifying_when_needed(
+def test_format_schedule_session_name_keeps_full_label_when_space_available(
     renderer_cls, lang, expected
 ):
-    """Schedule rows should abbreviate only the localized qualifying part on overflow."""
+    """Schedule rows should keep the full localized label when there is sufficient width."""
     renderer = renderer_cls(get_translator(lang), lang)
     draw = ImageDraw.Draw(Image.new("RGB", (800, 480), "white"))
-    assert renderer._format_schedule_session_name(draw, "Sprint Qualifying", 115) == expected
+    assert renderer._format_schedule_session_name(draw, "Sprint Qualifying", 180) == expected
 
 
 def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
