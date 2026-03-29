@@ -13,7 +13,7 @@ import sentry_sdk
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
-from app.config import VALID_LANGUAGES, config
+from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.services.analytics import track_event, track_pageview
 from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
@@ -203,41 +203,34 @@ def _normalize_weather_type(weather_type: str) -> str:
     return weather_type if weather_type in allowed else "race_day"
 
 
-# Pre-defined whitelist of valid calendar image filenames (no user input in paths)
+_DISPLAY_FILE_SUFFIXES: dict[str, str] = {
+    "1bit": "",
+    "spectra6": "_spectra6",
+    "bwr": "_bwr",
+    "bwry": "_bwry",
+}
+
+_WEATHER_FILE_SUFFIXES: dict[str, str] = {
+    "off": "",
+    "current": "_weather_current",
+    "race": "_weather_race",
+    "race_day": "_weather_race",
+}
+
+# Pre-defined whitelist of valid generated filenames (no user input in paths)
 _VALID_CALENDAR_FILENAMES: dict[tuple[str, str, str], str] = {
-    # (lang, display, weather) -> filename
-    ("en", "1bit", "off"): "calendar_en.bmp",
-    ("en", "1bit", "current"): "calendar_en_weather_current.bmp",
-    ("en", "1bit", "race"): "calendar_en_weather_race.bmp",
-    ("en", "1bit", "race_day"): "calendar_en_weather_race.bmp",
-    ("en", "spectra6", "off"): "calendar_en_spectra6.bmp",
-    ("en", "spectra6", "current"): "calendar_en_spectra6_weather_current.bmp",
-    ("en", "spectra6", "race"): "calendar_en_spectra6_weather_race.bmp",
-    ("en", "spectra6", "race_day"): "calendar_en_spectra6_weather_race.bmp",
-    ("en", "bwr", "off"): "calendar_en_bwr.bmp",
-    ("en", "bwr", "current"): "calendar_en_bwr_weather_current.bmp",
-    ("en", "bwr", "race"): "calendar_en_bwr_weather_race.bmp",
-    ("en", "bwr", "race_day"): "calendar_en_bwr_weather_race.bmp",
-    ("en", "bwry", "off"): "calendar_en_bwry.bmp",
-    ("en", "bwry", "current"): "calendar_en_bwry_weather_current.bmp",
-    ("en", "bwry", "race"): "calendar_en_bwry_weather_race.bmp",
-    ("en", "bwry", "race_day"): "calendar_en_bwry_weather_race.bmp",
-    ("cs", "1bit", "off"): "calendar_cs.bmp",
-    ("cs", "1bit", "current"): "calendar_cs_weather_current.bmp",
-    ("cs", "1bit", "race"): "calendar_cs_weather_race.bmp",
-    ("cs", "1bit", "race_day"): "calendar_cs_weather_race.bmp",
-    ("cs", "spectra6", "off"): "calendar_cs_spectra6.bmp",
-    ("cs", "spectra6", "current"): "calendar_cs_spectra6_weather_current.bmp",
-    ("cs", "spectra6", "race"): "calendar_cs_spectra6_weather_race.bmp",
-    ("cs", "spectra6", "race_day"): "calendar_cs_spectra6_weather_race.bmp",
-    ("cs", "bwr", "off"): "calendar_cs_bwr.bmp",
-    ("cs", "bwr", "current"): "calendar_cs_bwr_weather_current.bmp",
-    ("cs", "bwr", "race"): "calendar_cs_bwr_weather_race.bmp",
-    ("cs", "bwr", "race_day"): "calendar_cs_bwr_weather_race.bmp",
-    ("cs", "bwry", "off"): "calendar_cs_bwry.bmp",
-    ("cs", "bwry", "current"): "calendar_cs_bwry_weather_current.bmp",
-    ("cs", "bwry", "race"): "calendar_cs_bwry_weather_race.bmp",
-    ("cs", "bwry", "race_day"): "calendar_cs_bwry_weather_race.bmp",
+    (lang, display, weather): (
+        f"calendar_{lang}{_DISPLAY_FILE_SUFFIXES[display]}{_WEATHER_FILE_SUFFIXES[weather]}.bmp"
+    )
+    for lang in LANGUAGE_CODES
+    for display in _DISPLAY_FILE_SUFFIXES
+    for weather in _WEATHER_FILE_SUFFIXES
+}
+
+_VALID_TEAMS_FILENAMES: dict[tuple[str, str], str] = {
+    (lang, display): f"teams_{lang}{_DISPLAY_FILE_SUFFIXES[display]}.bmp"
+    for lang in LANGUAGE_CODES
+    for display in _DISPLAY_FILE_SUFFIXES
 }
 
 
@@ -260,12 +253,29 @@ def _get_pregenerated_calendar_path(
         return None
 
     # Normalize inputs to allowed values
-    safe_lang = "cs" if lang == "cs" else "en"
+    safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
     safe_display = display if display in {"spectra6", "bwr", "bwry"} else "1bit"
     safe_weather = _normalize_weather_type(weather_type)
 
     # Lookup filename from whitelist (no user input in path construction)
     filename = _VALID_CALENDAR_FILENAMES.get((safe_lang, safe_display, safe_weather))
+    if not filename:
+        return None
+
+    image_path = Path(config.IMAGES_PATH) / filename
+    return image_path if image_path.exists() else None
+
+
+def _get_pregenerated_teams_path(*, lang: str, year: int | None, display: str) -> Path | None:
+    """Return a pregenerated teams BMP path when the request matches one."""
+    default_year = get_default_teams_year()
+    if year is not None and year != default_year:
+        return None
+
+    safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
+    safe_display = display if display in {"spectra6", "bwr", "bwry"} else "1bit"
+
+    filename = _VALID_TEAMS_FILENAMES.get((safe_lang, safe_display))
     if not filename:
         return None
 
@@ -590,6 +600,33 @@ async def get_teams_bmp(
             )
             return StreamingResponse(
                 BytesIO(cached_bmp),
+                media_type="image/bmp",
+                headers={
+                    "Content-Disposition": 'inline; filename="teams.bmp"',
+                    "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
+                },
+            )
+
+        image_path = _get_pregenerated_teams_path(lang=lang, year=year, display=display)
+        if image_path is not None:
+            bmp_data = image_path.read_bytes()
+            get_bmp_cache()[cache_key] = bmp_data
+
+            record_api_call(
+                "/teams.bmp",
+                (time.time() - start_time) * 1000,
+                len(bmp_data),
+                lang,
+                None,
+                year,
+                None,
+                None,
+                False,
+                display_type=display,
+            )
+
+            return StreamingResponse(
+                BytesIO(bmp_data),
                 media_type="image/bmp",
                 headers={
                     "Content-Disposition": 'inline; filename="teams.bmp"',
