@@ -108,7 +108,7 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
         race_data: Next race data from static JSON
         historical_data: Historical race data for the circuit
     """
-    from app.services.teams_service import TeamsService
+    from app.services.teams_service import TeamsService, get_default_teams_year
 
     images_dir = Path(config.IMAGES_PATH)
     images_dir.mkdir(parents=True, exist_ok=True)
@@ -181,7 +181,11 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
         # Teams preview
         try:
             teams_service = TeamsService()
-            teams_data = await teams_service.get_teams_and_drivers()
+            teams_year = get_default_teams_year()
+            teams_data = await teams_service.get_teams_and_drivers(teams_year)
+            if not teams_data.teams:
+                logger.warning("Skipping teams previews for %s: no teams data for %d", lang, teams_year)
+                continue
             display_variants = [
                 ("1bit", Renderer(translator, lang)),
                 ("spectra6", Spectra6Renderer(translator, lang)),

@@ -21,7 +21,7 @@ from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Renderer
-from app.services.teams_service import TeamsService
+from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.weather_service import get_weather_context
 from app.state import get_bmp_cache, record_api_call
 from app.utils.f1_season import get_current_f1_season
@@ -571,7 +571,7 @@ async def get_teams_bmp(
         display = _normalize_display(display)
 
         if year is None:
-            year = get_current_f1_season()
+            year = get_default_teams_year()
 
         translator = get_translator(lang)
         teams_service = TeamsService()
