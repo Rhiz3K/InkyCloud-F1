@@ -11,12 +11,13 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from PIL import Image
 
-from app.config import config
+from app.config import LANGUAGE_CODES, config
 from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
+from app.services.image_keys import get_calendar_image_key, get_teams_image_key
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Renderer
 from app.services.version_service import refresh_version_info
@@ -37,7 +38,7 @@ logger = logging.getLogger(__name__)
 scheduler: AsyncIOScheduler | None = None
 
 # Supported languages for image generation
-SUPPORTED_LANGUAGES = ["en", "cs"]
+SUPPORTED_LANGUAGES = list(LANGUAGE_CODES)
 
 
 def _get_image_key(
@@ -47,19 +48,13 @@ def _get_image_key(
     weather: str = "off",
 ) -> str:
     """Build a deterministic image key for generated calendar variants."""
-    key = f"calendar_{lang}"
-    if tz and tz != config.DEFAULT_TIMEZONE:
-        tz_safe = tz.replace("/", "_")
-        key += f"_{tz_safe}"
-    if display == "spectra6":
-        key += "_spectra6"
-    elif display == "bwr":
-        key += "_bwr"
-    elif display == "bwry":
-        key += "_bwry"
-    if weather != "off":
-        key += f"_weather_{weather}"
-    return key
+    return get_calendar_image_key(
+        lang,
+        tz=tz,
+        default_timezone=config.DEFAULT_TIMEZONE,
+        display=display,
+        weather=weather,
+    )
 
 
 def _bmp_to_png(
@@ -108,27 +103,35 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
         race_data: Next race data from static JSON
         historical_data: Historical race data for the circuit
     """
-    from app.services.teams_service import TeamsService
+    from app.services.teams_service import TeamsService, get_default_teams_year
 
     images_dir = Path(config.IMAGES_PATH)
     images_dir.mkdir(parents=True, exist_ok=True)
+
+    teams_year = get_default_teams_year()
+    teams_data = None
+    try:
+        teams_service = TeamsService()
+        teams_data = await teams_service.get_teams_and_drivers(teams_year)
+    except Exception as e:
+        logger.error("Error fetching teams preview data for %d: %s", teams_year, e)
+
+    weather_variants: list[tuple[str, WeatherData | None]] = [("off", None)]
+    if race_data and config.WEATHER_ENABLED:
+        _, _, weather_by_type = await get_weather_context(race_data)
+        weather_variants = list(weather_by_type.items())
 
     for lang in SUPPORTED_LANGUAGES:
         translator = get_translator(lang)
 
         # Calendar preview - generate variants for different weather types and displays
         if race_data:
-            weather_variants: list[tuple[str, WeatherData | None]] = [("off", None)]
-            if config.WEATHER_ENABLED:
-                _, _, weather_by_type = await get_weather_context(race_data)
-                weather_variants = list(weather_by_type.items())
-
             # Display variants: 1bit, spectra6, black/white/red, and black/white/red/yellow
             display_variants = [
-                ("1bit", Renderer(translator)),
-                ("spectra6", Spectra6Renderer(translator)),
-                ("bwr", BwrRenderer(translator)),
-                ("bwry", BwryRenderer(translator)),
+                ("1bit", Renderer(translator, lang)),
+                ("spectra6", Spectra6Renderer(translator, lang)),
+                ("bwr", BwrRenderer(translator, lang)),
+                ("bwry", BwryRenderer(translator, lang)),
             ]
 
             for display_name, display_renderer in display_variants:
@@ -180,13 +183,16 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
 
         # Teams preview
         try:
-            teams_service = TeamsService()
-            teams_data = await teams_service.get_teams_and_drivers()
+            if teams_data is None or not teams_data.teams:
+                logger.warning(
+                    "Skipping teams previews for %s: no teams data for %d", lang, teams_year
+                )
+                continue
             display_variants = [
-                ("1bit", Renderer(translator)),
-                ("spectra6", Spectra6Renderer(translator)),
-                ("bwr", BwrRenderer(translator)),
-                ("bwry", BwryRenderer(translator)),
+                ("1bit", Renderer(translator, lang)),
+                ("spectra6", Spectra6Renderer(translator, lang)),
+                ("bwr", BwrRenderer(translator, lang)),
+                ("bwry", BwryRenderer(translator, lang)),
             ]
 
             homepage_path = images_dir / f"preview_teams_{lang}.png"
@@ -234,13 +240,13 @@ async def _generate_variant(
     """Render and save a single pregenerated calendar variant."""
     translator = get_translator(lang)
     if display == "spectra6":
-        renderer = Spectra6Renderer(translator)
+        renderer = Spectra6Renderer(translator, lang)
     elif display == "bwr":
-        renderer = BwrRenderer(translator)
+        renderer = BwrRenderer(translator, lang)
     elif display == "bwry":
-        renderer = BwryRenderer(translator)
+        renderer = BwryRenderer(translator, lang)
     else:
-        renderer = Renderer(translator)
+        renderer = Renderer(translator, lang)
 
     wd = weather_data if weather_type != "off" else None
     bmp_data = renderer.render_calendar(race_data, historical_data, wd, weather_type)
@@ -379,8 +385,77 @@ async def _generate_popular_tz_variants(
     return generated_count
 
 
+async def _generate_teams_bmp_variants(
+    *,
+    images_dir: Path,
+    db: Database,
+) -> int:
+    """Generate pregenerated teams BMPs for all languages and display modes."""
+    from app.services.teams_service import TeamsService, get_default_teams_year
+
+    teams_year = get_default_teams_year()
+    teams_service = TeamsService()
+    try:
+        teams_data = await teams_service.get_teams_and_drivers(teams_year)
+    except Exception as exc:
+        logger.error("Error fetching teams BMP data for %d: %s", teams_year, exc, exc_info=True)
+        return 0
+
+    if not teams_data.teams:
+        logger.warning("Skipping teams BMP generation: no teams data for %d", teams_year)
+        return 0
+
+    generated_count = 0
+    display_variants = ["1bit", "spectra6", "bwr", "bwry"]
+
+    for lang in SUPPORTED_LANGUAGES:
+        translator = get_translator(lang)
+        for display in display_variants:
+            try:
+                if display == "spectra6":
+                    renderer = Spectra6Renderer(translator, lang)
+                elif display == "bwr":
+                    renderer = BwrRenderer(translator, lang)
+                elif display == "bwry":
+                    renderer = BwryRenderer(translator, lang)
+                else:
+                    renderer = Renderer(translator, lang)
+
+                bmp_data = renderer.render_teams_drivers(teams_data)
+                image_key = get_teams_image_key(lang, teams_year, display=display)
+                image_path = images_dir / f"{image_key}.bmp"
+
+                async with aiofiles.open(image_path, "wb") as f:
+                    await f.write(bmp_data)
+
+                await db.save_generated_image(
+                    image_key=image_key,
+                    image_path=str(image_path),
+                    lang=lang,
+                    season=teams_year,
+                )
+                generated_count += 1
+            except Exception as exc:
+                logger.error(
+                    "Error generating teams BMP (%s, %s, %d): %s",
+                    lang,
+                    display,
+                    teams_year,
+                    exc,
+                    exc_info=True,
+                )
+
+    logger.info(
+        "Generated teams BMP variants for %d languages x %d displays (%d total)",
+        len(SUPPORTED_LANGUAGES),
+        len(display_variants),
+        generated_count,
+    )
+    return generated_count
+
+
 async def collect_and_generate() -> None:
-    """Generate all cached calendar BMP variants from static race data."""
+    """Generate pregenerated calendar and teams BMP variants from static data."""
     logger.info("Starting image generation from static data")
 
     try:
@@ -435,6 +510,7 @@ async def collect_and_generate() -> None:
 
         await db.cleanup_old_stats(days=30)
         await generate_preview_pngs(race_data, historical_data)
+        generated_count += await _generate_teams_bmp_variants(images_dir=images_dir, db=db)
 
         logger.info("Image generation completed: %d images", generated_count)
 
@@ -799,19 +875,19 @@ def start_scheduler() -> None:
     # Conditional: S3 database backup
     _register_backup_job(scheduler)
 
-    # Midnight: Refresh version info from GitHub API
+    # Hourly at :05: Refresh version info from GitHub API
     scheduler.add_job(
         refresh_version_info,
-        trigger=CronTrigger(hour=0, minute=5),
+        trigger=CronTrigger(minute=5),
         id="refresh_version_info",
-        name="Refresh version info from GitHub",
+        name="Refresh version info from GitHub (hourly)",
         replace_existing=True,
     )
 
     scheduler.start()
     weather_info = ", weather at :55" if config.WEATHER_ENABLED else ""
     logger.info(
-        "Scheduler started - generation at :00%s, API flush every min, version at 00:05",
+        "Scheduler started - generation at :00%s, API flush every min, version at :05",
         weather_info,
     )
 

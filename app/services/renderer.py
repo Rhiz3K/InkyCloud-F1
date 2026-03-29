@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import math
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -12,6 +13,14 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import ConstructorStanding, DriverStanding, HistoricalData, TeamsData
+from app.services.font_utils import (
+    CJK_LANG_CODES,
+    FONTS_DIR,
+    fit_brand_font_box,
+    fit_ui_font,
+    load_brand_font,
+    load_ui_font,
+)
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
@@ -69,7 +78,6 @@ ASSETS_DIR = Path(__file__).parent.parent / "assets"
 TRACKS_DIR = ASSETS_DIR / "tracks"
 TRACKS_PROCESSED_DIR = ASSETS_DIR / "tracks_processed"
 IMAGES_DIR = ASSETS_DIR / "images"
-FONTS_DIR = ASSETS_DIR / "fonts"
 FLAGS_DIR = ASSETS_DIR / "flags_processed"
 TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
 MONOCHROME_1BIT_TEAM_LOGOS = {"ferrari", "cadillac", "red_bull"}
@@ -88,7 +96,7 @@ class Renderer:
     _cached_team_logos: dict[str, Image.Image] | None = None
     _cached_team_logos_key: tuple[str, str] | None = None
 
-    def __init__(self, translator: dict):
+    def __init__(self, translator: dict, lang_code: str = "en"):
         """
         Initialize renderer.
 
@@ -98,6 +106,7 @@ class Renderer:
         self.width = config.DISPLAY_WIDTH
         self.height = config.DISPLAY_HEIGHT
         self.translator = translator
+        self.lang_code = lang_code
         self._racing_fonts = {22: self._load_racing_font(22)}
 
         # Load fonts - prefer TitilliumWeb, fallback to system fonts
@@ -248,7 +257,7 @@ class Renderer:
         total_text_height = 80
         start_y = (header_height - total_text_height) // 2 - 5
 
-        draw.text((text_x, start_y), line1, fill=1, font=self.fonts["header_title"])
+        draw.text((text_x, start_y), line1, fill=1, font=self._load_brand_font(36, bold=True))
         draw.text((text_x, start_y + 40), line2, fill=1, font=self.fonts["header_subtitle"])
 
     def _draw_teams_content(
@@ -421,9 +430,10 @@ class Renderer:
         font,
         row_h: int,
         row_y: int,
+        text: str = "Ay",
     ) -> int:
-        """Align text vertically within a row using font metrics."""
-        bbox = draw.textbbox((0, 0), "Ay", font=font)
+        """Align text vertically within a row using the provided text metrics."""
+        bbox = draw.textbbox((0, 0), text, font=font)
         h = bbox[3] - bbox[1]
         top_off = bbox[1]
         return int(row_y + (row_h - h) // 2 - top_off)
@@ -460,10 +470,33 @@ class Renderer:
         constructor = team.constructor_name or team.entrant or ""
         team_name = constructor.split("-")[0].replace(" Aramco", "").replace("Kick ", "").strip()
         chassis = team.chassis or ""
-        power_unit = team.power_unit.replace("-AMG", "") if team.power_unit else ""
+        power_unit = Renderer._normalize_team_power_unit(constructor, team.power_unit)
         meta_text = " | ".join(part for part in (chassis, power_unit) if part)
         team_pos = str(team.position) if team.position else "—"
         return team_name, meta_text, team_pos, Renderer._format_points(team.points)
+
+    @staticmethod
+    def _normalize_team_power_unit(constructor: str, power_unit: str | None) -> str:
+        """Shorten Red Bull power-unit labels in teams headers."""
+        if not power_unit:
+            return ""
+
+        normalized = power_unit.replace("-AMG", "").strip()
+        constructor_name = (constructor or "").lower()
+        is_red_bull_team = (
+            "red bull" in constructor_name
+            or "racing bulls" in constructor_name
+            or constructor_name == "rb"
+            or constructor_name.startswith("rb ")
+        )
+        if not is_red_bull_team:
+            return normalized
+
+        if normalized.startswith("Red Bull "):
+            remainder = normalized.removeprefix("Red Bull ").strip()
+            return f"RB {remainder}" if remainder else "RB"
+
+        return normalized.replace("Red Bull", "RB")
 
     @staticmethod
     def _format_team_driver_display_name(name: str) -> str:
@@ -535,7 +568,6 @@ class Renderer:
 
         display_name = self._format_team_driver_display_name(name)
         center_y = driver_y + driver_row_height // 2
-        driver_text_y = self._get_text_y(draw, driver_font, driver_row_height, driver_y)
         driver_small_y = self._get_text_y(draw, small_font, driver_row_height, driver_y)
 
         photo_y = center_y - photo_size // 2
@@ -549,6 +581,20 @@ class Renderer:
             driver_number=driver.driver_number,
         )
         driver_name_x = photo_x + photo_size + self.layout["driver_name_padding"] + 4
+        if self.lang_code in CJK_LANG_CODES:
+            max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
+            driver_font = fit_brand_font_box(
+                draw,
+                display_name,
+                max_width=max_name_width,
+                max_height=max(1, driver_row_height - 1),
+                base_size=18,
+                min_size=12,
+                bold=True,
+            )
+        driver_text_y = self._get_text_y(
+            draw, driver_font, driver_row_height, driver_y, display_name
+        )
         draw.text((driver_name_x, driver_text_y), display_name, fill=0, font=driver_font)
 
         driver_pts = self._format_points(driver.points)
@@ -592,12 +638,20 @@ class Renderer:
         row_height: int,
     ) -> None:
         """Draw a single team card with header, drivers, points, and logo."""
-        team_font = self.fonts["circuit_name"]
-        small_font = self.fonts["circuit_stats_value"]
-        driver_font = self.fonts["circuit_name"]
-        tech_font = self.fonts["circuit_location"]
-        stats_font = self.fonts["circuit_stats_value"]
-        points_font = self.fonts["circuit_stats_value"]
+        if self.lang_code in CJK_LANG_CODES:
+            team_font = self._load_brand_font(18, bold=True)
+            small_font = self._load_brand_font(18, bold=True)
+            driver_font = self._load_brand_font(18, bold=True)
+            tech_font = self._load_brand_font(14)
+            stats_font = self._load_brand_font(18, bold=True)
+            points_font = self._load_brand_font(18, bold=True)
+        else:
+            team_font = self.fonts["circuit_name"]
+            small_font = self.fonts["circuit_stats_value"]
+            driver_font = self.fonts["circuit_name"]
+            tech_font = self.fonts["circuit_location"]
+            stats_font = self.fonts["circuit_stats_value"]
+            points_font = self.fonts["circuit_stats_value"]
 
         header_height = 23
         box_y_end = y + row_height - 2
@@ -776,6 +830,10 @@ class Renderer:
             self._driver_photos = self._get_cached_driver_photos()
         if self._team_logos is None:
             self._team_logos = self._get_cached_team_logos()
+
+    def ensure_teams_assets(self) -> None:
+        """Public warmup hook for teams assets used outside the renderer."""
+        self._ensure_teams_assets()
 
     def _draw_standings_header(
         self,
@@ -1243,11 +1301,20 @@ class Renderer:
         y_start = self.layout["schedule_title_y"]
 
         schedule_title = self.translator.get("weekend_schedule", "WEEKEND SCHEDULE")
+        schedule_title_font = fit_ui_font(
+            draw,
+            self.lang_code,
+            schedule_title,
+            max_width=self.width - x_start - 5,
+            base_size=24,
+            min_size=18,
+            bold=True,
+        )
         draw.text(
             (x_start, y_start),
             schedule_title,
             fill=0,
-            font=self.fonts["schedule_title"],
+            font=schedule_title_font,
         )
 
         schedule = race_data.get("schedule", [])
@@ -1286,17 +1353,106 @@ class Renderer:
             day_str = ""
             time_str = event.get("display_time", "")
 
-        translated_name = self.translator.get(f"session_{name.lower()}", name)
+        name_max_width = self.width - self.layout["schedule_name_x"] - 5
+        translated_name = self._format_schedule_session_name(draw, name, name_max_width)
 
         # Draw columns
         font_reg = self.fonts["schedule_row"]
-        font_bold = self.fonts["schedule_row_bold"]
+        font_bold = fit_ui_font(
+            draw,
+            self.lang_code,
+            translated_name,
+            max_width=name_max_width,
+            base_size=20,
+            min_size=15,
+            bold=True,
+        )
 
         draw.text((self.layout["schedule_date_x"], y), date_str, fill=0, font=font_reg)
         draw.text((self.layout["schedule_day_x"], y), day_str, fill=0, font=font_reg)
         draw.text((self.layout["schedule_time_x"], y), time_str, fill=0, font=font_reg)
         # Event name in BOLD
         draw.text((self.layout["schedule_name_x"], y), translated_name, fill=0, font=font_bold)
+
+    def _format_schedule_session_name(
+        self,
+        draw: ImageDraw.ImageDraw,
+        name: str,
+        max_width: int,
+    ) -> str:
+        """Return the best-fitting localized schedule label for a session."""
+        if self._normalize_session_name(name) != "sprintqualifying":
+            return self._translate_session_name(name)
+
+        full_label = self._build_sprint_qualifying_label(abbreviated=False)
+        full_font = fit_ui_font(
+            draw,
+            self.lang_code,
+            full_label,
+            max_width=max_width,
+            base_size=20,
+            min_size=15,
+            bold=True,
+        )
+        full_bbox = draw.textbbox((0, 0), full_label, font=full_font)
+        if full_bbox[2] - full_bbox[0] <= max_width:
+            return full_label
+
+        return self._build_sprint_qualifying_label(abbreviated=True)
+
+    def _build_sprint_qualifying_label(self, *, abbreviated: bool) -> str:
+        """Compose the sprint qualifying label from the localized sprint and qualifying text."""
+        sprint_label = self.translator.get("session_sprint", "Sprint")
+        qualifying_label = self.translator.get("session_qualifying", "Qualifying")
+        separator = "" if self.lang_code in CJK_LANG_CODES else " "
+
+        if abbreviated:
+            qualifying_label = self._abbreviate_schedule_term(qualifying_label)
+
+        return f"{sprint_label}{separator}{qualifying_label}"
+
+    def _abbreviate_schedule_term(self, term: str) -> str:
+        """Reduce a localized schedule term to its leading letter or character."""
+        stripped = term.strip()
+        if not stripped:
+            return term
+        first_char = stripped[0]
+        if self.lang_code in CJK_LANG_CODES:
+            return first_char
+        return f"{first_char}."
+
+    def _translate_session_name(self, name: str) -> str:
+        """Translate session names while normalizing API/static variants."""
+        if not name:
+            return ""
+
+        normalized = self._normalize_session_name(name)
+        if normalized == "sprintqualifying":
+            return self._build_sprint_qualifying_label(abbreviated=False)
+
+        direct_key = f"session_{name.lower()}"
+        if direct_key in self.translator:
+            return self.translator[direct_key]
+
+        normalized_key = f"session_{normalized}"
+        return self.translator.get(normalized_key, name)
+
+    @staticmethod
+    def _normalize_session_name(name: str) -> str:
+        """Normalize API/static session variants to a stable translation key suffix."""
+        normalized = re.sub(r"[^a-z0-9]+", "", name.lower())
+        aliases = {
+            "practice1": "fp1",
+            "practice2": "fp2",
+            "practice3": "fp3",
+            "firstpractice": "fp1",
+            "secondpractice": "fp2",
+            "thirdpractice": "fp3",
+            "sprintqualifying": "sprintqualifying",
+            "sprintshootout": "sprintqualifying",
+            "shootout": "sprintqualifying",
+        }
+        return aliases.get(normalized, normalized)
 
     def _draw_countdown_box(
         self,
@@ -1779,24 +1935,14 @@ class Renderer:
     # Utility Methods
     # =========================================================================
 
+    def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the main UI font for the active locale."""
+        return load_ui_font(self.lang_code, size, bold=bold)
+
     @staticmethod
-    def _load_font(size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load TitilliumWeb font."""
-        font_filename = "TitilliumWeb-Bold.ttf" if bold else "TitilliumWeb-Regular.ttf"
-        font_path = FONTS_DIR / font_filename
-
-        if font_path.exists():
-            try:
-                return ImageFont.truetype(str(font_path), size)
-            except Exception as e:
-                logger.warning("Failed to load TitilliumWeb: %s", e)
-
-        # Fallback
-        fallback_name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
-        try:
-            return ImageFont.truetype(fallback_name, size)
-        except OSError:
-            return ImageFont.load_default()
+    def _load_brand_font(size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the default Latin UI font used for non-localized text."""
+        return load_brand_font(size, bold=bold)
 
     @staticmethod
     def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
@@ -1872,7 +2018,8 @@ class Renderer:
             cls._cached_driver_photos_key = cache_key
         return cls._cached_driver_photos
 
-    def _load_team_logos(self) -> dict[str, Image.Image]:
+    @classmethod
+    def _load_team_logos(cls) -> dict[str, Image.Image]:
         """
         Load team logos from assets/teams as cropped source images.
 
@@ -1892,7 +2039,7 @@ class Renderer:
                     continue
                 try:
                     img_file = Image.open(logo_path).convert("RGBA")
-                    logos[team_key] = self._prepare_team_logo(team_key, img_file)
+                    logos[team_key] = cls._prepare_team_logo(team_key, img_file)
                 except Exception as e:
                     logger.warning("Failed to load team logo %s: %s", logo_path, e)
 
@@ -1903,8 +2050,7 @@ class Renderer:
         """Return the process-wide cache of prepared team logo source images."""
         cache_key = (str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
         if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
-            temp_renderer = cls.__new__(cls)
-            cls._cached_team_logos = cls._load_team_logos(temp_renderer)
+            cls._cached_team_logos = cls._load_team_logos()
             cls._cached_team_logos_key = cache_key
         return cls._cached_team_logos
 

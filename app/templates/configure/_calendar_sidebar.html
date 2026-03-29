@@ -30,48 +30,56 @@
   >
     <button
       onclick="filterTzContinent('ALL')"
+      data-continent="ALL"
       class="tz-filter-btn active whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       ALL
     </button>
     <button
       onclick="filterTzContinent('DETECTED')"
+      data-continent="DETECTED"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       DETECTED
     </button>
     <button
       onclick="filterTzContinent('EUROPE')"
+      data-continent="EUROPE"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       EUROPE
     </button>
     <button
       onclick="filterTzContinent('AMERICA')"
+      data-continent="AMERICA"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       AMERICA
     </button>
     <button
       onclick="filterTzContinent('ASIA')"
+      data-continent="ASIA"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       ASIA
     </button>
     <button
       onclick="filterTzContinent('AFRICA')"
+      data-continent="AFRICA"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       AFRICA
     </button>
     <button
       onclick="filterTzContinent('OCEANIA')"
+      data-continent="OCEANIA"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       OCEANIA
     </button>
     <button
       onclick="filterTzContinent('OTHER')"
+      data-continent="OTHER"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       OTHER
@@ -262,6 +270,6 @@
     onchange="selectRaceMobile()"
     class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm"
   >
-    <option value="">Next Race</option>
+    <option value="">{{ t.get('next_race', 'Next Race') }}</option>
   </select>
 </div>

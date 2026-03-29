@@ -3,22 +3,53 @@
  * Shared utilities and functions across all pages
  */
 
+const FALLBACK_LANGUAGE_CODES = [
+    "cs",
+    "de",
+    "en",
+    "es",
+    "fr",
+    "it",
+    "ja",
+    "nl",
+    "pl",
+    "pt-BR",
+    "sk",
+    "tr",
+    "zh-CN",
+];
+
+const SUPPORTED_LANGUAGE_CODES =
+    Array.isArray(window.SERVER_LANGUAGE_CODES) &&
+    window.SERVER_LANGUAGE_CODES.length > 0
+        ? window.SERVER_LANGUAGE_CODES
+        : FALLBACK_LANGUAGE_CODES;
+
+function isSupportedLanguage(code) {
+    return SUPPORTED_LANGUAGE_CODES.includes(code);
+}
+
+function stripLanguagePrefix(path) {
+    const normalizedPath = path || "/";
+    const langPrefixes = SUPPORTED_LANGUAGE_CODES.map((code) => "/" + code);
+    for (const prefix of langPrefixes) {
+        if (normalizedPath === prefix || normalizedPath === prefix + "/") {
+            return "/";
+        }
+        if (normalizedPath.startsWith(prefix + "/")) {
+            return normalizedPath.substring(prefix.length);
+        }
+    }
+    return normalizedPath;
+}
+
 /**
  * Get the base path without language prefix
  * @param {string} path - Current path
  * @returns {string} Path without language prefix
  */
 function getBasePath(path) {
-    const langPrefixes = ["/cs", "/en"];
-    for (const prefix of langPrefixes) {
-        if (path === prefix || path === prefix + "/") {
-            return "/";
-        }
-        if (path.startsWith(prefix + "/")) {
-            return path.substring(prefix.length);
-        }
-    }
-    return path;
+    return stripLanguagePrefix(path);
 }
 
 /**
@@ -27,8 +58,13 @@ function getBasePath(path) {
  */
 function getCurrentLang() {
     const path = window.location.pathname;
-    if (path.startsWith("/cs/") || path === "/cs") {
-        return "cs";
+    for (const lang of SUPPORTED_LANGUAGE_CODES) {
+        if (lang === "en") {
+            continue;
+        }
+        if (path.startsWith("/" + lang + "/") || path === "/" + lang) {
+            return lang;
+        }
     }
     return "en";
 }
@@ -40,14 +76,18 @@ function getCurrentLang() {
  * @returns {string} Full URL with language prefix
  */
 function buildLangUrl(basePath, lang) {
-    const url = new URL(window.location.href);
+    const nextLang = isSupportedLanguage(lang) ? lang : "en";
+    const normalizedBasePath = stripLanguagePrefix(basePath || "/");
+    const url = new URL(window.location.origin);
+    const currentSearch = new URLSearchParams(window.location.search);
     // Remove any ?lang= query param
-    url.searchParams.delete("lang");
+    currentSearch.delete("lang");
+    url.search = currentSearch.toString();
 
-    if (lang === "en") {
-        url.pathname = basePath;
+    if (nextLang === "en") {
+        url.pathname = normalizedBasePath;
     } else {
-        url.pathname = "/" + lang + basePath;
+        url.pathname = "/" + nextLang + normalizedBasePath;
     }
     return url.toString();
 }
@@ -62,7 +102,7 @@ function buildLangUrl(basePath, lang) {
         const currentLang = getCurrentLang();
 
         // Redirect if stored language differs from current URL language
-        if (currentLang !== storedLang) {
+        if (isSupportedLanguage(storedLang) && currentLang !== storedLang) {
             const basePath = getBasePath(window.location.pathname);
             window.location.replace(buildLangUrl(basePath, storedLang));
         }
@@ -73,6 +113,10 @@ function buildLangUrl(basePath, lang) {
 
 function switchUiLanguage() {
     const lang = document.getElementById("uiLangSwitch").value;
+    if (!isSupportedLanguage(lang)) {
+        return;
+    }
+
     localStorage.setItem("preferredLang", lang);
     document.cookie = `preferredLang=${lang};path=/;max-age=31536000;SameSite=Lax`;
 

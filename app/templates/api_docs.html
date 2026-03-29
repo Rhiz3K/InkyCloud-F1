@@ -97,8 +97,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 {{ lang_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
-                  <code class="bg-gray-100 px-1">en</code>,
-                  <code class="bg-gray-100 px-1">cs</code> ({{
+                  {% for language in supported_languages %}<code class="bg-gray-100 px-1">{{ language.code }}</code>{% if not loop.last %}, {% endif %}{% endfor %} ({{
                   t.get("api_docs_default", "default") }}:
                   <code class="bg-gray-100 px-1">en</code>)</span
                 >
@@ -374,7 +373,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             <span class="bg-black text-white px-1.5 font-bold text-xs">2</span>
             {{ laskakit_step2 }}:
             <code class="bg-gray-100 px-1 border border-black"
-              >https://your-server.com/calendar.bmp?lang=cs&amp;tz=Europe/Prague</code
+              >{{ server_url }}/calendar.bmp?lang=cs&amp;tz=Europe/Prague</code
             >
           </li>
           <li class="flex items-start gap-2">
@@ -426,8 +425,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 {{ lang_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
-                  <code class="bg-gray-100 px-1">en</code>,
-                  <code class="bg-gray-100 px-1">cs</code> ({{
+                  {% for language in supported_languages %}<code class="bg-gray-100 px-1">{{ language.code }}</code>{% if not loop.last %}, {% endif %}{% endfor %} ({{
                   t.get("api_docs_default", "default") }}:
                   <code class="bg-gray-100 px-1">en</code>)</span
                 >

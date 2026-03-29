@@ -98,6 +98,7 @@ class Race(BaseModel):
     SecondPractice: Optional[RaceSession] = None
     ThirdPractice: Optional[RaceSession] = None
     Qualifying: Optional[RaceSession] = None
+    SprintQualifying: Optional[RaceSession] = None
     Sprint: Optional[RaceSession] = None
 
 

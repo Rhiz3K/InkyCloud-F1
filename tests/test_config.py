@@ -1,9 +1,28 @@
 """Test configuration and i18n services."""
 
 import importlib
+import json
+from pathlib import Path
 
 import app.config as config_module
 from app.services.i18n import get_translator
+from app.web.templates import LANGUAGE_LABELS, OG_LOCALES
+
+
+def _nested_key_paths(data: object, prefix: str = "") -> set[str]:
+    """Collect dot-separated key paths for nested translation structures."""
+    if not isinstance(data, dict):
+        return {prefix} if prefix else set()
+
+    paths: set[str] = set()
+    for key, value in data.items():
+        child_prefix = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            paths.add(child_prefix)
+            paths.update(_nested_key_paths(value, child_prefix))
+        else:
+            paths.add(child_prefix)
+    return paths
 
 
 def test_config_defaults():
@@ -13,7 +32,7 @@ def test_config_defaults():
 
     assert config.DISPLAY_WIDTH == 800
     assert config.DISPLAY_HEIGHT == 480
-    assert config.DEFAULT_LANG in ["en", "cs"]
+    assert config.DEFAULT_LANG in config_module.LANGUAGE_CODES
 
 
 def test_config_invalid_env_falls_back(monkeypatch):
@@ -26,6 +45,7 @@ def test_config_invalid_env_falls_back(monkeypatch):
     monkeypatch.setenv("OPEN_METEO_URL", "still-not-a-url")
     monkeypatch.setenv("OPEN_METEO_ARCHIVE_URL", "bad-archive-url")
     monkeypatch.setenv("SENTRY_TRACES_SAMPLE_RATE", "2")
+    monkeypatch.setenv("DEFAULT_LANG", "xx")
 
     config_module._reset_config_cache_for_tests()
     importlib.reload(config_module)
@@ -38,6 +58,7 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert str(config.OPEN_METEO_URL) == "https://api.open-meteo.com/v1/forecast"
     assert str(config.OPEN_METEO_ARCHIVE_URL) == "https://archive-api.open-meteo.com/v1/archive"
     assert config.SENTRY_TRACES_SAMPLE_RATE == 0.1
+    assert config.DEFAULT_LANG == "en"
 
 
 def test_translator_english():
@@ -61,3 +82,21 @@ def test_translator_fallback():
     translator = get_translator("unknown")
     # Should fall back to default language
     assert "next_race" in translator
+
+
+def test_all_translation_files_match_english_keys():
+    """All supported locales should ship a translation file with the full key set."""
+    translations_dir = Path(__file__).resolve().parent.parent / "translations"
+    reference = json.loads((translations_dir / "en.json").read_text(encoding="utf-8"))
+    reference_paths = _nested_key_paths(reference)
+
+    for lang in config_module.LANGUAGE_CODES:
+        data = json.loads((translations_dir / f"{lang}.json").read_text(encoding="utf-8"))
+        assert _nested_key_paths(data) == reference_paths
+
+
+def test_language_metadata_matches_supported_locales():
+    """Template locale metadata should stay aligned with the canonical language list."""
+    expected = set(config_module.LANGUAGE_CODES)
+    assert set(LANGUAGE_LABELS) == expected
+    assert set(OG_LOCALES) == expected

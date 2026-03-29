@@ -21,6 +21,27 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+# Ordered language codes used across routing, UI, and API docs.
+LANGUAGE_CODES: tuple[str, ...] = (
+    "cs",
+    "de",
+    "en",
+    "es",
+    "fr",
+    "it",
+    "ja",
+    "nl",
+    "pl",
+    "pt-BR",
+    "sk",
+    "tr",
+    "zh-CN",
+)
+
+# Valid language codes (allowlist for security - prevents path injection)
+# Defined as module-level constant for easy import across the application
+VALID_LANGUAGES: frozenset[str] = frozenset(LANGUAGE_CODES)
+
 
 T = TypeVar("T")
 
@@ -205,6 +226,16 @@ class Config(BaseSettings):
             return value
         return _warn_invalid(info.field_name, value, default, "unknown timezone")
 
+    @field_validator("DEFAULT_LANG", mode="before")
+    @classmethod
+    def validate_default_lang(cls, value: object, info: ValidationInfo) -> str:
+        if info.field_name is None:
+            return "en"
+        default: str = cls.model_fields[info.field_name].default
+        if isinstance(value, str) and value in LANGUAGE_CODES:
+            return value
+        return _warn_invalid(info.field_name, value, default, "unsupported language code")
+
     @field_validator(
         "UMAMI_API_URL",
         "JOLPICA_API_URL",
@@ -281,7 +312,3 @@ def _reset_config_cache_for_tests() -> None:
 
 
 config = get_config()
-
-# Valid language codes (allowlist for security - prevents path injection)
-# Defined as module-level constant for easy import across the application
-VALID_LANGUAGES: frozenset[str] = frozenset({"en", "cs"})

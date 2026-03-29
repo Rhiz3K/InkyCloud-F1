@@ -59,7 +59,7 @@ packages = ["app", "app.services", "app.routes", "app.utils", "app.web"]
 include-package-data = true
 
 [tool.setuptools.package-data]
-"*" = ["*.json", "*.bmp", "*.png", "*.ttf", "*.jpg"]
+"*" = ["*.json", "*.bmp", "*.png", "*.ttf", "*.ttc", "*.jpg"]
 
 [tool.ruff]
 line-length = 100

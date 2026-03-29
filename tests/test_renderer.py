@@ -24,6 +24,7 @@ from app.services import renderer as renderer_module
 from app.services import spectra6_renderer as spectra6_renderer_module
 from app.services.bwr_renderer import BwrColors, BwrRenderer
 from app.services.bwry_renderer import BwryColors, BwryRenderer
+from app.services.font_utils import fit_brand_font_box
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
@@ -176,6 +177,26 @@ def test_render_calendar_english(mock_race_data):
     assert img.mode == "1"
 
 
+@pytest.mark.parametrize(
+    ("lang", "sample_text"),
+    [
+        ("ja", "週末スケジュール"),
+        ("zh-CN", "周末赛程"),
+    ],
+)
+def test_renderer_loads_cjk_font_glyphs(lang, sample_text):
+    """Locale-aware font loading should render visible CJK glyphs on 1-bit canvases."""
+    renderer = Renderer(get_translator(lang), lang)
+    font = renderer._load_font(24, bold=True)
+    image = Image.new("1", (240, 80), 1)
+    draw = ImageDraw.Draw(image)
+
+    draw.text((8, 8), sample_text, font=font, fill=0)
+
+    black_pixels = image.convert("L").histogram()[0]
+    assert black_pixels > 0
+
+
 def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
     """Cancelled races should render a centred cancelled label instead of countdown."""
     renderer = Renderer(get_translator("en"))
@@ -208,6 +229,67 @@ def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
     assert rendered.format == "BMP"
     assert rendered.size == (800, 480)
     assert rendered.mode == "1"
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
+        ("cs", "Sprint Kvalifikace"),
+        ("sk", "Sprint Kvalifikácia"),
+        ("pl", "Sprint Kwalifikacje"),
+        ("en", "Sprint Qualifying"),
+        ("de", "Sprint Qualifying"),
+        ("ja", "スプリント予選"),
+        ("zh-CN", "冲刺赛排位赛"),
+        ("pt-BR", "Sprint Classificação"),
+    ],
+)
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_translate_session_name_uses_full_localized_sprint_qualifying_labels(
+    renderer_cls, lang, expected
+):
+    """Sprint qualifying aliases should use the localized sprint and qualifying strings."""
+    renderer = renderer_cls(get_translator(lang), lang)
+    assert renderer._translate_session_name("SprintQualifying") == expected
+    assert renderer._translate_session_name("Sprint Qualifying") == expected
+    assert renderer._translate_session_name("Sprint Shootout") == expected
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
+        ("en", "Sprint Q."),
+        ("cs", "Sprint K."),
+        ("pt-BR", "Sprint C."),
+        ("ja", "スプリント予"),
+        ("zh-CN", "冲刺赛排"),
+    ],
+)
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_build_sprint_qualifying_label_uses_localized_abbreviation(renderer_cls, lang, expected):
+    """Abbreviated sprint qualifying labels should use each locale's qualifying initial."""
+    renderer = renderer_cls(get_translator(lang), lang)
+    assert renderer._build_sprint_qualifying_label(abbreviated=True) == expected
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
+        ("en", "Sprint Qualifying"),
+        ("cs", "Sprint Kvalifikace"),
+        ("pt-BR", "Sprint Classificação"),
+        ("ja", "スプリント予選"),
+        ("zh-CN", "冲刺赛排位赛"),
+    ],
+)
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_format_schedule_session_name_keeps_full_label_when_space_available(
+    renderer_cls, lang, expected
+):
+    """Schedule rows should keep the full localized label when there is sufficient width."""
+    renderer = renderer_cls(get_translator(lang), lang)
+    draw = ImageDraw.Draw(Image.new("RGB", (800, 480), "white"))
+    assert renderer._format_schedule_session_name(draw, "Sprint Qualifying", 180) == expected
 
 
 def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
@@ -684,6 +766,120 @@ def test_render_2026_teams_cs():
     assert img.format == "BMP"
     assert img.size == (800, 480)
     assert img.mode == "1"
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+@pytest.mark.parametrize("lang", ["ja", "zh-CN"])
+def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
+    """CJK locale driver names should keep clear of the team-card header line."""
+    teams_data = TeamsService()._load_from_json(2026)
+    assert teams_data is not None
+
+    renderer = renderer_cls(get_translator(lang), lang)
+    background = 1 if renderer_cls is Renderer else renderer.colors.WHITE
+    image_mode = "1" if renderer_cls is Renderer else "RGB"
+    image = Image.new(image_mode, (renderer.width, renderer.height), background)
+    draw = ImageDraw.Draw(image)
+
+    left_teams, right_teams = renderer._split_teams_for_columns(teams_data.teams)
+    teams_per_col = max(len(left_teams), len(right_teams), 1)
+    row_gap = 2
+    row_height = (
+        renderer.height - renderer.layout["header_height"] - 8 - (teams_per_col - 1) * row_gap
+    ) // teams_per_col
+    card_header_height = 23
+    card_header_gap = 1
+    photo_x = 9
+    y_start = renderer.layout["header_height"] + 4
+
+    for column_index, column_teams in enumerate((left_teams, right_teams)):
+        y = y_start
+        x_end = renderer.width // 2 - 2 if column_index == 0 else renderer.width - 5
+        for team in column_teams:
+            driver_area_height = row_height - card_header_height - 4
+            driver_row_height = driver_area_height // 2
+            driver_y_start = y + card_header_height + 2
+            photo_size = driver_row_height - 2
+            driver_pos_x = x_end - 72
+
+            for i, driver in enumerate(sorted(team.drivers[:2], key=lambda d: d.position or 99)):
+                name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
+                if not name:
+                    name = driver.driver_code or "TBA"
+                display_name = renderer._format_team_driver_display_name(name)
+                driver_y = driver_y_start + i * driver_row_height
+                driver_name_x = photo_x + photo_size + renderer.layout["driver_name_padding"] + 4
+                max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
+                driver_font = fit_brand_font_box(
+                    draw,
+                    display_name,
+                    max_width=max_name_width,
+                    max_height=max(1, driver_row_height - 1),
+                    base_size=18,
+                    min_size=12,
+                    bold=True,
+                )
+                driver_text_y = renderer._get_text_y(
+                    draw, driver_font, driver_row_height, driver_y, display_name
+                )
+                bbox = draw.textbbox((driver_name_x, driver_text_y), display_name, font=driver_font)
+                assert bbox[1] >= y + card_header_height + card_header_gap
+
+            y += row_height + row_gap
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_team_header_values_shorten_red_bull_power_units(renderer_cls):
+    """Red Bull teams should use the short RB label in the power-unit meta text."""
+    team = TeamEntry(
+        constructor_name="Red Bull Racing-Red Bull Ford",
+        chassis="RB22",
+        power_unit="Red Bull Ford DM01",
+        position=1,
+        points=38.0,
+        drivers=[],
+    )
+
+    team_name, meta_text, team_pos, team_pts = renderer_cls._build_team_header_values(team)
+
+    assert team_name == "Red Bull Racing"
+    assert meta_text == "RB22 | RB Ford DM01"
+    assert team_pos == "1"
+    assert team_pts == "38"
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+@pytest.mark.parametrize("lang", ["ja", "zh-CN"])
+def test_cjk_teams_header_uses_brand_font_for_line1_and_cjk_font_for_line2(renderer_cls, lang):
+    """JA/CN teams header should keep the Latin font for line1 and CJK font for translated line2."""
+    renderer = renderer_cls(get_translator(lang), lang)
+    image_mode = "1" if renderer_cls is Renderer else "RGB"
+    background = 1 if renderer_cls is Renderer else renderer.colors.WHITE
+    image = Image.new(image_mode, (renderer.width, renderer.height), background)
+    draw = ImageDraw.Draw(image)
+    captured = []
+    original_text = draw.text
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured.append((text, kwargs.get("font")))
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(draw, "text", spy_text)
+    try:
+        renderer._draw_teams_header(draw, image, 2026)
+    finally:
+        monkeypatch.undo()
+
+    line1_text = "2026 FIA F1 World Championship"
+    line2_text = renderer.translator.get("teams_drivers_title", "TEAMS & DRIVERS").upper()
+    captured_map = {text: font for text, font in captured if text in {line1_text, line2_text}}
+
+    line1_font = captured_map[line1_text]
+    line2_font = captured_map[line2_text]
+
+    assert getattr(line1_font, "path", "").endswith("TitilliumWeb-Bold.ttf")
+    assert getattr(line2_font, "path", "").endswith("NotoSansCJK-Regular.ttc")
 
 
 def test_draw_driver_photo_prefers_explicit_number_over_asset():

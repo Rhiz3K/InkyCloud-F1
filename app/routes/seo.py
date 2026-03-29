@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, Response
 
-from app.config import config
+from app.config import LANGUAGE_CODES, config
 
 router = APIRouter()
 
@@ -40,11 +40,10 @@ async def sitemap_xml() -> Response:
         {"loc": "/privacy", "priority": "0.3", "changefreq": "yearly"},
     ]
 
-    languages = ["en", "cs"]
     urls: list[str] = []
 
     for page in pages:
-        for lang in languages:
+        for lang in LANGUAGE_CODES:
             # English uses root path, others use /{lang}/ prefix
             if lang == "en":
                 url_loc = f"{site_url}{page['loc']}"

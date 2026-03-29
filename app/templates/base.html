@@ -25,16 +25,13 @@
       href="{{ site_url }}{{ lang_url(base_path) }}"
     />
     {% endblock %}
+    {% for language in supported_languages %}
     <link
       rel="alternate"
-      hreflang="en"
-      href="{{ site_url }}{{ base_path }}"
+      hreflang="{{ language.code }}"
+      href="{{ site_url }}{{ language.url }}"
     />
-    <link
-      rel="alternate"
-      hreflang="cs"
-      href="{{ site_url }}/cs{{ base_path }}"
-    />
+    {% endfor %}
     <link
       rel="alternate"
       hreflang="x-default"
@@ -49,7 +46,7 @@
     <meta property="og:type" content="website" />
     <meta
       property="og:locale"
-      content="{{ 'cs_CZ' if ui_lang == 'cs' else 'en_US' }}"
+      content="{{ og_locale }}"
     />
     {% block og_tags %}
     <meta
@@ -239,6 +236,9 @@
       </nav>
     </div>
 
+    <script>
+      window.SERVER_LANGUAGE_CODES = {{ supported_language_codes | tojson }};
+    </script>
     <script src="/static/js/common.js" defer></script>
     {% block scripts %}{% endblock %}
   </body>

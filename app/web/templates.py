@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
-from app.config import VALID_LANGUAGES, config
+from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.services.analytics import get_umami_script_tag
 from app.services.i18n import get_translator
 
@@ -18,6 +18,96 @@ mimetypes.add_type("font/woff", ".woff")
 mimetypes.add_type("font/woff2", ".woff2")
 
 templates = Jinja2Templates(directory="app/templates")
+
+LANGUAGE_LABELS: dict[str, str] = {
+    "cs": "CZ",
+    "de": "DE",
+    "en": "EN",
+    "es": "ES",
+    "fr": "FR",
+    "it": "IT",
+    "ja": "JA",
+    "nl": "NL",
+    "pl": "PL",
+    "pt-BR": "PT-BR",
+    "sk": "SK",
+    "tr": "TR",
+    "zh-CN": "ZH-CN",
+}
+
+OG_LOCALES: dict[str, str] = {
+    "cs": "cs_CZ",
+    "de": "de_DE",
+    "en": "en_US",
+    "es": "es_ES",
+    "fr": "fr_FR",
+    "it": "it_IT",
+    "ja": "ja_JP",
+    "nl": "nl_NL",
+    "pl": "pl_PL",
+    "pt-BR": "pt_BR",
+    "sk": "sk_SK",
+    "tr": "tr_TR",
+    "zh-CN": "zh_CN",
+}
+
+
+def _build_configure_ui_text(translations: dict[str, Any]) -> dict[str, Any]:
+    """Build the client-side configure UI translation payload."""
+    configure = translations.get("configure", {})
+    if not isinstance(configure, dict):
+        configure = {}
+
+    filter_labels = configure.get("filterLabels", {})
+    if not isinstance(filter_labels, dict):
+        filter_labels = {}
+
+    return {
+        "nextRace": translations.get("next_race", "Next Race"),
+        "seasonTitle": translations.get("screen_calendar_name", "Calendar"),
+        "cancelled": translations.get("cancelled", "CANCELLED"),
+        "footerPrivacy": translations.get("footer_privacy", "Privacy Policy"),
+        "seasonLeaders": translations.get("season_leaders", "Season Leaders"),
+        "currentSeason": translations.get("current_season", "Current"),
+        "loadingText": translations.get("loading", "Loading..."),
+        "copyLabel": translations.get("api_docs_copy", "Copy"),
+        "einkBadge": "E-INK",
+        "tzLabel": configure.get("tzLabel", "Timezone"),
+        "raceLabel": configure.get("raceLabel", "Race"),
+        "yearLabel": configure.get("yearLabel", "Season"),
+        "settingsBtn": configure.get("settingsBtn", "Settings"),
+        "errorText": configure.get("errorText", "FAILED TO LOAD"),
+        "retryBtn": configure.get("retryBtn", "RETRY"),
+        "refreshBtn": configure.get("refreshBtn", "REFRESH"),
+        "epaperSetupTitle": configure.get("epaperSetupTitle", "ePaper Display Setup"),
+        "epaperStep1BeforeLink": configure.get("epaperStep1BeforeLink", "In "),
+        "epaperStep1BetweenLinkAndUrl": configure.get("epaperStep1BetweenLinkAndUrl", " select "),
+        "epaperStep1AfterUrl": configure.get("epaperStep1AfterUrl", " as content source"),
+        "epaperStep2Text": configure.get(
+            "epaperStep2Text", "Copy the URL above into the image URL field"
+        ),
+        "weatherLabel": configure.get("weatherLabel", "Weather"),
+        "weatherCurrentLabel": configure.get("weatherCurrentLabel", "Current"),
+        "weatherRaceDayLabel": configure.get("weatherRaceDayLabel", "Race day"),
+        "weatherTooltipText": configure.get("weatherTooltipText", "Activates 14 days before race"),
+        "displayLabel": configure.get("displayLabel", "Display"),
+        "searchPlaceholder": configure.get("searchPlaceholder", "SEARCH..."),
+        "noResults": configure.get("noResults", "No results"),
+        "detectedLabel": configure.get("detectedLabel", "DETECTED"),
+        "failedToLoadRaces": configure.get("failedToLoadRaces", "FAILED TO LOAD RACES"),
+        "loadingSeason": configure.get("loadingSeason", "Loading {year} season..."),
+        "autoLabel": configure.get("autoLabel", "AUTO"),
+        "filterLabels": {
+            "ALL": filter_labels.get("ALL", "ALL"),
+            "DETECTED": filter_labels.get("DETECTED", "DETECTED"),
+            "EUROPE": filter_labels.get("EUROPE", "EUROPE"),
+            "AMERICA": filter_labels.get("AMERICA", "AMERICA"),
+            "ASIA": filter_labels.get("ASIA", "ASIA"),
+            "AFRICA": filter_labels.get("AFRICA", "AFRICA"),
+            "OCEANIA": filter_labels.get("OCEANIA", "OCEANIA"),
+            "OTHER": filter_labels.get("OTHER", "OTHER"),
+        },
+    }
 
 
 def format_bytes(bytes_val: int) -> str:
@@ -75,16 +165,25 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
     # Get base path without language prefix for hreflang generation
     request_path = request.url.path
     base_path = request_path
-    for prefix in ["/cs", "/en"]:
+    for lang_code in LANGUAGE_CODES:
+        prefix = f"/{lang_code}"
         if request_path.startswith(prefix + "/") or request_path == prefix:
             base_path = request_path[len(prefix) :] or "/"
             break
 
+    supported_languages = [
+        {
+            "code": code,
+            "label": LANGUAGE_LABELS.get(code, code.upper()),
+            "selected": "selected" if ui_lang == code else "",
+            "url": lang_url(base_path, code),
+        }
+        for code in LANGUAGE_CODES
+    ]
+
     return {
         "request": request,
         "ui_lang": ui_lang,
-        "lang_selected_en": "selected" if ui_lang == "en" else "",
-        "lang_selected_cs": "selected" if ui_lang == "cs" else "",
         "umami_script": get_umami_script_tag(),
         "t": t,
         "nav": nav,
@@ -93,4 +192,8 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "calc_percent": calc_percent,
         "lang_url": lambda path: lang_url(path, ui_lang),
         "base_path": base_path,  # Path without language prefix (for hreflang)
+        "og_locale": OG_LOCALES.get(ui_lang, "en_US"),
+        "supported_languages": supported_languages,
+        "supported_language_codes": list(LANGUAGE_CODES),
+        "configure_ui_text": _build_configure_ui_text(t),
     }

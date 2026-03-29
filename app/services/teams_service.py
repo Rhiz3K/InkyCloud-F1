@@ -66,6 +66,28 @@ def _get_current_f1_season() -> int:
     return 2024
 
 
+def get_default_teams_year() -> int:
+    """Resolve the newest season that has bundled teams data."""
+    current_year = _get_current_f1_season()
+    current_path = SEASONS_DIR / f"{current_year}_teams.json"
+    if current_path.exists():
+        return current_year
+
+    available_years = sorted(
+        int(path.stem.split("_", 1)[0])
+        for path in SEASONS_DIR.glob("*_teams.json")
+        if path.stem.split("_", 1)[0].isdigit()
+    )
+    if not available_years:
+        return current_year
+
+    eligible_years = [year for year in available_years if year <= current_year]
+    if eligible_years:
+        return eligible_years[-1]
+
+    return available_years[-1]
+
+
 class CacheEntry:
     def __init__(self, data: TeamsData, ttl: int = CACHE_TTL_SECONDS):
         self.data = data
@@ -76,9 +98,11 @@ class CacheEntry:
 
 
 class TeamsService:
+    _shared_cache: dict[str, CacheEntry] = {}
+
     def __init__(self):
         self.timeout = config.REQUEST_TIMEOUT
-        self._cache: dict[str, CacheEntry] = {}
+        self._cache = self._shared_cache
 
     @staticmethod
     def _get_cache_key(year: int) -> str:
@@ -510,7 +534,7 @@ class TeamsService:
 
     async def get_teams_and_drivers(self, year: Optional[int] = None) -> TeamsData:
         if year is None:
-            year = _get_current_f1_season()
+            year = get_default_teams_year()
 
         cached = self._get_cached(year)
         if cached:

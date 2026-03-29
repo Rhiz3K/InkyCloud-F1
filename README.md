@@ -26,7 +26,7 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 
 | Parameter      | Options                          | Example                              |
 | -------------- | -------------------------------- | ------------------------------------ |
-| `lang`         | `cs` (Czech), `en` (English)     | `?lang=en`                           |
+| `lang`         | `cs`, `de`, `en`, `es`, `fr`, `it`, `ja`, `nl`, `pl`, `pt-BR`, `sk`, `tr`, `zh-CN` | `?lang=sk` |
 | `tz`           | Any IANA timezone                | `?tz=America/New_York`               |
 | `year`         | Season year                      | `?year=2026`                         |
 | `round`        | Race round number                | `?year=2026&round=5`                 |
@@ -44,6 +44,8 @@ https://f1.inkycloud.click/calendar.bmp?lang=en&display=bwr
 https://f1.inkycloud.click/calendar.bmp?lang=en&display=bwry
 https://f1.inkycloud.click/calendar.bmp?lang=en&display=spectra6
 https://f1.inkycloud.click/calendar.bmp?lang=en&weather=true&weather_type=current
+https://f1.inkycloud.click/teams.bmp?lang=ja&display=spectra6
+https://f1.inkycloud.click/sk/configure/calendar
 ```
 
 ---
@@ -62,16 +64,17 @@ _SVERIO PaperBoard 7.5" GDEM075F52 four-color 800×480 ePaper (black/white/yello
 
 ## ✨ Features
 
-- **800x480 BMP output** — `1bit` monochrome, `bwr` B/W/R, `bwry` B/W/R/Y, and `spectra6` 6-color mode for the calendar screen
-- **Teams & Drivers screen** — Dedicated `teams.bmp` standings/lineup render for the current or selected season with `1bit`, `bwr`, `bwry`, and `spectra6` output modes
-- **Always Up-to-Date** — Automatically updated after each Grand Prix
-- **Multi-language** — Czech and English support
+- **800x480 BMP output** — `1bit` monochrome, `bwr` B/W/R, `bwry` B/W/R/Y, and `spectra6` 6-color mode for both calendar and teams screens
+- **Teams & Drivers screen** — Dedicated `teams.bmp` render for the default or selected season with constructor lineup, driver photos, and championship points
+- **Localized UI and assets** — Routing, configure pages, previews, docs, and pregenerated BMPs support `cs`, `de`, `en`, `es`, `fr`, `it`, `ja`, `nl`, `pl`, `pt-BR`, `sk`, `tr`, and `zh-CN`
+- **Hourly regeneration + startup warmup** — Calendar and teams assets are regenerated on startup and every hour, with version metadata refreshed hourly and teams render assets warmed on boot
 - **Any Timezone** — Convert race times to your local timezone
 - **Race Status States** — Upcoming countdown, `IN PROGRESS` / `PROBÍHÁ`, `COMPLETED` / `DOKONČEN`, and cancelled race handling
 - **Optional Weather Overlay** — Current, race-day forecast, and historical race-time weather on the calendar screen
 - **Historical Results** — Previous year's podium for each circuit
 - **Track Info** — Circuit map, length, laps, and first GP year
 - **Display-Specific Track Art** — `1bit`, `bwr`, `bwry`, and `spectra6` now prefer per-display source artwork before falling back to generic circuit assets
+- **Interactive configure flow** — Localized `/configure/calendar` and `/configure/teams` pages with pregenerated previews, direct BMP URLs, weather/display switching, and season leaders sidebar
 - **Session Schedule** — FP1, FP2, FP3, Qualifying, Sprint, Race times
 
 ### Roadmap
@@ -94,7 +97,7 @@ Planned features for future releases:
 
 #### Content and localization
 
-- [ ] **More languages** — German, Spanish, Italian, and community translations
+- [ ] **More languages** — Additional community/localized translations beyond the current 13 supported locales
 - [ ] **Extended weather integration** — Richer race weekend weather and extra weekend details
 - [ ] **Dark mode variant** — Inverted colors for different display preferences
 
@@ -132,9 +135,9 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 | `GET /calendar.bmp`                      | Calendar BMP with `display`, `weather`, and `tz` params |
 | `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`) |
 | `GET /`                                  | Landing page with screen type selection                 |
-| `GET /configure/{screen}`                | Interactive preview page (calendar/teams)               |
-| `GET /preview/{screen}.png`              | Pre-generated preview PNG                               |
-| `GET /preview/configure/{screen}.png`    | Pre-generated configure preview PNG                     |
+| `GET /configure/{screen}`                | Interactive localized preview/config page (calendar/teams) |
+| `GET /preview/{screen}.png`              | Pre-generated localized homepage preview PNG            |
+| `GET /preview/configure/{screen}.png`    | Pre-generated localized configure preview PNG           |
 | `GET /api`                               | JSON API documentation                                  |
 | `GET /api/docs`                          | Alias for `/api`                                        |
 | `GET /api/docs/html`                     | Interactive HTML API docs                               |
@@ -164,6 +167,7 @@ Local development requires **Python 3.14.3+**.
 - Data updates & yearly maintenance
 - Configuration reference
 - Track images
+- Scheduler/startup generation behavior for localized calendar and teams assets
 
 ### Quick Docker Start
 

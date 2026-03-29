@@ -1,5 +1,8 @@
 """Tests for scheduler image variant helpers."""
 
+import pytest
+
+from app.services.image_keys import get_teams_image_key
 from app.services.scheduler import _get_image_key
 
 
@@ -23,3 +26,12 @@ def test_get_image_key_uses_bwry_suffix_with_timezone_and_weather():
         _get_image_key("cs", tz="America/New_York", display="bwry", weather="race")
         == "calendar_cs_America_New_York_bwry_weather_race"
     )
+
+
+def test_get_teams_image_key_includes_year():
+    assert get_teams_image_key("en", 2026, display="bwr") == "teams_2026_en_bwr"
+
+
+def test_get_teams_image_key_rejects_unknown_display():
+    with pytest.raises(ValueError, match="Unsupported display mode: invalid"):
+        get_teams_image_key("en", 2026, display="invalid")

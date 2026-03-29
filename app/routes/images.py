@@ -13,18 +13,18 @@ import sentry_sdk
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
-from app.config import VALID_LANGUAGES, config
+from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.services.analytics import track_event, track_pageview
 from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
+from app.services.image_keys import get_teams_image_key
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Renderer
-from app.services.teams_service import TeamsService
+from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.weather_service import get_weather_context
 from app.state import get_bmp_cache, record_api_call
-from app.utils.f1_season import get_current_f1_season
 from app.utils.race_times import convert_race_times_to_timezone
 
 from .deps import get_f1_service
@@ -203,42 +203,38 @@ def _normalize_weather_type(weather_type: str) -> str:
     return weather_type if weather_type in allowed else "race_day"
 
 
-# Pre-defined whitelist of valid calendar image filenames (no user input in paths)
-_VALID_CALENDAR_FILENAMES: dict[tuple[str, str, str], str] = {
-    # (lang, display, weather) -> filename
-    ("en", "1bit", "off"): "calendar_en.bmp",
-    ("en", "1bit", "current"): "calendar_en_weather_current.bmp",
-    ("en", "1bit", "race"): "calendar_en_weather_race.bmp",
-    ("en", "1bit", "race_day"): "calendar_en_weather_race.bmp",
-    ("en", "spectra6", "off"): "calendar_en_spectra6.bmp",
-    ("en", "spectra6", "current"): "calendar_en_spectra6_weather_current.bmp",
-    ("en", "spectra6", "race"): "calendar_en_spectra6_weather_race.bmp",
-    ("en", "spectra6", "race_day"): "calendar_en_spectra6_weather_race.bmp",
-    ("en", "bwr", "off"): "calendar_en_bwr.bmp",
-    ("en", "bwr", "current"): "calendar_en_bwr_weather_current.bmp",
-    ("en", "bwr", "race"): "calendar_en_bwr_weather_race.bmp",
-    ("en", "bwr", "race_day"): "calendar_en_bwr_weather_race.bmp",
-    ("en", "bwry", "off"): "calendar_en_bwry.bmp",
-    ("en", "bwry", "current"): "calendar_en_bwry_weather_current.bmp",
-    ("en", "bwry", "race"): "calendar_en_bwry_weather_race.bmp",
-    ("en", "bwry", "race_day"): "calendar_en_bwry_weather_race.bmp",
-    ("cs", "1bit", "off"): "calendar_cs.bmp",
-    ("cs", "1bit", "current"): "calendar_cs_weather_current.bmp",
-    ("cs", "1bit", "race"): "calendar_cs_weather_race.bmp",
-    ("cs", "1bit", "race_day"): "calendar_cs_weather_race.bmp",
-    ("cs", "spectra6", "off"): "calendar_cs_spectra6.bmp",
-    ("cs", "spectra6", "current"): "calendar_cs_spectra6_weather_current.bmp",
-    ("cs", "spectra6", "race"): "calendar_cs_spectra6_weather_race.bmp",
-    ("cs", "spectra6", "race_day"): "calendar_cs_spectra6_weather_race.bmp",
-    ("cs", "bwr", "off"): "calendar_cs_bwr.bmp",
-    ("cs", "bwr", "current"): "calendar_cs_bwr_weather_current.bmp",
-    ("cs", "bwr", "race"): "calendar_cs_bwr_weather_race.bmp",
-    ("cs", "bwr", "race_day"): "calendar_cs_bwr_weather_race.bmp",
-    ("cs", "bwry", "off"): "calendar_cs_bwry.bmp",
-    ("cs", "bwry", "current"): "calendar_cs_bwry_weather_current.bmp",
-    ("cs", "bwry", "race"): "calendar_cs_bwry_weather_race.bmp",
-    ("cs", "bwry", "race_day"): "calendar_cs_bwry_weather_race.bmp",
+_DISPLAY_FILE_SUFFIXES: dict[str, str] = {
+    "1bit": "",
+    "spectra6": "_spectra6",
+    "bwr": "_bwr",
+    "bwry": "_bwry",
 }
+
+_WEATHER_FILE_SUFFIXES: dict[str, str] = {
+    "off": "",
+    "current": "_weather_current",
+    "race": "_weather_race",
+    "race_day": "_weather_race",
+}
+
+# Pre-defined whitelist of valid generated filenames (no user input in paths)
+_VALID_CALENDAR_FILENAMES: dict[tuple[str, str, str], str] = {
+    (lang, display, weather): (
+        f"calendar_{lang}{_DISPLAY_FILE_SUFFIXES[display]}{_WEATHER_FILE_SUFFIXES[weather]}.bmp"
+    )
+    for lang in LANGUAGE_CODES
+    for display in _DISPLAY_FILE_SUFFIXES
+    for weather in _WEATHER_FILE_SUFFIXES
+}
+
+
+def _get_valid_teams_filenames(year: int) -> dict[tuple[str, str], str]:
+    """Return the whitelist of valid teams BMP filenames for a specific season."""
+    return {
+        (lang, display): f"teams_{year}_{lang}{_DISPLAY_FILE_SUFFIXES[display]}.bmp"
+        for lang in LANGUAGE_CODES
+        for display in _DISPLAY_FILE_SUFFIXES
+    }
 
 
 def _get_pregenerated_calendar_path(
@@ -249,6 +245,7 @@ def _get_pregenerated_calendar_path(
     race_key: str | None,
     tz: str | None,
     display: str,
+    weather: bool,
     weather_type: str,
 ) -> Path | None:
     """Return a pregenerated calendar BMP path when the request matches one."""
@@ -260,12 +257,28 @@ def _get_pregenerated_calendar_path(
         return None
 
     # Normalize inputs to allowed values
-    safe_lang = "cs" if lang == "cs" else "en"
+    safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
     safe_display = display if display in {"spectra6", "bwr", "bwry"} else "1bit"
-    safe_weather = _normalize_weather_type(weather_type)
+    safe_weather = "off" if not weather else _normalize_weather_type(weather_type)
 
     # Lookup filename from whitelist (no user input in path construction)
     filename = _VALID_CALENDAR_FILENAMES.get((safe_lang, safe_display, safe_weather))
+    if not filename:
+        return None
+
+    image_path = Path(config.IMAGES_PATH) / filename
+    return image_path if image_path.exists() else None
+
+
+def _get_pregenerated_teams_path(*, lang: str, year: int | None, display: str) -> Path | None:
+    """Return a pregenerated teams BMP path when the request matches one."""
+    default_year = get_default_teams_year()
+    if year is not None and year != default_year:
+        return None
+
+    safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
+    safe_display = display if display in {"spectra6", "bwr", "bwry"} else "1bit"
+    filename = _get_valid_teams_filenames(default_year).get((safe_lang, safe_display))
     if not filename:
         return None
 
@@ -305,16 +318,16 @@ def _maybe_convert_timezone(race_data: dict, target_tz: str) -> dict:
 
 
 def _get_renderer(
-    display: str, translator
+    display: str, translator, lang: str
 ) -> Renderer | Spectra6Renderer | BwrRenderer | BwryRenderer:
     """Instantiate the renderer for the requested display mode."""
     if display == "spectra6":
-        return Spectra6Renderer(translator)
+        return Spectra6Renderer(translator, lang)
     if display == "bwr":
-        return BwrRenderer(translator)
+        return BwrRenderer(translator, lang)
     if display == "bwry":
-        return BwryRenderer(translator)
-    return Renderer(translator)
+        return BwryRenderer(translator, lang)
+    return Renderer(translator, lang)
 
 
 async def _render_calendar(
@@ -328,14 +341,14 @@ async def _render_calendar(
     weather: bool,
     weather_type: str,
     display: str,
-) -> tuple[bytes, dict | None]:
+) -> tuple[bytes, dict | None, bool]:
     """Render a calendar BMP and return the output plus source race data."""
     translator = get_translator(lang)
 
     race_data = _get_race_data_from_static(f1_service, year, race_round, race_key)
     if not race_data:
-        renderer = _get_renderer(display, translator)
-        return renderer.render_error("Failed to fetch race data"), None
+        renderer = _get_renderer(display, translator, lang)
+        return renderer.render_error("Failed to fetch race data"), None, False
 
     weather_data = None
     if weather and config.WEATHER_ENABLED and not race_data.get("is_cancelled"):
@@ -350,10 +363,12 @@ async def _render_calendar(
     circuit_id = race_data.get("circuit", {}).get("circuitId", "")
     historical_data = F1Service.get_historical_from_static(circuit_id) if circuit_id else None
 
-    renderer = _get_renderer(display, translator)
-    return renderer.render_calendar(
-        race_data, historical_data, weather_data, weather_type
-    ), race_data
+    renderer = _get_renderer(display, translator, lang)
+    return (
+        renderer.render_calendar(race_data, historical_data, weather_data, weather_type),
+        race_data,
+        True,
+    )
 
 
 @router.get("/calendar.bmp")
@@ -435,6 +450,7 @@ async def get_calendar_bmp(
         race_key=race_key,
         tz=tz,
         display=display,
+        weather=weather,
         weather_type=weather_type,
     )
     if image_path is not None:
@@ -470,7 +486,7 @@ async def get_calendar_bmp(
 
     try:
         target_tz = tz or config.DEFAULT_TIMEZONE
-        bmp_data, race_data = await _render_calendar(
+        bmp_data, race_data, is_cacheable = await _render_calendar(
             f1_service=f1_service,
             lang=lang,
             year=year,
@@ -481,7 +497,8 @@ async def get_calendar_bmp(
             weather_type=weather_type,
             display=display,
         )
-        get_bmp_cache()[cache_key] = bmp_data
+        if is_cacheable:
+            get_bmp_cache()[cache_key] = bmp_data
 
         if race_data:
             actual_year = int(race_data.get("season", 0)) or actual_year
@@ -524,7 +541,7 @@ async def get_calendar_bmp(
         sentry_sdk.capture_exception(exc)
 
         translator = get_translator(lang)
-        renderer = _get_renderer(display, translator)
+        renderer = _get_renderer(display, translator, lang)
         bmp_data = renderer.render_error(str(exc))
 
         auto_selected = year is None and race_round is None and race_key is None
@@ -571,14 +588,66 @@ async def get_teams_bmp(
         display = _normalize_display(display)
 
         if year is None:
-            year = get_current_f1_season()
+            year = get_default_teams_year()
+
+        cache_key = get_teams_image_key(lang, year, display=display)
+        cached_bmp = get_bmp_cache().get(cache_key)
+        if cached_bmp:
+            record_api_call(
+                "/teams.bmp",
+                (time.time() - start_time) * 1000,
+                len(cached_bmp),
+                lang,
+                None,
+                year,
+                None,
+                None,
+                False,
+                display_type=display,
+            )
+            return StreamingResponse(
+                BytesIO(cached_bmp),
+                media_type="image/bmp",
+                headers={
+                    "Content-Disposition": 'inline; filename="teams.bmp"',
+                    "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
+                },
+            )
+
+        image_path = _get_pregenerated_teams_path(lang=lang, year=year, display=display)
+        if image_path is not None:
+            bmp_data = image_path.read_bytes()
+            get_bmp_cache()[cache_key] = bmp_data
+
+            record_api_call(
+                "/teams.bmp",
+                (time.time() - start_time) * 1000,
+                len(bmp_data),
+                lang,
+                None,
+                year,
+                None,
+                None,
+                False,
+                display_type=display,
+            )
+
+            return StreamingResponse(
+                BytesIO(bmp_data),
+                media_type="image/bmp",
+                headers={
+                    "Content-Disposition": 'inline; filename="teams.bmp"',
+                    "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
+                },
+            )
 
         translator = get_translator(lang)
         teams_service = TeamsService()
         teams_data = await teams_service.get_teams_and_drivers(year)
 
-        renderer = _get_renderer(display, translator)
+        renderer = _get_renderer(display, translator, lang)
         bmp_data = renderer.render_teams_drivers(teams_data)
+        get_bmp_cache()[cache_key] = bmp_data
 
         record_api_call(
             "/teams.bmp",
@@ -608,7 +677,7 @@ async def get_teams_bmp(
 
         translator = get_translator(lang)
         display = _normalize_display(display)
-        renderer = _get_renderer(display, translator)
+        renderer = _get_renderer(display, translator, lang)
         bmp_data = renderer.render_error(str(exc))
 
         record_api_call(
