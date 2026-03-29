@@ -24,7 +24,6 @@ from app.services.spectra6_renderer import Spectra6Renderer
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.weather_service import get_weather_context
 from app.state import get_bmp_cache, record_api_call
-from app.utils.f1_season import get_current_f1_season
 from app.utils.race_times import convert_race_times_to_timezone
 
 from .deps import get_f1_service
