@@ -32,8 +32,8 @@ class BwryColors:
 class BwryRenderer(BwrRenderer):
     """Renderer for generating black/white/red/yellow BMP images."""
 
-    def __init__(self, translator: dict):
-        super().__init__(translator)
+    def __init__(self, translator: dict, lang_code: str = "en"):
+        super().__init__(translator, lang_code)
         self.colors = BwryColors
 
     @staticmethod

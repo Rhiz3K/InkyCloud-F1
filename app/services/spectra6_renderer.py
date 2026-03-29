@@ -12,6 +12,7 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import HistoricalData, TeamsData
+from app.services.font_utils import FONTS_DIR, load_ui_font
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
@@ -67,7 +68,6 @@ ASSETS_DIR = Path(__file__).parent.parent / "assets"
 TRACKS_DIR = ASSETS_DIR / "tracks"
 TRACKS_PROCESSED_DIR = ASSETS_DIR / "tracks_processed"
 IMAGES_DIR = ASSETS_DIR / "images"
-FONTS_DIR = ASSETS_DIR / "fonts"
 FLAGS_DIR = ASSETS_DIR / "flags_spectra6"
 TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
 
@@ -97,11 +97,12 @@ class Spectra6Colors:
 class Spectra6Renderer:
     """Renderer for generating 6-color images for Spectra 6 E-Ink displays."""
 
-    def __init__(self, translator: dict):
+    def __init__(self, translator: dict, lang_code: str = "en"):
         """Initialize the Spectra 6 renderer, fonts, and layout constants."""
         self.width = config.DISPLAY_WIDTH
         self.height = config.DISPLAY_HEIGHT
         self.translator = translator
+        self.lang_code = lang_code
         self.colors = Spectra6Colors
         self._racing_fonts = {22: self._load_racing_font(22)}
 
@@ -233,7 +234,10 @@ class Spectra6Renderer:
         self._draw_f1_logo(image, split_x, header_height)
 
         title = self.translator.get("teams_drivers_title", "TEAMS & DRIVERS")
-        line1 = f"{season} FIA F1 World Championship"
+        championship_title = self.translator.get(
+            "championship_title", "FIA F1 World Championship"
+        )
+        line1 = f"{season} {championship_title}"
         line2 = title.upper()
 
         text_x = split_x + 15
@@ -725,7 +729,10 @@ class Spectra6Renderer:
         race_name = race_data.get("race_name", "Grand Prix")
         season = race_data.get("season", "")
 
-        line1 = f"{season} FIA F1 World Championship"
+        championship_title = self.translator.get(
+            "championship_title", "FIA F1 World Championship"
+        )
+        line1 = f"{season} {championship_title}"
         line2 = f"{race_name.upper()}"
 
         text_x = split_x + 15
@@ -1465,23 +1472,9 @@ class Spectra6Renderer:
 
         return f"{pos}. {driver[:5]}.. ({team[:3]}..)"
 
-    @staticmethod
-    def _load_font(size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the main UI font with a system fallback."""
-        font_filename = "TitilliumWeb-Bold.ttf" if bold else "TitilliumWeb-Regular.ttf"
-        font_path = FONTS_DIR / font_filename
-
-        if font_path.exists():
-            try:
-                return ImageFont.truetype(str(font_path), size)
-            except Exception as e:
-                logger.warning("Failed to load TitilliumWeb: %s", e)
-
-        fallback_name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
-        try:
-            return ImageFont.truetype(fallback_name, size)
-        except OSError:
-            return ImageFont.load_default()
+    def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the main UI font for the active locale."""
+        return load_ui_font(self.lang_code, size, bold=bold)
 
     @staticmethod
     def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:

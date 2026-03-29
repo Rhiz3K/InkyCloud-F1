@@ -125,10 +125,10 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
 
             # Display variants: 1bit, spectra6, black/white/red, and black/white/red/yellow
             display_variants = [
-                ("1bit", Renderer(translator)),
-                ("spectra6", Spectra6Renderer(translator)),
-                ("bwr", BwrRenderer(translator)),
-                ("bwry", BwryRenderer(translator)),
+                ("1bit", Renderer(translator, lang)),
+                ("spectra6", Spectra6Renderer(translator, lang)),
+                ("bwr", BwrRenderer(translator, lang)),
+                ("bwry", BwryRenderer(translator, lang)),
             ]
 
             for display_name, display_renderer in display_variants:
@@ -183,10 +183,10 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
             teams_service = TeamsService()
             teams_data = await teams_service.get_teams_and_drivers()
             display_variants = [
-                ("1bit", Renderer(translator)),
-                ("spectra6", Spectra6Renderer(translator)),
-                ("bwr", BwrRenderer(translator)),
-                ("bwry", BwryRenderer(translator)),
+                ("1bit", Renderer(translator, lang)),
+                ("spectra6", Spectra6Renderer(translator, lang)),
+                ("bwr", BwrRenderer(translator, lang)),
+                ("bwry", BwryRenderer(translator, lang)),
             ]
 
             homepage_path = images_dir / f"preview_teams_{lang}.png"
@@ -234,13 +234,13 @@ async def _generate_variant(
     """Render and save a single pregenerated calendar variant."""
     translator = get_translator(lang)
     if display == "spectra6":
-        renderer = Spectra6Renderer(translator)
+        renderer = Spectra6Renderer(translator, lang)
     elif display == "bwr":
-        renderer = BwrRenderer(translator)
+        renderer = BwrRenderer(translator, lang)
     elif display == "bwry":
-        renderer = BwryRenderer(translator)
+        renderer = BwryRenderer(translator, lang)
     else:
-        renderer = Renderer(translator)
+        renderer = Renderer(translator, lang)
 
     wd = weather_data if weather_type != "off" else None
     bmp_data = renderer.render_calendar(race_data, historical_data, wd, weather_type)

@@ -305,16 +305,16 @@ def _maybe_convert_timezone(race_data: dict, target_tz: str) -> dict:
 
 
 def _get_renderer(
-    display: str, translator
+    display: str, translator, lang: str
 ) -> Renderer | Spectra6Renderer | BwrRenderer | BwryRenderer:
     """Instantiate the renderer for the requested display mode."""
     if display == "spectra6":
-        return Spectra6Renderer(translator)
+        return Spectra6Renderer(translator, lang)
     if display == "bwr":
-        return BwrRenderer(translator)
+        return BwrRenderer(translator, lang)
     if display == "bwry":
-        return BwryRenderer(translator)
-    return Renderer(translator)
+        return BwryRenderer(translator, lang)
+    return Renderer(translator, lang)
 
 
 async def _render_calendar(
@@ -334,7 +334,7 @@ async def _render_calendar(
 
     race_data = _get_race_data_from_static(f1_service, year, race_round, race_key)
     if not race_data:
-        renderer = _get_renderer(display, translator)
+        renderer = _get_renderer(display, translator, lang)
         return renderer.render_error("Failed to fetch race data"), None
 
     weather_data = None
@@ -350,7 +350,7 @@ async def _render_calendar(
     circuit_id = race_data.get("circuit", {}).get("circuitId", "")
     historical_data = F1Service.get_historical_from_static(circuit_id) if circuit_id else None
 
-    renderer = _get_renderer(display, translator)
+    renderer = _get_renderer(display, translator, lang)
     return renderer.render_calendar(
         race_data, historical_data, weather_data, weather_type
     ), race_data
@@ -524,7 +524,7 @@ async def get_calendar_bmp(
         sentry_sdk.capture_exception(exc)
 
         translator = get_translator(lang)
-        renderer = _get_renderer(display, translator)
+        renderer = _get_renderer(display, translator, lang)
         bmp_data = renderer.render_error(str(exc))
 
         auto_selected = year is None and race_round is None and race_key is None
@@ -577,7 +577,7 @@ async def get_teams_bmp(
         teams_service = TeamsService()
         teams_data = await teams_service.get_teams_and_drivers(year)
 
-        renderer = _get_renderer(display, translator)
+        renderer = _get_renderer(display, translator, lang)
         bmp_data = renderer.render_teams_drivers(teams_data)
 
         record_api_call(
@@ -608,7 +608,7 @@ async def get_teams_bmp(
 
         translator = get_translator(lang)
         display = _normalize_display(display)
-        renderer = _get_renderer(display, translator)
+        renderer = _get_renderer(display, translator, lang)
         bmp_data = renderer.render_error(str(exc))
 
         record_api_call(
