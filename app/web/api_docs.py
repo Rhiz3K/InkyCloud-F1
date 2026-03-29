@@ -372,7 +372,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
 }
 
 
-def _build_english_code_examples() -> dict[str, str]:
+def _build_english_code_examples(server_url: str) -> dict[str, str]:
     curl_comment1 = "# Download next race calendar"
     curl_comment2 = "# With Czech language and timezone"
     curl_comment3 = "# Specific race (year and round)"
@@ -387,13 +387,13 @@ def _build_english_code_examples() -> dict[str, str]:
     return {
         "code_curl": (
             f"{curl_comment1}\n"
-            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp"\n\n'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp"\n\n'
             f"{curl_comment2}\n"
-            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?lang=cs&tz=Europe/Prague"\n\n'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp?lang=cs&tz=Europe/Prague"\n\n'
             f"{curl_comment3}\n"
-            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?year=2025&round=5"\n\n'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp?year=2025&round=5"\n\n'
             f"{curl_comment4}\n"
-            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?display=bwry"'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp?display=bwry"'
         ),
         "code_python": (
             "import httpx\n\n"
@@ -401,7 +401,7 @@ def _build_english_code_examples() -> dict[str, str]:
             f'    """{python_docstring}"""\n'
             "    async with httpx.AsyncClient() as client:\n"
             "        response = await client.get(\n"
-            '            "https://f1-eink.example.com/calendar.bmp",\n'
+            f'            "{server_url}/calendar.bmp",\n'
             '            params={"lang": lang, "tz": tz}\n'
             "        )\n"
             "        response.raise_for_status()\n\n"
@@ -415,7 +415,7 @@ def _build_english_code_examples() -> dict[str, str]:
         "code_javascript": (
             f"{js_comment1}\n"
             "async function loadF1Calendar(lang = 'en', tz = 'Europe/Prague') {\n"
-            "    const url = new URL('https://f1-eink.example.com/calendar.bmp');\n"
+            f"    const url = new URL('{server_url}/calendar.bmp');\n"
             "    url.searchParams.set('lang', lang);\n"
             "    url.searchParams.set('tz', tz);\n\n"
             "    const response = await fetch(url);\n"
@@ -437,7 +437,7 @@ def _build_english_code_examples() -> dict[str, str]:
     }
 
 
-def _build_czech_code_examples() -> dict[str, str]:
+def _build_czech_code_examples(server_url: str) -> dict[str, str]:
     curl_comment1 = "# Stáhnout kalendář dalšího závodu"
     curl_comment2 = "# S českým jazykem a časovým pásmem"
     curl_comment3 = "# Konkrétní závod (rok a kolo)"
@@ -452,13 +452,13 @@ def _build_czech_code_examples() -> dict[str, str]:
     return {
         "code_curl": (
             f"{curl_comment1}\n"
-            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp"\n\n'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp"\n\n'
             f"{curl_comment2}\n"
-            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?lang=cs&tz=Europe/Prague"\n\n'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp?lang=cs&tz=Europe/Prague"\n\n'
             f"{curl_comment3}\n"
-            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?year=2025&round=5"\n\n'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp?year=2025&round=5"\n\n'
             f"{curl_comment4}\n"
-            'curl -o calendar.bmp "https://f1-eink.example.com/calendar.bmp?display=bwry"'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp?display=bwry"'
         ),
         "code_python": (
             "import httpx\n\n"
@@ -466,7 +466,7 @@ def _build_czech_code_examples() -> dict[str, str]:
             f'    """{python_docstring}"""\n'
             "    async with httpx.AsyncClient() as client:\n"
             "        response = await client.get(\n"
-            '            "https://f1-eink.example.com/calendar.bmp",\n'
+            f'            "{server_url}/calendar.bmp",\n'
             '            params={"lang": lang, "tz": tz}\n'
             "        )\n"
             "        response.raise_for_status()\n\n"
@@ -480,7 +480,7 @@ def _build_czech_code_examples() -> dict[str, str]:
         "code_javascript": (
             f"{js_comment1}\n"
             "async function loadF1Calendar(lang = 'en', tz = 'Europe/Prague') {\n"
-            "    const url = new URL('https://f1-eink.example.com/calendar.bmp');\n"
+            f"    const url = new URL('{server_url}/calendar.bmp');\n"
             "    url.searchParams.set('lang', lang);\n"
             "    url.searchParams.set('tz', tz);\n\n"
             "    const response = await fetch(url);\n"
@@ -502,10 +502,12 @@ def _build_czech_code_examples() -> dict[str, str]:
     }
 
 
-def build_api_docs_context(ui_lang: str) -> dict[str, Any]:
+def build_api_docs_context(ui_lang: str, server_url: str) -> dict[str, Any]:
     """Build localized strings and code snippets for api_docs.html."""
     texts = API_DOCS_TEXTS.get(ui_lang, API_DOCS_TEXTS["en"])
     code_examples = (
-        _build_czech_code_examples() if ui_lang == "cs" else _build_english_code_examples()
+        _build_czech_code_examples(server_url)
+        if ui_lang == "cs"
+        else _build_english_code_examples(server_url)
     )
-    return {**code_examples, **texts}
+    return {**code_examples, **texts, "server_url": server_url}

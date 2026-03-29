@@ -323,7 +323,7 @@ async def _api_docs_handler(request: Request, ui_lang: str) -> HTMLResponse:
 
     context = get_template_context(request, ui_lang)
     context["active_page"] = "api"
-    context.update(build_api_docs_context(ui_lang))
+    context.update(build_api_docs_context(ui_lang, str(request.base_url).rstrip("/")))
 
     return templates.TemplateResponse(request, "api_docs.html", context)
 
