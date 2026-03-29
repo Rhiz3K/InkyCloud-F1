@@ -785,6 +785,10 @@ class Spectra6Renderer:
         if self._team_logos is None:
             self._team_logos = self._get_cached_team_logos()
 
+    def ensure_teams_assets(self) -> None:
+        """Public warmup hook for teams assets used outside the renderer."""
+        self._ensure_teams_assets()
+
     def _draw_track_section(
         self,
         draw: ImageDraw.ImageDraw,

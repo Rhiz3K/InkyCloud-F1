@@ -26,6 +26,6 @@ def warm_teams_renderer_assets(lang: str | None = None) -> None:
     )
 
     for renderer in renderers:
-        renderer._ensure_teams_assets()
+        renderer.ensure_teams_assets()
 
     logger.info("Warmed teams renderer assets for %s", resolved_lang)

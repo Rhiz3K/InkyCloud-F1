@@ -170,7 +170,7 @@ class Config(BaseSettings):
             port = int(value)  # type: ignore[call-overload]
             if 0 < port < 65536:
                 return port
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer < 65536")
 
