@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import math
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -12,7 +13,7 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import ConstructorStanding, DriverStanding, HistoricalData, TeamsData
-from app.services.font_utils import FONTS_DIR, load_ui_font
+from app.services.font_utils import FONTS_DIR, fit_ui_font, load_ui_font
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
@@ -1244,11 +1245,20 @@ class Renderer:
         y_start = self.layout["schedule_title_y"]
 
         schedule_title = self.translator.get("weekend_schedule", "WEEKEND SCHEDULE")
+        schedule_title_font = fit_ui_font(
+            draw,
+            self.lang_code,
+            schedule_title,
+            max_width=self.width - x_start - 5,
+            base_size=24,
+            min_size=18,
+            bold=True,
+        )
         draw.text(
             (x_start, y_start),
             schedule_title,
             fill=0,
-            font=self.fonts["schedule_title"],
+            font=schedule_title_font,
         )
 
         schedule = race_data.get("schedule", [])
@@ -1287,17 +1297,50 @@ class Renderer:
             day_str = ""
             time_str = event.get("display_time", "")
 
-        translated_name = self.translator.get(f"session_{name.lower()}", name)
+        translated_name = self._translate_session_name(name)
 
         # Draw columns
         font_reg = self.fonts["schedule_row"]
-        font_bold = self.fonts["schedule_row_bold"]
+        font_bold = fit_ui_font(
+            draw,
+            self.lang_code,
+            translated_name,
+            max_width=self.width - self.layout["schedule_name_x"] - 5,
+            base_size=20,
+            min_size=15,
+            bold=True,
+        )
 
         draw.text((self.layout["schedule_date_x"], y), date_str, fill=0, font=font_reg)
         draw.text((self.layout["schedule_day_x"], y), day_str, fill=0, font=font_reg)
         draw.text((self.layout["schedule_time_x"], y), time_str, fill=0, font=font_reg)
         # Event name in BOLD
         draw.text((self.layout["schedule_name_x"], y), translated_name, fill=0, font=font_bold)
+
+    def _translate_session_name(self, name: str) -> str:
+        """Translate session names while normalizing API/static variants."""
+        if not name:
+            return ""
+
+        direct_key = f"session_{name.lower()}"
+        if direct_key in self.translator:
+            return self.translator[direct_key]
+
+        normalized = re.sub(r"[^a-z0-9]+", "", name.lower())
+        aliases = {
+            "practice1": "fp1",
+            "practice2": "fp2",
+            "practice3": "fp3",
+            "firstpractice": "fp1",
+            "secondpractice": "fp2",
+            "thirdpractice": "fp3",
+            "sprintqualifying": "sprintqualifying",
+            "sprintshootout": "sprintqualifying",
+            "shootout": "sprintqualifying",
+        }
+        normalized = aliases.get(normalized, normalized)
+        normalized_key = f"session_{normalized}"
+        return self.translator.get(normalized_key, name)
 
     def _draw_countdown_box(
         self,

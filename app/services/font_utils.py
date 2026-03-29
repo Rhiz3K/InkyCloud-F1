@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from PIL import ImageFont
+from PIL import ImageDraw, ImageFont
 from PIL.ImageFont import FreeTypeFont
 
 logger = logging.getLogger(__name__)
@@ -47,6 +47,26 @@ def load_ui_font(
         return ImageFont.truetype(fallback_name, size)
     except OSError:
         return ImageFont.load_default()
+
+
+def fit_ui_font(
+    draw: ImageDraw.ImageDraw,
+    lang_code: str,
+    text: str,
+    *,
+    max_width: int,
+    base_size: int,
+    min_size: int,
+    bold: bool = False,
+) -> FreeTypeFont | ImageFont.ImageFont:
+    """Load the largest UI font that fits into the provided width."""
+    for size in range(base_size, min_size - 1, -1):
+        font = load_ui_font(lang_code, size, bold=bold)
+        bbox = draw.textbbox((0, 0), text, font=font)
+        width = bbox[2] - bbox[0]
+        if width <= max_width:
+            return font
+    return load_ui_font(lang_code, min_size, bold=bold)
 
 
 def _load_cjk_font(lang_code: str, size: int) -> FreeTypeFont | ImageFont.ImageFont | None:
