@@ -24,6 +24,7 @@ from app.services import renderer as renderer_module
 from app.services import spectra6_renderer as spectra6_renderer_module
 from app.services.bwr_renderer import BwrColors, BwrRenderer
 from app.services.bwry_renderer import BwryColors, BwryRenderer
+from app.services.font_utils import fit_ui_font_box
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
@@ -228,6 +229,27 @@ def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
     assert rendered.format == "BMP"
     assert rendered.size == (800, 480)
     assert rendered.mode == "1"
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
+        ("cs", "Sprint K."),
+        ("sk", "Sprint K."),
+        ("pl", "Sprint K."),
+        ("en", "Sprint Q."),
+        ("de", "Sprint Q."),
+        ("ja", "Sprint Q."),
+        ("zh-CN", "Sprint Q."),
+    ],
+)
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_translate_session_name_uses_short_sprint_qualifying_labels(renderer_cls, lang, expected):
+    """Sprint qualifying aliases should resolve to the short per-locale label."""
+    renderer = renderer_cls(get_translator(lang), lang)
+    assert renderer._translate_session_name("SprintQualifying") == expected
+    assert renderer._translate_session_name("Sprint Qualifying") == expected
+    assert renderer._translate_session_name("Sprint Shootout") == expected
 
 
 def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
@@ -704,6 +726,70 @@ def test_render_2026_teams_cs():
     assert img.format == "BMP"
     assert img.size == (800, 480)
     assert img.mode == "1"
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+@pytest.mark.parametrize("lang", ["ja", "zh-CN"])
+def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
+    """CJK locale driver names should keep clear of the team-card header line."""
+    teams_data = TeamsService()._load_from_json(2026)
+    assert teams_data is not None
+
+    renderer = renderer_cls(get_translator(lang), lang)
+    background = 1 if renderer_cls is Renderer else renderer.colors.WHITE
+    image_mode = "1" if renderer_cls is Renderer else "RGB"
+    image = Image.new(image_mode, (renderer.width, renderer.height), background)
+    draw = ImageDraw.Draw(image)
+
+    left_teams, right_teams = renderer._split_teams_for_columns(teams_data.teams)
+    teams_per_col = max(len(left_teams), len(right_teams), 1)
+    row_gap = 2
+    row_height = (
+        renderer.height
+        - renderer.layout["header_height"]
+        - 8
+        - (teams_per_col - 1) * row_gap
+    ) // teams_per_col
+    card_header_height = 23
+    card_header_gap = 1
+    photo_x = 9
+    y_start = renderer.layout["header_height"] + 4
+
+    for column_index, column_teams in enumerate((left_teams, right_teams)):
+        y = y_start
+        x_end = renderer.width // 2 - 2 if column_index == 0 else renderer.width - 5
+        for team in column_teams:
+            driver_area_height = row_height - card_header_height - 4
+            driver_row_height = driver_area_height // 2
+            driver_y_start = y + card_header_height + 2
+            photo_size = driver_row_height - 2
+            driver_pos_x = x_end - 72
+
+            for i, driver in enumerate(sorted(team.drivers[:2], key=lambda d: d.position or 99)):
+                name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
+                if not name:
+                    name = driver.driver_code or "TBA"
+                display_name = renderer._format_team_driver_display_name(name)
+                driver_y = driver_y_start + i * driver_row_height
+                driver_name_x = photo_x + photo_size + renderer.layout["driver_name_padding"] + 4
+                max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
+                driver_font = fit_ui_font_box(
+                    draw,
+                    lang,
+                    display_name,
+                    max_width=max_name_width,
+                    max_height=max(1, driver_row_height - 1),
+                    base_size=18,
+                    min_size=12,
+                    bold=True,
+                )
+                driver_text_y = renderer._get_text_y(
+                    draw, driver_font, driver_row_height, driver_y, display_name
+                )
+                bbox = draw.textbbox((driver_name_x, driver_text_y), display_name, font=driver_font)
+                assert bbox[1] >= y + card_header_height + card_header_gap
+
+            y += row_height + row_gap
 
 
 def test_draw_driver_photo_prefers_explicit_number_over_asset():

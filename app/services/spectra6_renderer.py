@@ -13,7 +13,7 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import HistoricalData, TeamsData
-from app.services.font_utils import FONTS_DIR, fit_ui_font, load_ui_font
+from app.services.font_utils import FONTS_DIR, fit_ui_font, fit_ui_font_box, load_ui_font
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
@@ -351,9 +351,10 @@ class Spectra6Renderer:
         font,
         row_h: int,
         row_y: int,
+        text: str = "Ay",
     ) -> int:
-        """Align text vertically within a row using font metrics."""
-        bbox = draw.textbbox((0, 0), "Ay", font=font)
+        """Align text vertically within a row using the provided text metrics."""
+        bbox = draw.textbbox((0, 0), text, font=font)
         h = bbox[3] - bbox[1]
         top_off = bbox[1]
         return int(row_y + (row_h - h) // 2 - top_off)
@@ -485,7 +486,6 @@ class Spectra6Renderer:
 
         display_name = self._format_team_driver_display_name(name)
         center_y = driver_y + driver_row_height // 2
-        driver_text_y = self._get_text_y(draw, driver_font, driver_row_height, driver_y)
         driver_small_y = self._get_text_y(draw, small_font, driver_row_height, driver_y)
 
         photo_y = center_y - photo_size // 2
@@ -499,6 +499,19 @@ class Spectra6Renderer:
             driver_number=driver.driver_number,
         )
         driver_name_x = photo_x + photo_size + self.layout["driver_name_padding"] + 4
+        if self.lang_code in {"ja", "zh-CN"}:
+            max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
+            driver_font = fit_ui_font_box(
+                draw,
+                self.lang_code,
+                display_name,
+                max_width=max_name_width,
+                max_height=max(1, driver_row_height - 1),
+                base_size=18,
+                min_size=12,
+                bold=True,
+            )
+        driver_text_y = self._get_text_y(draw, driver_font, driver_row_height, driver_y, display_name)
         draw.text(
             (driver_name_x, driver_text_y),
             display_name,
