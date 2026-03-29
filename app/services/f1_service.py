@@ -274,6 +274,7 @@ class F1Service:
             ("SecondPractice", "FP2"),
             ("ThirdPractice", "FP3"),
             ("Qualifying", "Qualifying"),
+            ("SprintQualifying", "SprintQualifying"),
             ("Sprint", "Sprint"),
         ]
 

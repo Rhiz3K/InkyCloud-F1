@@ -4,6 +4,7 @@ import asyncio
 import json
 from unittest.mock import AsyncMock, patch
 
+from app.models import Circuit, Location, Race, RaceSession
 from app.services import f1_service as f1_service_module
 from app.services.f1_service import F1Service
 
@@ -255,3 +256,28 @@ def test_get_season_races_merges_cancelled_races_from_static(tmp_path, monkeypat
     ]
     assert races[1]["is_cancelled"] is True
     assert races[2]["is_cancelled"] is True
+
+
+def test_convert_race_times_includes_sprint_qualifying_session():
+    service = F1Service()
+    race = Race(
+        season="2026",
+        round="2",
+        raceName="Chinese Grand Prix",
+        Circuit=Circuit(
+            circuitId="shanghai",
+            circuitName="Shanghai International Circuit",
+            Location=Location(locality="Shanghai", country="China"),
+        ),
+        date="2026-03-15",
+        time="07:00:00Z",
+        FirstPractice=RaceSession(date="2026-03-13", time="03:30:00Z"),
+        SprintQualifying=RaceSession(date="2026-03-13", time="07:30:00Z"),
+        Sprint=RaceSession(date="2026-03-14", time="03:00:00Z"),
+        Qualifying=RaceSession(date="2026-03-14", time="07:00:00Z"),
+    )
+
+    result = service._convert_race_times(race)
+    session_names = [event["name"] for event in result["schedule"]]
+
+    assert session_names == ["FP1", "SprintQualifying", "Sprint", "Qualifying", "Race"]
