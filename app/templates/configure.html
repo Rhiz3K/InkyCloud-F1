@@ -1773,10 +1773,10 @@ block content %}
 
   function renderTzList() {
     const container = document.getElementById("tzList");
-    const query = document
-      .getElementById("tzSearch")
-      .value.toLowerCase()
-      .trim();
+    const searchInput = document.getElementById("tzSearch");
+    if (!container || !searchInput) return;
+
+    const query = searchInput.value.toLowerCase().trim();
     container.innerHTML = "";
 
     // Helper to add group header

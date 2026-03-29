@@ -85,12 +85,6 @@ async def get_preview_png(screen_type: str, lang: str = Query(default="en")) -> 
 
     safe_lang = _ALLOWED_LANGS.get(lang, "en")
 
-    if safe_screen == "teams":
-        try:
-            return await _render_teams_preview(safe_lang, full_size=False)
-        except Exception as exc:
-            logger.warning("Falling back to static teams homepage preview: %s", exc)
-
     filename = f"preview_{safe_screen}_{safe_lang}.png"
     preview_path = Path(config.IMAGES_PATH) / filename
     if preview_path.exists():
@@ -99,6 +93,12 @@ async def get_preview_png(screen_type: str, lang: str = Query(default="en")) -> 
             media_type="image/png",
             headers={"Cache-Control": "public, max-age=3600"},
         )
+
+    if safe_screen == "teams":
+        try:
+            return await _render_teams_preview(safe_lang, full_size=False)
+        except Exception as exc:
+            logger.warning("Falling back to dynamic teams homepage preview failed: %s", exc)
 
     raise HTTPException(status_code=404, detail="Preview not generated yet")
 
@@ -127,16 +127,6 @@ async def get_configure_preview_png(
     safe_lang = _ALLOWED_LANGS.get(lang, "en")
     safe_weather = allowed_weather.get(weather_type, "off")
     safe_display = allowed_display.get(display, "1bit")
-
-    if safe_screen == "teams":
-        try:
-            return await _render_teams_preview(
-                safe_lang,
-                safe_display,
-                full_size=True,
-            )
-        except Exception as exc:
-            logger.warning("Falling back to static teams configure preview: %s", exc)
 
     # Build filename matching scheduler's format
     if safe_screen == "calendar":
@@ -169,6 +159,16 @@ async def get_configure_preview_png(
             media_type="image/png",
             headers={"Cache-Control": "public, max-age=3600"},
         )
+
+    if safe_screen == "teams":
+        try:
+            return await _render_teams_preview(
+                safe_lang,
+                safe_display,
+                full_size=True,
+            )
+        except Exception as exc:
+            logger.warning("Falling back to dynamic teams configure preview failed: %s", exc)
 
     raise HTTPException(status_code=404, detail="Configure preview not generated yet")
 
