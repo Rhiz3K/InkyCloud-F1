@@ -1,5 +1,7 @@
-{% extends "base.html" %} {% block title %}{{ t.get('configure_title',
-'Configure').replace('{screen_type}', screen_type|title) }} -
+{% extends "base.html" %} {% set screen_type_name = t.get('screen_calendar_name',
+'Calendar') if screen_type == 'calendar' else t.get('screen_teams_name',
+'Teams') %} {% block title %}{{ t.get('configure_title',
+'Configure').replace('{screen_type}', screen_type_name) }} -
 F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   name="description"
   content="{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}"
@@ -413,7 +415,8 @@ block content %}
               onclick="copyUrl()"
               id="copyBtn"
               class="px-4 py-2 bg-white border-t-2 border-r-2 border-b-2 border-black hover:bg-black hover:text-white transition-colors control-btn"
-              title="Copy"
+              title="{{ t.get('api_docs_copy', 'Copy') }}"
+              aria-label="{{ t.get('api_docs_copy', 'Copy') }}"
             >
               <svg
                 class="w-4 h-4"
@@ -549,83 +552,443 @@ block content %}
     return "🏁";
   }
 
-  // UI Translations
-  const translations = {
+  let currentUiLang = "{{ ui_lang }}";
+  const configureStaticTextByLang = {
     en: {
-      headerTitle: "F1 InkyCloud",
-      screenTypeLabel: "Screen Type",
-      btnCalendar: "Calendar",
-      btnTeams: "Teams",
-      langLabel: "Bitmap Language",
       tzLabel: "Timezone",
       raceLabel: "Race",
       yearLabel: "Season",
       settingsBtn: "Settings",
-      einkBadge: "E-INK",
       errorText: "FAILED TO LOAD",
-      loadingText: "Loading...",
       retryBtn: "RETRY",
       refreshBtn: "REFRESH",
-      nextRace: "NEXT RACE",
-      seasonTitle: "Calendar",
-      cancelled: "CANCELLED",
-      footerPrivacy: "Privacy Policy",
       epaperSetupTitle: "ePaper Display Setup",
       epaperStep1:
         '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>In <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> select <strong>URL</strong> as content source</span>',
       epaperStep2:
         '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Copy the URL above into the image URL field</span>',
-      currentRankings: "Current Rankings",
-      seasonLeaders: "Season Leaders",
-      currentSeason: "Current",
-      leaderTeam: "Team",
-      leaderDriver: "Driver",
-      noDataYet: "No data yet",
       weatherLabel: "Weather",
       weatherCurrentLabel: "Current",
       weatherRaceDayLabel: "Race day",
       weatherTooltipText: "Activates 14 days before race",
       displayLabel: "Display",
+      searchPlaceholder: "SEARCH...",
+      noResults: "No results",
+      detectedLabel: "DETECTED",
+      failedToLoadRaces: "FAILED TO LOAD RACES",
+      loadingSeason: "Loading {year} season...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "ALL",
+        DETECTED: "DETECTED",
+        EUROPE: "EUROPE",
+        AMERICA: "AMERICA",
+        ASIA: "ASIA",
+        AFRICA: "AFRICA",
+        OCEANIA: "OCEANIA",
+        OTHER: "OTHER",
+      },
     },
     cs: {
-      headerTitle: "F1 InkyCloud",
-      screenTypeLabel: "Typ obrazovky",
-      btnCalendar: "Kalendář",
-      btnTeams: "Týmy",
-      langLabel: "Jazyk Bitmapy",
       tzLabel: "Časové pásmo",
       raceLabel: "Závod",
       yearLabel: "Sezóna",
       settingsBtn: "Nastavení",
-      einkBadge: "E-INK",
       errorText: "CHYBA NAČÍTÁNÍ",
-      loadingText: "Načítání...",
       retryBtn: "ZNOVU",
       refreshBtn: "OBNOVIT",
-      nextRace: "DALŠÍ ZÁVOD",
-      seasonTitle: "Kalendář",
-      cancelled: "ZRUŠENO",
-      footerPrivacy: "Ochrana soukromí",
       epaperSetupTitle: "Nastavení ePaper Displeje",
       epaperStep1:
         '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>V <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> vyberte <strong>URL</strong> jako zdroj obsahu</span>',
       epaperStep2:
         '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Vložte URL výše do pole pro URL obrázku</span>',
-      currentRankings: "Aktuální pořadí",
-      seasonLeaders: "Lídři sezóny",
-      currentSeason: "Aktuální",
-      leaderTeam: "Tým",
-      leaderDriver: "Jezdec",
-      noDataYet: "Zatím žádná data",
       weatherLabel: "Počasí",
       weatherCurrentLabel: "Aktuální",
       weatherRaceDayLabel: "V den závodu",
       weatherTooltipText: "Aktivuje se 14 dní před závodem",
       displayLabel: "Displej",
+      searchPlaceholder: "HLEDAT...",
+      noResults: "Bez výsledků",
+      detectedLabel: "DETEKOVÁNO",
+      failedToLoadRaces: "CHYBA NAČÍTÁNÍ ZÁVODŮ",
+      loadingSeason: "Načítání sezóny {year}...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "VŠE",
+        DETECTED: "DETEKOVÁNO",
+        EUROPE: "EVROPA",
+        AMERICA: "AMERIKA",
+        ASIA: "ASIE",
+        AFRICA: "AFRIKA",
+        OCEANIA: "OCEÁNIE",
+        OTHER: "OSTATNÍ",
+      },
+    },
+    de: {
+      tzLabel: "Zeitzone",
+      raceLabel: "Rennen",
+      yearLabel: "Saison",
+      settingsBtn: "Einstellungen",
+      errorText: "LADEN FEHLGESCHLAGEN",
+      retryBtn: "ERNEUT",
+      refreshBtn: "AKTUALISIEREN",
+      epaperSetupTitle: "ePaper-Display-Einrichtung",
+      epaperStep1:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>In <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> <strong>URL</strong> als Inhaltsquelle auswählen</span>',
+      epaperStep2:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Die obige URL in das Bild-URL-Feld einfügen</span>',
+      weatherLabel: "Wetter",
+      weatherCurrentLabel: "Aktuell",
+      weatherRaceDayLabel: "Am Renntag",
+      weatherTooltipText: "Aktiviert sich 14 Tage vor dem Rennen",
+      displayLabel: "Display",
+      searchPlaceholder: "SUCHEN...",
+      noResults: "Keine Ergebnisse",
+      detectedLabel: "ERKANNT",
+      failedToLoadRaces: "RENNEN KONNTEN NICHT GELADEN WERDEN",
+      loadingSeason: "Saison {year} wird geladen...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "ALLE",
+        DETECTED: "ERKANNT",
+        EUROPE: "EUROPA",
+        AMERICA: "AMERIKA",
+        ASIA: "ASIEN",
+        AFRICA: "AFRIKA",
+        OCEANIA: "OZEANIEN",
+        OTHER: "SONSTIGE",
+      },
+    },
+    es: {
+      tzLabel: "Zona horaria",
+      raceLabel: "Carrera",
+      yearLabel: "Temporada",
+      settingsBtn: "Ajustes",
+      errorText: "ERROR AL CARGAR",
+      retryBtn: "REINTENTAR",
+      refreshBtn: "ACTUALIZAR",
+      epaperSetupTitle: "Configuración de pantalla ePaper",
+      epaperStep1:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>En <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> selecciona <strong>URL</strong> como fuente de contenido</span>',
+      epaperStep2:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Pega la URL de arriba en el campo de URL de imagen</span>',
+      weatherLabel: "Tiempo",
+      weatherCurrentLabel: "Actual",
+      weatherRaceDayLabel: "Día de carrera",
+      weatherTooltipText: "Se activa 14 días antes de la carrera",
+      displayLabel: "Pantalla",
+      searchPlaceholder: "BUSCAR...",
+      noResults: "Sin resultados",
+      detectedLabel: "DETECTADO",
+      failedToLoadRaces: "ERROR AL CARGAR CARRERAS",
+      loadingSeason: "Cargando temporada {year}...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "TODOS",
+        DETECTED: "DETECTADO",
+        EUROPE: "EUROPA",
+        AMERICA: "AMÉRICA",
+        ASIA: "ASIA",
+        AFRICA: "ÁFRICA",
+        OCEANIA: "OCEANÍA",
+        OTHER: "OTROS",
+      },
+    },
+    it: {
+      tzLabel: "Fuso orario",
+      raceLabel: "Gara",
+      yearLabel: "Stagione",
+      settingsBtn: "Impostazioni",
+      errorText: "CARICAMENTO NON RIUSCITO",
+      retryBtn: "RIPROVA",
+      refreshBtn: "AGGIORNA",
+      epaperSetupTitle: "Configurazione display ePaper",
+      epaperStep1:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>In <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> seleziona <strong>URL</strong> come sorgente contenuto</span>',
+      epaperStep2:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Incolla l’URL qui sopra nel campo URL immagine</span>',
+      weatherLabel: "Meteo",
+      weatherCurrentLabel: "Attuale",
+      weatherRaceDayLabel: "Giorno gara",
+      weatherTooltipText: "Si attiva 14 giorni prima della gara",
+      displayLabel: "Display",
+      searchPlaceholder: "CERCA...",
+      noResults: "Nessun risultato",
+      detectedLabel: "RILEVATO",
+      failedToLoadRaces: "IMPOSSIBILE CARICARE LE GARE",
+      loadingSeason: "Caricamento stagione {year}...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "TUTTE",
+        DETECTED: "RILEVATO",
+        EUROPE: "EUROPA",
+        AMERICA: "AMERICA",
+        ASIA: "ASIA",
+        AFRICA: "AFRICA",
+        OCEANIA: "OCEANIA",
+        OTHER: "ALTRO",
+      },
+    },
+    fr: {
+      tzLabel: "Fuseau horaire",
+      raceLabel: "Course",
+      yearLabel: "Saison",
+      settingsBtn: "Paramètres",
+      errorText: "ÉCHEC DU CHARGEMENT",
+      retryBtn: "RÉESSAYER",
+      refreshBtn: "ACTUALISER",
+      epaperSetupTitle: "Configuration de l'écran ePaper",
+      epaperStep1:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>Dans <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> sélectionnez <strong>URL</strong> comme source de contenu</span>',
+      epaperStep2:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Collez l’URL ci-dessus dans le champ URL de l’image</span>',
+      weatherLabel: "Météo",
+      weatherCurrentLabel: "Actuelle",
+      weatherRaceDayLabel: "Jour de course",
+      weatherTooltipText: "S'active 14 jours avant la course",
+      displayLabel: "Affichage",
+      searchPlaceholder: "RECHERCHER...",
+      noResults: "Aucun résultat",
+      detectedLabel: "DÉTECTÉ",
+      failedToLoadRaces: "ÉCHEC DU CHARGEMENT DES COURSES",
+      loadingSeason: "Chargement de la saison {year}...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "TOUS",
+        DETECTED: "DÉTECTÉ",
+        EUROPE: "EUROPE",
+        AMERICA: "AMÉRIQUE",
+        ASIA: "ASIE",
+        AFRICA: "AFRIQUE",
+        OCEANIA: "OCÉANIE",
+        OTHER: "AUTRES",
+      },
+    },
+    "pt-BR": {
+      tzLabel: "Fuso horário",
+      raceLabel: "Corrida",
+      yearLabel: "Temporada",
+      settingsBtn: "Configurações",
+      errorText: "FALHA AO CARREGAR",
+      retryBtn: "TENTAR DE NOVO",
+      refreshBtn: "ATUALIZAR",
+      epaperSetupTitle: "Configuração do display ePaper",
+      epaperStep1:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>No <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> selecione <strong>URL</strong> como fonte de conteúdo</span>',
+      epaperStep2:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Cole a URL acima no campo de URL da imagem</span>',
+      weatherLabel: "Clima",
+      weatherCurrentLabel: "Atual",
+      weatherRaceDayLabel: "Dia da corrida",
+      weatherTooltipText: "Ativa 14 dias antes da corrida",
+      displayLabel: "Tela",
+      searchPlaceholder: "BUSCAR...",
+      noResults: "Nenhum resultado",
+      detectedLabel: "DETECTADO",
+      failedToLoadRaces: "FALHA AO CARREGAR CORRIDAS",
+      loadingSeason: "Carregando temporada {year}...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "TODOS",
+        DETECTED: "DETECTADO",
+        EUROPE: "EUROPA",
+        AMERICA: "AMÉRICA",
+        ASIA: "ÁSIA",
+        AFRICA: "ÁFRICA",
+        OCEANIA: "OCEANIA",
+        OTHER: "OUTROS",
+      },
+    },
+    nl: {
+      tzLabel: "Tijdzone",
+      raceLabel: "Race",
+      yearLabel: "Seizoen",
+      settingsBtn: "Instellingen",
+      errorText: "LADEN MISLUKT",
+      retryBtn: "OPNIEUW",
+      refreshBtn: "VERNIEUWEN",
+      epaperSetupTitle: "ePaper-display instellen",
+      epaperStep1:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>Selecteer in <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> <strong>URL</strong> als contentbron</span>',
+      epaperStep2:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Plak de URL hierboven in het afbeeldings-URL-veld</span>',
+      weatherLabel: "Weer",
+      weatherCurrentLabel: "Huidig",
+      weatherRaceDayLabel: "Racedag",
+      weatherTooltipText: "Wordt 14 dagen voor de race geactiveerd",
+      displayLabel: "Scherm",
+      searchPlaceholder: "ZOEKEN...",
+      noResults: "Geen resultaten",
+      detectedLabel: "GEDETECTEERD",
+      failedToLoadRaces: "RACES KONDEN NIET WORDEN GELADEN",
+      loadingSeason: "Seizoen {year} laden...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "ALLES",
+        DETECTED: "GEDETECTEERD",
+        EUROPE: "EUROPA",
+        AMERICA: "AMERIKA",
+        ASIA: "AZIË",
+        AFRICA: "AFRIKA",
+        OCEANIA: "OCEANIË",
+        OTHER: "OVERIG",
+      },
+    },
+    pl: {
+      tzLabel: "Strefa czasowa",
+      raceLabel: "Wyścig",
+      yearLabel: "Sezon",
+      settingsBtn: "Ustawienia",
+      errorText: "NIE UDAŁO SIĘ ZAŁADOWAĆ",
+      retryBtn: "PONÓW",
+      refreshBtn: "ODŚWIEŻ",
+      epaperSetupTitle: "Konfiguracja wyświetlacza ePaper",
+      epaperStep1:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>W <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> wybierz <strong>URL</strong> jako źródło treści</span>',
+      epaperStep2:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Wklej powyższy URL do pola adresu obrazu</span>',
+      weatherLabel: "Pogoda",
+      weatherCurrentLabel: "Aktualna",
+      weatherRaceDayLabel: "Dzień wyścigu",
+      weatherTooltipText: "Aktywuje się 14 dni przed wyścigiem",
+      displayLabel: "Wyświetlacz",
+      searchPlaceholder: "SZUKAJ...",
+      noResults: "Brak wyników",
+      detectedLabel: "WYKRYTO",
+      failedToLoadRaces: "NIE UDAŁO SIĘ ZAŁADOWAĆ WYŚCIGÓW",
+      loadingSeason: "Ładowanie sezonu {year}...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "WSZYSTKIE",
+        DETECTED: "WYKRYTO",
+        EUROPE: "EUROPA",
+        AMERICA: "AMERYKA",
+        ASIA: "AZJA",
+        AFRICA: "AFRYKA",
+        OCEANIA: "OCEANIA",
+        OTHER: "INNE",
+      },
+    },
+    tr: {
+      tzLabel: "Saat dilimi",
+      raceLabel: "Yarış",
+      yearLabel: "Sezon",
+      settingsBtn: "Ayarlar",
+      errorText: "YÜKLEME BAŞARISIZ",
+      retryBtn: "TEKRAR DENE",
+      refreshBtn: "YENİLE",
+      epaperSetupTitle: "ePaper ekran kurulumu",
+      epaperStep1:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span><a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> içinde içerik kaynağı olarak <strong>URL</strong> seçin</span>',
+      epaperStep2:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>Yukarıdaki URL\'yi görsel URL alanına yapıştırın</span>',
+      weatherLabel: "Hava durumu",
+      weatherCurrentLabel: "Güncel",
+      weatherRaceDayLabel: "Yarış günü",
+      weatherTooltipText: "Yarıştan 14 gün önce etkinleşir",
+      displayLabel: "Ekran",
+      searchPlaceholder: "ARA...",
+      noResults: "Sonuç yok",
+      detectedLabel: "ALGILANDI",
+      failedToLoadRaces: "YARIŞLAR YÜKLENEMEDİ",
+      loadingSeason: "{year} sezonu yükleniyor...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "TÜMÜ",
+        DETECTED: "ALGILANDI",
+        EUROPE: "AVRUPA",
+        AMERICA: "AMERİKA",
+        ASIA: "ASYA",
+        AFRICA: "AFRİKA",
+        OCEANIA: "OKYANUSYA",
+        OTHER: "DİĞER",
+      },
+    },
+    ja: {
+      tzLabel: "タイムゾーン",
+      raceLabel: "レース",
+      yearLabel: "シーズン",
+      settingsBtn: "設定",
+      errorText: "読み込み失敗",
+      retryBtn: "再試行",
+      refreshBtn: "更新",
+      epaperSetupTitle: "ePaperディスプレイ設定",
+      epaperStep1:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span><a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> でコンテンツソースとして <strong>URL</strong> を選択</span>',
+      epaperStep2:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>上のURLを画像URL欄に貼り付け</span>',
+      weatherLabel: "天気",
+      weatherCurrentLabel: "現在",
+      weatherRaceDayLabel: "レース当日",
+      weatherTooltipText: "レース14日前から有効",
+      displayLabel: "ディスプレイ",
+      searchPlaceholder: "検索...",
+      noResults: "結果なし",
+      detectedLabel: "検出済み",
+      failedToLoadRaces: "レースの読み込みに失敗しました",
+      loadingSeason: "{year} シーズンを読み込み中...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "すべて",
+        DETECTED: "検出済み",
+        EUROPE: "ヨーロッパ",
+        AMERICA: "アメリカ",
+        ASIA: "アジア",
+        AFRICA: "アフリカ",
+        OCEANIA: "オセアニア",
+        OTHER: "その他",
+      },
+    },
+    "zh-CN": {
+      tzLabel: "时区",
+      raceLabel: "比赛",
+      yearLabel: "赛季",
+      settingsBtn: "设置",
+      errorText: "加载失败",
+      retryBtn: "重试",
+      refreshBtn: "刷新",
+      epaperSetupTitle: "ePaper 显示设置",
+      epaperStep1:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">1</span> <span>在 <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="underline decoration-2 underline-offset-2 hover:bg-racing-red hover:text-white">Živýobraz.eu</a> 中选择 <strong>URL</strong> 作为内容来源</span>',
+      epaperStep2:
+        '<span class="bg-black text-white px-1.5 font-bold text-xs mt-0.5">2</span> <span>将上面的 URL 粘贴到图片 URL 字段</span>',
+      weatherLabel: "天气",
+      weatherCurrentLabel: "当前",
+      weatherRaceDayLabel: "比赛日",
+      weatherTooltipText: "比赛前 14 天启用",
+      displayLabel: "显示",
+      searchPlaceholder: "搜索...",
+      noResults: "无结果",
+      detectedLabel: "已检测",
+      failedToLoadRaces: "加载比赛失败",
+      loadingSeason: "正在加载 {year} 赛季...",
+      autoLabel: "AUTO",
+      filterLabels: {
+        ALL: "全部",
+        DETECTED: "已检测",
+        EUROPE: "欧洲",
+        AMERICA: "美洲",
+        ASIA: "亚洲",
+        AFRICA: "非洲",
+        OCEANIA: "大洋洲",
+        OTHER: "其他",
+      },
     },
   };
-
-  let currentUiLang = "{{ ui_lang }}";
+  const configureStaticText =
+    configureStaticTextByLang[currentUiLang] || configureStaticTextByLang.en;
+  const uiText = {
+    nextRace: {{ t.get('next_race', 'Next Race') | tojson }},
+    seasonTitle: {{ t.get('screen_calendar_name', 'Calendar') | tojson }},
+    cancelled: {{ t.get('cancelled', 'CANCELLED') | tojson }},
+    footerPrivacy: {{ t.get('footer_privacy', 'Privacy Policy') | tojson }},
+    seasonLeaders: {{ t.get('season_leaders', 'Season Leaders') | tojson }},
+    currentSeason: {{ t.get('current_season', 'Current') | tojson }},
+    loadingText: {{ t.get('loading', 'Loading...') | tojson }},
+    copyLabel: {{ t.get('api_docs_copy', 'Copy') | tojson }},
+    einkBadge: "E-INK",
+    ...configureStaticText,
+  };
   let currentScreenType = "{{ screen_type }}";
   let currentDisplayType = "1bit";
   let racesData = [];
@@ -733,7 +1096,8 @@ block content %}
 
       html += `<button ${clickHandler} data-year="${actualYear}" class="${baseClass} ${stateClass}">`;
 
-      html += `<span class="w-16 text-xs font-bold uppercase flex-shrink-0">${s.label}${s.isCurrent ? " " + currentSeason : ""}</span>`;
+      const seasonLabel = s.isCurrent ? `${uiText.currentSeason} ${currentSeason}` : s.label;
+      html += `<span class="w-16 text-xs font-bold uppercase flex-shrink-0">${seasonLabel}</span>`;
 
       if (s.disabled || !data.has_data) {
         html += `<span class="flex-1 text-xs">—</span>`;
@@ -762,7 +1126,7 @@ block content %}
   function getTeamsSeasonEntries() {
     const currentSeason = getCurrentSeason();
     const explicitSeasons = [2026, 2025, 2024];
-    const seasons = [{ label: "CURRENT", year: currentSeason, isCurrent: true }];
+    const seasons = [{ label: String(currentSeason), year: currentSeason, isCurrent: true }];
 
     explicitSeasons
       .filter((year) => year !== currentSeason)
@@ -793,7 +1157,7 @@ block content %}
     const select = document.getElementById("yearSelectMobile");
     if (!select) return;
 
-    const t = translations[currentUiLang] || translations.en;
+    const t = uiText;
 
     select.innerHTML = "";
 
@@ -802,7 +1166,7 @@ block content %}
     seasons.forEach((s) => {
       const opt = document.createElement("option");
       opt.value = s.year;
-      opt.textContent = s.isCurrent ? `${t.currentSeason || "Current"} (${s.year})` : s.label;
+      opt.textContent = s.isCurrent ? `${t.currentSeason} (${s.year})` : s.label;
       if (s.year === selectedTeamsYear) opt.selected = true;
       select.appendChild(opt);
     });
@@ -825,7 +1189,7 @@ block content %}
   function filterTzContinent(continent) {
     activeContinent = continent;
     document.querySelectorAll(".tz-filter-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.textContent === continent);
+      btn.classList.toggle("active", btn.dataset.continent === continent);
     });
     // Clear search when filtering by continent
     if (activeContinent !== "ALL" && activeContinent !== "DETECTED") {
@@ -836,11 +1200,13 @@ block content %}
 
   function setUiLanguage(lang) {
     currentUiLang = lang;
-    const t = translations[lang] || translations.en;
+    const t = uiText;
     const tzLabel = document.getElementById("tzLabel");
     if (tzLabel) tzLabel.textContent = t.tzLabel;
     const tzLabelMobile = document.getElementById("tzLabelMobile");
     if (tzLabelMobile) tzLabelMobile.textContent = t.tzLabel;
+    const tzSearch = document.getElementById("tzSearch");
+    if (tzSearch) tzSearch.placeholder = t.searchPlaceholder;
     const raceLabel = document.getElementById("raceLabel");
     if (raceLabel) raceLabel.textContent = t.raceLabel;
     const yearLabelMobile = document.getElementById("yearLabelMobile");
@@ -867,12 +1233,24 @@ block content %}
     document.getElementById("epaperStep2").innerHTML = t.epaperStep2;
     const weatherLabel = document.getElementById("weatherLabel");
     if (weatherLabel) weatherLabel.textContent = t.weatherLabel;
+    const weatherLabelMobile = document.getElementById("weatherLabelMobile");
+    if (weatherLabelMobile) weatherLabelMobile.textContent = t.weatherLabel;
     const weatherCurrentLabel = document.getElementById("weatherCurrentLabel");
     if (weatherCurrentLabel)
       weatherCurrentLabel.textContent = t.weatherCurrentLabel;
+    const weatherCurrentBtnMobile = document.getElementById(
+      "weatherCurrentBtnMobile",
+    );
+    if (weatherCurrentBtnMobile)
+      weatherCurrentBtnMobile.textContent = t.weatherCurrentLabel;
     const weatherRaceDayText = document.getElementById("weatherRaceDayText");
     if (weatherRaceDayText)
       weatherRaceDayText.textContent = t.weatherRaceDayLabel;
+    const weatherRaceDayBtnMobile = document.getElementById(
+      "weatherRaceDayBtnMobile",
+    );
+    if (weatherRaceDayBtnMobile)
+      weatherRaceDayBtnMobile.textContent = t.weatherRaceDayLabel;
     const weatherTooltipText = document.getElementById("weatherTooltipText");
     if (weatherTooltipText)
       weatherTooltipText.textContent = t.weatherTooltipText;
@@ -880,6 +1258,18 @@ block content %}
     if (displayLabel) displayLabel.textContent = t.displayLabel;
     const displayLabelMobile = document.getElementById("displayLabelMobile");
     if (displayLabelMobile) displayLabelMobile.textContent = t.displayLabel;
+    const copyBtn = document.getElementById("copyBtn");
+    if (copyBtn) {
+      copyBtn.title = t.copyLabel;
+      copyBtn.setAttribute("aria-label", t.copyLabel);
+    }
+    document.querySelectorAll(".tz-filter-btn").forEach((btn) => {
+      const continent = btn.dataset.continent;
+      if (continent && t.filterLabels[continent]) {
+        btn.textContent = t.filterLabels[continent];
+      }
+    });
+    renderTzList();
   }
 
   function getApiUrl() {
@@ -991,7 +1381,7 @@ block content %}
       if (futureRaces.length === 0) {
         // Update loading text to indicate switching years
         raceList.innerHTML =
-          '<div class="p-4 text-center text-gray-400 text-xs font-mono">Loading 2026 season...</div>';
+          `<div class="p-4 text-center text-gray-400 text-xs font-mono">${uiText.loadingSeason.replace("{year}", currentYear + 1)}</div>`;
 
         try {
           const controller = new AbortController();
@@ -1014,7 +1404,7 @@ block content %}
       }
 
       // Update season title
-      const t = translations[currentUiLang] || translations.en;
+      const t = uiText;
       document.getElementById("seasonTitle").textContent =
         `${activeSeasonYear} ${t.seasonTitle}`;
 
@@ -1025,7 +1415,7 @@ block content %}
       // Build race list (desktop) - compact layout
       let html = `<button class="race-item w-full px-2 py-0.5 text-left text-xs border-2 border-transparent hover:border-black flex items-center justify-between group selected" data-round="" data-race-key="" onclick="selectRaceFromList(null, null, null)">
                 <span class="font-bold uppercase flex items-center gap-1.5"><span class="text-racing-red">⚡</span> ${t.nextRace}</span>
-                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-gray-500 uppercase">AUTO</span>
+                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-gray-500 uppercase">${t.autoLabel}</span>
             </button>`;
 
       racesData.forEach((race) => {
@@ -1084,7 +1474,7 @@ block content %}
     } catch (e) {
       console.error("Failed to load races:", e);
       raceList.innerHTML =
-        '<div class="p-3 text-center text-racing-red font-bold text-sm border-2 border-racing-red bg-red-50">FAILED TO LOAD RACES</div>';
+        `<div class="p-3 text-center text-racing-red font-bold text-sm border-2 border-racing-red bg-red-50">${uiText.failedToLoadRaces}</div>`;
     }
   }
 
@@ -1217,7 +1607,16 @@ block content %}
 
     // If saved preference differs from current, redirect
     if (saved && saved !== currentUiLang && ["en", "cs", "de", "es", "it", "fr", "pt-BR", "nl", "pl", "tr", "ja", "zh-CN"].includes(saved)) {
-      window.location.href = saved !== 'en' ? "/?lang=" + saved : "/";
+      const basePath =
+        typeof getBasePath === "function"
+          ? getBasePath(window.location.pathname)
+          : window.location.pathname;
+      window.location.href =
+        typeof buildLangUrl === "function"
+          ? buildLangUrl(basePath, saved)
+          : saved !== "en"
+            ? `/${saved}${basePath}`
+            : basePath;
       return false; // Signal that redirect is happening
     }
 
@@ -1340,7 +1739,7 @@ block content %}
       const header = document.createElement("div");
       header.className =
         "px-2 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-wider sticky top-0 z-10 border-b border-white";
-      header.textContent = text;
+      header.textContent = uiText.filterLabels[text] || text;
       container.appendChild(header);
     };
 
@@ -1356,7 +1755,7 @@ block content %}
 
       if (results.length === 0) {
         container.innerHTML =
-          '<div class="px-2 py-2 text-gray-400 text-center font-mono uppercase">No results</div>';
+          `<div class="px-2 py-2 text-gray-400 text-center font-mono uppercase">${uiText.noResults}</div>`;
         return;
       }
 
@@ -1377,7 +1776,7 @@ block content %}
     if (browserTz) {
       const browserDiv = document.createElement("div");
       browserDiv.className = `tz-item px-2 py-1 cursor-pointer hover:bg-black hover:text-white flex items-center border-b-4 border-black mb-0.5 ${browserTz === selectedTz ? "bg-racing-red text-white" : "bg-white"}`;
-      browserDiv.innerHTML = `<span class="mr-1">📍</span><span class="opacity-70 w-12 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(browserTz))}</span> <span class="font-bold">DETECTED</span>`;
+      browserDiv.innerHTML = `<span class="mr-1">📍</span><span class="opacity-70 w-12 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(browserTz))}</span> <span class="font-bold">${uiText.detectedLabel}</span>`;
       browserDiv.onclick = () => selectTimezone(browserTz);
       container.appendChild(browserDiv);
     }
@@ -1496,7 +1895,7 @@ block content %}
     if (browserTz && allTimezones.includes(browserTz)) {
       const browserOpt = document.createElement("option");
       browserOpt.value = browserTz;
-      browserOpt.textContent = `📍 ${formatOffset(getUtcOffsetNum(browserTz))} DETECTED`;
+      browserOpt.textContent = `📍 ${formatOffset(getUtcOffsetNum(browserTz))} ${uiText.detectedLabel}`;
       select.appendChild(browserOpt);
     }
 

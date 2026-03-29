@@ -97,8 +97,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 {{ lang_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
-                  <code class="bg-gray-100 px-1">en</code>,
-                  <code class="bg-gray-100 px-1">cs</code> ({{
+                  {% for language in supported_languages %}<code class="bg-gray-100 px-1">{{ language.code }}</code>{% if not loop.last %}, {% endif %}{% endfor %} ({{
                   t.get("api_docs_default", "default") }}:
                   <code class="bg-gray-100 px-1">en</code>)</span
                 >
@@ -426,8 +425,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 {{ lang_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
-                  <code class="bg-gray-100 px-1">en</code>,
-                  <code class="bg-gray-100 px-1">cs</code> ({{
+                  {% for language in supported_languages %}<code class="bg-gray-100 px-1">{{ language.code }}</code>{% if not loop.last %}, {% endif %}{% endfor %} ({{
                   t.get("api_docs_default", "default") }}:
                   <code class="bg-gray-100 px-1">en</code>)</span
                 >

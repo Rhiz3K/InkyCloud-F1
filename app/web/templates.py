@@ -34,6 +34,21 @@ LANGUAGE_LABELS: dict[str, str] = {
     "zh-CN": "ZH-CN",
 }
 
+OG_LOCALES: dict[str, str] = {
+    "en": "en_US",
+    "cs": "cs_CZ",
+    "de": "de_DE",
+    "es": "es_ES",
+    "it": "it_IT",
+    "fr": "fr_FR",
+    "pt-BR": "pt_BR",
+    "nl": "nl_NL",
+    "pl": "pl_PL",
+    "tr": "tr_TR",
+    "ja": "ja_JP",
+    "zh-CN": "zh_CN",
+}
+
 
 def format_bytes(bytes_val: int) -> str:
     """Format bytes to a human readable string."""
@@ -117,5 +132,6 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "calc_percent": calc_percent,
         "lang_url": lambda path: lang_url(path, ui_lang),
         "base_path": base_path,  # Path without language prefix (for hreflang)
+        "og_locale": OG_LOCALES.get(ui_lang, "en_US"),
         "supported_languages": supported_languages,
     }
