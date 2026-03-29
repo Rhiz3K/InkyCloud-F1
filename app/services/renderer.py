@@ -1353,7 +1353,8 @@ class Renderer:
             day_str = ""
             time_str = event.get("display_time", "")
 
-        translated_name = self._translate_session_name(name)
+        name_max_width = self.width - self.layout["schedule_name_x"] - 5
+        translated_name = self._format_schedule_session_name(draw, name, name_max_width)
 
         # Draw columns
         font_reg = self.fonts["schedule_row"]
@@ -1361,7 +1362,7 @@ class Renderer:
             draw,
             self.lang_code,
             translated_name,
-            max_width=self.width - self.layout["schedule_name_x"] - 5,
+            max_width=name_max_width,
             base_size=20,
             min_size=15,
             bold=True,
@@ -1373,15 +1374,72 @@ class Renderer:
         # Event name in BOLD
         draw.text((self.layout["schedule_name_x"], y), translated_name, fill=0, font=font_bold)
 
+    def _format_schedule_session_name(
+        self,
+        draw: ImageDraw.ImageDraw,
+        name: str,
+        max_width: int,
+    ) -> str:
+        """Return the best-fitting localized schedule label for a session."""
+        if self._normalize_session_name(name) != "sprintqualifying":
+            return self._translate_session_name(name)
+
+        full_label = self._build_sprint_qualifying_label(abbreviated=False)
+        full_font = fit_ui_font(
+            draw,
+            self.lang_code,
+            full_label,
+            max_width=max_width,
+            base_size=20,
+            min_size=15,
+            bold=True,
+        )
+        full_bbox = draw.textbbox((0, 0), full_label, font=full_font)
+        if full_bbox[2] - full_bbox[0] <= max_width:
+            return full_label
+
+        return self._build_sprint_qualifying_label(abbreviated=True)
+
+    def _build_sprint_qualifying_label(self, *, abbreviated: bool) -> str:
+        """Compose the sprint qualifying label from the localized sprint and qualifying text."""
+        sprint_label = self.translator.get("session_sprint", "Sprint")
+        qualifying_label = self.translator.get("session_qualifying", "Qualifying")
+        separator = "" if self.lang_code in CJK_LANG_CODES else " "
+
+        if abbreviated:
+            qualifying_label = self._abbreviate_schedule_term(qualifying_label)
+
+        return f"{sprint_label}{separator}{qualifying_label}"
+
+    def _abbreviate_schedule_term(self, term: str) -> str:
+        """Reduce a localized schedule term to its leading letter or character."""
+        stripped = term.strip()
+        if not stripped:
+            return term
+        first_char = stripped[0]
+        if self.lang_code in CJK_LANG_CODES:
+            return first_char
+        return f"{first_char}."
+
     def _translate_session_name(self, name: str) -> str:
         """Translate session names while normalizing API/static variants."""
         if not name:
             return ""
 
+        normalized = self._normalize_session_name(name)
+        if normalized == "sprintqualifying":
+            return self._build_sprint_qualifying_label(abbreviated=False)
+
         direct_key = f"session_{name.lower()}"
         if direct_key in self.translator:
             return self.translator[direct_key]
 
+        normalized_key = f"session_{normalized}"
+        return self.translator.get(normalized_key, name)
+
+    @staticmethod
+    def _normalize_session_name(name: str) -> str:
+        """Normalize API/static session variants to a stable translation key suffix."""
         normalized = re.sub(r"[^a-z0-9]+", "", name.lower())
         aliases = {
             "practice1": "fp1",
@@ -1394,9 +1452,7 @@ class Renderer:
             "sprintshootout": "sprintqualifying",
             "shootout": "sprintqualifying",
         }
-        normalized = aliases.get(normalized, normalized)
-        normalized_key = f"session_{normalized}"
-        return self.translator.get(normalized_key, name)
+        return aliases.get(normalized, normalized)
 
     def _draw_countdown_box(
         self,

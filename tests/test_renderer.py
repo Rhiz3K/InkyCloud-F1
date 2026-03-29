@@ -234,22 +234,45 @@ def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
 @pytest.mark.parametrize(
     ("lang", "expected"),
     [
-        ("cs", "Sprint K."),
-        ("sk", "Sprint K."),
-        ("pl", "Sprint K."),
-        ("en", "Sprint Q."),
-        ("de", "Sprint Q."),
-        ("ja", "Sprint Q."),
-        ("zh-CN", "Sprint Q."),
+        ("cs", "Sprint Kvalifikace"),
+        ("sk", "Sprint Kvalifikácia"),
+        ("pl", "Sprint Kwalifikacje"),
+        ("en", "Sprint Qualifying"),
+        ("de", "Sprint Qualifying"),
+        ("ja", "スプリント予選"),
+        ("zh-CN", "冲刺赛排位赛"),
+        ("pt-BR", "Sprint Classificação"),
     ],
 )
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
-def test_translate_session_name_uses_short_sprint_qualifying_labels(renderer_cls, lang, expected):
-    """Sprint qualifying aliases should resolve to the short per-locale label."""
+def test_translate_session_name_uses_full_localized_sprint_qualifying_labels(
+    renderer_cls, lang, expected
+):
+    """Sprint qualifying aliases should use the localized sprint and qualifying strings."""
     renderer = renderer_cls(get_translator(lang), lang)
     assert renderer._translate_session_name("SprintQualifying") == expected
     assert renderer._translate_session_name("Sprint Qualifying") == expected
     assert renderer._translate_session_name("Sprint Shootout") == expected
+
+
+@pytest.mark.parametrize(
+    ("lang", "expected"),
+    [
+        ("pt-BR", "Sprint C."),
+        ("cs", "Sprint Kvalifikace"),
+        ("en", "Sprint Qualifying"),
+        ("ja", "スプリント予選"),
+        ("zh-CN", "冲刺赛排位赛"),
+    ],
+)
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_format_schedule_session_name_shortens_only_qualifying_when_needed(
+    renderer_cls, lang, expected
+):
+    """Schedule rows should abbreviate only the localized qualifying part on overflow."""
+    renderer = renderer_cls(get_translator(lang), lang)
+    draw = ImageDraw.Draw(Image.new("RGB", (800, 480), "white"))
+    assert renderer._format_schedule_session_name(draw, "Sprint Qualifying", 115) == expected
 
 
 def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
