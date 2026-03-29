@@ -75,9 +75,7 @@ async def _render_teams_preview(
 
 
 @router.get("/preview/{screen_type}.png", response_model=None)
-async def get_preview_png(
-    screen_type: str, lang: str = Query(default="en")
-) -> Response:
+async def get_preview_png(screen_type: str, lang: str = Query(default="en")) -> Response:
     """Serve pre-generated preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
 
