@@ -4,17 +4,18 @@
  */
 
 const SUPPORTED_LANGUAGE_CODES = [
-    "en",
     "cs",
     "de",
+    "en",
     "es",
-    "it",
     "fr",
-    "pt-BR",
+    "it",
+    "ja",
     "nl",
     "pl",
+    "pt-BR",
+    "sk",
     "tr",
-    "ja",
     "zh-CN",
 ];
 

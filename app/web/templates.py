@@ -20,32 +20,34 @@ mimetypes.add_type("font/woff2", ".woff2")
 templates = Jinja2Templates(directory="app/templates")
 
 LANGUAGE_LABELS: dict[str, str] = {
-    "en": "EN",
     "cs": "CZ",
     "de": "DE",
+    "en": "EN",
     "es": "ES",
-    "it": "IT",
     "fr": "FR",
-    "pt-BR": "PT-BR",
+    "it": "IT",
+    "ja": "JA",
     "nl": "NL",
     "pl": "PL",
+    "pt-BR": "PT-BR",
+    "sk": "SK",
     "tr": "TR",
-    "ja": "JA",
     "zh-CN": "ZH-CN",
 }
 
 OG_LOCALES: dict[str, str] = {
-    "en": "en_US",
     "cs": "cs_CZ",
     "de": "de_DE",
+    "en": "en_US",
     "es": "es_ES",
-    "it": "it_IT",
     "fr": "fr_FR",
-    "pt-BR": "pt_BR",
+    "it": "it_IT",
+    "ja": "ja_JP",
     "nl": "nl_NL",
     "pl": "pl_PL",
+    "pt-BR": "pt_BR",
+    "sk": "sk_SK",
     "tr": "tr_TR",
-    "ja": "ja_JP",
     "zh-CN": "zh_CN",
 }
 

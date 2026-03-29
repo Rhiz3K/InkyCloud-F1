@@ -284,17 +284,18 @@ config = get_config()
 
 # Ordered language codes used across routing, UI, and API docs.
 LANGUAGE_CODES: tuple[str, ...] = (
-    "en",
     "cs",
     "de",
+    "en",
     "es",
-    "it",
     "fr",
-    "pt-BR",
+    "it",
+    "ja",
     "nl",
     "pl",
+    "pt-BR",
+    "sk",
     "tr",
-    "ja",
     "zh-CN",
 )
 
