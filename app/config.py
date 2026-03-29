@@ -198,7 +198,7 @@ class Config(BaseSettings):
             timeout = int(value)  # type: ignore[call-overload]
             if timeout > 0:
                 return timeout
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer")
 
