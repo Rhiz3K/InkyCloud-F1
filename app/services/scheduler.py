@@ -16,8 +16,8 @@ from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.database import Database
 from app.services.f1_service import F1Service
-from app.services.image_keys import get_calendar_image_key, get_teams_image_key
 from app.services.i18n import get_translator
+from app.services.image_keys import get_calendar_image_key, get_teams_image_key
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Renderer
 from app.services.version_service import refresh_version_info
@@ -422,14 +422,6 @@ async def _generate_teams_bmp_variants(
                     renderer = Renderer(translator, lang)
 
                 bmp_data = renderer.render_teams_drivers(teams_data)
-                suffix = ""
-                if display == "spectra6":
-                    suffix = "_spectra6"
-                elif display == "bwr":
-                    suffix = "_bwr"
-                elif display == "bwry":
-                    suffix = "_bwry"
-
                 image_key = get_teams_image_key(lang, teams_year, display=display)
                 image_path = images_dir / f"{image_key}.bmp"
 

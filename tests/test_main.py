@@ -21,8 +21,8 @@ from app.routes.images import (
     _get_race_data_from_static,
     _get_race_info_for_stats,
 )
-from app.state import clear_bmp_cache, get_bmp_cache
 from app.services.f1_service import F1Service
+from app.state import clear_bmp_cache, get_bmp_cache
 
 client = TestClient(app)
 
