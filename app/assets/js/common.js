@@ -76,14 +76,18 @@ function getCurrentLang() {
  * @returns {string} Full URL with language prefix
  */
 function buildLangUrl(basePath, lang) {
-    const url = new URL(window.location.href);
+    const nextLang = isSupportedLanguage(lang) ? lang : "en";
+    const normalizedBasePath = stripLanguagePrefix(basePath || "/");
+    const url = new URL(window.location.origin);
+    const currentSearch = new URLSearchParams(window.location.search);
     // Remove any ?lang= query param
-    url.searchParams.delete("lang");
+    currentSearch.delete("lang");
+    url.search = currentSearch.toString();
 
-    if (lang === "en") {
-        url.pathname = basePath;
+    if (nextLang === "en") {
+        url.pathname = normalizedBasePath;
     } else {
-        url.pathname = "/" + lang + basePath;
+        url.pathname = "/" + nextLang + normalizedBasePath;
     }
     return url.toString();
 }
@@ -109,6 +113,10 @@ function buildLangUrl(basePath, lang) {
 
 function switchUiLanguage() {
     const lang = document.getElementById("uiLangSwitch").value;
+    if (!isSupportedLanguage(lang)) {
+        return;
+    }
+
     localStorage.setItem("preferredLang", lang);
     document.cookie = `preferredLang=${lang};path=/;max-age=31536000;SameSite=Lax`;
 
