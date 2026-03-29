@@ -13,7 +13,14 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import ConstructorStanding, DriverStanding, HistoricalData, TeamsData
-from app.services.font_utils import FONTS_DIR, fit_ui_font, fit_ui_font_box, load_ui_font
+from app.services.font_utils import (
+    CJK_LANG_CODES,
+    FONTS_DIR,
+    fit_brand_font_box,
+    fit_ui_font,
+    load_brand_font,
+    load_ui_font,
+)
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
@@ -250,7 +257,7 @@ class Renderer:
         total_text_height = 80
         start_y = (header_height - total_text_height) // 2 - 5
 
-        draw.text((text_x, start_y), line1, fill=1, font=self.fonts["header_title"])
+        draw.text((text_x, start_y), line1, fill=1, font=self._load_brand_font(36, bold=True))
         draw.text((text_x, start_y + 40), line2, fill=1, font=self.fonts["header_subtitle"])
 
     def _draw_teams_content(
@@ -463,10 +470,33 @@ class Renderer:
         constructor = team.constructor_name or team.entrant or ""
         team_name = constructor.split("-")[0].replace(" Aramco", "").replace("Kick ", "").strip()
         chassis = team.chassis or ""
-        power_unit = team.power_unit.replace("-AMG", "") if team.power_unit else ""
+        power_unit = Renderer._normalize_team_power_unit(constructor, team.power_unit)
         meta_text = " | ".join(part for part in (chassis, power_unit) if part)
         team_pos = str(team.position) if team.position else "—"
         return team_name, meta_text, team_pos, Renderer._format_points(team.points)
+
+    @staticmethod
+    def _normalize_team_power_unit(constructor: str, power_unit: str | None) -> str:
+        """Shorten Red Bull power-unit labels in teams headers."""
+        if not power_unit:
+            return ""
+
+        normalized = power_unit.replace("-AMG", "").strip()
+        constructor_name = (constructor or "").lower()
+        is_red_bull_team = (
+            "red bull" in constructor_name
+            or "racing bulls" in constructor_name
+            or constructor_name == "rb"
+            or constructor_name.startswith("rb ")
+        )
+        if not is_red_bull_team:
+            return normalized
+
+        if normalized.startswith("Red Bull "):
+            remainder = normalized.removeprefix("Red Bull ").strip()
+            return f"RB {remainder}" if remainder else "RB"
+
+        return normalized.replace("Red Bull", "RB")
 
     @staticmethod
     def _format_team_driver_display_name(name: str) -> str:
@@ -551,11 +581,10 @@ class Renderer:
             driver_number=driver.driver_number,
         )
         driver_name_x = photo_x + photo_size + self.layout["driver_name_padding"] + 4
-        if self.lang_code in {"ja", "zh-CN"}:
+        if self.lang_code in CJK_LANG_CODES:
             max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
-            driver_font = fit_ui_font_box(
+            driver_font = fit_brand_font_box(
                 draw,
-                self.lang_code,
                 display_name,
                 max_width=max_name_width,
                 max_height=max(1, driver_row_height - 1),
@@ -609,12 +638,20 @@ class Renderer:
         row_height: int,
     ) -> None:
         """Draw a single team card with header, drivers, points, and logo."""
-        team_font = self.fonts["circuit_name"]
-        small_font = self.fonts["circuit_stats_value"]
-        driver_font = self.fonts["circuit_name"]
-        tech_font = self.fonts["circuit_location"]
-        stats_font = self.fonts["circuit_stats_value"]
-        points_font = self.fonts["circuit_stats_value"]
+        if self.lang_code in CJK_LANG_CODES:
+            team_font = self._load_brand_font(18, bold=True)
+            small_font = self._load_brand_font(18, bold=True)
+            driver_font = self._load_brand_font(18, bold=True)
+            tech_font = self._load_brand_font(14)
+            stats_font = self._load_brand_font(18, bold=True)
+            points_font = self._load_brand_font(18, bold=True)
+        else:
+            team_font = self.fonts["circuit_name"]
+            small_font = self.fonts["circuit_stats_value"]
+            driver_font = self.fonts["circuit_name"]
+            tech_font = self.fonts["circuit_location"]
+            stats_font = self.fonts["circuit_stats_value"]
+            points_font = self.fonts["circuit_stats_value"]
 
         header_height = 23
         box_y_end = y + row_height - 2
@@ -1845,6 +1882,11 @@ class Renderer:
     def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
         """Load the main UI font for the active locale."""
         return load_ui_font(self.lang_code, size, bold=bold)
+
+    @staticmethod
+    def _load_brand_font(size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
+        """Load the default Latin UI font used for non-localized text."""
+        return load_brand_font(size, bold=bold)
 
     @staticmethod
     def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:

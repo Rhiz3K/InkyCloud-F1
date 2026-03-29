@@ -24,16 +24,11 @@ _CJK_FACE_INDEX = {
     "zh-CN": 2,
 }
 
+CJK_LANG_CODES = frozenset(_CJK_FACE_INDEX)
 
-def load_ui_font(
-    lang_code: str, size: int, *, bold: bool = False
-) -> FreeTypeFont | ImageFont.ImageFont:
-    """Load the main UI font with locale-aware fallbacks."""
-    if lang_code in _CJK_FACE_INDEX:
-        cjk_font = _load_cjk_font(lang_code, size)
-        if cjk_font is not None:
-            return cjk_font
 
+def load_brand_font(size: int, *, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
+    """Load the default Latin UI font without locale-specific CJK substitution."""
     font_filename = "TitilliumWeb-Bold.ttf" if bold else "TitilliumWeb-Regular.ttf"
     font_path = FONTS_DIR / font_filename
     if font_path.exists():
@@ -47,6 +42,18 @@ def load_ui_font(
         return ImageFont.truetype(fallback_name, size)
     except OSError:
         return ImageFont.load_default()
+
+
+def load_ui_font(
+    lang_code: str, size: int, *, bold: bool = False
+) -> FreeTypeFont | ImageFont.ImageFont:
+    """Load the main UI font with locale-aware fallbacks."""
+    if lang_code in _CJK_FACE_INDEX:
+        cjk_font = _load_cjk_font(lang_code, size)
+        if cjk_font is not None:
+            return cjk_font
+
+    return load_brand_font(size, bold=bold)
 
 
 def fit_ui_font(
@@ -89,6 +96,27 @@ def fit_ui_font_box(
         if width <= max_width and height <= max_height:
             return font
     return load_ui_font(lang_code, min_size, bold=bold)
+
+
+def fit_brand_font_box(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    *,
+    max_width: int,
+    max_height: int,
+    base_size: int,
+    min_size: int,
+    bold: bool = False,
+) -> FreeTypeFont | ImageFont.ImageFont:
+    """Load the largest non-CJK UI font that fits the provided width and height box."""
+    for size in range(base_size, min_size - 1, -1):
+        font = load_brand_font(size, bold=bold)
+        bbox = draw.textbbox((0, 0), text, font=font)
+        width = bbox[2] - bbox[0]
+        height = bbox[3] - bbox[1]
+        if width <= max_width and height <= max_height:
+            return font
+    return load_brand_font(min_size, bold=bold)
 
 
 def _load_cjk_font(lang_code: str, size: int) -> FreeTypeFont | ImageFont.ImageFont | None:

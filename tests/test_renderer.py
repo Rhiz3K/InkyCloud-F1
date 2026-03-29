@@ -24,7 +24,7 @@ from app.services import renderer as renderer_module
 from app.services import spectra6_renderer as spectra6_renderer_module
 from app.services.bwr_renderer import BwrColors, BwrRenderer
 from app.services.bwry_renderer import BwryColors, BwryRenderer
-from app.services.font_utils import fit_ui_font_box
+from app.services.font_utils import fit_brand_font_box
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
@@ -770,9 +770,8 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
                 driver_y = driver_y_start + i * driver_row_height
                 driver_name_x = photo_x + photo_size + renderer.layout["driver_name_padding"] + 4
                 max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
-                driver_font = fit_ui_font_box(
+                driver_font = fit_brand_font_box(
                     draw,
-                    lang,
                     display_name,
                     max_width=max_name_width,
                     max_height=max(1, driver_row_height - 1),
@@ -787,6 +786,60 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
                 assert bbox[1] >= y + card_header_height + card_header_gap
 
             y += row_height + row_gap
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+def test_team_header_values_shorten_red_bull_power_units(renderer_cls):
+    """Red Bull teams should use the short RB label in the power-unit meta text."""
+    team = TeamEntry(
+        constructor_name="Red Bull Racing-Red Bull Ford",
+        chassis="RB22",
+        power_unit="Red Bull Ford DM01",
+        position=1,
+        points=38.0,
+        drivers=[],
+    )
+
+    team_name, meta_text, team_pos, team_pts = renderer_cls._build_team_header_values(team)
+
+    assert team_name == "Red Bull Racing"
+    assert meta_text == "RB22 | RB Ford DM01"
+    assert team_pos == "1"
+    assert team_pts == "38"
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+@pytest.mark.parametrize("lang", ["ja", "zh-CN"])
+def test_cjk_teams_header_uses_brand_font_for_line1_and_cjk_font_for_line2(renderer_cls, lang):
+    """JA/CN teams header should keep the Latin font for line1 and CJK font for translated line2."""
+    renderer = renderer_cls(get_translator(lang), lang)
+    image_mode = "1" if renderer_cls is Renderer else "RGB"
+    background = 1 if renderer_cls is Renderer else renderer.colors.WHITE
+    image = Image.new(image_mode, (renderer.width, renderer.height), background)
+    draw = ImageDraw.Draw(image)
+    captured = []
+    original_text = draw.text
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured.append((text, kwargs.get("font")))
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(draw, "text", spy_text)
+    try:
+        renderer._draw_teams_header(draw, image, 2026)
+    finally:
+        monkeypatch.undo()
+
+    line1_text = "2026 FIA F1 World Championship"
+    line2_text = renderer.translator.get("teams_drivers_title", "TEAMS & DRIVERS").upper()
+    captured_map = {text: font for text, font in captured if text in {line1_text, line2_text}}
+
+    line1_font = captured_map[line1_text]
+    line2_font = captured_map[line2_text]
+
+    assert getattr(line1_font, "path", "").endswith("TitilliumWeb-Bold.ttf")
+    assert getattr(line2_font, "path", "").endswith("NotoSansCJK-Regular.ttc")
 
 
 def test_draw_driver_photo_prefers_explicit_number_over_asset():
