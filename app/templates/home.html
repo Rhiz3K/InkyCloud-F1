@@ -50,16 +50,16 @@ block og_tags %}
   }
 </script>
 {% endblock %} {% block content %}
-<main class="flex-1 flex flex-col items-center px-4 py-8 lg:py-12">
+<main class="flex-1 flex flex-col items-center px-4 py-5 lg:py-7">
   <div class="w-full max-w-4xl flex flex-col items-center">
     <h1
-      class="text-xl lg:text-2xl font-bold uppercase tracking-widest mb-8 text-center border-b-4 border-black pb-2"
+      class="text-xl lg:text-2xl font-bold uppercase tracking-widest mb-6 text-center border-b-4 border-black pb-2"
     >
       {{ t.get('home_choose_screen', 'Choose Your Screen Type') }}
     </h1>
 
     <div
-      class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8 mb-12"
+      class="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5 lg:gap-6 mb-8"
       style="max-width: 900px"
     >
       {% for screen in screen_types %}
@@ -117,43 +117,44 @@ block og_tags %}
       {% endfor %}
     </div>
 
-    <div class="w-full max-w-5xl border-t-4 border-black pt-8">
-      <h3 class="text-sm font-bold uppercase tracking-widest mb-4 text-center">
+    <div class="w-full max-w-5xl border-t-4 border-black pt-6">
+      <h3 class="text-sm font-bold uppercase tracking-widest mb-3 text-center">
         Credits
       </h3>
-      <div class="border-2 border-black bg-white p-4 sm:p-5 shadow-neo-sm text-left">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-10 gap-y-3 text-sm text-gray-700">
-          <div class="flex flex-col gap-3">
-            <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
-              <span class="w-28 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
-                >Inspired By</span
+      <div
+        class="border-2 border-black bg-gray-100 px-4 py-3 sm:px-5 sm:py-4 shadow-neo-sm text-left"
+      >
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm text-gray-700">
+          <div class="flex flex-col gap-2">
+            <div class="flex items-baseline gap-3">
+              <span
+                class="w-24 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
+                >Inspired</span
               >
-              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <a
-                  href="https://x.com/foxeelab/status/1761498129268981856"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="hover:text-racing-red"
-                  >FoxeeLab</a
-                >
-              </div>
+              <a
+                href="https://x.com/foxeelab/status/1761498129268981856"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hover:text-racing-red"
+                >FoxeeLab</a
+              >
             </div>
-            <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
-              <span class="w-28 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
+            <div class="flex items-baseline gap-3">
+              <span
+                class="w-24 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
                 >Race Data</span
               >
-              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <a
-                  href="https://github.com/jolpica/jolpica-f1"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="hover:text-racing-red"
-                  >Jolpica</a
-                >
-              </div>
+              <a
+                href="https://github.com/jolpica/jolpica-f1"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hover:text-racing-red"
+                >Jolpica</a
+              >
             </div>
-            <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
-              <span class="w-28 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
+            <div class="flex items-baseline gap-3">
+              <span
+                class="w-24 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
                 >Weather</span
               >
               <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -174,39 +175,37 @@ block og_tags %}
                 >
               </div>
             </div>
-            <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
-              <span class="w-28 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
+            <div class="flex items-baseline gap-3">
+              <span
+                class="w-24 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
                 >Flags</span
               >
-              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <a
-                  href="https://flagcdn.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="hover:text-racing-red"
-                  >Flagcdn</a
-                >
-              </div>
+              <a
+                href="https://flagcdn.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hover:text-racing-red"
+                >Flagcdn</a
+              >
             </div>
           </div>
-
-          <div class="flex flex-col gap-3">
-            <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
-              <span class="w-28 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
+          <div class="flex flex-col gap-2">
+            <div class="flex items-baseline gap-3">
+              <span
+                class="w-24 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
                 >Platform</span
               >
-              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <a
-                  href="https://zivyobraz.eu"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="hover:text-racing-red"
-                  >Živýobraz.eu</a
-                >
-              </div>
+              <a
+                href="https://zivyobraz.eu"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hover:text-racing-red"
+                >Živýobraz.eu</a
+              >
             </div>
-            <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
-              <span class="w-28 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
+            <div class="flex items-baseline gap-3">
+              <span
+                class="w-24 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
                 >Hardware</span
               >
               <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -227,8 +226,9 @@ block og_tags %}
                 >
               </div>
             </div>
-            <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
-              <span class="w-28 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
+            <div class="flex items-baseline gap-3">
+              <span
+                class="w-24 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
                 >Hosting</span
               >
               <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -249,8 +249,9 @@ block og_tags %}
                 >
               </div>
             </div>
-            <div class="flex flex-col gap-1 sm:flex-row sm:gap-3">
-              <span class="w-28 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
+            <div class="flex items-baseline gap-3">
+              <span
+                class="w-24 shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-racing-red"
                 >Monitoring</span
               >
               <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
