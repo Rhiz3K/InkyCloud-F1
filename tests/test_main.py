@@ -409,21 +409,18 @@ def test_header_contains_nav_links():
     assert "/privacy" in html
 
 
-def test_header_contains_credits_dropdown():
-    """Test header contains Credits dropdown with key links."""
+def test_homepage_contains_credits_links():
+    """Test homepage contains credits links rendered in current layout."""
     response = client.get("/")
     html = response.text
-    # Credits section
     assert "Credits" in html
-    # Key credit links - use href pattern to avoid CodeQL false positive
     assert "FoxeeLab" in html
     assert 'href="https://coolify.io"' in html
     assert 'href="https://hetzner.com"' in html
-    # LaskaKit link has full product URL
     assert 'href="https://www.laskakit.cz/' in html
-    assert "Weather data:" in html
-    assert "Weather icons:" in html
-    assert "jolpica" in html
+    assert "Weather" in html
+    assert "Weather Icons" in html
+    assert "Jolpica" in html
     assert 'href="https://open-meteo.com"' in html
     assert 'href="https://github.com/erikflowers/weather-icons"' in html
 

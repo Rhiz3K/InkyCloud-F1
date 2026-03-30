@@ -59,6 +59,10 @@ block og_tags %}
     display: none;
   }
 
+  .home-credits-section {
+    display: none;
+  }
+
   @media (min-width: 768px) {
     .home-credits-mobile {
       display: none;
@@ -66,6 +70,10 @@ block og_tags %}
 
     .home-credits-desktop {
       display: flex;
+    }
+
+    .home-credits-section {
+      display: block;
     }
   }
 </style>
@@ -136,62 +144,10 @@ block og_tags %}
       {% endfor %}
     </div>
 
-    <div class="w-full max-w-3xl pt-8">
+    <div id="credits" class="home-credits-section w-full max-w-3xl pt-8">
       <h3 class="text-sm font-bold uppercase tracking-widest mb-4 text-center">
         Credits
       </h3>
-      <div class="home-credits-mobile text-center">
-        <div style="display: inline-flex; flex-direction: column; gap: 8px; width: max-content" class="text-left text-xs text-gray-700">
-          <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">
-            <span class="text-[10px] uppercase tracking-[0.18em] text-gray-500 text-left whitespace-nowrap">Inspired By</span>
-            <a href="https://x.com/foxeelab/status/1761498129268981856" target="_blank" rel="noopener noreferrer" class="block min-w-0 text-left font-bold hover:text-racing-red hover:underline">FoxeeLab</a>
-          </div>
-          <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">
-            <span class="text-[10px] uppercase tracking-[0.18em] text-gray-500 text-left whitespace-nowrap">Race Data</span>
-            <a href="https://github.com/jolpica/jolpica-f1" target="_blank" rel="noopener noreferrer" class="block min-w-0 text-left hover:text-racing-red">Jolpica</a>
-          </div>
-          <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">
-            <span class="text-[10px] uppercase tracking-[0.18em] text-gray-500 text-left whitespace-nowrap">Weather</span>
-            <a href="https://open-meteo.com" target="_blank" rel="noopener noreferrer" class="block min-w-0 text-left hover:text-racing-red">Open-Meteo</a>
-          </div>
-          <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">
-            <span class="text-[10px] uppercase tracking-[0.18em] text-gray-500 text-left whitespace-nowrap">Weather Icons</span>
-            <a href="https://github.com/erikflowers/weather-icons" target="_blank" rel="noopener noreferrer" class="block min-w-0 text-left hover:text-racing-red">Weather Icons</a>
-          </div>
-          <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">
-            <span class="text-[10px] uppercase tracking-[0.18em] text-gray-500 text-left whitespace-nowrap">Flags</span>
-            <a href="https://flagcdn.com" target="_blank" rel="noopener noreferrer" class="block min-w-0 text-left hover:text-racing-red">Flagcdn</a>
-          </div>
-          <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">
-            <span class="text-[10px] uppercase tracking-[0.18em] text-gray-500 text-left whitespace-nowrap">Platform</span>
-            <a href="https://zivyobraz.eu" target="_blank" rel="noopener noreferrer" class="block min-w-0 text-left hover:text-racing-red">Živýobraz.eu</a>
-          </div>
-          <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">
-            <span class="text-[10px] uppercase tracking-[0.18em] text-gray-500 text-left whitespace-nowrap">Hardware</span>
-            <div class="min-w-0 text-left">
-              <a href="https://www.laskakit.cz/laskakit-live-7-5-e-paper-stavebnice-s-wifi-pro---zivy-obraz-/" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">LaskaKit</a>
-              <span>&amp;</span>
-              <a href="https://pajenicko.cz/sverio-paperboard-ctyrbarevny-7.5-gdem075f52-s-cernym-rameckem" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">SVERIO ePaper</a>
-            </div>
-          </div>
-          <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">
-            <span class="text-[10px] uppercase tracking-[0.18em] text-gray-500 text-left whitespace-nowrap">Hosting</span>
-            <div class="min-w-0 text-left">
-              <a href="https://coolify.io" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Coolify</a>
-              <span>+</span>
-              <a href="https://hetzner.com" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red">Hetzner</a>
-            </div>
-          </div>
-          <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">
-            <span class="text-[10px] uppercase tracking-[0.18em] text-gray-500 text-left whitespace-nowrap">Analytics</span>
-            <a href="https://umami.is" target="_blank" rel="noopener noreferrer" class="block min-w-0 text-left hover:text-racing-red">Umami</a>
-          </div>
-          <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">
-            <span class="text-[10px] uppercase tracking-[0.18em] text-gray-500 text-left whitespace-nowrap">Errors</span>
-            <a href="https://glitchtip.com" target="_blank" rel="noopener noreferrer" class="block min-w-0 text-left hover:text-racing-red">GlitchTip</a>
-          </div>
-        </div>
-      </div>
       <div style="justify-content: center; align-items: flex-start; gap: 24px; flex-wrap: wrap" class="home-credits-desktop text-left text-xs text-gray-700">
         <div style="display: flex; flex-direction: column; gap: 8px">
           <div style="display: grid; grid-template-columns: 92px auto; column-gap: 10px; align-items: baseline">

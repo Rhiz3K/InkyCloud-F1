@@ -2,8 +2,8 @@
 <header
   class="bg-white border-b-4 border-black flex-shrink-0 z-30 relative w-full"
 >
-  <div class="max-w-full mx-auto px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-4">
+  <div class="max-w-full mx-auto px-2 md:px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2 md:gap-4">
       <button
         id="mobileMenuBtn"
         onclick="toggleMobileMenu()"
@@ -37,7 +37,7 @@
           <img
             src="/static/images/f1_homepage_logo_optimized.png"
             alt="F1 InkyCloud"
-            class="h-10 w-auto object-contain"
+            class="h-11 md:h-10 w-auto object-contain"
             width="340"
             height="40"
             fetchpriority="high"
@@ -47,7 +47,7 @@
     </div>
 
     <div
-      class="flex items-center gap-4 text-xs font-bold uppercase tracking-wider"
+      class="ml-auto flex items-center gap-2 md:gap-4 text-xs font-bold uppercase tracking-wider"
     >
       <!-- Desktop Nav -->
       <nav class="hidden md:flex items-center gap-4 mr-4">
@@ -85,12 +85,25 @@
           class="hover:text-racing-red transition-colors"
           >GitHub</a
         >
-        {% include "components/credits_dropdown.html" %}
       </nav>
 
       <!-- Language Switcher -->
-      <div class="relative group">
-        <label for="uiLangSwitch" class="sr-only"
+      <div class="relative group flex justify-end md:block">
+        <label
+          for="uiLangSwitch"
+          class="sr-only"
+          style="
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+          "
+        >
           >{{ nav.get('nav_language', 'Language') }}</label
         >
         <select
