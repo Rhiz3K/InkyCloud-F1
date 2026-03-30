@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import mimetypes
-import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,7 +45,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-_DEFAULT_FORWARDED_ALLOW_IPS = "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
 # Initialize Sentry/GlitchTip
 if config.SENTRY_DSN:
@@ -64,7 +62,7 @@ _PERSISTENCE_MARKER = Path(config.DATABASE_PATH).parent / ".persistence_marker"
 
 def _check_persistent_storage() -> bool:
     """Warn if database storage seems non-persistent."""
-    if os.environ.get("SKIP_PERSISTENCE_CHECK", "").lower() == "true":
+    if config.SKIP_PERSISTENCE_CHECK:
         logger.debug("Persistence check skipped via SKIP_PERSISTENCE_CHECK env var")
         return True
 
@@ -247,5 +245,5 @@ if __name__ == "__main__":
         port=config.APP_PORT,
         reload=config.DEBUG,
         proxy_headers=True,
-        forwarded_allow_ips=os.environ.get("FORWARDED_ALLOW_IPS", _DEFAULT_FORWARDED_ALLOW_IPS),
+        forwarded_allow_ips=config.FORWARDED_ALLOW_IPS,
     )

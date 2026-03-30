@@ -333,7 +333,10 @@ def test_favicon_endpoint_serves_real_ico_asset():
     response = client.get("/favicon.ico")
     assert response.status_code == 200
     assert response.headers["content-type"] in {"image/x-icon", "image/vnd.microsoft.icon"}
-    assert response.content == Path("app/assets/favicon/favicon.ico").read_bytes()
+    favicon_path = (
+        Path(__file__).resolve().parents[1] / "app" / "assets" / "favicon" / "favicon.ico"
+    )
+    assert response.content == favicon_path.read_bytes()
 
 
 def test_configure_page_contains_api_references():
