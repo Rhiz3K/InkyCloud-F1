@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Canonical public-page normalization** - Public HTML routes now use explicit canonical redirects for language roots and trailing-slash variants so crawler-facing URLs stay stable across home, configure, stats, changelog, privacy, and API docs pages
 - **Favicon asset serving** - Replaced the inline SVG emoji favicon with the packaged ICO asset so browser and audit tooling both see the same icon resource referenced by the site manifest and HTML head
-- **404 and credits localization polish** - Localized the new 404 page copy across all supported languages, regrouped homepage credits into a stable responsive layout, and aligned site/readme acknowledgements for weather data, weather icons, analytics, monitoring, flag assets, and inspiration sources
+- **404 and credits localization polish** - Localized the new 404 page copy across all supported languages, regrouped homepage credits into a stable responsive layout, and aligned site/README acknowledgements for weather data, weather icons, analytics, monitoring, flag assets, and inspiration sources
+- **Homepage and mobile-nav polish** - Refined the homepage credits presentation, removed the desktop header credits dropdown, moved mobile credits into the drawer footer, and tightened mobile header spacing so the logo, menu button, and language switcher stay balanced across breakpoints
+- **Language selector labels** - Shortened the visible `PT-BR` and `ZH-CN` language labels to compact `PT` and `ZH` display text while keeping the underlying locale routing unchanged
 - **README cleanup** - Removed decorative emoji section headings and refreshed credits/documentation copy so the public project page matches the current app behavior and deployment requirements
 
 ### Backend
@@ -33,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
-- **Crawler and SEO endpoint coverage** - Added regression tests for `robots.txt`, `sitemap.xml`, canonical redirects, HTML 404 rendering, HSTS behavior, and favicon responses to lock in the current Search Console remediation work
+- **Crawler and SEO endpoint coverage** - Added regression tests for `robots.txt`, `sitemap.xml`, canonical redirects, HTML 404 rendering, HSTS behavior, favicon responses, and HTTPS-only redirect assertions so the Search Console remediation work stays locked to the configured canonical host
 
 ### Documentation
 
