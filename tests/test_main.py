@@ -242,8 +242,9 @@ def test_robots_txt_head_returns_empty_body():
 
 def test_language_root_redirect_is_relative_and_hsts_on_https():
     """Language-root normalization should use a safe relative redirect and preserve HSTS."""
-    https_client = TestClient(app, base_url=str(config.SITE_URL).rstrip("/"))
-    response = https_client.get("/cs", follow_redirects=False)
+    with patch("app.main.config.SITE_URL", "https://example.test"):
+        https_client = TestClient(app, base_url="https://example.test")
+        response = https_client.get("/cs", follow_redirects=False)
 
     assert response.status_code == 301
     assert response.headers["location"] == "/cs/"
@@ -252,12 +253,12 @@ def test_language_root_redirect_is_relative_and_hsts_on_https():
 
 def test_www_host_redirects_to_canonical_apex():
     """The application should redirect www traffic to the canonical apex host."""
-    site_url = str(config.SITE_URL).rstrip("/")
-    www_client = TestClient(app, base_url=site_url.replace("://", "://www.", 1))
-    response = www_client.get("/stats?range=7d", follow_redirects=False)
+    with patch("app.main.config.SITE_URL", "https://example.test"):
+        www_client = TestClient(app, base_url="https://www.example.test")
+        response = www_client.get("/stats?range=7d", follow_redirects=False)
 
     assert response.status_code == 301
-    assert response.headers["location"] == f"{site_url}/stats?range=7d"
+    assert response.headers["location"] == "https://example.test/stats?range=7d"
     assert response.headers["strict-transport-security"] == "max-age=31536000"
 
 
