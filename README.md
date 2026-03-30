@@ -160,7 +160,7 @@ Want to run your own instance? We've got you covered!
 
 Local development requires **Python 3.14.3+**.
 
-👉 **[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete guide for self-hosting including:
+**[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete guide for self-hosting including:
 
 - Quick start with Docker/Coolify
 - Project structure
