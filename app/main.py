@@ -201,16 +201,26 @@ def _should_render_html_404(request: StarletteRequest) -> bool:
 async def not_found_handler(request: StarletteRequest, exc: StarletteHTTPException):
     """Render a themed HTML 404 for browser routes and JSON elsewhere."""
     if not _should_render_html_404(request):
-        return JSONResponse(status_code=404, content={"detail": exc.detail or "Not found"})
+        return JSONResponse(
+            status_code=404,
+            content={"detail": exc.detail or "Not found"},
+            headers={"Cache-Control": "no-store"},
+        )
 
     if request.method == "HEAD":
-        return StarletteResponse(status_code=404, media_type="text/html")
+        return StarletteResponse(
+            status_code=404,
+            media_type="text/html",
+            headers={"Cache-Control": "no-store"},
+        )
 
     ui_lang = _resolve_error_ui_language(request)
     context = get_template_context(request, ui_lang)
     context["active_page"] = None
     context["not_found_path"] = request.url.path
-    return templates.TemplateResponse(request, "404.html", context, status_code=404)
+    response = templates.TemplateResponse(request, "404.html", context, status_code=404)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 app.add_middleware(StaticCacheMiddleware)

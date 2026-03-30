@@ -28,6 +28,7 @@ _DISPLAY_TYPE_LABELS = {
     "bwr": "B/W/R",
     "bwry": "B/W/R/Y",
 }
+_VALID_SCREEN_TYPES = {"calendar", "teams"}
 
 
 def _strip_empty_unreleased_section(changelog_text: str) -> str:
@@ -151,7 +152,7 @@ async def root_lang(request: Request, lang_prefix: str, lang: str = Query(defaul
 
 async def _configure_handler(request: Request, screen_type: str, ui_lang: str) -> HTMLResponse:
     """Render configure page."""
-    if screen_type not in ["calendar", "teams"]:
+    if screen_type not in _VALID_SCREEN_TYPES:
         raise HTTPException(status_code=404, detail="Unknown screen type")
 
     url = lang_url(f"/configure/{screen_type}", ui_lang)
@@ -176,6 +177,8 @@ async def _configure_handler(request: Request, screen_type: str, ui_lang: str) -
 )
 async def configure_screen_slash_redirect(request: Request, screen_type: str):
     """Normalize configure page URLs to the canonical no-trailing-slash form."""
+    if screen_type not in _VALID_SCREEN_TYPES:
+        raise HTTPException(status_code=404, detail="Unknown screen type")
     return _redirect_path(request, f"/configure/{screen_type}")
 
 
@@ -204,6 +207,8 @@ async def configure_screen_lang_slash_redirect(
     """Normalize localized configure URLs to the canonical no-trailing-slash form."""
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
+    if screen_type not in _VALID_SCREEN_TYPES:
+        raise HTTPException(status_code=404, detail="Unknown screen type")
     if lang_prefix == "en":
         return _redirect_path(request, f"/configure/{screen_type}")
     return _redirect_path(request, f"/{lang_prefix}/configure/{screen_type}")

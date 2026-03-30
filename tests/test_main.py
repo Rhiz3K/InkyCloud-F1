@@ -12,7 +12,7 @@ from bs4.element import Tag
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from app.config import LANGUAGE_CODES
+from app.config import LANGUAGE_CODES, config
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
 from app.routes import images as images_routes
@@ -199,6 +199,7 @@ def test_health_endpoint():
 
 def test_sitemap_xml_get_returns_valid_xml():
     """Sitemap should return XML with the public site URL entries."""
+    site_url = str(config.SITE_URL).rstrip("/")
     response = client.get("/sitemap.xml")
     assert response.status_code == 200
     assert "application/xml" in response.headers["content-type"]
@@ -207,9 +208,9 @@ def test_sitemap_xml_get_returns_valid_xml():
     ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
     locs = [elem.text for elem in root.findall("sm:url/sm:loc", ns)]
 
-    assert any(loc == "https://f1.inkycloud.click/" for loc in locs)
-    assert any(loc == "https://f1.inkycloud.click/cs/" for loc in locs)
-    assert any(loc == "https://f1.inkycloud.click/configure/calendar" for loc in locs)
+    assert any(loc == f"{site_url}/" for loc in locs)
+    assert any(loc == f"{site_url}/cs/" for loc in locs)
+    assert any(loc == f"{site_url}/configure/calendar" for loc in locs)
 
 
 def test_sitemap_xml_head_returns_empty_body():
@@ -222,12 +223,13 @@ def test_sitemap_xml_head_returns_empty_body():
 
 def test_robots_txt_get_contains_sitemap_reference():
     """robots.txt should allow crawling and advertise the canonical sitemap URL."""
+    site_url = str(config.SITE_URL).rstrip("/")
     response = client.get("/robots.txt")
     assert response.status_code == 200
     assert "text/plain" in response.headers["content-type"]
     assert "User-agent: *" in response.text
     assert "Allow: /" in response.text
-    assert "Sitemap: https://f1.inkycloud.click/sitemap.xml" in response.text
+    assert f"Sitemap: {site_url}/sitemap.xml" in response.text
 
 
 def test_robots_txt_head_returns_empty_body():
@@ -240,7 +242,7 @@ def test_robots_txt_head_returns_empty_body():
 
 def test_language_root_redirect_is_relative_and_hsts_on_https():
     """Language-root normalization should use a safe relative redirect and preserve HSTS."""
-    https_client = TestClient(app, base_url="https://f1.inkycloud.click")
+    https_client = TestClient(app, base_url=str(config.SITE_URL).rstrip("/"))
     response = https_client.get("/cs", follow_redirects=False)
 
     assert response.status_code == 301
@@ -250,11 +252,12 @@ def test_language_root_redirect_is_relative_and_hsts_on_https():
 
 def test_www_host_redirects_to_canonical_apex():
     """The application should redirect www traffic to the canonical apex host."""
-    www_client = TestClient(app, base_url="https://www.f1.inkycloud.click")
+    site_url = str(config.SITE_URL).rstrip("/")
+    www_client = TestClient(app, base_url=site_url.replace("://", "://www.", 1))
     response = www_client.get("/stats?range=7d", follow_redirects=False)
 
     assert response.status_code == 301
-    assert response.headers["location"] == "https://f1.inkycloud.click/stats?range=7d"
+    assert response.headers["location"] == f"{site_url}/stats?range=7d"
     assert response.headers["strict-transport-security"] == "max-age=31536000"
 
 
@@ -279,9 +282,41 @@ def test_unknown_html_route_returns_direct_html_404():
     """Unknown browser-facing pages should return a direct HTML 404 without a redirect hop."""
     response = client.get("/nonexistent-test-page-12345", follow_redirects=False)
     assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
     assert "text/html" in response.headers["content-type"]
     assert "Page Not Found" in response.text
     assert "/nonexistent-test-page-12345" in response.text
+
+
+def test_unknown_html_head_returns_nostore_404():
+    """HEAD requests for missing browser routes should still be non-cacheable."""
+    response = client.request("HEAD", "/nonexistent-test-page-12345")
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+    assert "text/html" in response.headers["content-type"]
+    assert response.content == b""
+
+
+def test_unknown_api_route_returns_json_404_without_caching():
+    """Non-HTML 404 responses should remain JSON and avoid caches."""
+    response = client.get("/api/missing-route")
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["detail"] == "Not Found"
+
+
+def test_invalid_configure_screen_slash_returns_404_instead_of_redirect():
+    """Unknown configure screen variants should not canonicalize into redirect targets."""
+    response = client.get("/configure/unknown/", follow_redirects=False)
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_invalid_localized_configure_screen_slash_returns_404():
+    """Localized configure slash redirects should reject invalid screen types."""
+    response = client.get("/cs/configure/unknown/", follow_redirects=False)
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
 
 
 def test_favicon_endpoint_serves_real_ico_asset():
