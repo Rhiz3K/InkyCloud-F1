@@ -37,7 +37,7 @@
           <img
             src="/static/images/f1_homepage_logo_optimized.png"
             alt="F1 InkyCloud"
-            class="h-11 md:h-10 w-auto object-contain"
+            class="h-10 w-auto object-contain"
             width="340"
             height="40"
             fetchpriority="high"
@@ -88,18 +88,12 @@
       </nav>
 
       <!-- Language Switcher -->
-      <div class="relative group flex justify-end md:block">
-        <label
-          for="uiLangSwitch"
-          class="sr-only"
-        >
-          {{ nav.get('nav_language', 'Language') }}</label
-        >
+      <div class="relative ml-auto flex justify-end w-12 md:ml-0 md:block md:w-auto">
         <select
           id="uiLangSwitch"
           onchange="switchUiLanguage()"
           aria-label="{{ nav.get('nav_language', 'Language') }}"
-          class="appearance-none bg-white border-2 border-black px-3 py-1 cursor-pointer hover:bg-racing-red hover:text-white transition-colors focus:outline-none shadow-neo-sm"
+          class="block w-full appearance-none bg-white border-2 border-black px-0 md:px-3 py-1 cursor-pointer text-center md:text-left hover:bg-racing-red hover:text-white transition-colors focus:outline-none shadow-neo-sm md:w-auto"
         >
           {% for language in supported_languages %}
           <option value="{{ language.code }}" {{ language.selected }}>{{ language.label }}</option>

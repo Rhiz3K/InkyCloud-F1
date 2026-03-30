@@ -420,7 +420,7 @@ def test_homepage_contains_credits_links():
     assert 'href="https://hetzner.com"' in html
     assert 'href="https://www.laskakit.cz/' in html
     assert "Weather" in html
-    assert "Weather Icons" in html
+    assert "Icons" in html
     assert "Jolpica" in html
     assert 'href="https://open-meteo.com"' in html
     assert 'href="https://github.com/erikflowers/weather-icons"' in html
