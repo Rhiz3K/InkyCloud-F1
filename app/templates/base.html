@@ -200,39 +200,164 @@
           </svg>
         </button>
       </div>
-      <nav class="p-4 space-y-2">
+      <nav class="flex flex-col p-4" style="height: calc(100% - 57px)">
+        <div class="space-y-2">
         <a
           href="{{ lang_url('/') }}"
-          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm"
+          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'home' %}bg-racing-red text-white border-racing-red{% endif %}"
           >{{ nav.nav_home }}</a
         >
-        <a
-          href="{{ lang_url('/stats') }}"
-          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'stats' %}bg-racing-red text-white border-racing-red{% endif %}"
-          >{{ nav.nav_stats }}</a
-        >
-        <a
-          href="{{ lang_url('/api/docs/html') }}"
-          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'api' %}bg-racing-red text-white border-racing-red{% endif %}"
-          >{{ nav.nav_api }}</a
-        >
-        <a
-          href="{{ lang_url('/privacy') }}"
-          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'privacy' %}bg-racing-red text-white border-racing-red{% endif %}"
-          >{{ nav.nav_privacy }}</a
-        >
-        <a
-          href="{{ lang_url('/changelog') }}"
-          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'changelog' %}bg-racing-red text-white border-racing-red{% endif %}"
-          >{{ nav.nav_changelog }}</a
-        >
-        <a
-          href="https://github.com/Rhiz3K/InkyCloud-F1"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm"
-          >GitHub</a
-        >
+          <a
+            href="{{ lang_url('/stats') }}"
+            class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'stats' %}bg-racing-red text-white border-racing-red{% endif %}"
+            >{{ nav.nav_stats }}</a
+          >
+          <a
+            href="{{ lang_url('/api/docs/html') }}"
+            class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'api' %}bg-racing-red text-white border-racing-red{% endif %}"
+            >{{ nav.nav_api }}</a
+          >
+          <a
+            href="{{ lang_url('/privacy') }}"
+            class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'privacy' %}bg-racing-red text-white border-racing-red{% endif %}"
+            >{{ nav.nav_privacy }}</a
+          >
+          <a
+            href="{{ lang_url('/changelog') }}"
+            class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'changelog' %}bg-racing-red text-white border-racing-red{% endif %}"
+            >{{ nav.nav_changelog }}</a
+          >
+          <a
+            href="https://github.com/Rhiz3K/InkyCloud-F1"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm"
+            >GitHub</a
+          >
+        </div>
+        <div class="mt-auto space-y-2 pt-4 pb-2 text-xs">
+          <div class="font-bold uppercase tracking-wider">Credits</div>
+          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
+            <span class="text-gray-500">Inspiration:</span>
+            <a
+              href="https://x.com/foxeelab/status/1761498129268981856"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="font-bold hover:text-racing-red hover:underline"
+              >FoxeeLab</a
+            >
+          </div>
+          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
+            <span class="text-gray-500">Race data:</span>
+            <a
+              href="https://github.com/jolpica/jolpica-f1"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-racing-red"
+              >Jolpica-F1 API</a
+            >
+          </div>
+          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
+            <span class="text-gray-500">Weather:</span>
+            <a
+              href="https://open-meteo.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-racing-red"
+              >Open-Meteo</a
+            >
+          </div>
+          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
+            <span class="text-gray-500">Icons:</span>
+            <a
+              href="https://github.com/erikflowers/weather-icons"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-racing-red"
+              >Weather-icons</a
+            >
+          </div>
+          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
+            <span class="text-gray-500">Flags:</span>
+            <a
+              href="https://flagcdn.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-racing-red"
+              >Flagcdn</a
+            >
+          </div>
+          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
+            <span class="text-gray-500">Platform:</span>
+            <a
+              href="https://zivyobraz.eu"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-racing-red"
+              >Živýobraz.eu</a
+            >
+          </div>
+          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
+            <span class="text-gray-500">Devices:</span>
+            <div class="flex flex-wrap gap-x-2 gap-y-1">
+              <a
+                href="https://www.laskakit.cz/laskakit-live-7-5-e-paper-stavebnice-s-wifi-pro---zivy-obraz-/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hover:text-racing-red"
+                >LaskaKit</a
+              >
+              <span>&amp;</span>
+              <a
+                href="https://pajenicko.cz/sverio-paperboard-ctyrbarevny-7.5-gdem075f52-s-cernym-rameckem"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hover:text-racing-red"
+                >SVERIO</a
+              >
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
+            <span class="text-gray-500">Hosting:</span>
+            <div class="flex flex-wrap gap-x-2 gap-y-1">
+              <a
+                href="https://coolify.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hover:text-racing-red"
+                >Coolify</a
+              >
+              <span>+</span>
+              <a
+                href="https://hetzner.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="hover:text-racing-red"
+                >Hetzner</a
+              >
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
+            <span class="text-gray-500">Analytics:</span>
+            <a
+              href="https://umami.is"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-racing-red"
+              >Umami</a
+            >
+          </div>
+          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
+            <span class="text-gray-500">Errors:</span>
+            <a
+              href="https://glitchtip.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-racing-red"
+              >GlitchTip</a
+            >
+          </div>
+        </div>
       </nav>
     </div>
 

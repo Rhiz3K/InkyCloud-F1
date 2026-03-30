@@ -29,10 +29,10 @@ LANGUAGE_LABELS: dict[str, str] = {
     "ja": "JA",
     "nl": "NL",
     "pl": "PL",
-    "pt-BR": "PT-BR",
+    "pt-BR": "PT",
     "sk": "SK",
     "tr": "TR",
-    "zh-CN": "ZH-CN",
+    "zh-CN": "ZH",
 }
 
 OG_LOCALES: dict[str, str] = {

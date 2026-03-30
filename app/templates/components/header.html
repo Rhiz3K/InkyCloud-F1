@@ -2,8 +2,8 @@
 <header
   class="bg-white border-b-4 border-black flex-shrink-0 z-30 relative w-full"
 >
-  <div class="max-w-full mx-auto px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-4">
+  <div class="max-w-full mx-auto px-2 md:px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2 md:gap-4">
       <button
         id="mobileMenuBtn"
         onclick="toggleMobileMenu()"
@@ -47,7 +47,7 @@
     </div>
 
     <div
-      class="flex items-center gap-4 text-xs font-bold uppercase tracking-wider"
+      class="ml-auto flex items-center gap-2 md:gap-4 text-xs font-bold uppercase tracking-wider"
     >
       <!-- Desktop Nav -->
       <nav class="hidden md:flex items-center gap-4 mr-4">
@@ -85,19 +85,15 @@
           class="hover:text-racing-red transition-colors"
           >GitHub</a
         >
-        {% include "components/credits_dropdown.html" %}
       </nav>
 
       <!-- Language Switcher -->
-      <div class="relative group">
-        <label for="uiLangSwitch" class="sr-only"
-          >{{ nav.get('nav_language', 'Language') }}</label
-        >
+      <div class="relative ml-auto flex justify-end w-12 md:ml-0 md:block md:w-auto">
         <select
           id="uiLangSwitch"
           onchange="switchUiLanguage()"
           aria-label="{{ nav.get('nav_language', 'Language') }}"
-          class="appearance-none bg-white border-2 border-black px-3 py-1 cursor-pointer hover:bg-racing-red hover:text-white transition-colors focus:outline-none shadow-neo-sm"
+          class="block w-full appearance-none bg-white border-2 border-black px-0 md:px-3 py-1 cursor-pointer text-center md:text-left hover:bg-racing-red hover:text-white transition-colors focus:outline-none shadow-neo-sm md:w-auto"
         >
           {% for language in supported_languages %}
           <option value="{{ language.code }}" {{ language.selected }}>{{ language.label }}</option>

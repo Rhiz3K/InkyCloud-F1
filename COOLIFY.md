@@ -95,6 +95,7 @@ Click **"Environment Variables"** and add:
 APP_HOST=0.0.0.0
 APP_PORT=8000
 DEBUG=false
+SITE_URL=https://f1.yourdomain.com
 ```
 
 **Optional (Recommended for Production)**:
@@ -106,6 +107,8 @@ UMAMI_ENABLED=true
 UMAMI_WEBSITE_ID=your-website-id
 UMAMI_API_URL=https://your-analytics-domain.com/api/send
 ```
+
+`SITE_URL` must match the public apex domain of this deployment. It is used for canonical tags, `robots.txt`, `sitemap.xml`, Open Graph URLs, and the app-level `www` redirect. It is separate from `ANALYTICS_HOSTNAME`.
 
 ### Step 4: Deploy
 
@@ -664,6 +667,96 @@ labels:
 ```
 
 **Adds rate limiting**: 100 req/s average, 50 burst
+
+### Canonical Apex + WWW Redirects
+
+For the cleanest SEO and redirect behavior, keep only these two domains in Coolify:
+
+- `https://f1.yourdomain.com`
+- `https://www.f1.yourdomain.com`
+
+Do not add `http://...` domains in the Coolify UI. Let Traefik handle HTTP entrypoints and redirects.
+
+Recommended label set for a single-hop canonical redirect chain:
+
+- `http://f1.yourdomain.com/*` -> `https://f1.yourdomain.com/*`
+- `http://www.f1.yourdomain.com/*` -> `https://f1.yourdomain.com/*`
+- `https://www.f1.yourdomain.com/*` -> `https://f1.yourdomain.com/*`
+
+```text
+traefik.enable=true
+
+traefik.http.middlewares.gzip.compress=true
+
+# HTTP apex -> HTTPS apex
+traefik.http.middlewares.redirect-to-https-apex.redirectscheme.scheme=https
+traefik.http.middlewares.redirect-to-https-apex.redirectscheme.permanent=true
+
+# Any www host -> HTTPS apex
+traefik.http.middlewares.to-apex.redirectregex.regex=^(http|https)://www\.(.+)
+traefik.http.middlewares.to-apex.redirectregex.replacement=https://${2}
+traefik.http.middlewares.to-apex.redirectregex.permanent=true
+
+# HTTP apex
+traefik.http.routers.http-0-<resource-id>.entryPoints=http
+traefik.http.routers.http-0-<resource-id>.middlewares=redirect-to-https-apex
+traefik.http.routers.http-0-<resource-id>.rule=Host(`f1.yourdomain.com`) && PathPrefix(`/`)
+traefik.http.routers.http-0-<resource-id>.service=http-0-<resource-id>
+
+# HTTP www -> HTTPS apex in one hop
+traefik.http.routers.http-1-<resource-id>.entryPoints=http
+traefik.http.routers.http-1-<resource-id>.middlewares=to-apex
+traefik.http.routers.http-1-<resource-id>.rule=Host(`www.f1.yourdomain.com`) && PathPrefix(`/`)
+traefik.http.routers.http-1-<resource-id>.service=http-1-<resource-id>
+
+# HTTPS apex
+traefik.http.routers.https-0-<resource-id>.entryPoints=https
+traefik.http.routers.https-0-<resource-id>.middlewares=gzip
+traefik.http.routers.https-0-<resource-id>.rule=Host(`f1.yourdomain.com`) && PathPrefix(`/`)
+traefik.http.routers.https-0-<resource-id>.service=https-0-<resource-id>
+traefik.http.routers.https-0-<resource-id>.tls.certresolver=letsencrypt
+traefik.http.routers.https-0-<resource-id>.tls=true
+
+# HTTPS www -> HTTPS apex
+traefik.http.routers.https-1-<resource-id>.entryPoints=https
+traefik.http.routers.https-1-<resource-id>.middlewares=gzip,to-apex
+traefik.http.routers.https-1-<resource-id>.rule=Host(`www.f1.yourdomain.com`) && PathPrefix(`/`)
+traefik.http.routers.https-1-<resource-id>.service=https-1-<resource-id>
+traefik.http.routers.https-1-<resource-id>.tls.certresolver=letsencrypt
+traefik.http.routers.https-1-<resource-id>.tls=true
+
+traefik.http.services.http-0-<resource-id>.loadbalancer.server.port=8000
+traefik.http.services.http-1-<resource-id>.loadbalancer.server.port=8000
+traefik.http.services.https-0-<resource-id>.loadbalancer.server.port=8000
+traefik.http.services.https-1-<resource-id>.loadbalancer.server.port=8000
+```
+
+If your Coolify resource also emits Caddy labels, the matching configuration is:
+
+```text
+caddy_0.encode=zstd gzip
+caddy_0.handle_path.0_reverse_proxy={{upstreams 8000}}
+caddy_0.handle_path=/*
+caddy_0.header=-Server
+caddy_0.try_files={path} /index.html /index.php
+caddy_0=https://f1.yourdomain.com
+
+caddy_1.encode=zstd gzip
+caddy_1.handle_path.1_reverse_proxy={{upstreams 8000}}
+caddy_1.handle_path=/*
+caddy_1.header=-Server
+caddy_1.redir=https://f1.yourdomain.com{uri}
+caddy_1.try_files={path} /index.html /index.php
+caddy_1=https://www.f1.yourdomain.com
+
+caddy_ingress_network=coolify
+```
+
+Notes:
+
+- Replace `<resource-id>` with the actual Coolify-generated suffix for your app.
+- `to-apex.redirectregex.replacement` must be `https://${2}`, not `${1}://${2}`, otherwise `http://www...` becomes a two-hop redirect.
+- App-level redirects remain as a fallback, but the proxy layer should handle the canonical host cleanly before the request reaches FastAPI.
 
 ---
 

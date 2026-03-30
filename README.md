@@ -8,7 +8,7 @@
 
 ---
 
-## 🎯 Quick Start — Use It Now!
+## Quick Start — Use It Now!
 
 The easiest way to display the F1 calendar on your E-Ink device is to use our **free public instance**:
 
@@ -50,7 +50,7 @@ https://f1.inkycloud.click/sk/configure/calendar
 
 ---
 
-## 📺 Preview
+## Preview
 
 ![F1 E-Ink Calendar Preview](./assets/device.jpg)
 
@@ -62,7 +62,7 @@ _SVERIO PaperBoard 7.5" GDEM075F52 four-color 800×480 ePaper (black/white/yello
 
 ---
 
-## ✨ Features
+## Features
 
 - **800x480 BMP output** — `1bit` monochrome, `bwr` B/W/R, `bwry` B/W/R/Y, and `spectra6` 6-color mode for both calendar and teams screens
 - **Teams & Drivers screen** — Dedicated `teams.bmp` render for the default or selected season with constructor lineup, driver photos, and championship points
@@ -103,7 +103,7 @@ Planned features for future releases:
 
 ---
 
-## 🔌 ESP32 Integration
+## ESP32 Integration
 
 ### Using zivyobraz.eu (Recommended)
 
@@ -126,7 +126,7 @@ if (httpCode == HTTP_CODE_OK) {
 
 ---
 
-## 🛠️ API Endpoints
+## API Endpoints
 
 The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides these endpoints:
 
@@ -154,13 +154,13 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 
 ---
 
-## 🏠 Self-Hosting
+## Self-Hosting
 
 Want to run your own instance? We've got you covered!
 
 Local development requires **Python 3.14.3+**.
 
-👉 **[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete guide for self-hosting including:
+**[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete guide for self-hosting including:
 
 - Quick start with Docker/Coolify
 - Project structure
@@ -187,19 +187,23 @@ docker run -p 8000:8000 f1-eink-cal
 
 ---
 
-## 📜 License
+## License
 
 See [LICENSE](LICENSE) file for details.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
-## 🙏 Credits
+## Credits
 
-- **Inspired by**: [FoxeeLab's original F1 E-Ink project](https://x.com/foxeelab/status/1761498129268981856) for [zivyobraz.eu](https://zivyobraz.eu)
-- F1 data from [Jolpica F1 API](https://github.com/jolpica/jolpica-f1)
-- Weather forecast data from [Open-Meteo](https://open-meteo.com)
-- Weather icons from [Weather Icons](https://github.com/erikflowers/weather-icons) by Erik Flowers (SIL OFL 1.1)
-- Built for [LaskaKit](https://www.laskakit.cz/) and [SVERIO ePaper](https://pajenicko.cz/sverio-paperboard-ctyrbarevny-7.5-gdem075f52-s-cernym-rameckem) displays
-- Public instance hosted on [Coolify](https://coolify.io) + [Hetzner](https://www.hetzner.com/)
+- **Inspiration:** [FoxeeLab's original F1 E-Ink project](https://x.com/foxeelab/status/1761498129268981856)
+- **Race data:** [Jolpica-F1 API](https://github.com/jolpica/jolpica-f1)
+- **Weather:** [Open-Meteo](https://open-meteo.com)
+- **Icons:** [Weather Icons](https://github.com/erikflowers/weather-icons) by Erik Flowers (SIL OFL 1.1)
+- **Flags:** [Flagcdn](https://flagcdn.com)
+- **Platform:** [Živýobraz.eu](https://zivyobraz.eu)
+- **Devices:** [LaskaKit](https://www.laskakit.cz/) and [SVERIO](https://pajenicko.cz/sverio-paperboard-ctyrbarevny-7.5-gdem075f52-s-cernym-rameckem)
+- **Hosting:** [Coolify](https://coolify.io) + [Hetzner](https://www.hetzner.com/)
+- **Analytics:** [Umami](https://umami.is)
+- **Errors:** [GlitchTip](https://glitchtip.com)

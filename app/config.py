@@ -78,6 +78,14 @@ class Config(BaseSettings):
         "https://f1.inkycloud.click",
         description="Base URL for the site (used in SEO meta tags, sitemap, etc.)",
     )
+    FORWARDED_ALLOW_IPS: str = Field(
+        "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16",
+        description="Trusted reverse proxy IPs/CIDRs for forwarded headers",
+    )
+    SKIP_PERSISTENCE_CHECK: bool = Field(
+        False,
+        description="Skip the persistent volume safety check on startup",
+    )
 
     # Sentry/GlitchTip settings
     SENTRY_DSN: Optional[str] = Field(default=None, description="Sentry DSN")

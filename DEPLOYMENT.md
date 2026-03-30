@@ -40,6 +40,7 @@ This guide covers different deployment options for the F1 E-Ink Calendar service
    APP_HOST=0.0.0.0
    APP_PORT=8000
    DEBUG=false
+   SITE_URL=https://f1.yourdomain.com
 
    # Optional - Monitoring
    SENTRY_DSN=your-sentry-dsn
@@ -126,6 +127,7 @@ Create a `.env` file with production settings:
 APP_HOST=0.0.0.0
 APP_PORT=8000
 DEBUG=false
+SITE_URL=https://f1.yourdomain.com
 
 # Monitoring (GlitchTip/Sentry)
 SENTRY_DSN=https://your-sentry-dsn@sentry.io/project
@@ -136,6 +138,7 @@ SENTRY_TRACES_SAMPLE_RATE=0.1
 UMAMI_WEBSITE_ID=your-website-id
 UMAMI_API_URL=https://analytics.yourdomain.com/api/send
 UMAMI_ENABLED=true
+ANALYTICS_HOSTNAME=f1.yourdomain.com
 
 # API
 JOLPICA_API_URL=https://api.jolpi.ca/ergast/f1/current/next.json

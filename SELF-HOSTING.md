@@ -33,6 +33,7 @@ Deploy in 5 minutes with one-click deployment:
    APP_HOST=0.0.0.0
    APP_PORT=8000
    DEBUG=false
+   SITE_URL=https://f1.yourdomain.com
    ```
 
 3. **Click Deploy** → Done! 🎉
@@ -267,6 +268,7 @@ Create a `.env` file based on `.env.example`:
 APP_HOST=0.0.0.0
 APP_PORT=8000
 DEBUG=false
+SITE_URL=https://f1.yourdomain.com
 
 # Sentry/GlitchTip Configuration
 SENTRY_DSN=your-sentry-dsn-here
@@ -277,6 +279,7 @@ SENTRY_TRACES_SAMPLE_RATE=0.1
 UMAMI_WEBSITE_ID=your-website-id
 UMAMI_API_URL=https://analytics.example.com/api/send
 UMAMI_ENABLED=true
+ANALYTICS_HOSTNAME=f1.yourdomain.com
 
 # API Configuration
 JOLPICA_API_URL=https://api.jolpi.ca/ergast/f1/current/next.json
@@ -298,15 +301,18 @@ IMAGES_PATH=/app/data/images
 SCHEDULER_ENABLED=true
 ```
 
+`SITE_URL` is required for correct canonical tags, `robots.txt`, `sitemap.xml`, Open Graph URLs, and the app-level `www` to apex redirect. `ANALYTICS_HOSTNAME` only affects analytics reporting and does not replace `SITE_URL`.
+
 ### Configuration Variables
 
 | Variable                                                        | Default            | Description                                             |
 | --------------------------------------------------------------- | ------------------ | ------------------------------------------------------- |
 | `APP_HOST` / `APP_PORT` / `PORT`                                | `0.0.0.0:8000`     | Bind address and port                                   |
 | `DEBUG`                                                         | `false`            | Enable verbose logging                                  |
+| `SITE_URL`                                                      | `https://f1.inkycloud.click` | Canonical public base URL used in SEO tags, sitemap, robots.txt, and redirects |
 | `PYTHONUNBUFFERED` / `PYTHONDONTWRITEBYTECODE`                  | -                  | Container-friendly Python flags                         |
 | `SENTRY_DSN`, `SENTRY_ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE` | -                  | GlitchTip/Sentry monitoring                             |
-| `UMAMI_WEBSITE_ID`, `UMAMI_API_URL`, `UMAMI_ENABLED`            | -                  | Umami analytics tracking                                |
+| `UMAMI_WEBSITE_ID`, `UMAMI_API_URL`, `UMAMI_ENABLED`, `ANALYTICS_HOSTNAME` | -         | Umami analytics tracking                                |
 | `JOLPICA_API_URL`, `REQUEST_TIMEOUT`                            | -                  | Upstream F1 data endpoint                               |
 | `DEFAULT_LANG`                                                  | `en`               | Default calendar language                               |
 | `DEFAULT_TIMEZONE`                                              | `Europe/Prague`    | IANA timezone for schedule                              |

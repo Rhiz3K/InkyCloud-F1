@@ -1,6 +1,7 @@
 """Test main FastAPI application endpoints."""
 
 import json
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import cast
 from unittest.mock import AsyncMock, patch
@@ -11,7 +12,7 @@ from bs4.element import Tag
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from app.config import LANGUAGE_CODES
+from app.config import LANGUAGE_CODES, config
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
 from app.routes import images as images_routes
@@ -196,6 +197,149 @@ def test_health_endpoint():
     assert response.json()["status"] == "healthy"
 
 
+def test_sitemap_xml_get_returns_valid_xml():
+    """Sitemap should return XML with the public site URL entries."""
+    site_url = str(config.SITE_URL).rstrip("/")
+    response = client.get("/sitemap.xml")
+    assert response.status_code == 200
+    assert "application/xml" in response.headers["content-type"]
+
+    root = ET.fromstring(response.text)
+    ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    locs = [elem.text for elem in root.findall("sm:url/sm:loc", ns)]
+
+    assert any(loc == f"{site_url}/" for loc in locs)
+    assert any(loc == f"{site_url}/cs/" for loc in locs)
+    assert any(loc == f"{site_url}/configure/calendar" for loc in locs)
+
+
+def test_sitemap_xml_head_returns_empty_body():
+    """HEAD requests to sitemap should succeed without a body."""
+    response = client.request("HEAD", "/sitemap.xml")
+    assert response.status_code == 200
+    assert "application/xml" in response.headers["content-type"]
+    assert response.content == b""
+
+
+def test_robots_txt_get_contains_sitemap_reference():
+    """robots.txt should allow crawling and advertise the canonical sitemap URL."""
+    site_url = str(config.SITE_URL).rstrip("/")
+    response = client.get("/robots.txt")
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+    assert "User-agent: *" in response.text
+    assert "Allow: /" in response.text
+    assert f"Sitemap: {site_url}/sitemap.xml" in response.text
+
+
+def test_robots_txt_head_returns_empty_body():
+    """HEAD requests to robots.txt should succeed without a body."""
+    response = client.request("HEAD", "/robots.txt")
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+    assert response.content == b""
+
+
+def test_language_root_redirect_is_relative_and_hsts_on_https():
+    """Language-root normalization should use a safe relative redirect and preserve HSTS."""
+    with patch("app.main.config.SITE_URL", "https://example.test"):
+        https_client = TestClient(app, base_url="https://example.test")
+        response = https_client.get("/cs", follow_redirects=False)
+
+    assert response.status_code == 301
+    assert response.headers["location"] == "/cs/"
+    assert response.headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_www_host_redirects_to_canonical_apex():
+    """The application should redirect www traffic to the canonical apex host."""
+    with patch("app.main.config.SITE_URL", "https://example.test"):
+        www_client = TestClient(app, base_url="https://www.example.test")
+        response = www_client.get("/stats?range=7d", follow_redirects=False)
+
+    assert response.status_code == 301
+    assert response.headers["location"] == "https://example.test/stats?range=7d"
+    assert response.headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_www_host_redirect_ignores_site_url_port_when_matching_host():
+    """Canonical host detection should still work when SITE_URL includes a non-default port."""
+    with patch("app.main.config.SITE_URL", "https://staging.example.com:8443"):
+        www_client = TestClient(app, base_url="https://www.staging.example.com")
+        response = www_client.get("/privacy", follow_redirects=False)
+
+    assert response.status_code == 301
+    assert response.headers["location"] == "https://staging.example.com:8443/privacy"
+
+
+def test_configure_trailing_slash_redirects_to_canonical_path():
+    """Configure pages should redirect to their canonical no-trailing-slash path."""
+    response = client.get("/configure/calendar/", follow_redirects=False)
+    assert response.status_code == 301
+    assert response.headers["location"] == "/configure/calendar"
+
+
+def test_unknown_html_route_returns_direct_html_404():
+    """Unknown browser-facing pages should return a direct HTML 404 without a redirect hop."""
+    response = client.get("/nonexistent-test-page-12345", follow_redirects=False)
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+    assert "text/html" in response.headers["content-type"]
+    assert "Page Not Found" in response.text
+    assert "/nonexistent-test-page-12345" in response.text
+
+
+def test_unknown_html_route_is_localized_for_language_prefix():
+    """Localized 404 pages should render translated copy instead of English fallback text."""
+    response = client.get("/fr/nonexistent-test-page-12345", follow_redirects=False)
+    assert response.status_code == 404
+    assert "Page introuvable" in response.text
+    assert "pages publiques vérifiées" in response.text
+    assert "/fr/nonexistent-test-page-12345" in response.text
+
+
+def test_unknown_html_head_returns_nostore_404():
+    """HEAD requests for missing browser routes should still be non-cacheable."""
+    response = client.request("HEAD", "/nonexistent-test-page-12345")
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+    assert "text/html" in response.headers["content-type"]
+    assert response.content == b""
+
+
+def test_unknown_api_route_returns_json_404_without_caching():
+    """Non-HTML 404 responses should remain JSON and avoid caches."""
+    response = client.get("/api/missing-route")
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["detail"] == "Not Found"
+
+
+def test_invalid_configure_screen_slash_returns_404_instead_of_redirect():
+    """Unknown configure screen variants should not canonicalize into redirect targets."""
+    response = client.get("/configure/unknown/", follow_redirects=False)
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_invalid_localized_configure_screen_slash_returns_404():
+    """Localized configure slash redirects should reject invalid screen types."""
+    response = client.get("/cs/configure/unknown/", follow_redirects=False)
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_favicon_endpoint_serves_real_ico_asset():
+    """The /favicon.ico endpoint should serve the packaged ICO asset."""
+    response = client.get("/favicon.ico")
+    assert response.status_code == 200
+    assert response.headers["content-type"] in {"image/x-icon", "image/vnd.microsoft.icon"}
+    favicon_path = (
+        Path(__file__).resolve().parents[1] / "app" / "assets" / "favicon" / "favicon.ico"
+    )
+    assert response.content == favicon_path.read_bytes()
+
+
 def test_configure_page_contains_api_references():
     """Test configure page includes relative API endpoint references."""
     response = client.get("/configure/calendar")
@@ -266,20 +410,20 @@ def test_header_contains_nav_links():
     assert "/privacy" in html
 
 
-def test_header_contains_credits_dropdown():
-    """Test header contains Credits dropdown with key links."""
+def test_homepage_contains_credits_links():
+    """Test homepage contains credits links rendered in current layout."""
     response = client.get("/")
     html = response.text
-    # Credits section
     assert "Credits" in html
-    # Key credit links - use href pattern to avoid CodeQL false positive
     assert "FoxeeLab" in html
     assert 'href="https://coolify.io"' in html
     assert 'href="https://hetzner.com"' in html
-    # LaskaKit link has full product URL
     assert 'href="https://www.laskakit.cz/' in html
-    assert "jolpica" in html
+    assert "Weather" in html
+    assert "Icons" in html
+    assert "Jolpica" in html
     assert 'href="https://open-meteo.com"' in html
+    assert 'href="https://github.com/erikflowers/weather-icons"' in html
 
 
 def test_configure_page_has_sidebar():

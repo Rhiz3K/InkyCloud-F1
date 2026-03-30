@@ -5,20 +5,22 @@ from __future__ import annotations
 import asyncio
 import logging
 import mimetypes
-import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import sentry_sdk
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 
-from app.config import config
+from app.config import VALID_LANGUAGES, config
 from app.routes.api import router as api_router
 from app.routes.health import router as health_router
 from app.routes.images import router as images_router
@@ -30,6 +32,7 @@ from app.services.warmup import warm_teams_renderer_assets
 from app.utils.race_times import (  # noqa: F401
     convert_race_times_to_timezone as _convert_race_times_to_timezone,
 )
+from app.web.templates import detect_ui_language, get_template_context, templates
 
 # Register font MIME types (Python's mimetypes doesn't know TTF by default)
 mimetypes.add_type("font/ttf", ".ttf")
@@ -59,7 +62,7 @@ _PERSISTENCE_MARKER = Path(config.DATABASE_PATH).parent / ".persistence_marker"
 
 def _check_persistent_storage() -> bool:
     """Warn if database storage seems non-persistent."""
-    if os.environ.get("SKIP_PERSISTENCE_CHECK", "").lower() == "true":
+    if config.SKIP_PERSISTENCE_CHECK:
         logger.debug("Persistence check skipped via SKIP_PERSISTENCE_CHECK env var")
         return True
 
@@ -118,6 +121,7 @@ app = FastAPI(
     description="Generates 800x480 1-bit BMPs for F1 E-Ink displays (LaskaKit)",
     version="0.1.0",
     lifespan=lifespan,
+    redirect_slashes=False,
 )
 
 
@@ -139,7 +143,86 @@ class StaticCacheMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(  # skipcq: PYL-R0201 - must be instance method (BaseHTTPMiddleware)
+        self, request: StarletteRequest, call_next
+    ) -> StarletteResponse:
+        host = request.headers.get("host", "").split(":", 1)[0].lower()
+        canonical_host = urlparse(str(config.SITE_URL)).hostname or ""
+        if host == f"www.{canonical_host}":
+            target = f"{str(config.SITE_URL).rstrip('/')}{request.url.path}"
+            if request.url.query:
+                target = f"{target}?{request.url.query}"
+            redirect = RedirectResponse(url=target, status_code=301)
+            if request.url.scheme == "https":
+                redirect.headers["Strict-Transport-Security"] = "max-age=31536000"
+            return redirect
+
+        response = await call_next(request)
+
+        if request.url.scheme == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000"
+
+        return response
+
+
+def _resolve_error_ui_language(request: StarletteRequest) -> str:
+    """Prefer a valid language from the request path before falling back to cookies."""
+    path_parts = [part for part in request.url.path.split("/") if part]
+    if path_parts and path_parts[0] in VALID_LANGUAGES:
+        return path_parts[0]
+    return detect_ui_language(request)
+
+
+def _should_render_html_404(request: StarletteRequest) -> bool:
+    """Return True when a browser-facing route should get the themed HTML 404 page."""
+    if request.method not in {"GET", "HEAD"}:
+        return False
+
+    path = request.url.path
+    excluded_paths = {"/favicon.ico", "/robots.txt", "/sitemap.xml", "/sw.js"}
+    excluded_prefixes = ("/api", "/static", "/preview/", "/health")
+    excluded_suffixes = (".bmp", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico")
+    accept = request.headers.get("accept", "")
+
+    if (
+        path in excluded_paths
+        or path.startswith(excluded_prefixes)
+        or path.endswith(excluded_suffixes)
+    ):
+        return False
+
+    return "text/html" in accept or "*/*" in accept
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: StarletteRequest, exc: StarletteHTTPException):
+    """Render a themed HTML 404 for browser routes and JSON elsewhere."""
+    if not _should_render_html_404(request):
+        return JSONResponse(
+            status_code=404,
+            content={"detail": exc.detail or "Not found"},
+            headers={"Cache-Control": "no-store"},
+        )
+
+    if request.method == "HEAD":
+        return StarletteResponse(
+            status_code=404,
+            media_type="text/html",
+            headers={"Cache-Control": "no-store"},
+        )
+
+    ui_lang = _resolve_error_ui_language(request)
+    context = get_template_context(request, ui_lang)
+    context["active_page"] = None
+    context["not_found_path"] = request.url.path
+    response = templates.TemplateResponse(request, "404.html", context, status_code=404)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 app.add_middleware(StaticCacheMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
 app.mount("/static", StaticFiles(directory="app/assets"), name="static")
@@ -161,4 +244,6 @@ if __name__ == "__main__":
         host=config.APP_HOST,
         port=config.APP_PORT,
         reload=config.DEBUG,
+        proxy_headers=True,
+        forwarded_allow_ips=config.FORWARDED_ALLOW_IPS,
     )
