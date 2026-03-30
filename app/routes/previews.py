@@ -180,14 +180,11 @@ async def preview_redirect() -> RedirectResponse:
 
 
 @router.get("/favicon.ico")
-async def favicon() -> StreamingResponse:
-    """Serve favicon as SVG with F1 car emoji."""
-    svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-<text y=".9em" font-size="90">🏎️</text>
-</svg>"""
-    return StreamingResponse(
-        iter([svg.encode()]),
-        media_type="image/svg+xml",
+async def favicon() -> FileResponse:
+    """Serve the real ICO favicon asset used by the site."""
+    return FileResponse(
+        Path("app/assets/favicon/favicon.ico"),
+        media_type="image/x-icon",
         headers={"Cache-Control": "public, max-age=86400"},
     )
 

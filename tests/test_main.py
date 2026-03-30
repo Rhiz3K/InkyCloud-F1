@@ -1,6 +1,7 @@
 """Test main FastAPI application endpoints."""
 
 import json
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import cast
 from unittest.mock import AsyncMock, patch
@@ -194,6 +195,90 @@ def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
+
+
+def test_sitemap_xml_get_returns_valid_xml():
+    """Sitemap should return XML with the public site URL entries."""
+    response = client.get("/sitemap.xml")
+    assert response.status_code == 200
+    assert "application/xml" in response.headers["content-type"]
+
+    root = ET.fromstring(response.text)
+    ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    locs = [elem.text for elem in root.findall("sm:url/sm:loc", ns)]
+
+    assert "https://f1.inkycloud.click/" in locs
+    assert "https://f1.inkycloud.click/cs/" in locs
+    assert "https://f1.inkycloud.click/configure/calendar" in locs
+
+
+def test_sitemap_xml_head_returns_empty_body():
+    """HEAD requests to sitemap should succeed without a body."""
+    response = client.request("HEAD", "/sitemap.xml")
+    assert response.status_code == 200
+    assert "application/xml" in response.headers["content-type"]
+    assert response.content == b""
+
+
+def test_robots_txt_get_contains_sitemap_reference():
+    """robots.txt should allow crawling and advertise the canonical sitemap URL."""
+    response = client.get("/robots.txt")
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+    assert "User-agent: *" in response.text
+    assert "Allow: /" in response.text
+    assert "Sitemap: https://f1.inkycloud.click/sitemap.xml" in response.text
+
+
+def test_robots_txt_head_returns_empty_body():
+    """HEAD requests to robots.txt should succeed without a body."""
+    response = client.request("HEAD", "/robots.txt")
+    assert response.status_code == 200
+    assert "text/plain" in response.headers["content-type"]
+    assert response.content == b""
+
+
+def test_language_root_redirect_is_relative_and_hsts_on_https():
+    """Language-root normalization should use a safe relative redirect and preserve HSTS."""
+    https_client = TestClient(app, base_url="https://f1.inkycloud.click")
+    response = https_client.get("/cs", follow_redirects=False)
+
+    assert response.status_code == 301
+    assert response.headers["location"] == "/cs/"
+    assert response.headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_www_host_redirects_to_canonical_apex():
+    """The application should redirect www traffic to the canonical apex host."""
+    www_client = TestClient(app, base_url="https://www.f1.inkycloud.click")
+    response = www_client.get("/stats?range=7d", follow_redirects=False)
+
+    assert response.status_code == 301
+    assert response.headers["location"] == "https://f1.inkycloud.click/stats?range=7d"
+
+
+def test_configure_trailing_slash_redirects_to_canonical_path():
+    """Configure pages should redirect to their canonical no-trailing-slash path."""
+    response = client.get("/configure/calendar/", follow_redirects=False)
+    assert response.status_code == 301
+    assert response.headers["location"] == "/configure/calendar"
+
+
+def test_unknown_html_route_returns_direct_html_404():
+    """Unknown browser-facing pages should return a direct HTML 404 without a redirect hop."""
+    response = client.get("/nonexistent-test-page-12345", follow_redirects=False)
+    assert response.status_code == 404
+    assert "text/html" in response.headers["content-type"]
+    assert "Page Not Found" in response.text
+    assert "/nonexistent-test-page-12345" in response.text
+
+
+def test_favicon_endpoint_serves_real_ico_asset():
+    """The /favicon.ico endpoint should serve the packaged ICO asset."""
+    response = client.get("/favicon.ico")
+    assert response.status_code == 200
+    assert response.headers["content-type"] in {"image/x-icon", "image/vnd.microsoft.icon"}
+    assert response.content == Path("app/assets/favicon/favicon.ico").read_bytes()
 
 
 def test_configure_page_contains_api_references():
