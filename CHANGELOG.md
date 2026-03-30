@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Frontend
+
+#### Added
+
+- **Themed HTML 404 page** - Added a branded browser-facing 404 page with `noindex` metadata, localized navigation shortcuts, and direct rendering for unknown public HTML routes instead of JSON fallback responses
+
+#### Changed
+
+- **Canonical public-page normalization** - Public HTML routes now use explicit canonical redirects for language roots and trailing-slash variants so crawler-facing URLs stay stable across home, configure, stats, changelog, privacy, and API docs pages
+- **Favicon asset serving** - Replaced the inline SVG emoji favicon with the packaged ICO asset so browser and audit tooling both see the same icon resource referenced by the site manifest and HTML head
+
+### Backend
+
+#### Changed
+
+- **Proxy-aware canonical redirects** - Disabled FastAPI's implicit slash redirects, added explicit 301 route normalizers, and taught the app/runtime to respect forwarded proxy headers so HTTPS canonical redirects no longer downgrade to `http` behind Coolify/Traefik
+- **Canonical host enforcement** - Added `www` to apex redirect handling in middleware, hardened host parsing for non-default `SITE_URL` ports, and now emit HSTS on both normal HTTPS responses and the `www` redirect itself
+- **Trusted proxy defaults** - Switched the container startup command to a configurable `FORWARDED_ALLOW_IPS` allowlist with private-network defaults, keeping proxy header trust adjustable per deployment instead of unconditional `*`
+
+#### Fixed
+
+- **Crawler and SEO endpoint coverage** - Added regression tests for `robots.txt`, `sitemap.xml`, canonical redirects, HTML 404 rendering, HSTS behavior, and favicon responses to lock in the current Search Console remediation work
+
 ## [1.2.17] - 2026-03-29
 
 ### Frontend

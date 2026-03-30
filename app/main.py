@@ -9,6 +9,7 @@ import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import sentry_sdk
 from fastapi import FastAPI
@@ -45,6 +46,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+_DEFAULT_FORWARDED_ALLOW_IPS = "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 
 # Initialize Sentry/GlitchTip
 if config.SENTRY_DSN:
@@ -148,12 +150,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self, request: StarletteRequest, call_next
     ) -> StarletteResponse:
         host = request.headers.get("host", "").split(":", 1)[0].lower()
-        canonical_host = str(config.SITE_URL).split("://", 1)[-1].rstrip("/")
+        canonical_host = urlparse(str(config.SITE_URL)).hostname or ""
         if host == f"www.{canonical_host}":
             target = f"{str(config.SITE_URL).rstrip('/')}{request.url.path}"
             if request.url.query:
                 target = f"{target}?{request.url.query}"
-            return RedirectResponse(url=target, status_code=301)
+            redirect = RedirectResponse(url=target, status_code=301)
+            if request.url.scheme == "https":
+                redirect.headers["Strict-Transport-Security"] = "max-age=31536000"
+            return redirect
 
         response = await call_next(request)
 
@@ -231,4 +236,6 @@ if __name__ == "__main__":
         host=config.APP_HOST,
         port=config.APP_PORT,
         reload=config.DEBUG,
+        proxy_headers=True,
+        forwarded_allow_ips=os.environ.get("FORWARDED_ALLOW_IPS", _DEFAULT_FORWARDED_ALLOW_IPS),
     )

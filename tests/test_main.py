@@ -255,6 +255,17 @@ def test_www_host_redirects_to_canonical_apex():
 
     assert response.status_code == 301
     assert response.headers["location"] == "https://f1.inkycloud.click/stats?range=7d"
+    assert response.headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_www_host_redirect_ignores_site_url_port_when_matching_host():
+    """Canonical host detection should still work when SITE_URL includes a non-default port."""
+    with patch("app.main.config.SITE_URL", "https://staging.example.com:8443"):
+        www_client = TestClient(app, base_url="https://www.staging.example.com")
+        response = www_client.get("/privacy", follow_redirects=False)
+
+    assert response.status_code == 301
+    assert response.headers["location"] == "https://staging.example.com:8443/privacy"
 
 
 def test_configure_trailing_slash_redirects_to_canonical_path():
