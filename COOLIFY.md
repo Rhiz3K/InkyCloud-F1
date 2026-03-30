@@ -95,6 +95,7 @@ Click **"Environment Variables"** and add:
 APP_HOST=0.0.0.0
 APP_PORT=8000
 DEBUG=false
+SITE_URL=https://f1.yourdomain.com
 ```
 
 **Optional (Recommended for Production)**:
@@ -106,6 +107,8 @@ UMAMI_ENABLED=true
 UMAMI_WEBSITE_ID=your-website-id
 UMAMI_API_URL=https://your-analytics-domain.com/api/send
 ```
+
+`SITE_URL` must match the public apex domain of this deployment. It is used for canonical tags, `robots.txt`, `sitemap.xml`, Open Graph URLs, and the app-level `www` redirect. It is separate from `ANALYTICS_HOSTNAME`.
 
 ### Step 4: Deploy
 
