@@ -207,9 +207,9 @@ def test_sitemap_xml_get_returns_valid_xml():
     ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
     locs = [elem.text for elem in root.findall("sm:url/sm:loc", ns)]
 
-    assert "https://f1.inkycloud.click/" in locs
-    assert "https://f1.inkycloud.click/cs/" in locs
-    assert "https://f1.inkycloud.click/configure/calendar" in locs
+    assert any(loc == "https://f1.inkycloud.click/" for loc in locs)
+    assert any(loc == "https://f1.inkycloud.click/cs/" for loc in locs)
+    assert any(loc == "https://f1.inkycloud.click/configure/calendar" for loc in locs)
 
 
 def test_sitemap_xml_head_returns_empty_body():

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import markdown
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -69,6 +70,15 @@ def _redirect_path(
     request: Request, target_path: str, *, preserve_query: bool = True
 ) -> RedirectResponse:
     """Return a permanent redirect using a relative path to avoid scheme downgrades."""
+    target_parts = urlsplit(target_path)
+    if (
+        target_parts.scheme
+        or target_parts.netloc
+        or not target_path.startswith("/")
+        or target_path.startswith("//")
+    ):
+        raise ValueError(f"Redirect target must stay on-site: {target_path}")
+
     query = request.url.query if preserve_query else ""
     target = f"{target_path}?{query}" if query else target_path
     return RedirectResponse(url=target, status_code=301)
