@@ -288,6 +288,15 @@ def test_unknown_html_route_returns_direct_html_404():
     assert "/nonexistent-test-page-12345" in response.text
 
 
+def test_unknown_html_route_is_localized_for_language_prefix():
+    """Localized 404 pages should render translated copy instead of English fallback text."""
+    response = client.get("/fr/nonexistent-test-page-12345", follow_redirects=False)
+    assert response.status_code == 404
+    assert "Page introuvable" in response.text
+    assert "pages publiques vérifiées" in response.text
+    assert "/fr/nonexistent-test-page-12345" in response.text
+
+
 def test_unknown_html_head_returns_nostore_404():
     """HEAD requests for missing browser routes should still be non-cacheable."""
     response = client.request("HEAD", "/nonexistent-test-page-12345")
