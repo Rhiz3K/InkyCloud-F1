@@ -199,7 +199,11 @@ Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelin
 
 - **Inspired by**: [FoxeeLab's original F1 E-Ink project](https://x.com/foxeelab/status/1761498129268981856) for [zivyobraz.eu](https://zivyobraz.eu)
 - F1 data from [Jolpica F1 API](https://github.com/jolpica/jolpica-f1)
+- Platform integration with [Živýobraz.eu](https://zivyobraz.eu)
 - Weather forecast data from [Open-Meteo](https://open-meteo.com)
 - Weather icons from [Weather Icons](https://github.com/erikflowers/weather-icons) by Erik Flowers (SIL OFL 1.1)
+- Analytics powered by [Umami](https://umami.is)
+- Error monitoring via [GlitchTip](https://glitchtip.com)
+- Flag assets from [Flagcdn](https://flagcdn.com)
 - Built for [LaskaKit](https://www.laskakit.cz/) and [SVERIO ePaper](https://pajenicko.cz/sverio-paperboard-ctyrbarevny-7.5-gdem075f52-s-cernym-rameckem) displays
 - Public instance hosted on [Coolify](https://coolify.io) + [Hetzner](https://www.hetzner.com/)
