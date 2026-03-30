@@ -85,6 +85,17 @@ def _redirect_path(
     return RedirectResponse(url=target, status_code=301)
 
 
+def _redirect_localized_path(
+    request: Request, lang_prefix: str, canonical_path: str
+) -> RedirectResponse:
+    """Redirect a localized public URL to its canonical path or 404 for unknown languages."""
+    if lang_prefix not in VALID_LANGUAGES:
+        raise HTTPException(status_code=404, detail="Not found")
+    if lang_prefix == "en":
+        return _redirect_path(request, canonical_path)
+    return _redirect_path(request, f"/{lang_prefix}{canonical_path}")
+
+
 # ============================================================================
 # HOME PAGE
 # ============================================================================
@@ -294,11 +305,7 @@ async def privacy_lang(request: Request, lang_prefix: str, lang: str = Query(def
 )
 async def privacy_lang_slash_redirect(request: Request, lang_prefix: str):
     """Normalize localized privacy URLs to the canonical no-trailing-slash form."""
-    if lang_prefix not in VALID_LANGUAGES:
-        raise HTTPException(status_code=404, detail="Not found")
-    if lang_prefix == "en":
-        return _redirect_path(request, "/privacy")
-    return _redirect_path(request, f"/{lang_prefix}/privacy")
+    return _redirect_localized_path(request, lang_prefix, "/privacy")
 
 
 # ============================================================================
@@ -382,11 +389,7 @@ async def changelog_lang(request: Request, lang_prefix: str, lang: str = Query(d
 )
 async def changelog_lang_slash_redirect(request: Request, lang_prefix: str):
     """Normalize localized changelog URLs to the canonical no-trailing-slash form."""
-    if lang_prefix not in VALID_LANGUAGES:
-        raise HTTPException(status_code=404, detail="Not found")
-    if lang_prefix == "en":
-        return _redirect_path(request, "/changelog")
-    return _redirect_path(request, f"/{lang_prefix}/changelog")
+    return _redirect_localized_path(request, lang_prefix, "/changelog")
 
 
 # ============================================================================
@@ -455,11 +458,7 @@ async def api_docs_html_lang(request: Request, lang_prefix: str, lang: str = Que
 )
 async def api_docs_html_lang_slash_redirect(request: Request, lang_prefix: str):
     """Normalize localized API docs URLs to the canonical no-trailing-slash form."""
-    if lang_prefix not in VALID_LANGUAGES:
-        raise HTTPException(status_code=404, detail="Not found")
-    if lang_prefix == "en":
-        return _redirect_path(request, "/api/docs/html")
-    return _redirect_path(request, f"/{lang_prefix}/api/docs/html")
+    return _redirect_localized_path(request, lang_prefix, "/api/docs/html")
 
 
 # ============================================================================
@@ -559,11 +558,7 @@ async def stats_dashboard_lang(
 @router.api_route("/{lang_prefix}/stats/", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def stats_dashboard_lang_slash_redirect(request: Request, lang_prefix: str):
     """Normalize localized stats URLs to the canonical no-trailing-slash form."""
-    if lang_prefix not in VALID_LANGUAGES:
-        raise HTTPException(status_code=404, detail="Not found")
-    if lang_prefix == "en":
-        return _redirect_path(request, "/stats")
-    return _redirect_path(request, f"/{lang_prefix}/stats")
+    return _redirect_localized_path(request, lang_prefix, "/stats")
 
 
 @router.api_route("/{lang_prefix}", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
