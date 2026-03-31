@@ -199,9 +199,7 @@ async def configure_screen_slash_redirect(request: Request, screen_type: str):
 async def configure_screen(request: Request, screen_type: str, lang: str = Query(default=None)):
     """Configure page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        return _redirect_path(
-            request, f"/{lang}/configure/{screen_type}", preserve_query=False
-        )
+        return _redirect_path(request, f"/{lang}/configure/{screen_type}", preserve_query=False)
     if lang is not None and lang not in VALID_LANGUAGES:
         return _redirect_path(request, f"/configure/{screen_type}", preserve_query=False)
     if request.method == "HEAD":
@@ -449,9 +447,7 @@ async def api_docs_html_lang(request: Request, lang_prefix: str, lang: str = Que
     if lang_prefix == "en":
         return _redirect_path(request, "/api/docs/html", preserve_query=False)
     if lang is not None:
-        return _redirect_path(
-            request, f"/{lang_prefix}/api/docs/html", preserve_query=False
-        )
+        return _redirect_path(request, f"/{lang_prefix}/api/docs/html", preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _api_docs_handler(request, lang_prefix)
