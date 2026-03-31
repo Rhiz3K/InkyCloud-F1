@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-- **Calendar configure tooltip refresh** - Reworked the weather availability hint into a floating tooltip that follows the pointer, stays clear of the desktop sidebar, and remains keyboard-accessible by using `aria-disabled` state instead of relying on native disabled-button hover behavior
+- **Calendar configure tooltip refresh** - Reworked the weather availability hint into a floating tooltip that follows the pointer, stays clear of the desktop sidebar, and remains accessible across mouse, keyboard, and touch interactions by using `aria-disabled` state instead of relying on native disabled-button hover behavior
 - **Credits wording and layout sync** - Aligned homepage and desktop credits labels with the mobile drawer wording, expanded provider attribution rows, and standardized entries such as `Jolpica-F1 API`, `Weather-icons`, analytics, hosting, and device sources
 
 ### Backend
