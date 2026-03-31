@@ -415,8 +415,7 @@ block content %}
 </div>
 <div
   id="weatherHoverTooltip"
-  class="pointer-events-none fixed z-[100] hidden max-w-44 border-2 border-black bg-black px-2 py-1 text-[10px] font-normal normal-case leading-tight text-white shadow-neo-sm"
-  style="z-index: 9999"
+  class="pointer-events-none fixed z-[9999] hidden max-w-44 border-2 border-black bg-black px-2 py-1 text-[10px] font-normal normal-case leading-tight text-white shadow-neo-sm"
 ></div>
 {% endblock %} {% block scripts %}
 <script>
@@ -844,9 +843,13 @@ block content %}
     tooltip.style.top = `${top}px`;
   }
 
+  function isWeatherTooltipDisabledState(trigger) {
+    return trigger?.getAttribute("aria-disabled") === "true";
+  }
+
   function showWeatherHoverTooltip(event) {
     const tooltip = document.getElementById("weatherHoverTooltip");
-    if (!tooltip || !event.currentTarget?.disabled) return;
+    if (!tooltip || !isWeatherTooltipDisabledState(event.currentTarget)) return;
 
     tooltip.textContent = uiText.weatherTooltipText;
     tooltip.classList.remove("hidden");
@@ -867,7 +870,7 @@ block content %}
   }
 
   function showWeatherHoverTooltipFromFocus(event) {
-    if (!event.currentTarget?.disabled) return;
+    if (!isWeatherTooltipDisabledState(event.currentTarget)) return;
 
     const rect = event.currentTarget.getBoundingClientRect();
     showWeatherHoverTooltip({
@@ -1618,7 +1621,14 @@ block content %}
   }
 
   function setWeatherType(type) {
-    if (type === "race_day" && !isRaceDayWeatherAvailable()) {
+    const raceDayBtn = document.getElementById("weatherRaceDayBtn");
+    const raceDayBtnMobile = document.getElementById("weatherRaceDayBtnMobile");
+    const raceDayUnavailable =
+      type === "race_day" &&
+      (isWeatherTooltipDisabledState(raceDayBtn) ||
+        isWeatherTooltipDisabledState(raceDayBtnMobile));
+
+    if (raceDayUnavailable) {
       return;
     }
 
@@ -1701,7 +1711,6 @@ block content %}
     raceDayBtns.forEach((btn) => {
       if (!btn) return;
       if (isRaceDayAvailable) {
-        btn.disabled = false;
         btn.setAttribute("aria-disabled", "false");
         btn.classList.remove(
           "opacity-50",
@@ -1712,7 +1721,6 @@ block content %}
         );
         btn.classList.add("border-black", "hover:bg-black", "hover:text-white");
       } else {
-        btn.disabled = true;
         btn.setAttribute("aria-disabled", "true");
         btn.classList.remove(
           "bg-racing-red",
