@@ -415,6 +415,8 @@ block content %}
 </div>
 <div
   id="weatherHoverTooltip"
+  role="tooltip"
+  aria-hidden="true"
   class="pointer-events-none fixed z-[9999] hidden max-w-44 border-2 border-black bg-black px-2 py-1 text-[10px] font-normal normal-case leading-tight text-white shadow-neo-sm"
 ></div>
 {% endblock %} {% block scripts %}
@@ -852,6 +854,7 @@ block content %}
     if (!tooltip || !isWeatherTooltipDisabledState(event.currentTarget)) return;
 
     tooltip.textContent = uiText.weatherTooltipText;
+    tooltip.setAttribute("aria-hidden", "false");
     tooltip.classList.remove("hidden");
     positionWeatherHoverTooltip(event.clientX, event.clientY);
   }
@@ -864,6 +867,7 @@ block content %}
     const tooltip = document.getElementById("weatherHoverTooltip");
     if (!tooltip) return;
 
+    tooltip.setAttribute("aria-hidden", "true");
     tooltip.classList.add("hidden");
     tooltip.style.removeProperty("left");
     tooltip.style.removeProperty("top");
@@ -1712,6 +1716,7 @@ block content %}
       if (!btn) return;
       if (isRaceDayAvailable) {
         btn.setAttribute("aria-disabled", "false");
+        btn.removeAttribute("aria-describedby");
         btn.classList.remove(
           "opacity-50",
           "cursor-not-allowed",
@@ -1722,6 +1727,7 @@ block content %}
         btn.classList.add("border-black", "hover:bg-black", "hover:text-white");
       } else {
         btn.setAttribute("aria-disabled", "true");
+        btn.setAttribute("aria-describedby", "weatherHoverTooltip");
         btn.classList.remove(
           "bg-racing-red",
           "bg-black",
