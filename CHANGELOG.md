@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.19] - 2026-03-31
+
+### Frontend
+
+#### Changed
+
+- **Calendar configure tooltip refresh** - Reworked the weather availability hint into a floating tooltip that follows the pointer, stays clear of the desktop sidebar, and remains keyboard-accessible by using `aria-disabled` state instead of relying on native disabled-button hover behavior
+- **Credits wording and layout sync** - Aligned homepage and desktop credits labels with the mobile drawer wording, expanded provider attribution rows, and standardized entries such as `Jolpica-F1 API`, `Weather-icons`, analytics, hosting, and device sources
+
+### Backend
+
+#### Changed
+
+- **Public redirect hardening** - Switched the remaining public-page language redirects on home, configure, privacy, changelog, API docs, and stats routes to the validated `_redirect_path()` helper so canonical redirects keep only approved on-site targets and preserve the intended query handling
+
+### Security
+
+#### Fixed
+
+- **Dependency vulnerability updates** - Bumped `pygments` in `uv.lock` and `picomatch` in `package-lock.json` to patched versions to clear the open GitHub security alerts on the release branch
+
+### Development
+
+#### Changed
+
+- **Local artifact ignore rules** - Added `.playwright-cli/` to `.gitignore` so Playwright CLI snapshots and console captures do not get committed with future UI review iterations
+
 ## [1.2.18] - 2026-03-30
 
 ### Frontend

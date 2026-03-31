@@ -134,9 +134,9 @@ async def _home_handler(request: Request, ui_lang: str) -> HTMLResponse:
 async def root(request: Request, lang: str = Query(default=None)):
     """Home page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        return RedirectResponse(url=f"/{lang}/", status_code=301)
+        return _redirect_path(request, f"/{lang}/", preserve_query=False)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url="/", status_code=301)
+        return _redirect_path(request, "/", preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _home_handler(request, "en")
@@ -148,9 +148,9 @@ async def root_lang(request: Request, lang_prefix: str, lang: str = Query(defaul
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
-        return RedirectResponse(url="/", status_code=301)
+        return _redirect_path(request, "/", preserve_query=False)
     if lang is not None:
-        return RedirectResponse(url=f"/{lang_prefix}/", status_code=301)
+        return _redirect_path(request, f"/{lang_prefix}/", preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _home_handler(request, lang_prefix)
@@ -199,9 +199,9 @@ async def configure_screen_slash_redirect(request: Request, screen_type: str):
 async def configure_screen(request: Request, screen_type: str, lang: str = Query(default=None)):
     """Configure page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        return RedirectResponse(url=f"/{lang}/configure/{screen_type}", status_code=301)
+        return _redirect_path(request, f"/{lang}/configure/{screen_type}", preserve_query=False)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url=f"/configure/{screen_type}", status_code=301)
+        return _redirect_path(request, f"/configure/{screen_type}", preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _configure_handler(request, screen_type, "en")
@@ -237,9 +237,11 @@ async def configure_screen_lang(
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
-        return RedirectResponse(url=f"/configure/{screen_type}", status_code=301)
+        return _redirect_path(request, f"/configure/{screen_type}", preserve_query=False)
     if lang is not None:
-        return RedirectResponse(url=f"/{lang_prefix}/configure/{screen_type}", status_code=301)
+        return _redirect_path(
+            request, f"/{lang_prefix}/configure/{screen_type}", preserve_query=False
+        )
     if request.method == "HEAD":
         return _head_ok()
     return await _configure_handler(request, screen_type, lang_prefix)
@@ -270,9 +272,9 @@ async def _privacy_handler(request: Request, ui_lang: str) -> HTMLResponse:
 async def privacy(request: Request, lang: str = Query(default=None)):
     """Privacy page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        return RedirectResponse(url=f"/{lang}/privacy", status_code=301)
+        return _redirect_path(request, f"/{lang}/privacy", preserve_query=False)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url="/privacy", status_code=301)
+        return _redirect_path(request, "/privacy", preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _privacy_handler(request, "en")
@@ -292,9 +294,9 @@ async def privacy_lang(request: Request, lang_prefix: str, lang: str = Query(def
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
-        return RedirectResponse(url="/privacy", status_code=301)
+        return _redirect_path(request, "/privacy", preserve_query=False)
     if lang is not None:
-        return RedirectResponse(url=f"/{lang_prefix}/privacy", status_code=301)
+        return _redirect_path(request, f"/{lang_prefix}/privacy", preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _privacy_handler(request, lang_prefix)
@@ -354,9 +356,9 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
 async def changelog(request: Request, lang: str = Query(default=None)):
     """Changelog page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        return RedirectResponse(url=f"/{lang}/changelog", status_code=301)
+        return _redirect_path(request, f"/{lang}/changelog", preserve_query=False)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url="/changelog", status_code=301)
+        return _redirect_path(request, "/changelog", preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _changelog_handler(request, "en")
@@ -376,9 +378,9 @@ async def changelog_lang(request: Request, lang_prefix: str, lang: str = Query(d
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
-        return RedirectResponse(url="/changelog", status_code=301)
+        return _redirect_path(request, "/changelog", preserve_query=False)
     if lang is not None:
-        return RedirectResponse(url=f"/{lang_prefix}/changelog", status_code=301)
+        return _redirect_path(request, f"/{lang_prefix}/changelog", preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _changelog_handler(request, lang_prefix)
@@ -419,9 +421,9 @@ async def _api_docs_handler(request: Request, ui_lang: str) -> HTMLResponse:
 async def api_docs_html(request: Request, lang: str = Query(default=None)):
     """API docs page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        return RedirectResponse(url=f"/{lang}/api/docs/html", status_code=301)
+        return _redirect_path(request, f"/{lang}/api/docs/html", preserve_query=False)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return RedirectResponse(url="/api/docs/html", status_code=301)
+        return _redirect_path(request, "/api/docs/html", preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _api_docs_handler(request, "en")
@@ -443,9 +445,9 @@ async def api_docs_html_lang(request: Request, lang_prefix: str, lang: str = Que
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
-        return RedirectResponse(url="/api/docs/html", status_code=301)
+        return _redirect_path(request, "/api/docs/html", preserve_query=False)
     if lang is not None:
-        return RedirectResponse(url=f"/{lang_prefix}/api/docs/html", status_code=301)
+        return _redirect_path(request, f"/{lang_prefix}/api/docs/html", preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _api_docs_handler(request, lang_prefix)
@@ -513,12 +515,12 @@ async def stats_dashboard(
         redirect_url = f"/{lang}/stats"
         if time_range != "24h":
             redirect_url += f"?range={time_range}"
-        return RedirectResponse(url=redirect_url, status_code=301)
+        return _redirect_path(request, redirect_url, preserve_query=False)
     if lang is not None and lang not in VALID_LANGUAGES:
         redirect_url = "/stats"
         if time_range != "24h":
             redirect_url += f"?range={time_range}"
-        return RedirectResponse(url=redirect_url, status_code=301)
+        return _redirect_path(request, redirect_url, preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _stats_handler(request, time_range, "en")
@@ -544,12 +546,12 @@ async def stats_dashboard_lang(
         redirect_url = "/stats"
         if time_range != "24h":
             redirect_url += f"?range={time_range}"
-        return RedirectResponse(url=redirect_url, status_code=301)
+        return _redirect_path(request, redirect_url, preserve_query=False)
     if lang is not None:
         redirect_url = f"/{lang_prefix}/stats"
         if time_range != "24h":
             redirect_url += f"?range={time_range}"
-        return RedirectResponse(url=redirect_url, status_code=301)
+        return _redirect_path(request, redirect_url, preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _stats_handler(request, time_range, lang_prefix)
