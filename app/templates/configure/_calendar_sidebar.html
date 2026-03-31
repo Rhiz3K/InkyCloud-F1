@@ -88,9 +88,9 @@
   <div id="tzList" class="flex-1 overflow-y-auto text-xs p-2 space-y-0.5"></div>
 
   <div class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50" id="weatherContainer">
-    <label class="text-xs font-bold uppercase mb-1.5 block" id="weatherLabel"
-      >Weather</label
-    >
+    <div class="mb-1.5 flex items-center gap-1">
+      <label class="text-xs font-bold uppercase" id="weatherLabel">Weather</label>
+    </div>
     <input
       type="checkbox"
       id="weatherToggle"
@@ -122,15 +122,10 @@
         type="button"
         onclick="setWeatherType('race_day')"
         id="weatherRaceDayBtn"
-        class="weather-type-btn group relative flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
+        class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
+        data-weather-tooltip-trigger
       >
         <span id="weatherRaceDayText">Race day</span>
-        <span
-          id="weatherRaceDayTooltip"
-          class="invisible group-hover:visible group-disabled:visible absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-1 bg-black text-white text-[10px] whitespace-nowrap z-50 border-2 border-white"
-        >
-          <span id="weatherTooltipText">Activates 14 days before race</span>
-        </span>
       </button>
     </div>
     <input type="radio" name="weatherType" value="current" class="hidden" />
@@ -188,9 +183,11 @@
 
 <!-- Weather - Mobile -->
 <div class="lg:hidden p-3 border-b-2 border-black bg-gray-50" id="mobileWeatherContainer">
-  <label class="block text-xs font-bold uppercase mb-2" id="weatherLabelMobile"
-    >Weather</label
-  >
+  <div class="mb-2 flex items-center gap-1">
+    <label class="block text-xs font-bold uppercase" id="weatherLabelMobile"
+      >Weather</label
+    >
+  </div>
   <div class="grid grid-cols-3 gap-1">
     <button
       type="button"
@@ -213,6 +210,7 @@
       onclick="setWeatherType('race_day')"
       id="weatherRaceDayBtnMobile"
       class="weather-type-btn-mobile min-w-0 px-2 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-racing-red text-white"
+      data-weather-tooltip-trigger
     >
       Race Day
     </button>

@@ -413,6 +413,11 @@ block content %}
     </div>
   </main>
 </div>
+<div
+  id="weatherHoverTooltip"
+  class="pointer-events-none fixed z-[100] hidden max-w-44 border-2 border-black bg-black px-2 py-1 text-[10px] font-normal normal-case leading-tight text-white shadow-neo-sm"
+  style="z-index: 9999"
+></div>
 {% endblock %} {% block scripts %}
 <script>
   // Country to ISO code mapping for flag images
@@ -782,9 +787,8 @@ block content %}
     );
     if (weatherRaceDayBtnMobile)
       weatherRaceDayBtnMobile.textContent = t.weatherRaceDayLabel;
-    const weatherTooltipText = document.getElementById("weatherTooltipText");
-    if (weatherTooltipText)
-      weatherTooltipText.textContent = t.weatherTooltipText;
+    const weatherHoverTooltip = document.getElementById("weatherHoverTooltip");
+    if (weatherHoverTooltip) weatherHoverTooltip.textContent = t.weatherTooltipText;
     const displayLabel = document.getElementById("displayLabel");
     if (displayLabel) displayLabel.textContent = t.displayLabel;
     const displayLabelMobile = document.getElementById("displayLabelMobile");
@@ -801,6 +805,91 @@ block content %}
       }
     });
     renderTzList();
+  }
+
+  function positionWeatherHoverTooltip(x, y) {
+    const tooltip = document.getElementById("weatherHoverTooltip");
+    if (!tooltip || tooltip.classList.contains("hidden")) return;
+
+    const margin = 12;
+    const tooltipWidth = tooltip.offsetWidth;
+    const tooltipHeight = tooltip.offsetHeight;
+    const sidebar = document.getElementById("settingsSidebar");
+    const sidebarRect =
+      sidebar && window.innerWidth >= 1024
+        ? sidebar.getBoundingClientRect()
+        : null;
+    const minLeft =
+      sidebarRect && x <= sidebarRect.right
+        ? sidebarRect.right + margin
+        : 8;
+    const maxLeft = window.innerWidth - tooltipWidth - 8;
+
+    let left = x + margin;
+    let top = y - tooltipHeight - margin;
+
+    if (left > maxLeft) left = maxLeft;
+    if (left < minLeft) left = minLeft;
+    if (left < 8) left = 8;
+
+    if (top < 8) {
+      top = y + margin;
+    }
+    if (top + tooltipHeight > window.innerHeight - 8) {
+      top = window.innerHeight - tooltipHeight - 8;
+    }
+    if (top < 8) top = 8;
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  }
+
+  function showWeatherHoverTooltip(event) {
+    const tooltip = document.getElementById("weatherHoverTooltip");
+    if (!tooltip || !event.currentTarget?.disabled) return;
+
+    tooltip.textContent = uiText.weatherTooltipText;
+    tooltip.classList.remove("hidden");
+    positionWeatherHoverTooltip(event.clientX, event.clientY);
+  }
+
+  function moveWeatherHoverTooltip(event) {
+    positionWeatherHoverTooltip(event.clientX, event.clientY);
+  }
+
+  function hideWeatherHoverTooltip() {
+    const tooltip = document.getElementById("weatherHoverTooltip");
+    if (!tooltip) return;
+
+    tooltip.classList.add("hidden");
+    tooltip.style.removeProperty("left");
+    tooltip.style.removeProperty("top");
+  }
+
+  function showWeatherHoverTooltipFromFocus(event) {
+    if (!event.currentTarget?.disabled) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    showWeatherHoverTooltip({
+      currentTarget: event.currentTarget,
+      clientX: rect.right,
+      clientY: rect.top + rect.height / 2,
+    });
+  }
+
+  function initializeWeatherTooltips() {
+    document
+      .querySelectorAll("[data-weather-tooltip-trigger]")
+      .forEach((trigger) => {
+        if (trigger.dataset.tooltipBound === "true") return;
+
+        trigger.addEventListener("mouseenter", showWeatherHoverTooltip);
+        trigger.addEventListener("mousemove", moveWeatherHoverTooltip);
+        trigger.addEventListener("mouseleave", hideWeatherHoverTooltip);
+        trigger.addEventListener("focus", showWeatherHoverTooltipFromFocus);
+        trigger.addEventListener("blur", hideWeatherHoverTooltip);
+        trigger.dataset.tooltipBound = "true";
+      });
   }
 
   function getApiUrl() {
@@ -1752,6 +1841,7 @@ block content %}
     }
 
     initScreenTypeVisibility();
+    initializeWeatherTooltips();
     setUiLanguage(currentUiLang);
 
     if (currentScreenType === "calendar") {

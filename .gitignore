@@ -211,6 +211,7 @@ scripts/AGENTS.md
 
 # Local assistant artifacts
 .sisyphus/
+.playwright-cli/
 
 # Local dev runtime data
 .local-dev-data/
