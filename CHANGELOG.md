@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Endpoint rate limiting** - Added lightweight per-IP in-memory throttling for BMP generation and `POST /api/perf-metrics` so expensive image renders and analytics ingestion have a basic abuse guard by default
 - **Persistent SQLite connections** - Reworked `Database` to reuse one loop-aware SQLite connection per instance instead of reopening and reconfiguring a fresh connection on every operation, and now close live database handles during app shutdown
 - **Renderer asset handle cleanup** - Wrapped disk-backed `Image.open()` calls for logos, tracks, flags, driver portraits, and team logos in context-managed loads so PIL image conversions keep returning detached images without leaking file handles during repeated preview and render jobs
+- **Schedule event field naming** - Renamed the internal `ScheduleEvent` timestamp attribute to `event_datetime` while keeping `datetime` as a compatibility alias so model code no longer shadows the imported `datetime` type
 
 ### Security
 
