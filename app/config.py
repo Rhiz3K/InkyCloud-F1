@@ -109,6 +109,14 @@ class Config(BaseSettings):
     )
     REQUEST_TIMEOUT: int = Field(10, gt=0, description="HTTP request timeout in seconds")
 
+    RATE_LIMIT_ENABLED: bool = Field(True, description="Enable lightweight in-memory rate limiting")
+    IMAGE_RATE_LIMIT_PER_MINUTE: int = Field(
+        120, gt=0, description="Per-IP BMP requests allowed per minute"
+    )
+    PERF_METRICS_RATE_LIMIT_PER_MINUTE: int = Field(
+        240, gt=0, description="Per-IP perf metrics posts allowed per minute"
+    )
+
     # Internationalization
     DEFAULT_LANG: str = Field("en", description="Default language code")
     DEFAULT_TIMEZONE: str = Field("Europe/Prague", description="Default timezone")
@@ -185,7 +193,12 @@ class Config(BaseSettings):
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer < 65536")
 
-    @field_validator("REQUEST_TIMEOUT", mode="before")
+    @field_validator(
+        "REQUEST_TIMEOUT",
+        "IMAGE_RATE_LIMIT_PER_MINUTE",
+        "PERF_METRICS_RATE_LIMIT_PER_MINUTE",
+        mode="before",
+    )
     @classmethod
     def validate_timeout(cls, value: object, info: ValidationInfo) -> int:
         """

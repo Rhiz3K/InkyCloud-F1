@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Consistent dev extras** - Aligned `[project.optional-dependencies].dev` with `[dependency-groups].dev` so `pip install -e "[dev]"` and `uv sync --dev` install the same linting, typing, test, and data-science helper toolchain
 - **Consistent byte formatting** - Matched the shared frontend `formatBytes()` helper to the backend decimal-unit formatter so cache/stat sizes render the same KB/MB/GB values across server and browser UI
 - **Shared circuit metadata maps** - Moved the duplicated `CIRCUIT_ID_MAP` and `COUNTRY_MAP` constants into one shared module so renderer and service updates stay in sync across display modes and API helpers
+- **Endpoint rate limiting** - Added lightweight per-IP in-memory throttling for BMP generation and `POST /api/perf-metrics` so expensive image renders and analytics ingestion have a basic abuse guard by default
 
 ### Security
 

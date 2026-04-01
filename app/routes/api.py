@@ -14,6 +14,7 @@ from app.services.teams_service import TeamsService
 from app.state import get_bmp_cache
 from app.utils.async_tasks import create_supervised_task
 from app.utils.f1_season import get_current_f1_season
+from app.utils.rate_limit import enforce_rate_limit
 
 from .deps import get_f1_service
 
@@ -218,6 +219,12 @@ async def get_stats() -> dict:
 async def post_perf_metrics(request: Request) -> dict[str, str]:
     """Store client-side Web Vitals metrics for later aggregation."""
     from app.models import PerfMetricsPayload
+
+    enforce_rate_limit(
+        request,
+        bucket="perf_metrics",
+        limit=config.PERF_METRICS_RATE_LIMIT_PER_MINUTE,
+    )
 
     try:
         data = await request.json()

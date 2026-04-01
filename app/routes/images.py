@@ -27,6 +27,7 @@ from app.services.weather_service import get_weather_context
 from app.state import get_bmp_cache, record_api_call
 from app.utils.async_tasks import create_supervised_task
 from app.utils.race_times import convert_race_times_to_timezone
+from app.utils.rate_limit import enforce_rate_limit
 
 from .deps import get_f1_service
 
@@ -422,6 +423,7 @@ async def get_calendar_bmp(
 ):
     """Render the calendar endpoint for the requested display and selection."""
     start_time = time.time()
+    enforce_rate_limit(request, bucket="calendar_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
     user_agent = request.headers.get("User-Agent")
     referrer = request.headers.get("Referer", "")
 
@@ -608,6 +610,7 @@ async def get_teams_bmp(
 ):
     """Render the teams and drivers dashboard as a BMP image."""
     start_time = time.time()
+    enforce_rate_limit(request, bucket="teams_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
 
     try:
         lang = _normalize_lang(lang)

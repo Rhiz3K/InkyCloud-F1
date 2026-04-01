@@ -15,6 +15,7 @@ from PIL import Image
 from app.config import LANGUAGE_CODES, config
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
+from app.routes import api as api_routes
 from app.routes import images as images_routes
 from app.routes.images import (
     _get_pregenerated_calendar_path,
@@ -26,6 +27,7 @@ from app.routes.images import (
 from app.services.f1_service import F1Service
 from app.services.image_keys import get_teams_image_key
 from app.state import clear_bmp_cache, get_bmp_cache
+from app.utils.rate_limit import _reset_rate_limit_state_for_tests
 
 client = TestClient(app)
 
@@ -1222,6 +1224,22 @@ def test_schedule_calendar_analytics_uses_background_task():
     mock_create_task.assert_called_once_with(tracked_coro, name="calendar_analytics")
 
 
+def test_calendar_bmp_rate_limit_returns_429(monkeypatch):
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(images_routes.config, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(images_routes.config, "IMAGE_RATE_LIMIT_PER_MINUTE", 1)
+
+    try:
+        first = client.get("/calendar.bmp")
+        second = client.get("/calendar.bmp")
+    finally:
+        _reset_rate_limit_state_for_tests()
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["detail"] == "Rate limit exceeded"
+
+
 def test_calendar_bmp_error_response_is_not_cached(monkeypatch):
     """Transient calendar errors must not poison the normal BMP cache."""
     clear_bmp_cache()
@@ -1339,6 +1357,33 @@ def test_teams_bmp_caches_pregenerated_assets_with_shared_image_key(tmp_path, mo
 # ============================================================================
 # API Endpoint Tests
 # ============================================================================
+
+
+def test_perf_metrics_rate_limit_returns_429(monkeypatch):
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(api_routes.config, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(api_routes.config, "PERF_METRICS_RATE_LIMIT_PER_MINUTE", 1)
+
+    payload = {
+        "page_path": "/calendar.bmp",
+        "lcp_ms": 1000.0,
+        "cls": 0.01,
+        "fcp_ms": 500.0,
+        "ttfb_ms": 200.0,
+        "inp_ms": 100.0,
+        "connection_type": "4g",
+        "device_memory": 8.0,
+    }
+
+    try:
+        first = client.post("/api/perf-metrics", json=payload)
+        second = client.post("/api/perf-metrics", json=payload)
+    finally:
+        _reset_rate_limit_state_for_tests()
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["detail"] == "Rate limit exceeded"
 
 
 def test_api_races_endpoint():
