@@ -6,7 +6,7 @@ import copy
 import logging
 from datetime import datetime
 
-import pytz
+from app.utils.timezones import ZoneInfoNotFoundError, get_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 def convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
     """Convert schedule times in race_data to the specified timezone."""
     try:
-        target_tz = pytz.timezone(target_tz_str)
-    except pytz.UnknownTimeZoneError:
+        target_tz = get_timezone(target_tz_str)
+    except ZoneInfoNotFoundError:
         logger.warning("Unknown timezone %s, returning original data", target_tz_str)
         return race_data
 

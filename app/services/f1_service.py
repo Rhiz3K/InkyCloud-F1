@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Optional
 
 import httpx
-import pytz
 
 from app.config import config
 from app.models import (
@@ -24,6 +23,7 @@ from app.models import (
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.http_client import get_shared_http_client
 from app.utils.http import fetch_with_retry
+from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +56,10 @@ class F1Service:
         effective_timezone = timezone_name if timezone_name is not None else timezone
         self.timezone_str = effective_timezone or config.DEFAULT_TIMEZONE
         try:
-            self.target_tz = pytz.timezone(self.timezone_str)
-        except pytz.UnknownTimeZoneError:
+            self.target_tz = get_timezone(self.timezone_str)
+        except ZoneInfoNotFoundError:
             logger.warning("Unknown timezone %s, falling back to UTC", self.timezone_str)
-            self.target_tz = pytz.UTC
+            self.target_tz = UTC
             self.timezone_str = "UTC"
 
     async def get_next_race(self) -> Optional[dict]:

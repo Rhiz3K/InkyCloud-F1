@@ -275,7 +275,6 @@ dependencies = [
     { name = "pillow" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
-    { name = "pytz" },
     { name = "sentry-sdk", extra = ["fastapi"] },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -293,7 +292,6 @@ dev = [
     { name = "types-aiofiles" },
     { name = "types-cachetools" },
     { name = "types-markdown" },
-    { name = "types-pytz" },
 ]
 
 [package.dev-dependencies]
@@ -309,7 +307,6 @@ dev = [
     { name = "types-aiofiles" },
     { name = "types-cachetools" },
     { name = "types-markdown" },
-    { name = "types-pytz" },
 ]
 
 [package.metadata]
@@ -334,14 +331,12 @@ requires-dist = [
     { name = "pytest-codspeed", marker = "extra == 'dev'", specifier = ">=4.3.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
-    { name = "pytz", specifier = ">=2023.3" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.10" },
     { name = "scikit-learn", marker = "extra == 'dev'", specifier = ">=1.8.0" },
     { name = "sentry-sdk", extras = ["fastapi"], specifier = ">=1.38.0" },
     { name = "types-aiofiles", marker = "extra == 'dev'", specifier = ">=25.1.0.20251011" },
     { name = "types-cachetools", marker = "extra == 'dev'", specifier = ">=6.2.0.20251022" },
     { name = "types-markdown", marker = "extra == 'dev'", specifier = ">=3.10.0.20251106" },
-    { name = "types-pytz", marker = "extra == 'dev'", specifier = ">=2025.2.0.20251108" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
 ]
 provides-extras = ["dev"]
@@ -359,7 +354,6 @@ dev = [
     { name = "types-aiofiles", specifier = ">=25.1.0.20251011" },
     { name = "types-cachetools", specifier = ">=6.2.0.20251022" },
     { name = "types-markdown", specifier = ">=3.10.0.20251106" },
-    { name = "types-pytz", specifier = ">=2025.2.0.20251108" },
 ]
 
 [[package]]
@@ -1031,15 +1025,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pytz"
-version = "2025.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f8/bf/abbd3cdfb8fbc7fb3d4d38d320f2441b1e7cbe29be4f23797b4a2b5d8aac/pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3", size = 320884, upload-time = "2025-03-25T02:25:00.538Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00", size = 509225, upload-time = "2025-03-25T02:24:58.468Z" },
-]
-
-[[package]]
 name = "pyyaml"
 version = "6.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1296,15 +1281,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6d/2e/35b30a09f6ee8a69142408d3ceb248c4454aa638c0a414d8704a3ef79563/types_markdown-3.10.2.20260211.tar.gz", hash = "sha256:66164310f88c11a58c6c706094c6f8c537c418e3525d33b76276a5fbd66b01ce", size = 19768, upload-time = "2026-02-11T04:19:29.497Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/54/c9/659fa2df04b232b0bfcd05d2418e683080e91ec68f636f3c0a5a267350e7/types_markdown-3.10.2.20260211-py3-none-any.whl", hash = "sha256:2d94d08587e3738203b3c4479c449845112b171abe8b5cadc9b0c12fcf3e99da", size = 25854, upload-time = "2026-02-11T04:19:28.647Z" },
-]
-
-[[package]]
-name = "types-pytz"
-version = "2025.2.0.20251108"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/40/ff/c047ddc68c803b46470a357454ef76f4acd8c1088f5cc4891cdd909bfcf6/types_pytz-2025.2.0.20251108.tar.gz", hash = "sha256:fca87917836ae843f07129567b74c1929f1870610681b4c92cb86a3df5817bdb", size = 10961, upload-time = "2025-11-08T02:55:57.001Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e7/c1/56ef16bf5dcd255155cc736d276efa6ae0a5c26fd685e28f0412a4013c01/types_pytz-2025.2.0.20251108-py3-none-any.whl", hash = "sha256:0f1c9792cab4eb0e46c52f8845c8f77cf1e313cb3d68bf826aa867fe4717d91c", size = 10116, upload-time = "2025-11-08T02:55:56.194Z" },
 ]
 
 [[package]]

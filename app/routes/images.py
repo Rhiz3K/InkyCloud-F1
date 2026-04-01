@@ -8,7 +8,6 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlencode
 
-import pytz
 import sentry_sdk
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
@@ -28,6 +27,7 @@ from app.state import get_bmp_cache, record_api_call
 from app.utils.async_tasks import create_supervised_task
 from app.utils.race_times import convert_race_times_to_timezone
 from app.utils.rate_limit import enforce_rate_limit
+from app.utils.timezones import is_valid_timezone
 
 from .deps import get_f1_service
 
@@ -50,7 +50,7 @@ def _normalize_display(display: str) -> str:
 
 def _validate_timezone_param(tz: str | None) -> None:
     """Reject invalid timezone query values."""
-    if tz and tz not in pytz.all_timezones_set:
+    if tz and not is_valid_timezone(tz):
         raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
 
 

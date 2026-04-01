@@ -4,7 +4,6 @@ import logging
 from functools import lru_cache
 from typing import Optional, TypeVar
 
-import pytz
 from dotenv import load_dotenv
 from pydantic import (
     Field,
@@ -16,6 +15,8 @@ from pydantic import (
     field_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.utils.timezones import is_valid_timezone
 
 # Load environment variables
 load_dotenv()
@@ -246,7 +247,7 @@ class Config(BaseSettings):
         if info.field_name is None:
             return "Europe/Prague"
         default: str = cls.model_fields[info.field_name].default
-        if isinstance(value, str) and value in pytz.all_timezones:
+        if isinstance(value, str) and is_valid_timezone(value):
             return value
         return _warn_invalid(info.field_name, value, default, "unknown timezone")
 
