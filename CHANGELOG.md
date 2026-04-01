@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Compose quickstart refresh** - Switched the quickstart helper to the modern `docker compose` CLI and removed the obsolete top-level `version` field from `docker-compose.yml`
 - **CI dependency caching and coverage** - Enabled pip dependency caching in the main CI workflow, installed the unified dev extras set directly, and turned on pytest coverage reporting so pull requests surface both test failures and app coverage regressions in one run
 - **Native async pytest style** - Converted the async task and analytics test modules away from `asyncio.run()` wrappers to native `pytest.mark.asyncio` tests so they follow the configured strict asyncio test mode directly
+- **Weather test async migration** - Converted the weather service test suite from nested `asyncio.run()` wrappers to native async pytest cases so async cache and forecast coverage now runs directly under the configured strict event-loop mode
 
 
 ## [1.2.19] - 2026-03-31
