@@ -282,6 +282,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "mypy" },
     { name = "numpy" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
@@ -289,13 +290,22 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
     { name = "scikit-learn" },
+    { name = "types-aiofiles" },
+    { name = "types-cachetools" },
+    { name = "types-markdown" },
+    { name = "types-pytz" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "mypy" },
+    { name = "numpy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "pytest-codspeed" },
+    { name = "pytest-cov" },
     { name = "ruff" },
+    { name = "scikit-learn" },
     { name = "types-aiofiles" },
     { name = "types-cachetools" },
     { name = "types-markdown" },
@@ -315,6 +325,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.0" },
     { name = "lxml", specifier = ">=6.0.2" },
     { name = "markdown", specifier = ">=3.5.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.19.1" },
     { name = "numpy", marker = "extra == 'dev'", specifier = ">=2.4.0" },
     { name = "pillow", specifier = ">=10.1.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
@@ -327,6 +338,10 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.10" },
     { name = "scikit-learn", marker = "extra == 'dev'", specifier = ">=1.8.0" },
     { name = "sentry-sdk", extras = ["fastapi"], specifier = ">=1.38.0" },
+    { name = "types-aiofiles", marker = "extra == 'dev'", specifier = ">=25.1.0.20251011" },
+    { name = "types-cachetools", marker = "extra == 'dev'", specifier = ">=6.2.0.20251022" },
+    { name = "types-markdown", marker = "extra == 'dev'", specifier = ">=3.10.0.20251106" },
+    { name = "types-pytz", marker = "extra == 'dev'", specifier = ">=2025.2.0.20251108" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
 ]
 provides-extras = ["dev"]
@@ -334,8 +349,13 @@ provides-extras = ["dev"]
 [package.metadata.requires-dev]
 dev = [
     { name = "mypy", specifier = ">=1.19.1" },
+    { name = "numpy", specifier = ">=2.4.0" },
+    { name = "pytest", specifier = ">=7.4.0" },
+    { name = "pytest-asyncio", specifier = ">=0.21.0" },
     { name = "pytest-codspeed", specifier = ">=4.3.0" },
+    { name = "pytest-cov", specifier = ">=4.1.0" },
     { name = "ruff", specifier = ">=0.14.10" },
+    { name = "scikit-learn", specifier = ">=1.8.0" },
     { name = "types-aiofiles", specifier = ">=25.1.0.20251011" },
     { name = "types-cachetools", specifier = ">=6.2.0.20251022" },
     { name = "types-markdown", specifier = ">=3.10.0.20251106" },
