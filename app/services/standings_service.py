@@ -11,13 +11,11 @@ import httpx
 from app.config import config
 from app.models import ConstructorStanding, DriverStanding, StandingsData
 from app.services.http_client import get_shared_http_client
+from app.utils.http import fetch_with_retry
 
 logger = logging.getLogger(__name__)
 
 JOLPICA_BASE_URL = "https://api.jolpi.ca/ergast/f1"
-
-MAX_RETRIES = 3
-RETRY_BASE_DELAY = 1.0
 
 CACHE_TTL_SECONDS = 3600
 
@@ -59,30 +57,6 @@ class StandingsService:
         self._cache[key] = CacheEntry(data)
         logger.debug(f"Cached {key}")
 
-    @staticmethod
-    async def _fetch_with_retry(
-        client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
-    ) -> httpx.Response:
-        last_exception: httpx.HTTPStatusError | None = None
-        for attempt in range(max_retries + 1):
-            try:
-                response = await client.get(url)
-                response.raise_for_status()
-                return response
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
-                    last_exception = e
-                    if attempt < max_retries:
-                        delay = RETRY_BASE_DELAY * (2**attempt)
-                        logger.warning(
-                            f"Rate limited (429), retry {attempt + 1}/{max_retries} in {delay}s"
-                        )
-                        await asyncio.sleep(delay)
-                        continue
-                raise
-        assert last_exception is not None
-        raise last_exception
-
     async def get_driver_standings(
         self, year: Optional[int] = None, limit: int = 10
     ) -> list[DriverStanding]:
@@ -97,7 +71,7 @@ class StandingsService:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
             logger.info(f"Fetching driver standings from {url}")
-            response = await self._fetch_with_retry(client, url)
+            response = await fetch_with_retry(client, url, logger=logger)
 
             data = response.json()
             standings_list = (
@@ -157,7 +131,7 @@ class StandingsService:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
             logger.info(f"Fetching constructor standings from {url}")
-            response = await self._fetch_with_retry(client, url)
+            response = await fetch_with_retry(client, url, logger=logger)
 
             data = response.json()
             standings_list = (

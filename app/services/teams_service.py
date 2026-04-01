@@ -14,14 +14,13 @@ from app.config import config
 from app.models import TeamDriverEntry, TeamEntry, TeamsData
 from app.services.http_client import get_shared_http_client
 from app.utils.f1_season import get_current_f1_season
+from app.utils.http import fetch_with_retry
 
 logger = logging.getLogger(__name__)
 
 JOLPICA_BASE_URL = "https://api.jolpi.ca/ergast/f1"
 SEASONS_DIR = Path(__file__).parent.parent / "assets" / "seasons"
 
-MAX_RETRIES = 3
-RETRY_BASE_DELAY = 1.0
 CACHE_TTL_SECONDS = 3600
 
 MANUAL_DRIVER_NUMBER_OVERRIDES = {
@@ -206,33 +205,6 @@ class TeamsService:
             logger.error("Error loading JSON file: %s", e, exc_info=True)
             return None
 
-    @staticmethod
-    async def _fetch_with_retry(
-        client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
-    ) -> httpx.Response:
-        last_exception: httpx.HTTPStatusError | None = None
-        for attempt in range(max_retries + 1):
-            try:
-                response = await client.get(url)
-                response.raise_for_status()
-                return response
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
-                    last_exception = e
-                    if attempt < max_retries:
-                        delay = RETRY_BASE_DELAY * (2**attempt)
-                        logger.warning(
-                            "Rate limited (429), retry %d/%d in %ss",
-                            attempt + 1,
-                            max_retries,
-                            delay,
-                        )
-                        await asyncio.sleep(delay)
-                        continue
-                raise
-        assert last_exception is not None
-        raise last_exception
-
     async def _fetch_standings(self, year: int) -> tuple[dict, dict]:
         """Fetch driver and constructor standings from API."""
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
@@ -242,8 +214,8 @@ class TeamsService:
         logger.info("Fetching standings for %d", year)
 
         driver_resp, constructor_resp = await asyncio.gather(
-            self._fetch_with_retry(client, driver_standings_url),
-            self._fetch_with_retry(client, constructor_standings_url),
+            fetch_with_retry(client, driver_standings_url, logger=logger),
+            fetch_with_retry(client, constructor_standings_url, logger=logger),
         )
 
         driver_standings: dict[str, dict] = {}
@@ -368,10 +340,10 @@ class TeamsService:
             driver_standings_resp,
             constructor_standings_resp,
         ) = await asyncio.gather(
-            self._fetch_with_retry(client, drivers_url),
-            self._fetch_with_retry(client, constructors_url),
-            self._fetch_with_retry(client, driver_standings_url),
-            self._fetch_with_retry(client, constructor_standings_url),
+            fetch_with_retry(client, drivers_url, logger=logger),
+            fetch_with_retry(client, constructors_url, logger=logger),
+            fetch_with_retry(client, driver_standings_url, logger=logger),
+            fetch_with_retry(client, constructor_standings_url, logger=logger),
         )
 
         drivers_data = drivers_resp.json()
@@ -411,8 +383,8 @@ class TeamsService:
             fallback_constructor_url = f"{JOLPICA_BASE_URL}/{year - 1}/constructorStandings.json"
 
             fallback_driver_resp, fallback_constructor_resp = await asyncio.gather(
-                self._fetch_with_retry(client, fallback_driver_url),
-                self._fetch_with_retry(client, fallback_constructor_url),
+                fetch_with_retry(client, fallback_driver_url, logger=logger),
+                fetch_with_retry(client, fallback_constructor_url, logger=logger),
             )
 
             fallback_driver_data = fallback_driver_resp.json()

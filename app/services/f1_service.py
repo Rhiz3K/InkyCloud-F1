@@ -1,6 +1,5 @@
 """F1 data service using Jolpica API and static data."""
 
-import asyncio
 import json
 import logging
 import re
@@ -23,6 +22,7 @@ from app.models import (
     RaceResultEntry,
 )
 from app.services.http_client import get_shared_http_client
+from app.utils.http import fetch_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +42,6 @@ CIRCUIT_ID_MAP = {
 # Minimum year for historical data - qualifying data in modern format (Q1/Q2/Q3) started in 2006
 # Using 2003 as a safe minimum when qualifying results became reliably available in Ergast
 MIN_HISTORICAL_YEAR = 2003
-
-# Retry configuration for rate limiting
-MAX_RETRIES = 3
-RETRY_BASE_DELAY = 1.0  # seconds
 
 
 class F1Service:
@@ -69,48 +65,6 @@ class F1Service:
             logger.warning("Unknown timezone %s, falling back to UTC", self.timezone_str)
             self.target_tz = pytz.UTC
             self.timezone_str = "UTC"
-
-    @staticmethod
-    async def _fetch_with_retry(
-        client: httpx.AsyncClient, url: str, max_retries: int = MAX_RETRIES
-    ) -> httpx.Response:
-        """
-        Fetch URL with exponential backoff retry for rate limiting.
-
-        Args:
-            client: HTTP client
-            url: URL to fetch
-            max_retries: Maximum number of retry attempts
-
-        Returns:
-            HTTP response
-
-        Raises:
-            httpx.HTTPStatusError: If all retries fail
-        """
-        last_exception: httpx.HTTPStatusError | None = None
-        for attempt in range(max_retries + 1):
-            try:
-                response = await client.get(url)
-                response.raise_for_status()
-                return response
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
-                    last_exception = e
-                    if attempt < max_retries:
-                        delay = RETRY_BASE_DELAY * (2**attempt)
-                        logger.warning(
-                            "Rate limited (429), retry %s/%s in %ss",
-                            attempt + 1,
-                            max_retries,
-                            delay,
-                        )
-                        await asyncio.sleep(delay)
-                        continue
-                raise
-        # This should only be reached if we exhausted retries on 429
-        assert last_exception is not None
-        raise last_exception
 
     async def get_next_race(self) -> Optional[dict]:
         """
@@ -398,7 +352,7 @@ class F1Service:
         url = f"{JOLPICA_BASE_URL}/circuits/{circuit_id}/races.json?limit=100"
         logger.info("Fetching race history for circuit %s", circuit_id)
 
-        response = await self._fetch_with_retry(client, url)
+        response = await fetch_with_retry(client, url, logger=logger)
 
         data = response.json()
         races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
@@ -434,7 +388,7 @@ class F1Service:
         logger.info("Fetching qualifying results: %s", url)
 
         try:
-            response = await self._fetch_with_retry(client, url)
+            response = await fetch_with_retry(client, url, logger=logger)
 
             data = response.json()
             races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
@@ -488,7 +442,7 @@ class F1Service:
         logger.info("Fetching race results: %s", url)
 
         try:
-            response = await self._fetch_with_retry(client, url)
+            response = await fetch_with_retry(client, url, logger=logger)
 
             data = response.json()
             races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
@@ -539,7 +493,7 @@ class F1Service:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             url = f"{JOLPICA_BASE_URL}/{year}.json"
             logger.info("Fetching season races from %s", url)
-            response = await self._fetch_with_retry(client, url)
+            response = await fetch_with_retry(client, url, logger=logger)
 
             data = response.json()
             races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
@@ -610,7 +564,7 @@ class F1Service:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             url = f"{JOLPICA_BASE_URL}/{year}/{round_num}.json"
             logger.info("Fetching race from %s", url)
-            response = await self._fetch_with_retry(client, url)
+            response = await fetch_with_retry(client, url, logger=logger)
 
             data = response.json()
             races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
