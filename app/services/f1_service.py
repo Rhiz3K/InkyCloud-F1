@@ -21,6 +21,7 @@ from app.models import (
     Race,
     RaceResultEntry,
 )
+from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.http_client import get_shared_http_client
 from app.utils.http import fetch_with_retry
 
@@ -33,11 +34,6 @@ JOLPICA_BASE_URL = "https://api.jolpi.ca/ergast/f1"
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
 SEASONS_DIR = ASSETS_DIR / "seasons"
 CIRCUITS_DATA_PATH = ASSETS_DIR / "circuits_data.json"
-
-# Circuit ID mapping (API uses different IDs than our static data)
-CIRCUIT_ID_MAP = {
-    "vegas": "las_vegas",  # API uses 'vegas', we use 'las_vegas'
-}
 
 # Minimum year for historical data - qualifying data in modern format (Q1/Q2/Q3) started in 2006
 # Using 2003 as a safe minimum when qualifying results became reliably available in Ergast

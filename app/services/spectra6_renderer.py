@@ -13,6 +13,7 @@ from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
 from app.models import HistoricalData, TeamsData
+from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
 from app.services.font_utils import (
     CJK_LANG_CODES,
     FONTS_DIR,
@@ -35,42 +36,6 @@ try:
 except Exception as e:
     logger.warning("Failed to load circuit data: %s", e)
     CIRCUITS_DATA = {}
-
-CIRCUIT_ID_MAP: dict[str, str] = {
-    "vegas": "las_vegas",
-}
-
-COUNTRY_MAP = {
-    "Australia": "au",
-    "Austria": "at",
-    "Azerbaijan": "az",
-    "Bahrain": "bh",
-    "Belgium": "be",
-    "Brazil": "br",
-    "Canada": "ca",
-    "China": "cn",
-    "France": "fr",
-    "Germany": "de",
-    "Hungary": "hu",
-    "Italy": "it",
-    "Japan": "jp",
-    "Mexico": "mx",
-    "Monaco": "mc",
-    "Netherlands": "nl",
-    "Portugal": "pt",
-    "Qatar": "qa",
-    "Russia": "ru",
-    "Saudi Arabia": "sa",
-    "Singapore": "sg",
-    "Spain": "es",
-    "Turkey": "tr",
-    "UAE": "ae",
-    "United Arab Emirates": "ae",
-    "UK": "gb",
-    "United Kingdom": "gb",
-    "USA": "us",
-    "United States": "us",
-}
 
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
 TRACKS_DIR = ASSETS_DIR / "tracks"

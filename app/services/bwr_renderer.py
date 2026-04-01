@@ -6,10 +6,9 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
+from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
 from app.services.renderer import Renderer
 from app.services.spectra6_renderer import (
-    CIRCUIT_ID_MAP,
-    COUNTRY_MAP,
     FONTS_DIR,
     IMAGES_DIR,
     TRACKS_DIR,
