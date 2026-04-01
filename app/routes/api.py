@@ -203,16 +203,19 @@ async def api_info() -> dict:
 async def get_stats() -> dict:
     """Get API request statistics from database."""
     db = Database()
-    stats = await db.get_api_calls_stats_24h()
-    return {
-        "requests": {
-            "last_24h": stats["count_24h"],
-            "avg_response_ms": stats["avg_response_ms"],
-            "total_bytes_24h": stats["total_bytes_24h"],
-        },
-        "cache_size": len(get_bmp_cache()),
-        "cache_max_size": get_bmp_cache().maxsize,
-    }
+    try:
+        stats = await db.get_api_calls_stats_24h()
+        return {
+            "requests": {
+                "last_24h": stats["count_24h"],
+                "avg_response_ms": stats["avg_response_ms"],
+                "total_bytes_24h": stats["total_bytes_24h"],
+            },
+            "cache_size": len(get_bmp_cache()),
+            "cache_max_size": get_bmp_cache().maxsize,
+        }
+    finally:
+        await db.close()
 
 
 @router.post("/api/perf-metrics")
@@ -231,17 +234,20 @@ async def post_perf_metrics(request: Request) -> dict[str, str]:
         payload = PerfMetricsPayload(**data)
 
         db = Database()
-        await db.save_perf_metric(
-            page_path=payload.page_path,
-            lcp_ms=payload.lcp_ms,
-            cls=payload.cls,
-            fcp_ms=payload.fcp_ms,
-            ttfb_ms=payload.ttfb_ms,
-            inp_ms=payload.inp_ms,
-            user_agent=request.headers.get("User-Agent"),
-            connection_type=payload.connection_type,
-            device_memory=payload.device_memory,
-        )
+        try:
+            await db.save_perf_metric(
+                page_path=payload.page_path,
+                lcp_ms=payload.lcp_ms,
+                cls=payload.cls,
+                fcp_ms=payload.fcp_ms,
+                ttfb_ms=payload.ttfb_ms,
+                inp_ms=payload.inp_ms,
+                user_agent=request.headers.get("User-Agent"),
+                connection_type=payload.connection_type,
+                device_memory=payload.device_memory,
+            )
+        finally:
+            await db.close()
 
         create_supervised_task(
             track_event(
@@ -269,17 +275,23 @@ async def post_perf_metrics(request: Request) -> dict[str, str]:
 async def get_perf_metrics(hours: int = Query(default=24, le=720)) -> dict:
     """Return aggregated performance metrics for the requested lookback window."""
     db = Database()
-    stats = await db.get_perf_stats(hours)
-    by_page = await db.get_perf_stats_by_page(hours)
-    return {"overall": stats, "by_page": by_page}
+    try:
+        stats = await db.get_perf_stats(hours)
+        by_page = await db.get_perf_stats_by_page(hours)
+        return {"overall": stats, "by_page": by_page}
+    finally:
+        await db.close()
 
 
 @router.get("/api/stats/history")
 async def get_stats_history(limit: int = Query(default=168, le=720)) -> dict:
     """Return recent hourly request history for the stats dashboard."""
     db = Database()
-    history = await db.get_request_stats_history(limit=limit)
-    return {"history": history, "count": len(history)}
+    try:
+        history = await db.get_request_stats_history(limit=limit)
+        return {"history": history, "count": len(history)}
+    finally:
+        await db.close()
 
 
 @router.get("/api/races/{year}")

@@ -545,9 +545,12 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
     hours = hours_map.get(time_range, 24)
 
     db = Database()
-    stats = await db.get_stats_for_range(hours)
-    _enrich_display_type_stats(stats)
-    perf_stats = await db.get_perf_stats(hours)
+    try:
+        stats = await db.get_stats_for_range(hours)
+        _enrich_display_type_stats(stats)
+        perf_stats = await db.get_perf_stats(hours)
+    finally:
+        await db.close()
 
     base_url = lang_url("/stats", ui_lang)
     url = f"{base_url}?range={time_range}" if time_range != "24h" else base_url

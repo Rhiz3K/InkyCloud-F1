@@ -14,7 +14,9 @@ class TestCircuitWeatherDatabase:
     @pytest.fixture
     def db(self):
         """Create a fresh database instance for each test."""
-        return Database()
+        db = Database()
+        yield db
+        asyncio.run(db.close())
 
     @staticmethod
     def test_save_and_get_circuit_weather(db):
@@ -115,6 +117,41 @@ class TestCircuitWeatherDatabase:
             assert result["spa"]["weather_code"] == 61
 
         asyncio.run(run_test())
+
+
+class TestDatabaseConnectionLifecycle:
+    """Tests for persistent database connection reuse."""
+
+    @staticmethod
+    def test_database_reuses_connection_within_same_loop(tmp_path):
+        async def run_test():
+            db = Database(str(tmp_path / "reuse.db"))
+            try:
+                async with db._get_connection() as first_conn:
+                    async with db._get_connection() as second_conn:
+                        assert first_conn is second_conn
+            finally:
+                await db.close()
+
+        asyncio.run(run_test())
+
+    @staticmethod
+    def test_database_refreshes_connection_across_event_loops(tmp_path):
+        db = Database(str(tmp_path / "loop-refresh.db"))
+        connections = []
+
+        async def capture_connection():
+            async with db._get_connection() as conn:
+                connections.append(conn)
+
+        try:
+            asyncio.run(capture_connection())
+            asyncio.run(capture_connection())
+        finally:
+            asyncio.run(db.close())
+
+        assert len(connections) == 2
+        assert connections[0] is not connections[1]
 
 
 class TestApiCallStatsDatabase:
@@ -250,6 +287,7 @@ class TestApiCallStatsDatabase:
                 (("display_type", "spectra6"), ("count", 1)),
                 (("display_type", "bwr"), ("count", 1)),
             }
+            await db.close()
 
         asyncio.run(run_test())
 
@@ -325,6 +363,7 @@ class TestApiCallStatsDatabase:
             assert stats["races"][0]["count"] == 3
             assert stats["races"][0]["is_auto_selected"] is True
             assert stats["races"][0]["auto_selected_count"] == 1
+            await db.close()
 
         asyncio.run(run_test())
 
@@ -436,5 +475,6 @@ class TestDatabaseStatsCleanup:
                     ) as cursor:
                         row = await cursor.fetchone()
                         assert row["count"] == 1
+            await db.close()
 
         asyncio.run(run_test())

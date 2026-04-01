@@ -1,9 +1,12 @@
 """Database service for caching metadata and statistics in SQLite."""
 
+import asyncio
 import logging
+import weakref
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
+from typing import AsyncIterator, ClassVar, Optional
 
 import aiosqlite
 
@@ -13,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class Database:
+    _instances: ClassVar[weakref.WeakSet["Database"]] = weakref.WeakSet()
+
     """
     Async SQLite database for metadata and statistics.
 
@@ -33,15 +38,58 @@ class Database:
         self.db_path = db_path or config.DATABASE_PATH
         self._ensure_directory()
         self._initialized = False
+        self._connection: aiosqlite.Connection | None = None
+        self._connection_loop: asyncio.AbstractEventLoop | None = None
+        self._connection_lock = asyncio.Lock()
+        self._init_lock = asyncio.Lock()
+        self._instances.add(self)
 
     def _ensure_directory(self) -> None:
         """Ensure the database directory exists."""
         db_dir = Path(self.db_path).parent
         db_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_connection(self) -> aiosqlite.Connection:
-        """Get a database connection context manager with WAL mode enabled."""
-        return aiosqlite.connect(self.db_path)
+    async def _ensure_connection(self) -> aiosqlite.Connection:
+        """Return a persistent connection for this Database instance and event loop."""
+        current_loop = asyncio.get_running_loop()
+
+        async with self._connection_lock:
+            if self._connection is not None and self._connection_loop is current_loop:
+                return self._connection
+
+            if self._connection is not None:
+                try:
+                    await self._connection.close()
+                except Exception:
+                    logger.debug("Failed to close stale database connection", exc_info=True)
+
+            conn = await aiosqlite.connect(self.db_path)
+            await self._configure_connection(conn)
+            self._connection = conn
+            self._connection_loop = current_loop
+            return conn
+
+    @asynccontextmanager
+    async def _get_connection(self) -> AsyncIterator[aiosqlite.Connection]:
+        """Yield the persistent database connection without recreating it per operation."""
+        yield await self._ensure_connection()
+
+    async def close(self) -> None:
+        """Close this instance's persistent connection, if any."""
+        async with self._connection_lock:
+            if self._connection is None:
+                return
+            try:
+                await self._connection.close()
+            finally:
+                self._connection = None
+                self._connection_loop = None
+
+    @classmethod
+    async def close_all(cls) -> None:
+        """Close all live Database instance connections."""
+        for db in list(cls._instances):
+            await db.close()
 
     @staticmethod
     async def _configure_connection(conn: aiosqlite.Connection) -> None:
@@ -54,110 +102,115 @@ class Database:
         if self._initialized:
             return
 
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            await conn.executescript(
+        async with self._init_lock:
+            if self._initialized:
+                return
+
+            async with self._get_connection() as conn:
+                await conn.executescript(
+                    """
+                    -- Generated images table
+                    CREATE TABLE IF NOT EXISTS generated_images (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        image_key TEXT UNIQUE NOT NULL,
+                        image_path TEXT NOT NULL,
+                        lang TEXT NOT NULL,
+                        season INTEGER,
+                        round INTEGER,
+                        generated_at TEXT NOT NULL
+                    );
+
+                    -- Cache metadata table
+                    CREATE TABLE IF NOT EXISTS cache_meta (
+                        key TEXT PRIMARY KEY,
+                        value TEXT,
+                        updated_at TEXT NOT NULL
+                    );
+
+                    -- Request statistics table (legacy hourly snapshots)
+                    CREATE TABLE IF NOT EXISTS request_stats (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        hour_count INTEGER NOT NULL,
+                        day_count INTEGER NOT NULL
+                    );
+
+                    -- API calls table (individual call logging)
+                    CREATE TABLE IF NOT EXISTS api_calls (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        endpoint TEXT NOT NULL,
+                        response_time_ms REAL,
+                        response_size_bytes INTEGER,
+                        lang TEXT,
+                        tz TEXT,
+                        year INTEGER,
+                        round INTEGER,
+                        display_type TEXT,
+                        race_name TEXT,
+                        is_auto_selected INTEGER DEFAULT 0
+                    );
+
+                    -- Performance metrics table (Real User Monitoring)
+                    CREATE TABLE IF NOT EXISTS perf_metrics (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        page_path TEXT NOT NULL,
+                        lcp_ms REAL,
+                        cls REAL,
+                        fcp_ms REAL,
+                        ttfb_ms REAL,
+                        inp_ms REAL,
+                        user_agent TEXT,
+                        connection_type TEXT,
+                        device_memory REAL
+                    );
+
+                    -- Circuit weather cache table (batch circuit caching)
+                    CREATE TABLE IF NOT EXISTS circuit_weather (
+                        circuit_id TEXT PRIMARY KEY,
+                        circuit_name TEXT,
+                        temperature_c REAL,
+                        weather_code INTEGER,
+                        precipitation_probability INTEGER,
+                        fetched_at TEXT NOT NULL
+                    );
+
+                    -- Weather cache table (key-based caching with TTL)
+                    CREATE TABLE IF NOT EXISTS weather_cache (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        cache_key TEXT UNIQUE NOT NULL,
+                        temperature_c REAL NOT NULL,
+                        weather_code INTEGER NOT NULL,
+                        precipitation_probability INTEGER NOT NULL,
+                        cached_at TEXT NOT NULL,
+                        expires_at TEXT NOT NULL
+                    );
+
+                    -- Create indexes (note: idx_api_calls_race created after migrations)
+                    CREATE INDEX IF NOT EXISTS idx_images_key ON generated_images(image_key);
+                    CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON request_stats(timestamp);
+                    CREATE INDEX IF NOT EXISTS idx_api_calls_timestamp ON api_calls(timestamp);
+                    CREATE INDEX IF NOT EXISTS idx_perf_metrics_timestamp
+                        ON perf_metrics(timestamp);
+                    CREATE INDEX IF NOT EXISTS idx_weather_cache_key ON weather_cache(cache_key);
+                    CREATE INDEX IF NOT EXISTS idx_weather_cache_expires
+                        ON weather_cache(expires_at);
                 """
-                -- Generated images table
-                CREATE TABLE IF NOT EXISTS generated_images (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    image_key TEXT UNIQUE NOT NULL,
-                    image_path TEXT NOT NULL,
-                    lang TEXT NOT NULL,
-                    season INTEGER,
-                    round INTEGER,
-                    generated_at TEXT NOT NULL
-                );
+                )
+                await conn.commit()
 
-                -- Cache metadata table
-                CREATE TABLE IF NOT EXISTS cache_meta (
-                    key TEXT PRIMARY KEY,
-                    value TEXT,
-                    updated_at TEXT NOT NULL
-                );
+                # Run migrations for existing databases
+                await self._run_migrations(conn)
 
-                -- Request statistics table (legacy hourly snapshots)
-                CREATE TABLE IF NOT EXISTS request_stats (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT NOT NULL,
-                    hour_count INTEGER NOT NULL,
-                    day_count INTEGER NOT NULL
-                );
+                # Create index on year/round AFTER migrations ensure columns exist
+                await conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_api_calls_race ON api_calls(year, round)"
+                )
+                await conn.commit()
 
-                -- API calls table (individual call logging)
-                CREATE TABLE IF NOT EXISTS api_calls (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT NOT NULL,
-                    endpoint TEXT NOT NULL,
-                    response_time_ms REAL,
-                    response_size_bytes INTEGER,
-                    lang TEXT,
-                    tz TEXT,
-                    year INTEGER,
-                    round INTEGER,
-                    display_type TEXT,
-                    race_name TEXT,
-                    is_auto_selected INTEGER DEFAULT 0
-                );
-
-                -- Performance metrics table (Real User Monitoring)
-                CREATE TABLE IF NOT EXISTS perf_metrics (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT NOT NULL,
-                    page_path TEXT NOT NULL,
-                    lcp_ms REAL,
-                    cls REAL,
-                    fcp_ms REAL,
-                    ttfb_ms REAL,
-                    inp_ms REAL,
-                    user_agent TEXT,
-                    connection_type TEXT,
-                    device_memory REAL
-                );
-
-                -- Circuit weather cache table (batch circuit caching)
-                CREATE TABLE IF NOT EXISTS circuit_weather (
-                    circuit_id TEXT PRIMARY KEY,
-                    circuit_name TEXT,
-                    temperature_c REAL,
-                    weather_code INTEGER,
-                    precipitation_probability INTEGER,
-                    fetched_at TEXT NOT NULL
-                );
-
-                -- Weather cache table (key-based caching with TTL)
-                CREATE TABLE IF NOT EXISTS weather_cache (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    cache_key TEXT UNIQUE NOT NULL,
-                    temperature_c REAL NOT NULL,
-                    weather_code INTEGER NOT NULL,
-                    precipitation_probability INTEGER NOT NULL,
-                    cached_at TEXT NOT NULL,
-                    expires_at TEXT NOT NULL
-                );
-
-                -- Create indexes (note: idx_api_calls_race created after migrations)
-                CREATE INDEX IF NOT EXISTS idx_images_key ON generated_images(image_key);
-                CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON request_stats(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_api_calls_timestamp ON api_calls(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_perf_metrics_timestamp ON perf_metrics(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_weather_cache_key ON weather_cache(cache_key);
-                CREATE INDEX IF NOT EXISTS idx_weather_cache_expires ON weather_cache(expires_at);
-            """
-            )
-            await conn.commit()
-
-            # Run migrations for existing databases
-            await self._run_migrations(conn)
-
-            # Create index on year/round AFTER migrations ensure columns exist
-            await conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_api_calls_race ON api_calls(year, round)"
-            )
-            await conn.commit()
-
-            logger.info("Database initialized at %s", self.db_path)
-        self._initialized = True
+                logger.info("Database initialized at %s", self.db_path)
+                self._initialized = True
 
     @staticmethod
     async def _run_migrations(conn: aiosqlite.Connection) -> None:
@@ -207,7 +260,6 @@ class Database:
         """
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO generated_images
@@ -240,7 +292,6 @@ class Database:
         """
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             async with conn.execute(
                 "SELECT image_path FROM generated_images WHERE image_key = ?",
                 (image_key,),
@@ -254,7 +305,6 @@ class Database:
         """Set a cache metadata value."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO cache_meta (key, value, updated_at)
@@ -271,7 +321,6 @@ class Database:
         """Get a cache metadata value."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             async with conn.execute("SELECT value FROM cache_meta WHERE key = ?", (key,)) as cursor:
                 row = await cursor.fetchone()
                 if row:
@@ -288,7 +337,6 @@ class Database:
         """
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO request_stats (timestamp, hour_count, day_count)
@@ -311,7 +359,6 @@ class Database:
         """
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             async with conn.execute(
                 """
                 SELECT timestamp, hour_count, day_count
@@ -346,7 +393,6 @@ class Database:
         deleted_counts: dict[str, int] = {}
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             for table_name in ("request_stats", "api_calls", "perf_metrics"):
                 cursor = await conn.execute(
                     f"DELETE FROM {table_name} WHERE timestamp < ?", (cutoff_date,)
@@ -383,7 +429,6 @@ class Database:
 
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.executemany(
                 """
                 INSERT INTO api_calls
@@ -426,7 +471,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             async with conn.execute(
                 """
                 SELECT
@@ -468,7 +512,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
 
             # Basic stats: count, response times, data transfer
             async with conn.execute(
@@ -651,7 +694,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             async with conn.execute(
                 "SELECT COUNT(*) as count FROM api_calls WHERE timestamp > ?",
                 (cutoff,),
@@ -685,7 +727,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             async with conn.execute(
                 """
                 SELECT lang, tz, COUNT(*) as count
@@ -724,7 +765,6 @@ class Database:
         """Persist a single client-side performance metric payload."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO perf_metrics
@@ -753,7 +793,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
 
             # Get aggregate stats
             async with conn.execute(
@@ -880,7 +919,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
 
             async with conn.execute(
                 """
@@ -954,7 +992,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
 
             async with conn.execute(
                 """
@@ -997,7 +1034,6 @@ class Database:
         """Store or update cached weather for a circuit (upsert)."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO circuit_weather
@@ -1026,7 +1062,6 @@ class Database:
         """Retrieve cached weather data for a circuit (may be stale)."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             async with conn.execute(
                 """
                 SELECT temperature_c, weather_code, precipitation_probability, fetched_at
@@ -1049,7 +1084,6 @@ class Database:
         """Load all cached circuit weather records from the database."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             async with conn.execute(
                 """
                 SELECT circuit_id, temperature_c, weather_code,
@@ -1086,7 +1120,6 @@ class Database:
         expires_at = now + timedelta(minutes=ttl_minutes)
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO weather_cache
@@ -1117,7 +1150,6 @@ class Database:
         now = datetime.now(timezone.utc).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             async with conn.execute(
                 """
                 SELECT temperature_c, weather_code, precipitation_probability
@@ -1141,7 +1173,6 @@ class Database:
         now = datetime.now(timezone.utc).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             cursor = await conn.execute(
                 "DELETE FROM weather_cache WHERE expires_at <= ?",
                 (now,),
