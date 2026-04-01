@@ -17,6 +17,7 @@ from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
 from app.routes import api as api_routes
 from app.routes import images as images_routes
+from app.routes.api import _get_driver_number, _get_team_id
 from app.routes.images import (
     _get_pregenerated_calendar_path,
     _get_pregenerated_teams_path,
@@ -1155,6 +1156,18 @@ def test_get_race_info_for_stats_matches_string_round_values():
     assert actual_year == 2026
     assert actual_round == 4
     assert actual_race_name == "Bahrain Grand Prix"
+
+
+def test_get_driver_number_uses_shared_metadata_map():
+    """Driver number helper should resolve known F1 codes from shared metadata."""
+    assert _get_driver_number("VER", 2026) == 1
+    assert _get_driver_number("UNKNOWN", 2026) is None
+
+
+def test_get_team_id_uses_shared_metadata_map():
+    """Team id helper should resolve route payload ids from shared metadata."""
+    assert _get_team_id("Oracle Red Bull Racing") == "red_bull"
+    assert _get_team_id("Unknown Team") is None
 
 
 def test_get_race_data_from_static_matches_string_round_values():

@@ -15,6 +15,7 @@ from app.state import get_bmp_cache
 from app.utils.async_tasks import create_supervised_task
 from app.utils.f1_season import get_current_f1_season
 from app.utils.rate_limit import enforce_rate_limit
+from app.utils.standings_metadata import DRIVER_NUMBERS, TEAM_ID_MAP
 
 from .deps import get_f1_service
 
@@ -318,53 +319,6 @@ async def get_teams(year: int) -> dict:
     teams_service = TeamsService()
     teams_data = await teams_service.get_teams_and_drivers(year)
     return {"season": teams_data.season, "teams": [t.model_dump() for t in teams_data.teams]}
-
-
-DRIVER_NUMBERS = {
-    "VER": 1,
-    "NOR": 4,
-    "LEC": 16,
-    "SAI": 55,
-    "HAM": 44,
-    "RUS": 63,
-    "PIA": 81,
-    "ALO": 14,
-    "STR": 18,
-    "GAS": 10,
-    "OCO": 31,
-    "ALB": 23,
-    "TSU": 22,
-    "RIC": 3,
-    "HUL": 27,
-    "MAG": 20,
-    "BOT": 77,
-    "ZHO": 24,
-    "SAR": 2,
-    "LAW": 30,
-    "BEA": 87,
-    "COL": 43,
-    "DOO": 7,
-    "ANT": 12,
-    "HAD": 6,
-    "BOR": 5,
-}
-
-TEAM_ID_MAP = {
-    "McLaren": "mclaren",
-    "Ferrari": "ferrari",
-    "Red Bull": "red_bull",
-    "Mercedes": "mercedes",
-    "Aston Martin": "aston_martin",
-    "Alpine": "alpine",
-    "Williams": "williams",
-    "RB": "racing_bulls",
-    "Racing Bulls": "racing_bulls",
-    "Haas F1 Team": "haas",
-    "Haas": "haas",
-    "Kick Sauber": "sauber",
-    "Sauber": "sauber",
-    "Alfa Romeo": "sauber",
-}
 
 
 def _get_driver_number(driver_code: str, _year: int) -> int | None:
