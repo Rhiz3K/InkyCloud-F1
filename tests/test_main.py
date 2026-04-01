@@ -4,7 +4,7 @@ import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import cast
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from bs4 import BeautifulSoup
@@ -21,6 +21,7 @@ from app.routes.images import (
     _get_pregenerated_teams_path,
     _get_race_data_from_static,
     _get_race_info_for_stats,
+    _schedule_calendar_analytics,
 )
 from app.services.f1_service import F1Service
 from app.services.image_keys import get_teams_image_key
@@ -1188,6 +1189,37 @@ def test_calendar_bmp_with_bwry_display():
     assert response.headers["content-type"] == "image/bmp"
     assert response.content[:2] == b"BM"
     assert int.from_bytes(response.content[28:30], byteorder="little") == 4
+
+
+def test_schedule_calendar_analytics_uses_background_task():
+    tracked_coro = object()
+
+    with (
+        patch.object(
+            images_routes, "_track_calendar_analytics", new=Mock(return_value=tracked_coro)
+        ) as mock_track,
+        patch.object(images_routes, "create_supervised_task") as mock_create_task,
+    ):
+        _schedule_calendar_analytics(
+            lang="en",
+            tz="Europe/Prague",
+            year=2026,
+            race_round=5,
+            race_key="2026-round-5-monaco-2026-05-24",
+            user_agent="TestAgent/1.0",
+            referrer="https://example.com",
+        )
+
+    mock_track.assert_called_once_with(
+        lang="en",
+        tz="Europe/Prague",
+        year=2026,
+        race_round=5,
+        race_key="2026-round-5-monaco-2026-05-24",
+        user_agent="TestAgent/1.0",
+        referrer="https://example.com",
+    )
+    mock_create_task.assert_called_once_with(tracked_coro, name="calendar_analytics")
 
 
 def test_calendar_bmp_error_response_is_not_cached(monkeypatch):
