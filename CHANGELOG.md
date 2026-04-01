@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shared HTTP retry helper** - Consolidated the duplicated Jolpica 429 backoff logic into `app.utils.http.fetch_with_retry()` so F1, standings, and teams services share one tested retry path instead of maintaining three drift-prone copies
 - **BMP cache headroom** - Increased the in-memory BMP cache capacity to 512 entries so localized display and weather combinations fit without immediate LRU eviction churn during normal traffic
 - **Non-blocking BMP analytics** - Moved calendar BMP analytics dispatch in the image routes onto supervised background tasks so download responses no longer wait on Umami network round-trips
+- **Local env example visibility** - Stopped ignoring `.env.local.example` so the checked-in local development template remains visible to contributors while `.env.local` stays untracked
 
 ### Security
 
