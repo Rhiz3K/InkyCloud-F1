@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from pydantic import (
     Field,
     HttpUrl,
+    SecretStr,
     TypeAdapter,
     ValidationError,
     ValidationInfo,
@@ -148,8 +149,10 @@ class Config(BaseSettings):
 
     # S3 settings (for backup)
     S3_ENDPOINT_URL: Optional[str] = Field(default=None, description="S3-compatible endpoint URL")
-    S3_ACCESS_KEY_ID: Optional[str] = Field(default=None, description="S3 access key ID")
-    S3_SECRET_ACCESS_KEY: Optional[str] = Field(default=None, description="S3 secret access key")
+    S3_ACCESS_KEY_ID: Optional[SecretStr] = Field(default=None, description="S3 access key ID")
+    S3_SECRET_ACCESS_KEY: Optional[SecretStr] = Field(
+        default=None, description="S3 secret access key"
+    )
     S3_BUCKET_NAME: Optional[str] = Field(default=None, description="S3 bucket name for backups")
     S3_REGION: str = Field("auto", description="S3 region (use 'auto' for Cloudflare R2)")
 
@@ -245,6 +248,7 @@ class Config(BaseSettings):
         return _warn_invalid(info.field_name, value, default, "unsupported language code")
 
     @field_validator(
+        "SITE_URL",
         "UMAMI_API_URL",
         "JOLPICA_API_URL",
         "OPEN_METEO_URL",
@@ -316,7 +320,9 @@ def get_config() -> Config:
 def _reset_config_cache_for_tests() -> None:
     """Allow tests to rebuild configuration with fresh environment variables."""
 
+    global config
     get_config.cache_clear()
+    config = get_config()
 
 
 config = get_config()

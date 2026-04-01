@@ -5,7 +5,6 @@ import json
 import logging
 import time
 import unicodedata
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -13,6 +12,7 @@ import httpx
 
 from app.config import config
 from app.models import TeamDriverEntry, TeamEntry, TeamsData
+from app.utils.f1_season import get_current_f1_season
 
 logger = logging.getLogger(__name__)
 
@@ -22,11 +22,6 @@ SEASONS_DIR = Path(__file__).parent.parent / "assets" / "seasons"
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 1.0
 CACHE_TTL_SECONDS = 3600
-
-SEASON_START_DATES = {
-    2025: datetime(2025, 3, 16, tzinfo=timezone.utc),
-    2026: datetime(2026, 3, 8, tzinfo=timezone.utc),
-}
 
 MANUAL_DRIVER_NUMBER_OVERRIDES = {
     2026: {
@@ -57,18 +52,9 @@ MANUAL_DRIVER_NUMBER_OVERRIDE_NAME_FALLBACKS = {
 }
 
 
-def _get_current_f1_season() -> int:
-    now = datetime.now(timezone.utc)
-    if now >= SEASON_START_DATES[2026]:
-        return 2026
-    if now >= SEASON_START_DATES[2025]:
-        return 2025
-    return 2024
-
-
 def get_default_teams_year() -> int:
     """Resolve the newest season that has bundled teams data."""
-    current_year = _get_current_f1_season()
+    current_year = get_current_f1_season()
     current_path = SEASONS_DIR / f"{current_year}_teams.json"
     if current_path.exists():
         return current_year

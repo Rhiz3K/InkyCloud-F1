@@ -53,7 +53,11 @@ def get_translator(lang: str) -> dict:
                 return translations
         else:
             logger.warning(f"Translation file not found: {translation_file}")
-            return get_translator(config.DEFAULT_LANG)
+            if lang != config.DEFAULT_LANG:
+                return get_translator(config.DEFAULT_LANG)
+
+            logger.error("Default translation file missing for %s", config.DEFAULT_LANG)
+            return {}
 
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing translation file {translation_file}: {str(e)}")

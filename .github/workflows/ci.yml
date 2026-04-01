@@ -28,10 +28,10 @@ jobs:
           exit 1
         fi
 
-    - name: Set up Python 3.14.3
+    - name: Set up Python 3.13
       uses: actions/setup-python@v6
       with:
-        python-version: "3.14.3"
+        python-version: "3.13"
 
     - name: Validate release readiness for main PRs
       if: github.event_name == 'pull_request' && github.base_ref == 'main'
