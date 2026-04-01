@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Background task supervision** - Replaced fire-and-forget `create_task()` call sites for startup generation and web-vitals analytics with supervised background tasks that keep references, log failures, and report exceptions to Sentry instead of dropping them silently
 - **Stats retention cleanup** - Extended the scheduled stats cleanup path to prune expired rows from `api_calls` and `perf_metrics` alongside legacy `request_stats`, so analytics tables no longer grow without bound
 - **ASGI middleware migration** - Replaced `BaseHTTPMiddleware` wrappers for static cache headers and canonical-host/HSTS handling with pure ASGI middleware so streaming responses keep middleware compatibility without sacrificing the existing redirect and cache behavior
+- **Shared outbound HTTP clients** - Reused long-lived `httpx.AsyncClient` instances for Jolpica, Open-Meteo, GitHub release checks, and Umami requests, then closed them during app shutdown so outbound API calls stop paying per-request client setup costs without leaking connections across tests or process exit
 
 ### Security
 

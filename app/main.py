@@ -27,6 +27,7 @@ from app.routes.images import router as images_router
 from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
+from app.services.http_client import close_shared_http_clients
 from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
 from app.services.warmup import warm_teams_renderer_assets
 from app.utils.async_tasks import create_supervised_task
@@ -114,6 +115,7 @@ async def lifespan(_app: FastAPI):
     yield
 
     stop_scheduler()
+    await close_shared_http_clients()
     logger.info("Shutting down F1 E-Ink calendar service")
 
 

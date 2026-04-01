@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Optional
 import httpx
 
 from app.config import config
+from app.services.http_client import get_shared_http_client
 
 if TYPE_CHECKING:
     from app.services.database import Database
@@ -150,10 +151,10 @@ class WeatherService:
             "forecast_days": 1,
         }
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(OPEN_METEO_URL, params=params)
-            response.raise_for_status()
-            data = response.json()
+        client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
+        response = await client.get(OPEN_METEO_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
 
         current = data.get("current", {})
         hourly = data.get("hourly", {})
@@ -280,10 +281,10 @@ class WeatherService:
             "forecast_days": min(forecast_days, 16),
         }
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(OPEN_METEO_URL, params=params)
-            response.raise_for_status()
-            data = response.json()
+        client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
+        response = await client.get(OPEN_METEO_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
 
         return _match_hourly_weather(
             data.get("hourly", {}),
@@ -309,10 +310,10 @@ class WeatherService:
             "timezone": "UTC",
         }
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.get(OPEN_METEO_ARCHIVE_URL, params=params)
-            response.raise_for_status()
-            data = response.json()
+        client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
+        response = await client.get(OPEN_METEO_ARCHIVE_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
 
         return _match_hourly_weather(
             data.get("hourly", {}),

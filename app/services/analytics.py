@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 import httpx
 
 from app.config import config
+from app.services.http_client import get_shared_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -78,26 +79,26 @@ async def _send_to_umami(
         log_type = f"event '{event_name}'" if event_name else "pageview"
         logger.debug(f"Sending Umami {log_type}: url={url}, lang={lang}")
 
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.post(
-                str(config.UMAMI_API_URL),
-                json=data,
-                headers=headers,
+        client = get_shared_http_client(httpx.AsyncClient, timeout=5.0)
+        response = await client.post(
+            str(config.UMAMI_API_URL),
+            json=data,
+            headers=headers,
+        )
+
+        # Log response for debugging
+        if response.status_code == 200:
+            logger.debug(
+                f"Umami {log_type} tracked: url={url}, "
+                f"response={response.text[:100] if response.text else 'empty'}"
+            )
+        else:
+            logger.warning(
+                f"Umami {log_type} failed: url={url}, "
+                f"status={response.status_code}, response={response.text[:200]}"
             )
 
-            # Log response for debugging
-            if response.status_code == 200:
-                logger.debug(
-                    f"Umami {log_type} tracked: url={url}, "
-                    f"response={response.text[:100] if response.text else 'empty'}"
-                )
-            else:
-                logger.warning(
-                    f"Umami {log_type} failed: url={url}, "
-                    f"status={response.status_code}, response={response.text[:200]}"
-                )
-
-            response.raise_for_status()
+        response.raise_for_status()
 
     except httpx.HTTPError as e:
         logger.warning(f"Failed to send Umami analytics: {str(e)} (url={url}, event={event_name})")

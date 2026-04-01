@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import httpx
 
 from app.config import config
+from app.services.http_client import get_shared_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -72,48 +73,46 @@ async def fetch_version_info() -> VersionInfo:
     commit_date = None
     commit_message = None
 
-    async with httpx.AsyncClient(timeout=config.REQUEST_TIMEOUT) as client:
-        # Fetch latest release
-        try:
-            release_url = (
-                f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
-            )
-            response = await client.get(
-                release_url,
-                headers={"Accept": "application/vnd.github.v3+json"},
-            )
-            if response.status_code == 200:
-                data = response.json()
-                release_tag = data.get("tag_name")
-                release_name = data.get("name")
-                release_date = data.get("published_at")
-                logger.info(f"Fetched latest release: {release_tag}")
-            elif response.status_code == 404:
-                logger.info("No releases found on GitHub")
-            else:
-                logger.warning(f"GitHub releases API returned {response.status_code}")
-        except Exception as e:
-            logger.error(f"Error fetching GitHub release: {e}")
+    client = get_shared_http_client(httpx.AsyncClient, timeout=config.REQUEST_TIMEOUT)
+    # Fetch latest release
+    try:
+        release_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
+        response = await client.get(
+            release_url,
+            headers={"Accept": "application/vnd.github.v3+json"},
+        )
+        if response.status_code == 200:
+            data = response.json()
+            release_tag = data.get("tag_name")
+            release_name = data.get("name")
+            release_date = data.get("published_at")
+            logger.info(f"Fetched latest release: {release_tag}")
+        elif response.status_code == 404:
+            logger.info("No releases found on GitHub")
+        else:
+            logger.warning(f"GitHub releases API returned {response.status_code}")
+    except Exception as e:
+        logger.error(f"Error fetching GitHub release: {e}")
 
-        # Fetch latest commit on main branch
-        try:
-            commits_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits/main"
-            response = await client.get(
-                commits_url,
-                headers={"Accept": "application/vnd.github.v3+json"},
-            )
-            if response.status_code == 200:
-                data = response.json()
-                commit_sha = data.get("sha")
-                commit_sha_short = commit_sha[:7] if commit_sha else None
-                commit_info = data.get("commit", {})
-                commit_date = commit_info.get("committer", {}).get("date")
-                commit_message = commit_info.get("message", "").split("\n")[0]
-                logger.info(f"Fetched latest commit: {commit_sha_short}")
-            else:
-                logger.warning(f"GitHub commits API returned {response.status_code}")
-        except Exception as e:
-            logger.error(f"Error fetching GitHub commit: {e}")
+    # Fetch latest commit on main branch
+    try:
+        commits_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits/main"
+        response = await client.get(
+            commits_url,
+            headers={"Accept": "application/vnd.github.v3+json"},
+        )
+        if response.status_code == 200:
+            data = response.json()
+            commit_sha = data.get("sha")
+            commit_sha_short = commit_sha[:7] if commit_sha else None
+            commit_info = data.get("commit", {})
+            commit_date = commit_info.get("committer", {}).get("date")
+            commit_message = commit_info.get("message", "").split("\n")[0]
+            logger.info(f"Fetched latest commit: {commit_sha_short}")
+        else:
+            logger.warning(f"GitHub commits API returned {response.status_code}")
+    except Exception as e:
+        logger.error(f"Error fetching GitHub commit: {e}")
 
     _version_cache = VersionInfo(
         release_tag=release_tag,

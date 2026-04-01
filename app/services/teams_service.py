@@ -12,6 +12,7 @@ import httpx
 
 from app.config import config
 from app.models import TeamDriverEntry, TeamEntry, TeamsData
+from app.services.http_client import get_shared_http_client
 from app.utils.f1_season import get_current_f1_season
 
 logger = logging.getLogger(__name__)
@@ -234,53 +235,51 @@ class TeamsService:
 
     async def _fetch_standings(self, year: int) -> tuple[dict, dict]:
         """Fetch driver and constructor standings from API."""
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            driver_standings_url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
-            constructor_standings_url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
+        client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
+        driver_standings_url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
+        constructor_standings_url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
 
-            logger.info("Fetching standings for %d", year)
+        logger.info("Fetching standings for %d", year)
 
-            driver_resp, constructor_resp = await asyncio.gather(
-                self._fetch_with_retry(client, driver_standings_url),
-                self._fetch_with_retry(client, constructor_standings_url),
-            )
+        driver_resp, constructor_resp = await asyncio.gather(
+            self._fetch_with_retry(client, driver_standings_url),
+            self._fetch_with_retry(client, constructor_standings_url),
+        )
 
-            driver_standings: dict[str, dict] = {}
-            driver_data = driver_resp.json()
-            standings_lists = (
-                driver_data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
-            )
-            if standings_lists:
-                for entry in standings_lists[0].get("DriverStandings", []):
-                    driver_info = entry.get("Driver", {})
-                    given = driver_info.get("givenName", "")
-                    family = driver_info.get("familyName", "")
-                    full_name = f"{given} {family}"
+        driver_standings: dict[str, dict] = {}
+        driver_data = driver_resp.json()
+        standings_lists = (
+            driver_data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
+        )
+        if standings_lists:
+            for entry in standings_lists[0].get("DriverStandings", []):
+                driver_info = entry.get("Driver", {})
+                given = driver_info.get("givenName", "")
+                family = driver_info.get("familyName", "")
+                full_name = f"{given} {family}"
 
-                    driver_standings[full_name] = {
-                        "position": int(entry.get("position", 0)),
-                        "points": float(entry.get("points", 0)),
-                        "wins": int(entry.get("wins", 0)),
-                    }
+                driver_standings[full_name] = {
+                    "position": int(entry.get("position", 0)),
+                    "points": float(entry.get("points", 0)),
+                    "wins": int(entry.get("wins", 0)),
+                }
 
-            constructor_standings: dict[str, dict] = {}
-            constructor_data = constructor_resp.json()
-            standings_lists = (
-                constructor_data.get("MRData", {})
-                .get("StandingsTable", {})
-                .get("StandingsLists", [])
-            )
-            if standings_lists:
-                for entry in standings_lists[0].get("ConstructorStandings", []):
-                    constructor_info = entry.get("Constructor", {})
-                    name = constructor_info.get("name", "")
+        constructor_standings: dict[str, dict] = {}
+        constructor_data = constructor_resp.json()
+        standings_lists = (
+            constructor_data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
+        )
+        if standings_lists:
+            for entry in standings_lists[0].get("ConstructorStandings", []):
+                constructor_info = entry.get("Constructor", {})
+                name = constructor_info.get("name", "")
 
-                    constructor_standings[name] = {
-                        "position": int(entry.get("position", 0)),
-                        "points": float(entry.get("points", 0)),
-                    }
+                constructor_standings[name] = {
+                    "position": int(entry.get("position", 0)),
+                    "points": float(entry.get("points", 0)),
+                }
 
-            return driver_standings, constructor_standings
+        return driver_standings, constructor_standings
 
     @staticmethod
     def _match_constructor_name(json_name: str, api_names: list[str]) -> Optional[str]:
@@ -355,168 +354,162 @@ class TeamsService:
         return teams_data
 
     async def _fetch_from_api(self, year: int) -> TeamsData:
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            drivers_url = f"{JOLPICA_BASE_URL}/{year}/drivers.json?limit=50"
-            constructors_url = f"{JOLPICA_BASE_URL}/{year}/constructors.json"
-            driver_standings_url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
-            constructor_standings_url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
+        client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
+        drivers_url = f"{JOLPICA_BASE_URL}/{year}/drivers.json?limit=50"
+        constructors_url = f"{JOLPICA_BASE_URL}/{year}/constructors.json"
+        driver_standings_url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
+        constructor_standings_url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
 
-            logger.info("Fetching teams and drivers from API for %d", year)
+        logger.info("Fetching teams and drivers from API for %d", year)
 
-            (
-                drivers_resp,
-                constructors_resp,
-                driver_standings_resp,
-                constructor_standings_resp,
-            ) = await asyncio.gather(
-                self._fetch_with_retry(client, drivers_url),
-                self._fetch_with_retry(client, constructors_url),
-                self._fetch_with_retry(client, driver_standings_url),
-                self._fetch_with_retry(client, constructor_standings_url),
+        (
+            drivers_resp,
+            constructors_resp,
+            driver_standings_resp,
+            constructor_standings_resp,
+        ) = await asyncio.gather(
+            self._fetch_with_retry(client, drivers_url),
+            self._fetch_with_retry(client, constructors_url),
+            self._fetch_with_retry(client, driver_standings_url),
+            self._fetch_with_retry(client, constructor_standings_url),
+        )
+
+        drivers_data = drivers_resp.json()
+        constructors_data = constructors_resp.json()
+        driver_standings_data = driver_standings_resp.json()
+        constructor_standings_data = constructor_standings_resp.json()
+
+        drivers_list = drivers_data.get("MRData", {}).get("DriverTable", {}).get("Drivers", [])
+        constructors_list = (
+            constructors_data.get("MRData", {}).get("ConstructorTable", {}).get("Constructors", [])
+        )
+
+        driver_standings_list = (
+            driver_standings_data.get("MRData", {})
+            .get("StandingsTable", {})
+            .get("StandingsLists", [])
+        )
+        driver_standings_entries = (
+            driver_standings_list[0].get("DriverStandings", []) if driver_standings_list else []
+        )
+
+        constructor_standings_list = (
+            constructor_standings_data.get("MRData", {})
+            .get("StandingsTable", {})
+            .get("StandingsLists", [])
+        )
+        constructor_standings_entries = (
+            constructor_standings_list[0].get("ConstructorStandings", [])
+            if constructor_standings_list
+            else []
+        )
+
+        # Fallback: if no standings for future year, use previous year's standings
+        if not driver_standings_entries and not constructor_standings_entries and year >= 2026:
+            logger.info("No API standings for %d, falling back to %d", year, year - 1)
+            fallback_driver_url = f"{JOLPICA_BASE_URL}/{year - 1}/driverStandings.json"
+            fallback_constructor_url = f"{JOLPICA_BASE_URL}/{year - 1}/constructorStandings.json"
+
+            fallback_driver_resp, fallback_constructor_resp = await asyncio.gather(
+                self._fetch_with_retry(client, fallback_driver_url),
+                self._fetch_with_retry(client, fallback_constructor_url),
             )
 
-            drivers_data = drivers_resp.json()
-            constructors_data = constructors_resp.json()
-            driver_standings_data = driver_standings_resp.json()
-            constructor_standings_data = constructor_standings_resp.json()
+            fallback_driver_data = fallback_driver_resp.json()
+            fallback_constructor_data = fallback_constructor_resp.json()
 
-            drivers_list = drivers_data.get("MRData", {}).get("DriverTable", {}).get("Drivers", [])
-            constructors_list = (
-                constructors_data.get("MRData", {})
-                .get("ConstructorTable", {})
-                .get("Constructors", [])
-            )
-
-            driver_standings_list = (
-                driver_standings_data.get("MRData", {})
+            fallback_driver_list = (
+                fallback_driver_data.get("MRData", {})
                 .get("StandingsTable", {})
                 .get("StandingsLists", [])
             )
             driver_standings_entries = (
-                driver_standings_list[0].get("DriverStandings", []) if driver_standings_list else []
+                fallback_driver_list[0].get("DriverStandings", []) if fallback_driver_list else []
             )
 
-            constructor_standings_list = (
-                constructor_standings_data.get("MRData", {})
+            fallback_constructor_list = (
+                fallback_constructor_data.get("MRData", {})
                 .get("StandingsTable", {})
                 .get("StandingsLists", [])
             )
             constructor_standings_entries = (
-                constructor_standings_list[0].get("ConstructorStandings", [])
-                if constructor_standings_list
+                fallback_constructor_list[0].get("ConstructorStandings", [])
+                if fallback_constructor_list
                 else []
             )
 
-            # Fallback: if no standings for future year, use previous year's standings
-            if not driver_standings_entries and not constructor_standings_entries and year >= 2026:
-                logger.info("No API standings for %d, falling back to %d", year, year - 1)
-                fallback_driver_url = f"{JOLPICA_BASE_URL}/{year - 1}/driverStandings.json"
-                fallback_constructor_url = (
-                    f"{JOLPICA_BASE_URL}/{year - 1}/constructorStandings.json"
-                )
+        driver_to_constructor: dict[str, str] = {}
+        driver_standings_map: dict[str, dict] = {}
+        for entry in driver_standings_entries:
+            driver_id = entry.get("Driver", {}).get("driverId", "")
+            constructors = entry.get("Constructors", [])
+            if constructors and driver_id:
+                driver_to_constructor[driver_id] = constructors[0].get("constructorId", "")
+            driver_standings_map[driver_id] = {
+                "position": int(entry.get("position", 0)),
+                "points": float(entry.get("points", 0)),
+                "wins": int(entry.get("wins", 0)),
+            }
 
-                fallback_driver_resp, fallback_constructor_resp = await asyncio.gather(
-                    self._fetch_with_retry(client, fallback_driver_url),
-                    self._fetch_with_retry(client, fallback_constructor_url),
-                )
+        constructor_standings_map: dict[str, dict] = {}
+        for entry in constructor_standings_entries:
+            constructor_id = entry.get("Constructor", {}).get("constructorId", "")
+            constructor_standings_map[constructor_id] = {
+                "position": int(entry.get("position", 0)),
+                "points": float(entry.get("points", 0)),
+            }
 
-                fallback_driver_data = fallback_driver_resp.json()
-                fallback_constructor_data = fallback_constructor_resp.json()
+        drivers_by_id: dict[str, TeamDriverEntry] = {}
+        for d in drivers_list:
+            driver_id = d.get("driverId", "")
+            perm_num = d.get("permanentNumber")
+            given = d.get("givenName", "")
+            family = d.get("familyName", "")
 
-                fallback_driver_list = (
-                    fallback_driver_data.get("MRData", {})
-                    .get("StandingsTable", {})
-                    .get("StandingsLists", [])
-                )
-                driver_standings_entries = (
-                    fallback_driver_list[0].get("DriverStandings", [])
-                    if fallback_driver_list
-                    else []
-                )
+            standings = driver_standings_map.get(driver_id, {})
 
-                fallback_constructor_list = (
-                    fallback_constructor_data.get("MRData", {})
-                    .get("StandingsTable", {})
-                    .get("StandingsLists", [])
-                )
-                constructor_standings_entries = (
-                    fallback_constructor_list[0].get("ConstructorStandings", [])
-                    if fallback_constructor_list
-                    else []
-                )
+            drivers_by_id[driver_id] = TeamDriverEntry(
+                driver_id=driver_id,
+                driver_code=d.get("code", ""),
+                driver_number=int(perm_num) if perm_num else None,
+                given_name=given,
+                family_name=family,
+                name=f"{given} {family}",
+                nationality=d.get("nationality", ""),
+                rounds="All",
+                position=standings.get("position"),
+                points=standings.get("points", 0.0),
+                wins=standings.get("wins", 0),
+            )
 
-            driver_to_constructor: dict[str, str] = {}
-            driver_standings_map: dict[str, dict] = {}
-            for entry in driver_standings_entries:
-                driver_id = entry.get("Driver", {}).get("driverId", "")
-                constructors = entry.get("Constructors", [])
-                if constructors and driver_id:
-                    driver_to_constructor[driver_id] = constructors[0].get("constructorId", "")
-                driver_standings_map[driver_id] = {
-                    "position": int(entry.get("position", 0)),
-                    "points": float(entry.get("points", 0)),
-                    "wins": int(entry.get("wins", 0)),
-                }
+        teams: list[TeamEntry] = []
+        for c in constructors_list:
+            constructor_id = c.get("constructorId", "")
 
-            constructor_standings_map: dict[str, dict] = {}
-            for entry in constructor_standings_entries:
-                constructor_id = entry.get("Constructor", {}).get("constructorId", "")
-                constructor_standings_map[constructor_id] = {
-                    "position": int(entry.get("position", 0)),
-                    "points": float(entry.get("points", 0)),
-                }
+            team_drivers = [
+                drivers_by_id[driver_id]
+                for driver_id, cid in driver_to_constructor.items()
+                if cid == constructor_id and driver_id in drivers_by_id
+            ]
 
-            drivers_by_id: dict[str, TeamDriverEntry] = {}
-            for d in drivers_list:
-                driver_id = d.get("driverId", "")
-                perm_num = d.get("permanentNumber")
-                given = d.get("givenName", "")
-                family = d.get("familyName", "")
+            team_drivers.sort(key=lambda x: x.position if x.position else 999)
 
-                standings = driver_standings_map.get(driver_id, {})
+            standings = constructor_standings_map.get(constructor_id, {})
 
-                drivers_by_id[driver_id] = TeamDriverEntry(
-                    driver_id=driver_id,
-                    driver_code=d.get("code", ""),
-                    driver_number=int(perm_num) if perm_num else None,
-                    given_name=given,
-                    family_name=family,
-                    name=f"{given} {family}",
-                    nationality=d.get("nationality", ""),
-                    rounds="All",
+            teams.append(
+                TeamEntry(
+                    constructor_id=constructor_id,
+                    constructor_name=c.get("name", ""),
+                    entrant=c.get("name", ""),
+                    nationality=c.get("nationality", ""),
                     position=standings.get("position"),
                     points=standings.get("points", 0.0),
-                    wins=standings.get("wins", 0),
+                    drivers=team_drivers,
                 )
+            )
 
-            teams: list[TeamEntry] = []
-            for c in constructors_list:
-                constructor_id = c.get("constructorId", "")
-
-                team_drivers = [
-                    drivers_by_id[driver_id]
-                    for driver_id, cid in driver_to_constructor.items()
-                    if cid == constructor_id and driver_id in drivers_by_id
-                ]
-
-                team_drivers.sort(key=lambda x: x.position if x.position else 999)
-
-                standings = constructor_standings_map.get(constructor_id, {})
-
-                teams.append(
-                    TeamEntry(
-                        constructor_id=constructor_id,
-                        constructor_name=c.get("name", ""),
-                        entrant=c.get("name", ""),
-                        nationality=c.get("nationality", ""),
-                        position=standings.get("position"),
-                        points=standings.get("points", 0.0),
-                        drivers=team_drivers,
-                    )
-                )
-
-            teams.sort(key=lambda x: x.position if x.position else 999)
-            return self._apply_manual_overrides(TeamsData(season=year, teams=teams))
+        teams.sort(key=lambda x: x.position if x.position else 999)
+        return self._apply_manual_overrides(TeamsData(season=year, teams=teams))
 
     async def get_teams_and_drivers(self, year: Optional[int] = None) -> TeamsData:
         if year is None:

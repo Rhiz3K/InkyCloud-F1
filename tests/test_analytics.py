@@ -6,11 +6,22 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.services.analytics import (
+    _background_tasks,
     _send_to_umami,
     get_umami_script_tag,
     track_event,
     track_pageview,
 )
+from app.services.http_client import _reset_shared_http_clients_for_tests
+
+
+@pytest.fixture(autouse=True)
+def reset_test_state():
+    _reset_shared_http_clients_for_tests()
+    _background_tasks.clear()
+    yield
+    _background_tasks.clear()
+    _reset_shared_http_clients_for_tests()
 
 
 @pytest.fixture
@@ -24,8 +35,7 @@ def mock_config():
         yield mock_cfg
 
 
-@pytest.mark.asyncio
-async def test_send_to_umami_pageview(mock_config):
+def test_send_to_umami_pageview(mock_config):
     """Test that _send_to_umami sends correct pageview payload."""
     with patch("app.services.analytics.httpx.AsyncClient") as mock_client:
         mock_response = MagicMock()
@@ -34,32 +44,29 @@ async def test_send_to_umami_pageview(mock_config):
         mock_response.raise_for_status = MagicMock()
 
         mock_post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__.return_value.post = mock_post
+        mock_client.return_value.post = mock_post
 
-        await _send_to_umami(
-            url="/calendar.bmp?lang=cs",
-            title="Calendar BMP - cs",
-            lang="cs",
-            user_agent="TestAgent/1.0",
+        asyncio.run(
+            _send_to_umami(
+                url="/calendar.bmp?lang=cs",
+                title="Calendar BMP - cs",
+                lang="cs",
+                user_agent="TestAgent/1.0",
+            )
         )
 
-        # Verify the call was made
         assert mock_post.called
         call_args = mock_post.call_args
-
-        # Check the payload
         payload = call_args.kwargs["json"]
         assert payload["payload"]["url"] == "/calendar.bmp?lang=cs"
         assert payload["payload"]["title"] == "Calendar BMP - cs"
         assert payload["payload"]["language"] == "cs"
         assert payload["payload"]["hostname"] == "test.example.com"
         assert payload["type"] == "event"
-        # No event name for pageview
         assert "name" not in payload["payload"]
 
 
-@pytest.mark.asyncio
-async def test_send_to_umami_custom_event(mock_config):
+def test_send_to_umami_custom_event(mock_config):
     """Test that _send_to_umami sends correct custom event payload."""
     with patch("app.services.analytics.httpx.AsyncClient") as mock_client:
         mock_response = MagicMock()
@@ -68,22 +75,21 @@ async def test_send_to_umami_custom_event(mock_config):
         mock_response.raise_for_status = MagicMock()
 
         mock_post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__.return_value.post = mock_post
+        mock_client.return_value.post = mock_post
 
-        await _send_to_umami(
-            url="/calendar.bmp",
-            title="Event: calendar_download",
-            lang="en",
-            user_agent="TestAgent/1.0",
-            event_name="calendar_download",
-            event_data={"language": "en", "timezone": "Europe/Prague"},
+        asyncio.run(
+            _send_to_umami(
+                url="/calendar.bmp",
+                title="Event: calendar_download",
+                lang="en",
+                user_agent="TestAgent/1.0",
+                event_name="calendar_download",
+                event_data={"language": "en", "timezone": "Europe/Prague"},
+            )
         )
 
-        # Verify the call was made
         assert mock_post.called
         call_args = mock_post.call_args
-
-        # Check the payload
         payload = call_args.kwargs["json"]
         assert payload["payload"]["url"] == "/calendar.bmp"
         assert payload["payload"]["name"] == "calendar_download"
@@ -93,131 +99,145 @@ async def test_send_to_umami_custom_event(mock_config):
         }
 
 
-@pytest.mark.asyncio
-async def test_track_pageview_creates_task(mock_config):
+def test_track_pageview_creates_task(mock_config):
     """Test that track_pageview creates a background task."""
-    with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
-        await track_pageview(
-            url="/privacy",
-            title="Privacy Policy",
-            lang="en",
-            user_agent="TestAgent/1.0",
-        )
 
-        # Give the background task a chance to run
-        await asyncio.sleep(0.01)
+    async def run_test():
+        with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
+            await track_pageview(
+                url="/privacy",
+                title="Privacy Policy",
+                lang="en",
+                user_agent="TestAgent/1.0",
+            )
 
-        assert mock_send.called
+            await asyncio.sleep(0.01)
+            assert mock_send.called
+
+    asyncio.run(run_test())
 
 
-@pytest.mark.asyncio
-async def test_track_pageview_disabled_when_umami_disabled():
+def test_track_pageview_disabled_when_umami_disabled():
     """Test that track_pageview does nothing when Umami is disabled."""
-    with patch("app.services.analytics.config") as mock_cfg:
-        mock_cfg.UMAMI_ENABLED = False
 
-        with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
-            await track_pageview(
-                url="/",
-                title="Home",
-                lang="en",
-            )
+    async def run_test():
+        with patch("app.services.analytics.config") as mock_cfg:
+            mock_cfg.UMAMI_ENABLED = False
 
-            # Should not call _send_to_umami when disabled
-            assert not mock_send.called
+            with patch(
+                "app.services.analytics._send_to_umami", new_callable=AsyncMock
+            ) as mock_send:
+                await track_pageview(
+                    url="/",
+                    title="Home",
+                    lang="en",
+                )
+
+                assert not mock_send.called
+
+    asyncio.run(run_test())
 
 
-@pytest.mark.asyncio
-async def test_track_pageview_disabled_when_website_id_missing():
+def test_track_pageview_disabled_when_website_id_missing():
     """Test that track_pageview does nothing when website ID is missing."""
-    with patch("app.services.analytics.config") as mock_cfg:
-        mock_cfg.UMAMI_ENABLED = True
-        mock_cfg.UMAMI_WEBSITE_ID = None
 
-        with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
-            await track_pageview(
-                url="/",
-                title="Home",
-                lang="en",
-            )
+    async def run_test():
+        with patch("app.services.analytics.config") as mock_cfg:
+            mock_cfg.UMAMI_ENABLED = True
+            mock_cfg.UMAMI_WEBSITE_ID = None
 
-            # Should not call _send_to_umami when website ID is missing
-            assert not mock_send.called
+            with patch(
+                "app.services.analytics._send_to_umami", new_callable=AsyncMock
+            ) as mock_send:
+                await track_pageview(
+                    url="/",
+                    title="Home",
+                    lang="en",
+                )
+
+                assert not mock_send.called
+
+    asyncio.run(run_test())
 
 
-@pytest.mark.asyncio
-async def test_track_event_creates_task(mock_config):
+def test_track_event_creates_task(mock_config):
     """Test that track_event creates a background task."""
-    with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
-        await track_event(
-            url="/calendar.bmp",
-            event_name="calendar_download",
-            lang="cs",
-            user_agent="TestAgent/1.0",
-            event_data={"timezone": "Europe/Prague"},
-        )
 
-        # Give the background task a chance to run
-        await asyncio.sleep(0.01)
+    async def run_test():
+        with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
+            await track_event(
+                url="/calendar.bmp",
+                event_name="calendar_download",
+                lang="cs",
+                user_agent="TestAgent/1.0",
+                event_data={"timezone": "Europe/Prague"},
+            )
 
-        assert mock_send.called
+            await asyncio.sleep(0.01)
+            assert mock_send.called
+
+    asyncio.run(run_test())
 
 
-@pytest.mark.asyncio
-async def test_track_event_disabled_when_umami_disabled():
+def test_track_event_disabled_when_umami_disabled():
     """Test that track_event does nothing when Umami is disabled."""
-    with patch("app.services.analytics.config") as mock_cfg:
-        mock_cfg.UMAMI_ENABLED = False
 
-        with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
-            await track_event(
-                url="/calendar.bmp",
-                event_name="calendar_download",
-                lang="en",
-            )
+    async def run_test():
+        with patch("app.services.analytics.config") as mock_cfg:
+            mock_cfg.UMAMI_ENABLED = False
 
-            # Should not call _send_to_umami when disabled
-            assert not mock_send.called
+            with patch(
+                "app.services.analytics._send_to_umami", new_callable=AsyncMock
+            ) as mock_send:
+                await track_event(
+                    url="/calendar.bmp",
+                    event_name="calendar_download",
+                    lang="en",
+                )
+
+                assert not mock_send.called
+
+    asyncio.run(run_test())
 
 
-@pytest.mark.asyncio
-async def test_track_event_disabled_when_website_id_missing():
+def test_track_event_disabled_when_website_id_missing():
     """Test that track_event does nothing when website ID is missing."""
-    with patch("app.services.analytics.config") as mock_cfg:
-        mock_cfg.UMAMI_ENABLED = True
-        mock_cfg.UMAMI_WEBSITE_ID = None
 
-        with patch("app.services.analytics._send_to_umami", new_callable=AsyncMock) as mock_send:
-            await track_event(
-                url="/calendar.bmp",
-                event_name="calendar_download",
-                lang="en",
-            )
+    async def run_test():
+        with patch("app.services.analytics.config") as mock_cfg:
+            mock_cfg.UMAMI_ENABLED = True
+            mock_cfg.UMAMI_WEBSITE_ID = None
 
-            # Should not call _send_to_umami when website ID is missing
-            assert not mock_send.called
+            with patch(
+                "app.services.analytics._send_to_umami", new_callable=AsyncMock
+            ) as mock_send:
+                await track_event(
+                    url="/calendar.bmp",
+                    event_name="calendar_download",
+                    lang="en",
+                )
+
+                assert not mock_send.called
+
+    asyncio.run(run_test())
 
 
-@pytest.mark.asyncio
-async def test_send_to_umami_handles_http_errors_gracefully(mock_config):
+def test_send_to_umami_handles_http_errors_gracefully(mock_config):
     """Test that analytics handles HTTP errors without raising exceptions."""
     with patch("app.services.analytics.httpx.AsyncClient") as mock_client:
-        # Simulate HTTP error
-        mock_client.return_value.__aenter__.return_value.post.side_effect = Exception(
-            "Connection error"
+        mock_client.return_value.post = AsyncMock(side_effect=Exception("Connection error"))
+
+        asyncio.run(
+            _send_to_umami(
+                url="/calendar.bmp",
+                title="Test",
+                lang="en",
+                user_agent="TestAgent/1.0",
+            )
         )
 
-        # Should not raise exception
-        await _send_to_umami(
-            url="/calendar.bmp",
-            title="Test",
-            lang="en",
-            user_agent="TestAgent/1.0",
-        )
 
-
-@pytest.mark.asyncio
-async def test_send_to_umami_uses_custom_user_agent(mock_config):
+def test_send_to_umami_uses_custom_user_agent(mock_config):
     """Test that analytics uses the provided user agent."""
     with patch("app.services.analytics.httpx.AsyncClient") as mock_client:
         mock_response = MagicMock()
@@ -226,25 +246,25 @@ async def test_send_to_umami_uses_custom_user_agent(mock_config):
         mock_response.raise_for_status = MagicMock()
 
         mock_post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__.return_value.post = mock_post
+        mock_client.return_value.post = mock_post
 
         custom_ua = "curl/7.68.0"
-        await _send_to_umami(
-            url="/calendar.bmp",
-            title="Test",
-            lang="cs",
-            user_agent=custom_ua,
+        asyncio.run(
+            _send_to_umami(
+                url="/calendar.bmp",
+                title="Test",
+                lang="cs",
+                user_agent=custom_ua,
+            )
         )
 
-        # Verify the user agent header
         assert mock_post.called
         call_args = mock_post.call_args
         headers = call_args.kwargs["headers"]
         assert headers["User-Agent"] == custom_ua
 
 
-@pytest.mark.asyncio
-async def test_send_to_umami_uses_default_user_agent_when_none(mock_config):
+def test_send_to_umami_uses_default_user_agent_when_none(mock_config):
     """Test that analytics uses default user agent when none provided."""
     with patch("app.services.analytics.httpx.AsyncClient") as mock_client:
         mock_response = MagicMock()
@@ -253,16 +273,17 @@ async def test_send_to_umami_uses_default_user_agent_when_none(mock_config):
         mock_response.raise_for_status = MagicMock()
 
         mock_post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__.return_value.post = mock_post
+        mock_client.return_value.post = mock_post
 
-        await _send_to_umami(
-            url="/calendar.bmp",
-            title="Test",
-            lang="en",
-            user_agent=None,
+        asyncio.run(
+            _send_to_umami(
+                url="/calendar.bmp",
+                title="Test",
+                lang="en",
+                user_agent=None,
+            )
         )
 
-        # Verify the default user agent header
         assert mock_post.called
         call_args = mock_post.call_args
         headers = call_args.kwargs["headers"]

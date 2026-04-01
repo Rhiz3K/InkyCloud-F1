@@ -22,6 +22,7 @@ from app.models import (
     Race,
     RaceResultEntry,
 )
+from app.services.http_client import get_shared_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -119,21 +120,21 @@ class F1Service:
             Dictionary with race data including converted times, or None if failed
         """
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                logger.info("Fetching next race from %s", self.api_url)
-                response = await client.get(self.api_url)
-                response.raise_for_status()
+            client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
+            logger.info("Fetching next race from %s", self.api_url)
+            response = await client.get(self.api_url)
+            response.raise_for_status()
 
-                data = response.json()
-                f1_response = F1Response(**data)
-                race = f1_response.race
+            data = response.json()
+            f1_response = F1Response(**data)
+            race = f1_response.race
 
-                if not race:
-                    logger.error("No race found in API response")
-                    return None
+            if not race:
+                logger.error("No race found in API response")
+                return None
 
-                # Convert times to Europe/Prague timezone
-                return self._convert_race_times(race)
+            # Convert times to Europe/Prague timezone
+            return self._convert_race_times(race)
 
         except httpx.HTTPError as e:
             logger.error("HTTP error fetching race data: %s", str(e), exc_info=True)
@@ -348,30 +349,30 @@ class F1Service:
             HistoricalData object with results or is_new_track=True
         """
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                # Step 1: Find the most recent previous race at this circuit
-                previous_season = await self._find_previous_race_season(
-                    client, circuit_id, current_season
-                )
+            client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
+            # Step 1: Find the most recent previous race at this circuit
+            previous_season = await self._find_previous_race_season(
+                client, circuit_id, current_season
+            )
 
-                if previous_season is None:
-                    logger.info("No previous race found for circuit %s", circuit_id)
-                    return HistoricalData(is_new_track=True)
+            if previous_season is None:
+                logger.info("No previous race found for circuit %s", circuit_id)
+                return HistoricalData(is_new_track=True)
 
-                logger.info("Found previous race at %s in season %s", circuit_id, previous_season)
+            logger.info("Found previous race at %s in season %s", circuit_id, previous_season)
 
-                # Step 2: Fetch qualifying and race results for that season
-                qualifying_results = await self._fetch_qualifying_results(
-                    client, circuit_id, previous_season
-                )
-                race_results = await self._fetch_race_results(client, circuit_id, previous_season)
+            # Step 2: Fetch qualifying and race results for that season
+            qualifying_results = await self._fetch_qualifying_results(
+                client, circuit_id, previous_season
+            )
+            race_results = await self._fetch_race_results(client, circuit_id, previous_season)
 
-                return HistoricalData(
-                    season=previous_season,
-                    is_new_track=False,
-                    qualifying_results=qualifying_results,
-                    race_results=race_results,
-                )
+            return HistoricalData(
+                season=previous_season,
+                is_new_track=False,
+                qualifying_results=qualifying_results,
+                race_results=race_results,
+            )
 
         except Exception as e:
             logger.error("Error fetching historical data: %s", e, exc_info=True)
@@ -535,60 +536,60 @@ class F1Service:
             List of race dictionaries with basic info
         """
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                url = f"{JOLPICA_BASE_URL}/{year}.json"
-                logger.info("Fetching season races from %s", url)
-                response = await self._fetch_with_retry(client, url)
+            client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
+            url = f"{JOLPICA_BASE_URL}/{year}.json"
+            logger.info("Fetching season races from %s", url)
+            response = await self._fetch_with_retry(client, url)
 
-                data = response.json()
-                races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
+            data = response.json()
+            races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
 
-                result = []
-                now = datetime.now(self.target_tz)
+            result = []
+            now = datetime.now(self.target_tz)
 
-                for race in races:
-                    try:
-                        race_date_str = race.get("date", "")
-                        race_time_str = race.get("time", "14:00:00Z")
-                        round_num = self._extract_round_number(race)
+            for race in races:
+                try:
+                    race_date_str = race.get("date", "")
+                    race_time_str = race.get("time", "14:00:00Z")
+                    round_num = self._extract_round_number(race)
 
-                        # Parse race datetime - if parsing fails, use None
-                        dt_local = None
-                        is_past = False
-                        if race_date_str:
-                            dt_str = f"{race_date_str}T{race_time_str}"
-                            dt_utc = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-                            dt_local = dt_utc.astimezone(self.target_tz)
-                            is_past = dt_local < now
+                    # Parse race datetime - if parsing fails, use None
+                    dt_local = None
+                    is_past = False
+                    if race_date_str:
+                        dt_str = f"{race_date_str}T{race_time_str}"
+                        dt_utc = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                        dt_local = dt_utc.astimezone(self.target_tz)
+                        is_past = dt_local < now
 
-                        result.append(
-                            {
-                                "round": round_num,
-                                "race_key": self._build_race_key(
-                                    season=race.get("season"),
-                                    round_value=race.get("round"),
-                                    race_name=race.get("raceName", ""),
-                                    circuit_id=race.get("Circuit", {}).get("circuitId", ""),
-                                    race_date=race_date_str,
-                                ),
-                                "race_name": race.get("raceName", ""),
-                                "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
-                                "circuit_name": race.get("Circuit", {}).get("circuitName", ""),
-                                "country": race.get("Circuit", {})
-                                .get("Location", {})
-                                .get("country", ""),
-                                "date": race_date_str,
-                                "datetime": dt_local.isoformat() if dt_local else None,
-                                "is_past": is_past,
-                                "is_cancelled": self._is_cancelled_race(race),
-                            }
-                        )
-                    except (KeyError, ValueError, TypeError) as e:
-                        race_name = race.get("raceName", "N/A")
-                        logger.warning("Skipping malformed race: %s. Error: %s", race_name, e)
-                        continue
+                    result.append(
+                        {
+                            "round": round_num,
+                            "race_key": self._build_race_key(
+                                season=race.get("season"),
+                                round_value=race.get("round"),
+                                race_name=race.get("raceName", ""),
+                                circuit_id=race.get("Circuit", {}).get("circuitId", ""),
+                                race_date=race_date_str,
+                            ),
+                            "race_name": race.get("raceName", ""),
+                            "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
+                            "circuit_name": race.get("Circuit", {}).get("circuitName", ""),
+                            "country": race.get("Circuit", {})
+                            .get("Location", {})
+                            .get("country", ""),
+                            "date": race_date_str,
+                            "datetime": dt_local.isoformat() if dt_local else None,
+                            "is_past": is_past,
+                            "is_cancelled": self._is_cancelled_race(race),
+                        }
+                    )
+                except (KeyError, ValueError, TypeError) as e:
+                    race_name = race.get("raceName", "N/A")
+                    logger.warning("Skipping malformed race: %s. Error: %s", race_name, e)
+                    continue
 
-                return self._merge_static_cancelled_races(year, result)
+            return self._merge_static_cancelled_races(year, result)
 
         except Exception as e:
             logger.error("Error fetching season races: %s", e, exc_info=True)
@@ -606,22 +607,22 @@ class F1Service:
             Dictionary with race data including converted times, or None if failed
         """
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                url = f"{JOLPICA_BASE_URL}/{year}/{round_num}.json"
-                logger.info("Fetching race from %s", url)
-                response = await self._fetch_with_retry(client, url)
+            client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
+            url = f"{JOLPICA_BASE_URL}/{year}/{round_num}.json"
+            logger.info("Fetching race from %s", url)
+            response = await self._fetch_with_retry(client, url)
 
-                data = response.json()
-                races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
+            data = response.json()
+            races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
 
-                if not races:
-                    return None
+            if not races:
+                return None
 
-                race_data = races[0]
-                # Convert to Race model using Pydantic validation
-                race = Race(**race_data)
+            race_data = races[0]
+            # Convert to Race model using Pydantic validation
+            race = Race(**race_data)
 
-                return self._convert_race_times(race)
+            return self._convert_race_times(race)
 
         except Exception as e:
             logger.error("Error fetching race by round: %s", e, exc_info=True)
