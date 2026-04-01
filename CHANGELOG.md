@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BMP cache headroom** - Increased the in-memory BMP cache capacity to 512 entries so localized display and weather combinations fit without immediate LRU eviction churn during normal traffic
 - **Non-blocking BMP analytics** - Moved calendar BMP analytics dispatch in the image routes onto supervised background tasks so download responses no longer wait on Umami network round-trips
 - **Local env example visibility** - Stopped ignoring `.env.local.example` so the checked-in local development template remains visible to contributors while `.env.local` stays untracked
+- **Consistent dev extras** - Aligned `[project.optional-dependencies].dev` with `[dependency-groups].dev` so `pip install -e "[dev]"` and `uv sync --dev` install the same linting, typing, test, and data-science helper toolchain
 
 ### Security
 
