@@ -1,9 +1,9 @@
 """Tests for shared outbound HTTP client helpers."""
 
-import asyncio
 from unittest.mock import AsyncMock, Mock
 
 import httpx
+import pytest
 
 from app.services.http_client import (
     _reset_shared_http_clients_for_tests,
@@ -40,7 +40,8 @@ def test_get_shared_http_client_separates_different_timeouts():
     assert factory.call_count == 2
 
 
-def test_close_shared_http_clients_closes_and_clears_cache():
+@pytest.mark.asyncio
+async def test_close_shared_http_clients_closes_and_clears_cache():
     class ClosableClient:
         def __init__(self):
             self.aclose = AsyncMock()
@@ -50,7 +51,7 @@ def test_close_shared_http_clients_closes_and_clears_cache():
     client_a = get_shared_http_client(factory, timeout=5.0)
     client_b = get_shared_http_client(factory, timeout=10.0)
 
-    asyncio.run(close_shared_http_clients())
+    await close_shared_http_clients()
 
     client_a.aclose.assert_awaited_once()
     client_b.aclose.assert_awaited_once()

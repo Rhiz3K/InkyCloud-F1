@@ -1,8 +1,9 @@
 """Tests for F1 service cancelled-race handling."""
 
-import asyncio
 import json
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from app.models import Circuit, Location, Race, RaceSession
 from app.services import f1_service as f1_service_module
@@ -75,7 +76,8 @@ class MockResponse:
             raise Exception(f"HTTP {self.status_code}")
 
 
-def test_get_season_races_keeps_cancelled_races_at_end():
+@pytest.mark.asyncio
+async def test_get_season_races_keeps_cancelled_races_at_end():
     service = F1Service()
     with (
         patch.object(F1Service, "get_all_races_from_static", return_value=[]),
@@ -87,7 +89,7 @@ def test_get_season_races_keeps_cancelled_races_at_end():
         mock_instance.__aexit__ = AsyncMock(return_value=None)
         mock_client.return_value = mock_instance
 
-        races = asyncio.run(service.get_season_races(2026))
+        races = await service.get_season_races(2026)
 
     assert [race["race_name"] for race in races] == [
         "Australian Grand Prix",
@@ -154,7 +156,8 @@ def test_get_all_races_from_static_marks_cancelled_races(tmp_path, monkeypatch):
     assert races[1]["race_key"] == "2026-cancelled-jeddah-2026-04-19"
 
 
-def test_get_season_races_merges_cancelled_races_from_static(tmp_path, monkeypatch):
+@pytest.mark.asyncio
+async def test_get_season_races_merges_cancelled_races_from_static(tmp_path, monkeypatch):
     seasons_dir = tmp_path / "seasons"
     seasons_dir.mkdir()
 
@@ -247,7 +250,7 @@ def test_get_season_races_merges_cancelled_races_from_static(tmp_path, monkeypat
         mock_instance.__aexit__ = AsyncMock(return_value=None)
         mock_client.return_value = mock_instance
 
-        races = asyncio.run(service.get_season_races(2026))
+        races = await service.get_season_races(2026)
 
     assert [race["race_name"] for race in races] == [
         "Australian Grand Prix",

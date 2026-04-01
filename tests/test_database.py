@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 import pytest
+import pytest_asyncio
 
 from app.services.database import Database
 
@@ -11,129 +12,112 @@ from app.services.database import Database
 class TestCircuitWeatherDatabase:
     """Tests for circuit weather database methods."""
 
-    @pytest.fixture
-    def db(self):
+    @pytest_asyncio.fixture
+    async def db(self):
         """Create a fresh database instance for each test."""
         db = Database()
         yield db
-        asyncio.run(db.close())
+        await db.close()
 
     @staticmethod
-    def test_save_and_get_circuit_weather(db):
+    @pytest.mark.asyncio
+    async def test_save_and_get_circuit_weather(db):
         """Test saving and retrieving circuit weather."""
+        await db.save_circuit_weather(
+            circuit_id="albert_park",
+            circuit_name="Albert Park",
+            temperature_c=25.5,
+            weather_code=1,
+            precipitation_probability=15,
+        )
 
-        async def run_test():
-            await db.save_circuit_weather(
-                circuit_id="albert_park",
-                circuit_name="Albert Park",
-                temperature_c=25.5,
-                weather_code=1,
-                precipitation_probability=15,
-            )
-
-            result = await db.get_circuit_weather("albert_park")
-            assert result is not None
-            assert result["temperature_c"] == 25.5
-            assert result["weather_code"] == 1
-            assert result["precipitation_probability"] == 15
-            assert "fetched_at" in result
-
-        asyncio.run(run_test())
+        result = await db.get_circuit_weather("albert_park")
+        assert result is not None
+        assert result["temperature_c"] == 25.5
+        assert result["weather_code"] == 1
+        assert result["precipitation_probability"] == 15
+        assert "fetched_at" in result
 
     @staticmethod
-    def test_get_circuit_weather_not_found(db):
+    @pytest.mark.asyncio
+    async def test_get_circuit_weather_not_found(db):
         """Test that missing circuit returns None."""
-
-        async def run_test():
-            result = await db.get_circuit_weather("nonexistent")
-            assert result is None
-
-        asyncio.run(run_test())
+        result = await db.get_circuit_weather("nonexistent")
+        assert result is None
 
     @staticmethod
-    def test_save_circuit_weather_upsert(db):
+    @pytest.mark.asyncio
+    async def test_save_circuit_weather_upsert(db):
         """Test that saving same circuit updates the data."""
+        await db.save_circuit_weather(
+            circuit_id="monaco",
+            circuit_name="Monaco",
+            temperature_c=20.0,
+            weather_code=0,
+            precipitation_probability=5,
+        )
 
-        async def run_test():
-            await db.save_circuit_weather(
-                circuit_id="monaco",
-                circuit_name="Monaco",
-                temperature_c=20.0,
-                weather_code=0,
-                precipitation_probability=5,
-            )
+        await db.save_circuit_weather(
+            circuit_id="monaco",
+            circuit_name="Monaco Street Circuit",
+            temperature_c=28.0,
+            weather_code=61,
+            precipitation_probability=80,
+        )
 
-            await db.save_circuit_weather(
-                circuit_id="monaco",
-                circuit_name="Monaco Street Circuit",
-                temperature_c=28.0,
-                weather_code=61,
-                precipitation_probability=80,
-            )
-
-            result = await db.get_circuit_weather("monaco")
-            assert result is not None
-            assert result["temperature_c"] == 28.0
-            assert result["weather_code"] == 61
-            assert result["precipitation_probability"] == 80
-
-        asyncio.run(run_test())
+        result = await db.get_circuit_weather("monaco")
+        assert result is not None
+        assert result["temperature_c"] == 28.0
+        assert result["weather_code"] == 61
+        assert result["precipitation_probability"] == 80
 
     @staticmethod
-    def test_load_all_circuit_weather_empty(db):
+    @pytest.mark.asyncio
+    async def test_load_all_circuit_weather_empty(db):
         """Test loading all weather when database is empty."""
-
-        async def run_test():
-            result = await db.load_all_circuit_weather()
-            assert isinstance(result, dict)
-
-        asyncio.run(run_test())
+        result = await db.load_all_circuit_weather()
+        assert isinstance(result, dict)
 
     @staticmethod
-    def test_load_all_circuit_weather(db):
+    @pytest.mark.asyncio
+    async def test_load_all_circuit_weather(db):
         """Test loading all circuit weather data."""
+        await db.save_circuit_weather(
+            circuit_id="silverstone",
+            circuit_name="Silverstone",
+            temperature_c=18.0,
+            weather_code=3,
+            precipitation_probability=40,
+        )
+        await db.save_circuit_weather(
+            circuit_id="spa",
+            circuit_name="Spa-Francorchamps",
+            temperature_c=15.0,
+            weather_code=61,
+            precipitation_probability=70,
+        )
 
-        async def run_test():
-            await db.save_circuit_weather(
-                circuit_id="silverstone",
-                circuit_name="Silverstone",
-                temperature_c=18.0,
-                weather_code=3,
-                precipitation_probability=40,
-            )
-            await db.save_circuit_weather(
-                circuit_id="spa",
-                circuit_name="Spa-Francorchamps",
-                temperature_c=15.0,
-                weather_code=61,
-                precipitation_probability=70,
-            )
+        result = await db.load_all_circuit_weather()
 
-            result = await db.load_all_circuit_weather()
-
-            assert "silverstone" in result
-            assert "spa" in result
-            assert result["silverstone"]["temperature_c"] == 18.0
-            assert result["spa"]["weather_code"] == 61
-
-        asyncio.run(run_test())
+        assert "silverstone" in result
+        assert "spa" in result
+        assert result["silverstone"]["temperature_c"] == 18.0
+        assert result["spa"]["weather_code"] == 61
 
 
 class TestDatabaseConnectionLifecycle:
     """Tests for persistent database connection reuse."""
 
     @staticmethod
-    def test_database_reuses_connection_within_same_loop(tmp_path):
-        async def run_test():
-            db = Database(str(tmp_path / "reuse.db"))
-            try:
-                async with db._get_connection() as first_conn:
-                    async with db._get_connection() as second_conn:
-                        assert first_conn is second_conn
-            finally:
-                await db.close()
-
-        asyncio.run(run_test())
+    @pytest.mark.asyncio
+    async def test_database_reuses_connection_within_same_loop(tmp_path):
+        db = Database(str(tmp_path / "reuse.db"))
+        try:
+            async with db._get_connection() as first_conn:
+                async with db._get_connection() as second_conn:
+                    assert first_conn is second_conn
+        finally:
+            await db.close()
 
     @staticmethod
     def test_database_refreshes_connection_across_event_loops(tmp_path):
@@ -158,11 +142,11 @@ class TestApiCallStatsDatabase:
     """Tests for API call statistics."""
 
     @staticmethod
-    def test_get_stats_for_range_includes_display_breakdowns(tmp_path):
+    @pytest.mark.asyncio
+    async def test_get_stats_for_range_includes_display_breakdowns(tmp_path):
         """Stats include separate display type counts for calendar and teams."""
-
-        async def run_test():
-            db = Database(str(tmp_path / "stats.db"))
+        db = Database(str(tmp_path / "stats.db"))
+        try:
             now = datetime.now(timezone.utc).isoformat()
 
             await db.save_api_calls_batch(
@@ -287,16 +271,15 @@ class TestApiCallStatsDatabase:
                 (("display_type", "spectra6"), ("count", 1)),
                 (("display_type", "bwr"), ("count", 1)),
             }
+        finally:
             await db.close()
 
-        asyncio.run(run_test())
-
     @staticmethod
-    def test_get_stats_for_range_aggregates_race_rows_across_auto_selection(tmp_path):
+    @pytest.mark.asyncio
+    async def test_get_stats_for_range_aggregates_race_rows_across_auto_selection(tmp_path):
         """Race breakdown aggregates one race even when requests mix auto/manual selection."""
-
-        async def run_test():
-            db = Database(str(tmp_path / "race-stats.db"))
+        db = Database(str(tmp_path / "race-stats.db"))
+        try:
             now = datetime.now(timezone.utc).isoformat()
 
             await db.save_api_calls_batch(
@@ -363,18 +346,18 @@ class TestApiCallStatsDatabase:
             assert stats["races"][0]["count"] == 3
             assert stats["races"][0]["is_auto_selected"] is True
             assert stats["races"][0]["auto_selected_count"] == 1
+        finally:
             await db.close()
-
-        asyncio.run(run_test())
 
 
 class TestDatabaseStatsCleanup:
     """Tests for retention cleanup across statistics tables."""
 
     @staticmethod
-    def test_cleanup_old_stats_removes_all_stats_tables(tmp_path):
-        async def run_test():
-            db = Database(str(tmp_path / "cleanup.db"))
+    @pytest.mark.asyncio
+    async def test_cleanup_old_stats_removes_all_stats_tables(tmp_path):
+        db = Database(str(tmp_path / "cleanup.db"))
+        try:
             await db._init_db_if_needed()
 
             old_timestamp = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
@@ -475,6 +458,5 @@ class TestDatabaseStatsCleanup:
                     ) as cursor:
                         row = await cursor.fetchone()
                         assert row["count"] == 1
+        finally:
             await db.close()
-
-        asyncio.run(run_test())

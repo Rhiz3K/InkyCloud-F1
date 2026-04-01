@@ -1,6 +1,5 @@
 """Test standings service."""
 
-import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -101,7 +100,8 @@ def reset_shared_clients():
     _reset_shared_http_clients_for_tests()
 
 
-def test_get_driver_standings():
+@pytest.mark.asyncio
+async def test_get_driver_standings():
     service = StandingsService()
     service._cache.clear()
 
@@ -110,7 +110,7 @@ def test_get_driver_standings():
         mock_instance.get = AsyncMock(return_value=MockResponse(MOCK_DRIVER_STANDINGS_RESPONSE))
         mock_client.return_value = mock_instance
 
-        standings = asyncio.run(service.get_driver_standings(2024))
+        standings = await service.get_driver_standings(2024)
 
         assert len(standings) == 2
         assert standings[0].position == 1
@@ -120,7 +120,8 @@ def test_get_driver_standings():
         assert standings[0].constructor_name == "Red Bull"
 
 
-def test_get_constructor_standings():
+@pytest.mark.asyncio
+async def test_get_constructor_standings():
     service = StandingsService()
     service._cache.clear()
 
@@ -131,7 +132,7 @@ def test_get_constructor_standings():
         )
         mock_client.return_value = mock_instance
 
-        standings = asyncio.run(service.get_constructor_standings(2024))
+        standings = await service.get_constructor_standings(2024)
 
         assert len(standings) == 2
         assert standings[0].position == 1
@@ -140,7 +141,8 @@ def test_get_constructor_standings():
         assert standings[1].constructor_name == "Ferrari"
 
 
-def test_get_all_standings():
+@pytest.mark.asyncio
+async def test_get_all_standings():
     service = StandingsService()
     service._cache.clear()
 
@@ -156,7 +158,7 @@ def test_get_all_standings():
         mock_instance.get = AsyncMock(side_effect=mock_get)
         mock_client.return_value = mock_instance
 
-        standings_data = asyncio.run(service.get_all_standings(2024))
+        standings_data = await service.get_all_standings(2024)
 
         assert standings_data.season == 2024
         assert len(standings_data.driver_standings) == 2
@@ -165,7 +167,8 @@ def test_get_all_standings():
         assert standings_data.constructor_standings[0].constructor_name == "Red Bull"
 
 
-def test_standings_cache():
+@pytest.mark.asyncio
+async def test_standings_cache():
     service = StandingsService()
     service._cache.clear()
 
@@ -181,13 +184,14 @@ def test_standings_cache():
         mock_instance.get = AsyncMock(side_effect=mock_get)
         mock_client.return_value = mock_instance
 
-        asyncio.run(service.get_driver_standings(2024))
-        asyncio.run(service.get_driver_standings(2024))
+        await service.get_driver_standings(2024)
+        await service.get_driver_standings(2024)
 
         assert call_count == 1
 
 
-def test_empty_standings_response():
+@pytest.mark.asyncio
+async def test_empty_standings_response():
     service = StandingsService()
     service._cache.clear()
 
@@ -198,6 +202,6 @@ def test_empty_standings_response():
         mock_instance.get = AsyncMock(return_value=MockResponse(empty_response))
         mock_client.return_value = mock_instance
 
-        standings = asyncio.run(service.get_driver_standings(2024))
+        standings = await service.get_driver_standings(2024)
 
         assert standings == []
