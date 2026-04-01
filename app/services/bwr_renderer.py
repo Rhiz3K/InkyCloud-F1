@@ -62,24 +62,23 @@ class BwrRenderer(Spectra6Renderer):
                 continue
 
             try:
-                logo_file = Image.open(logo_path)
+                with Image.open(logo_path) as logo_file:
+                    pad = 2
+                    target_w = width - (pad * 2)
+                    target_h = height - (pad * 2)
+                    logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
 
-                pad = 2
-                target_w = width - (pad * 2)
-                target_h = height - (pad * 2)
-                logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+                    logo = logo_file.convert("L")
+                    threshold = 128
+                    logo = logo.point(  # type: ignore[arg-type,operator,misc]
+                        lambda p, threshold=threshold: 255 if p > threshold else 0
+                    )
+                    logo = logo.convert("1").convert("RGB")
 
-                logo = logo_file.convert("L")
-                threshold = 128
-                logo = logo.point(  # type: ignore[arg-type,operator,misc]
-                    lambda p, threshold=threshold: 255 if p > threshold else 0
-                )
-                logo = logo.convert("1").convert("RGB")
-
-                x = (width - logo.width) // 2
-                y = (height - logo.height) // 2
-                image.paste(logo, (x, y))
-                return
+                    x = (width - logo.width) // 2
+                    y = (height - logo.height) // 2
+                    image.paste(logo, (x, y))
+                    return
             except Exception as exc:
                 logger.warning("Failed to load BWR logo %s: %s", logo_path, exc)
 
@@ -99,7 +98,8 @@ class BwrRenderer(Spectra6Renderer):
         source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bwr")
         if source_path:
             try:
-                return Image.open(source_path).convert("RGB")
+                with Image.open(source_path) as track_image:
+                    return track_image.convert("RGB")
             except Exception as exc:
                 logger.warning("Failed to load track %s: %s", source_path, exc)
 
@@ -109,7 +109,8 @@ class BwrRenderer(Spectra6Renderer):
                 continue
 
             try:
-                return Image.open(track_path).convert("RGB")
+                with Image.open(track_path) as track_image:
+                    return track_image.convert("RGB")
             except Exception as exc:
                 logger.warning("Failed to load track %s: %s", track_path, exc)
 
@@ -145,7 +146,8 @@ class BwrRenderer(Spectra6Renderer):
                     continue
 
                 try:
-                    flag_img = Image.open(flag_path).convert("RGB")
+                    with Image.open(flag_path) as opened_flag:
+                        flag_img = opened_flag.convert("RGB")
                     break
                 except Exception as exc:
                     logger.warning("Failed to load flag %s: %s", flag_path, exc)

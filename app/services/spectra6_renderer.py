@@ -779,23 +779,22 @@ class Spectra6Renderer:
             return
 
         try:
-            logo_file = Image.open(logo_path)
+            with Image.open(logo_path) as logo_file:
+                pad = 2
+                target_w = width - (pad * 2)
+                target_h = height - (pad * 2)
+                logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
 
-            pad = 2
-            target_w = width - (pad * 2)
-            target_h = height - (pad * 2)
-            logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+                logo = logo_file.convert("L")
+                threshold = 128
+                logo = logo.point(  # type: ignore[arg-type,operator,misc]
+                    lambda p, threshold=threshold: 255 if p > threshold else 0
+                )
+                logo = logo.convert("1").convert("RGB")
 
-            logo = logo_file.convert("L")
-            threshold = 128
-            logo = logo.point(  # type: ignore[arg-type,operator,misc]
-                lambda p, threshold=threshold: 255 if p > threshold else 0
-            )
-            logo = logo.convert("1").convert("RGB")
-
-            x = (width - logo.width) // 2
-            y = (height - logo.height) // 2
-            image.paste(logo, (x, y))
+                x = (width - logo.width) // 2
+                y = (height - logo.height) // 2
+                image.paste(logo, (x, y))
 
         except Exception as e:
             logger.warning("Failed to load F1 logo: %s", e)
@@ -902,7 +901,8 @@ class Spectra6Renderer:
         source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="spectra6")
         if source_path:
             try:
-                return Image.open(source_path)
+                with Image.open(source_path) as track_image:
+                    return track_image.copy()
             except Exception as e:
                 logger.warning("Failed to load track %s: %s", source_path, e)
 
@@ -912,7 +912,8 @@ class Spectra6Renderer:
                 continue
 
             try:
-                return Image.open(track_path)
+                with Image.open(track_path) as track_image:
+                    return track_image.copy()
             except Exception as e:
                 logger.warning("Failed to load track %s: %s", track_path, e)
 
@@ -1462,7 +1463,8 @@ class Spectra6Renderer:
             local_flag_path = FLAGS_DIR / f"{iso_code}.bmp"
             if local_flag_path.exists():
                 try:
-                    flag_img = Image.open(local_flag_path).convert("RGB")
+                    with Image.open(local_flag_path) as opened_flag:
+                        flag_img = opened_flag.convert("RGB")
                 except Exception as e:
                     logger.warning("Failed to load local flag: %s", e)
 
@@ -1661,7 +1663,8 @@ class Spectra6Renderer:
 
         for photo_path in drivers_dir.glob("*.png"):
             try:
-                photos[photo_path.stem.lower()] = Image.open(photo_path).convert("RGBA")
+                with Image.open(photo_path) as opened_photo:
+                    photos[photo_path.stem.lower()] = opened_photo.convert("RGBA")
             except Exception as e:
                 logger.warning("Failed to load driver photo %s: %s", photo_path, e)
 
@@ -1691,7 +1694,8 @@ class Spectra6Renderer:
                 if team_key in logos:
                     continue
                 try:
-                    img = Image.open(logo_path).convert("RGBA")
+                    with Image.open(logo_path) as opened_logo:
+                        img = opened_logo.convert("RGBA")
                     logos[team_key] = cls._prepare_team_logo(team_key, img)
                 except Exception as e:
                     logger.warning("Failed to load team logo %s: %s", logo_path, e)

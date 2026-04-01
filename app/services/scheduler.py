@@ -73,14 +73,13 @@ def _bmp_to_png(
     Returns:
         PNG image data as bytes.
     """
-    img_file = Image.open(BytesIO(bmp_data))
-
-    if preserve_color:
-        # Keep colors for multi-color displays
-        img: Image.Image = img_file.convert("RGB")
-    else:
-        # Convert to grayscale for smoother edges (anti-aliasing on resize)
-        img = img_file.convert("L")
+    with Image.open(BytesIO(bmp_data)) as img_file:
+        if preserve_color:
+            # Keep colors for multi-color displays
+            img: Image.Image = img_file.convert("RGB")
+        else:
+            # Convert to grayscale for smoother edges (anti-aliasing on resize)
+            img = img_file.convert("L")
 
     if not full_size:
         ratio = width / img.width

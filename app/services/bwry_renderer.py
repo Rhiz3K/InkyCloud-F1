@@ -51,7 +51,8 @@ class BwryRenderer(BwrRenderer):
         source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bwry")
         if source_path:
             try:
-                return Image.open(source_path).convert("RGB")
+                with Image.open(source_path) as track_image:
+                    return track_image.convert("RGB")
             except Exception as exc:
                 logger.warning("Failed to load track %s: %s", source_path, exc)
 
@@ -61,7 +62,8 @@ class BwryRenderer(BwrRenderer):
                 continue
 
             try:
-                return Image.open(track_path).convert("RGB")
+                with Image.open(track_path) as track_image:
+                    return track_image.convert("RGB")
             except Exception as exc:
                 logger.warning("Failed to load track %s: %s", track_path, exc)
 
@@ -98,7 +100,8 @@ class BwryRenderer(BwrRenderer):
                     continue
 
                 try:
-                    flag_img = Image.open(flag_path).convert("RGB")
+                    with Image.open(flag_path) as opened_flag:
+                        flag_img = opened_flag.convert("RGB")
                     break
                 except Exception as exc:
                     logger.warning("Failed to load flag %s: %s", flag_path, exc)

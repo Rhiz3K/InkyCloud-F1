@@ -1081,30 +1081,30 @@ class Renderer:
             return
 
         try:
-            logo_file = Image.open(logo_path)
+            with Image.open(logo_path) as logo_file:
+                # Maximize logo size - minimal padding
+                pad = 2
+                target_w = width - (pad * 2)
+                target_h = height - (pad * 2)
 
-            # Maximize logo size - minimal padding
-            pad = 2
-            target_w = width - (pad * 2)
-            target_h = height - (pad * 2)
+                logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
 
-            logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+                # Convert to 1-bit
+                # Use simplified thresholding
+                logo: Image.Image = logo_file.convert("L")
+                # Keep black as black (0) and white as white (1) because the
+                # destination background is already white.
 
-            # Convert to 1-bit
-            # Use simplified thresholding
-            logo: Image.Image = logo_file.convert("L")
-            # NO Inversion - keep black as black (0) and white as white (1) because bg is white (1)
+                # Threshold
+                threshold = 128
+                logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[arg-type]
+                logo = logo.convert("1")
 
-            # Threshold
-            threshold = 128
-            logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[arg-type]
-            logo = logo.convert("1")
+                # Center it
+                x = (width - logo.width) // 2
+                y = (height - logo.height) // 2
 
-            # Center it
-            x = (width - logo.width) // 2
-            y = (height - logo.height) // 2
-
-            image.paste(logo, (x, y))
+                image.paste(logo, (x, y))
 
         except Exception as e:
             logger.warning("Failed to load F1 logo: %s", e)
@@ -1223,7 +1223,8 @@ class Renderer:
         source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bw")
         if source_path:
             try:
-                return Image.open(source_path)
+                with Image.open(source_path) as track_image:
+                    return track_image.copy()
             except Exception:
                 pass
 
@@ -1234,7 +1235,8 @@ class Renderer:
                 continue
 
             try:
-                return Image.open(track_path)
+                with Image.open(track_path) as track_image:
+                    return track_image.copy()
             except Exception:
                 continue
 
@@ -1242,7 +1244,8 @@ class Renderer:
         all_processed = list(TRACKS_PROCESSED_DIR.glob("*.bmp"))
         if all_processed:
             try:
-                return Image.open(all_processed[0])
+                with Image.open(all_processed[0]) as track_image:
+                    return track_image.copy()
             except Exception:
                 pass
 
@@ -1794,7 +1797,8 @@ class Renderer:
             local_flag_path = FLAGS_DIR / f"{iso_code}.bmp"
             if local_flag_path.exists():
                 try:
-                    flag_img = Image.open(local_flag_path)
+                    with Image.open(local_flag_path) as opened_flag:
+                        flag_img = opened_flag.copy()
                 except Exception as e:
                     logger.warning("Failed to load local flag: %s", e)
 
@@ -1952,19 +1956,19 @@ class Renderer:
 
         for photo_path in drivers_dir.glob("*.png"):
             try:
-                img_file = Image.open(photo_path)
-                img: Image.Image
-                if img_file.mode in ("RGBA", "LA", "PA", "P"):
-                    rgba_img = img_file.convert("RGBA")
-                    result = Image.new("1", rgba_img.size, 1)
-                    for y in range(rgba_img.height):
-                        for x in range(rgba_img.width):
-                            pixel = rgba_img.getpixel((x, y))
-                            if isinstance(pixel, tuple) and len(pixel) >= 4 and pixel[3] > 128:
-                                result.putpixel((x, y), 0)
-                    img = result
-                else:
-                    img = img_file.convert("1")
+                with Image.open(photo_path) as img_file:
+                    img: Image.Image
+                    if img_file.mode in ("RGBA", "LA", "PA", "P"):
+                        rgba_img = img_file.convert("RGBA")
+                        result = Image.new("1", rgba_img.size, 1)
+                        for y in range(rgba_img.height):
+                            for x in range(rgba_img.width):
+                                pixel = rgba_img.getpixel((x, y))
+                                if isinstance(pixel, tuple) and len(pixel) >= 4 and pixel[3] > 128:
+                                    result.putpixel((x, y), 0)
+                        img = result
+                    else:
+                        img = img_file.convert("1")
                 driver_key = photo_path.stem.lower()
                 photos[driver_key] = img
             except Exception as e:
@@ -2001,7 +2005,8 @@ class Renderer:
                 ):
                     continue
                 try:
-                    img_file = Image.open(logo_path).convert("RGBA")
+                    with Image.open(logo_path) as opened_logo:
+                        img_file = opened_logo.convert("RGBA")
                     logos[team_key] = cls._prepare_team_logo(team_key, img_file)
                 except Exception as e:
                     logger.warning("Failed to load team logo %s: %s", logo_path, e)
