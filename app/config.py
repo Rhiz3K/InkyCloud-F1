@@ -118,6 +118,11 @@ class Config(BaseSettings):
         240, gt=0, description="Per-IP perf metrics posts allowed per minute"
     )
 
+    ADMIN_API_TOKEN: Optional[SecretStr] = Field(
+        default=None,
+        description="Optional bearer token required for read-only operational API endpoints",
+    )
+
     # Internationalization
     DEFAULT_LANG: str = Field("en", description="Default language code")
     DEFAULT_TIMEZONE: str = Field("Europe/Prague", description="Default timezone")

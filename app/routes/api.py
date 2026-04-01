@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -23,6 +24,23 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 _LANGUAGE_VALUES = list(LANGUAGE_CODES)
+
+
+def _require_operational_api_auth(request: Request) -> None:
+    """Require a token for operational read APIs when configured."""
+    configured_token = config.ADMIN_API_TOKEN
+    if configured_token is None:
+        return
+
+    expected = configured_token.get_secret_value()
+    provided = request.headers.get("X-Admin-Token")
+
+    authorization = request.headers.get("Authorization", "")
+    if authorization.startswith("Bearer "):
+        provided = authorization.removeprefix("Bearer ")
+
+    if provided is None or not secrets.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 @router.get("/api")
@@ -201,8 +219,10 @@ async def api_info() -> dict:
 
 
 @router.get("/api/stats")
-async def get_stats() -> dict:
+async def get_stats(request: Request) -> dict:
     """Get API request statistics from database."""
+    _require_operational_api_auth(request)
+
     db = Database()
     try:
         stats = await db.get_api_calls_stats_24h()
@@ -273,8 +293,10 @@ async def post_perf_metrics(request: Request) -> dict[str, str]:
 
 
 @router.get("/api/perf-metrics")
-async def get_perf_metrics(hours: int = Query(default=24, le=720)) -> dict:
+async def get_perf_metrics(request: Request, hours: int = Query(default=24, le=720)) -> dict:
     """Return aggregated performance metrics for the requested lookback window."""
+    _require_operational_api_auth(request)
+
     db = Database()
     try:
         stats = await db.get_perf_stats(hours)
@@ -285,8 +307,10 @@ async def get_perf_metrics(hours: int = Query(default=24, le=720)) -> dict:
 
 
 @router.get("/api/stats/history")
-async def get_stats_history(limit: int = Query(default=168, le=720)) -> dict:
+async def get_stats_history(request: Request, limit: int = Query(default=168, le=720)) -> dict:
     """Return recent hourly request history for the stats dashboard."""
+    _require_operational_api_auth(request)
+
     db = Database()
     try:
         history = await db.get_request_stats_history(limit=limit)

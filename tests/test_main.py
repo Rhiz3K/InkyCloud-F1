@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from fastapi.testclient import TestClient
 from PIL import Image
+from pydantic import SecretStr
 
 from app.config import LANGUAGE_CODES, config
 from app.main import app
@@ -753,6 +754,51 @@ def test_stats_dashboard_localizes_range_and_fallback_labels():
     assert "Neznámé" in html
     assert "výchozí" in html
     assert "100.0%" in html
+
+
+
+
+def test_operational_api_endpoints_require_token_when_configured():
+    """Read-only operational API endpoints should require a token when configured."""
+    with patch.object(api_routes.config, "ADMIN_API_TOKEN", SecretStr("secret-token")):
+        response = client.get("/api/stats")
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Unauthorized"}
+
+        response = client.get("/api/stats", headers={"X-Admin-Token": "secret-token"})
+        assert response.status_code == 200
+
+        response = client.get("/api/stats/history")
+        assert response.status_code == 401
+
+        response = client.get("/api/perf-metrics")
+        assert response.status_code == 401
+
+        response = client.get(
+            "/api/perf-metrics",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+        assert response.status_code == 200
+
+
+def test_perf_metrics_post_remains_public_when_operational_token_is_configured():
+    """POST /api/perf-metrics stays public for browser-side web-vitals ingestion."""
+    payload = {
+        "page_path": "/calendar.bmp",
+        "lcp_ms": 1200.5,
+        "cls": 0.05,
+        "fcp_ms": 800.0,
+        "ttfb_ms": 150.0,
+        "inp_ms": 50.0,
+        "connection_type": "4g",
+        "device_memory": 8.0,
+    }
+
+    with patch.object(api_routes.config, "ADMIN_API_TOKEN", SecretStr("secret-token")):
+        response = client.post("/api/perf-metrics", json=payload)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
 
 
 def test_api_stats_endpoint_returns_correct_structure():
