@@ -1,6 +1,7 @@
 import pytest
 
 from app.state import (
+    BMP_CACHE_MAXSIZE,
     clear_bmp_cache,
     get_and_clear_api_calls_buffer,
     get_bmp_cache,
@@ -23,7 +24,7 @@ class TestBmpCache:
         cache = get_bmp_cache()
         assert cache is not None
         assert hasattr(cache, "maxsize")
-        assert cache.maxsize == 100
+        assert cache.maxsize == BMP_CACHE_MAXSIZE
 
     @staticmethod
     def test_clear_bmp_cache():
@@ -39,6 +40,11 @@ class TestBmpCache:
         cache = get_bmp_cache()
         cache["calendar_en"] = b"bmp_data"
         assert cache["calendar_en"] == b"bmp_data"
+
+    @staticmethod
+    def test_bmp_cache_capacity_covers_localized_variants():
+        # 13 languages x 4 display modes x 3 weather modes = 156 base variants.
+        assert BMP_CACHE_MAXSIZE >= 156
 
 
 class TestApiCallsBuffer:

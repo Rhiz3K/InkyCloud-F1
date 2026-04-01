@@ -5,7 +5,11 @@ from cachetools import TTLCache
 
 logger = logging.getLogger(__name__)
 
-_bmp_cache: TTLCache = TTLCache(maxsize=100, ttl=3600)
+BMP_CACHE_MAXSIZE = 512
+BMP_CACHE_TTL_SECONDS = 3600
+
+# Cover all localized display/weather variants without immediate LRU churn.
+_bmp_cache: TTLCache = TTLCache(maxsize=BMP_CACHE_MAXSIZE, ttl=BMP_CACHE_TTL_SECONDS)
 
 _api_calls_buffer: list = []
 
