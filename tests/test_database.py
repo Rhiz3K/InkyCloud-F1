@@ -1,7 +1,7 @@
 """Test database service."""
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -325,5 +325,116 @@ class TestApiCallStatsDatabase:
             assert stats["races"][0]["count"] == 3
             assert stats["races"][0]["is_auto_selected"] is True
             assert stats["races"][0]["auto_selected_count"] == 1
+
+        asyncio.run(run_test())
+
+
+class TestDatabaseStatsCleanup:
+    """Tests for retention cleanup across statistics tables."""
+
+    @staticmethod
+    def test_cleanup_old_stats_removes_all_stats_tables(tmp_path):
+        async def run_test():
+            db = Database(str(tmp_path / "cleanup.db"))
+            await db._init_db_if_needed()
+
+            old_timestamp = (datetime.now(timezone.utc) - timedelta(days=45)).isoformat()
+            recent_timestamp = datetime.now(timezone.utc).isoformat()
+
+            async with db._get_connection() as conn:
+                await db._configure_connection(conn)
+                await conn.execute(
+                    "INSERT INTO request_stats (timestamp, hour_count, day_count) VALUES (?, ?, ?)",
+                    (old_timestamp, 1, 1),
+                )
+                await conn.execute(
+                    "INSERT INTO request_stats (timestamp, hour_count, day_count) VALUES (?, ?, ?)",
+                    (recent_timestamp, 2, 2),
+                )
+                await conn.execute(
+                    """
+                    INSERT INTO api_calls
+                        (timestamp, endpoint, response_time_ms, response_size_bytes, lang, tz,
+                         year, round, display_type, race_name, is_auto_selected)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        old_timestamp,
+                        "/calendar.bmp",
+                        100.0,
+                        1000,
+                        "en",
+                        None,
+                        2026,
+                        1,
+                        "1bit",
+                        "Test GP",
+                        0,
+                    ),
+                )
+                await conn.execute(
+                    """
+                    INSERT INTO api_calls
+                        (timestamp, endpoint, response_time_ms, response_size_bytes, lang, tz,
+                         year, round, display_type, race_name, is_auto_selected)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        recent_timestamp,
+                        "/calendar.bmp",
+                        120.0,
+                        1100,
+                        "en",
+                        None,
+                        2026,
+                        1,
+                        "1bit",
+                        "Test GP",
+                        0,
+                    ),
+                )
+                await conn.execute(
+                    """
+                    INSERT INTO perf_metrics
+                        (timestamp, page_path, lcp_ms, cls, fcp_ms, ttfb_ms, inp_ms,
+                         user_agent, connection_type, device_memory)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (old_timestamp, "/stats", 1200.0, 0.01, 500.0, 100.0, 150.0, None, None, None),
+                )
+                await conn.execute(
+                    """
+                    INSERT INTO perf_metrics
+                        (timestamp, page_path, lcp_ms, cls, fcp_ms, ttfb_ms, inp_ms,
+                         user_agent, connection_type, device_memory)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        recent_timestamp,
+                        "/stats",
+                        1000.0,
+                        0.02,
+                        450.0,
+                        90.0,
+                        140.0,
+                        None,
+                        None,
+                        None,
+                    ),
+                )
+                await conn.commit()
+
+            deleted = await db.cleanup_old_stats(days=30)
+
+            assert deleted == 3
+
+            async with db._get_connection() as conn:
+                await db._configure_connection(conn)
+                for table_name in ("request_stats", "api_calls", "perf_metrics"):
+                    async with conn.execute(
+                        f"SELECT COUNT(*) AS count FROM {table_name}"
+                    ) as cursor:
+                        row = await cursor.fetchone()
+                        assert row["count"] == 1
 
         asyncio.run(run_test())

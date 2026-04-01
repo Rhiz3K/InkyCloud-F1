@@ -333,27 +333,38 @@ class Database:
 
     async def cleanup_old_stats(self, days: int = 30) -> int:
         """
-        Remove request stats older than specified days.
+        Remove stats rows older than specified days across all metrics tables.
 
         Args:
             days: Number of days to keep
 
         Returns:
-            Number of deleted records
+            Number of deleted records across request_stats, api_calls, and perf_metrics
         """
         await self._init_db_if_needed()
         cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        deleted_counts: dict[str, int] = {}
 
         async with self._get_connection() as conn:
             await self._configure_connection(conn)
-            cursor = await conn.execute(
-                "DELETE FROM request_stats WHERE timestamp < ?", (cutoff_date,)
-            )
-            deleted = cursor.rowcount
+            for table_name in ("request_stats", "api_calls", "perf_metrics"):
+                cursor = await conn.execute(
+                    f"DELETE FROM {table_name} WHERE timestamp < ?", (cutoff_date,)
+                )
+                deleted_counts[table_name] = cursor.rowcount
+
             await conn.commit()
-            if deleted > 0:
-                logger.info("Cleaned up %s old stats records", deleted)
-            return deleted
+
+        deleted_total = sum(deleted_counts.values())
+        if deleted_total > 0:
+            logger.info(
+                "Cleaned up %s old stats records (request_stats=%s, api_calls=%s, perf_metrics=%s)",
+                deleted_total,
+                deleted_counts.get("request_stats", 0),
+                deleted_counts.get("api_calls", 0),
+                deleted_counts.get("perf_metrics", 0),
+            )
+        return deleted_total
 
     async def save_api_calls_batch(self, calls: list[dict]) -> int:
         """
