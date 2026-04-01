@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SQLite backup snapshots** - Replaced byte-for-byte SQLite file copies with SQLite's online backup API for both scheduled and detailed S3 backups so WAL-enabled databases upload crash-safe, internally consistent snapshots
 - **Translation and season fallbacks** - Stopped recursive i18n fallback loops when the default locale file is missing and made season helpers fall back to the current year beyond the last hardcoded race-start date while still preferring the newest bundled teams dataset
 - **Config test cache reset** - Refreshed the module-level `config` singleton whenever tests clear the config cache so patched environment variables propagate consistently across imports
+- **Background task supervision** - Replaced fire-and-forget `create_task()` call sites for startup generation and web-vitals analytics with supervised background tasks that keep references, log failures, and report exceptions to Sentry instead of dropping them silently
 
 ### Security
 

@@ -29,6 +29,7 @@ from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
 from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
 from app.services.warmup import warm_teams_renderer_assets
+from app.utils.async_tasks import create_supervised_task
 from app.utils.race_times import (  # noqa: F401
     convert_race_times_to_timezone as _convert_race_times_to_timezone,
 )
@@ -108,7 +109,7 @@ async def lifespan(_app: FastAPI):
         sentry_sdk.capture_exception(exc)
 
     start_scheduler()
-    asyncio.create_task(run_initial_generation())
+    create_supervised_task(run_initial_generation(), name="initial_generation")
 
     yield
 

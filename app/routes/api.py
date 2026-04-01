@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -13,6 +12,7 @@ from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.teams_service import TeamsService
 from app.state import get_bmp_cache
+from app.utils.async_tasks import create_supervised_task
 from app.utils.f1_season import get_current_f1_season
 
 from .deps import get_f1_service
@@ -236,7 +236,7 @@ async def post_perf_metrics(request: Request) -> dict[str, str]:
             device_memory=payload.device_memory,
         )
 
-        asyncio.create_task(
+        create_supervised_task(
             track_event(
                 url=payload.page_path,
                 event_name="web_vitals",
@@ -248,7 +248,8 @@ async def post_perf_metrics(request: Request) -> dict[str, str]:
                     "fcp": payload.fcp_ms,
                     "ttfb": payload.ttfb_ms,
                 },
-            )
+            ),
+            name="track_web_vitals",
         )
 
         return {"status": "ok"}
