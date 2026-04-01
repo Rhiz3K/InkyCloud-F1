@@ -272,6 +272,14 @@ def test_www_host_redirect_ignores_site_url_port_when_matching_host():
     assert response.headers["location"] == "https://staging.example.com:8443/privacy"
 
 
+def test_static_css_sets_cache_control_header():
+    """Static CSS assets should carry cache headers from ASGI middleware."""
+    response = client.get("/static/css/styles.css")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "public, max-age=3600"
+
+
 def test_configure_trailing_slash_redirects_to_canonical_path():
     """Configure pages should redirect to their canonical no-trailing-slash path."""
     response = client.get("/configure/calendar/", follow_redirects=False)

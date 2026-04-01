@@ -14,8 +14,8 @@ import sentry_sdk
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
@@ -126,45 +126,66 @@ app = FastAPI(
 )
 
 
-class StaticCacheMiddleware(BaseHTTPMiddleware):
-    async def dispatch(  # skipcq: PYL-R0201 - must be instance method (BaseHTTPMiddleware)
-        self, request: StarletteRequest, call_next
-    ) -> StarletteResponse:
-        response = await call_next(request)
-        path = request.url.path
+class StaticCacheMiddleware:
+    def __init__(self, app):
+        self.app = app
 
-        if path.startswith("/static/"):
-            if "/fonts/" in path:
-                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-            elif path.endswith((".png", ".jpg", ".bmp", ".ico", ".svg", ".webmanifest")):
-                response.headers["Cache-Control"] = "public, max-age=86400"
-            elif path.endswith((".css", ".js")):
-                response.headers["Cache-Control"] = "public, max-age=3600"
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-        return response
+        path = scope.get("path", "")
+
+        async def send_with_cache_headers(message):
+            if message["type"] == "http.response.start" and path.startswith("/static/"):
+                headers = MutableHeaders(scope=message)
+                if "/fonts/" in path:
+                    headers["Cache-Control"] = "public, max-age=31536000, immutable"
+                elif path.endswith((".png", ".jpg", ".bmp", ".ico", ".svg", ".webmanifest")):
+                    headers["Cache-Control"] = "public, max-age=86400"
+                elif path.endswith((".css", ".js")):
+                    headers["Cache-Control"] = "public, max-age=3600"
+
+            await send(message)
+
+        await self.app(scope, receive, send_with_cache_headers)
 
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(  # skipcq: PYL-R0201 - must be instance method (BaseHTTPMiddleware)
-        self, request: StarletteRequest, call_next
-    ) -> StarletteResponse:
-        host = request.headers.get("host", "").split(":", 1)[0].lower()
+class SecurityHeadersMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = Headers(scope=scope)
+        host = headers.get("host", "").split(":", 1)[0].lower()
         canonical_host = urlparse(str(config.SITE_URL)).hostname or ""
+        scheme = scope.get("scheme", "http")
+        path = scope.get("path", "")
+        query_string = scope.get("query_string", b"").decode()
+
         if host == f"www.{canonical_host}":
-            target = f"{str(config.SITE_URL).rstrip('/')}{request.url.path}"
-            if request.url.query:
-                target = f"{target}?{request.url.query}"
+            target = f"{str(config.SITE_URL).rstrip('/')}{path}"
+            if query_string:
+                target = f"{target}?{query_string}"
             redirect = RedirectResponse(url=target, status_code=301)
-            if request.url.scheme == "https":
+            if scheme == "https":
                 redirect.headers["Strict-Transport-Security"] = "max-age=31536000"
-            return redirect
+            await redirect(scope, receive, send)
+            return
 
-        response = await call_next(request)
+        async def send_with_security_headers(message):
+            if message["type"] == "http.response.start" and scheme == "https":
+                response_headers = MutableHeaders(scope=message)
+                response_headers["Strict-Transport-Security"] = "max-age=31536000"
 
-        if request.url.scheme == "https":
-            response.headers["Strict-Transport-Security"] = "max-age=31536000"
+            await send(message)
 
-        return response
+        await self.app(scope, receive, send_with_security_headers)
 
 
 def _resolve_error_ui_language(request: StarletteRequest) -> str:
