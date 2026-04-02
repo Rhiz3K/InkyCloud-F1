@@ -35,6 +35,7 @@ from app.services.renderer_common import (
     draw_team_logo,
     draw_teams_content,
     draw_teams_header,
+    draw_track_section,
     fit_result_text,
     format_points,
     format_schedule_session_name,
@@ -46,6 +47,7 @@ from app.services.renderer_common import (
     load_weather_icon_font,
     normalize_session_name,
     normalize_team_power_unit,
+    prepare_mono_track_image,
     right_align_x,
     split_teams_for_columns,
     text_width,
@@ -988,77 +990,29 @@ class Renderer:
         race_data: dict,
     ) -> None:
         """Draw the left-side circuit map and circuit label block."""
-        x_start = 0
-
-        circuit = race_data.get("circuit", {})
-        circuit_name = circuit.get("name", "Circuit")
-        country = circuit.get("country", "").upper()
-        city = circuit.get("location", "").upper()
-
-        results_line_y = self.layout["results_y_start"]
-
-        if city:
-            label_text = f"{country}, {city} | {circuit_name}"
-        else:
-            label_text = f"{country} | {circuit_name}"
-
-        label_font_key = "circuit_name"
-        label_font = self.fonts[label_font_key]
-        label_bbox = draw.textbbox((0, 0), label_text, font=label_font)
-
-        label_y = results_line_y - 3 - label_bbox[3]
-        text_visual_top = label_y + label_bbox[1]
-
-        side_margin = 3
-        track_top = 92
-
-        track_bottom = text_visual_top - side_margin
-        available_height = track_bottom - track_top
-        available_width = self.layout["left_column_width"] - (side_margin * 2)
-
-        track_image = self._load_track_image(race_data)
-
-        if track_image:
-            is_preprocessed = track_image.mode == "1"
-
-            if not is_preprocessed:
-                try:
-                    gray = track_image.convert("L")
-                    binary = gray.point(lambda p: 255 if p > 128 else 0)  # type: ignore[operator]
-                    inverted = ImageOps.invert(binary)
-                    bbox = inverted.getbbox()
-                    if bbox:
-                        track_image = track_image.crop(bbox)
-                except Exception as e:
-                    logger.warning("Failed to crop track image: %s", e)
-
-            img_w, img_h = track_image.size
-            ratio = min(available_width / img_w, available_height / img_h)
-            new_size = (int(img_w * ratio), int(img_h * ratio))
-
-            if new_size != (img_w, img_h):
-                track_image = track_image.resize(new_size, Image.Resampling.LANCZOS)
-
-            if not is_preprocessed:
-                track_image = track_image.point(lambda p: 255 if p > 200 else 0)  # type: ignore[operator]
-                track_image = track_image.convert("1")
-
-            final_w, final_h = track_image.size
-            paste_x = int(side_margin + (available_width - final_w) // 2)
-            paste_y = int(track_top + (available_height - final_h) // 2)
-
-            image.paste(track_image, (paste_x, paste_y))
-        else:
-            self._draw_track_placeholder(
-                draw,
-                x_start + side_margin,
-                track_top,
-                int(available_width),
-                int(available_height),
-            )
-
-        label_x = self.layout["padding"]
-        draw.text((label_x, label_y), label_text, fill=0, font=label_font)
+        draw_track_section(
+            draw,
+            image,
+            race_data,
+            left_column_width=self.layout["left_column_width"],
+            results_y_start=self.layout["results_y_start"],
+            padding=self.layout["padding"],
+            label_font=self.fonts["circuit_name"],
+            label_fill=0,
+            load_track_image_fn=self._load_track_image,
+            prepare_track_image_fn=(
+                lambda track_image, available_width, available_height: prepare_mono_track_image(
+                    track_image,
+                    available_width,
+                    available_height,
+                    logger,
+                )
+            ),
+            paste_track_image_fn=(
+                lambda canvas, prepared_image, px, py: canvas.paste(prepared_image, (px, py))
+            ),
+            draw_track_placeholder_fn=self._draw_track_placeholder,
+        )
 
     @staticmethod
     def _draw_track_placeholder(

@@ -787,6 +787,107 @@ def draw_circuit_stats_block(
         y += row_height
 
 
+def draw_track_section(
+    draw: ImageDraw.ImageDraw,
+    image: Image.Image,
+    race_data: dict,
+    *,
+    left_column_width: int,
+    results_y_start: int,
+    padding: int,
+    label_font,
+    label_fill,
+    load_track_image_fn,
+    prepare_track_image_fn,
+    paste_track_image_fn,
+    draw_track_placeholder_fn,
+) -> None:
+    """Draw the left-side track map and circuit label block."""
+    circuit = race_data.get("circuit", {})
+    circuit_name = circuit.get("name", "Circuit")
+    country = circuit.get("country", "").upper()
+    city = circuit.get("location", "").upper()
+
+    label_text = f"{country}, {city} | {circuit_name}" if city else f"{country} | {circuit_name}"
+    label_bbox = draw.textbbox((0, 0), label_text, font=label_font)
+    label_y = results_y_start - 3 - label_bbox[3]
+    text_visual_top = label_y + label_bbox[1]
+
+    side_margin = 3
+    track_top = 92
+    track_bottom = text_visual_top - side_margin
+    available_height = track_bottom - track_top
+    available_width = left_column_width - (side_margin * 2)
+
+    track_image = load_track_image_fn(race_data)
+    if track_image:
+        prepared_image = prepare_track_image_fn(track_image, available_width, available_height)
+        final_w, final_h = prepared_image.size
+        paste_x = int(side_margin + (available_width - final_w) // 2)
+        paste_y = int(track_top + (available_height - final_h) // 2)
+        paste_track_image_fn(image, prepared_image, paste_x, paste_y)
+    else:
+        draw_track_placeholder_fn(
+            draw,
+            side_margin,
+            track_top,
+            int(available_width),
+            int(available_height),
+        )
+
+    draw.text((padding, label_y), label_text, fill=label_fill, font=label_font)
+
+
+def prepare_mono_track_image(
+    track_image: Image.Image,
+    available_width: int,
+    available_height: int,
+    logger,
+) -> Image.Image:
+    """Prepare a track map for the monochrome renderer."""
+    is_preprocessed = track_image.mode == "1"
+
+    if not is_preprocessed:
+        try:
+            gray = track_image.convert("L")
+            binary = gray.point(lambda p: 255 if p > 128 else 0)
+            inverted = ImageOps.invert(binary)
+            bbox = inverted.getbbox()
+            if bbox:
+                track_image = track_image.crop(bbox)
+        except Exception as exc:
+            logger.warning("Failed to crop track image: %s", exc)
+
+    img_w, img_h = track_image.size
+    ratio = min(available_width / img_w, available_height / img_h)
+    new_size = (int(img_w * ratio), int(img_h * ratio))
+
+    if new_size != (img_w, img_h):
+        track_image = track_image.resize(new_size, Image.Resampling.LANCZOS)
+
+    if not is_preprocessed:
+        track_image = track_image.point(lambda p: 255 if p > 200 else 0)
+        track_image = track_image.convert("1")
+
+    return track_image
+
+
+def prepare_color_track_image(
+    track_image: Image.Image,
+    available_width: int,
+    available_height: int,
+) -> Image.Image:
+    """Prepare a track map for color renderers while preserving RGB output."""
+    img_w, img_h = track_image.size
+    ratio = min(available_width / img_w, available_height / img_h)
+    new_size = (int(img_w * ratio), int(img_h * ratio))
+
+    if new_size != (img_w, img_h):
+        track_image = track_image.resize(new_size, Image.Resampling.LANCZOS)
+
+    return track_image.convert("RGB")
+
+
 def draw_schedule_section(
     draw: ImageDraw.ImageDraw,
     race_data: dict,

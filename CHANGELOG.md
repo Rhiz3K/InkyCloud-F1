@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shared schedule-section helper** - Centralized schedule title rendering, row iteration, and countdown handoff so the monochrome and Spectra 6 calendar renderers reuse one schedule-section layout flow
 - **Shared race-header helper** - Moved the logo/title split-header layout into one shared helper so monochrome and Spectra 6 race views now share the same title-block geometry and text positioning
 - **Shared circuit-stats helper** - Centralized circuit fact composition and right-column stat-block layout so monochrome and Spectra 6 renderers stop duplicating the same lap/length/history rendering logic
+- **Shared track-section helper** - Centralized circuit label layout and track-image placement so monochrome and Spectra 6 renderers now share the same left-column track-section geometry while keeping display-specific image preparation
 
 ### Security
 
