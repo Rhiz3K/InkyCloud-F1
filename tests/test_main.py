@@ -756,8 +756,6 @@ def test_stats_dashboard_localizes_range_and_fallback_labels():
     assert "100.0%" in html
 
 
-
-
 def test_operational_api_endpoints_require_token_when_configured():
     """Read-only operational API endpoints should require a token when configured."""
     with patch.object(api_routes.config, "ADMIN_API_TOKEN", SecretStr("secret-token")):

@@ -483,9 +483,7 @@ class Renderer:
             right_align_x_fn=self._right_align_x,
             text_fill=0,
             badge_outline_fill=0,
-            badge_colors_fn=lambda position: (
-                (0, 1) if position in {2, 3} else (1, 0)
-            ),
+            badge_colors_fn=lambda position: ((0, 1) if position in {2, 3} else (1, 0)),
         )
 
     def _draw_team_row(

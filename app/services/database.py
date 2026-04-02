@@ -512,7 +512,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-
             # Basic stats: count, response times, data transfer
             async with conn.execute(
                 """
@@ -793,7 +792,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-
             # Get aggregate stats
             async with conn.execute(
                 """
@@ -919,7 +917,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-
             async with conn.execute(
                 """
                 SELECT
@@ -992,7 +989,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-
             async with conn.execute(
                 """
                 SELECT

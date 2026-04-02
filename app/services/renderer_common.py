@@ -114,6 +114,7 @@ def build_team_header_values(team) -> tuple[str, str, str, str]:
     team_pos = str(team.position) if team.position else "—"
     return team_name, meta_text, team_pos, format_points(team.points)
 
+
 def normalize_session_name(name: str) -> str:
     """Normalize API/static session variants to a stable translation key suffix."""
     normalized = re.sub(r"[^a-z0-9]+", "", name.lower())
@@ -202,6 +203,7 @@ def format_schedule_session_name(
         return full_label
 
     return build_sprint_qualifying_label(translator, lang_code, abbreviated=True)
+
 
 def get_team_logo_key(constructor: str) -> str | None:
     """Map a constructor name to the corresponding team logo asset key."""
@@ -339,6 +341,7 @@ def fit_result_text(
 
     return f"{pos}. {driver[:5]}.. ({team[:3]}..)"
 
+
 def get_country_flag_iso_code(country_name: str, country_map: dict[str, str]) -> str:
     """Resolve a country name to the local flag asset ISO code."""
     iso_code = country_map.get(country_name, "").lower()
@@ -440,6 +443,7 @@ def draw_results_header(
 
     return int(visual_top)
 
+
 def draw_new_track_message(
     draw: ImageDraw.ImageDraw,
     *,
@@ -455,6 +459,7 @@ def draw_new_track_message(
     x = (canvas_width - text_width) // 2
     y = y_start + 30
     draw.text((x, y), message, fill=fill, font=font)
+
 
 def load_symbol_icon_font(size: int, logger) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load the Symbola fallback icon font used for symbols and emoji-style glyphs."""
@@ -493,6 +498,7 @@ def load_racing_font(
         except Exception as exc:
             logger.warning("Failed to load Racing Sans One: %s", exc)
     return load_ui_font_fallback(size, bold=True)
+
 
 def draw_results_column(
     draw: ImageDraw.ImageDraw,
@@ -543,6 +549,7 @@ def draw_results_column(
 
         if time_str:
             draw.text((time_x, y), time_str, fill=text_fill, font=font_row)
+
 
 def draw_teams_header(
     draw: ImageDraw.ImageDraw,
@@ -616,6 +623,7 @@ def draw_teams_content(
             row_height,
         )
         y += row_height + row_gap
+
 
 def draw_team_stats_panel(
     draw: ImageDraw.ImageDraw,
@@ -1005,17 +1013,13 @@ def draw_countdown_box(
 
         active_race_dt = race_dt
         now = (
-            datetime_cls.now(active_race_dt.tzinfo)
-            if active_race_dt.tzinfo
-            else datetime_cls.now()
+            datetime_cls.now(active_race_dt.tzinfo) if active_race_dt.tzinfo else datetime_cls.now()
         )
         delta = active_race_dt - now
 
         if delta.total_seconds() <= 0:
             status_key = (
-                "race_ongoing"
-                if now < active_race_dt + timedelta(hours=3)
-                else "race_completed"
+                "race_ongoing" if now < active_race_dt + timedelta(hours=3) else "race_completed"
             )
             status_text = translator.get(
                 status_key,
@@ -1051,9 +1055,7 @@ def draw_countdown_box(
         status_bbox = draw.textbbox((0, 0), status_text, font=schedule_row_bold_font)
         status_w = status_bbox[2] - status_bbox[0]
         text_x = (
-            x_left + padding_x
-            if show_weather
-            else x_left + ((x_right - x_left) - status_w) // 2
+            x_left + padding_x if show_weather else x_left + ((x_right - x_left) - status_w) // 2
         )
         draw.text((text_x, text_y), status_text, fill=text_fill, font=schedule_row_bold_font)
         if not show_weather:
@@ -1370,4 +1372,3 @@ def draw_team_logo(
     logo_x = container_left + (container_w - new_w) // 2
     logo_y = driver_area_y + (driver_area_h - new_h) // 2
     paste_logo_fn(image, logo_resized, logo_x, logo_y)
-

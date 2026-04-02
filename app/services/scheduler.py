@@ -629,9 +629,7 @@ async def fetch_all_circuits_weather() -> None:
                         precipitation_probability=weather.precipitation_probability,
                     )
                     success_count += 1
-                    logger.debug(
-                        "Weather fetched for %s: %s", circuit["id"], weather.temp_display
-                    )
+                    logger.debug("Weather fetched for %s: %s", circuit["id"], weather.temp_display)
                 else:
                     circuit["attempts"] = 1
                     failed.append(circuit)
