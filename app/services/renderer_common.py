@@ -439,3 +439,19 @@ def draw_results_header(
 
     return int(visual_top)
 
+def draw_new_track_message(
+    draw: ImageDraw.ImageDraw,
+    *,
+    canvas_width: int,
+    y_start: int,
+    message: str,
+    font,
+    fill,
+) -> None:
+    """Draw a centered new-track message when historical data is unavailable."""
+    bbox = draw.textbbox((0, 0), message, font=font)
+    text_width = bbox[2] - bbox[0]
+    x = (canvas_width - text_width) // 2
+    y = y_start + 30
+    draw.text((x, y), message, fill=fill, font=font)
+

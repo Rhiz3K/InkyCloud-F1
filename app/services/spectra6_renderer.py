@@ -26,6 +26,7 @@ from app.services.renderer_common import (
     clamp_text,
     crop_primary_horizontal_band,
     crop_to_content,
+    draw_new_track_message,
     draw_results_header,
     fit_result_text,
     format_points,
@@ -1327,12 +1328,14 @@ class Spectra6Renderer:
 
     def _draw_new_track_message(self, draw: ImageDraw.ImageDraw, y_start: int) -> None:
         """Draw a centered new-track message when historical data is unavailable."""
-        message = self.translator.get("new_track", "NEW TRACK")
-        bbox = draw.textbbox((0, 0), message, font=self.fonts["schedule_title"])
-        text_width = bbox[2] - bbox[0]
-        x = (self.width - text_width) // 2
-        y = y_start + 30
-        draw.text((x, y), message, fill=self.colors.BLACK, font=self.fonts["schedule_title"])
+        draw_new_track_message(
+            draw,
+            canvas_width=self.width,
+            y_start=y_start,
+            message=self.translator.get("new_track", "NEW TRACK"),
+            font=self.fonts["schedule_title"],
+            fill=self.colors.BLACK,
+        )
 
     def _draw_results_header(
         self,
