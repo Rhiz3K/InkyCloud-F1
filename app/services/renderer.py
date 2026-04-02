@@ -3,7 +3,7 @@
 import io
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -26,6 +26,7 @@ from app.services.renderer_common import (
     crop_primary_horizontal_band,
     crop_to_content,
     draw_circuit_stats_block,
+    draw_countdown_box,
     draw_driver_photo,
     draw_new_track_message,
     draw_race_header,
@@ -1198,178 +1199,28 @@ class Renderer:
         weather_data: WeatherData | None = None,
         weather_type: str = "",
     ) -> int:
-        """
-        Draw countdown box showing time until race and optional weather.
-
-        Parameters:
-            draw: Pillow drawing context.
-            race_data: Race info with "schedule" list of events.
-            schedule_bottom: Y coordinate below schedule area.
-            weather_data: Optional weather with icon, temp, precipitation.
-            weather_type: Weather display type ("current", "race_day", etc.).
-
-        Returns:
-            Bottom Y of drawn box, or schedule_bottom if no upcoming race.
-        """
-        is_cancelled = race_data.get("is_cancelled", False)
-        schedule = race_data.get("schedule", [])
-        race_dt = None
-        for event in schedule:
-            if event.get("name", "").lower() == "race":
-                dt = event.get("datetime")
-                if isinstance(dt, str):
-                    race_dt = datetime.fromisoformat(dt)
-                elif isinstance(dt, datetime):
-                    race_dt = dt
-                break
-
-        if not is_cancelled and not race_dt:
-            return schedule_bottom
-
-        font = self.fonts["schedule_row_bold"]
-        font_icon = self.fonts["icon_small"]
-        font_weather_icon = self.fonts["weather_icon_font"]
-        ref_bbox = draw.textbbox((0, 0), TEXT_BASELINE_REF, font=font)
-        text_height = ref_bbox[3] - ref_bbox[1]
-
-        padding_y = 3
-        padding_x = 12
-        box_height = text_height + 2 * padding_y
-
-        x_left = self.layout["right_column_x"]
-        x_right = self.width - 5
-
-        stats_row_height = self.layout["circuit_stats_row_height"]
-        stats_top_y = self.layout["results_y_start"] - 3 - (3 * stats_row_height)
-        available_height = stats_top_y - schedule_bottom
-        y_top = schedule_bottom + (available_height - box_height) // 2
-        y_bottom = y_top + box_height
-
-        draw.rectangle([x_left, y_top, x_right, y_bottom], fill=0, outline=0)
-
-        text_y = y_top + padding_y - ref_bbox[1]
-
-        status_text = None
-        if is_cancelled:
-            status_text = self.translator.get("cancelled", "CANCELLED")
-        else:
-            if race_dt is None:
-                return schedule_bottom
-
-            active_race_dt = race_dt
-            now = datetime.now(active_race_dt.tzinfo) if active_race_dt.tzinfo else datetime.now()
-            delta = active_race_dt - now
-
-            if delta.total_seconds() <= 0:
-                status_key = (
-                    "race_ongoing"
-                    if now < active_race_dt + timedelta(hours=3)
-                    else "race_completed"
-                )
-                status_text = self.translator.get(
-                    status_key,
-                    "IN PROGRESS" if status_key == "race_ongoing" else "COMPLETED",
-                )
-
-        if status_text:
-            show_weather = weather_data is not None and not is_cancelled
-            status_bbox = draw.textbbox((0, 0), status_text, font=font)
-            status_w = status_bbox[2] - status_bbox[0]
-            if show_weather:
-                text_x = x_left + padding_x
-            else:
-                text_x = x_left + ((x_right - x_left) - status_w) // 2
-            draw.text((text_x, text_y), status_text, fill=1, font=font)
-            if not show_weather:
-                return int(y_bottom)
-
-            temp_str = f"{weather_data.temp_display} "
-            precip_str = weather_data.precip_display
-
-            weather_icon_bbox = draw.textbbox((0, 0), weather_data.icon, font=font_weather_icon)
-            weather_icon_w = weather_icon_bbox[2] - weather_icon_bbox[0]
-            temp_bbox = draw.textbbox((0, 0), temp_str, font=font)
-            temp_w = temp_bbox[2] - temp_bbox[0]
-            rain_icon_bbox = draw.textbbox((0, 0), RAINDROP_ICON, font=font_weather_icon)
-            rain_icon_w = rain_icon_bbox[2] - rain_icon_bbox[0]
-            precip_bbox = draw.textbbox((0, 0), precip_str, font=font)
-            precip_w = precip_bbox[2] - precip_bbox[0]
-
-            total_w = weather_icon_w + 4 + temp_w + rain_icon_w + 3 + precip_w
-            cur_x = x_right - padding_x - total_w
-
-            draw.text((cur_x, text_y), weather_data.icon, fill=1, font=font_weather_icon)
-            cur_x += weather_icon_w + 4
-            draw.text((cur_x, text_y), temp_str, fill=1, font=font)
-            cur_x += temp_w
-            draw.text((cur_x, text_y), RAINDROP_ICON, fill=1, font=font_weather_icon)
-            cur_x += rain_icon_w + 3
-            draw.text((cur_x, text_y), precip_str, fill=1, font=font)
-            return int(y_bottom)
-
-        if race_dt is None:
-            return schedule_bottom
-        active_race_dt = race_dt
-        now = datetime.now(active_race_dt.tzinfo) if active_race_dt.tzinfo else datetime.now()
-        delta = active_race_dt - now
-
-        if delta.total_seconds() <= 0:
-            return schedule_bottom
-
-        days = delta.days
-        hours = delta.seconds // 3600
-
-        flag_icon = "🏁"
-        # Use short labels (d/h) for current and race-day aliases.
-        if weather_type in ("current", "race_day", "race"):
-            days_label = self.translator.get("countdown_days_short", "d")
-            hours_label = self.translator.get("countdown_hours_short", "h")
-        else:
-            days_label = self.translator.get("countdown_days", "days")
-            hours_label = self.translator.get("countdown_hours", "hours")
-        countdown_str = f"{days} {days_label} {hours} {hours_label}"
-
-        flag_bbox = draw.textbbox((0, 0), flag_icon, font=font_icon)
-        flag_w = flag_bbox[2] - flag_bbox[0]
-        countdown_bbox = draw.textbbox((0, 0), countdown_str, font=font)
-        countdown_w = countdown_bbox[2] - countdown_bbox[0]
-        total_content_w = flag_w + 6 + countdown_w
-
-        if weather_data:
-            cur_x = x_left + padding_x
-        else:
-            box_width = x_right - x_left
-            cur_x = x_left + (box_width - total_content_w) // 2
-
-        draw.text((cur_x, text_y), flag_icon, fill=1, font=font_icon)
-        cur_x += flag_w + 6
-        draw.text((cur_x, text_y), countdown_str, fill=1, font=font)
-
-        if weather_data:
-            temp_str = f"{weather_data.temp_display} "
-            precip_str = weather_data.precip_display
-
-            weather_icon_bbox = draw.textbbox((0, 0), weather_data.icon, font=font_weather_icon)
-            weather_icon_w = weather_icon_bbox[2] - weather_icon_bbox[0]
-            temp_bbox = draw.textbbox((0, 0), temp_str, font=font)
-            temp_w = temp_bbox[2] - temp_bbox[0]
-            rain_icon_bbox = draw.textbbox((0, 0), RAINDROP_ICON, font=font_weather_icon)
-            rain_icon_w = rain_icon_bbox[2] - rain_icon_bbox[0]
-            precip_bbox = draw.textbbox((0, 0), precip_str, font=font)
-            precip_w = precip_bbox[2] - precip_bbox[0]
-
-            total_w = weather_icon_w + 4 + temp_w + rain_icon_w + 3 + precip_w
-            cur_x = x_right - padding_x - total_w
-
-            draw.text((cur_x, text_y), weather_data.icon, fill=1, font=font_weather_icon)
-            cur_x += weather_icon_w + 4
-            draw.text((cur_x, text_y), temp_str, fill=1, font=font)
-            cur_x += temp_w
-            draw.text((cur_x, text_y), RAINDROP_ICON, fill=1, font=font_weather_icon)
-            cur_x += rain_icon_w + 3
-            draw.text((cur_x, text_y), precip_str, fill=1, font=font)
-
-        return int(y_bottom)
+        """Draw countdown box showing time until race and optional weather."""
+        return draw_countdown_box(
+            draw,
+            race_data,
+            schedule_bottom=schedule_bottom,
+            right_column_x=self.layout["right_column_x"],
+            canvas_width=self.width,
+            results_y_start=self.layout["results_y_start"],
+            circuit_stats_row_height=self.layout["circuit_stats_row_height"],
+            schedule_row_bold_font=self.fonts["schedule_row_bold"],
+            icon_small_font=self.fonts["icon_small"],
+            weather_icon_font=self.fonts["weather_icon_font"],
+            translator=self.translator,
+            datetime_cls=datetime,
+            text_baseline_ref=TEXT_BASELINE_REF,
+            rain_icon=RAINDROP_ICON,
+            box_fill=0,
+            box_outline=0,
+            text_fill=1,
+            weather_data=weather_data,
+            weather_type=weather_type,
+        )
 
     # =========================================================================
     # Circuit Stats Section (Between Schedule and Results)
