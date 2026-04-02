@@ -1257,7 +1257,7 @@ class Renderer:
             text_fill=0,
             outline_fill=0,
             country_map=COUNTRY_MAP,
-            flags_dir=FLAGS_DIR,
+            flags_dirs=FLAGS_DIR,
             prepare_flag_image=lambda opened_flag: opened_flag.copy(),
             logger=logger,
         )

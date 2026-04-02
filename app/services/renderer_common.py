@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -356,25 +357,32 @@ def get_country_flag_iso_code(country_name: str, country_map: dict[str, str]) ->
 def load_results_flag_image(
     country_name: str,
     country_map: dict[str, str],
-    flags_dir: Path,
+    flags_dirs: Path | Sequence[Path],
     prepare_flag_image,
     logger,
 ) -> Image.Image | None:
-    """Load and normalize the local results flag image for a country."""
+    """Load and normalize the first matching local results flag image for a country."""
     iso_code = get_country_flag_iso_code(country_name, country_map)
     if not iso_code:
         return None
 
-    local_flag_path = flags_dir / f"{iso_code}.bmp"
-    if not local_flag_path.exists():
-        return None
+    if isinstance(flags_dirs, Path):
+        directories = (flags_dirs,)
+    else:
+        directories = tuple(flags_dirs)
 
-    try:
-        with Image.open(local_flag_path) as opened_flag:
-            return prepare_flag_image(opened_flag)
-    except Exception as exc:
-        logger.warning("Failed to load local flag: %s", exc)
-        return None
+    for directory in directories:
+        local_flag_path = directory / f"{iso_code}.bmp"
+        if not local_flag_path.exists():
+            continue
+
+        try:
+            with Image.open(local_flag_path) as opened_flag:
+                return prepare_flag_image(opened_flag)
+        except Exception as exc:
+            logger.warning("Failed to load local flag %s: %s", local_flag_path, exc)
+
+    return None
 
 
 def draw_results_header(
@@ -390,7 +398,7 @@ def draw_results_header(
     text_fill,
     outline_fill,
     country_map: dict[str, str],
-    flags_dir: Path,
+    flags_dirs: Path | Sequence[Path],
     prepare_flag_image,
     logger,
 ) -> int:
@@ -404,7 +412,7 @@ def draw_results_header(
     flag_img = load_results_flag_image(
         country_name,
         country_map,
-        flags_dir,
+        flags_dirs,
         prepare_flag_image,
         logger,
     )

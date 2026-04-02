@@ -930,7 +930,7 @@ class Spectra6Renderer:
             text_fill=self.colors.BLACK,
             outline_fill=self.colors.BLACK,
             country_map=COUNTRY_MAP,
-            flags_dir=FLAGS_DIR,
+            flags_dirs=FLAGS_DIR,
             prepare_flag_image=lambda opened_flag: opened_flag.convert("RGB"),
             logger=logger,
         )

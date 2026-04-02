@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
+from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.font_utils import FONTS_DIR
 from app.services.renderer import Renderer
+from app.services.renderer_common import draw_results_header
 from app.services.spectra6_renderer import IMAGES_DIR, TRACKS_DIR, Spectra6Renderer, logger
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwr_palette
@@ -133,89 +133,6 @@ class BwrRenderer(Spectra6Renderer):
             processed_tracks_dir=TRACKS_BWR_DIR,
         )
 
-    @staticmethod
-    def _load_results_flag_image(
-        country_name: str, preferred_dirs: Sequence[Path]
-    ) -> Image.Image | None:
-        """Load the first matching results flag image from the preferred directories."""
-        iso_code = COUNTRY_MAP.get(country_name, "").lower()
-        if not iso_code:
-            return None
-
-        for directory in preferred_dirs:
-            flag_path = directory / f"{iso_code}.bmp"
-            if not flag_path.exists():
-                continue
-
-            try:
-                with Image.open(flag_path) as opened_flag:
-                    return opened_flag.convert("RGB")
-            except Exception as exc:
-                logger.warning("Failed to load flag %s: %s", flag_path, exc)
-
-        return None
-
-    def _draw_results_header_with_flags(
-        self,
-        draw: ImageDraw.ImageDraw,
-        image: Image.Image,
-        y_start: int,
-        season: int | str,
-        country_name: str,
-        *,
-        flag_dirs: Sequence[Path],
-    ) -> int:
-        """Render the season year and optional country flag for multi-color result blocks."""
-        year_text = str(season)
-        year_font = self.fonts["results_year"]
-        bbox = draw.textbbox((0, 0), year_text, font=year_font)
-        text_width = bbox[2] - bbox[0]
-        text_h = bbox[3] - bbox[1]
-
-        footer_y_start = y_start
-        footer_height = self.height - footer_y_start
-        flag_img = self._load_results_flag_image(country_name, flag_dirs)
-
-        header_area_w = self.layout["results_col1_x"]
-        max_flag_width = int(header_area_w * self.layout["results_flag_max_width_percent"] / 100)
-        standard_gap = self.layout["results_flag_gap"]
-        flag_bottom_padding = self.layout["results_flag_bottom_padding"]
-
-        flag_h = 0
-        if flag_img:
-            if flag_img.width > max_flag_width:
-                ratio = max_flag_width / flag_img.width
-                flag_h = int(flag_img.height * ratio)
-                flag_img = flag_img.resize((max_flag_width, flag_h), Image.Resampling.NEAREST)
-            else:
-                flag_h = flag_img.height
-
-        total_block_h_stable = text_h + (standard_gap if flag_h > 0 else 0) + flag_h
-        y_offset_stable = (footer_height - total_block_h_stable) // 2
-        visual_top = footer_y_start + y_offset_stable
-
-        year_x = (header_area_w - text_width) // 2
-        text_y = visual_top - bbox[1]
-        draw.text((year_x, text_y), year_text, fill=self.colors.BLACK, font=year_font)
-
-        if flag_img:
-            x = (header_area_w - flag_img.width) // 2
-            flag_top_y = int(self.height - flag_img.height - flag_bottom_padding)
-
-            image.paste(flag_img, (x, flag_top_y))
-            draw.rectangle(
-                [
-                    x - 1,
-                    flag_top_y - 1,
-                    x + flag_img.width,
-                    flag_top_y + flag_img.height,
-                ],
-                outline=self.colors.BLACK,
-                width=1,
-            )
-
-        return int(visual_top)
-
     def _draw_results_header(
         self,
         draw: ImageDraw.ImageDraw,
@@ -224,13 +141,21 @@ class BwrRenderer(Spectra6Renderer):
         season: int | str,
         country_name: str,
     ) -> int:
-        return self._draw_results_header_with_flags(
+        return draw_results_header(
             draw,
             image,
-            y_start,
-            season,
-            country_name,
-            flag_dirs=(FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR),
+            canvas_height=self.height,
+            header_area_width=self.layout["results_col1_x"],
+            y_start=y_start,
+            season=season,
+            country_name=country_name,
+            year_font=self.fonts["results_year"],
+            text_fill=self.colors.BLACK,
+            outline_fill=self.colors.BLACK,
+            country_map={},
+            flags_dirs=(FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR),
+            prepare_flag_image=lambda opened_flag: opened_flag.convert("RGB"),
+            logger=logger,
         )
 
     def _load_weather_icon_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
