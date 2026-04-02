@@ -674,6 +674,54 @@ def draw_driver_photo(
     return new_w + 2
 
 
+def draw_schedule_section(
+    draw: ImageDraw.ImageDraw,
+    race_data: dict,
+    *,
+    canvas_width: int,
+    right_column_x: int,
+    schedule_title_y: int,
+    schedule_start_y: int,
+    schedule_row_height: int,
+    results_y_start: int,
+    translator: dict[str, str] | object,
+    lang_code: str,
+    title_fill,
+    draw_schedule_row_fn,
+    draw_countdown_box_fn,
+    weather_data,
+    weather_type: str,
+) -> int:
+    """Draw the schedule title, rows, and countdown area."""
+    schedule_title = translator.get("weekend_schedule", "WEEKEND SCHEDULE")
+    schedule_title_font = fit_ui_font(
+        draw,
+        lang_code,
+        schedule_title,
+        max_width=canvas_width - right_column_x - 5,
+        base_size=24,
+        min_size=18,
+        bold=True,
+    )
+    draw.text(
+        (right_column_x, schedule_title_y),
+        schedule_title,
+        fill=title_fill,
+        font=schedule_title_font,
+    )
+
+    schedule = race_data.get("schedule", [])
+    row_y = schedule_start_y
+
+    for event in schedule:
+        draw_schedule_row_fn(draw, row_y, event)
+        row_y += schedule_row_height
+        if row_y > results_y_start - 80:
+            break
+
+    return draw_countdown_box_fn(draw, race_data, row_y + 10, weather_data, weather_type)
+
+
 def draw_team_logo(
     image: Image.Image,
     team,

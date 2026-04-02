@@ -29,6 +29,7 @@ from app.services.renderer_common import (
     draw_new_track_message,
     draw_results_column,
     draw_results_header,
+    draw_schedule_section,
     draw_team_logo,
     draw_teams_content,
     draw_teams_header,
@@ -814,42 +815,23 @@ class Spectra6Renderer:
         weather_type: str = "",
     ) -> int:
         """Draw the weekend schedule and return the bottom of the countdown area."""
-        x_start = self.layout["right_column_x"]
-        y_start = self.layout["schedule_title_y"]
-
-        schedule_title = self.translator.get("weekend_schedule", "WEEKEND SCHEDULE")
-        schedule_title_font = fit_ui_font(
+        return draw_schedule_section(
             draw,
-            self.lang_code,
-            schedule_title,
-            max_width=self.width - x_start - 5,
-            base_size=24,
-            min_size=18,
-            bold=True,
+            race_data,
+            canvas_width=self.width,
+            right_column_x=self.layout["right_column_x"],
+            schedule_title_y=self.layout["schedule_title_y"],
+            schedule_start_y=self.layout["schedule_start_y"],
+            schedule_row_height=self.layout["schedule_row_height"],
+            results_y_start=self.layout["results_y_start"],
+            translator=self.translator,
+            lang_code=self.lang_code,
+            title_fill=self.colors.BLACK,
+            draw_schedule_row_fn=self._draw_schedule_row,
+            draw_countdown_box_fn=self._draw_countdown_box,
+            weather_data=weather_data,
+            weather_type=weather_type,
         )
-        draw.text(
-            (x_start, y_start),
-            schedule_title,
-            fill=self.colors.BLACK,
-            font=schedule_title_font,
-        )
-
-        schedule = race_data.get("schedule", [])
-        row_y = self.layout["schedule_start_y"]
-        row_height = self.layout["schedule_row_height"]
-
-        for event in schedule:
-            self._draw_schedule_row(draw, row_y, event)
-            row_y += row_height
-
-            if row_y > self.layout["results_y_start"] - 80:
-                break
-
-        countdown_bottom = self._draw_countdown_box(
-            draw, race_data, row_y + 10, weather_data, weather_type
-        )
-
-        return countdown_bottom
 
     def _get_session_color(self, session_name: str) -> tuple[int, int, int]:
         """Return the accent color for a schedule session in the active palette."""

@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shared new-track message helper** - Moved the centered `NEW TRACK` footer message into a shared renderer helper so monochrome and Spectra 6 variants stop duplicating the same fallback layout math
 - **Shared renderer font fallbacks** - Centralized Symbola, weather-icon, and Racing Sans One fallback loading so the primary renderers reuse one source of truth for icon and number font fallback behavior
 - **Shared driver portrait helper** - Moved surname normalization, racing-number rendering, and portrait resize/paste logic into one shared helper so the monochrome and Spectra 6 team cards stop carrying duplicate driver-photo rendering code
+- **Shared schedule-section helper** - Centralized schedule title rendering, row iteration, and countdown handoff so the monochrome and Spectra 6 calendar renderers reuse one schedule-section layout flow
 
 ### Security
 
