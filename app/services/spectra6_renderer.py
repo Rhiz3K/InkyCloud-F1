@@ -18,7 +18,6 @@ from app.services.font_utils import (
     load_ui_font,
 )
 from app.services.renderer_common import (
-    build_sprint_qualifying_label,
     build_team_header_values,
     build_track_stems,
     clamp_text,
@@ -51,10 +50,8 @@ from app.services.renderer_common import (
     load_symbol_icon_font,
     load_track_image_asset,
     load_weather_icon_font,
-    normalize_session_name,
     prepare_color_track_image,
     right_align_x,
-    translate_session_name,
 )
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
@@ -675,24 +672,11 @@ class Spectra6Renderer:
             font_reg=self.fonts["schedule_row"],
             regular_text_fill=self.colors.BLACK,
             session_text_fill=self._get_session_color(event.get("name", "")),
-            format_schedule_session_name_fn=self._format_schedule_session_name,
-        )
-
-    def _format_schedule_session_name(
-        self,
-        draw: ImageDraw.ImageDraw,
-        name: str,
-        max_width: int,
-    ) -> str:
-        """Return the best-fitting localized schedule label for a session."""
-        return format_schedule_session_name(draw, name, max_width, self.lang_code, self.translator)
-
-    def _build_sprint_qualifying_label(self, *, abbreviated: bool) -> str:
-        """Compose the sprint qualifying label from the localized sprint and qualifying text."""
-        return build_sprint_qualifying_label(
-            self.translator,
-            self.lang_code,
-            abbreviated=abbreviated,
+            format_schedule_session_name_fn=(
+                lambda draw_ctx, session_name, max_width: format_schedule_session_name(
+                    draw_ctx, session_name, max_width, self.lang_code, self.translator
+                )
+            ),
         )
 
     def _abbreviate_schedule_term(self, term: str) -> str:
@@ -704,15 +688,6 @@ class Spectra6Renderer:
         if self.lang_code in CJK_LANG_CODES:
             return first_char
         return f"{first_char}."
-
-    def _translate_session_name(self, name: str) -> str:
-        """Translate session names while normalizing API/static variants."""
-        return translate_session_name(name, self.translator, self.lang_code)
-
-    @staticmethod
-    def _normalize_session_name(name: str) -> str:
-        """Normalize API/static session variants to a stable translation key suffix."""
-        return normalize_session_name(name)
 
     def _draw_countdown_box(
         self,

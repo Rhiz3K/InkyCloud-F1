@@ -28,13 +28,16 @@ from app.services.font_utils import fit_brand_font_box
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.renderer_common import (
+    build_sprint_qualifying_label,
     build_team_header_values,
     crop_to_content,
     draw_team_logo,
+    format_schedule_session_name,
     format_team_driver_display_name,
     get_team_logo_key,
     get_text_y,
     split_teams_for_columns,
+    translate_session_name,
 )
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 from app.services.teams_service import TeamsService
@@ -259,9 +262,18 @@ def test_translate_session_name_uses_full_localized_sprint_qualifying_labels(
 ):
     """Sprint qualifying aliases should use the localized sprint and qualifying strings."""
     renderer = renderer_cls(get_translator(lang), lang)
-    assert renderer._translate_session_name("SprintQualifying") == expected
-    assert renderer._translate_session_name("Sprint Qualifying") == expected
-    assert renderer._translate_session_name("Sprint Shootout") == expected
+    assert (
+        translate_session_name("SprintQualifying", renderer.translator, renderer.lang_code)
+        == expected
+    )
+    assert (
+        translate_session_name("Sprint Qualifying", renderer.translator, renderer.lang_code)
+        == expected
+    )
+    assert (
+        translate_session_name("Sprint Shootout", renderer.translator, renderer.lang_code)
+        == expected
+    )
 
 
 @pytest.mark.parametrize(
@@ -278,7 +290,12 @@ def test_translate_session_name_uses_full_localized_sprint_qualifying_labels(
 def test_build_sprint_qualifying_label_uses_localized_abbreviation(renderer_cls, lang, expected):
     """Abbreviated sprint qualifying labels should use each locale's qualifying initial."""
     renderer = renderer_cls(get_translator(lang), lang)
-    assert renderer._build_sprint_qualifying_label(abbreviated=True) == expected
+    assert (
+        build_sprint_qualifying_label(
+            renderer.translator, renderer.lang_code, abbreviated=True
+        )
+        == expected
+    )
 
 
 @pytest.mark.parametrize(
@@ -298,7 +315,12 @@ def test_format_schedule_session_name_keeps_full_label_when_space_available(
     """Schedule rows should keep the full localized label when there is sufficient width."""
     renderer = renderer_cls(get_translator(lang), lang)
     draw = ImageDraw.Draw(Image.new("RGB", (800, 480), "white"))
-    assert renderer._format_schedule_session_name(draw, "Sprint Qualifying", 180) == expected
+    assert (
+        format_schedule_session_name(
+            draw, "Sprint Qualifying", 180, renderer.lang_code, renderer.translator
+        )
+        == expected
+    )
 
 
 def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
