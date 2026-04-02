@@ -14,7 +14,6 @@ from app.models import HistoricalData, TeamsData
 from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
 from app.services.font_utils import (
     CJK_LANG_CODES,
-    fit_brand_font_box,
     fit_ui_font,
     load_brand_font,
     load_ui_font,
@@ -33,8 +32,10 @@ from app.services.renderer_common import (
     draw_results_column,
     draw_results_header,
     draw_schedule_section,
+    draw_team_driver_row,
     draw_team_logo,
     draw_team_row,
+    draw_team_stats_panel,
     draw_teams_content,
     draw_teams_header,
     draw_track_section,
@@ -353,49 +354,21 @@ class Spectra6Renderer:
         team_position: int | None,
     ) -> int:
         """Draw the shared color position/points panel and return its left x."""
-        panel_y = y + 2
-        panel_h = header_height - 4
-        panel_w = panel_right_x - panel_x
-        stats_gap = 4
-        pos_col_w = 24
-        points_col_w = panel_w - pos_col_w - stats_gap
-        pos_box_x = panel_x
-        points_box_x = panel_x + pos_col_w + stats_gap
-        pos_fill = self.colors.RED if team_position == 1 else self.colors.BLACK
-
-        def draw_panel_stat(
-            text: str,
-            box_x: int,
-            box_w: int,
-            font,
-            fill: tuple[int, int, int],
-            align: str = "center",
-        ) -> None:
-            text_bbox = draw.textbbox((0, 0), text, font=font)
-            text_w = int(text_bbox[2] - text_bbox[0])
-            text_h = int(text_bbox[3] - text_bbox[1])
-            if align == "right":
-                text_x = box_x + box_w - 4 - text_w - int(text_bbox[0])
-            else:
-                text_x = box_x + (box_w - text_w) // 2 - int(text_bbox[0])
-            text_y = panel_y + (panel_h - text_h) // 2 - int(text_bbox[1])
-            draw.text((text_x, text_y), text, fill=fill, font=font)
-
-        draw.rectangle(
-            [(panel_x, panel_y), (panel_right_x, panel_y + panel_h)],
-            fill=self.colors.WHITE,
-            outline=self.colors.BLACK,
+        return draw_team_stats_panel(
+            draw,
+            y=y,
+            header_height=header_height,
+            panel_x=panel_x,
+            panel_right_x=panel_right_x,
+            team_pos=team_pos,
+            team_pts=team_pts,
+            stats_font=stats_font,
+            points_font=points_font,
+            panel_fill=self.colors.WHITE,
+            panel_outline=self.colors.BLACK,
+            team_pos_fill=self.colors.RED if team_position == 1 else self.colors.BLACK,
+            team_pts_fill=self.colors.BLACK,
         )
-        draw_panel_stat(team_pos, pos_box_x, pos_col_w, stats_font, pos_fill)
-        draw_panel_stat(
-            team_pts,
-            points_box_x,
-            points_col_w,
-            points_font,
-            self.colors.BLACK,
-            align="right",
-        )
-        return pos_box_x
 
     def _draw_team_driver_row_color(
         self,
@@ -413,81 +386,36 @@ class Spectra6Renderer:
         driver_font,
     ) -> None:
         """Draw a single color driver row inside a team card."""
-        name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
-        if not name:
-            name = driver.driver_code or "TBA"
-
-        display_name = self._format_team_driver_display_name(name)
-        center_y = driver_y + driver_row_height // 2
-        driver_small_y = self._get_text_y(draw, small_font, driver_row_height, driver_y)
-
-        photo_y = center_y - photo_size // 2
-        self._draw_driver_photo(
+        draw_team_driver_row(
             draw,
             image,
-            photo_x,
-            photo_y,
-            name,
-            size=photo_size,
-            driver_number=driver.driver_number,
+            driver,
+            driver_y=driver_y,
+            driver_row_height=driver_row_height,
+            photo_x=photo_x,
+            photo_size=photo_size,
+            pts_right_x=pts_right_x,
+            driver_pos_x=driver_pos_x,
+            badge_pad_x=badge_pad_x,
+            small_font=small_font,
+            driver_font=driver_font,
+            driver_name_padding=self.layout["driver_name_padding"],
+            lang_code=self.lang_code,
+            draw_driver_photo_fn=self._draw_driver_photo,
+            get_text_y_fn=self._get_text_y,
+            format_team_driver_display_name_fn=self._format_team_driver_display_name,
+            format_points_fn=self._format_points,
+            right_align_x_fn=self._right_align_x,
+            text_fill=self.colors.BLACK,
+            badge_outline_fill=self.colors.BLACK,
+            badge_colors_fn=lambda position: (
+                (self.colors.RED, self.colors.WHITE)
+                if position == 1
+                else (self.colors.BLACK, self.colors.WHITE)
+                if position in {2, 3}
+                else (self.colors.WHITE, self.colors.BLACK)
+            ),
         )
-        driver_name_x = photo_x + photo_size + self.layout["driver_name_padding"] + 4
-        if self.lang_code in CJK_LANG_CODES:
-            max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
-            driver_font = fit_brand_font_box(
-                draw,
-                display_name,
-                max_width=max_name_width,
-                max_height=max(1, driver_row_height - 1),
-                base_size=18,
-                min_size=12,
-                bold=True,
-            )
-        driver_text_y = self._get_text_y(
-            draw, driver_font, driver_row_height, driver_y, display_name
-        )
-        draw.text(
-            (driver_name_x, driver_text_y),
-            display_name,
-            fill=self.colors.BLACK,
-            font=driver_font,
-        )
-
-        driver_pts = self._format_points(driver.points)
-        pos_text = f"P{driver.position}" if driver.position else "—"
-        pts_x = self._right_align_x(draw, driver_pts, pts_right_x, small_font)
-        draw.text((pts_x, driver_small_y), driver_pts, fill=self.colors.BLACK, font=small_font)
-
-        if driver.position and driver.position <= 4:
-            pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
-            pos_w = pos_bbox[2] - pos_bbox[0]
-            pos_h = pos_bbox[3] - pos_bbox[1]
-            badge_pad_y = 3
-            badge_w = int(pos_w) + badge_pad_x * 2
-            badge_h = int(pos_h) + badge_pad_y * 2
-            badge_x = driver_pos_x - badge_pad_x
-            badge_y = driver_y + (driver_row_height - badge_h) // 2
-            badge_fill = (
-                self.colors.RED
-                if driver.position == 1
-                else self.colors.BLACK
-                if driver.position in {2, 3}
-                else self.colors.WHITE
-            )
-            draw.rectangle(
-                [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h)],
-                fill=badge_fill,
-                outline=self.colors.BLACK,
-            )
-            draw.text(
-                (badge_x + badge_pad_x, badge_y + badge_pad_y - pos_bbox[1]),
-                pos_text,
-                fill=self.colors.WHITE if driver.position in {1, 2, 3} else self.colors.BLACK,
-                font=small_font,
-            )
-            return
-
-        draw.text((driver_pos_x, driver_small_y), pos_text, fill=self.colors.BLACK, font=small_font)
 
     def _draw_team_row(
         self,

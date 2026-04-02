@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
-from app.services.font_utils import CJK_LANG_CODES, FONTS_DIR, fit_ui_font
+from app.services.font_utils import CJK_LANG_CODES, FONTS_DIR, fit_brand_font_box, fit_ui_font
 
 
 def split_teams_for_columns(teams: list) -> tuple[list, list]:
@@ -616,6 +616,150 @@ def draw_teams_content(
             row_height,
         )
         y += row_height + row_gap
+
+def draw_team_stats_panel(
+    draw: ImageDraw.ImageDraw,
+    *,
+    y: int,
+    header_height: int,
+    panel_x: int,
+    panel_right_x: int,
+    team_pos: str,
+    team_pts: str,
+    stats_font,
+    points_font,
+    panel_fill,
+    panel_outline,
+    team_pos_fill,
+    team_pts_fill,
+) -> int:
+    """Draw the shared team stats panel and return the left edge of the position cell."""
+    panel_y = y + 2
+    panel_h = header_height - 4
+    panel_w = panel_right_x - panel_x
+    stats_gap = 4
+    pos_col_w = 24
+    points_col_w = panel_w - pos_col_w - stats_gap
+    pos_box_x = panel_x
+    points_box_x = panel_x + pos_col_w + stats_gap
+
+    def draw_panel_stat(
+        text: str,
+        box_x: int,
+        box_w: int,
+        font,
+        fill,
+        align: str = "center",
+    ) -> None:
+        text_bbox = draw.textbbox((0, 0), text, font=font)
+        text_w = int(text_bbox[2] - text_bbox[0])
+        text_h = int(text_bbox[3] - text_bbox[1])
+        if align == "right":
+            text_x = box_x + box_w - 4 - text_w - int(text_bbox[0])
+        else:
+            text_x = box_x + (box_w - text_w) // 2 - int(text_bbox[0])
+        text_y = panel_y + (panel_h - text_h) // 2 - int(text_bbox[1])
+        draw.text((text_x, text_y), text, fill=fill, font=font)
+
+    draw.rectangle(
+        [(panel_x, panel_y), (panel_right_x, panel_y + panel_h)],
+        fill=panel_fill,
+        outline=panel_outline,
+    )
+    draw_panel_stat(team_pos, pos_box_x, pos_col_w, stats_font, team_pos_fill)
+    draw_panel_stat(team_pts, points_box_x, points_col_w, points_font, team_pts_fill, align="right")
+    return pos_box_x
+
+
+def draw_team_driver_row(
+    draw: ImageDraw.ImageDraw,
+    image: Image.Image,
+    driver,
+    *,
+    driver_y: int,
+    driver_row_height: int,
+    photo_x: int,
+    photo_size: int,
+    pts_right_x: int,
+    driver_pos_x: int,
+    badge_pad_x: int,
+    small_font,
+    driver_font,
+    driver_name_padding: int,
+    lang_code: str,
+    draw_driver_photo_fn,
+    get_text_y_fn,
+    format_team_driver_display_name_fn,
+    format_points_fn,
+    right_align_x_fn,
+    text_fill,
+    badge_outline_fill,
+    badge_colors_fn,
+) -> None:
+    """Draw one driver row inside a team card with renderer-specific colors via callbacks."""
+    name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
+    if not name:
+        name = driver.driver_code or "TBA"
+
+    display_name = format_team_driver_display_name_fn(name)
+    center_y = driver_y + driver_row_height // 2
+    driver_small_y = get_text_y_fn(draw, small_font, driver_row_height, driver_y)
+
+    photo_y = center_y - photo_size // 2
+    draw_driver_photo_fn(
+        draw,
+        image,
+        photo_x,
+        photo_y,
+        name,
+        size=photo_size,
+        driver_number=driver.driver_number,
+    )
+    driver_name_x = photo_x + photo_size + driver_name_padding + 4
+    if lang_code in CJK_LANG_CODES:
+        max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
+        driver_font = fit_brand_font_box(
+            draw,
+            display_name,
+            max_width=max_name_width,
+            max_height=max(1, driver_row_height - 1),
+            base_size=18,
+            min_size=12,
+            bold=True,
+        )
+    driver_text_y = get_text_y_fn(draw, driver_font, driver_row_height, driver_y, display_name)
+    draw.text((driver_name_x, driver_text_y), display_name, fill=text_fill, font=driver_font)
+
+    driver_pts = format_points_fn(driver.points)
+    pos_text = f"P{driver.position}" if driver.position else "—"
+    pts_x = right_align_x_fn(draw, driver_pts, pts_right_x, small_font)
+    draw.text((pts_x, driver_small_y), driver_pts, fill=text_fill, font=small_font)
+
+    if driver.position and driver.position <= 4:
+        pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
+        pos_w = pos_bbox[2] - pos_bbox[0]
+        pos_h = pos_bbox[3] - pos_bbox[1]
+        badge_pad_y = 3
+        badge_w = int(pos_w) + badge_pad_x * 2
+        badge_h = int(pos_h) + badge_pad_y * 2
+        badge_x = driver_pos_x - badge_pad_x
+        badge_y = driver_y + (driver_row_height - badge_h) // 2
+        badge_fill, badge_text_fill = badge_colors_fn(driver.position)
+        draw.rectangle(
+            [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h)],
+            fill=badge_fill,
+            outline=badge_outline_fill,
+        )
+        draw.text(
+            (badge_x + badge_pad_x, badge_y + badge_pad_y - pos_bbox[1]),
+            pos_text,
+            fill=badge_text_fill,
+            font=small_font,
+        )
+        return
+
+    draw.text((driver_pos_x, driver_small_y), pos_text, fill=text_fill, font=small_font)
+
 
 def draw_team_row(
     image: Image.Image,
