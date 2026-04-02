@@ -616,6 +616,64 @@ def draw_teams_content(
         )
         y += row_height + row_gap
 
+def normalize_driver_photo_key(driver_name: str) -> str:
+    """Normalize a driver surname into the local portrait asset key."""
+    surname = driver_name.split()[-1].lower() if driver_name else ""
+    if surname in ("jr.", "jr"):
+        parts = driver_name.split()
+        surname = parts[-2].lower() if len(parts) > 1 else surname
+    return (
+        surname.replace("ü", "u")
+        .replace("ö", "o")
+        .replace("ä", "a")
+        .replace("ß", "ss")
+        .replace("é", "e")
+        .replace("è", "e")
+    )
+
+
+def draw_driver_photo(
+    draw: ImageDraw.ImageDraw,
+    image: Image.Image,
+    *,
+    x: int,
+    y: int,
+    driver_name: str,
+    size: int,
+    driver_number: int | None,
+    driver_photos: dict[str, Image.Image] | None,
+    get_racing_font_fn,
+    number_fill,
+    resample,
+    paste_photo_fn,
+) -> int:
+    """Draw a driver number or portrait and return the consumed width."""
+    surname = normalize_driver_photo_key(driver_name)
+
+    if driver_number is not None:
+        num_text = str(driver_number)
+        font = get_racing_font_fn(size)
+        bbox = draw.textbbox((0, 0), num_text, font=font)
+        text_w = int(bbox[2] - bbox[0])
+        text_h = int(bbox[3] - bbox[1])
+        text_x = x + max(0, (size - text_w) // 2) - int(bbox[0])
+        text_y = y + (size - text_h) // 2 - int(bbox[1])
+        draw.text((text_x, text_y), num_text, fill=number_fill, font=font)
+        return size
+
+    driver_img = driver_photos.get(surname) if driver_photos else None
+    if driver_img is None:
+        return 0
+
+    orig_w, orig_h = driver_img.size
+    scale = size / orig_h
+    new_w = int(orig_w * scale)
+    new_h = size
+    photo_resized = driver_img.resize((new_w, new_h), resample)
+    paste_photo_fn(image, photo_resized, x, y)
+    return new_w + 2
+
+
 def draw_team_logo(
     image: Image.Image,
     team,

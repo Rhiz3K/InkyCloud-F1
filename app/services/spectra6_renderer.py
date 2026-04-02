@@ -25,6 +25,7 @@ from app.services.renderer_common import (
     clamp_text,
     crop_primary_horizontal_band,
     crop_to_content,
+    draw_driver_photo,
     draw_new_track_message,
     draw_results_column,
     draw_results_header,
@@ -271,41 +272,24 @@ class Spectra6Renderer:
     ) -> int:
         """Draw a driver number or portrait and return the consumed width."""
         self._ensure_teams_assets()
-        surname = driver_name.split()[-1].lower() if driver_name else ""
-        if surname in ("jr.", "jr"):
-            parts = driver_name.split()
-            surname = parts[-2].lower() if len(parts) > 1 else surname
-        surname = (
-            surname.replace("ü", "u")
-            .replace("ö", "o")
-            .replace("ä", "a")
-            .replace("ß", "ss")
-            .replace("é", "e")
-            .replace("è", "e")
+        return draw_driver_photo(
+            draw,
+            image,
+            x=x,
+            y=y,
+            driver_name=driver_name,
+            size=size,
+            driver_number=driver_number,
+            driver_photos=self._driver_photos,
+            get_racing_font_fn=self._get_racing_font,
+            number_fill=self.colors.BLACK,
+            resample=Image.Resampling.LANCZOS,
+            paste_photo_fn=(
+                lambda canvas, photo_resized, px, py: canvas.paste(
+                    photo_resized, (px, py), photo_resized
+                )
+            ),
         )
-
-        if driver_number is not None:
-            num_text = str(driver_number)
-            font = self._get_racing_font(size)
-            bbox = draw.textbbox((0, 0), num_text, font=font)
-            text_w = int(bbox[2] - bbox[0])
-            text_h = int(bbox[3] - bbox[1])
-            text_x = x + max(0, (size - text_w) // 2) - int(bbox[0])
-            text_y = y + (size - text_h) // 2 - int(bbox[1])
-            draw.text((text_x, text_y), num_text, fill=self.colors.BLACK, font=font)
-            return size
-
-        driver_img = self._driver_photos.get(surname) if self._driver_photos else None
-        if driver_img is not None:
-            orig_w, orig_h = driver_img.size
-            scale = size / orig_h
-            new_w = int(orig_w * scale)
-            new_h = size
-            photo_resized = driver_img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-            image.paste(photo_resized, (x, y), photo_resized)
-            return new_w + 2
-
-        return 0
 
     @staticmethod
     def _get_text_y(
