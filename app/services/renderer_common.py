@@ -10,6 +10,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from app.services.font_utils import CJK_LANG_CODES, FONTS_DIR, fit_brand_font_box, fit_ui_font
+from app.services.track_assets import resolve_track_source_path
 
 
 def split_teams_for_columns(teams: list) -> tuple[list, list]:
@@ -945,6 +946,53 @@ def draw_race_header(
 
     draw.text((text_x, start_y), line1, fill=title_fill, font=header_title_font)
     draw.text((text_x, start_y + 40), line2, fill=title_fill, font=header_subtitle_font)
+
+
+def load_track_image_asset(
+    track_stems: list[str],
+    *,
+    source_dir: Path,
+    variant_suffix: str,
+    fallback_dir: Path | None = None,
+    fallback_glob: str | None = None,
+    logger=None,
+) -> Image.Image | None:
+    """Load the best available track image from source assets and optional fallback BMPs."""
+    if not track_stems:
+        return None
+
+    source_path = resolve_track_source_path(source_dir, track_stems, variant_suffix=variant_suffix)
+    if source_path:
+        try:
+            with Image.open(source_path) as track_image:
+                return track_image.copy()
+        except Exception as exc:
+            if logger is not None:
+                logger.warning("Failed to load track %s: %s", source_path, exc)
+
+    if fallback_dir is not None:
+        for stem in track_stems:
+            track_path = fallback_dir / f"{stem}.bmp"
+            if not track_path.exists():
+                continue
+            try:
+                with Image.open(track_path) as track_image:
+                    return track_image.copy()
+            except Exception as exc:
+                if logger is not None:
+                    logger.warning("Failed to load track %s: %s", track_path, exc)
+
+    if fallback_dir is not None and fallback_glob:
+        all_fallback = list(fallback_dir.glob(fallback_glob))
+        if all_fallback:
+            try:
+                with Image.open(all_fallback[0]) as track_image:
+                    return track_image.copy()
+            except Exception as exc:
+                if logger is not None:
+                    logger.warning("Failed to load track %s: %s", all_fallback[0], exc)
+
+    return None
 
 
 def draw_countdown_box(

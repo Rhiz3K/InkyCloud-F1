@@ -47,6 +47,7 @@ from app.services.renderer_common import (
     get_text_y,
     load_racing_font,
     load_symbol_icon_font,
+    load_track_image_asset,
     load_weather_icon_font,
     normalize_session_name,
     normalize_team_power_unit,
@@ -56,7 +57,7 @@ from app.services.renderer_common import (
     text_width,
     translate_session_name,
 )
-from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
+from app.services.track_assets import build_track_stem_candidates
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
@@ -665,32 +666,15 @@ class Spectra6Renderer:
         circuit = race_data.get("circuit", {})
         circuit_id = str(circuit.get("circuitId", "") or "")
         location = str(circuit.get("location", "") or "")
-
         normalized_id = str(CIRCUIT_ID_MAP.get(circuit_id, circuit_id))
         track_stems = build_track_stem_candidates(normalized_id, circuit_id, location)
-        if not track_stems:
-            return None
-
-        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="spectra6")
-        if source_path:
-            try:
-                with Image.open(source_path) as track_image:
-                    return track_image.copy()
-            except Exception as e:
-                logger.warning("Failed to load track %s: %s", source_path, e)
-
-        for stem in track_stems:
-            track_path = TRACKS_SPECTRA6_DIR / f"{stem}.bmp"
-            if not track_path.exists():
-                continue
-
-            try:
-                with Image.open(track_path) as track_image:
-                    return track_image.copy()
-            except Exception as e:
-                logger.warning("Failed to load track %s: %s", track_path, e)
-
-        return None
+        return load_track_image_asset(
+            track_stems,
+            source_dir=TRACKS_DIR,
+            variant_suffix="spectra6",
+            fallback_dir=TRACKS_SPECTRA6_DIR,
+            logger=logger,
+        )
 
     def _session_palette_color(self, color_name: str) -> tuple[int, int, int]:
         """Return a session accent color, falling back to black when unsupported."""

@@ -47,6 +47,7 @@ from app.services.renderer_common import (
     get_text_y,
     load_racing_font,
     load_symbol_icon_font,
+    load_track_image_asset,
     load_weather_icon_font,
     normalize_session_name,
     normalize_team_power_unit,
@@ -56,7 +57,7 @@ from app.services.renderer_common import (
     text_width,
     translate_session_name,
 )
-from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
+from app.services.track_assets import build_track_stem_candidates
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
@@ -994,48 +995,20 @@ class Renderer:
     def _load_track_image(race_data: dict) -> Image.Image | None:
         """Load track image from assets.
 
-        First tries to load pre-processed 1-bit BMP from tracks_processed/,
-        falls back to original PNG/JPG from tracks/ if not found.
+        First tries source artwork, then pre-processed monochrome BMP fallbacks.
         """
         circuit = race_data.get("circuit", {})
         circuit_id = str(circuit.get("circuitId", "") or "")
         location = str(circuit.get("location", "") or "")
         normalized_id = str(CIRCUIT_ID_MAP.get(circuit_id, circuit_id))
-
         track_stems = build_track_stem_candidates(normalized_id, circuit_id, location)
-        if not track_stems:
-            return None
-
-        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bw")
-        if source_path:
-            try:
-                with Image.open(source_path) as track_image:
-                    return track_image.copy()
-            except Exception:
-                pass
-
-        # Fall back to pre-processed BMPs only when source artwork is unavailable.
-        for stem in track_stems:
-            track_path = TRACKS_PROCESSED_DIR / f"{stem}.bmp"
-            if not track_path.exists():
-                continue
-
-            try:
-                with Image.open(track_path) as track_image:
-                    return track_image.copy()
-            except Exception:
-                continue
-
-        # Last resort fallback
-        all_processed = list(TRACKS_PROCESSED_DIR.glob("*.bmp"))
-        if all_processed:
-            try:
-                with Image.open(all_processed[0]) as track_image:
-                    return track_image.copy()
-            except Exception:
-                pass
-
-        return None
+        return load_track_image_asset(
+            track_stems,
+            source_dir=TRACKS_DIR,
+            variant_suffix="bw",
+            fallback_dir=TRACKS_PROCESSED_DIR,
+            fallback_glob="*.bmp",
+        )
 
     # =========================================================================
     # Schedule Section (Right Column)
