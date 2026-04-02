@@ -27,7 +27,7 @@ from app.services.bwry_renderer import BwryColors, BwryRenderer
 from app.services.font_utils import fit_brand_font_box
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
-from app.services.renderer_common import draw_team_logo
+from app.services.renderer_common import draw_team_logo, get_text_y, split_teams_for_columns
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 from app.services.teams_service import TeamsService
 from app.services.weather_service import WeatherData
@@ -731,7 +731,7 @@ def test_team_logo_key_supports_2026_new_teams():
 def test_split_teams_for_columns_keeps_11th_team_visible():
     teams = list(range(11))
 
-    left, right = Renderer._split_teams_for_columns(teams)
+    left, right = split_teams_for_columns(teams)
 
     assert left == [0, 1, 2, 3, 4, 5]
     assert right == [6, 7, 8, 9, 10]
@@ -782,7 +782,7 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
     image = Image.new(image_mode, (renderer.width, renderer.height), background)
     draw = ImageDraw.Draw(image)
 
-    left_teams, right_teams = renderer._split_teams_for_columns(teams_data.teams)
+    left_teams, right_teams = split_teams_for_columns(teams_data.teams)
     teams_per_col = max(len(left_teams), len(right_teams), 1)
     row_gap = 2
     row_height = (
@@ -820,7 +820,7 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
                     min_size=12,
                     bold=True,
                 )
-                driver_text_y = renderer._get_text_y(
+                driver_text_y = get_text_y(
                     draw, driver_font, driver_row_height, driver_y, display_name
                 )
                 bbox = draw.textbbox((driver_name_x, driver_text_y), display_name, font=driver_font)

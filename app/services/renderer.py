@@ -55,7 +55,6 @@ from app.services.renderer_common import (
     normalize_team_power_unit,
     prepare_mono_track_image,
     right_align_x,
-    split_teams_for_columns,
     text_width,
     translate_session_name,
 )
@@ -270,11 +269,6 @@ class Renderer:
             draw_team_row_fn=self._draw_team_row,
         )
 
-    @staticmethod
-    def _split_teams_for_columns(teams: list) -> tuple[list, list]:
-        """Split teams into left and right columns while keeping counts balanced."""
-        return split_teams_for_columns(teams)
-
     def _draw_driver_photo(
         self,
         draw: ImageDraw.ImageDraw,
@@ -378,22 +372,6 @@ class Renderer:
         return w + 4
 
     @staticmethod
-    def _get_text_y(
-        draw: ImageDraw.ImageDraw,
-        font,
-        row_h: int,
-        row_y: int,
-        text: str = "Ay",
-    ) -> int:
-        """Align text vertically within a row using the provided text metrics."""
-        return get_text_y(draw, font, row_h, row_y, text)
-
-    @staticmethod
-    def _right_align_x(draw: ImageDraw.ImageDraw, text: str, right_edge: int, font) -> int:
-        """Return the x-coordinate that right-aligns text to the given edge."""
-        return right_align_x(draw, text, right_edge, font)
-
-    @staticmethod
     def _text_width(draw: ImageDraw.ImageDraw, text: str, font) -> int:
         """Measure rendered text width for the active draw context."""
         return text_width(draw, text, font)
@@ -479,10 +457,10 @@ class Renderer:
             driver_name_padding=self.layout["driver_name_padding"],
             lang_code=self.lang_code,
             draw_driver_photo_fn=self._draw_driver_photo,
-            get_text_y_fn=self._get_text_y,
+            get_text_y_fn=get_text_y,
             format_team_driver_display_name_fn=self._format_team_driver_display_name,
             format_points_fn=self._format_points,
-            right_align_x_fn=self._right_align_x,
+            right_align_x_fn=right_align_x,
             text_fill=0,
             badge_outline_fill=0,
             badge_colors_fn=lambda position: ((0, 1) if position in {2, 3} else (1, 0)),
@@ -597,7 +575,7 @@ class Renderer:
             outline_fill=0,
             stats_padding=5,
             driver_name_padding=self.layout["driver_name_padding"],
-            get_text_y_fn=self._get_text_y,
+            get_text_y_fn=get_text_y,
             build_team_header_values_fn=lambda _team: (team_name, meta_text, team_pos, team_pts),
             clamp_text_fn=self._clamp_text,
             draw_team_stats_panel_fn=draw_team_stats_panel,
