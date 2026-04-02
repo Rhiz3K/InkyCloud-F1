@@ -33,6 +33,7 @@ from app.services.renderer_common import (
     draw_results_header,
     draw_schedule_section,
     draw_team_logo,
+    draw_team_row,
     draw_teams_content,
     draw_teams_header,
     draw_track_section,
@@ -516,55 +517,38 @@ class Spectra6Renderer:
             )
             stats_font = self.fonts["circuit_stats_value"]
             points_font = self.fonts["circuit_stats_value"]
-        header_fill = self.colors.BLACK
 
-        header_height = 23
-        box_y_end = y + row_height - 2
-        draw.rectangle([(x_start, y), (x_end, box_y_end)], outline=self.colors.BLACK, width=1)
-        draw.rectangle([(x_start, y), (x_end, y + header_height)], fill=header_fill)
-        header_text_y = self._get_text_y(draw, team_font, header_height, y)
-        tech_text_y = self._get_text_y(draw, tech_font, header_height, y)
         team_name, meta_text, team_pos, team_pts = self._build_team_header_values(team)
 
-        badge_pad_x = 5
-        driver_pos_x = x_end - 72
-        panel_x = driver_pos_x - badge_pad_x
-        panel_right_x = x_end - 4
-        pos_box_x = self._draw_team_stats_panel_color(
-            draw,
-            y,
-            header_height,
-            panel_x,
-            panel_right_x,
-            team_pos,
-            team_pts,
-            stats_font,
-            points_font,
-            team.position,
-        )
+        def draw_team_stats_panel(
+            panel_x: int,
+            panel_right_x: int,
+            header_height: int,
+            _badge_pad_x: int,
+        ) -> int:
+            return self._draw_team_stats_panel_color(
+                draw,
+                y,
+                header_height,
+                panel_x,
+                panel_right_x,
+                team_pos,
+                team_pts,
+                stats_font,
+                points_font,
+                team.position,
+            )
 
-        name_x = x_start + 4
-        draw.text((name_x, header_text_y), team_name, fill=self.colors.WHITE, font=team_font)
-
-        name_bbox = draw.textbbox((0, 0), team_name, font=team_font)
-        name_w = name_bbox[2] - name_bbox[0]
-        meta_x = int(name_x + name_w + 8)
-        meta_max_w = pos_box_x - meta_x - 6
-        meta_text = self._clamp_text(draw, meta_text, tech_font, meta_max_w)
-        if meta_text:
-            draw.text((meta_x, tech_text_y), meta_text, fill=self.colors.WHITE, font=tech_font)
-
-        driver_area_height = row_height - header_height - 4
-        driver_row_height = driver_area_height // 2
-        driver_y_start = y + header_height + 2
-        pts_right_x = x_end - 4
-
-        photo_size = driver_row_height - 2
-        photo_x = x_start + 4
-
-        sorted_drivers = sorted(team.drivers[:2], key=lambda d: d.position or 99)
-        for i, driver in enumerate(sorted_drivers):
-            driver_y = driver_y_start + i * driver_row_height
+        def draw_team_driver_row(
+            driver,
+            driver_y: int,
+            driver_row_height: int,
+            photo_x: int,
+            photo_size: int,
+            pts_right_x: int,
+            driver_pos_x: int,
+            badge_pad_x: int,
+        ) -> None:
             self._draw_team_driver_row_color(
                 draw,
                 image,
@@ -580,16 +564,43 @@ class Spectra6Renderer:
                 driver_font,
             )
 
-        logo_container_right = driver_pos_x - 8
-        driver_name_base_x = photo_x + photo_size + self.layout["driver_name_padding"] + 4
-        logo_container_left = max(driver_name_base_x + 170, logo_container_right - 96)
-        self._draw_team_logo(
+        def draw_team_logo_cb(
+            team_obj,
+            driver_y_start: int,
+            driver_area_height: int,
+            logo_container_left: int,
+            logo_container_right: int,
+        ) -> None:
+            self._draw_team_logo(
+                image,
+                team_obj,
+                driver_y_start,
+                driver_area_height,
+                logo_container_left,
+                logo_container_right,
+            )
+
+        draw_team_row(
             image,
+            draw,
             team,
-            driver_y_start,
-            driver_area_height,
-            logo_container_left,
-            logo_container_right,
+            x_start=x_start,
+            y=y,
+            x_end=x_end,
+            row_height=row_height,
+            team_font=team_font,
+            tech_font=tech_font,
+            header_fill=self.colors.BLACK,
+            header_text_fill=self.colors.WHITE,
+            outline_fill=self.colors.BLACK,
+            stats_padding=5,
+            driver_name_padding=self.layout["driver_name_padding"],
+            get_text_y_fn=self._get_text_y,
+            build_team_header_values_fn=lambda _team: (team_name, meta_text, team_pos, team_pts),
+            clamp_text_fn=self._clamp_text,
+            draw_team_stats_panel_fn=draw_team_stats_panel,
+            draw_team_driver_row_fn=draw_team_driver_row,
+            draw_team_logo_fn=draw_team_logo_cb,
         )
 
     @staticmethod

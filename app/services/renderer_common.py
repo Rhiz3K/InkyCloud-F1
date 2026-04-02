@@ -616,6 +616,90 @@ def draw_teams_content(
         )
         y += row_height + row_gap
 
+def draw_team_row(
+    image: Image.Image,
+    draw: ImageDraw.ImageDraw,
+    team,
+    *,
+    x_start: int,
+    y: int,
+    x_end: int,
+    row_height: int,
+    team_font,
+    tech_font,
+    header_fill,
+    header_text_fill,
+    outline_fill,
+    stats_padding: int,
+    driver_name_padding: int,
+    get_text_y_fn,
+    build_team_header_values_fn,
+    clamp_text_fn,
+    draw_team_stats_panel_fn,
+    draw_team_driver_row_fn,
+    draw_team_logo_fn,
+) -> None:
+    """Draw the shared team-card layout and delegate renderer-specific row details."""
+    header_height = 23
+    box_y_end = y + row_height - 2
+    draw.rectangle([(x_start, y), (x_end, box_y_end)], outline=outline_fill, width=1)
+    draw.rectangle([(x_start, y), (x_end, y + header_height)], fill=header_fill)
+
+    header_text_y = get_text_y_fn(draw, team_font, header_height, y)
+    tech_text_y = get_text_y_fn(draw, tech_font, header_height, y)
+    team_name, meta_text, _team_pos, _team_pts = build_team_header_values_fn(team)
+
+    badge_pad_x = 5
+    driver_pos_x = x_end - 72
+    panel_x = driver_pos_x - badge_pad_x
+    panel_right_x = x_end - 4
+    pos_box_x = draw_team_stats_panel_fn(panel_x, panel_right_x, header_height, badge_pad_x)
+
+    name_x = x_start + 4
+    draw.text((name_x, header_text_y), team_name, fill=header_text_fill, font=team_font)
+
+    name_bbox = draw.textbbox((0, 0), team_name, font=team_font)
+    name_w = name_bbox[2] - name_bbox[0]
+    meta_x = int(name_x + name_w + 8)
+    meta_max_w = pos_box_x - meta_x - 6
+    meta_text = clamp_text_fn(draw, meta_text, tech_font, meta_max_w)
+    if meta_text:
+        draw.text((meta_x, tech_text_y), meta_text, fill=header_text_fill, font=tech_font)
+
+    driver_area_height = row_height - header_height - 4
+    driver_row_height = driver_area_height // 2
+    driver_y_start = y + header_height + 2
+    pts_right_x = x_end - 4
+
+    photo_size = driver_row_height - 2
+    photo_x = x_start + 4
+
+    sorted_drivers = sorted(team.drivers[:2], key=lambda d: d.position or 99)
+    for i, driver in enumerate(sorted_drivers):
+        driver_y = driver_y_start + i * driver_row_height
+        draw_team_driver_row_fn(
+            driver,
+            driver_y,
+            driver_row_height,
+            photo_x,
+            photo_size,
+            pts_right_x,
+            driver_pos_x,
+            badge_pad_x,
+        )
+
+    logo_container_right = driver_pos_x - 8
+    driver_name_base_x = photo_x + photo_size + driver_name_padding + 4
+    logo_container_left = max(driver_name_base_x + 170, logo_container_right - 96)
+    draw_team_logo_fn(
+        team,
+        driver_y_start,
+        driver_area_height,
+        logo_container_left,
+        logo_container_right,
+    )
+
+
 def normalize_driver_photo_key(driver_name: str) -> str:
     """Normalize a driver surname into the local portrait asset key."""
     surname = driver_name.split()[-1].lower() if driver_name else ""
