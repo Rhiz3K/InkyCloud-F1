@@ -14,7 +14,6 @@ from app.models import ConstructorStanding, DriverStanding, HistoricalData, Team
 from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
 from app.services.font_utils import (
     CJK_LANG_CODES,
-    fit_ui_font,
     load_brand_font,
     load_ui_font,
 )
@@ -32,6 +31,7 @@ from app.services.renderer_common import (
     draw_results_column,
     draw_results_header,
     draw_results_section,
+    draw_schedule_row,
     draw_schedule_section,
     draw_team_driver_row,
     draw_team_logo,
@@ -1043,43 +1043,22 @@ class Renderer:
 
     def _draw_schedule_row(self, draw: ImageDraw.ImageDraw, y: int, event: dict) -> None:
         """Draw a single schedule row with bold event name."""
-        dt = event.get("datetime")
-        name = event.get("name", "")
-
-        # Parse ISO string to datetime if needed
-        if isinstance(dt, str):
-            dt = datetime.fromisoformat(dt)
-
-        if dt:
-            date_str = dt.strftime("%d.%m.")
-            day_key = f"day_{dt.strftime('%a').lower()}"
-            day_str = self.translator.get(day_key, dt.strftime("%a"))
-            time_str = dt.strftime("%H:%M")
-        else:
-            date_str = ""
-            day_str = ""
-            time_str = event.get("display_time", "")
-
-        name_max_width = self.width - self.layout["schedule_name_x"] - 5
-        translated_name = self._format_schedule_session_name(draw, name, name_max_width)
-
-        # Draw columns
-        font_reg = self.fonts["schedule_row"]
-        font_bold = fit_ui_font(
+        draw_schedule_row(
             draw,
-            self.lang_code,
-            translated_name,
-            max_width=name_max_width,
-            base_size=20,
-            min_size=15,
-            bold=True,
+            y=y,
+            event=event,
+            canvas_width=self.width,
+            schedule_date_x=self.layout["schedule_date_x"],
+            schedule_day_x=self.layout["schedule_day_x"],
+            schedule_time_x=self.layout["schedule_time_x"],
+            schedule_name_x=self.layout["schedule_name_x"],
+            translator=self.translator,
+            lang_code=self.lang_code,
+            font_reg=self.fonts["schedule_row"],
+            regular_text_fill=0,
+            session_text_fill=0,
+            format_schedule_session_name_fn=self._format_schedule_session_name,
         )
-
-        draw.text((self.layout["schedule_date_x"], y), date_str, fill=0, font=font_reg)
-        draw.text((self.layout["schedule_day_x"], y), day_str, fill=0, font=font_reg)
-        draw.text((self.layout["schedule_time_x"], y), time_str, fill=0, font=font_reg)
-        # Event name in BOLD
-        draw.text((self.layout["schedule_name_x"], y), translated_name, fill=0, font=font_bold)
 
     def _format_schedule_session_name(
         self,

@@ -1392,6 +1392,58 @@ def prepare_color_track_image(
     return track_image.convert("RGB")
 
 
+def draw_schedule_row(
+    draw: ImageDraw.ImageDraw,
+    *,
+    y: int,
+    event: dict,
+    canvas_width: int,
+    schedule_date_x: int,
+    schedule_day_x: int,
+    schedule_time_x: int,
+    schedule_name_x: int,
+    translator: dict[str, str] | object,
+    lang_code: str,
+    font_reg,
+    regular_text_fill,
+    session_text_fill,
+    format_schedule_session_name_fn,
+) -> None:
+    """Draw one localized schedule row using shared date/time/name layout."""
+    dt = event.get("datetime")
+    name = event.get("name", "")
+
+    if isinstance(dt, str):
+        dt = datetime.fromisoformat(dt)
+
+    if dt:
+        date_str = dt.strftime("%d.%m.")
+        day_key = f"day_{dt.strftime('%a').lower()}"
+        day_str = translator.get(day_key, dt.strftime("%a"))
+        time_str = dt.strftime("%H:%M")
+    else:
+        date_str = ""
+        day_str = ""
+        time_str = event.get("display_time", "")
+
+    name_max_width = canvas_width - schedule_name_x - 5
+    translated_name = format_schedule_session_name_fn(draw, name, name_max_width)
+    font_bold = fit_ui_font(
+        draw,
+        lang_code,
+        translated_name,
+        max_width=name_max_width,
+        base_size=20,
+        min_size=15,
+        bold=True,
+    )
+
+    draw.text((schedule_date_x, y), date_str, fill=regular_text_fill, font=font_reg)
+    draw.text((schedule_day_x, y), day_str, fill=regular_text_fill, font=font_reg)
+    draw.text((schedule_time_x, y), time_str, fill=regular_text_fill, font=font_reg)
+    draw.text((schedule_name_x, y), translated_name, fill=session_text_fill, font=font_bold)
+
+
 def draw_schedule_section(
     draw: ImageDraw.ImageDraw,
     race_data: dict,
