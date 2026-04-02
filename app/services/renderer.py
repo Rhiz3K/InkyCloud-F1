@@ -1150,6 +1150,31 @@ class Renderer:
         historical_data: HistoricalData | None,
     ) -> None:
         """Draw the footer historical results section."""
+
+        def draw_results_header_cb(
+            draw_ctx: ImageDraw.ImageDraw,
+            image_ctx: Image.Image,
+            y_start: int,
+            season: int | str,
+            country_name: str,
+        ) -> int:
+            return draw_results_header(
+                draw_ctx,
+                image_ctx,
+                canvas_height=self.height,
+                header_area_width=self.layout["results_col1_x"],
+                y_start=y_start,
+                season=season,
+                country_name=country_name,
+                year_font=self.fonts["results_year"],
+                text_fill=0,
+                outline_fill=0,
+                country_map=COUNTRY_MAP,
+                flags_dirs=FLAGS_DIR,
+                prepare_flag_image=lambda opened_flag: opened_flag.copy(),
+                logger=logger,
+            )
+
         draw_results_section(
             draw,
             image,
@@ -1164,7 +1189,7 @@ class Renderer:
             qualifying_title=self.translator.get("qualifying", "QUALIFYING"),
             race_title=self.translator.get("race", "RACE"),
             draw_new_track_message_fn=self._draw_new_track_message,
-            draw_results_header_fn=self._draw_results_header,
+            draw_results_header_fn=draw_results_header_cb,
             draw_results_column_fn=self._draw_results_column,
         )
 
@@ -1177,44 +1202,6 @@ class Renderer:
             message=self.translator.get("new_track", "NEW TRACK"),
             font=self.fonts["schedule_title"],
             fill=0,
-        )
-
-    def _draw_results_header(
-        self,
-        draw: ImageDraw.ImageDraw,
-        image: Image.Image,
-        y_start: int,
-        season: int | str,
-        country_name: str,
-    ) -> int:
-        """
-        Render results header with centered year and optional country flag.
-
-        Parameters:
-            draw: Draw context for text/shapes.
-            image: Image for flag paste.
-            y_start: Y where results footer begins.
-            season: Year or season label.
-            country_name: Country for flag lookup.
-
-        Returns:
-            Y coordinate where results columns should align.
-        """
-        return draw_results_header(
-            draw,
-            image,
-            canvas_height=self.height,
-            header_area_width=self.layout["results_col1_x"],
-            y_start=y_start,
-            season=season,
-            country_name=country_name,
-            year_font=self.fonts["results_year"],
-            text_fill=0,
-            outline_fill=0,
-            country_map=COUNTRY_MAP,
-            flags_dirs=FLAGS_DIR,
-            prepare_flag_image=lambda opened_flag: opened_flag.copy(),
-            logger=logger,
         )
 
     def _draw_results_column(

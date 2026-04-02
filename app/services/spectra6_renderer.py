@@ -825,6 +825,31 @@ class Spectra6Renderer:
         historical_data: HistoricalData | None,
     ) -> None:
         """Draw the footer historical results section."""
+
+        def draw_results_header_cb(
+            draw_ctx: ImageDraw.ImageDraw,
+            image_ctx: Image.Image,
+            y_start: int,
+            season: int | str,
+            country_name: str,
+        ) -> int:
+            return draw_results_header(
+                draw_ctx,
+                image_ctx,
+                canvas_height=self.height,
+                header_area_width=self.layout["results_col1_x"],
+                y_start=y_start,
+                season=season,
+                country_name=country_name,
+                year_font=self.fonts["results_year"],
+                text_fill=self.colors.BLACK,
+                outline_fill=self.colors.BLACK,
+                country_map=COUNTRY_MAP,
+                flags_dirs=FLAGS_DIR,
+                prepare_flag_image=lambda opened_flag: opened_flag.convert("RGB"),
+                logger=logger,
+            )
+
         draw_results_section(
             draw,
             image,
@@ -839,7 +864,7 @@ class Spectra6Renderer:
             qualifying_title=self.translator.get("qualifying", "QUALIFYING"),
             race_title=self.translator.get("race", "RACE"),
             draw_new_track_message_fn=self._draw_new_track_message,
-            draw_results_header_fn=self._draw_results_header,
+            draw_results_header_fn=draw_results_header_cb,
             draw_results_column_fn=self._draw_results_column,
         )
 
@@ -852,32 +877,6 @@ class Spectra6Renderer:
             message=self.translator.get("new_track", "NEW TRACK"),
             font=self.fonts["schedule_title"],
             fill=self.colors.BLACK,
-        )
-
-    def _draw_results_header(
-        self,
-        draw: ImageDraw.ImageDraw,
-        image: Image.Image,
-        y_start: int,
-        season: int | str,
-        country_name: str,
-    ) -> int:
-        """Draw the year and optional country flag for the results footer."""
-        return draw_results_header(
-            draw,
-            image,
-            canvas_height=self.height,
-            header_area_width=self.layout["results_col1_x"],
-            y_start=y_start,
-            season=season,
-            country_name=country_name,
-            year_font=self.fonts["results_year"],
-            text_fill=self.colors.BLACK,
-            outline_fill=self.colors.BLACK,
-            country_map=COUNTRY_MAP,
-            flags_dirs=FLAGS_DIR,
-            prepare_flag_image=lambda opened_flag: opened_flag.convert("RGB"),
-            logger=logger,
         )
 
     def _draw_results_column(
