@@ -527,7 +527,7 @@ class Renderer:
                 image,
                 team_obj,
                 team_logos=self._team_logos,
-                get_team_logo_key_fn=self._get_team_logo_key,
+                get_team_logo_key_fn=get_team_logo_key,
                 driver_area_y=driver_y_start,
                 driver_area_h=driver_area_height,
                 container_left=logo_container_left,
@@ -561,10 +561,6 @@ class Renderer:
             draw_team_logo_fn=draw_team_logo_cb,
         )
 
-    @staticmethod
-    def _get_team_logo_key(constructor: str) -> str | None:
-        """Map a constructor name to the corresponding team logo asset key."""
-        return get_team_logo_key(constructor)
 
     def _get_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
         """Return a cached racing-style font at the requested size."""
@@ -1297,22 +1293,14 @@ class Renderer:
     @classmethod
     def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
         """Crop a team logo to the content area and apply team-specific trims."""
-        cropped = cls._crop_to_content(img)
+        cropped = crop_to_content(img, use_binary_mask=True)
         if team_key == "sauber":
             return cls.normalize_sauber_logo_for_non_spectra(cropped)
         if team_key in {"audi", "cadillac"}:
-            return cls._crop_primary_horizontal_band(cropped)
+            return crop_primary_horizontal_band(cropped)
         return cropped
 
-    @staticmethod
-    def _crop_to_content(img: Image.Image) -> Image.Image:
-        """Crop a logo to visible content, respecting transparency when present."""
-        return crop_to_content(img, use_binary_mask=True)
 
-    @staticmethod
-    def _crop_primary_horizontal_band(img: Image.Image) -> Image.Image:
-        """Keep only the dominant upper band for tall stacked logo assets."""
-        return crop_primary_horizontal_band(img)
 
     @staticmethod
     def normalize_sauber_logo_for_non_spectra(img: Image.Image) -> Image.Image:

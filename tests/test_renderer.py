@@ -29,8 +29,10 @@ from app.services.i18n import get_translator
 from app.services.renderer import Renderer
 from app.services.renderer_common import (
     build_team_header_values,
+    crop_to_content,
     draw_team_logo,
     format_team_driver_display_name,
+    get_team_logo_key,
     get_text_y,
     split_teams_for_columns,
 )
@@ -730,8 +732,8 @@ def test_render_teams_drivers_partial_data():
 
 
 def test_team_logo_key_supports_2026_new_teams():
-    assert Renderer._get_team_logo_key("Audi") == "audi"
-    assert Renderer._get_team_logo_key("Cadillac Formula 1 Team") == "cadillac"
+    assert get_team_logo_key("Audi") == "audi"
+    assert get_team_logo_key("Cadillac Formula 1 Team") == "cadillac"
 
 
 def test_split_teams_for_columns_keeps_11th_team_visible():
@@ -2463,7 +2465,7 @@ def test_renderer_crop_to_content_ignores_fully_opaque_alpha_for_white_backgroun
     draw = ImageDraw.Draw(logo)
     draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
 
-    prepared = Renderer._crop_to_content(logo)
+    prepared = crop_to_content(logo, use_binary_mask=True)
 
     assert prepared.size == (101, 46)
 
@@ -2479,7 +2481,7 @@ def test_renderer_draw_team_logo_centers_logo_in_1bit_mode():
         image,
         team,
         team_logos=renderer._team_logos,
-        get_team_logo_key_fn=renderer._get_team_logo_key,
+        get_team_logo_key_fn=get_team_logo_key,
         driver_area_y=10,
         driver_area_h=30,
         container_left=100,
@@ -2581,7 +2583,7 @@ def test_renderer_preserves_half_points_in_team_rows(renderer_cls):
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
 def test_renderer_maps_exact_rb_constructor_name(renderer_cls):
     """The RB constructor alias should resolve to the Racing Bulls logo key."""
-    assert renderer_cls._get_team_logo_key("RB") == "racing_bulls"
+    assert get_team_logo_key("RB") == "racing_bulls"
 
 
 @pytest.mark.parametrize("lang", ["en", "cs"])

@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Removed results-header wrapper methods** - Inlined the last monochrome and Spectra 6 results-header pass-through wrappers into the shared footer-section callback wiring so those renderers now call the shared year/flag helper directly
 - **Removed layout utility wrapper methods** - Swapped remaining team-layout callsites and tests over to shared `split_teams_for_columns()`, `get_text_y()`, and `right_align_x()` helpers so the primary renderers no longer carry duplicate pass-through utilities for those calculations
 - **Removed shared formatter wrapper methods** - Rewired remaining team-card/result callsites and tests to use shared `build_team_header_values()`, `format_team_driver_display_name()`, `format_points()`, `clamp_text()`, and `fit_result_text()` helpers directly so the primary renderers no longer keep utility pass-through methods for those common formatting paths
+- **Removed shared logo helper wrapper methods** - Swapped remaining team-logo keying and crop callsites/tests over to shared `get_team_logo_key()`, `crop_to_content()`, and `crop_primary_horizontal_band()` helpers so the primary renderers no longer keep private pass-through utilities for logo preparation
 
 ### Security
 

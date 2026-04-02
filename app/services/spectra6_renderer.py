@@ -463,7 +463,7 @@ class Spectra6Renderer:
                 image,
                 team_obj,
                 team_logos=self._team_logos,
-                get_team_logo_key_fn=self._get_team_logo_key,
+                get_team_logo_key_fn=get_team_logo_key,
                 driver_area_y=driver_y_start,
                 driver_area_h=driver_area_height,
                 container_left=logo_container_left,
@@ -498,10 +498,6 @@ class Spectra6Renderer:
             draw_team_logo_fn=draw_team_logo_cb,
         )
 
-    @staticmethod
-    def _get_team_logo_key(constructor: str) -> str | None:
-        """Map a constructor name to the corresponding team logo asset key."""
-        return get_team_logo_key(constructor)
 
     def _draw_header(self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict) -> None:
         """Draw the Spectra 6 race header with monochrome logo and red title block."""
@@ -954,20 +950,12 @@ class Spectra6Renderer:
     @classmethod
     def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
         """Crop a team logo to visible content and apply team-specific trims."""
-        cropped = cls._crop_to_content(img)
+        cropped = crop_to_content(img)
         if team_key in {"audi", "cadillac"}:
-            return cls._crop_primary_horizontal_band(cropped)
+            return crop_primary_horizontal_band(cropped)
         return cropped
 
-    @staticmethod
-    def _crop_to_content(img: Image.Image) -> Image.Image:
-        """Crop a logo to visible content, respecting transparency when present."""
-        return crop_to_content(img)
 
-    @staticmethod
-    def _crop_primary_horizontal_band(img: Image.Image) -> Image.Image:
-        """Keep only the dominant upper band for tall stacked logo assets."""
-        return crop_primary_horizontal_band(img)
 
     def _to_indexed_bmp(self, image: Image.Image) -> bytes:
         """Convert RGB image to indexed 6-color BMP for Spectra 6 display."""
