@@ -616,3 +616,44 @@ def draw_teams_content(
         )
         y += row_height + row_gap
 
+def draw_team_logo(
+    image: Image.Image,
+    team,
+    *,
+    team_logos: dict[str, Image.Image] | None,
+    get_team_logo_key_fn,
+    driver_area_y: int,
+    driver_area_h: int,
+    container_left: int,
+    container_right: int,
+    paste_logo_fn,
+) -> None:
+    """Draw a centered team logo inside the reserved logo container."""
+    if not team_logos:
+        return
+
+    constructor = team.constructor_name or team.entrant or ""
+    logo_key = get_team_logo_key_fn(constructor)
+    if not logo_key:
+        return
+
+    logo = team_logos.get(logo_key)
+    if not logo:
+        return
+
+    orig_w, orig_h = logo.size
+    container_w = container_right - container_left
+    if container_w <= 0:
+        return
+
+    max_w = max(1, container_w - 12)
+    max_h = driver_area_h - 2
+    scale = min(max_w / orig_w, max_h / orig_h)
+    new_w = max(1, int(orig_w * scale))
+    new_h = max(1, int(orig_h * scale))
+
+    logo_resized = logo.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    logo_x = container_left + (container_w - new_w) // 2
+    logo_y = driver_area_y + (driver_area_h - new_h) // 2
+    paste_logo_fn(image, logo_resized, logo_x, logo_y)
+

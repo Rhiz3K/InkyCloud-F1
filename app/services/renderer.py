@@ -28,6 +28,7 @@ from app.services.renderer_common import (
     draw_new_track_message,
     draw_results_column,
     draw_results_header,
+    draw_team_logo,
     draw_teams_content,
     draw_teams_header,
     fit_result_text,
@@ -671,39 +672,20 @@ class Renderer:
     ) -> None:
         """Draw the team logo centered inside the reserved logo container."""
         self._ensure_teams_assets()
-        if not self._team_logos:
-            return
-
-        constructor = team.constructor_name or team.entrant or ""
-        logo_key = self._get_team_logo_key(constructor)
-        if not logo_key:
-            return
-
-        logo = self._team_logos.get(logo_key)
-        if not logo:
-            return
-
-        orig_w, orig_h = logo.size
-        container_w = container_right - container_left
-        if container_w <= 0:
-            return
-        max_w = max(1, container_w - 12)
-        max_h = driver_area_h - 2
-
-        scale_w = max_w / orig_w
-        scale_h = max_h / orig_h
-        scale = min(scale_w, scale_h)
-
-        new_w = max(1, int(orig_w * scale))
-        new_h = max(1, int(orig_h * scale))
-
-        logo_resized = logo.resize((new_w, new_h), Image.Resampling.LANCZOS)
-        logo_bitmap = self._logo_to_1bit(logo_resized)
-
-        logo_x = container_left + (container_w - new_w) // 2
-        logo_y = driver_area_y + (driver_area_h - new_h) // 2
-
-        image.paste(logo_bitmap, (logo_x, logo_y))
+        draw_team_logo(
+            image,
+            team,
+            team_logos=self._team_logos,
+            get_team_logo_key_fn=self._get_team_logo_key,
+            driver_area_y=driver_area_y,
+            driver_area_h=driver_area_h,
+            container_left=container_left,
+            container_right=container_right,
+            paste_logo_fn=lambda canvas, logo_resized, x, y: canvas.paste(
+                self._logo_to_1bit(logo_resized),
+                (x, y),
+            ),
+        )
 
     def _ensure_teams_assets(self) -> None:
         """Lazy-load cached driver and team assets used by the teams screen."""
