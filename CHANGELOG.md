@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Renderer asset handle cleanup** - Wrapped disk-backed `Image.open()` calls for logos, tracks, flags, driver portraits, and team logos in context-managed loads so PIL image conversions keep returning detached images without leaking file handles during repeated preview and render jobs
 - **Schedule event field naming** - Renamed the internal `ScheduleEvent` timestamp attribute to `event_datetime` while keeping `datetime` as a compatibility alias so model code no longer shadows the imported `datetime` type
 - **Standings metadata extraction** - Moved season-facing driver-number and team-id lookup tables out of `api.py` into a shared utility module so route handlers no longer own that update-prone mapping data
+- **BWR renderer helper deduplication** - Extracted shared track-image and results-header helpers for the BWR and BWRY renderers so multi-color calendar variants stop carrying near-identical fallback and flag-loading logic in parallel
 
 ### Security
 

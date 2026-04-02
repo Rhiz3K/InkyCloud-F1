@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -84,8 +85,16 @@ class BwrRenderer(Spectra6Renderer):
 
         logger.warning("No BWR-compatible F1 logo found")
 
-    @staticmethod
-    def _load_track_image(race_data: dict) -> Image.Image | None:
+    @classmethod
+    def _load_variant_track_image(
+        cls,
+        race_data: dict,
+        *,
+        variant_suffix: str,
+        source_tracks_dir: Path,
+        processed_tracks_dir: Path,
+    ) -> Image.Image | None:
+        """Load a track image, preferring source variants before processed BMP fallbacks."""
         circuit = race_data.get("circuit", {})
         circuit_id = str(circuit.get("circuitId", "") or "")
         location = str(circuit.get("location", "") or "")
@@ -95,7 +104,11 @@ class BwrRenderer(Spectra6Renderer):
         if not track_stems:
             return None
 
-        source_path = resolve_track_source_path(TRACKS_DIR, track_stems, variant_suffix="bwr")
+        source_path = resolve_track_source_path(
+            source_tracks_dir,
+            track_stems,
+            variant_suffix=variant_suffix,
+        )
         if source_path:
             try:
                 with Image.open(source_path) as track_image:
@@ -104,7 +117,7 @@ class BwrRenderer(Spectra6Renderer):
                 logger.warning("Failed to load track %s: %s", source_path, exc)
 
         for stem in track_stems:
-            track_path = TRACKS_BWR_DIR / f"{stem}.bmp"
+            track_path = processed_tracks_dir / f"{stem}.bmp"
             if not track_path.exists():
                 continue
 
@@ -116,14 +129,48 @@ class BwrRenderer(Spectra6Renderer):
 
         return None
 
-    def _draw_results_header(
+    @classmethod
+    def _load_track_image(cls, race_data: dict) -> Image.Image | None:
+        return cls._load_variant_track_image(
+            race_data,
+            variant_suffix="bwr",
+            source_tracks_dir=TRACKS_DIR,
+            processed_tracks_dir=TRACKS_BWR_DIR,
+        )
+
+    @staticmethod
+    def _load_results_flag_image(
+        country_name: str, preferred_dirs: Sequence[Path]
+    ) -> Image.Image | None:
+        """Load the first matching results flag image from the preferred directories."""
+        iso_code = COUNTRY_MAP.get(country_name, "").lower()
+        if not iso_code:
+            return None
+
+        for directory in preferred_dirs:
+            flag_path = directory / f"{iso_code}.bmp"
+            if not flag_path.exists():
+                continue
+
+            try:
+                with Image.open(flag_path) as opened_flag:
+                    return opened_flag.convert("RGB")
+            except Exception as exc:
+                logger.warning("Failed to load flag %s: %s", flag_path, exc)
+
+        return None
+
+    def _draw_results_header_with_flags(
         self,
         draw: ImageDraw.ImageDraw,
         image: Image.Image,
         y_start: int,
         season: int | str,
         country_name: str,
+        *,
+        flag_dirs: Sequence[Path],
     ) -> int:
+        """Render the season year and optional country flag for multi-color result blocks."""
         year_text = str(season)
         year_font = self.fonts["results_year"]
         bbox = draw.textbbox((0, 0), year_text, font=year_font)
@@ -132,25 +179,7 @@ class BwrRenderer(Spectra6Renderer):
 
         footer_y_start = y_start
         footer_height = self.height - footer_y_start
-
-        iso_code = COUNTRY_MAP.get(country_name, "").lower()
-
-        flag_img: Image.Image | None = None
-        if iso_code:
-            flag_candidates = [
-                FLAGS_BWR_DIR / f"{iso_code}.bmp",
-                FLAGS_FALLBACK_DIR / f"{iso_code}.bmp",
-            ]
-            for flag_path in flag_candidates:
-                if not flag_path.exists():
-                    continue
-
-                try:
-                    with Image.open(flag_path) as opened_flag:
-                        flag_img = opened_flag.convert("RGB")
-                    break
-                except Exception as exc:
-                    logger.warning("Failed to load flag %s: %s", flag_path, exc)
+        flag_img = self._load_results_flag_image(country_name, flag_dirs)
 
         header_area_w = self.layout["results_col1_x"]
         max_flag_width = int(header_area_w * self.layout["results_flag_max_width_percent"] / 100)
@@ -179,7 +208,6 @@ class BwrRenderer(Spectra6Renderer):
             flag_top_y = int(self.height - flag_img.height - flag_bottom_padding)
 
             image.paste(flag_img, (x, flag_top_y))
-
             draw.rectangle(
                 [
                     x - 1,
@@ -192,6 +220,23 @@ class BwrRenderer(Spectra6Renderer):
             )
 
         return int(visual_top)
+
+    def _draw_results_header(
+        self,
+        draw: ImageDraw.ImageDraw,
+        image: Image.Image,
+        y_start: int,
+        season: int | str,
+        country_name: str,
+    ) -> int:
+        return self._draw_results_header_with_flags(
+            draw,
+            image,
+            y_start,
+            season,
+            country_name,
+            flag_dirs=(FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR),
+        )
 
     def _load_weather_icon_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
         font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
