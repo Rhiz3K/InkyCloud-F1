@@ -56,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Removed shared formatter wrapper methods** - Rewired remaining team-card/result callsites and tests to use shared `build_team_header_values()`, `format_team_driver_display_name()`, `format_points()`, `clamp_text()`, and `fit_result_text()` helpers directly so the primary renderers no longer keep utility pass-through methods for those common formatting paths
 - **Removed shared logo helper wrapper methods** - Swapped remaining team-logo keying and crop callsites/tests over to shared `get_team_logo_key()`, `crop_to_content()`, and `crop_primary_horizontal_band()` helpers so the primary renderers no longer keep private pass-through utilities for logo preparation
 - **Removed shared schedule i18n wrapper methods** - Rewired remaining schedule/session callsites and tests to use shared `format_schedule_session_name()`, `build_sprint_qualifying_label()`, and `translate_session_name()` helpers directly so the primary renderers no longer keep pass-through i18n wrappers for session labels
+- **Shared F1 logo and track placeholder helpers** - Moved the last identical header-logo and missing-track placeholder drawing logic into `renderer_common` so monochrome and Spectra 6 renderers now share those visual fallbacks instead of keeping duplicate local helpers
 
 ### Security
 
