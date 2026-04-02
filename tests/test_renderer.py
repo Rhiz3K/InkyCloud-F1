@@ -27,6 +27,7 @@ from app.services.bwry_renderer import BwryColors, BwryRenderer
 from app.services.font_utils import fit_brand_font_box
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
+from app.services.renderer_common import draw_team_logo
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 from app.services.teams_service import TeamsService
 from app.services.weather_service import WeatherData
@@ -2468,13 +2469,19 @@ def test_renderer_draw_team_logo_centers_logo_in_1bit_mode():
     image = Image.new("1", (220, 80), 1)
     team = TeamEntry(constructor_name="Audi", chassis="", power_unit="", drivers=[])
 
-    renderer._draw_team_logo(
+    draw_team_logo(
         image,
         team,
+        team_logos=renderer._team_logos,
+        get_team_logo_key_fn=renderer._get_team_logo_key,
         driver_area_y=10,
         driver_area_h=30,
         container_left=100,
         container_right=180,
+        paste_logo_fn=lambda canvas, logo_resized, x, y: canvas.paste(
+            renderer._logo_to_1bit(logo_resized),
+            (x, y),
+        ),
     )
 
     bbox = ImageOps.invert(image.convert("L")).getbbox()

@@ -502,13 +502,21 @@ class Spectra6Renderer:
             logo_container_left: int,
             logo_container_right: int,
         ) -> None:
-            self._draw_team_logo(
+            self._ensure_teams_assets()
+            draw_team_logo(
                 image,
                 team_obj,
-                driver_y_start,
-                driver_area_height,
-                logo_container_left,
-                logo_container_right,
+                team_logos=self._team_logos,
+                get_team_logo_key_fn=self._get_team_logo_key,
+                driver_area_y=driver_y_start,
+                driver_area_h=driver_area_height,
+                container_left=logo_container_left,
+                container_right=logo_container_right,
+                paste_logo_fn=lambda canvas, logo_resized, x, y: canvas.paste(
+                    logo_resized,
+                    (x, y),
+                    logo_resized,
+                ),
             )
 
         draw_team_row(
@@ -538,33 +546,6 @@ class Spectra6Renderer:
     def _get_team_logo_key(constructor: str) -> str | None:
         """Map a constructor name to the corresponding team logo asset key."""
         return get_team_logo_key(constructor)
-
-    def _draw_team_logo(
-        self,
-        image: Image.Image,
-        team,
-        driver_area_y: int,
-        driver_area_h: int,
-        container_left: int,
-        container_right: int,
-    ) -> None:
-        """Draw a centered team logo inside the reserved card area."""
-        self._ensure_teams_assets()
-        draw_team_logo(
-            image,
-            team,
-            team_logos=self._team_logos,
-            get_team_logo_key_fn=self._get_team_logo_key,
-            driver_area_y=driver_area_y,
-            driver_area_h=driver_area_h,
-            container_left=container_left,
-            container_right=container_right,
-            paste_logo_fn=lambda canvas, logo_resized, x, y: canvas.paste(
-                logo_resized,
-                (x, y),
-                logo_resized,
-            ),
-        )
 
     def _draw_header(self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict) -> None:
         """Draw the Spectra 6 race header with monochrome logo and red title block."""

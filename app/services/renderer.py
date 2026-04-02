@@ -566,13 +566,20 @@ class Renderer:
             logo_container_left: int,
             logo_container_right: int,
         ) -> None:
-            self._draw_team_logo(
+            self._ensure_teams_assets()
+            draw_team_logo(
                 image,
                 team_obj,
-                driver_y_start,
-                driver_area_height,
-                logo_container_left,
-                logo_container_right,
+                team_logos=self._team_logos,
+                get_team_logo_key_fn=self._get_team_logo_key,
+                driver_area_y=driver_y_start,
+                driver_area_h=driver_area_height,
+                container_left=logo_container_left,
+                container_right=logo_container_right,
+                paste_logo_fn=lambda canvas, logo_resized, x, y: canvas.paste(
+                    self._logo_to_1bit(logo_resized),
+                    (x, y),
+                ),
             )
 
         draw_team_row(
@@ -613,32 +620,6 @@ class Renderer:
     def _format_points(value: float | int | None) -> str:
         """Format points while preserving half-points for display."""
         return format_points(value)
-
-    def _draw_team_logo(
-        self,
-        image: Image.Image,
-        team,
-        driver_area_y: int,
-        driver_area_h: int,
-        container_left: int,
-        container_right: int,
-    ) -> None:
-        """Draw the team logo centered inside the reserved logo container."""
-        self._ensure_teams_assets()
-        draw_team_logo(
-            image,
-            team,
-            team_logos=self._team_logos,
-            get_team_logo_key_fn=self._get_team_logo_key,
-            driver_area_y=driver_area_y,
-            driver_area_h=driver_area_h,
-            container_left=container_left,
-            container_right=container_right,
-            paste_logo_fn=lambda canvas, logo_resized, x, y: canvas.paste(
-                self._logo_to_1bit(logo_resized),
-                (x, y),
-            ),
-        )
 
     def _ensure_teams_assets(self) -> None:
         """Lazy-load cached driver and team assets used by the teams screen."""
