@@ -445,6 +445,58 @@ def draw_results_header(
     return int(visual_top)
 
 
+def draw_results_section(
+    draw: ImageDraw.ImageDraw,
+    image: Image.Image,
+    *,
+    canvas_width: int,
+    separator_fill,
+    separator_width: int,
+    y_start: int,
+    race_data: dict,
+    historical_data,
+    results_col1_x: int,
+    results_col2_x: int,
+    qualifying_title: str,
+    race_title: str,
+    draw_new_track_message_fn,
+    draw_results_header_fn,
+    draw_results_column_fn,
+) -> None:
+    """Draw the shared footer flow for historical qualifying and race results."""
+    draw.line(
+        [(0, y_start), (canvas_width, y_start)],
+        fill=separator_fill,
+        width=separator_width,
+    )
+
+    if historical_data is None or historical_data.is_new_track:
+        draw_new_track_message_fn(draw, y_start)
+        return
+
+    season = historical_data.season or ""
+    country = race_data.get("circuit", {}).get("country", "")
+    visual_top = draw_results_header_fn(draw, image, y_start, season, country)
+
+    draw_results_column_fn(
+        draw,
+        results_col1_x,
+        visual_top,
+        qualifying_title,
+        historical_data.qualifying_results,
+        is_qualifying=True,
+    )
+
+    draw_results_column_fn(
+        draw,
+        results_col2_x,
+        visual_top,
+        race_title,
+        historical_data.race_results,
+        is_qualifying=False,
+    )
+
+
 def draw_new_track_message(
     draw: ImageDraw.ImageDraw,
     *,

@@ -31,6 +31,7 @@ from app.services.renderer_common import (
     draw_race_header,
     draw_results_column,
     draw_results_header,
+    draw_results_section,
     draw_schedule_section,
     draw_team_driver_row,
     draw_team_logo,
@@ -1194,38 +1195,22 @@ class Renderer:
         historical_data: HistoricalData | None,
     ) -> None:
         """Draw the footer historical results section."""
-        y_start = self.layout["results_y_start"]
-
-        draw.line(
-            [(0, y_start), (self.width, y_start)],
-            fill=0,
-            width=self.layout["separator_width"],
-        )
-
-        if historical_data is None or historical_data.is_new_track:
-            self._draw_new_track_message(draw, y_start)
-            return
-
-        season = historical_data.season or ""
-        country = race_data.get("circuit", {}).get("country", "")
-        visual_top = self._draw_results_header(draw, image, y_start, season, country)
-
-        self._draw_results_column(
+        draw_results_section(
             draw,
-            self.layout["results_col1_x"],
-            visual_top,
-            self.translator.get("qualifying", "QUALIFYING"),
-            historical_data.qualifying_results,
-            is_qualifying=True,
-        )
-
-        self._draw_results_column(
-            draw,
-            self.layout["results_col2_x"],
-            visual_top,
-            self.translator.get("race", "RACE"),
-            historical_data.race_results,
-            is_qualifying=False,
+            image,
+            canvas_width=self.width,
+            separator_fill=0,
+            separator_width=self.layout["separator_width"],
+            y_start=self.layout["results_y_start"],
+            race_data=race_data,
+            historical_data=historical_data,
+            results_col1_x=self.layout["results_col1_x"],
+            results_col2_x=self.layout["results_col2_x"],
+            qualifying_title=self.translator.get("qualifying", "QUALIFYING"),
+            race_title=self.translator.get("race", "RACE"),
+            draw_new_track_message_fn=self._draw_new_track_message,
+            draw_results_header_fn=self._draw_results_header,
+            draw_results_column_fn=self._draw_results_column,
         )
 
     def _draw_new_track_message(self, draw: ImageDraw.ImageDraw, y_start: int) -> None:

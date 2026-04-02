@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shared countdown-box helper** - Centralized race-status/countdown rendering and optional weather overlay layout so monochrome and Spectra 6 renderers now share one countdown/status box flow with only display colors passed in
 - **Shared team stats/driver-row helpers** - Centralized the repeated team-card stats panel and driver-row rendering flow so monochrome and Spectra 6 renderers now only pass badge colors and text fills instead of maintaining duplicate row logic
 - **Shared track asset loader** - Centralized source/fallback track asset resolution so monochrome and Spectra 6 renderers now share one loader path with only variant suffixes and fallback directories passed in
+- **Shared results-section helper** - Centralized footer separator/new-track branching and qualifying/race column dispatch so monochrome and Spectra 6 renderers now share one historical-results section flow with only display colors and callbacks passed in
 
 ### Security
 
