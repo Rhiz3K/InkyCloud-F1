@@ -25,6 +25,7 @@ from app.services.renderer_common import (
     clamp_text,
     crop_primary_horizontal_band,
     crop_to_content,
+    draw_circuit_stats_block,
     draw_driver_photo,
     draw_new_track_message,
     draw_race_header,
@@ -1121,78 +1122,18 @@ class Spectra6Renderer:
         mapped_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
         circuit_data = CIRCUITS_DATA.get(mapped_id, {})
 
-        row_height = self.layout["circuit_stats_row_height"]
-        font_value = self.fonts["circuit_stats_value"]
-
-        stats = []
-
-        length = circuit_data.get("circuit_length")
-        laps = circuit_data.get("number_of_laps")
-        if length:
-            line1 = f"{length}"
-            if laps:
-                line1 += f" | {laps} " + self.translator.get("laps", "laps")
-            stats.append(("📏", line1))
-
-        lap_time = circuit_data.get("fastest_lap_time")
-        lap_driver = circuit_data.get("fastest_lap_driver")
-        lap_year = circuit_data.get("fastest_lap_year")
-        if lap_time:
-            lap_text = f"{lap_time}"
-            if lap_driver:
-                last_name = lap_driver.split()[-1] if lap_driver else ""
-                lap_text += f" ({last_name}"
-                if lap_year:
-                    lap_text += f", {lap_year})"
-                else:
-                    lap_text += ")"
-            stats.append(("⚡", lap_text))
-
-        first_gp = circuit_data.get("first_grand_prix")
-        if first_gp:
-            stats.append(("🗓", f"{self.translator.get('first_gp', 'First GP')}: {first_gp}"))
-
-        if not stats:
-            return
-
-        results_line_y = self.layout["results_y_start"]
-        total_stats_height = len(stats) * row_height
-        y_start = results_line_y - 3 - total_stats_height
-
-        font_icon = self.fonts["icon_small"]
-
-        max_icon_width = 0
-        for stat in stats:
-            icon = stat[0]
-            icon_bbox = draw.textbbox((0, 0), icon, font=font_icon)
-            icon_width = icon_bbox[2] - icon_bbox[0]
-            max_icon_width = max(max_icon_width, icon_width)
-
-        max_text_width = 0
-        for stat in stats:
-            text = stat[1]
-            text_bbox = draw.textbbox((0, 0), text, font=font_value)
-            text_width = text_bbox[2] - text_bbox[0]
-            max_text_width = max(max_text_width, text_width)
-
-        icon_text_gap = 4
-        total_block_width = max_icon_width + icon_text_gap + max_text_width
-
-        right_margin = 5
-        min_x = self.layout["right_column_x"]
-        block_x = max(min_x, self.width - right_margin - total_block_width)
-        text_x = block_x + max_icon_width + icon_text_gap
-
-        y = y_start
-        for stat in stats:
-            icon = stat[0]
-            text = stat[1]
-            icon_bbox = draw.textbbox((0, 0), icon, font=font_icon)
-            icon_width = icon_bbox[2] - icon_bbox[0]
-            icon_x = block_x + (max_icon_width - icon_width)
-            draw.text((icon_x, y), icon, fill=self.colors.BLACK, font=font_icon)
-            draw.text((text_x, y), text, fill=self.colors.BLACK, font=font_value)
-            y += row_height
+        draw_circuit_stats_block(
+            draw,
+            circuit_data,
+            translator=self.translator,
+            results_y_start=self.layout["results_y_start"],
+            right_column_x=self.layout["right_column_x"],
+            canvas_width=self.width,
+            row_height=self.layout["circuit_stats_row_height"],
+            font_icon=self.fonts["icon_small"],
+            font_value=self.fonts["circuit_stats_value"],
+            fill=self.colors.BLACK,
+        )
 
     def _draw_results_section(
         self,

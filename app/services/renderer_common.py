@@ -710,6 +710,83 @@ def draw_race_header(
     draw.text((text_x, start_y + 40), line2, fill=title_fill, font=header_subtitle_font)
 
 
+def draw_circuit_stats_block(
+    draw: ImageDraw.ImageDraw,
+    circuit_data: dict,
+    *,
+    translator: dict[str, str] | object,
+    results_y_start: int,
+    right_column_x: int,
+    canvas_width: int,
+    row_height: int,
+    font_icon,
+    font_value,
+    fill,
+) -> None:
+    """Draw the circuit facts block between the schedule and results areas."""
+    stats: list[tuple[str, str]] = []
+
+    length = circuit_data.get("circuit_length")
+    laps = circuit_data.get("number_of_laps")
+    if length:
+        line1 = f"{length}"
+        if laps:
+            line1 += f" | {laps} " + translator.get("laps", "laps")
+        stats.append(("📏", line1))
+
+    lap_time = circuit_data.get("fastest_lap_time")
+    lap_driver = circuit_data.get("fastest_lap_driver")
+    lap_year = circuit_data.get("fastest_lap_year")
+    if lap_time:
+        lap_text = f"{lap_time}"
+        if lap_driver:
+            last_name = lap_driver.split()[-1] if lap_driver else ""
+            lap_text += f" ({last_name}"
+            if lap_year:
+                lap_text += f", {lap_year})"
+            else:
+                lap_text += ")"
+        stats.append(("⚡", lap_text))
+
+    first_gp = circuit_data.get("first_grand_prix")
+    if first_gp:
+        stats.append(("🗓", f"{translator.get('first_gp', 'First GP')}: {first_gp}"))
+
+    if not stats:
+        return
+
+    total_stats_height = len(stats) * row_height
+    y_start = results_y_start - 3 - total_stats_height
+
+    max_icon_width = 0
+    for icon, _text in stats:
+        icon_bbox = draw.textbbox((0, 0), icon, font=font_icon)
+        icon_width = icon_bbox[2] - icon_bbox[0]
+        max_icon_width = max(max_icon_width, icon_width)
+
+    max_text_width = 0
+    for _icon, text_value in stats:
+        text_bbox = draw.textbbox((0, 0), text_value, font=font_value)
+        text_width = text_bbox[2] - text_bbox[0]
+        max_text_width = max(max_text_width, text_width)
+
+    icon_text_gap = 4
+    total_block_width = max_icon_width + icon_text_gap + max_text_width
+
+    right_margin = 5
+    block_x = max(right_column_x, canvas_width - right_margin - total_block_width)
+    text_x = block_x + max_icon_width + icon_text_gap
+
+    y = y_start
+    for icon, text_value in stats:
+        icon_bbox = draw.textbbox((0, 0), icon, font=font_icon)
+        icon_width = icon_bbox[2] - icon_bbox[0]
+        icon_x = block_x + (max_icon_width - icon_width)
+        draw.text((icon_x, y), icon, fill=fill, font=font_icon)
+        draw.text((text_x, y), text_value, fill=fill, font=font_value)
+        y += row_height
+
+
 def draw_schedule_section(
     draw: ImageDraw.ImageDraw,
     race_data: dict,
