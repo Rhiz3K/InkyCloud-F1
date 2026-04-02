@@ -8,14 +8,9 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
+from app.services.font_utils import FONTS_DIR
 from app.services.renderer import Renderer
-from app.services.spectra6_renderer import (
-    FONTS_DIR,
-    IMAGES_DIR,
-    TRACKS_DIR,
-    Spectra6Renderer,
-    logger,
-)
+from app.services.spectra6_renderer import IMAGES_DIR, TRACKS_DIR, Spectra6Renderer, logger
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwr_palette
 

@@ -14,7 +14,6 @@ from app.models import HistoricalData, TeamsData
 from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
 from app.services.font_utils import (
     CJK_LANG_CODES,
-    FONTS_DIR,
     fit_brand_font_box,
     fit_ui_font,
     load_brand_font,
@@ -27,6 +26,7 @@ from app.services.renderer_common import (
     crop_primary_horizontal_band,
     crop_to_content,
     draw_new_track_message,
+    draw_results_column,
     draw_results_header,
     fit_result_text,
     format_points,
@@ -34,6 +34,9 @@ from app.services.renderer_common import (
     format_team_driver_display_name,
     get_team_logo_key,
     get_text_y,
+    load_racing_font,
+    load_symbol_icon_font,
+    load_weather_icon_font,
     normalize_session_name,
     normalize_team_power_unit,
     right_align_x,
@@ -1373,50 +1376,22 @@ class Spectra6Renderer:
         is_qualifying: bool,
     ) -> None:
         """Draw one historical results column aligned with the footer header."""
-        font_title = self.fonts["results_title"]
-
-        ref_bbox = draw.textbbox((0, 0), TEXT_BASELINE_REF, font=font_title)
-        header_y_anchor = visual_top - ref_bbox[1]
-
-        draw.text((x_start, header_y_anchor), title, fill=self.colors.BLACK, font=font_title)
-
-        time_x = x_start + self.layout["results_time_offset"]
-
-        row_height = self.layout["results_row_height"]
-        font = self.fonts["results_row"]
-
-        ref_bbox = draw.textbbox((0, 0), "Hg", font=font_title)
-        header_visual_bottom = header_y_anchor + ref_bbox[3]
-
-        row_bbox = draw.textbbox((0, 0), "1", font=font)
-        y_rows_start = header_visual_bottom + self.layout["results_data_y_offset"] - row_bbox[1]
-
-        for i, entry in enumerate(results[:3]):
-            y = y_rows_start + (i * row_height)
-
-            pos = i + 1
-            driver_name = entry.driver.display_name
-            team = entry.constructor.name
-
-            if is_qualifying:
-                time_str = entry.q3_time or ""
-            else:
-                time_str = entry.time or ""
-
-            max_width = self.layout["results_time_offset"] - 10
-
-            text = self._fit_text(draw, font, max_width, pos, driver_name, team)
-
-            pos_text = f"{pos}."
-            draw.text((x_start, y), pos_text, fill=self.colors.BLACK, font=font)
-
-            pos_bbox = draw.textbbox((0, 0), pos_text, font=font)
-            pos_width = pos_bbox[2] - pos_bbox[0]
-            rest_text = text[len(pos_text) :]
-            draw.text((x_start + pos_width, y), rest_text, fill=self.colors.BLACK, font=font)
-
-            if time_str:
-                draw.text((time_x, y), time_str, fill=self.colors.BLACK, font=font)
+        draw_results_column(
+            draw,
+            x_start=x_start,
+            visual_top=visual_top,
+            title=title,
+            results=results,
+            is_qualifying=is_qualifying,
+            font_title=self.fonts["results_title"],
+            font_row=self.fonts["results_row"],
+            time_x=x_start + self.layout["results_time_offset"],
+            row_height=self.layout["results_row_height"],
+            data_y_offset=self.layout["results_data_y_offset"],
+            text_fill=self.colors.BLACK,
+            fit_result_text_fn=self._fit_text,
+            split_position_prefix=True,
+        )
 
     @staticmethod
     def _fit_text(
@@ -1442,31 +1417,15 @@ class Spectra6Renderer:
     @staticmethod
     def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
         """Load the fallback icon font used for symbols."""
-        symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
-        try:
-            return ImageFont.truetype(symbola_path, size)
-        except Exception as e:
-            logger.warning("Failed to load Symbola font: %s", e)
-            return ImageFont.load_default()
+        return load_symbol_icon_font(size, logger)
 
     def _load_weather_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
         """Load the weather icon font with a symbol fallback."""
-        font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
-        try:
-            return ImageFont.truetype(str(font_path), size)
-        except Exception as e:
-            logger.warning("Failed to load Weather Icons font: %s", e)
-            return self._load_icon_font(size)
+        return load_weather_icon_font(size, logger, self._load_icon_font)
 
     def _load_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
         """Load the stylized racing number font used for driver numbers."""
-        font_path = FONTS_DIR / "RacingSansOne-Regular.ttf"
-        if font_path.exists():
-            try:
-                return ImageFont.truetype(str(font_path), size)
-            except Exception as e:
-                logger.warning("Failed to load Racing Sans One: %s", e)
-        return self._load_font(size, bold=True)
+        return load_racing_font(size, logger, self._load_font)
 
     def _get_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
         """Return a cached racing-style font at the requested size."""

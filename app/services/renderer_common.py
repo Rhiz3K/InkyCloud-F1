@@ -6,9 +6,9 @@ import math
 import re
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
-from app.services.font_utils import CJK_LANG_CODES, fit_ui_font
+from app.services.font_utils import CJK_LANG_CODES, FONTS_DIR, fit_ui_font
 
 
 def split_teams_for_columns(teams: list) -> tuple[list, list]:
@@ -454,4 +454,92 @@ def draw_new_track_message(
     x = (canvas_width - text_width) // 2
     y = y_start + 30
     draw.text((x, y), message, fill=fill, font=font)
+
+def load_symbol_icon_font(size: int, logger) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load the Symbola fallback icon font used for symbols and emoji-style glyphs."""
+    symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
+    try:
+        return ImageFont.truetype(symbola_path, size)
+    except Exception as exc:
+        logger.warning("Failed to load Symbola font: %s", exc)
+        return ImageFont.load_default()
+
+
+def load_weather_icon_font(
+    size: int,
+    logger,
+    load_icon_font,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load the weather icon font with a Symbola fallback."""
+    font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
+    try:
+        return ImageFont.truetype(str(font_path), size)
+    except Exception as exc:
+        logger.warning("Failed to load Weather Icons font: %s", exc)
+        return load_icon_font(size)
+
+
+def load_racing_font(
+    size: int,
+    logger,
+    load_ui_font_fallback,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load the stylized racing number font with a UI-font fallback."""
+    font_path = FONTS_DIR / "RacingSansOne-Regular.ttf"
+    if font_path.exists():
+        try:
+            return ImageFont.truetype(str(font_path), size)
+        except Exception as exc:
+            logger.warning("Failed to load Racing Sans One: %s", exc)
+    return load_ui_font_fallback(size, bold=True)
+
+def draw_results_column(
+    draw: ImageDraw.ImageDraw,
+    *,
+    x_start: int,
+    visual_top: int,
+    title: str,
+    results: list,
+    is_qualifying: bool,
+    font_title,
+    font_row,
+    time_x: int,
+    row_height: int,
+    data_y_offset: int,
+    text_fill,
+    fit_result_text_fn,
+    split_position_prefix: bool = False,
+) -> None:
+    """Draw one historical results column aligned with the footer header."""
+    ref_bbox = draw.textbbox((0, 0), "Ay", font=font_title)
+    header_y_anchor = visual_top - ref_bbox[1]
+    draw.text((x_start, header_y_anchor), title, fill=text_fill, font=font_title)
+
+    ref_bbox = draw.textbbox((0, 0), "Hg", font=font_title)
+    header_visual_bottom = header_y_anchor + ref_bbox[3]
+
+    row_bbox = draw.textbbox((0, 0), "1", font=font_row)
+    y_rows_start = header_visual_bottom + data_y_offset - row_bbox[1]
+
+    for i, entry in enumerate(results[:3]):
+        y = y_rows_start + (i * row_height)
+        pos = i + 1
+        driver_name = entry.driver.display_name
+        team = entry.constructor.name
+        time_str = entry.q3_time or "" if is_qualifying else entry.time or ""
+        max_width = time_x - x_start - 10
+        text = fit_result_text_fn(draw, font_row, max_width, pos, driver_name, team)
+
+        if split_position_prefix:
+            pos_text = f"{pos}."
+            draw.text((x_start, y), pos_text, fill=text_fill, font=font_row)
+            pos_bbox = draw.textbbox((0, 0), pos_text, font=font_row)
+            pos_width = pos_bbox[2] - pos_bbox[0]
+            rest_text = text[len(pos_text) :]
+            draw.text((x_start + pos_width, y), rest_text, fill=text_fill, font=font_row)
+        else:
+            draw.text((x_start, y), text, fill=text_fill, font=font_row)
+
+        if time_str:
+            draw.text((time_x, y), time_str, fill=text_fill, font=font_row)
 

@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shared logo/result text helpers** - Moved team-logo keying, logo crop utilities, and historical-result text fitting into shared renderer helpers so both primary renderers stop carrying duplicate asset-prep logic
 - **Shared results header helper** - Centralized the year/flag footer header renderer so monochrome and Spectra 6 variants share one flag-loading path, including ISO fallback handling for countries like `UK`, `USA`, and `UAE`
 - **Shared new-track message helper** - Moved the centered `NEW TRACK` footer message into a shared renderer helper so monochrome and Spectra 6 variants stop duplicating the same fallback layout math
+- **Shared renderer font fallbacks** - Centralized Symbola, weather-icon, and Racing Sans One fallback loading so the primary renderers reuse one source of truth for icon and number font fallback behavior
 
 ### Security
 
