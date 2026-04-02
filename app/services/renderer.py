@@ -52,10 +52,8 @@ from app.services.renderer_common import (
     load_track_image_asset,
     load_weather_icon_font,
     normalize_session_name,
-    normalize_team_power_unit,
     prepare_mono_track_image,
     right_align_x,
-    text_width,
     translate_session_name,
 )
 from app.services.weather_service import RAINDROP_ICON, WeatherData
@@ -371,30 +369,10 @@ class Renderer:
 
         return w + 4
 
-    @staticmethod
-    def _text_width(draw: ImageDraw.ImageDraw, text: str, font) -> int:
-        """Measure rendered text width for the active draw context."""
-        return text_width(draw, text, font)
 
-    @classmethod
-    def _clamp_text(cls, draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> str:
-        """Clamp text to fit into a maximum width using an ellipsis."""
-        return clamp_text(draw, text, font, max_width)
 
-    @staticmethod
-    def _build_team_header_values(team) -> tuple[str, str, str, str]:
-        """Build normalized constructor header strings for a team card."""
-        return build_team_header_values(team)
 
-    @staticmethod
-    def _normalize_team_power_unit(constructor: str, power_unit: str | None) -> str:
-        """Shorten Red Bull power-unit labels in teams headers."""
-        return normalize_team_power_unit(constructor, power_unit)
 
-    @staticmethod
-    def _format_team_driver_display_name(name: str) -> str:
-        """Format a driver name as `Given SURNAME` for team cards."""
-        return format_team_driver_display_name(name)
 
     @staticmethod
     def _draw_team_stats_panel_mono(
@@ -458,8 +436,8 @@ class Renderer:
             lang_code=self.lang_code,
             draw_driver_photo_fn=self._draw_driver_photo,
             get_text_y_fn=get_text_y,
-            format_team_driver_display_name_fn=self._format_team_driver_display_name,
-            format_points_fn=self._format_points,
+            format_team_driver_display_name_fn=format_team_driver_display_name,
+            format_points_fn=format_points,
             right_align_x_fn=right_align_x,
             text_fill=0,
             badge_outline_fill=0,
@@ -492,7 +470,7 @@ class Renderer:
             stats_font = self.fonts["circuit_stats_value"]
             points_font = self.fonts["circuit_stats_value"]
 
-        team_name, meta_text, team_pos, team_pts = self._build_team_header_values(team)
+        team_name, meta_text, team_pos, team_pts = build_team_header_values(team)
 
         def draw_team_stats_panel(
             panel_x: int,
@@ -577,7 +555,7 @@ class Renderer:
             driver_name_padding=self.layout["driver_name_padding"],
             get_text_y_fn=get_text_y,
             build_team_header_values_fn=lambda _team: (team_name, meta_text, team_pos, team_pts),
-            clamp_text_fn=self._clamp_text,
+            clamp_text_fn=clamp_text,
             draw_team_stats_panel_fn=draw_team_stats_panel,
             draw_team_driver_row_fn=draw_team_driver_row,
             draw_team_logo_fn=draw_team_logo_cb,
@@ -594,10 +572,6 @@ class Renderer:
             self._racing_fonts[size] = self._load_racing_font(size)
         return self._racing_fonts[size]
 
-    @staticmethod
-    def _format_points(value: float | int | None) -> str:
-        """Format points while preserving half-points for display."""
-        return format_points(value)
 
     def _ensure_teams_assets(self) -> None:
         """Lazy-load cached driver and team assets used by the teams screen."""
@@ -1205,7 +1179,7 @@ class Renderer:
             row_height=self.layout["results_row_height"],
             data_y_offset=self.layout["results_data_y_offset"],
             text_fill=0,
-            fit_result_text_fn=self._fit_text,
+            fit_result_text_fn=fit_result_text,
             split_position_prefix=False,
         )
 
@@ -1367,17 +1341,6 @@ class Renderer:
         grayscale = ImageOps.autocontrast(flattened.convert("L"))
         return grayscale.point(lambda p: 255 if p > 240 else 0).convert("1")
 
-    @staticmethod
-    def _fit_text(
-        draw: ImageDraw.ImageDraw,
-        font: FreeTypeFont | ImageFont.ImageFont,
-        max_width: int,
-        pos: int,
-        driver: str,
-        team: str,
-    ) -> str:
-        """Fit text into max_width by truncating team then driver."""
-        return fit_result_text(draw, font, max_width, pos, driver, team)
 
     @staticmethod
     def _to_bmp(image: Image.Image) -> bytes:

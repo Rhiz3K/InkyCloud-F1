@@ -27,7 +27,13 @@ from app.services.bwry_renderer import BwryColors, BwryRenderer
 from app.services.font_utils import fit_brand_font_box
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
-from app.services.renderer_common import draw_team_logo, get_text_y, split_teams_for_columns
+from app.services.renderer_common import (
+    build_team_header_values,
+    draw_team_logo,
+    format_team_driver_display_name,
+    get_text_y,
+    split_teams_for_columns,
+)
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 from app.services.teams_service import TeamsService
 from app.services.weather_service import WeatherData
@@ -807,7 +813,7 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
                 name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
                 if not name:
                     name = driver.driver_code or "TBA"
-                display_name = renderer._format_team_driver_display_name(name)
+                display_name = format_team_driver_display_name(name)
                 driver_y = driver_y_start + i * driver_row_height
                 driver_name_x = photo_x + photo_size + renderer.layout["driver_name_padding"] + 4
                 max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
@@ -841,7 +847,7 @@ def test_team_header_values_shorten_red_bull_power_units(renderer_cls):
         drivers=[],
     )
 
-    team_name, meta_text, team_pos, team_pts = renderer_cls._build_team_header_values(team)
+    team_name, meta_text, team_pos, team_pts = build_team_header_values(team)
 
     assert team_name == "Red Bull Racing"
     assert meta_text == "RB22 | RB Ford DM01"
