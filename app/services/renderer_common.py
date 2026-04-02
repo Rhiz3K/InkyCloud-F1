@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import re
 
-from PIL import ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from app.services.font_utils import CJK_LANG_CODES, fit_ui_font
 
@@ -200,4 +200,140 @@ def format_schedule_session_name(
         return full_label
 
     return build_sprint_qualifying_label(translator, lang_code, abbreviated=True)
+
+def get_team_logo_key(constructor: str) -> str | None:
+    """Map a constructor name to the corresponding team logo asset key."""
+    name = constructor.lower()
+    if "audi" in name:
+        return "audi"
+    if "cadillac" in name:
+        return "cadillac"
+    if "mclaren" in name:
+        return "mclaren"
+    if "williams" in name:
+        return "williams"
+    if "aston martin" in name:
+        return "aston_martin"
+    if (
+        name == "rb"
+        or name.startswith("rb ")
+        or " rb " in name
+        or "racing bulls" in name
+        or "visa" in name
+    ):
+        return "racing_bulls"
+    if "red bull" in name:
+        return "red_bull"
+    if "haas" in name:
+        return "haas"
+    if "sauber" in name or "stake" in name or "kick" in name:
+        return "sauber"
+    if "alpine" in name:
+        return "alpine"
+    if "mercedes" in name:
+        return "mercedes"
+    if "ferrari" in name:
+        return "ferrari"
+    return None
+
+
+def crop_to_content(img: Image.Image, *, use_binary_mask: bool = False) -> Image.Image:
+    """Crop a logo to visible content, respecting transparency when present."""
+    if "A" in img.getbands():
+        alpha = img.getchannel("A")
+        if alpha.getextrema()[0] < 255:
+            bbox = alpha.getbbox()
+            if bbox:
+                return img.crop(bbox)
+
+    inverted = ImageOps.invert(img.convert("L"))
+    if use_binary_mask:
+        inverted = inverted.convert("1")
+    bbox = inverted.getbbox()
+    if bbox:
+        return img.crop(bbox)
+    return img
+
+
+def crop_primary_horizontal_band(img: Image.Image) -> Image.Image:
+    """Keep only the dominant upper band for tall stacked logo assets."""
+    if "A" in img.getbands() and img.getchannel("A").getextrema()[0] < 255:
+        mask = img.getchannel("A")
+    else:
+        mask = ImageOps.invert(img.convert("L"))
+    rows = []
+    for y in range(mask.height):
+        active = 0
+        for x in range(mask.width):
+            if mask.getpixel((x, y)) > 16:
+                active += 1
+        rows.append(active)
+
+    segments: list[tuple[int, int, int]] = []
+    start: int | None = None
+    for index, count in enumerate(rows):
+        if count > 5 and start is None:
+            start = index
+        elif count <= 5 and start is not None:
+            segment_rows = rows[start:index]
+            segments.append((start, index, max(segment_rows) if segment_rows else 0))
+            start = None
+    if start is not None:
+        segment_rows = rows[start:]
+        segments.append((start, len(rows), max(segment_rows) if segment_rows else 0))
+
+    if len(segments) < 2:
+        return img
+
+    first_start, first_end, first_peak = segments[0]
+    second_start, second_end, second_peak = segments[1]
+    first_height = first_end - first_start
+    second_height = second_end - second_start
+    gap = second_start - first_end
+
+    min_gap = max(8, img.height // 30)
+    min_primary_height = max(12, img.height // 5)
+    if (
+        gap < min_gap
+        or first_height < min_primary_height
+        or first_height < second_height
+        or first_peak < second_peak
+    ):
+        return img
+
+    return img.crop((0, first_start, img.width, first_end))
+
+
+def fit_result_text(
+    draw: ImageDraw.ImageDraw,
+    font,
+    max_width: int,
+    pos: int,
+    driver: str,
+    team: str,
+) -> str:
+    """Fit historical results text into the available width."""
+
+    def get_width(text: str) -> int:
+        return int(draw.textbbox((0, 0), text, font=font)[2])
+
+    full = f"{pos}. {driver} ({team})"
+    if get_width(full) <= max_width:
+        return full
+
+    for i in range(len(team), 2, -1):
+        short_team = team[:i] + ".."
+        text = f"{pos}. {driver} ({short_team})"
+        if get_width(text) <= max_width:
+            return text
+
+    short_team = team[:3] + ".."
+
+    for i in range(len(driver), 2, -1):
+        short_driver = driver[:i] + "."
+        text = f"{pos}. {short_driver} ({short_team})"
+        if get_width(text) <= max_width:
+            return text
+
+    return f"{pos}. {driver[:5]}.. ({team[:3]}..)"
 

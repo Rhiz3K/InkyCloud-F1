@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageFont import FreeTypeFont
 
 from app.config import config
@@ -24,9 +24,13 @@ from app.services.renderer_common import (
     build_sprint_qualifying_label,
     build_team_header_values,
     clamp_text,
+    crop_primary_horizontal_band,
+    crop_to_content,
+    fit_result_text,
     format_points,
     format_schedule_session_name,
     format_team_driver_display_name,
+    get_team_logo_key,
     get_text_y,
     normalize_session_name,
     normalize_team_power_unit,
@@ -630,38 +634,7 @@ class Spectra6Renderer:
     @staticmethod
     def _get_team_logo_key(constructor: str) -> str | None:
         """Map a constructor name to the corresponding team logo asset key."""
-        name = constructor.lower()
-        if "audi" in name:
-            return "audi"
-        if "cadillac" in name:
-            return "cadillac"
-        if "mclaren" in name:
-            return "mclaren"
-        if "williams" in name:
-            return "williams"
-        if "aston martin" in name:
-            return "aston_martin"
-        if (
-            name == "rb"
-            or name.startswith("rb ")
-            or " rb " in name
-            or "racing bulls" in name
-            or "visa" in name
-        ):
-            return "racing_bulls"
-        if "red bull" in name:
-            return "red_bull"
-        if "haas" in name:
-            return "haas"
-        if "sauber" in name or "stake" in name or "kick" in name:
-            return "sauber"
-        if "alpine" in name:
-            return "alpine"
-        if "mercedes" in name:
-            return "mercedes"
-        if "ferrari" in name:
-            return "ferrari"
-        return None
+        return get_team_logo_key(constructor)
 
     def _draw_team_logo(
         self,
@@ -1495,30 +1468,7 @@ class Spectra6Renderer:
         team: str,
     ) -> str:
         """Fit historical results text into the available width."""
-
-        def get_width(t: str) -> int:
-            """Measure a candidate text width for truncation decisions."""
-            return int(draw.textbbox((0, 0), t, font=font)[2])
-
-        full = f"{pos}. {driver} ({team})"
-        if get_width(full) <= max_width:
-            return full
-
-        for i in range(len(team), 2, -1):
-            short_team = team[:i] + ".."
-            text = f"{pos}. {driver} ({short_team})"
-            if get_width(text) <= max_width:
-                return text
-
-        short_team = team[:3] + ".."
-
-        for i in range(len(driver), 2, -1):
-            short_driver = driver[:i] + "."
-            text = f"{pos}. {short_driver} ({short_team})"
-            if get_width(text) <= max_width:
-                return text
-
-        return f"{pos}. {driver[:5]}.. ({team[:3]}..)"
+        return fit_result_text(draw, font, max_width, pos, driver, team)
 
     def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
         """Load the main UI font for the active locale."""
@@ -1639,67 +1589,12 @@ class Spectra6Renderer:
     @staticmethod
     def _crop_to_content(img: Image.Image) -> Image.Image:
         """Crop a logo to visible content, respecting transparency when present."""
-        if "A" in img.getbands():
-            alpha = img.getchannel("A")
-            if alpha.getextrema()[0] < 255:
-                bbox = alpha.getbbox()
-                if bbox:
-                    return img.crop(bbox)
-
-        inverted = ImageOps.invert(img.convert("L"))
-        bbox = inverted.getbbox()
-        if bbox:
-            return img.crop(bbox)
-        return img
+        return crop_to_content(img)
 
     @staticmethod
     def _crop_primary_horizontal_band(img: Image.Image) -> Image.Image:
         """Keep only the dominant upper band for tall stacked logo assets."""
-        if "A" in img.getbands() and img.getchannel("A").getextrema()[0] < 255:
-            mask = img.getchannel("A")
-        else:
-            mask = ImageOps.invert(img.convert("L"))
-        rows = []
-        for y in range(mask.height):
-            active = 0
-            for x in range(mask.width):
-                if mask.getpixel((x, y)) > 16:
-                    active += 1
-            rows.append(active)
-
-        segments: list[tuple[int, int, int]] = []
-        start: int | None = None
-        for index, count in enumerate(rows):
-            if count > 5 and start is None:
-                start = index
-            elif count <= 5 and start is not None:
-                segment_rows = rows[start:index]
-                segments.append((start, index, max(segment_rows) if segment_rows else 0))
-                start = None
-        if start is not None:
-            segment_rows = rows[start:]
-            segments.append((start, len(rows), max(segment_rows) if segment_rows else 0))
-
-        if len(segments) < 2:
-            return img
-
-        first_start, first_end, first_peak = segments[0]
-        second_start, second_end, second_peak = segments[1]
-        first_height = first_end - first_start
-        second_height = second_end - second_start
-        gap = second_start - first_end
-
-        min_gap = max(8, img.height // 30)
-        min_primary_height = max(12, img.height // 5)
-        if (
-            gap < min_gap
-            or first_height < min_primary_height
-            or first_height < second_height
-            or first_peak < second_peak
-        ):
-            return img
-
-        return img.crop((0, first_start, img.width, first_end))
+        return crop_primary_horizontal_band(img)
 
     def _to_indexed_bmp(self, image: Image.Image) -> bytes:
         """Convert RGB image to indexed 6-color BMP for Spectra 6 display."""
