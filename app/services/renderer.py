@@ -26,6 +26,7 @@ from app.services.renderer_common import (
     clamp_text,
     crop_primary_horizontal_band,
     crop_to_content,
+    draw_results_header,
     fit_result_text,
     format_points,
     format_schedule_session_name,
@@ -1662,75 +1663,22 @@ class Renderer:
         Returns:
             Y coordinate where results columns should align.
         """
-        year_text = str(season)
-        year_font = self.fonts["results_year"]
-        bbox = draw.textbbox((0, 0), year_text, font=year_font)
-        text_width = bbox[2] - bbox[0]
-        text_h = bbox[3] - bbox[1]
-
-        footer_y_start = y_start
-        footer_height = self.height - footer_y_start
-
-        iso_code = COUNTRY_MAP.get(country_name, "").lower()
-        if not iso_code:
-            if country_name == "UAE":
-                iso_code = "ae"
-            elif country_name == "UK":
-                iso_code = "gb"
-            elif country_name == "USA":
-                iso_code = "us"
-            else:
-                iso_code = country_name[:2].lower()
-
-        flag_img: Image.Image | None = None
-        if iso_code:
-            local_flag_path = FLAGS_DIR / f"{iso_code}.bmp"
-            if local_flag_path.exists():
-                try:
-                    with Image.open(local_flag_path) as opened_flag:
-                        flag_img = opened_flag.copy()
-                except Exception as e:
-                    logger.warning("Failed to load local flag: %s", e)
-
-        header_area_w = self.layout["results_col1_x"]
-
-        flag_h = 0
-        if flag_img:
-            max_flag_width = int(header_area_w * 0.8)
-            if flag_img.width > max_flag_width:
-                ratio = max_flag_width / flag_img.width
-                flag_h = int(flag_img.height * ratio)
-                flag_img = flag_img.resize((max_flag_width, flag_h), Image.Resampling.NEAREST)
-            else:
-                flag_h = flag_img.height
-
-        standard_gap = 3
-        total_block_h_stable = text_h + (standard_gap if flag_h > 0 else 0) + flag_h
-        y_offset_stable = (footer_height - total_block_h_stable) // 2
-        visual_top = footer_y_start + y_offset_stable
-
-        year_x = (header_area_w - text_width) // 2
-        text_y = visual_top - bbox[1]
-        draw.text((year_x, text_y), year_text, fill=0, font=year_font)
-
-        if flag_img:
-            x = (header_area_w - flag_img.width) // 2
-            flag_top_y = int(self.height - flag_img.height - 4)
-
-            image.paste(flag_img, (x, flag_top_y))
-
-            draw.rectangle(
-                [
-                    x - 1,
-                    flag_top_y - 1,
-                    x + flag_img.width,
-                    flag_top_y + flag_img.height,
-                ],
-                outline=0,
-                width=1,
-            )
-
-        return int(visual_top)
+        return draw_results_header(
+            draw,
+            image,
+            canvas_height=self.height,
+            header_area_width=self.layout["results_col1_x"],
+            y_start=y_start,
+            season=season,
+            country_name=country_name,
+            year_font=self.fonts["results_year"],
+            text_fill=0,
+            outline_fill=0,
+            country_map=COUNTRY_MAP,
+            flags_dir=FLAGS_DIR,
+            prepare_flag_image=lambda opened_flag: opened_flag.copy(),
+            logger=logger,
+        )
 
     def _draw_results_column(
         self,

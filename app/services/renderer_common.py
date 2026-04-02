@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageOps
 
@@ -336,4 +337,105 @@ def fit_result_text(
             return text
 
     return f"{pos}. {driver[:5]}.. ({team[:3]}..)"
+
+def get_country_flag_iso_code(country_name: str, country_map: dict[str, str]) -> str:
+    """Resolve a country name to the local flag asset ISO code."""
+    iso_code = country_map.get(country_name, "").lower()
+    if iso_code:
+        return iso_code
+
+    aliases = {"UAE": "ae", "UK": "gb", "USA": "us"}
+    return aliases.get(country_name, country_name[:2].lower())
+
+
+def load_results_flag_image(
+    country_name: str,
+    country_map: dict[str, str],
+    flags_dir: Path,
+    prepare_flag_image,
+    logger,
+) -> Image.Image | None:
+    """Load and normalize the local results flag image for a country."""
+    iso_code = get_country_flag_iso_code(country_name, country_map)
+    if not iso_code:
+        return None
+
+    local_flag_path = flags_dir / f"{iso_code}.bmp"
+    if not local_flag_path.exists():
+        return None
+
+    try:
+        with Image.open(local_flag_path) as opened_flag:
+            return prepare_flag_image(opened_flag)
+    except Exception as exc:
+        logger.warning("Failed to load local flag: %s", exc)
+        return None
+
+
+def draw_results_header(
+    draw: ImageDraw.ImageDraw,
+    image: Image.Image,
+    *,
+    canvas_height: int,
+    header_area_width: int,
+    y_start: int,
+    season: int | str,
+    country_name: str,
+    year_font,
+    text_fill,
+    outline_fill,
+    country_map: dict[str, str],
+    flags_dir: Path,
+    prepare_flag_image,
+    logger,
+) -> int:
+    """Render the year and optional country flag for the results footer."""
+    year_text = str(season)
+    bbox = draw.textbbox((0, 0), year_text, font=year_font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+
+    footer_height = canvas_height - y_start
+    flag_img = load_results_flag_image(
+        country_name,
+        country_map,
+        flags_dir,
+        prepare_flag_image,
+        logger,
+    )
+
+    flag_h = 0
+    if flag_img:
+        max_flag_width = int(header_area_width * 0.8)
+        if flag_img.width > max_flag_width:
+            ratio = max_flag_width / flag_img.width
+            flag_h = int(flag_img.height * ratio)
+            flag_img = flag_img.resize((max_flag_width, flag_h), Image.Resampling.NEAREST)
+        else:
+            flag_h = flag_img.height
+
+    standard_gap = 3
+    total_block_h = text_height + (standard_gap if flag_h > 0 else 0) + flag_h
+    visual_top = y_start + (footer_height - total_block_h) // 2
+
+    year_x = (header_area_width - text_width) // 2
+    text_y = visual_top - bbox[1]
+    draw.text((year_x, text_y), year_text, fill=text_fill, font=year_font)
+
+    if flag_img:
+        x = (header_area_width - flag_img.width) // 2
+        flag_top_y = int(canvas_height - flag_img.height - 4)
+        image.paste(flag_img, (x, flag_top_y))
+        draw.rectangle(
+            [
+                x - 1,
+                flag_top_y - 1,
+                x + flag_img.width,
+                flag_top_y + flag_img.height,
+            ],
+            outline=outline_fill,
+            width=1,
+        )
+
+    return int(visual_top)
 
