@@ -26,6 +26,7 @@ from app.services.renderer_common import (
     draw_circuit_stats_block,
     draw_countdown_box,
     draw_driver_photo,
+    draw_f1_logo,
     draw_new_track_message,
     draw_race_header,
     draw_results_column,
@@ -39,6 +40,7 @@ from app.services.renderer_common import (
     draw_team_stats_panel,
     draw_teams_content,
     draw_teams_header,
+    draw_track_placeholder,
     draw_track_section,
     fit_result_text,
     format_points,
@@ -247,7 +249,16 @@ class Renderer:
             text_fill=1,
             brand_font=self._load_brand_font(36, bold=True),
             subtitle_font=self.fonts["header_subtitle"],
-            draw_f1_logo_fn=self._draw_f1_logo,
+            draw_f1_logo_fn=lambda canvas, width, height: draw_f1_logo(
+                canvas,
+                width,
+                height,
+                logo_path=IMAGES_DIR / "eInkF1logo.jpg",
+                logger=logger,
+                prepare_logo_fn=lambda logo_file: logo_file.convert("L")
+                .point(lambda p: 255 if p > 128 else 0)
+                .convert("1"),
+            ),
         )
 
     def _draw_teams_content(
@@ -592,7 +603,16 @@ class Renderer:
         draw.line([(0, header_height - 1), (split_x, header_height - 1)], fill=0, width=2)
         draw.rectangle([(split_x + 1, 0), (self.width, header_height)], fill=0)
 
-        self._draw_f1_logo(image, split_x, header_height)
+        draw_f1_logo(
+            image,
+            split_x,
+            header_height,
+            logo_path=IMAGES_DIR / "eInkF1logo.jpg",
+            logger=logger,
+            prepare_logo_fn=lambda logo_file: logo_file.convert("L")
+            .point(lambda p: 255 if p > 128 else 0)
+            .convert("1"),
+        )
 
         title = self.translator.get("standings_title", "CHAMPIONSHIP STANDINGS")
         line1 = f"{season} FIA F1 World Championship"
@@ -820,56 +840,18 @@ class Renderer:
             title_fill=1,
             header_title_font=self.fonts["header_title"],
             header_subtitle_font=self.fonts["header_subtitle"],
-            draw_f1_logo_fn=self._draw_f1_logo,
+            draw_f1_logo_fn=lambda canvas, width, height: draw_f1_logo(
+                canvas,
+                width,
+                height,
+                logo_path=IMAGES_DIR / "eInkF1logo.jpg",
+                logger=logger,
+                prepare_logo_fn=lambda logo_file: logo_file.convert("L")
+                .point(lambda p: 255 if p > 128 else 0)
+                .convert("1"),
+            ),
         )
 
-    @staticmethod
-    def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:
-        """
-        Render the F1 logo centered in the header area.
-
-        Loads, scales to fit, converts to 1-bit, and pastes centered. Logs
-        warning if logo missing.
-
-        Parameters:
-            image: Destination image for the logo.
-            width: Header area width.
-            height: Header area height.
-        """
-        logo_path = IMAGES_DIR / "eInkF1logo.jpg"
-
-        if not logo_path.exists():
-            logger.warning("F1 logo not found at %s", logo_path)
-            return
-
-        try:
-            with Image.open(logo_path) as logo_file:
-                # Maximize logo size - minimal padding
-                pad = 2
-                target_w = width - (pad * 2)
-                target_h = height - (pad * 2)
-
-                logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
-
-                # Convert to 1-bit
-                # Use simplified thresholding
-                logo: Image.Image = logo_file.convert("L")
-                # Keep black as black (0) and white as white (1) because the
-                # destination background is already white.
-
-                # Threshold
-                threshold = 128
-                logo = logo.point(lambda p: 255 if p > threshold else 0)  # type: ignore[arg-type]
-                logo = logo.convert("1")
-
-                # Center it
-                x = (width - logo.width) // 2
-                y = (height - logo.height) // 2
-
-                image.paste(logo, (x, y))
-
-        except Exception as e:
-            logger.warning("Failed to load F1 logo: %s", e)
 
     # =========================================================================
     # Track Map Section (Left Column)
@@ -903,20 +885,13 @@ class Renderer:
             paste_track_image_fn=(
                 lambda canvas, prepared_image, px, py: canvas.paste(prepared_image, (px, py))
             ),
-            draw_track_placeholder_fn=self._draw_track_placeholder,
+            draw_track_placeholder_fn=(
+                lambda draw_ctx, x, y, width, height: draw_track_placeholder(
+                    draw_ctx, x, y, width, height, outline_fill=0
+                )
+            ),
         )
 
-    @staticmethod
-    def _draw_track_placeholder(
-        draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
-    ) -> None:
-        """Draw a simple placeholder when track image is not available."""
-        draw.rounded_rectangle(
-            [(x + 20, y + 20), (x + width - 20, y + height - 20)],
-            radius=20,
-            outline=0,
-            width=3,
-        )
 
     @staticmethod
     def _load_track_image(race_data: dict) -> Image.Image | None:

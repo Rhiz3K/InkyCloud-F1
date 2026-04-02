@@ -1009,6 +1009,52 @@ def draw_race_header(
     draw.text((text_x, start_y + 40), line2, fill=title_fill, font=header_subtitle_font)
 
 
+def draw_f1_logo(
+    image: Image.Image,
+    width: int,
+    height: int,
+    *,
+    logo_path: Path,
+    logger,
+    prepare_logo_fn,
+) -> None:
+    """Load, fit, and center the shared F1 logo in a header area."""
+    if not logo_path.exists():
+        logger.warning("F1 logo not found at %s", logo_path)
+        return
+
+    try:
+        with Image.open(logo_path) as logo_file:
+            pad = 2
+            target_w = width - (pad * 2)
+            target_h = height - (pad * 2)
+            logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+            logo = prepare_logo_fn(logo_file)
+            x = (width - logo.width) // 2
+            y = (height - logo.height) // 2
+            image.paste(logo, (x, y))
+    except Exception as exc:
+        logger.warning("Failed to load F1 logo: %s", exc)
+
+
+def draw_track_placeholder(
+    draw: ImageDraw.ImageDraw,
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    *,
+    outline_fill,
+) -> None:
+    """Draw a rounded fallback placeholder when no track asset is available."""
+    draw.rounded_rectangle(
+        [(x + 20, y + 20), (x + width - 20, y + height - 20)],
+        radius=20,
+        outline=outline_fill,
+        width=3,
+    )
+
+
 def build_track_stems(race_data: dict) -> list[str]:
     """Build ordered candidate track asset stems from race circuit metadata."""
     circuit = race_data.get("circuit", {})

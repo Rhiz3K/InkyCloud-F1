@@ -26,6 +26,7 @@ from app.services.renderer_common import (
     draw_circuit_stats_block,
     draw_countdown_box,
     draw_driver_photo,
+    draw_f1_logo,
     draw_new_track_message,
     draw_race_header,
     draw_results_column,
@@ -39,6 +40,7 @@ from app.services.renderer_common import (
     draw_team_stats_panel,
     draw_teams_content,
     draw_teams_header,
+    draw_track_placeholder,
     draw_track_section,
     fit_result_text,
     format_points,
@@ -242,7 +244,17 @@ class Spectra6Renderer:
             text_fill=self.colors.WHITE,
             brand_font=self._load_brand_font(36, bold=True),
             subtitle_font=self.fonts["header_subtitle"],
-            draw_f1_logo_fn=self._draw_f1_logo,
+            draw_f1_logo_fn=lambda canvas, width, height: draw_f1_logo(
+                canvas,
+                width,
+                height,
+                logo_path=IMAGES_DIR / "eInkF1logo.jpg",
+                logger=logger,
+                prepare_logo_fn=lambda logo_file: logo_file.convert("L")
+                .point(lambda p, threshold=128: 255 if p > threshold else 0)
+                .convert("1")
+                .convert("RGB"),
+            ),
         )
 
     def _draw_teams_content(
@@ -511,38 +523,19 @@ class Spectra6Renderer:
             title_fill=self.colors.WHITE,
             header_title_font=self.fonts["header_title"],
             header_subtitle_font=self.fonts["header_subtitle"],
-            draw_f1_logo_fn=self._draw_f1_logo,
+            draw_f1_logo_fn=lambda canvas, width, height: draw_f1_logo(
+                canvas,
+                width,
+                height,
+                logo_path=IMAGES_DIR / "eInkF1logo.jpg",
+                logger=logger,
+                prepare_logo_fn=lambda logo_file: logo_file.convert("L")
+                .point(lambda p, threshold=128: 255 if p > threshold else 0)
+                .convert("1")
+                .convert("RGB"),
+            ),
         )
 
-    @staticmethod
-    def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:
-        """Draw the shared monochrome F1 logo inside the header logo area."""
-        logo_path = IMAGES_DIR / "eInkF1logo.jpg"
-
-        if not logo_path.exists():
-            logger.warning("F1 logo not found at %s", logo_path)
-            return
-
-        try:
-            with Image.open(logo_path) as logo_file:
-                pad = 2
-                target_w = width - (pad * 2)
-                target_h = height - (pad * 2)
-                logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
-
-                logo = logo_file.convert("L")
-                threshold = 128
-                logo = logo.point(  # type: ignore[arg-type,operator,misc]
-                    lambda p, threshold=threshold: 255 if p > threshold else 0
-                )
-                logo = logo.convert("1").convert("RGB")
-
-                x = (width - logo.width) // 2
-                y = (height - logo.height) // 2
-                image.paste(logo, (x, y))
-
-        except Exception as e:
-            logger.warning("Failed to load F1 logo: %s", e)
 
     def _ensure_teams_assets(self) -> None:
         """Lazy-load cached driver and team assets used by the teams screen."""
@@ -576,20 +569,13 @@ class Spectra6Renderer:
             paste_track_image_fn=(
                 lambda canvas, prepared_image, px, py: canvas.paste(prepared_image, (px, py))
             ),
-            draw_track_placeholder_fn=self._draw_track_placeholder,
+            draw_track_placeholder_fn=(
+                lambda draw_ctx, x, y, width, height: draw_track_placeholder(
+                    draw_ctx, x, y, width, height, outline_fill=Spectra6Colors.BLACK
+                )
+            ),
         )
 
-    @staticmethod
-    def _draw_track_placeholder(
-        draw: ImageDraw.ImageDraw, x: int, y: int, width: int, height: int
-    ) -> None:
-        """Draw a fallback placeholder when no track image is available."""
-        draw.rounded_rectangle(
-            [(x + 20, y + 20), (x + width - 20, y + height - 20)],
-            radius=20,
-            outline=Spectra6Colors.BLACK,
-            width=3,
-        )
 
     @staticmethod
     def _load_track_image(race_data: dict) -> Image.Image | None:

@@ -31,6 +31,7 @@ from app.services.renderer_common import (
     build_sprint_qualifying_label,
     build_team_header_values,
     crop_to_content,
+    draw_f1_logo,
     draw_team_logo,
     format_schedule_session_name,
     format_team_driver_display_name,
@@ -2370,7 +2371,17 @@ def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch):
     monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", images_dir)
 
     image = Image.new("RGB", (80, 30), (255, 255, 255))
-    Spectra6Renderer._draw_f1_logo(image, 80, 30)
+    draw_f1_logo(
+        image,
+        80,
+        30,
+        logo_path=images_dir / "eInkF1logo.jpg",
+        logger=spectra6_renderer_module.logger,
+        prepare_logo_fn=lambda logo_file: logo_file.convert("L")
+        .point(lambda p, threshold=128: 255 if p > threshold else 0)
+        .convert("1")
+        .convert("RGB"),
+    )
 
     center = image.getpixel((40, 15))
     assert center[0] == center[1] == center[2]
