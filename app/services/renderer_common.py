@@ -10,8 +10,9 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
+from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.font_utils import CJK_LANG_CODES, FONTS_DIR, fit_brand_font_box, fit_ui_font
-from app.services.track_assets import resolve_track_source_path
+from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 
 
 def split_teams_for_columns(teams: list) -> tuple[list, list]:
@@ -1006,6 +1007,15 @@ def draw_race_header(
 
     draw.text((text_x, start_y), line1, fill=title_fill, font=header_title_font)
     draw.text((text_x, start_y + 40), line2, fill=title_fill, font=header_subtitle_font)
+
+
+def build_track_stems(race_data: dict) -> list[str]:
+    """Build ordered candidate track asset stems from race circuit metadata."""
+    circuit = race_data.get("circuit", {})
+    circuit_id = str(circuit.get("circuitId", "") or "")
+    location = str(circuit.get("location", "") or "")
+    normalized_id = str(CIRCUIT_ID_MAP.get(circuit_id, circuit_id))
+    return build_track_stem_candidates(normalized_id, circuit_id, location)
 
 
 def load_track_image_asset(

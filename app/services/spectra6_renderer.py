@@ -20,6 +20,7 @@ from app.services.font_utils import (
 from app.services.renderer_common import (
     build_sprint_qualifying_label,
     build_team_header_values,
+    build_track_stems,
     clamp_text,
     crop_primary_horizontal_band,
     crop_to_content,
@@ -58,7 +59,6 @@ from app.services.renderer_common import (
     text_width,
     translate_session_name,
 )
-from app.services.track_assets import build_track_stem_candidates
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
@@ -664,13 +664,8 @@ class Spectra6Renderer:
     @staticmethod
     def _load_track_image(race_data: dict) -> Image.Image | None:
         """Load the best available Spectra 6 track image for a race."""
-        circuit = race_data.get("circuit", {})
-        circuit_id = str(circuit.get("circuitId", "") or "")
-        location = str(circuit.get("location", "") or "")
-        normalized_id = str(CIRCUIT_ID_MAP.get(circuit_id, circuit_id))
-        track_stems = build_track_stem_candidates(normalized_id, circuit_id, location)
         return load_track_image_asset(
-            track_stems,
+            build_track_stems(race_data),
             source_dir=TRACKS_DIR,
             variant_suffix="spectra6",
             fallback_dir=TRACKS_SPECTRA6_DIR,
