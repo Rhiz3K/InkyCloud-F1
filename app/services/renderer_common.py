@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import math
+import re
 
 from PIL import ImageDraw
+
+from app.services.font_utils import CJK_LANG_CODES, fit_ui_font
 
 
 def split_teams_for_columns(teams: list) -> tuple[list, list]:
@@ -108,3 +111,93 @@ def build_team_header_values(team) -> tuple[str, str, str, str]:
     meta_text = " | ".join(part for part in (chassis, power_unit) if part)
     team_pos = str(team.position) if team.position else "—"
     return team_name, meta_text, team_pos, format_points(team.points)
+
+def normalize_session_name(name: str) -> str:
+    """Normalize API/static session variants to a stable translation key suffix."""
+    normalized = re.sub(r"[^a-z0-9]+", "", name.lower())
+    aliases = {
+        "practice1": "fp1",
+        "practice2": "fp2",
+        "practice3": "fp3",
+        "firstpractice": "fp1",
+        "secondpractice": "fp2",
+        "thirdpractice": "fp3",
+        "sprintqualifying": "sprintqualifying",
+        "sprintshootout": "sprintqualifying",
+        "shootout": "sprintqualifying",
+    }
+    return aliases.get(normalized, normalized)
+
+
+def abbreviate_schedule_term(term: str, lang_code: str) -> str:
+    """Reduce a localized schedule term to its leading letter or character."""
+    stripped = term.strip()
+    if not stripped:
+        return term
+    first_char = stripped[0]
+    if lang_code in CJK_LANG_CODES:
+        return first_char
+    return f"{first_char}."
+
+
+def build_sprint_qualifying_label(
+    translator: dict[str, str] | object,
+    lang_code: str,
+    *,
+    abbreviated: bool,
+) -> str:
+    """Compose the sprint qualifying label from localized sprint/qualifying text."""
+    sprint_label = translator.get("session_sprint", "Sprint")
+    qualifying_label = translator.get("session_qualifying", "Qualifying")
+    separator = "" if lang_code in CJK_LANG_CODES else " "
+
+    if abbreviated:
+        qualifying_label = abbreviate_schedule_term(qualifying_label, lang_code)
+
+    return f"{sprint_label}{separator}{qualifying_label}"
+
+
+def translate_session_name(name: str, translator: dict[str, str] | object, lang_code: str) -> str:
+    """Translate session names while normalizing API/static variants."""
+    if not name:
+        return ""
+
+    normalized = normalize_session_name(name)
+    if normalized == "sprintqualifying":
+        return build_sprint_qualifying_label(translator, lang_code, abbreviated=False)
+
+    direct_key = f"session_{name.lower()}"
+    if direct_key in translator:
+        return translator[direct_key]
+
+    normalized_key = f"session_{normalized}"
+    return translator.get(normalized_key, name)
+
+
+def format_schedule_session_name(
+    draw: ImageDraw.ImageDraw,
+    name: str,
+    max_width: int,
+    lang_code: str,
+    translator: dict[str, str] | object,
+) -> str:
+    """Return the best-fitting localized schedule label for a session."""
+    if normalize_session_name(name) != "sprintqualifying":
+        return translate_session_name(name, translator, lang_code)
+
+    full_label = build_sprint_qualifying_label(translator, lang_code, abbreviated=False)
+    full_font = fit_ui_font(
+        draw,
+        lang_code,
+        full_label,
+        max_width=max_width,
+        base_size=20,
+        min_size=15,
+        bold=True,
+    )
+    full_bbox = draw.textbbox((0, 0), full_label, font=full_font)
+    if full_bbox[2] - full_bbox[0] <= max_width:
+        return full_label
+
+    return build_sprint_qualifying_label(translator, lang_code, abbreviated=True)
+

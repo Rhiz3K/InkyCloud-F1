@@ -3,7 +3,6 @@
 import io
 import json
 import logging
-import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -22,15 +21,19 @@ from app.services.font_utils import (
     load_ui_font,
 )
 from app.services.renderer_common import (
+    build_sprint_qualifying_label,
     build_team_header_values,
     clamp_text,
     format_points,
+    format_schedule_session_name,
     format_team_driver_display_name,
     get_text_y,
+    normalize_session_name,
     normalize_team_power_unit,
     right_align_x,
     split_teams_for_columns,
     text_width,
+    translate_session_name,
 )
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.services.weather_service import RAINDROP_ICON, WeatherData
@@ -1305,35 +1308,15 @@ class Renderer:
         max_width: int,
     ) -> str:
         """Return the best-fitting localized schedule label for a session."""
-        if self._normalize_session_name(name) != "sprintqualifying":
-            return self._translate_session_name(name)
-
-        full_label = self._build_sprint_qualifying_label(abbreviated=False)
-        full_font = fit_ui_font(
-            draw,
-            self.lang_code,
-            full_label,
-            max_width=max_width,
-            base_size=20,
-            min_size=15,
-            bold=True,
-        )
-        full_bbox = draw.textbbox((0, 0), full_label, font=full_font)
-        if full_bbox[2] - full_bbox[0] <= max_width:
-            return full_label
-
-        return self._build_sprint_qualifying_label(abbreviated=True)
+        return format_schedule_session_name(draw, name, max_width, self.lang_code, self.translator)
 
     def _build_sprint_qualifying_label(self, *, abbreviated: bool) -> str:
         """Compose the sprint qualifying label from the localized sprint and qualifying text."""
-        sprint_label = self.translator.get("session_sprint", "Sprint")
-        qualifying_label = self.translator.get("session_qualifying", "Qualifying")
-        separator = "" if self.lang_code in CJK_LANG_CODES else " "
-
-        if abbreviated:
-            qualifying_label = self._abbreviate_schedule_term(qualifying_label)
-
-        return f"{sprint_label}{separator}{qualifying_label}"
+        return build_sprint_qualifying_label(
+            self.translator,
+            self.lang_code,
+            abbreviated=abbreviated,
+        )
 
     def _abbreviate_schedule_term(self, term: str) -> str:
         """Reduce a localized schedule term to its leading letter or character."""
@@ -1347,36 +1330,12 @@ class Renderer:
 
     def _translate_session_name(self, name: str) -> str:
         """Translate session names while normalizing API/static variants."""
-        if not name:
-            return ""
-
-        normalized = self._normalize_session_name(name)
-        if normalized == "sprintqualifying":
-            return self._build_sprint_qualifying_label(abbreviated=False)
-
-        direct_key = f"session_{name.lower()}"
-        if direct_key in self.translator:
-            return self.translator[direct_key]
-
-        normalized_key = f"session_{normalized}"
-        return self.translator.get(normalized_key, name)
+        return translate_session_name(name, self.translator, self.lang_code)
 
     @staticmethod
     def _normalize_session_name(name: str) -> str:
         """Normalize API/static session variants to a stable translation key suffix."""
-        normalized = re.sub(r"[^a-z0-9]+", "", name.lower())
-        aliases = {
-            "practice1": "fp1",
-            "practice2": "fp2",
-            "practice3": "fp3",
-            "firstpractice": "fp1",
-            "secondpractice": "fp2",
-            "thirdpractice": "fp3",
-            "sprintqualifying": "sprintqualifying",
-            "sprintshootout": "sprintqualifying",
-            "shootout": "sprintqualifying",
-        }
-        return aliases.get(normalized, normalized)
+        return normalize_session_name(name)
 
     def _draw_countdown_box(
         self,

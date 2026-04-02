@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Standings metadata extraction** - Moved season-facing driver-number and team-id lookup tables out of `api.py` into a shared utility module so route handlers no longer own that update-prone mapping data
 - **BWR renderer helper deduplication** - Extracted shared track-image and results-header helpers for the BWR and BWRY renderers so multi-color calendar variants stop carrying near-identical fallback and flag-loading logic in parallel
 - **Shared renderer text helpers** - Moved common team-layout and text-measurement helpers out of the 1-bit and Spectra 6 renderers so both primary renderer classes now reuse one source of truth for column splits, truncation, alignment, and team header formatting
+- **Shared schedule label helpers** - Centralized localized session-name normalization and sprint-qualifying label formatting so the monochrome and Spectra 6 renderers no longer maintain duplicate schedule translation logic
 
 ### Security
 
