@@ -27,6 +27,7 @@ from app.services.renderer_common import (
     crop_to_content,
     draw_driver_photo,
     draw_new_track_message,
+    draw_race_header,
     draw_results_column,
     draw_results_header,
     draw_schedule_section,
@@ -622,35 +623,20 @@ class Spectra6Renderer:
 
     def _draw_header(self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict) -> None:
         """Draw the Spectra 6 race header with monochrome logo and red title block."""
-        header_height = self.layout["header_height"]
-        split_x = self.layout["header_split_x"]
-
-        draw.rectangle([(0, 0), (split_x, header_height)], fill=self.colors.WHITE)
-        draw.line(
-            [(0, header_height - 1), (split_x, header_height - 1)],
-            fill=self.colors.RED,
-            width=2,
-        )
-        draw.rectangle([(split_x + 1, 0), (self.width, header_height)], fill=self.colors.RED)
-
-        self._draw_f1_logo(image, split_x, header_height)
-
-        race_name = race_data.get("race_name", "Grand Prix")
-        season = race_data.get("season", "")
-
-        line1 = f"{season} FIA F1 World Championship"
-        line2 = f"{race_name.upper()}"
-
-        text_x = split_x + 15
-        total_text_height = 80
-        start_y = (header_height - total_text_height) // 2 - 5
-
-        draw.text((text_x, start_y), line1, fill=self.colors.WHITE, font=self.fonts["header_title"])
-        draw.text(
-            (text_x, start_y + 40),
-            line2,
-            fill=self.colors.WHITE,
-            font=self.fonts["header_subtitle"],
+        draw_race_header(
+            draw,
+            image,
+            race_data,
+            canvas_width=self.width,
+            header_height=self.layout["header_height"],
+            split_x=self.layout["header_split_x"],
+            left_fill=self.colors.WHITE,
+            divider_fill=self.colors.RED,
+            right_fill=self.colors.RED,
+            title_fill=self.colors.WHITE,
+            header_title_font=self.fonts["header_title"],
+            header_subtitle_font=self.fonts["header_subtitle"],
+            draw_f1_logo_fn=self._draw_f1_logo,
         )
 
     @staticmethod
