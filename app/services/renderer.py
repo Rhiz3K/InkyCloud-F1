@@ -28,6 +28,8 @@ from app.services.renderer_common import (
     draw_new_track_message,
     draw_results_column,
     draw_results_header,
+    draw_teams_content,
+    draw_teams_header,
     fit_result_text,
     format_points,
     format_schedule_session_name,
@@ -225,59 +227,36 @@ class Renderer:
         self, draw: ImageDraw.ImageDraw, image: Image.Image, season: int
     ) -> None:
         """Draw the red-style teams screen header in monochrome form."""
-        header_height = self.layout["header_height"]
-        split_x = self.layout["header_split_x"]
-
-        draw.rectangle([(0, 0), (split_x, header_height)], fill=1)
-        draw.line([(0, header_height - 1), (split_x, header_height - 1)], fill=0, width=2)
-        draw.rectangle([(split_x + 1, 0), (self.width, header_height)], fill=0)
-
-        self._draw_f1_logo(image, split_x, header_height)
-
-        title = self.translator.get("teams_drivers_title", "TEAMS & DRIVERS")
-        line1 = f"{season} FIA F1 World Championship"
-        line2 = title.upper()
-
-        text_x = split_x + 15
-        total_text_height = 80
-        start_y = (header_height - total_text_height) // 2 - 5
-
-        draw.text((text_x, start_y), line1, fill=1, font=self._load_brand_font(36, bold=True))
-        draw.text((text_x, start_y + 40), line2, fill=1, font=self.fonts["header_subtitle"])
+        draw_teams_header(
+            draw,
+            image,
+            canvas_width=self.width,
+            header_height=self.layout["header_height"],
+            split_x=self.layout["header_split_x"],
+            season=season,
+            title=self.translator.get("teams_drivers_title", "TEAMS & DRIVERS"),
+            left_fill=1,
+            divider_fill=0,
+            right_fill=0,
+            text_fill=1,
+            brand_font=self._load_brand_font(36, bold=True),
+            subtitle_font=self.fonts["header_subtitle"],
+            draw_f1_logo_fn=self._draw_f1_logo,
+        )
 
     def _draw_teams_content(
         self, image: Image.Image, draw: ImageDraw.ImageDraw, teams: list
     ) -> None:
         """Lay out the team cards into two balanced columns."""
-        header_height = self.layout["header_height"]
-        col_padding = 5
-        split_x = self.width // 2
-        gap = col_padding
-
-        left_teams, right_teams = self._split_teams_for_columns(teams)
-        teams_per_col = max(len(left_teams), len(right_teams), 1)
-        row_gap = 2
-        available_height = self.height - header_height - 8 - (teams_per_col - 1) * row_gap
-        row_height = available_height // teams_per_col
-
-        y = header_height + 4
-
-        for team in left_teams:
-            self._draw_team_row(image, draw, col_padding, y, split_x - gap // 2, team, row_height)
-            y += row_height + row_gap
-
-        y = header_height + 4
-        for team in right_teams:
-            self._draw_team_row(
-                image,
-                draw,
-                split_x + gap // 2,
-                y,
-                self.width - col_padding,
-                team,
-                row_height,
-            )
-            y += row_height + row_gap
+        draw_teams_content(
+            image,
+            draw,
+            teams,
+            canvas_width=self.width,
+            canvas_height=self.height,
+            header_height=self.layout["header_height"],
+            draw_team_row_fn=self._draw_team_row,
+        )
 
     @staticmethod
     def _split_teams_for_columns(teams: list) -> tuple[list, list]:

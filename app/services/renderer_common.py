@@ -543,3 +543,76 @@ def draw_results_column(
         if time_str:
             draw.text((time_x, y), time_str, fill=text_fill, font=font_row)
 
+def draw_teams_header(
+    draw: ImageDraw.ImageDraw,
+    image: Image.Image,
+    *,
+    canvas_width: int,
+    header_height: int,
+    split_x: int,
+    season: int,
+    title: str,
+    left_fill,
+    divider_fill,
+    right_fill,
+    text_fill,
+    brand_font,
+    subtitle_font,
+    draw_f1_logo_fn,
+) -> None:
+    """Draw the shared teams screen header layout."""
+    draw.rectangle([(0, 0), (split_x, header_height)], fill=left_fill)
+    draw.line([(0, header_height - 1), (split_x, header_height - 1)], fill=divider_fill, width=2)
+    draw.rectangle([(split_x + 1, 0), (canvas_width, header_height)], fill=right_fill)
+
+    draw_f1_logo_fn(image, split_x, header_height)
+
+    line1 = f"{season} FIA F1 World Championship"
+    line2 = title.upper()
+    text_x = split_x + 15
+    total_text_height = 80
+    start_y = (header_height - total_text_height) // 2 - 5
+
+    draw.text((text_x, start_y), line1, fill=text_fill, font=brand_font)
+    draw.text((text_x, start_y + 40), line2, fill=text_fill, font=subtitle_font)
+
+
+def draw_teams_content(
+    image: Image.Image,
+    draw: ImageDraw.ImageDraw,
+    teams: list,
+    *,
+    canvas_width: int,
+    canvas_height: int,
+    header_height: int,
+    draw_team_row_fn,
+) -> None:
+    """Lay out the shared two-column teams card grid."""
+    col_padding = 5
+    split_x = canvas_width // 2
+    gap = col_padding
+
+    left_teams, right_teams = split_teams_for_columns(teams)
+    teams_per_col = max(len(left_teams), len(right_teams), 1)
+    row_gap = 2
+    available_height = canvas_height - header_height - 8 - (teams_per_col - 1) * row_gap
+    row_height = available_height // teams_per_col
+
+    y = header_height + 4
+    for team in left_teams:
+        draw_team_row_fn(image, draw, col_padding, y, split_x - gap // 2, team, row_height)
+        y += row_height + row_gap
+
+    y = header_height + 4
+    for team in right_teams:
+        draw_team_row_fn(
+            image,
+            draw,
+            split_x + gap // 2,
+            y,
+            canvas_width - col_padding,
+            team,
+            row_height,
+        )
+        y += row_height + row_gap
+
