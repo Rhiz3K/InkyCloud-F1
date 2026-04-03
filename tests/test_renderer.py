@@ -2782,15 +2782,19 @@ def test_map_to_bwry_palette_preserves_near_white_edges():
     ]
 
 
-def test_renderer_load_track_image_does_not_use_wildcard_fallback(monkeypatch, mock_race_data):
+def test_spectra6_renderer_load_track_image_does_not_use_wildcard_fallback(
+    monkeypatch, mock_race_data
+):
     captured = {}
 
     def fake_load_track_image_asset(*args, **kwargs):
         captured.update(kwargs)
 
-    monkeypatch.setattr(renderer_module, "load_track_image_asset", fake_load_track_image_asset)
+    monkeypatch.setattr(
+        spectra6_renderer_module, "load_track_image_asset", fake_load_track_image_asset
+    )
 
-    Renderer._load_track_image(mock_race_data)
+    Spectra6Renderer._load_track_image(mock_race_data)
 
     assert "fallback_glob" not in captured
 

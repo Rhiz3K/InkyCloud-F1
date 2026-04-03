@@ -620,10 +620,16 @@ class TestPerfMetricsAggregation:
                 inp_ms=0.0,
             )
 
+            aggregate = await db.get_perf_stats(hours=24)
             by_page = await db.get_perf_stats_by_page(hours=24)
             trends = await db.get_perf_trends(hours=24)
 
             perfect_page = next(row for row in by_page if row["page"] == "/perfect")
+            assert aggregate["lcp"]["avg"] == 0.0
+            assert aggregate["cls"]["avg"] == 0.0
+            assert aggregate["fcp"]["avg"] == 0.0
+            assert aggregate["ttfb"]["avg"] == 0.0
+            assert aggregate["inp"]["avg"] == 0.0
             assert perfect_page["lcp"] == 0.0
             assert perfect_page["cls"] == 0.0
             assert perfect_page["fcp"] == 0.0

@@ -465,14 +465,14 @@ async def collect_and_generate() -> None:
             images_dir = Path(config.IMAGES_PATH)
             images_dir.mkdir(parents=True, exist_ok=True)
 
-            deleted_count = _delete_existing_bmps(images_dir)
-            if deleted_count > 0:
-                logger.info("Deleted %d existing BMP files", deleted_count)
-
             race_data = f1_service.get_next_race_from_static()
             if not race_data:
                 logger.warning("No upcoming race found in static data")
                 return
+
+            deleted_count = _delete_existing_bmps(images_dir)
+            if deleted_count > 0:
+                logger.info("Deleted %d existing BMP files", deleted_count)
 
             logger.info("Next race: %s (from static data)", race_data.get("race_name"))
 

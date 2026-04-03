@@ -531,7 +531,7 @@ class Database:
         ):
             row = await cursor.fetchone()
             if row:
-                avg_ms = round(row["avg_ms"], 1) if row["avg_ms"] else None
+                avg_ms = round(row["avg_ms"], 1) if row["avg_ms"] is not None else None
                 return {
                     "count_24h": row["count"] or 0,
                     "avg_response_ms": avg_ms,
@@ -925,35 +925,35 @@ class Database:
             return {
                 "sample_count": row["sample_count"],
                 "lcp": {
-                    "avg": round(row["avg_lcp"], 0) if row["avg_lcp"] else None,
-                    "min": round(row["min_lcp"], 0) if row["min_lcp"] else None,
-                    "max": round(row["max_lcp"], 0) if row["max_lcp"] else None,
+                    "avg": round(row["avg_lcp"], 0) if row["avg_lcp"] is not None else None,
+                    "min": round(row["min_lcp"], 0) if row["min_lcp"] is not None else None,
+                    "max": round(row["max_lcp"], 0) if row["max_lcp"] is not None else None,
                     "p50": self._calculate_percentile(lcp_values, 50),
                     "p75": self._calculate_percentile(lcp_values, 75),
                     "p95": self._calculate_percentile(lcp_values, 95),
                 },
                 "cls": {
-                    "avg": round(row["avg_cls"], 3) if row["avg_cls"] else None,
+                    "avg": round(row["avg_cls"], 3) if row["avg_cls"] is not None else None,
                     "p50": self._calculate_percentile_fine(cls_values, 50),
                     "p75": self._calculate_percentile_fine(cls_values, 75),
                     "p95": self._calculate_percentile_fine(cls_values, 95),
                 },
                 "fcp": {
-                    "avg": round(row["avg_fcp"], 0) if row["avg_fcp"] else None,
+                    "avg": round(row["avg_fcp"], 0) if row["avg_fcp"] is not None else None,
                     "p50": self._calculate_percentile(fcp_values, 50),
                     "p75": self._calculate_percentile(fcp_values, 75),
                     "p95": self._calculate_percentile(fcp_values, 95),
                 },
                 "ttfb": {
-                    "avg": round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None,
-                    "min": round(row["min_ttfb"], 0) if row["min_ttfb"] else None,
-                    "max": round(row["max_ttfb"], 0) if row["max_ttfb"] else None,
+                    "avg": round(row["avg_ttfb"], 0) if row["avg_ttfb"] is not None else None,
+                    "min": round(row["min_ttfb"], 0) if row["min_ttfb"] is not None else None,
+                    "max": round(row["max_ttfb"], 0) if row["max_ttfb"] is not None else None,
                     "p50": self._calculate_percentile(ttfb_values, 50),
                     "p75": self._calculate_percentile(ttfb_values, 75),
                     "p95": self._calculate_percentile(ttfb_values, 95),
                 },
                 "inp": {
-                    "avg": round(row["avg_inp"], 0) if row["avg_inp"] else None,
+                    "avg": round(row["avg_inp"], 0) if row["avg_inp"] is not None else None,
                     "p50": self._calculate_percentile(inp_values, 50),
                     "p75": self._calculate_percentile(inp_values, 75),
                     "p95": self._calculate_percentile(inp_values, 95),
