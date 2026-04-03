@@ -18,9 +18,10 @@ async def test_create_supervised_task_logs_and_captures_failures(caplog):
     async def failing_task() -> None:
         raise RuntimeError("boom")
 
-    with caplog.at_level("ERROR"), patch(
-        "app.utils.async_tasks.sentry_sdk.capture_exception"
-    ) as capture_exception:
+    with (
+        caplog.at_level("ERROR"),
+        patch("app.utils.async_tasks.sentry_sdk.capture_exception") as capture_exception,
+    ):
         create_supervised_task(failing_task(), name="failing_task")
         await _flush_background_tasks()
         capture_exception.assert_called_once()
