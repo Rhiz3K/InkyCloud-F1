@@ -850,13 +850,15 @@ block content %}
   }
 
   let activeWeatherTooltipTrigger = null;
+  let activeWeatherTooltipOpenedByClick = false;
   let weatherTooltipOutsideClickBound = false;
 
-  function showWeatherHoverTooltip(event) {
+  function showWeatherHoverTooltip(event, { openedByClick = false } = {}) {
     const tooltip = document.getElementById("weatherHoverTooltip");
     if (!tooltip || !isWeatherTooltipDisabledState(event.currentTarget)) return;
 
     activeWeatherTooltipTrigger = event.currentTarget;
+    activeWeatherTooltipOpenedByClick = openedByClick;
     tooltip.textContent = uiText.weatherTooltipText;
     tooltip.setAttribute("aria-hidden", "false");
     tooltip.classList.remove("hidden");
@@ -872,6 +874,7 @@ block content %}
     if (!tooltip) return;
 
     activeWeatherTooltipTrigger = null;
+    activeWeatherTooltipOpenedByClick = false;
     tooltip.setAttribute("aria-hidden", "true");
     tooltip.classList.add("hidden");
     tooltip.style.removeProperty("left");
@@ -901,7 +904,8 @@ block content %}
 
     const isOpenForTrigger =
       activeWeatherTooltipTrigger === trigger &&
-      !tooltip.classList.contains("hidden");
+      !tooltip.classList.contains("hidden") &&
+      activeWeatherTooltipOpenedByClick;
 
     if (isOpenForTrigger) {
       hideWeatherHoverTooltip();
@@ -909,11 +913,14 @@ block content %}
     }
 
     const rect = trigger.getBoundingClientRect();
-    showWeatherHoverTooltip({
-      currentTarget: trigger,
-      clientX: rect.left + rect.width / 2,
-      clientY: rect.top + rect.height / 2,
-    });
+    showWeatherHoverTooltip(
+      {
+        currentTarget: trigger,
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2,
+      },
+      { openedByClick: true },
+    );
   }
 
   function initializeWeatherTooltipOutsideClick() {

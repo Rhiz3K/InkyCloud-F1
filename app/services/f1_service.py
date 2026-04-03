@@ -72,8 +72,7 @@ class F1Service:
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             logger.info("Fetching next race from %s", self.api_url)
-            response = await client.get(self.api_url)
-            response.raise_for_status()
+            response = await fetch_with_retry(client, self.api_url, logger=logger)
 
             data = response.json()
             f1_response = F1Response(**data)

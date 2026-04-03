@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import markdown
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -115,9 +115,20 @@ def _redirect_path(
     ):
         raise ValueError(f"Redirect target must stay on-site: {target_path}")
 
-    query = request.url.query if preserve_query else ""
-    target = f"{target_path}?{query}" if query else target_path
-    return RedirectResponse(url=target, status_code=301)
+    if preserve_query and request.url.query:
+        merged_query = parse_qsl(target_parts.query, keep_blank_values=True)
+        merged_query.extend(parse_qsl(request.url.query, keep_blank_values=True))
+        target_path = urlunsplit(
+            (
+                "",
+                "",
+                target_parts.path,
+                urlencode(merged_query, doseq=True),
+                target_parts.fragment,
+            )
+        )
+
+    return RedirectResponse(url=target_path, status_code=301)
 
 
 def _canonical_root_path(lang_prefix: str) -> str:
@@ -130,9 +141,16 @@ def _canonical_page_path(page_key: str, lang_prefix: str) -> str:
     return _LOCALIZED_CANONICAL_PATHS[page_key][lang_prefix]
 
 
+def _validate_screen_type(screen_type: str) -> str:
+    """Return a validated configure screen type or raise a localized 404."""
+    if screen_type not in _VALID_SCREEN_TYPES:
+        raise HTTPException(status_code=404, detail="Unknown screen type")
+    return screen_type
+
+
 def _canonical_configure_path(lang_prefix: str, screen_type: str) -> str:
     """Return the canonical localized configure path for a validated screen type."""
-    return _LOCALIZED_CONFIGURE_PATHS[lang_prefix][screen_type]
+    return _LOCALIZED_CONFIGURE_PATHS[lang_prefix][_validate_screen_type(screen_type)]
 
 
 def _canonical_stats_path(lang_prefix: str, time_range: str) -> str:
@@ -251,6 +269,7 @@ async def configure_screen_slash_redirect(request: Request, screen_type: str):
 )
 async def configure_screen(request: Request, screen_type: str, lang: str = Query(default=None)):
     """Configure page (English default)."""
+    screen_type = _validate_screen_type(screen_type)
     if lang in VALID_LANGUAGES and lang != "en":
         return _redirect_path(
             request, _canonical_configure_path(lang, screen_type), preserve_query=False
@@ -291,6 +310,7 @@ async def configure_screen_lang(
     request: Request, lang_prefix: str, screen_type: str, lang: str = Query(default=None)
 ):
     """Configure page with language prefix."""
+    screen_type = _validate_screen_type(screen_type)
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":

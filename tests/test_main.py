@@ -262,7 +262,7 @@ def test_www_host_redirects_to_canonical_apex():
         www_client = TestClient(app, base_url="https://www.example.test")
         response = www_client.get("/stats?range=7d", follow_redirects=False)
 
-    assert response.status_code == 301
+    assert response.status_code == 308
     assert response.headers["location"] == "https://example.test/stats?range=7d"
     assert response.headers["strict-transport-security"] == "max-age=31536000"
 
@@ -273,7 +273,7 @@ def test_www_host_redirect_ignores_site_url_port_when_matching_host():
         www_client = TestClient(app, base_url="https://www.staging.example.com")
         response = www_client.get("/privacy", follow_redirects=False)
 
-    assert response.status_code == 301
+    assert response.status_code == 308
     assert response.headers["location"] == "https://staging.example.com:8443/privacy"
 
 
@@ -401,6 +401,28 @@ def test_configure_invalid_screen_type():
     """Test configure page returns 404 for invalid screen type."""
     response = client.get("/configure/invalid")
     assert response.status_code == 404
+
+def test_configure_invalid_screen_type_with_lang_redirect_query_returns_404():
+    """Invalid configure screen types should 404 before localized redirect logic runs."""
+    response = client.get("/configure/invalid?lang=cs", follow_redirects=False)
+    assert response.status_code == 404
+
+    response = client.get("/en/configure/invalid", follow_redirects=False)
+    assert response.status_code == 404
+
+
+def test_www_host_redirect_uses_method_preserving_status_for_post_requests():
+    """Canonical host redirects should preserve POST semantics for operational endpoints."""
+    with patch("app.main.config.SITE_URL", "https://example.test"):
+        www_client = TestClient(app, base_url="https://www.example.test")
+        response = www_client.post(
+            "/api/perf-metrics",
+            json={"page_path": "/calendar.bmp", "lcp_ms": 1234.5},
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 308
+    assert response.headers["location"] == "https://example.test/api/perf-metrics"
 
 
 def test_header_contains_language_switcher():

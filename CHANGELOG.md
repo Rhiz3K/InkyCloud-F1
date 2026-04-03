@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.20] - 2026-04-03
+
+### Frontend
+
+#### Fixed
+
+- **Weather tooltip hover/click parity** - Kept the disabled `Race day` weather hint visible when desktop users click after hovering while preserving tap-to-toggle dismissal for touch users, so the floating tooltip no longer disappears until the pointer leaves and re-enters the trigger
+
 ### Backend
 
 #### Fixed
@@ -21,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shared HTTP retry helper** - Consolidated the duplicated Jolpica 429 backoff logic into `app.utils.http.fetch_with_retry()` so F1, standings, and teams services share one tested retry path instead of maintaining three drift-prone copies
 - **BMP cache headroom** - Increased the in-memory BMP cache capacity to 512 entries so localized display and weather combinations fit without immediate LRU eviction churn during normal traffic
 - **Non-blocking BMP analytics** - Moved calendar BMP analytics dispatch in the image routes onto supervised background tasks so download responses no longer wait on Umami network round-trips
+- **Configure redirect validation** - Validate configure screen types before localized redirect canonicalization so invalid `/configure/...` language-query permutations return a 404 instead of bubbling a `KeyError` into a 500
+- **Query-safe redirect merging** - Hardened `_redirect_path()` to merge existing canonical query strings with preserved request parameters instead of producing malformed double-`?` redirects if future targets include their own query string
+- **Method-preserving canonical host redirects** - Switched the `www` to apex redirect middleware to HTTP 308 so canonical redirects keep POST request bodies intact for endpoints like `/api/perf-metrics`
+- **Umami warning deduplication** - Stopped re-raising already-logged non-200 Umami responses so failed analytics calls emit one warning instead of noisy duplicate log lines
+- **Next-race retry parity** - Moved `F1Service.get_next_race()` onto the shared Jolpica retry helper so the primary upcoming-race fetch now retries 429s the same way as the rest of the live API client
 - **Local env example visibility** - Stopped ignoring `.env.local.example` so the checked-in local development template remains visible to contributors while `.env.local` stays untracked
 - **Consistent dev extras** - Aligned `[project.optional-dependencies].dev` with `[dependency-groups].dev` so `pip install -e "[dev]"` and `uv sync --dev` install the same linting, typing, test, and data-science helper toolchain
 - **Consistent byte formatting** - Matched the shared frontend `formatBytes()` helper to the backend decimal-unit formatter so cache/stat sizes render the same KB/MB/GB values across server and browser UI
@@ -77,7 +90,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Weather test async migration** - Converted the weather service test suite from nested `asyncio.run()` wrappers to native async pytest cases so async cache and forecast coverage now runs directly under the configured strict event-loop mode
 - **Remaining async test migration** - Converted the shared HTTP client/retry, F1 season, standings, and database async test modules away from `asyncio.run()` wrappers so the remaining service-layer async coverage now runs directly under pytest-managed event loops
 - **Stdlib timezone support** - Replaced `pytz` with a shared `zoneinfo` helper for config validation, request parameter checks, and race schedule conversion so timezone handling now uses the Python standard library across the app
-
 
 ## [1.2.19] - 2026-03-31
 

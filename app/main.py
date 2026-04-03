@@ -176,7 +176,7 @@ class SecurityHeadersMiddleware:
             target = f"{str(config.SITE_URL).rstrip('/')}{path}"
             if query_string:
                 target = f"{target}?{query_string}"
-            redirect = RedirectResponse(url=target, status_code=301)
+            redirect = RedirectResponse(url=target, status_code=308)
             if scheme == "https":
                 redirect.headers["Strict-Transport-Security"] = "max-age=31536000"
             await redirect(scope, receive, send)

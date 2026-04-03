@@ -1,6 +1,7 @@
 """Tests for analytics service."""
 
 import asyncio
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -192,6 +193,32 @@ async def test_track_event_disabled_when_website_id_missing():
             )
 
             assert not mock_send.called
+
+
+@pytest.mark.asyncio
+async def test_send_to_umami_logs_non_200_response_once(mock_config, caplog):
+    """Non-200 Umami responses should log one warning without re-raising via raise_for_status."""
+    with patch("app.services.analytics.httpx.AsyncClient") as mock_client:
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = '{"error": "boom"}'
+        mock_response.raise_for_status = MagicMock()
+
+        mock_post = AsyncMock(return_value=mock_response)
+        mock_client.return_value.post = mock_post
+
+        with caplog.at_level(logging.WARNING):
+            await _send_to_umami(
+                url="/calendar.bmp",
+                title="Test",
+                lang="en",
+                user_agent="TestAgent/1.0",
+            )
+
+    warnings = [record.message for record in caplog.records if record.levelno == logging.WARNING]
+    assert warnings == [
+        'Umami pageview failed: url=/calendar.bmp, status=500, response={"error": "boom"}'
+    ]
 
 
 @pytest.mark.asyncio
