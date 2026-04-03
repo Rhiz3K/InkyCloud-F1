@@ -1,5 +1,6 @@
 """Test main FastAPI application endpoints."""
 
+import asyncio
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -13,6 +14,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from pydantic import SecretStr
 
+from app import main as main_module
 from app.config import LANGUAGE_CODES, config
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
@@ -432,6 +434,39 @@ def test_www_host_redirect_uses_method_preserving_status_for_post_requests():
 
     assert response.status_code == 308
     assert response.headers["location"] == "https://example.test/api/perf-metrics"
+
+
+@pytest.mark.asyncio
+async def test_lifespan_cancels_initial_generation_before_closing_resources():
+    """Shutdown should cancel pending initial generation before closing shared resources."""
+    events: list[str] = []
+
+    async def fake_initial_generation():
+        events.append("started")
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            events.append("cancelled")
+            raise
+
+    async def fake_close_shared_http_clients():
+        events.append("close_http")
+
+    async def fake_close_all_databases():
+        events.append("close_db")
+
+    with (
+        patch("app.main.warm_teams_renderer_assets", lambda: None),
+        patch("app.main.start_scheduler"),
+        patch("app.main.stop_scheduler"),
+        patch("app.main.run_initial_generation", fake_initial_generation),
+        patch("app.main.close_shared_http_clients", fake_close_shared_http_clients),
+        patch.object(main_module.Database, "close_all", fake_close_all_databases),
+    ):
+        async with main_module.lifespan(app):
+            await asyncio.sleep(0)
+
+    assert events == ["started", "cancelled", "close_http", "close_db"]
 
 
 def test_header_contains_language_switcher():

@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Query-safe redirect merging** - Hardened `_redirect_path()` to merge existing canonical query strings with preserved request parameters instead of producing malformed double-`?` redirects if future targets include their own query string
 - **Method-preserving canonical host redirects** - Switched the `www` to apex redirect middleware to HTTP 308 so canonical redirects keep POST request bodies intact for endpoints like `/api/perf-metrics`
 - **Static error cache headers** - Limited static-asset cache headers to successful `/static/...` responses so missing files keep their default `no-store` semantics instead of inheriting public asset caching
+- **Startup task shutdown ordering** - Cancel pending initial image generation before closing shared HTTP clients and database handles so shutdown cannot race a still-running startup task against torn-down resources
 - **Umami warning deduplication** - Stopped re-raising already-logged non-200 Umami responses so failed analytics calls emit one warning instead of noisy duplicate log lines
 - **Next-race retry parity** - Moved `F1Service.get_next_race()` onto the shared Jolpica retry helper so the primary upcoming-race fetch now retries 429s the same way as the rest of the live API client
 - **Local env example visibility** - Stopped ignoring `.env.local.example` so the checked-in local development template remains visible to contributors while `.env.local` stays untracked

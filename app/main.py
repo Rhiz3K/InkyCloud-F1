@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import mimetypes
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -111,11 +111,17 @@ async def lifespan(_app: FastAPI):
         sentry_sdk.capture_exception(exc)
 
     start_scheduler()
-    create_supervised_task(run_initial_generation(), name="initial_generation")
+    initial_generation_task = create_supervised_task(
+        run_initial_generation(), name="initial_generation"
+    )
 
     yield
 
     stop_scheduler()
+    if not initial_generation_task.done():
+        initial_generation_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await initial_generation_task
     await close_shared_http_clients()
     await Database.close_all()
     logger.info("Shutting down F1 E-Ink calendar service")
