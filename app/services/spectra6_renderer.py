@@ -302,11 +302,6 @@ class Spectra6Renderer:
             ),
         )
 
-
-
-
-
-
     def _draw_team_stats_panel_color(
         self,
         draw: ImageDraw.ImageDraw,
@@ -507,7 +502,6 @@ class Spectra6Renderer:
             draw_team_logo_fn=draw_team_logo_cb,
         )
 
-
     def _draw_header(self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict) -> None:
         """Draw the Spectra 6 race header with monochrome logo and red title block."""
         draw_race_header(
@@ -535,7 +529,6 @@ class Spectra6Renderer:
                 .convert("RGB"),
             ),
         )
-
 
     def _ensure_teams_assets(self) -> None:
         """Lazy-load cached driver and team assets used by the teams screen."""
@@ -575,7 +568,6 @@ class Spectra6Renderer:
                 )
             ),
         )
-
 
     @staticmethod
     def _load_track_image(race_data: dict) -> Image.Image | None:
@@ -819,7 +811,6 @@ class Spectra6Renderer:
             split_position_prefix=True,
         )
 
-
     def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
         """Load the main UI font for the active locale."""
         return load_ui_font(self.lang_code, size, bold=bold)
@@ -847,7 +838,6 @@ class Spectra6Renderer:
         if size not in self._racing_fonts:
             self._racing_fonts[size] = self._load_racing_font(size)
         return self._racing_fonts[size]
-
 
     @staticmethod
     def _load_driver_photos() -> dict[str, Image.Image]:
@@ -915,8 +905,6 @@ class Spectra6Renderer:
         if team_key in {"audi", "cadillac"}:
             return crop_primary_horizontal_band(cropped)
         return cropped
-
-
 
     def _to_indexed_bmp(self, image: Image.Image) -> bytes:
         """Convert RGB image to indexed 6-color BMP for Spectra 6 display."""

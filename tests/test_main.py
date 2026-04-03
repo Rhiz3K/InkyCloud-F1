@@ -402,6 +402,7 @@ def test_configure_invalid_screen_type():
     response = client.get("/configure/invalid")
     assert response.status_code == 404
 
+
 def test_configure_invalid_screen_type_with_lang_redirect_query_returns_404():
     """Invalid configure screen types should 404 before localized redirect logic runs."""
     response = client.get("/configure/invalid?lang=cs", follow_redirects=False)

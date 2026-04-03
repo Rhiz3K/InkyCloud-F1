@@ -292,9 +292,7 @@ def test_build_sprint_qualifying_label_uses_localized_abbreviation(renderer_cls,
     """Abbreviated sprint qualifying labels should use each locale's qualifying initial."""
     renderer = renderer_cls(get_translator(lang), lang)
     assert (
-        build_sprint_qualifying_label(
-            renderer.translator, renderer.lang_code, abbreviated=True
-        )
+        build_sprint_qualifying_label(renderer.translator, renderer.lang_code, abbreviated=True)
         == expected
     )
 

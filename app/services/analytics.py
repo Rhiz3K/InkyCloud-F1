@@ -98,7 +98,6 @@ async def _send_to_umami(
                 f"status={response.status_code}, response={response.text[:200]}"
             )
 
-
     except httpx.HTTPError as e:
         logger.warning(f"Failed to send Umami analytics: {str(e)} (url={url}, event={event_name})")
     except Exception as e:

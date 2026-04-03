@@ -377,11 +377,6 @@ class Renderer:
 
         return w + 4
 
-
-
-
-
-
     @staticmethod
     def _draw_team_stats_panel_mono(
         draw: ImageDraw.ImageDraw,
@@ -569,13 +564,11 @@ class Renderer:
             draw_team_logo_fn=draw_team_logo_cb,
         )
 
-
     def _get_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
         """Return a cached racing-style font at the requested size."""
         if size not in self._racing_fonts:
             self._racing_fonts[size] = self._load_racing_font(size)
         return self._racing_fonts[size]
-
 
     def _ensure_teams_assets(self) -> None:
         """Lazy-load cached driver and team assets used by the teams screen."""
@@ -852,7 +845,6 @@ class Renderer:
             ),
         )
 
-
     # =========================================================================
     # Track Map Section (Left Column)
     # =========================================================================
@@ -891,7 +883,6 @@ class Renderer:
                 )
             ),
         )
-
 
     @staticmethod
     def _load_track_image(race_data: dict) -> Image.Image | None:
@@ -1250,8 +1241,6 @@ class Renderer:
             return crop_primary_horizontal_band(cropped)
         return cropped
 
-
-
     @staticmethod
     def normalize_sauber_logo_for_non_spectra(img: Image.Image) -> Image.Image:
         """Map Sauber's green accent to white while preserving its black background."""
@@ -1278,7 +1267,6 @@ class Renderer:
         flattened.paste(rgba, mask=rgba.getchannel("A"))
         grayscale = ImageOps.autocontrast(flattened.convert("L"))
         return grayscale.point(lambda p: 255 if p > 240 else 0).convert("1")
-
 
     @staticmethod
     def _to_bmp(image: Image.Image) -> bytes:

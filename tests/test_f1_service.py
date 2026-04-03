@@ -79,31 +79,33 @@ class MockResponse:
 @pytest.mark.asyncio
 async def test_get_next_race_uses_shared_retry_helper(monkeypatch):
     service = F1Service()
-    mock_response = MockResponse({
-        "MRData": {
-            "RaceTable": {
-                "Races": [
-                    {
-                        "season": "2026",
-                        "round": "1",
-                        "raceName": "Australian Grand Prix",
-                        "Circuit": {
-                            "circuitId": "albert_park",
-                            "circuitName": "Albert Park Grand Prix Circuit",
-                            "Location": {
-                                "locality": "Melbourne",
-                                "country": "Australia",
-                                "lat": "-37.8497",
-                                "long": "144.968",
+    mock_response = MockResponse(
+        {
+            "MRData": {
+                "RaceTable": {
+                    "Races": [
+                        {
+                            "season": "2026",
+                            "round": "1",
+                            "raceName": "Australian Grand Prix",
+                            "Circuit": {
+                                "circuitId": "albert_park",
+                                "circuitName": "Albert Park Grand Prix Circuit",
+                                "Location": {
+                                    "locality": "Melbourne",
+                                    "country": "Australia",
+                                    "lat": "-37.8497",
+                                    "long": "144.968",
+                                },
                             },
-                        },
-                        "date": "2026-03-08",
-                        "time": "04:00:00Z",
-                    }
-                ]
+                            "date": "2026-03-08",
+                            "time": "04:00:00Z",
+                        }
+                    ]
+                }
             }
         }
-    })
+    )
     mock_fetch = AsyncMock(return_value=mock_response)
 
     monkeypatch.setattr(f1_service_module, "fetch_with_retry", mock_fetch)
