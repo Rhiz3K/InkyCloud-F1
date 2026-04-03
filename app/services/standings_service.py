@@ -48,14 +48,14 @@ class StandingsService:
         key = self._get_cache_key(year, standings_type)
         entry = self._cache.get(key)
         if entry and entry.is_valid():
-            logger.debug(f"Cache hit for {key}")
+            logger.debug("Cache hit for %s", key)
             return entry.data
         return None
 
     def _set_cache(self, year: int, standings_type: str, data: StandingsData) -> None:
         key = self._get_cache_key(year, standings_type)
         self._cache[key] = CacheEntry(data)
-        logger.debug(f"Cached {key}")
+        logger.debug("Cached %s", key)
 
     async def get_driver_standings(
         self, year: Optional[int] = None, limit: int = 10
@@ -70,7 +70,7 @@ class StandingsService:
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
-            logger.info(f"Fetching driver standings from {url}")
+            logger.info("Fetching driver standings from %s", url)
             response = await fetch_with_retry(client, url, logger=logger)
 
             data = response.json()
@@ -79,7 +79,7 @@ class StandingsService:
             )
 
             if not standings_list:
-                logger.warning(f"No driver standings found for {year}")
+                logger.warning("No driver standings found for %s", year)
                 return []
 
             standings_data = standings_list[0]
@@ -114,7 +114,7 @@ class StandingsService:
             return driver_standings[:limit]
 
         except Exception as e:
-            logger.error(f"Error fetching driver standings: {e}", exc_info=True)
+            logger.error("Error fetching driver standings: %s", e, exc_info=True)
             return []
 
     async def get_constructor_standings(
@@ -130,7 +130,7 @@ class StandingsService:
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
-            logger.info(f"Fetching constructor standings from {url}")
+            logger.info("Fetching constructor standings from %s", url)
             response = await fetch_with_retry(client, url, logger=logger)
 
             data = response.json()
@@ -139,7 +139,7 @@ class StandingsService:
             )
 
             if not standings_list:
-                logger.warning(f"No constructor standings found for {year}")
+                logger.warning("No constructor standings found for %s", year)
                 return []
 
             standings_data = standings_list[0]
@@ -169,7 +169,7 @@ class StandingsService:
             return constructor_standings[:limit]
 
         except Exception as e:
-            logger.error(f"Error fetching constructor standings: {e}", exc_info=True)
+            logger.error("Error fetching constructor standings: %s", e, exc_info=True)
             return []
 
     async def get_all_standings(self, year: Optional[int] = None, limit: int = 10) -> StandingsData:
