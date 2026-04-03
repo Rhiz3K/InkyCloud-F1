@@ -890,6 +890,31 @@ def test_api_stats_endpoint_returns_correct_structure():
     )
 
 
+def test_api_stats_history_endpoint_returns_hourly_history():
+    """Test /api/stats/history returns hourly stats derived from request data."""
+    mock_history = [
+        {
+            "timestamp": "2026-04-01T11:00:00+00:00",
+            "hour_count": 1,
+            "day_count": 3,
+        },
+        {
+            "timestamp": "2026-04-01T10:00:00+00:00",
+            "hour_count": 2,
+            "day_count": 2,
+        },
+    ]
+
+    with patch(
+        "app.routes.api.Database.get_request_stats_history",
+        new=AsyncMock(return_value=mock_history),
+    ):
+        response = client.get("/api/stats/history?limit=24")
+
+    assert response.status_code == 200
+    assert response.json() == {"history": mock_history, "count": 2}
+
+
 def test_stats_link_in_header():
     """Test header contains link to stats page instead of inline stats display."""
     response = client.get("/")

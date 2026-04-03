@@ -362,7 +362,7 @@ class Database:
 
     async def get_request_stats_history(self, limit: int = 168) -> list[dict]:
         """
-        Get historical request statistics.
+        Get historical request statistics derived from stored API calls.
 
         Args:
             limit: Maximum number of records to return (default 168 = 7 days of hourly data)
@@ -375,10 +375,27 @@ class Database:
             self._get_connection() as conn,
             conn.execute(
                 """
-            SELECT timestamp, hour_count, day_count
-            FROM request_stats
-            ORDER BY timestamp DESC
-            LIMIT ?
+                WITH hourly AS (
+                    SELECT
+                        substr(timestamp, 1, 13) || ':00:00+00:00' AS timestamp,
+                        COUNT(*) AS hour_count
+                    FROM api_calls
+                    GROUP BY substr(timestamp, 1, 13)
+                ),
+                annotated AS (
+                    SELECT
+                        timestamp,
+                        hour_count,
+                        SUM(hour_count) OVER (
+                            ORDER BY timestamp ASC
+                            ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
+                        ) AS day_count
+                    FROM hourly
+                )
+                SELECT timestamp, hour_count, day_count
+                FROM annotated
+                ORDER BY timestamp DESC
+                LIMIT ?
             """,
                 (limit,),
             ) as cursor,

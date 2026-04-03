@@ -461,6 +461,76 @@ class TestDatabaseStatsCleanup:
             await db.close()
 
 
+class TestRequestStatsHistory:
+    """Tests for hourly stats history derived from API calls."""
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_get_request_stats_history_aggregates_api_calls_by_hour(tmp_path):
+        db = Database(str(tmp_path / "history.db"))
+        try:
+            await db.save_api_calls_batch(
+                [
+                    {
+                        "timestamp": "2026-04-01T10:15:00+00:00",
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 100.0,
+                        "response_size_bytes": 1024,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "1bit",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 0,
+                    },
+                    {
+                        "timestamp": "2026-04-01T10:45:00+00:00",
+                        "endpoint": "/teams.bmp",
+                        "response_time_ms": 120.0,
+                        "response_size_bytes": 2048,
+                        "lang": "cs",
+                        "tz": None,
+                        "year": 2026,
+                        "round": None,
+                        "display_type": "bwr",
+                        "race_name": None,
+                        "is_auto_selected": 0,
+                    },
+                    {
+                        "timestamp": "2026-04-01T11:05:00+00:00",
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 130.0,
+                        "response_size_bytes": 4096,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "1bit",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 1,
+                    },
+                ]
+            )
+
+            history = await db.get_request_stats_history(limit=10)
+
+            assert history == [
+                {
+                    "timestamp": "2026-04-01T11:00:00+00:00",
+                    "hour_count": 1,
+                    "day_count": 3,
+                },
+                {
+                    "timestamp": "2026-04-01T10:00:00+00:00",
+                    "hour_count": 2,
+                    "day_count": 2,
+                },
+            ]
+        finally:
+            await db.close()
+
+
 class TestPerfMetricsAggregation:
     """Tests for aggregate perf metrics serialization."""
 
