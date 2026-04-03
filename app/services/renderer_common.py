@@ -420,7 +420,7 @@ def draw_results_header(
     """Render the year and optional country flag for the results footer."""
     year_text = str(season)
     bbox = draw.textbbox((0, 0), year_text, font=year_font)
-    text_width = bbox[2] - bbox[0]
+    year_text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
 
     footer_height = canvas_height - y_start
@@ -446,7 +446,7 @@ def draw_results_header(
     total_block_h = text_height + (standard_gap if flag_h > 0 else 0) + flag_h
     visual_top = y_start + (footer_height - total_block_h) // 2
 
-    year_x = (header_area_width - text_width) // 2
+    year_x = (header_area_width - year_text_width) // 2
     text_y = visual_top - bbox[1]
     draw.text((year_x, text_y), year_text, fill=text_fill, font=year_font)
 
@@ -531,8 +531,8 @@ def draw_new_track_message(
 ) -> None:
     """Draw a centered new-track message when historical data is unavailable."""
     bbox = draw.textbbox((0, 0), message, font=font)
-    text_width = bbox[2] - bbox[0]
-    x = (canvas_width - text_width) // 2
+    message_width = bbox[2] - bbox[0]
+    x = (canvas_width - message_width) // 2
     y = y_start + 30
     draw.text((x, y), message, fill=fill, font=font)
 
@@ -846,7 +846,7 @@ def draw_team_driver_row(
 
 
 def draw_team_row(
-    image: Image.Image,
+    _image: Image.Image,
     draw: ImageDraw.ImageDraw,
     team,
     *,
