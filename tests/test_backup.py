@@ -33,9 +33,6 @@ class TestBackupFilename:
             mock_dt.now.return_value = mock_now
             mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
 
-            # Re-import needed to pick up mocked datetime
-            from app.services.backup import generate_backup_filename
-
             filename = generate_backup_filename()
             assert "2025-03-15" in filename
             assert "14-30-45" in filename

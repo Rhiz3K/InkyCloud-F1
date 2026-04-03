@@ -113,9 +113,8 @@ class TestDatabaseConnectionLifecycle:
     async def test_database_reuses_connection_within_same_loop(tmp_path):
         db = Database(str(tmp_path / "reuse.db"))
         try:
-            async with db._get_connection() as first_conn:
-                async with db._get_connection() as second_conn:
-                    assert first_conn is second_conn
+            async with db._get_connection() as first_conn, db._get_connection() as second_conn:
+                assert first_conn is second_conn
         finally:
             await db.close()
 

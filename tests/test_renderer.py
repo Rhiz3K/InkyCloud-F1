@@ -2788,7 +2788,6 @@ def test_renderer_load_track_image_does_not_use_wildcard_fallback(monkeypatch, m
 
     def fake_load_track_image_asset(*args, **kwargs):
         captured.update(kwargs)
-        return None
 
     monkeypatch.setattr(renderer_module, "load_track_image_asset", fake_load_track_image_asset)
 
