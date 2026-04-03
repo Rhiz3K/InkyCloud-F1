@@ -149,8 +149,7 @@ class Config(BaseSettings):
         0,
         ge=0,
         description=(
-            "Days to retain API/request/performance statistics "
-            "(0=disabled, keep indefinitely)"
+            "Days to retain API/request/performance statistics (0=disabled, keep indefinitely)"
         ),
     )
 
