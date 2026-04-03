@@ -455,10 +455,13 @@ async def test_lifespan_cancels_initial_generation_before_closing_resources():
     async def fake_close_all_databases():
         events.append("close_db")
 
+    def fake_stop_scheduler():
+        events.append("stop_scheduler")
+
     with (
         patch("app.main.warm_teams_renderer_assets", lambda: None),
         patch("app.main.start_scheduler"),
-        patch("app.main.stop_scheduler"),
+        patch("app.main.stop_scheduler", fake_stop_scheduler),
         patch("app.main.run_initial_generation", fake_initial_generation),
         patch("app.main.close_shared_http_clients", fake_close_shared_http_clients),
         patch.object(main_module.Database, "close_all", fake_close_all_databases),
@@ -466,7 +469,7 @@ async def test_lifespan_cancels_initial_generation_before_closing_resources():
         async with main_module.lifespan(app):
             await asyncio.sleep(0)
 
-    assert events == ["started", "cancelled", "close_http", "close_db"]
+    assert events == ["started", "cancelled", "stop_scheduler", "close_http", "close_db"]
 
 
 def test_header_contains_language_switcher():

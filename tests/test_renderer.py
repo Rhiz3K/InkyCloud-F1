@@ -31,7 +31,6 @@ from app.services.renderer_common import (
     build_sprint_qualifying_label,
     build_team_header_values,
     crop_to_content,
-    draw_f1_logo,
     draw_team_logo,
     format_schedule_session_name,
     format_team_driver_display_name,
@@ -2329,8 +2328,8 @@ def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch)
     assert renderer._team_logos["mclaren"].getpixel((0, 0))[:3] == (255, 135, 0)
 
 
-def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch):
-    """Spectra 6 should render the header F1 logo in monochrome like the other display modes."""
+def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch, mock_race_data):
+    """Spectra 6 should select the shared monochrome F1 logo asset during rendering."""
     images_dir = tmp_path / "images"
     images_dir.mkdir(parents=True)
 
@@ -2344,23 +2343,23 @@ def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch):
 
     monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", images_dir)
 
-    image = Image.new("RGB", (80, 30), (255, 255, 255))
-    draw_f1_logo(
-        image,
-        80,
-        30,
-        logo_path=images_dir / "eInkF1logo.jpg",
-        logger=spectra6_renderer_module.logger,
-        prepare_logo_fn=lambda logo_file: (
-            logo_file.convert("L")
-            .point(lambda p, threshold=128: 255 if p > threshold else 0)
-            .convert("1")
-            .convert("RGB")
-        ),
-    )
+    captured: dict[str, object] = {}
+    original_draw_f1_logo = spectra6_renderer_module.draw_f1_logo
 
-    center = image.getpixel((40, 15))
-    assert center[0] == center[1] == center[2]
+    def spy_draw_f1_logo(*args, **kwargs):
+        captured["logo_path"] = kwargs["logo_path"]
+        return original_draw_f1_logo(*args, **kwargs)
+
+    monkeypatch.setattr(spectra6_renderer_module, "draw_f1_logo", spy_draw_f1_logo)
+
+    renderer = Spectra6Renderer(get_translator("en"))
+    bmp_data = renderer.render_calendar(mock_race_data)
+    img = Image.open(BytesIO(bmp_data))
+
+    assert captured["logo_path"].name == "eInkF1logo.jpg"
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
 
 
 def test_renderer_prefers_color_team_logo_assets_for_1bit_sizing(tmp_path, monkeypatch):
@@ -2796,33 +2795,30 @@ def test_renderer_load_track_image_does_not_use_wildcard_fallback(monkeypatch, m
     assert "fallback_glob" not in captured
 
 
-def test_bwry_results_header_passes_country_map(monkeypatch):
-    renderer = BwryRenderer(get_translator("en"))
-    image = Image.new("RGB", (800, 480), "white")
-    draw = ImageDraw.Draw(image)
-    captured = {}
-
-    def fake_draw_results_header(*args, **kwargs):
-        captured.update(kwargs)
-        return 0
-
-    monkeypatch.setattr(bwry_renderer_module, "draw_results_header", fake_draw_results_header)
-
-    renderer._draw_results_header(draw, image, 0, 2025, "Monaco")
-
-    assert captured["country_map"] is bwry_renderer_module.COUNTRY_MAP
-
-
+@pytest.mark.parametrize(
+    ("renderer_cls", "renderer_module", "expected_country_map"),
+    [
+        (BwrRenderer, bwr_renderer_module, {}),
+        (BwryRenderer, bwry_renderer_module, bwry_renderer_module.COUNTRY_MAP),
+    ],
+)
 def test_results_section_uses_renderer_results_header_hook(
-    monkeypatch, mock_race_data, mock_historical_data
+    monkeypatch,
+    mock_race_data,
+    mock_historical_data,
+    renderer_cls,
+    renderer_module,
+    expected_country_map,
 ):
-    renderer = BwryRenderer(get_translator("en"))
+    renderer = renderer_cls(get_translator("en"))
     image = Image.new("RGB", (800, 480), "white")
     draw = ImageDraw.Draw(image)
     captured = {}
 
     def fake_draw_results_section(draw_ctx, image_ctx, **kwargs):
-        captured["visual_top"] = kwargs["draw_results_header_fn"](
+        header_fn = kwargs["draw_results_header_fn"]
+        captured["is_bound_method"] = getattr(header_fn, "__self__", None) is renderer
+        captured["visual_top"] = header_fn(
             draw_ctx,
             image_ctx,
             kwargs["y_start"],
@@ -2830,16 +2826,15 @@ def test_results_section_uses_renderer_results_header_hook(
             kwargs["race_data"]["circuit"]["country"],
         )
 
-    def fake_draw_results_header(self, draw_ctx, image_ctx, y_start, season, country_name):
-        captured["season"] = season
-        captured["country_name"] = country_name
-        return y_start + 7
+    def fake_draw_results_header(*args, **kwargs):
+        captured["country_map"] = kwargs["country_map"]
+        return 0
 
     monkeypatch.setattr(spectra6_renderer_module, "draw_results_section", fake_draw_results_section)
-    monkeypatch.setattr(BwryRenderer, "_draw_results_header", fake_draw_results_header)
+    monkeypatch.setattr(renderer_module, "draw_results_header", fake_draw_results_header)
 
     renderer._draw_results_section(draw, image, mock_race_data, mock_historical_data)
 
-    assert captured["season"] == mock_historical_data.season
-    assert captured["country_name"] == mock_race_data["circuit"]["country"]
-    assert captured["visual_top"] == renderer.layout["results_y_start"] + 7
+    assert captured["is_bound_method"] is True
+    assert captured["country_map"] == expected_country_map
+    assert captured["visual_top"] == 0

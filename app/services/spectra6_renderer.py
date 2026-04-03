@@ -761,21 +761,6 @@ class Spectra6Renderer:
     ) -> None:
         """Draw the footer historical results section."""
 
-        def draw_results_header_cb(
-            draw_ctx: ImageDraw.ImageDraw,
-            image_ctx: Image.Image,
-            y_start: int,
-            season: int | str,
-            country_name: str,
-        ) -> int:
-            return self._draw_results_header(
-                draw_ctx,
-                image_ctx,
-                y_start,
-                season,
-                country_name,
-            )
-
         draw_results_section(
             draw,
             image,
@@ -790,7 +775,7 @@ class Spectra6Renderer:
             qualifying_title=self.translator.get("qualifying", "QUALIFYING"),
             race_title=self.translator.get("race", "RACE"),
             draw_new_track_message_fn=self._draw_new_track_message,
-            draw_results_header_fn=draw_results_header_cb,
+            draw_results_header_fn=self._draw_results_header,
             draw_results_column_fn=self._draw_results_column,
         )
 

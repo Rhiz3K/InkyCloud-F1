@@ -117,11 +117,11 @@ async def lifespan(_app: FastAPI):
 
     yield
 
-    stop_scheduler()
     if not initial_generation_task.done():
         initial_generation_task.cancel()
         with suppress(asyncio.CancelledError):
             await initial_generation_task
+    stop_scheduler()
     await close_shared_http_clients()
     await Database.close_all()
     logger.info("Shutting down F1 E-Ink calendar service")

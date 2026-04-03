@@ -136,6 +136,31 @@ class TestDatabaseConnectionLifecycle:
         assert len(connections) == 2
         assert connections[0] is not connections[1]
 
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_database_initialization_is_serialized_across_instances(tmp_path, monkeypatch):
+        db_path = str(tmp_path / "shared.db")
+        db1 = Database(db_path)
+        db2 = Database(db_path)
+        migration_calls = 0
+        original_run_migrations = Database._run_migrations
+
+        async def slow_run_migrations(conn):
+            nonlocal migration_calls
+            migration_calls += 1
+            await asyncio.sleep(0.05)
+            await original_run_migrations(conn)
+
+        monkeypatch.setattr(Database, "_run_migrations", staticmethod(slow_run_migrations))
+
+        try:
+            await asyncio.gather(db1._init_db_if_needed(), db2._init_db_if_needed())
+        finally:
+            await db1.close()
+            await db2.close()
+
+        assert migration_calls == 1
+
 
 class TestApiCallStatsDatabase:
     """Tests for API call statistics."""
@@ -345,6 +370,53 @@ class TestApiCallStatsDatabase:
             assert stats["races"][0]["count"] == 3
             assert stats["races"][0]["is_auto_selected"] is True
             assert stats["races"][0]["auto_selected_count"] == 1
+        finally:
+            await db.close()
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_get_request_stats_history_uses_true_24h_window_across_gaps(tmp_path):
+        """Rolling day_count should exclude populated buckets older than 24 clock hours."""
+        db = Database(str(tmp_path / "history-gap.db"))
+        try:
+            await db.save_api_calls_batch(
+                [
+                    {
+                        "timestamp": "2026-04-01T10:15:00+00:00",
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 100.0,
+                        "response_size_bytes": 1024,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "1bit",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 0,
+                    },
+                    {
+                        "timestamp": "2026-04-03T10:05:00+00:00",
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 120.0,
+                        "response_size_bytes": 1024,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 2,
+                        "display_type": "1bit",
+                        "race_name": "Chinese Grand Prix",
+                        "is_auto_selected": 0,
+                    },
+                ]
+            )
+
+            history = await db.get_request_stats_history(limit=10)
+
+            assert history[0] == {
+                "timestamp": "2026-04-03T10:00:00+00:00",
+                "hour_count": 1,
+                "day_count": 1,
+            }
         finally:
             await db.close()
 

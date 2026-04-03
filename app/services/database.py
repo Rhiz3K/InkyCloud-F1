@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import threading
 import weakref
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -23,6 +24,9 @@ STATS_CLEANUP_QUERIES = {
 
 class Database:
     _instances: ClassVar[weakref.WeakSet["Database"]] = weakref.WeakSet()
+    _initialized_paths: ClassVar[set[str]] = set()
+    _schema_init_locks: ClassVar[dict[str, threading.Lock]] = {}
+    _schema_state_lock: ClassVar[threading.Lock] = threading.Lock()
 
     """
     Async SQLite database for metadata and statistics.
@@ -43,11 +47,9 @@ class Database:
         """
         self.db_path = db_path or config.DATABASE_PATH
         self._ensure_directory()
-        self._initialized = False
         self._connection: aiosqlite.Connection | None = None
         self._connection_loop: asyncio.AbstractEventLoop | None = None
         self._connection_lock = asyncio.Lock()
-        self._init_lock = asyncio.Lock()
         self._instances.add(self)
 
     def _ensure_directory(self) -> None:
@@ -105,13 +107,20 @@ class Database:
 
     async def _init_db_if_needed(self) -> None:
         """Initialize database schema if not already done."""
-        if self._initialized:
+        cls = type(self)
+
+        if self.db_path in cls._initialized_paths:
             return
 
-        async with self._init_lock:
-            if self._initialized:
+        with cls._schema_state_lock:
+            if self.db_path in cls._initialized_paths:
                 return
+            path_lock = cls._schema_init_locks.setdefault(self.db_path, threading.Lock())
 
+        await asyncio.to_thread(path_lock.acquire)
+        try:
+            if self.db_path in cls._initialized_paths:
+                return
             async with self._get_connection() as conn:
                 await conn.executescript(
                     """
@@ -216,7 +225,10 @@ class Database:
                 await conn.commit()
 
                 logger.info("Database initialized at %s", self.db_path)
-                self._initialized = True
+                with cls._schema_state_lock:
+                    cls._initialized_paths.add(self.db_path)
+        finally:
+            path_lock.release()
 
     @staticmethod
     async def _run_migrations(conn: aiosqlite.Connection) -> None:
@@ -386,9 +398,12 @@ class Database:
                     SELECT
                         timestamp,
                         hour_count,
-                        SUM(hour_count) OVER (
-                            ORDER BY timestamp ASC
-                            ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
+                        (
+                            SELECT COALESCE(SUM(h2.hour_count), 0)
+                            FROM hourly h2
+                            WHERE datetime(h2.timestamp)
+                                BETWEEN datetime(hourly.timestamp, '-23 hours')
+                                AND datetime(hourly.timestamp)
                         ) AS day_count
                     FROM hourly
                 )

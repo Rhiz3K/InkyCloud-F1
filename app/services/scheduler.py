@@ -916,11 +916,11 @@ def start_scheduler() -> None:
 
 
 def stop_scheduler() -> None:
-    """Stop the background scheduler."""
+    """Stop the background scheduler and wait for in-flight jobs to finish."""
     global scheduler  # skipcq: PYL-W0603 - singleton pattern for scheduler instance
 
     if scheduler is not None:
-        scheduler.shutdown()
+        scheduler.shutdown(wait=True)
         scheduler = None
         logger.info("Scheduler stopped")
 
