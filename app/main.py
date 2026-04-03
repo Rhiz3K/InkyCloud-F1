@@ -142,7 +142,11 @@ class StaticCacheMiddleware:
         path = scope.get("path", "")
 
         async def send_with_cache_headers(message):
-            if message["type"] == "http.response.start" and path.startswith("/static/"):
+            if (
+                message["type"] == "http.response.start"
+                and path.startswith("/static/")
+                and message.get("status", 500) < 400
+            ):
                 headers = MutableHeaders(scope=message)
                 if "/fonts/" in path:
                     headers["Cache-Control"] = "public, max-age=31536000, immutable"

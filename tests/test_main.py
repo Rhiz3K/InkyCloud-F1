@@ -285,6 +285,14 @@ def test_static_css_sets_cache_control_header():
     assert response.headers["cache-control"] == "public, max-age=3600"
 
 
+def test_missing_static_asset_does_not_set_cache_control_header():
+    """Static error responses should not be cached by the middleware."""
+    response = client.get("/static/css/does-not-exist.css")
+
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
+
+
 def test_configure_trailing_slash_redirects_to_canonical_path():
     """Configure pages should redirect to their canonical no-trailing-slash path."""
     response = client.get("/configure/calendar/", follow_redirects=False)

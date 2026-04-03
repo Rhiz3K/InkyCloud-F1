@@ -45,6 +45,7 @@ def test_config_invalid_env_falls_back(monkeypatch):
     monkeypatch.setenv("DEFAULT_TIMEZONE", "Not/AZone")
     monkeypatch.setenv("SITE_URL", "not-a-url")
     monkeypatch.setenv("UMAMI_API_URL", "not-a-url")
+    monkeypatch.setenv("GITHUB_API_BASE_URL", "not-a-url")
     monkeypatch.setenv("OPEN_METEO_URL", "still-not-a-url")
     monkeypatch.setenv("OPEN_METEO_ARCHIVE_URL", "bad-archive-url")
     monkeypatch.setenv("SENTRY_TRACES_SAMPLE_RATE", "2")
@@ -59,6 +60,7 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert config.DEFAULT_TIMEZONE == "Europe/Prague"
     assert str(config.SITE_URL) == "https://f1.inkycloud.click"
     assert str(config.UMAMI_API_URL) == "https://analytics.example.com/api/send"
+    assert str(config.GITHUB_API_BASE_URL) == "https://api.github.com"
     assert str(config.OPEN_METEO_URL) == "https://api.open-meteo.com/v1/forecast"
     assert str(config.OPEN_METEO_ARCHIVE_URL) == "https://archive-api.open-meteo.com/v1/archive"
     assert config.SENTRY_TRACES_SAMPLE_RATE == 0.1

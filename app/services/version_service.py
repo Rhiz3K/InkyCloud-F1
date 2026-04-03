@@ -76,7 +76,10 @@ async def fetch_version_info() -> VersionInfo:
     client = get_shared_http_client(httpx.AsyncClient, timeout=config.REQUEST_TIMEOUT)
     # Fetch latest release
     try:
-        release_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
+        release_url = (
+            f"{str(config.GITHUB_API_BASE_URL).rstrip('/')}/repos/"
+            f"{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
+        )
         response = await client.get(
             release_url,
             headers={"Accept": "application/vnd.github.v3+json"},
@@ -96,7 +99,10 @@ async def fetch_version_info() -> VersionInfo:
 
     # Fetch latest commit on main branch
     try:
-        commits_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits/main"
+        commits_url = (
+            f"{str(config.GITHUB_API_BASE_URL).rstrip('/')}/repos/"
+            f"{GITHUB_OWNER}/{GITHUB_REPO}/commits/main"
+        )
         response = await client.get(
             commits_url,
             headers={"Accept": "application/vnd.github.v3+json"},

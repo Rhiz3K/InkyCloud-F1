@@ -13,9 +13,9 @@ class TestCircuitWeatherDatabase:
     """Tests for circuit weather database methods."""
 
     @pytest_asyncio.fixture
-    async def db(self):
+    async def db(self, tmp_path):
         """Create a fresh database instance for each test."""
-        db = Database()
+        db = Database(str(tmp_path / "circuit_weather.db"))
         yield db
         await db.close()
 
@@ -457,5 +457,37 @@ class TestDatabaseStatsCleanup:
                     ) as cursor:
                         row = await cursor.fetchone()
                         assert row["count"] == 1
+        finally:
+            await db.close()
+
+
+class TestPerfMetricsAggregation:
+    """Tests for aggregate perf metrics serialization."""
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_perf_aggregates_preserve_zero_values(tmp_path):
+        db = Database(str(tmp_path / "perf.db"))
+        try:
+            await db.save_perf_metric(
+                page_path="/perfect",
+                lcp_ms=0.0,
+                cls=0.0,
+                fcp_ms=0.0,
+                ttfb_ms=0.0,
+                inp_ms=0.0,
+            )
+
+            by_page = await db.get_perf_stats_by_page(hours=24)
+            trends = await db.get_perf_trends(hours=24)
+
+            perfect_page = next(row for row in by_page if row["page"] == "/perfect")
+            assert perfect_page["lcp"] == 0.0
+            assert perfect_page["cls"] == 0.0
+            assert perfect_page["fcp"] == 0.0
+            assert perfect_page["ttfb"] == 0.0
+            assert 0.0 in trends["lcp"]
+            assert 0.0 in trends["fcp"]
+            assert 0.0 in trends["ttfb"]
         finally:
             await db.close()

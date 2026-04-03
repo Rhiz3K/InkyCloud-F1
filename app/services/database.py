@@ -958,10 +958,10 @@ class Database:
                 {
                     "page": row["page_path"],
                     "samples": row["sample_count"],
-                    "lcp": round(row["avg_lcp"], 0) if row["avg_lcp"] else None,
-                    "cls": round(row["avg_cls"], 3) if row["avg_cls"] else None,
-                    "fcp": round(row["avg_fcp"], 0) if row["avg_fcp"] else None,
-                    "ttfb": round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None,
+                    "lcp": round(row["avg_lcp"], 0) if row["avg_lcp"] is not None else None,
+                    "cls": round(row["avg_cls"], 3) if row["avg_cls"] is not None else None,
+                    "fcp": round(row["avg_fcp"], 0) if row["avg_fcp"] is not None else None,
+                    "ttfb": round(row["avg_ttfb"], 0) if row["avg_ttfb"] is not None else None,
                 }
                 for row in rows
             ]
@@ -1028,9 +1028,18 @@ class Database:
             rows = await cursor.fetchall()
             return {
                 "hours": [row["hour"] for row in rows],
-                "lcp": [round(row["avg_lcp"], 0) if row["avg_lcp"] else None for row in rows],
-                "fcp": [round(row["avg_fcp"], 0) if row["avg_fcp"] else None for row in rows],
-                "ttfb": [round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None for row in rows],
+                "lcp": [
+                    round(row["avg_lcp"], 0) if row["avg_lcp"] is not None else None
+                    for row in rows
+                ],
+                "fcp": [
+                    round(row["avg_fcp"], 0) if row["avg_fcp"] is not None else None
+                    for row in rows
+                ],
+                "ttfb": [
+                    round(row["avg_ttfb"], 0) if row["avg_ttfb"] is not None else None
+                    for row in rows
+                ],
                 "samples": [row["samples"] for row in rows],
             }
 

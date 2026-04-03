@@ -100,6 +100,10 @@ class Config(BaseSettings):
         "https://analytics.example.com/api/send",
         description="Umami analytics endpoint",
     )
+    GITHUB_API_BASE_URL: str = Field(
+        "https://api.github.com",
+        description="GitHub REST API base URL",
+    )
     UMAMI_ENABLED: bool = Field(False, description="Toggle Umami analytics")
     ANALYTICS_HOSTNAME: str = Field("", description="Hostname for analytics tracking")
 
@@ -269,6 +273,7 @@ class Config(BaseSettings):
     @field_validator(
         "SITE_URL",
         "UMAMI_API_URL",
+        "GITHUB_API_BASE_URL",
         "JOLPICA_API_URL",
         "OPEN_METEO_URL",
         "OPEN_METEO_ARCHIVE_URL",
