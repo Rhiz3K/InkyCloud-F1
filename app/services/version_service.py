@@ -86,13 +86,13 @@ async def fetch_version_info() -> VersionInfo:
             release_tag = data.get("tag_name")
             release_name = data.get("name")
             release_date = data.get("published_at")
-            logger.info(f"Fetched latest release: {release_tag}")
+            logger.info("Fetched latest release: %s", release_tag)
         elif response.status_code == 404:
             logger.info("No releases found on GitHub")
         else:
-            logger.warning(f"GitHub releases API returned {response.status_code}")
+            logger.warning("GitHub releases API returned %s", response.status_code)
     except Exception as e:
-        logger.error(f"Error fetching GitHub release: {e}")
+        logger.error("Error fetching GitHub release: %s", e)
 
     # Fetch latest commit on main branch
     try:
@@ -108,11 +108,11 @@ async def fetch_version_info() -> VersionInfo:
             commit_info = data.get("commit", {})
             commit_date = commit_info.get("committer", {}).get("date")
             commit_message = commit_info.get("message", "").split("\n")[0]
-            logger.info(f"Fetched latest commit: {commit_sha_short}")
+            logger.info("Fetched latest commit: %s", commit_sha_short)
         else:
-            logger.warning(f"GitHub commits API returned {response.status_code}")
+            logger.warning("GitHub commits API returned %s", response.status_code)
     except Exception as e:
-        logger.error(f"Error fetching GitHub commit: {e}")
+        logger.error("Error fetching GitHub commit: %s", e)
 
     _version_cache = VersionInfo(
         release_tag=release_tag,
@@ -142,5 +142,5 @@ async def refresh_version_info() -> VersionInfo | None:
     try:
         return await fetch_version_info()
     except Exception as e:
-        logger.error(f"Error refreshing version info: {e}", exc_info=True)
+        logger.error("Error refreshing version info: %s", e, exc_info=True)
         return None
