@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shared team stats/driver-row helpers** - Centralized the repeated team-card stats panel and driver-row rendering flow so monochrome and Spectra 6 renderers now only pass badge colors and text fills instead of maintaining duplicate row logic
 - **Shared track asset loader** - Centralized source/fallback track asset resolution so monochrome and Spectra 6 renderers now share one loader path with only variant suffixes and fallback directories passed in
 - **Shared results-section helper** - Centralized footer separator/new-track branching and qualifying/race column dispatch so monochrome and Spectra 6 renderers now share one historical-results section flow with only display colors and callbacks passed in
-- **Shared multi-color results header helper** - Generalized the shared footer year/flag renderer to accept preferred flag-directory fallback chains so B/W/R and B/W/R/Y renderers now reuse the same results-header code path as the primary display modes
+- **Shared multi-color results header helper** - Generalized the shared footer year/flag renderer to accept preferred flag-directory fallback chains and route footer rendering through overridable renderer hooks so B/W/R and B/W/R/Y variants reuse the shared header flow without bypassing their display-specific flag assets
 - **Shared schedule-row helper** - Centralized schedule date/day/time parsing and row text layout so monochrome and Spectra 6 renderers now differ only in the session-name fill color passed into one shared row renderer
 - **Shared track-stem helper** - Centralized circuit-id/location normalization for track asset candidate lookup so monochrome and Spectra 6 renderers now share the same race-data-to-track-stem resolution path before applying display-specific asset fallbacks
 - **Removed team-logo wrapper methods** - Inlined the last display-specific team-logo callback wrappers into the shared team-card flow so monochrome and Spectra 6 renderers no longer carry separate `_draw_team_logo()` pass-through methods
@@ -75,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
-- **Optional operational API token** - Added opt-in token checks for read-only operational metrics endpoints so deployments can lock down `/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics` without breaking browser-side `POST /api/perf-metrics` web-vitals ingestion
+- **Optional operational API token hardening** - Followed up the original token-gated operational endpoints with release-ready validation, docs, and changelog coverage so deployments can lock down `/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics` without breaking browser-side `POST /api/perf-metrics` web-vitals ingestion
 - **Masked S3 credentials** - Stored S3 access keys as `SecretStr` values and resolved them only at S3 client creation time so accidental config logging and tracebacks no longer expose raw backup credentials
 - **SITE_URL validation** - Added the shared URL validator to `SITE_URL` so malformed canonical host configuration falls back safely instead of leaking invalid redirect/canonical origins
 
@@ -110,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
-- **Optional operational API token** - Added opt-in token checks for read-only operational metrics endpoints so deployments can lock down `/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics` without breaking browser-side `POST /api/perf-metrics` web-vitals ingestion
+- **Optional operational API token introduction** - Added the initial opt-in token checks for read-only operational metrics endpoints so deployments can lock down `/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics` without breaking browser-side `POST /api/perf-metrics` web-vitals ingestion
 - **Dependency vulnerability updates** - Bumped `pygments` in `uv.lock` and `picomatch` in `package-lock.json` to patched versions to clear the open GitHub security alerts on the release branch
 
 ### Development

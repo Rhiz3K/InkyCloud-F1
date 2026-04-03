@@ -7,6 +7,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 from app.services.bwr_renderer import FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR, BwrRenderer
+from app.services.circuit_metadata import COUNTRY_MAP
 from app.services.renderer_common import draw_results_header
 from app.services.spectra6_renderer import TRACKS_DIR, logger
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwry_palette
@@ -64,7 +65,7 @@ class BwryRenderer(BwrRenderer):
             year_font=self.fonts["results_year"],
             text_fill=self.colors.BLACK,
             outline_fill=self.colors.BLACK,
-            country_map={},
+            country_map=COUNTRY_MAP,
             flags_dirs=(FLAGS_BWRY_DIR, FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR),
             prepare_flag_image=lambda opened_flag: opened_flag.convert("RGB"),
             logger=logger,

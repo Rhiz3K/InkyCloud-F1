@@ -27,9 +27,6 @@ from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone
 
 logger = logging.getLogger(__name__)
 
-# Base URL for Jolpica API (without the specific endpoint)
-JOLPICA_BASE_URL = "https://api.jolpi.ca/ergast/f1"
-
 # Static data paths
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
 SEASONS_DIR = ASSETS_DIR / "seasons"
@@ -52,6 +49,7 @@ class F1Service:
             timezone: Backward-compatible alias for legacy callers.
         """
         self.api_url = config.JOLPICA_API_URL
+        self.api_base_url = self._derive_api_base_url(self.api_url)
         self.timeout = config.REQUEST_TIMEOUT
         effective_timezone = timezone_name if timezone_name is not None else timezone
         self.timezone_str = effective_timezone or config.DEFAULT_TIMEZONE
@@ -61,6 +59,15 @@ class F1Service:
             logger.warning("Unknown timezone %s, falling back to UTC", self.timezone_str)
             self.target_tz = UTC
             self.timezone_str = "UTC"
+
+    @staticmethod
+    def _derive_api_base_url(api_url: str) -> str:
+        """Derive the Jolpica API root from the configured next-race endpoint."""
+        normalized = api_url.rstrip("/")
+        for suffix in ("/current/next.json", "/current.json", ".json"):
+            if normalized.endswith(suffix):
+                return normalized[: -len(suffix)].rstrip("/")
+        return normalized
 
     async def get_next_race(self) -> Optional[dict]:
         """
@@ -344,7 +351,7 @@ class F1Service:
         Returns:
             The previous season year, or None if no previous race exists
         """
-        url = f"{JOLPICA_BASE_URL}/circuits/{circuit_id}/races.json?limit=100"
+        url = f"{self.api_base_url}/circuits/{circuit_id}/races.json?limit=100"
         logger.info("Fetching race history for circuit %s", circuit_id)
 
         response = await fetch_with_retry(client, url, logger=logger)
@@ -379,7 +386,7 @@ class F1Service:
         Returns:
             List of QualifyingResultEntry objects (top 3)
         """
-        url = f"{JOLPICA_BASE_URL}/{season}/circuits/{circuit_id}/qualifying.json?limit=3"
+        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/qualifying.json?limit=3"
         logger.info("Fetching qualifying results: %s", url)
 
         try:
@@ -433,7 +440,7 @@ class F1Service:
         Returns:
             List of RaceResultEntry objects (top 3)
         """
-        url = f"{JOLPICA_BASE_URL}/{season}/circuits/{circuit_id}/results.json?limit=3"
+        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/results.json?limit=3"
         logger.info("Fetching race results: %s", url)
 
         try:
@@ -486,7 +493,7 @@ class F1Service:
         """
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-            url = f"{JOLPICA_BASE_URL}/{year}.json"
+            url = f"{self.api_base_url}/{year}.json"
             logger.info("Fetching season races from %s", url)
             response = await fetch_with_retry(client, url, logger=logger)
 
@@ -499,8 +506,10 @@ class F1Service:
             for race in races:
                 try:
                     race_date_str = race.get("date", "")
-                    race_time_str = race.get("time", "14:00:00Z")
+                    race_time_str = race.get("time", "12:00:00Z")
                     round_num = self._extract_round_number(race)
+                    circuit = race.get("Circuit") or {}
+                    location = circuit.get("Location") or {}
 
                     # Parse race datetime - if parsing fails, use None
                     dt_local = None
@@ -518,15 +527,13 @@ class F1Service:
                                 season=race.get("season"),
                                 round_value=race.get("round"),
                                 race_name=race.get("raceName", ""),
-                                circuit_id=race.get("Circuit", {}).get("circuitId", ""),
+                                circuit_id=circuit.get("circuitId", ""),
                                 race_date=race_date_str,
                             ),
                             "race_name": race.get("raceName", ""),
-                            "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
-                            "circuit_name": race.get("Circuit", {}).get("circuitName", ""),
-                            "country": race.get("Circuit", {})
-                            .get("Location", {})
-                            .get("country", ""),
+                            "circuit_id": circuit.get("circuitId", ""),
+                            "circuit_name": circuit.get("circuitName", ""),
+                            "country": location.get("country", ""),
                             "date": race_date_str,
                             "datetime": dt_local.isoformat() if dt_local else None,
                             "is_past": is_past,
@@ -557,7 +564,7 @@ class F1Service:
         """
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-            url = f"{JOLPICA_BASE_URL}/{year}/{round_num}.json"
+            url = f"{self.api_base_url}/{year}/{round_num}.json"
             logger.info("Fetching race from %s", url)
             response = await fetch_with_retry(client, url, logger=logger)
 

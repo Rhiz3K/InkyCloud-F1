@@ -244,25 +244,12 @@ def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
     assert rendered.mode == "1"
 
 
-@pytest.mark.parametrize(
-    ("lang", "expected"),
-    [
-        ("cs", "Sprint Kvalifikace"),
-        ("sk", "Sprint Kvalifikácia"),
-        ("pl", "Sprint Kwalifikacje"),
-        ("en", "Sprint Qualifying"),
-        ("de", "Sprint Qualifying"),
-        ("ja", "スプリント予選"),
-        ("zh-CN", "冲刺赛排位赛"),
-        ("pt-BR", "Sprint Classificação"),
-    ],
-)
+@pytest.mark.parametrize("lang", ["cs", "sk", "pl", "en", "de", "ja", "zh-CN", "pt-BR"])
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
-def test_translate_session_name_uses_full_localized_sprint_qualifying_labels(
-    renderer_cls, lang, expected
-):
-    """Sprint qualifying aliases should use the localized sprint and qualifying strings."""
+def test_translate_session_name_prefers_dedicated_sprint_qualifying_key(renderer_cls, lang):
+    """Sprint qualifying aliases should prefer the dedicated locale key when present."""
     renderer = renderer_cls(get_translator(lang), lang)
+    expected = renderer.translator["session_sprintqualifying"]
     assert (
         translate_session_name("SprintQualifying", renderer.translator, renderer.lang_code)
         == expected
@@ -297,28 +284,17 @@ def test_build_sprint_qualifying_label_uses_localized_abbreviation(renderer_cls,
     )
 
 
-@pytest.mark.parametrize(
-    ("lang", "expected"),
-    [
-        ("en", "Sprint Qualifying"),
-        ("cs", "Sprint Kvalifikace"),
-        ("pt-BR", "Sprint Classificação"),
-        ("ja", "スプリント予選"),
-        ("zh-CN", "冲刺赛排位赛"),
-    ],
-)
+@pytest.mark.parametrize("lang", ["en", "cs", "pt-BR", "ja", "zh-CN"])
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
-def test_format_schedule_session_name_keeps_full_label_when_space_available(
-    renderer_cls, lang, expected
-):
-    """Schedule rows should keep the full localized label when there is sufficient width."""
+def test_format_schedule_session_name_prefers_dedicated_label(renderer_cls, lang):
+    """Schedule rows should use the dedicated sprint-qualifying translation when available."""
     renderer = renderer_cls(get_translator(lang), lang)
     draw = ImageDraw.Draw(Image.new("RGB", (800, 480), "white"))
     assert (
         format_schedule_session_name(
             draw, "Sprint Qualifying", 180, renderer.lang_code, renderer.translator
         )
-        == expected
+        == renderer.translator["session_sprintqualifying"]
     )
 
 
@@ -2375,10 +2351,12 @@ def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch):
         30,
         logo_path=images_dir / "eInkF1logo.jpg",
         logger=spectra6_renderer_module.logger,
-        prepare_logo_fn=lambda logo_file: logo_file.convert("L")
-        .point(lambda p, threshold=128: 255 if p > threshold else 0)
-        .convert("1")
-        .convert("RGB"),
+        prepare_logo_fn=lambda logo_file: (
+            logo_file.convert("L")
+            .point(lambda p, threshold=128: 255 if p > threshold else 0)
+            .convert("1")
+            .convert("RGB")
+        ),
     )
 
     center = image.getpixel((40, 15))
@@ -2803,3 +2781,66 @@ def test_map_to_bwry_palette_preserves_near_white_edges():
         BwryColors.IDX_WHITE,
         BwryColors.IDX_YELLOW,
     ]
+
+
+def test_renderer_load_track_image_does_not_use_wildcard_fallback(monkeypatch, mock_race_data):
+    captured = {}
+
+    def fake_load_track_image_asset(*args, **kwargs):
+        captured.update(kwargs)
+        return None
+
+    monkeypatch.setattr(renderer_module, "load_track_image_asset", fake_load_track_image_asset)
+
+    Renderer._load_track_image(mock_race_data)
+
+    assert "fallback_glob" not in captured
+
+
+def test_bwry_results_header_passes_country_map(monkeypatch):
+    renderer = BwryRenderer(get_translator("en"))
+    image = Image.new("RGB", (800, 480), "white")
+    draw = ImageDraw.Draw(image)
+    captured = {}
+
+    def fake_draw_results_header(*args, **kwargs):
+        captured.update(kwargs)
+        return 0
+
+    monkeypatch.setattr(bwry_renderer_module, "draw_results_header", fake_draw_results_header)
+
+    renderer._draw_results_header(draw, image, 0, 2025, "Monaco")
+
+    assert captured["country_map"] is bwry_renderer_module.COUNTRY_MAP
+
+
+def test_results_section_uses_renderer_results_header_hook(
+    monkeypatch, mock_race_data, mock_historical_data
+):
+    renderer = BwryRenderer(get_translator("en"))
+    image = Image.new("RGB", (800, 480), "white")
+    draw = ImageDraw.Draw(image)
+    captured = {}
+
+    def fake_draw_results_section(draw_ctx, image_ctx, **kwargs):
+        captured["visual_top"] = kwargs["draw_results_header_fn"](
+            draw_ctx,
+            image_ctx,
+            kwargs["y_start"],
+            kwargs["historical_data"].season or "",
+            kwargs["race_data"]["circuit"]["country"],
+        )
+
+    def fake_draw_results_header(self, draw_ctx, image_ctx, y_start, season, country_name):
+        captured["season"] = season
+        captured["country_name"] = country_name
+        return y_start + 7
+
+    monkeypatch.setattr(spectra6_renderer_module, "draw_results_section", fake_draw_results_section)
+    monkeypatch.setattr(BwryRenderer, "_draw_results_header", fake_draw_results_header)
+
+    renderer._draw_results_section(draw, image, mock_race_data, mock_historical_data)
+
+    assert captured["season"] == mock_historical_data.season
+    assert captured["country_name"] == mock_race_data["circuit"]["country"]
+    assert captured["visual_top"] == renderer.layout["results_y_start"] + 7

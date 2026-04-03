@@ -250,10 +250,12 @@ class Spectra6Renderer:
                 height,
                 logo_path=IMAGES_DIR / "eInkF1logo.jpg",
                 logger=logger,
-                prepare_logo_fn=lambda logo_file: logo_file.convert("L")
-                .point(lambda p, threshold=128: 255 if p > threshold else 0)
-                .convert("1")
-                .convert("RGB"),
+                prepare_logo_fn=lambda logo_file: (
+                    logo_file.convert("L")
+                    .point(lambda p, threshold=128: 255 if p > threshold else 0)
+                    .convert("1")
+                    .convert("RGB")
+                ),
             ),
         )
 
@@ -523,10 +525,12 @@ class Spectra6Renderer:
                 height,
                 logo_path=IMAGES_DIR / "eInkF1logo.jpg",
                 logger=logger,
-                prepare_logo_fn=lambda logo_file: logo_file.convert("L")
-                .point(lambda p, threshold=128: 255 if p > threshold else 0)
-                .convert("1")
-                .convert("RGB"),
+                prepare_logo_fn=lambda logo_file: (
+                    logo_file.convert("L")
+                    .point(lambda p, threshold=128: 255 if p > threshold else 0)
+                    .convert("1")
+                    .convert("RGB")
+                ),
             ),
         )
 
@@ -722,6 +726,32 @@ class Spectra6Renderer:
             fill=self.colors.BLACK,
         )
 
+    def _draw_results_header(
+        self,
+        draw: ImageDraw.ImageDraw,
+        image: Image.Image,
+        y_start: int,
+        season: int | str,
+        country_name: str,
+    ) -> int:
+        """Draw the footer year/flag header for historical results."""
+        return draw_results_header(
+            draw,
+            image,
+            canvas_height=self.height,
+            header_area_width=self.layout["results_col1_x"],
+            y_start=y_start,
+            season=season,
+            country_name=country_name,
+            year_font=self.fonts["results_year"],
+            text_fill=self.colors.BLACK,
+            outline_fill=self.colors.BLACK,
+            country_map=COUNTRY_MAP,
+            flags_dirs=FLAGS_DIR,
+            prepare_flag_image=lambda opened_flag: opened_flag.convert("RGB"),
+            logger=logger,
+        )
+
     def _draw_results_section(
         self,
         draw: ImageDraw.ImageDraw,
@@ -738,21 +768,12 @@ class Spectra6Renderer:
             season: int | str,
             country_name: str,
         ) -> int:
-            return draw_results_header(
+            return self._draw_results_header(
                 draw_ctx,
                 image_ctx,
-                canvas_height=self.height,
-                header_area_width=self.layout["results_col1_x"],
-                y_start=y_start,
-                season=season,
-                country_name=country_name,
-                year_font=self.fonts["results_year"],
-                text_fill=self.colors.BLACK,
-                outline_fill=self.colors.BLACK,
-                country_map=COUNTRY_MAP,
-                flags_dirs=FLAGS_DIR,
-                prepare_flag_image=lambda opened_flag: opened_flag.convert("RGB"),
-                logger=logger,
+                y_start,
+                season,
+                country_name,
             )
 
         draw_results_section(

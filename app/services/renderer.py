@@ -255,9 +255,9 @@ class Renderer:
                 height,
                 logo_path=IMAGES_DIR / "eInkF1logo.jpg",
                 logger=logger,
-                prepare_logo_fn=lambda logo_file: logo_file.convert("L")
-                .point(lambda p: 255 if p > 128 else 0)
-                .convert("1"),
+                prepare_logo_fn=lambda logo_file: (
+                    logo_file.convert("L").point(lambda p: 255 if p > 128 else 0).convert("1")
+                ),
             ),
         )
 
@@ -444,7 +444,7 @@ class Renderer:
             right_align_x_fn=right_align_x,
             text_fill=0,
             badge_outline_fill=0,
-            badge_colors_fn=lambda position: ((0, 1) if position in {2, 3} else (1, 0)),
+            badge_colors_fn=lambda position: (0, 1) if position in {2, 3} else (1, 0),
         )
 
     def _draw_team_row(
@@ -602,9 +602,9 @@ class Renderer:
             header_height,
             logo_path=IMAGES_DIR / "eInkF1logo.jpg",
             logger=logger,
-            prepare_logo_fn=lambda logo_file: logo_file.convert("L")
-            .point(lambda p: 255 if p > 128 else 0)
-            .convert("1"),
+            prepare_logo_fn=lambda logo_file: (
+                logo_file.convert("L").point(lambda p: 255 if p > 128 else 0).convert("1")
+            ),
         )
 
         title = self.translator.get("standings_title", "CHAMPIONSHIP STANDINGS")
@@ -839,9 +839,9 @@ class Renderer:
                 height,
                 logo_path=IMAGES_DIR / "eInkF1logo.jpg",
                 logger=logger,
-                prepare_logo_fn=lambda logo_file: logo_file.convert("L")
-                .point(lambda p: 255 if p > 128 else 0)
-                .convert("1"),
+                prepare_logo_fn=lambda logo_file: (
+                    logo_file.convert("L").point(lambda p: 255 if p > 128 else 0).convert("1")
+                ),
             ),
         )
 
@@ -895,7 +895,6 @@ class Renderer:
             source_dir=TRACKS_DIR,
             variant_suffix="bw",
             fallback_dir=TRACKS_PROCESSED_DIR,
-            fallback_glob="*.bmp",
         )
 
     # =========================================================================

@@ -163,6 +163,14 @@ def build_sprint_qualifying_label(
     return f"{sprint_label}{separator}{qualifying_label}"
 
 
+def get_dedicated_sprint_qualifying_label(translator: dict[str, str] | object) -> str | None:
+    """Return a locale-specific sprint-qualifying label when one is defined."""
+    label = translator.get("session_sprintqualifying")
+    if isinstance(label, str) and label:
+        return label
+    return None
+
+
 def translate_session_name(name: str, translator: dict[str, str] | object, lang_code: str) -> str:
     """Translate session names while normalizing API/static variants."""
     if not name:
@@ -170,7 +178,9 @@ def translate_session_name(name: str, translator: dict[str, str] | object, lang_
 
     normalized = normalize_session_name(name)
     if normalized == "sprintqualifying":
-        return build_sprint_qualifying_label(translator, lang_code, abbreviated=False)
+        return get_dedicated_sprint_qualifying_label(translator) or build_sprint_qualifying_label(
+            translator, lang_code, abbreviated=False
+        )
 
     direct_key = f"session_{name.lower()}"
     if direct_key in translator:
@@ -190,6 +200,10 @@ def format_schedule_session_name(
     """Return the best-fitting localized schedule label for a session."""
     if normalize_session_name(name) != "sprintqualifying":
         return translate_session_name(name, translator, lang_code)
+
+    dedicated_label = get_dedicated_sprint_qualifying_label(translator)
+    if dedicated_label:
+        return dedicated_label
 
     full_label = build_sprint_qualifying_label(translator, lang_code, abbreviated=False)
     full_font = fit_ui_font(
