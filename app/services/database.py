@@ -24,9 +24,9 @@ STATS_CLEANUP_QUERIES = {
 
 class Database:
     _instances: ClassVar[weakref.WeakSet["Database"]] = weakref.WeakSet()
-    _initialized_paths: ClassVar[set[str]] = set()
-    _schema_init_locks: ClassVar[dict[str, threading.Lock]] = {}
-    _schema_state_lock: ClassVar[threading.Lock] = threading.Lock()
+    initialized_paths: ClassVar[set[str]] = set()
+    schema_init_locks: ClassVar[dict[str, threading.Lock]] = {}
+    schema_state_lock: ClassVar[threading.Lock] = threading.Lock()
 
     """
     Async SQLite database for metadata and statistics.
@@ -109,17 +109,17 @@ class Database:
         """Initialize database schema if not already done."""
         cls = type(self)
 
-        if self.db_path in cls._initialized_paths:
+        if self.db_path in cls.initialized_paths:
             return
 
-        with cls._schema_state_lock:
-            if self.db_path in cls._initialized_paths:
+        with cls.schema_state_lock:
+            if self.db_path in cls.initialized_paths:
                 return
-            path_lock = cls._schema_init_locks.setdefault(self.db_path, threading.Lock())
+            path_lock = cls.schema_init_locks.setdefault(self.db_path, threading.Lock())
 
         await asyncio.to_thread(path_lock.acquire)
         try:
-            if self.db_path in cls._initialized_paths:
+            if self.db_path in cls.initialized_paths:
                 return
             async with self._get_connection() as conn:
                 await conn.executescript(
@@ -225,8 +225,8 @@ class Database:
                 await conn.commit()
 
                 logger.info("Database initialized at %s", self.db_path)
-                with cls._schema_state_lock:
-                    cls._initialized_paths.add(self.db_path)
+                with cls.schema_state_lock:
+                    cls.initialized_paths.add(self.db_path)
         finally:
             path_lock.release()
 
