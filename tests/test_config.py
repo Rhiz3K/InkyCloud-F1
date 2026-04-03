@@ -50,6 +50,7 @@ def test_config_invalid_env_falls_back(monkeypatch):
     monkeypatch.setenv("OPEN_METEO_ARCHIVE_URL", "bad-archive-url")
     monkeypatch.setenv("SENTRY_TRACES_SAMPLE_RATE", "2")
     monkeypatch.setenv("DEFAULT_LANG", "xx")
+    monkeypatch.setenv("STATS_RETENTION_DAYS", "-5")
 
     config_module._reset_config_cache_for_tests()
     importlib.reload(config_module)
@@ -65,6 +66,7 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert str(config.OPEN_METEO_ARCHIVE_URL) == "https://archive-api.open-meteo.com/v1/archive"
     assert config.SENTRY_TRACES_SAMPLE_RATE == 0.1
     assert config.DEFAULT_LANG == "en"
+    assert config.STATS_RETENTION_DAYS == 0
 
 
 def test_translator_english():

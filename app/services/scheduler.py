@@ -508,7 +508,8 @@ async def collect_and_generate() -> None:
             await db.set_cache_meta("last_generation", datetime.now(timezone.utc).isoformat())
             clear_bmp_cache()
 
-            await db.cleanup_old_stats(days=30)
+            if config.STATS_RETENTION_DAYS > 0:
+                await db.cleanup_old_stats(days=config.STATS_RETENTION_DAYS)
             await generate_preview_pngs(race_data, historical_data)
             generated_count += await _generate_teams_bmp_variants(images_dir=images_dir, db=db)
 

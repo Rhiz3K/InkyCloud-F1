@@ -145,6 +145,14 @@ class Config(BaseSettings):
 
     # Scheduler settings
     SCHEDULER_ENABLED: bool = Field(True, description="Toggle background scheduler")
+    STATS_RETENTION_DAYS: int = Field(
+        0,
+        ge=0,
+        description=(
+            "Days to retain API/request/performance statistics "
+            "(0=disabled, keep indefinitely)"
+        ),
+    )
 
     # Weather integration
     WEATHER_ENABLED: bool = Field(True, description="Toggle weather forecast display")
@@ -291,7 +299,7 @@ class Config(BaseSettings):
         except ValidationError:
             return _warn_invalid(info.field_name, value, default, "must be a valid URL")
 
-    @field_validator("BACKUP_RETENTION_DAYS", mode="before")
+    @field_validator("BACKUP_RETENTION_DAYS", "STATS_RETENTION_DAYS", mode="before")
     @classmethod
     def validate_retention_days(cls, value: object, info: ValidationInfo) -> int:
         """
