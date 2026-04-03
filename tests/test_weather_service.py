@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 
+from app.services.http_client import _reset_shared_http_clients_for_tests
 from app.services.weather_service import (
     WEATHER_ICONS,
     WeatherData,
@@ -79,11 +80,13 @@ class TestWeatherIcons:
 class TestWeatherService:
     @pytest.fixture(autouse=True)
     def clear_cache(self):
+        _reset_shared_http_clients_for_tests()
         clear_weather_cache()
         clear_circuit_weather_cache()
         yield
         clear_weather_cache()
         clear_circuit_weather_cache()
+        _reset_shared_http_clients_for_tests()
 
     @staticmethod
     @pytest.mark.asyncio
