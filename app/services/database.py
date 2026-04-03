@@ -1029,12 +1029,10 @@ class Database:
             return {
                 "hours": [row["hour"] for row in rows],
                 "lcp": [
-                    round(row["avg_lcp"], 0) if row["avg_lcp"] is not None else None
-                    for row in rows
+                    round(row["avg_lcp"], 0) if row["avg_lcp"] is not None else None for row in rows
                 ],
                 "fcp": [
-                    round(row["avg_fcp"], 0) if row["avg_fcp"] is not None else None
-                    for row in rows
+                    round(row["avg_fcp"], 0) if row["avg_fcp"] is not None else None for row in rows
                 ],
                 "ttfb": [
                     round(row["avg_ttfb"], 0) if row["avg_ttfb"] is not None else None
