@@ -339,9 +339,8 @@ def get_config() -> Config:
 def _reset_config_cache_for_tests() -> None:
     """Allow tests to rebuild configuration with fresh environment variables."""
 
-    global config
     get_config.cache_clear()
-    config = get_config()
+    globals()["config"] = get_config()
 
 
 config = get_config()

@@ -131,8 +131,8 @@ app = FastAPI(
 
 
 class StaticCacheMiddleware:
-    def __init__(self, app):
-        self.app = app
+    def __init__(self, asgi_app):
+        self.app = asgi_app
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -157,8 +157,8 @@ class StaticCacheMiddleware:
 
 
 class SecurityHeadersMiddleware:
-    def __init__(self, app):
-        self.app = app
+    def __init__(self, asgi_app):
+        self.app = asgi_app
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":

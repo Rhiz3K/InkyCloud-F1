@@ -77,7 +77,7 @@ async def _send_to_umami(
         }
 
         log_type = f"event '{event_name}'" if event_name else "pageview"
-        logger.debug(f"Sending Umami {log_type}: url={url}, lang={lang}")
+        logger.debug("Sending Umami %s: url=%s, lang=%s", log_type, url, lang)
 
         client = get_shared_http_client(httpx.AsyncClient, timeout=5.0)
         response = await client.post(
@@ -89,19 +89,29 @@ async def _send_to_umami(
         # Log response for debugging
         if response.status_code == 200:
             logger.debug(
-                f"Umami {log_type} tracked: url={url}, "
-                f"response={response.text[:100] if response.text else 'empty'}"
+                "Umami %s tracked: url=%s, response=%s",
+                log_type,
+                url,
+                response.text[:100] if response.text else "empty",
             )
         else:
             logger.warning(
-                f"Umami {log_type} failed: url={url}, "
-                f"status={response.status_code}, response={response.text[:200]}"
+                "Umami %s failed: url=%s, status=%s, response=%s",
+                log_type,
+                url,
+                response.status_code,
+                response.text[:200],
             )
 
     except httpx.HTTPError as e:
-        logger.warning(f"Failed to send Umami analytics: {str(e)} (url={url}, event={event_name})")
+        logger.warning(
+            "Failed to send Umami analytics: %s (url=%s, event=%s)",
+            e,
+            url,
+            event_name,
+        )
     except Exception as e:
-        logger.warning(f"Unexpected error in Umami analytics: {str(e)}")
+        logger.warning("Unexpected error in Umami analytics: %s", e)
 
 
 async def track_pageview(
