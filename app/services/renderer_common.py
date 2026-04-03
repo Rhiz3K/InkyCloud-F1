@@ -869,6 +869,7 @@ def draw_team_row(
     draw_team_logo_fn,
 ) -> None:
     """Draw the shared team-card layout and delegate renderer-specific row details."""
+    _ = stats_padding
     header_height = 23
     box_y_end = y + row_height - 2
     draw.rectangle([(x_start, y), (x_end, box_y_end)], outline=outline_fill, width=1)
@@ -1341,8 +1342,8 @@ def draw_circuit_stats_block(
     max_text_width = 0
     for _icon, text_value in stats:
         text_bbox = draw.textbbox((0, 0), text_value, font=font_value)
-        text_width = text_bbox[2] - text_bbox[0]
-        max_text_width = max(max_text_width, text_width)
+        value_text_width = text_bbox[2] - text_bbox[0]
+        max_text_width = max(max_text_width, value_text_width)
 
     icon_text_gap = 4
     total_block_width = max_icon_width + icon_text_gap + max_text_width

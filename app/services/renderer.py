@@ -475,7 +475,7 @@ class Renderer:
 
         team_name, meta_text, team_pos, team_pts = build_team_header_values(team)
 
-        def draw_team_stats_panel(
+        def render_team_stats_panel(
             panel_x: int,
             panel_right_x: int,
             header_height: int,
@@ -559,7 +559,7 @@ class Renderer:
             get_text_y_fn=get_text_y,
             build_team_header_values_fn=lambda _team: (team_name, meta_text, team_pos, team_pts),
             clamp_text_fn=clamp_text,
-            draw_team_stats_panel_fn=draw_team_stats_panel,
+            draw_team_stats_panel_fn=render_team_stats_panel,
             draw_team_driver_row_fn=draw_team_driver_row,
             draw_team_logo_fn=draw_team_logo_cb,
         )
