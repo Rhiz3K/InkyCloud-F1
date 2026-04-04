@@ -464,7 +464,7 @@ class TestApiCallStatsDatabase:
         db = Database(str(tmp_path / "history-gap.db"))
         try:
             now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
-            older = now - timedelta(days=2)
+            older = now - timedelta(hours=26)
             recent = now - timedelta(hours=2)
             await db.save_api_calls_batch(
                 [
@@ -504,6 +504,7 @@ class TestApiCallStatsDatabase:
                 "hour_count": 1,
                 "day_count": 1,
             }
+            assert any(row["timestamp"] == older.isoformat() for row in history)
         finally:
             await db.close()
 
