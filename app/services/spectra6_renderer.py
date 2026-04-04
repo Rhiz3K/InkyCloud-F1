@@ -640,6 +640,12 @@ class Spectra6Renderer:
 
     def _draw_schedule_row(self, draw: ImageDraw.ImageDraw, y: int, event: dict) -> None:
         """Draw a single schedule row with localized labels and session color."""
+        raw_session_name = event.get("name", "")
+        normalized_session_name = raw_session_name
+        normalized_alias = raw_session_name.strip().lower().replace(" ", "")
+        if normalized_alias in {"sprintqualifying", "sprintshootout", "shootout"}:
+            normalized_session_name = "Sprint Qualifying"
+
         draw_schedule_row(
             draw,
             y=y,
@@ -653,7 +659,7 @@ class Spectra6Renderer:
             lang_code=self.lang_code,
             font_reg=self.fonts["schedule_row"],
             regular_text_fill=self.colors.BLACK,
-            session_text_fill=self._get_session_color(event.get("name", "")),
+            session_text_fill=self._get_session_color(normalized_session_name),
             format_schedule_session_name_fn=(
                 lambda draw_ctx, session_name, max_width: format_schedule_session_name(
                     draw_ctx, session_name, max_width, self.lang_code, self.translator

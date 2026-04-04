@@ -76,7 +76,7 @@ class TestCircuitWeatherDatabase:
     async def test_load_all_circuit_weather_empty(db):
         """Test loading all weather when database is empty."""
         result = await db.load_all_circuit_weather()
-        assert isinstance(result, dict)
+        assert result == {}
 
     @staticmethod
     @pytest.mark.asyncio
@@ -612,10 +612,12 @@ class TestDatabaseStatsCleanup:
                 await db._configure_connection(conn)
                 for table_name in ("request_stats", "api_calls", "perf_metrics"):
                     async with conn.execute(
-                        f"SELECT COUNT(*) AS count FROM {table_name}"
+                        "SELECT COUNT(*) AS count, MAX(timestamp) AS remaining_timestamp "
+                        f"FROM {table_name}"
                     ) as cursor:
                         row = await cursor.fetchone()
                         assert row["count"] == 1
+                        assert row["remaining_timestamp"] == recent_timestamp
         finally:
             await db.close()
 

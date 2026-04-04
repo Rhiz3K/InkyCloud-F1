@@ -15,8 +15,6 @@ from app.utils.http import fetch_with_retry
 
 logger = logging.getLogger(__name__)
 
-JOLPICA_BASE_URL = "https://api.jolpi.ca/ergast/f1"
-
 CACHE_TTL_SECONDS = 3600
 
 
@@ -69,7 +67,8 @@ class StandingsService:
 
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-            url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
+            base_url = str(config.JOLPICA_API_URL).rstrip("/")
+            url = f"{base_url}/{year}/driverStandings.json"
             logger.info("Fetching driver standings from %s", url)
             response = await fetch_with_retry(client, url, logger=logger)
 
@@ -129,7 +128,8 @@ class StandingsService:
 
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-            url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
+            base_url = str(config.JOLPICA_API_URL).rstrip("/")
+            url = f"{base_url}/{year}/constructorStandings.json"
             logger.info("Fetching constructor standings from %s", url)
             response = await fetch_with_retry(client, url, logger=logger)
 

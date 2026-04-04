@@ -1,8 +1,9 @@
 """Test standings service."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import AnyHttpUrl
 
 from app.services.http_client import _reset_shared_http_clients_for_tests
 from app.services.standings_service import StandingsService
@@ -188,6 +189,38 @@ async def test_standings_cache():
         await service.get_driver_standings(2024)
 
         assert call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_standings_use_configured_jolpica_api_base_url():
+    service = StandingsService()
+    service._cache.clear()
+    mock_response = MagicMock()
+    mock_response.json.return_value = MOCK_DRIVER_STANDINGS_RESPONSE
+
+    with (
+        patch(
+            "app.services.standings_service.config.JOLPICA_API_URL",
+            AnyHttpUrl("https://mirror.example.test/ergast/f1"),
+        ),
+        patch(
+            "app.services.standings_service.get_shared_http_client",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "app.services.standings_service.fetch_with_retry",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ) as mock_fetch,
+    ):
+        await service.get_driver_standings(2024)
+        await service.get_constructor_standings(2024)
+
+    fetched_urls = [call.args[1] for call in mock_fetch.await_args_list]
+    assert fetched_urls == [
+        "https://mirror.example.test/ergast/f1/2024/driverStandings.json",
+        "https://mirror.example.test/ergast/f1/2024/constructorStandings.json",
+    ]
 
 
 @pytest.mark.asyncio
