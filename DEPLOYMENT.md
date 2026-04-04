@@ -83,16 +83,16 @@ Enable automatic deployments on every push:
 
 ```bash
 # Start service
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Stop service
-docker-compose down
+docker compose down
 
 # Restart service
-docker-compose restart
+docker compose restart
 ```
 
 ### Using Docker
@@ -338,7 +338,7 @@ The service is stateless and can be scaled horizontally:
 
 ```bash
 # Docker Compose scaling
-docker-compose up -d --scale f1-eink-cal=3
+docker compose up -d --scale f1-eink-cal=3
 ```
 
 Add a load balancer (nginx, Traefik, etc.) in front of multiple instances.
@@ -377,7 +377,7 @@ View logs based on deployment method:
 
 ```bash
 # Docker Compose
-docker-compose logs -f
+docker compose logs -f
 
 # Docker
 docker logs -f f1-calendar

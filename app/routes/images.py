@@ -8,7 +8,6 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlencode
 
-import pytz
 import sentry_sdk
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
@@ -25,7 +24,10 @@ from app.services.spectra6_renderer import Spectra6Renderer
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.weather_service import get_weather_context
 from app.state import get_bmp_cache, record_api_call
+from app.utils.async_tasks import create_supervised_task
 from app.utils.race_times import convert_race_times_to_timezone
+from app.utils.rate_limit import enforce_rate_limit
+from app.utils.timezones import is_valid_timezone
 
 from .deps import get_f1_service
 
@@ -48,7 +50,7 @@ def _normalize_display(display: str) -> str:
 
 def _validate_timezone_param(tz: str | None) -> None:
     """Reject invalid timezone query values."""
-    if tz and tz not in pytz.all_timezones_set:
+    if tz and not is_valid_timezone(tz):
         raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
 
 
@@ -122,6 +124,31 @@ def _get_race_info_for_stats(
         actual_race_name = race_info.get("race_name", "Next Race")
 
     return is_auto_selected, actual_year, actual_round, actual_race_name
+
+
+def _schedule_calendar_analytics(
+    *,
+    lang: str,
+    tz: str | None,
+    year: int | None,
+    race_round: int | None,
+    race_key: str | None,
+    user_agent: str | None,
+    referrer: str,
+) -> None:
+    """Schedule calendar analytics without blocking BMP responses."""
+    create_supervised_task(
+        _track_calendar_analytics(
+            lang=lang,
+            tz=tz,
+            year=year,
+            race_round=race_round,
+            race_key=race_key,
+            user_agent=user_agent,
+            referrer=referrer,
+        ),
+        name="calendar_analytics",
+    )
 
 
 async def _track_calendar_analytics(
@@ -396,6 +423,7 @@ async def get_calendar_bmp(
 ):
     """Render the calendar endpoint for the requested display and selection."""
     start_time = time.time()
+    enforce_rate_limit(request, bucket="calendar_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
     user_agent = request.headers.get("User-Agent")
     referrer = request.headers.get("Referer", "")
 
@@ -424,7 +452,7 @@ async def get_calendar_bmp(
             actual_race_name=actual_race_name,
             is_auto_selected=is_auto_selected,
         )
-        await _track_calendar_analytics(
+        _schedule_calendar_analytics(
             lang=lang,
             tz=tz,
             year=year,
@@ -468,7 +496,7 @@ async def get_calendar_bmp(
             actual_race_name=actual_race_name,
             is_auto_selected=is_auto_selected,
         )
-        await _track_calendar_analytics(
+        _schedule_calendar_analytics(
             lang=lang,
             tz=tz,
             year=year,
@@ -516,7 +544,7 @@ async def get_calendar_bmp(
             actual_race_name=actual_race_name,
             is_auto_selected=is_auto_selected,
         )
-        await _track_calendar_analytics(
+        _schedule_calendar_analytics(
             lang=lang,
             tz=tz,
             year=year,
@@ -582,6 +610,7 @@ async def get_teams_bmp(
 ):
     """Render the teams and drivers dashboard as a BMP image."""
     start_time = time.time()
+    enforce_rate_limit(request, bucket="teams_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
 
     try:
         lang = _normalize_lang(lang)

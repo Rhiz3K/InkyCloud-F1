@@ -130,12 +130,10 @@ function switchUiLanguage() {
  * @returns {string} Formatted string (e.g., "1.5 MB")
  */
 function formatBytes(bytes) {
-    if (bytes === 0) return "0 B";
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + " KB";
-    if (bytes < 1024 * 1024 * 1024)
-        return Math.round(bytes / (1024 * 1024)) + " MB";
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + " GB";
+    if (bytes < 1000) return bytes + " B";
+    if (bytes < 1000000) return (bytes / 1000).toFixed(1) + " KB";
+    if (bytes < 1000000000) return (bytes / 1000000).toFixed(2) + " MB";
+    return (bytes / 1000000000).toFixed(2) + " GB";
 }
 
 /**

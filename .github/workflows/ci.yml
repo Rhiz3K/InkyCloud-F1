@@ -28,10 +28,11 @@ jobs:
           exit 1
         fi
 
-    - name: Set up Python 3.14.3
+    - name: Set up Python 3.13
       uses: actions/setup-python@v6
       with:
-        python-version: "3.14.3"
+        python-version: "3.13"
+        cache: "pip"
 
     - name: Validate release readiness for main PRs
       if: github.event_name == 'pull_request' && github.base_ref == 'main'
@@ -41,8 +42,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip setuptools
-        pip install -e .
-        pip install pytest pytest-asyncio pytest-cov ruff
+        pip install -e .[dev]
     
     - name: Lint with ruff
       run: |
@@ -50,7 +50,10 @@ jobs:
     
     - name: Run tests
       run: |
-        pytest tests/ -v -m "not benchmark"
+        pytest tests/ -v -m "not benchmark" \
+          --cov=app \
+          --cov-report=term-missing \
+          --cov-report=xml
     
     - name: Test Docker build
       run: |

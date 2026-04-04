@@ -1,6 +1,7 @@
 """Tests for analytics service."""
 
 import asyncio
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -11,6 +12,17 @@ from app.services.analytics import (
     track_event,
     track_pageview,
 )
+from app.services.http_client import _reset_shared_http_clients_for_tests
+from app.utils import async_tasks
+
+
+@pytest.fixture(autouse=True)
+def reset_test_state():
+    _reset_shared_http_clients_for_tests()
+    async_tasks._background_tasks.clear()
+    yield
+    async_tasks._background_tasks.clear()
+    _reset_shared_http_clients_for_tests()
 
 
 @pytest.fixture
@@ -34,7 +46,7 @@ async def test_send_to_umami_pageview(mock_config):
         mock_response.raise_for_status = MagicMock()
 
         mock_post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__.return_value.post = mock_post
+        mock_client.return_value.post = mock_post
 
         await _send_to_umami(
             url="/calendar.bmp?lang=cs",
@@ -43,18 +55,14 @@ async def test_send_to_umami_pageview(mock_config):
             user_agent="TestAgent/1.0",
         )
 
-        # Verify the call was made
         assert mock_post.called
         call_args = mock_post.call_args
-
-        # Check the payload
         payload = call_args.kwargs["json"]
         assert payload["payload"]["url"] == "/calendar.bmp?lang=cs"
         assert payload["payload"]["title"] == "Calendar BMP - cs"
         assert payload["payload"]["language"] == "cs"
         assert payload["payload"]["hostname"] == "test.example.com"
         assert payload["type"] == "event"
-        # No event name for pageview
         assert "name" not in payload["payload"]
 
 
@@ -68,7 +76,7 @@ async def test_send_to_umami_custom_event(mock_config):
         mock_response.raise_for_status = MagicMock()
 
         mock_post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__.return_value.post = mock_post
+        mock_client.return_value.post = mock_post
 
         await _send_to_umami(
             url="/calendar.bmp",
@@ -79,11 +87,8 @@ async def test_send_to_umami_custom_event(mock_config):
             event_data={"language": "en", "timezone": "Europe/Prague"},
         )
 
-        # Verify the call was made
         assert mock_post.called
         call_args = mock_post.call_args
-
-        # Check the payload
         payload = call_args.kwargs["json"]
         assert payload["payload"]["url"] == "/calendar.bmp"
         assert payload["payload"]["name"] == "calendar_download"
@@ -104,9 +109,7 @@ async def test_track_pageview_creates_task(mock_config):
             user_agent="TestAgent/1.0",
         )
 
-        # Give the background task a chance to run
         await asyncio.sleep(0.01)
-
         assert mock_send.called
 
 
@@ -123,7 +126,6 @@ async def test_track_pageview_disabled_when_umami_disabled():
                 lang="en",
             )
 
-            # Should not call _send_to_umami when disabled
             assert not mock_send.called
 
 
@@ -141,7 +143,6 @@ async def test_track_pageview_disabled_when_website_id_missing():
                 lang="en",
             )
 
-            # Should not call _send_to_umami when website ID is missing
             assert not mock_send.called
 
 
@@ -157,9 +158,7 @@ async def test_track_event_creates_task(mock_config):
             event_data={"timezone": "Europe/Prague"},
         )
 
-        # Give the background task a chance to run
         await asyncio.sleep(0.01)
-
         assert mock_send.called
 
 
@@ -176,7 +175,6 @@ async def test_track_event_disabled_when_umami_disabled():
                 lang="en",
             )
 
-            # Should not call _send_to_umami when disabled
             assert not mock_send.called
 
 
@@ -194,20 +192,41 @@ async def test_track_event_disabled_when_website_id_missing():
                 lang="en",
             )
 
-            # Should not call _send_to_umami when website ID is missing
             assert not mock_send.called
+
+
+@pytest.mark.asyncio
+async def test_send_to_umami_logs_non_200_response_once(mock_config, caplog):
+    """Non-200 Umami responses should log one warning without re-raising via raise_for_status."""
+    with patch("app.services.analytics.httpx.AsyncClient") as mock_client:
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = '{"error": "boom"}'
+        mock_response.raise_for_status = MagicMock()
+
+        mock_post = AsyncMock(return_value=mock_response)
+        mock_client.return_value.post = mock_post
+
+        with caplog.at_level(logging.WARNING):
+            await _send_to_umami(
+                url="/calendar.bmp",
+                title="Test",
+                lang="en",
+                user_agent="TestAgent/1.0",
+            )
+
+    warnings = [record.message for record in caplog.records if record.levelno == logging.WARNING]
+    assert warnings == [
+        'Umami pageview failed: url=/calendar.bmp, status=500, response={"error": "boom"}'
+    ]
 
 
 @pytest.mark.asyncio
 async def test_send_to_umami_handles_http_errors_gracefully(mock_config):
     """Test that analytics handles HTTP errors without raising exceptions."""
     with patch("app.services.analytics.httpx.AsyncClient") as mock_client:
-        # Simulate HTTP error
-        mock_client.return_value.__aenter__.return_value.post.side_effect = Exception(
-            "Connection error"
-        )
+        mock_client.return_value.post = AsyncMock(side_effect=Exception("Connection error"))
 
-        # Should not raise exception
         await _send_to_umami(
             url="/calendar.bmp",
             title="Test",
@@ -226,7 +245,7 @@ async def test_send_to_umami_uses_custom_user_agent(mock_config):
         mock_response.raise_for_status = MagicMock()
 
         mock_post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__.return_value.post = mock_post
+        mock_client.return_value.post = mock_post
 
         custom_ua = "curl/7.68.0"
         await _send_to_umami(
@@ -236,7 +255,6 @@ async def test_send_to_umami_uses_custom_user_agent(mock_config):
             user_agent=custom_ua,
         )
 
-        # Verify the user agent header
         assert mock_post.called
         call_args = mock_post.call_args
         headers = call_args.kwargs["headers"]
@@ -253,7 +271,7 @@ async def test_send_to_umami_uses_default_user_agent_when_none(mock_config):
         mock_response.raise_for_status = MagicMock()
 
         mock_post = AsyncMock(return_value=mock_response)
-        mock_client.return_value.__aenter__.return_value.post = mock_post
+        mock_client.return_value.post = mock_post
 
         await _send_to_umami(
             url="/calendar.bmp",
@@ -262,7 +280,6 @@ async def test_send_to_umami_uses_default_user_agent_when_none(mock_config):
             user_agent=None,
         )
 
-        # Verify the default user agent header
         assert mock_post.called
         call_args = mock_post.call_args
         headers = call_args.kwargs["headers"]

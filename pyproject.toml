@@ -7,12 +7,12 @@ authors = [
     { name = "Rhiz3K" },
 ]
 license = "MIT"
-requires-python = ">=3.14.3"
+requires-python = ">=3.13"
 classifiers = [
     "Framework :: FastAPI",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
     "fastapi>=0.104.0",
@@ -21,7 +21,6 @@ dependencies = [
     "httpx>=0.25.0",
     "sentry-sdk[fastapi]>=1.38.0",
     "python-dotenv>=1.0.0",
-    "pytz>=2023.3",
     "apscheduler>=3.10.0",
     "aiosqlite>=0.19.0",
     "aiofiles>=23.0.0",
@@ -36,13 +35,17 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "mypy>=1.19.1",
+    "numpy>=2.4.0",
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
     "pytest-codspeed>=4.3.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.14.10",
-    "numpy>=2.4.0",
     "scikit-learn>=1.8.0",
+    "types-aiofiles>=25.1.0.20251011",
+    "types-cachetools>=6.2.0.20251022",
+    "types-markdown>=3.10.0.20251106",
 ]
 
 [project.urls]
@@ -63,7 +66,7 @@ include-package-data = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
@@ -74,7 +77,6 @@ ignore = []
 "app/main.py" = ["E501"]
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "benchmark: performance benchmarks run only in CodSpeed workflow",
@@ -83,10 +85,14 @@ markers = [
 [dependency-groups]
 dev = [
     "mypy>=1.19.1",
+    "numpy>=2.4.0",
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
     "pytest-codspeed>=4.3.0",
+    "pytest-cov>=4.1.0",
     "ruff>=0.14.10",
+    "scikit-learn>=1.8.0",
     "types-aiofiles>=25.1.0.20251011",
     "types-cachetools>=6.2.0.20251022",
     "types-markdown>=3.10.0.20251106",
-    "types-pytz>=2025.2.0.20251108",
 ]

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
+import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -13,7 +13,10 @@ from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.teams_service import TeamsService
 from app.state import get_bmp_cache
+from app.utils.async_tasks import create_supervised_task
 from app.utils.f1_season import get_current_f1_season
+from app.utils.rate_limit import enforce_rate_limit
+from app.utils.standings_metadata import DRIVER_NUMBERS, TEAM_ID_MAP
 
 from .deps import get_f1_service
 
@@ -21,6 +24,23 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 _LANGUAGE_VALUES = list(LANGUAGE_CODES)
+
+
+def _require_operational_api_auth(request: Request) -> None:
+    """Require a token for operational read APIs when configured."""
+    configured_token = config.ADMIN_API_TOKEN
+    if configured_token is None:
+        return
+
+    expected = configured_token.get_secret_value()
+    provided = request.headers.get("X-Admin-Token")
+
+    authorization = request.headers.get("Authorization", "")
+    if authorization.startswith("Bearer "):
+        provided = authorization.removeprefix("Bearer ")
+
+    if provided is None or not secrets.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 @router.get("/api")
@@ -199,19 +219,24 @@ async def api_info() -> dict:
 
 
 @router.get("/api/stats")
-async def get_stats() -> dict:
+async def get_stats(request: Request) -> dict:
     """Get API request statistics from database."""
+    _require_operational_api_auth(request)
+
     db = Database()
-    stats = await db.get_api_calls_stats_24h()
-    return {
-        "requests": {
-            "last_24h": stats["count_24h"],
-            "avg_response_ms": stats["avg_response_ms"],
-            "total_bytes_24h": stats["total_bytes_24h"],
-        },
-        "cache_size": len(get_bmp_cache()),
-        "cache_max_size": get_bmp_cache().maxsize,
-    }
+    try:
+        stats = await db.get_api_calls_stats_24h()
+        return {
+            "requests": {
+                "last_24h": stats["count_24h"],
+                "avg_response_ms": stats["avg_response_ms"],
+                "total_bytes_24h": stats["total_bytes_24h"],
+            },
+            "cache_size": len(get_bmp_cache()),
+            "cache_max_size": get_bmp_cache().maxsize,
+        }
+    finally:
+        await db.close()
 
 
 @router.post("/api/perf-metrics")
@@ -219,24 +244,33 @@ async def post_perf_metrics(request: Request) -> dict[str, str]:
     """Store client-side Web Vitals metrics for later aggregation."""
     from app.models import PerfMetricsPayload
 
+    enforce_rate_limit(
+        request,
+        bucket="perf_metrics",
+        limit=config.PERF_METRICS_RATE_LIMIT_PER_MINUTE,
+    )
+
     try:
         data = await request.json()
         payload = PerfMetricsPayload(**data)
 
         db = Database()
-        await db.save_perf_metric(
-            page_path=payload.page_path,
-            lcp_ms=payload.lcp_ms,
-            cls=payload.cls,
-            fcp_ms=payload.fcp_ms,
-            ttfb_ms=payload.ttfb_ms,
-            inp_ms=payload.inp_ms,
-            user_agent=request.headers.get("User-Agent"),
-            connection_type=payload.connection_type,
-            device_memory=payload.device_memory,
-        )
+        try:
+            await db.save_perf_metric(
+                page_path=payload.page_path,
+                lcp_ms=payload.lcp_ms,
+                cls=payload.cls,
+                fcp_ms=payload.fcp_ms,
+                ttfb_ms=payload.ttfb_ms,
+                inp_ms=payload.inp_ms,
+                user_agent=request.headers.get("User-Agent"),
+                connection_type=payload.connection_type,
+                device_memory=payload.device_memory,
+            )
+        finally:
+            await db.close()
 
-        asyncio.create_task(
+        create_supervised_task(
             track_event(
                 url=payload.page_path,
                 event_name="web_vitals",
@@ -248,7 +282,8 @@ async def post_perf_metrics(request: Request) -> dict[str, str]:
                     "fcp": payload.fcp_ms,
                     "ttfb": payload.ttfb_ms,
                 },
-            )
+            ),
+            name="track_web_vitals",
         )
 
         return {"status": "ok"}
@@ -258,20 +293,30 @@ async def post_perf_metrics(request: Request) -> dict[str, str]:
 
 
 @router.get("/api/perf-metrics")
-async def get_perf_metrics(hours: int = Query(default=24, le=720)) -> dict:
+async def get_perf_metrics(request: Request, hours: int = Query(default=24, le=720)) -> dict:
     """Return aggregated performance metrics for the requested lookback window."""
+    _require_operational_api_auth(request)
+
     db = Database()
-    stats = await db.get_perf_stats(hours)
-    by_page = await db.get_perf_stats_by_page(hours)
-    return {"overall": stats, "by_page": by_page}
+    try:
+        stats = await db.get_perf_stats(hours)
+        by_page = await db.get_perf_stats_by_page(hours)
+        return {"overall": stats, "by_page": by_page}
+    finally:
+        await db.close()
 
 
 @router.get("/api/stats/history")
-async def get_stats_history(limit: int = Query(default=168, le=720)) -> dict:
+async def get_stats_history(request: Request, limit: int = Query(default=168, le=720)) -> dict:
     """Return recent hourly request history for the stats dashboard."""
+    _require_operational_api_auth(request)
+
     db = Database()
-    history = await db.get_request_stats_history(limit=limit)
-    return {"history": history, "count": len(history)}
+    try:
+        history = await db.get_request_stats_history(limit=limit)
+        return {"history": history, "count": len(history)}
+    finally:
+        await db.close()
 
 
 @router.get("/api/races/{year}")
@@ -298,53 +343,6 @@ async def get_teams(year: int) -> dict:
     teams_service = TeamsService()
     teams_data = await teams_service.get_teams_and_drivers(year)
     return {"season": teams_data.season, "teams": [t.model_dump() for t in teams_data.teams]}
-
-
-DRIVER_NUMBERS = {
-    "VER": 1,
-    "NOR": 4,
-    "LEC": 16,
-    "SAI": 55,
-    "HAM": 44,
-    "RUS": 63,
-    "PIA": 81,
-    "ALO": 14,
-    "STR": 18,
-    "GAS": 10,
-    "OCO": 31,
-    "ALB": 23,
-    "TSU": 22,
-    "RIC": 3,
-    "HUL": 27,
-    "MAG": 20,
-    "BOT": 77,
-    "ZHO": 24,
-    "SAR": 2,
-    "LAW": 30,
-    "BEA": 87,
-    "COL": 43,
-    "DOO": 7,
-    "ANT": 12,
-    "HAD": 6,
-    "BOR": 5,
-}
-
-TEAM_ID_MAP = {
-    "McLaren": "mclaren",
-    "Ferrari": "ferrari",
-    "Red Bull": "red_bull",
-    "Mercedes": "mercedes",
-    "Aston Martin": "aston_martin",
-    "Alpine": "alpine",
-    "Williams": "williams",
-    "RB": "racing_bulls",
-    "Racing Bulls": "racing_bulls",
-    "Haas F1 Team": "haas",
-    "Haas": "haas",
-    "Kick Sauber": "sauber",
-    "Sauber": "sauber",
-    "Alfa Romeo": "sauber",
-}
 
 
 def _get_driver_number(driver_code: str, _year: int) -> int | None:

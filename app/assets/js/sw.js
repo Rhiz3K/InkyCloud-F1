@@ -1,4 +1,6 @@
-const CACHE_NAME = "f1-eink-v2";
+// Bump the cache version whenever routing-critical frontend assets change.
+// This forces clients to drop stale locale-switching logic from previous releases.
+const CACHE_NAME = "f1-eink-v3";
 const STATIC_ASSETS = [
     "/static/css/tailwind.min.css",
     "/static/css/styles.css",

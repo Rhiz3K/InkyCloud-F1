@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Builder
 # ============================================
-FROM python:3.14.3-slim AS builder
+FROM python:3.13-slim AS builder
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # ============================================
 # Stage 2: Runtime
 # ============================================
-FROM python:3.14.3-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 

@@ -133,7 +133,7 @@ Coolify automatically detects `Dockerfile` in the repository root. Our multi-sta
 
 Key features:
 
-- Python 3.14.3-slim base image
+- Python 3.13-slim base image
 - Non-root user (security)
 - Built-in health check
 - Optimized layer caching
@@ -381,7 +381,7 @@ Notification channels:
 
 #### 1. Build Fails
 
-**Error**: `Python 3.14.3 not found`
+**Error**: `Python 3.13 not found`
 
 - **Cause**: Old Dockerfile (before this PR)
 - **Fix**: Ensure you're on `main` branch with latest changes
@@ -637,7 +637,7 @@ If you need to modify the Dockerfile:
 
 ```dockerfile
 # Use alpine instead of slim
-FROM python:3.14.3-alpine
+FROM python:3.13-alpine
 
 # Results in ~150MB image (vs current ~250MB)
 ```

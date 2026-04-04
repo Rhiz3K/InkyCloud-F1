@@ -73,14 +73,13 @@ def _bmp_to_png(
     Returns:
         PNG image data as bytes.
     """
-    img_file = Image.open(BytesIO(bmp_data))
-
-    if preserve_color:
-        # Keep colors for multi-color displays
-        img: Image.Image = img_file.convert("RGB")
-    else:
-        # Convert to grayscale for smoother edges (anti-aliasing on resize)
-        img = img_file.convert("L")
+    with Image.open(BytesIO(bmp_data)) as img_file:
+        if preserve_color:
+            # Keep colors for multi-color displays
+            img: Image.Image = img_file.convert("RGB")
+        else:
+            # Convert to grayscale for smoother edges (anti-aliasing on resize)
+            img = img_file.convert("L")
 
     if not full_size:
         ratio = width / img.width
@@ -460,59 +459,63 @@ async def collect_and_generate() -> None:
 
     try:
         db = Database()
-        f1_service = F1Service()
+        try:
+            f1_service = F1Service()
 
-        images_dir = Path(config.IMAGES_PATH)
-        images_dir.mkdir(parents=True, exist_ok=True)
+            images_dir = Path(config.IMAGES_PATH)
+            images_dir.mkdir(parents=True, exist_ok=True)
 
-        deleted_count = _delete_existing_bmps(images_dir)
-        if deleted_count > 0:
-            logger.info("Deleted %d existing BMP files", deleted_count)
+            race_data = f1_service.get_next_race_from_static()
+            if not race_data:
+                logger.warning("No upcoming race found in static data")
+                return
 
-        race_data = f1_service.get_next_race_from_static()
-        if not race_data:
-            logger.warning("No upcoming race found in static data")
-            return
+            deleted_count = _delete_existing_bmps(images_dir)
+            if deleted_count > 0:
+                logger.info("Deleted %d existing BMP files", deleted_count)
 
-        logger.info("Next race: %s (from static data)", race_data.get("race_name"))
+            logger.info("Next race: %s (from static data)", race_data.get("race_name"))
 
-        historical_data = _load_historical_data(race_data)
+            historical_data = _load_historical_data(race_data)
 
-        _, _, weather_by_type = await _load_weather_context(race_data)
+            _, _, weather_by_type = await _load_weather_context(race_data)
 
-        display_types = ["1bit", "spectra6", "bwr", "bwry"]
-        logger.info(
-            "Generating variants: displays=%s, weather=%s",
-            display_types,
-            list(weather_by_type.keys()),
-        )
+            display_types = ["1bit", "spectra6", "bwr", "bwry"]
+            logger.info(
+                "Generating variants: displays=%s, weather=%s",
+                display_types,
+                list(weather_by_type.keys()),
+            )
 
-        generated_count = 0
-        generated_count += await _generate_base_variants(
-            images_dir=images_dir,
-            db=db,
-            race_data=race_data,
-            historical_data=historical_data,
-            display_types=display_types,
-            weather_by_type=weather_by_type,
-        )
-        generated_count += await _generate_popular_tz_variants(
-            images_dir=images_dir,
-            db=db,
-            race_data=race_data,
-            historical_data=historical_data,
-            display_types=display_types,
-            weather_by_type=weather_by_type,
-        )
+            generated_count = 0
+            generated_count += await _generate_base_variants(
+                images_dir=images_dir,
+                db=db,
+                race_data=race_data,
+                historical_data=historical_data,
+                display_types=display_types,
+                weather_by_type=weather_by_type,
+            )
+            generated_count += await _generate_popular_tz_variants(
+                images_dir=images_dir,
+                db=db,
+                race_data=race_data,
+                historical_data=historical_data,
+                display_types=display_types,
+                weather_by_type=weather_by_type,
+            )
 
-        await db.set_cache_meta("last_generation", datetime.now(timezone.utc).isoformat())
-        clear_bmp_cache()
+            await db.set_cache_meta("last_generation", datetime.now(timezone.utc).isoformat())
+            clear_bmp_cache()
 
-        await db.cleanup_old_stats(days=30)
-        await generate_preview_pngs(race_data, historical_data)
-        generated_count += await _generate_teams_bmp_variants(images_dir=images_dir, db=db)
+            if config.STATS_RETENTION_DAYS > 0:
+                await db.cleanup_old_stats(days=config.STATS_RETENTION_DAYS)
+            await generate_preview_pngs(race_data, historical_data)
+            generated_count += await _generate_teams_bmp_variants(images_dir=images_dir, db=db)
 
-        logger.info("Image generation completed: %d images", generated_count)
+            logger.info("Image generation completed: %d images", generated_count)
+        finally:
+            await db.close()
 
     except Exception as exc:
         logger.error("Error in image generation: %s", exc, exc_info=True)
@@ -529,8 +532,11 @@ async def flush_api_calls_to_db() -> None:
         calls = get_and_clear_api_calls_buffer()
         if calls:
             db = Database()
-            count = await db.save_api_calls_batch(calls)
-            logger.debug("Flushed %d API calls to database", count)
+            try:
+                count = await db.save_api_calls_batch(calls)
+                logger.debug("Flushed %d API calls to database", count)
+            finally:
+                await db.close()
     except Exception as e:
         logger.error("Error flushing API calls: %s", e, exc_info=True)
 
@@ -551,100 +557,70 @@ async def fetch_all_circuits_weather() -> None:
 
     try:
         db = Database()
-        f1_service = F1Service()
-        weather_service = WeatherService(
-            timeout=config.REQUEST_TIMEOUT,
-            cache_minutes=config.WEATHER_CACHE_MINUTES,
-        )
-
-        # Get current F1 season
-        current_year = datetime.now(timezone.utc).year
-
-        # Get all races from static data
-        all_races = f1_service.get_all_races_from_static(current_year)
-
-        if not all_races:
-            # Try next year (late in season, next year data might be available)
-            all_races = f1_service.get_all_races_from_static(current_year + 1)
-
-        if not all_races:
-            logger.warning("No races found in static data for weather fetch")
-            return
-
-        # Extract unique circuits with coordinates
-        seen_circuits: set[str] = set()
-        circuits_to_fetch: list[dict] = []
-
-        for race in all_races:
-            circuit = race.get("circuit", {})
-            circuit_id = circuit.get("circuitId")
-
-            if not circuit_id or circuit_id in seen_circuits:
-                continue
-
-            lat_str = circuit.get("lat")
-            lon_str = circuit.get("long")
-
-            if not lat_str or not lon_str:
-                logger.debug("Circuit %s missing coordinates, skipping", circuit_id)
-                continue
-
-            seen_circuits.add(circuit_id)
-            circuits_to_fetch.append(
-                {
-                    "id": circuit_id,
-                    "name": circuit.get("name", circuit_id),
-                    "lat": float(lat_str),
-                    "lon": float(lon_str),
-                }
+        try:
+            f1_service = F1Service()
+            weather_service = WeatherService(
+                timeout=config.REQUEST_TIMEOUT,
+                cache_minutes=config.WEATHER_CACHE_MINUTES,
             )
 
-        logger.info("Fetching weather for %d circuits", len(circuits_to_fetch))
+            # Get current F1 season
+            current_year = datetime.now(timezone.utc).year
 
-        # Track failed circuits for retry
-        failed: list[dict] = []
-        success_count = 0
-        max_attempts = 10
+            # Get all races from static data
+            all_races = f1_service.get_all_races_from_static(current_year)
 
-        # Round 1: Fetch all circuits
-        for circuit in circuits_to_fetch:
-            weather = await _fetch_single_circuit_weather(
-                weather_service, circuit["lat"], circuit["lon"]
-            )
+            if not all_races:
+                # Try next year (late in season, next year data might be available)
+                all_races = f1_service.get_all_races_from_static(current_year + 1)
 
-            if weather:
-                # Save to both in-memory cache and SQLite
-                set_cached_circuit_weather(circuit["id"], weather)
-                await db.save_circuit_weather(
-                    circuit_id=circuit["id"],
-                    circuit_name=circuit["name"],
-                    temperature_c=weather.temperature_c,
-                    weather_code=weather.weather_code,
-                    precipitation_probability=weather.precipitation_probability,
+            if not all_races:
+                logger.warning("No races found in static data for weather fetch")
+                return
+
+            # Extract unique circuits with coordinates
+            seen_circuits: set[str] = set()
+            circuits_to_fetch: list[dict] = []
+
+            for race in all_races:
+                circuit = race.get("circuit", {})
+                circuit_id = circuit.get("circuitId")
+
+                if not circuit_id or circuit_id in seen_circuits:
+                    continue
+
+                lat_str = circuit.get("lat")
+                lon_str = circuit.get("long")
+
+                if not lat_str or not lon_str:
+                    logger.debug("Circuit %s missing coordinates, skipping", circuit_id)
+                    continue
+
+                seen_circuits.add(circuit_id)
+                circuits_to_fetch.append(
+                    {
+                        "id": circuit_id,
+                        "name": circuit.get("name", circuit_id),
+                        "lat": float(lat_str),
+                        "lon": float(lon_str),
+                    }
                 )
-                success_count += 1
-                logger.debug("Weather fetched for %s: %s", circuit["id"], weather.temp_display)
-            else:
-                circuit["attempts"] = 1
-                failed.append(circuit)
 
-            # 1 second delay between requests
-            await asyncio.sleep(1)
+            logger.info("Fetching weather for %d circuits", len(circuits_to_fetch))
 
-        # Retry rounds (attempts 2-10)
-        for round_num in range(2, max_attempts + 1):
-            if not failed:
-                break
+            # Track failed circuits for retry
+            failed: list[dict] = []
+            success_count = 0
+            max_attempts = 10
 
-            logger.debug("Weather retry round %d, %d circuits remaining", round_num, len(failed))
-            still_failed: list[dict] = []
-
-            for circuit in failed:
+            # Round 1: Fetch all circuits
+            for circuit in circuits_to_fetch:
                 weather = await _fetch_single_circuit_weather(
                     weather_service, circuit["lat"], circuit["lon"]
                 )
 
                 if weather:
+                    # Save to both in-memory cache and SQLite
                     set_cached_circuit_weather(circuit["id"], weather)
                     await db.save_circuit_weather(
                         circuit_id=circuit["id"],
@@ -654,28 +630,69 @@ async def fetch_all_circuits_weather() -> None:
                         precipitation_probability=weather.precipitation_probability,
                     )
                     success_count += 1
-                    logger.debug("Weather fetched for %s on attempt %d", circuit["id"], round_num)
+                    logger.debug("Weather fetched for %s: %s", circuit["id"], weather.temp_display)
                 else:
-                    circuit["attempts"] = round_num
-                    still_failed.append(circuit)
+                    circuit["attempts"] = 1
+                    failed.append(circuit)
 
+                # 1 second delay between requests
                 await asyncio.sleep(1)
 
-            failed = still_failed
+            # Retry rounds (attempts 2-10)
+            for round_num in range(2, max_attempts + 1):
+                if not failed:
+                    break
 
-        # Log final results
-        if failed:
-            failed_ids = [c["id"] for c in failed]
-            logger.warning(
-                "Weather fetch failed for %d circuits after %d attempts: %s",
-                len(failed),
-                max_attempts,
-                failed_ids,
+                logger.debug(
+                    "Weather retry round %d, %d circuits remaining", round_num, len(failed)
+                )
+                still_failed: list[dict] = []
+
+                for circuit in failed:
+                    weather = await _fetch_single_circuit_weather(
+                        weather_service, circuit["lat"], circuit["lon"]
+                    )
+
+                    if weather:
+                        set_cached_circuit_weather(circuit["id"], weather)
+                        await db.save_circuit_weather(
+                            circuit_id=circuit["id"],
+                            circuit_name=circuit["name"],
+                            temperature_c=weather.temperature_c,
+                            weather_code=weather.weather_code,
+                            precipitation_probability=weather.precipitation_probability,
+                        )
+                        success_count += 1
+                        logger.debug(
+                            "Weather fetched for %s on attempt %d",
+                            circuit["id"],
+                            round_num,
+                        )
+                    else:
+                        circuit["attempts"] = round_num
+                        still_failed.append(circuit)
+
+                    await asyncio.sleep(1)
+
+                failed = still_failed
+
+            # Log final results
+            if failed:
+                failed_ids = [c["id"] for c in failed]
+                logger.warning(
+                    "Weather fetch failed for %d circuits after %d attempts: %s",
+                    len(failed),
+                    max_attempts,
+                    failed_ids,
+                )
+
+            logger.info(
+                "Weather fetch completed: %d/%d successful",
+                success_count,
+                len(circuits_to_fetch),
             )
-
-        logger.info(
-            "Weather fetch completed: %d/%d successful", success_count, len(circuits_to_fetch)
-        )
+        finally:
+            await db.close()
 
     except Exception as e:
         logger.error("Error in circuit weather fetch: %s", e, exc_info=True)
@@ -714,13 +731,16 @@ async def load_weather_from_db() -> None:
 
     try:
         db = Database()
-        weather_dict = await db.load_all_circuit_weather()
+        try:
+            weather_dict = await db.load_all_circuit_weather()
 
-        if weather_dict:
-            count = load_circuit_weather_to_cache(weather_dict)
-            logger.info("Loaded %d circuit weather entries from database", count)
-        else:
-            logger.debug("No cached weather data in database")
+            if weather_dict:
+                count = load_circuit_weather_to_cache(weather_dict)
+                logger.info("Loaded %d circuit weather entries from database", count)
+            else:
+                logger.debug("No cached weather data in database")
+        finally:
+            await db.close()
 
     except Exception as e:
         logger.warning("Error loading weather from database: %s", e)
@@ -737,15 +757,18 @@ async def prefetch_weather() -> None:
 
     try:
         db = Database()
-        weather_data = await prefetch_weather_for_next_race(db)
-        if weather_data:
-            logger.info("Weather prefetch complete: %s", weather_data.temp_display)
-        else:
-            logger.debug("No weather data prefetched")
+        try:
+            weather_data = await prefetch_weather_for_next_race(db)
+            if weather_data:
+                logger.info("Weather prefetch complete: %s", weather_data.temp_display)
+            else:
+                logger.debug("No weather data prefetched")
 
-        deleted = await db.cleanup_expired_weather_cache()
-        if deleted > 0:
-            logger.debug("Cleaned up %d expired weather cache entries", deleted)
+            deleted = await db.cleanup_expired_weather_cache()
+            if deleted > 0:
+                logger.debug("Cleaned up %d expired weather cache entries", deleted)
+        finally:
+            await db.close()
     except Exception as e:
         logger.error("Error in weather prefetch: %s", e, exc_info=True)
 
@@ -893,11 +916,11 @@ def start_scheduler() -> None:
 
 
 def stop_scheduler() -> None:
-    """Stop the background scheduler."""
+    """Stop the background scheduler and wait for in-flight jobs to finish."""
     global scheduler  # skipcq: PYL-W0603 - singleton pattern for scheduler instance
 
     if scheduler is not None:
-        scheduler.shutdown()
+        scheduler.shutdown(wait=True)
         scheduler = None
         logger.info("Scheduler stopped")
 

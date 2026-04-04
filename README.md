@@ -158,7 +158,7 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 
 Want to run your own instance? We've got you covered!
 
-Local development requires **Python 3.14.3+**.
+Local development requires **Python 3.13+**.
 
 **[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete guide for self-hosting including:
 

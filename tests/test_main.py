@@ -1,30 +1,37 @@
 """Test main FastAPI application endpoints."""
 
+import asyncio
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import cast
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from fastapi.testclient import TestClient
 from PIL import Image
+from pydantic import SecretStr
 
+from app import main as main_module
 from app.config import LANGUAGE_CODES, config
 from app.main import app
 from app.models import ConstructorStanding, DriverStanding, StandingsData
+from app.routes import api as api_routes
 from app.routes import images as images_routes
+from app.routes.api import _get_driver_number, _get_team_id
 from app.routes.images import (
     _get_pregenerated_calendar_path,
     _get_pregenerated_teams_path,
     _get_race_data_from_static,
     _get_race_info_for_stats,
+    _schedule_calendar_analytics,
 )
 from app.services.f1_service import F1Service
 from app.services.image_keys import get_teams_image_key
 from app.state import clear_bmp_cache, get_bmp_cache
+from app.utils.rate_limit import _reset_rate_limit_state_for_tests
 
 client = TestClient(app)
 
@@ -257,7 +264,7 @@ def test_www_host_redirects_to_canonical_apex():
         www_client = TestClient(app, base_url="https://www.example.test")
         response = www_client.get("/stats?range=7d", follow_redirects=False)
 
-    assert response.status_code == 301
+    assert response.status_code == 308
     assert response.headers["location"] == "https://example.test/stats?range=7d"
     assert response.headers["strict-transport-security"] == "max-age=31536000"
 
@@ -268,8 +275,24 @@ def test_www_host_redirect_ignores_site_url_port_when_matching_host():
         www_client = TestClient(app, base_url="https://www.staging.example.com")
         response = www_client.get("/privacy", follow_redirects=False)
 
-    assert response.status_code == 301
+    assert response.status_code == 308
     assert response.headers["location"] == "https://staging.example.com:8443/privacy"
+
+
+def test_static_css_sets_cache_control_header():
+    """Static CSS assets should carry cache headers from ASGI middleware."""
+    response = client.get("/static/css/styles.css")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "public, max-age=3600"
+
+
+def test_missing_static_asset_does_not_set_cache_control_header():
+    """Static error responses should not be cached by the middleware."""
+    response = client.get("/static/css/does-not-exist.css")
+
+    assert response.status_code == 404
+    assert response.headers["cache-control"] == "no-store"
 
 
 def test_configure_trailing_slash_redirects_to_canonical_path():
@@ -388,6 +411,65 @@ def test_configure_invalid_screen_type():
     """Test configure page returns 404 for invalid screen type."""
     response = client.get("/configure/invalid")
     assert response.status_code == 404
+
+
+def test_configure_invalid_screen_type_with_lang_redirect_query_returns_404():
+    """Invalid configure screen types should 404 before localized redirect logic runs."""
+    response = client.get("/configure/invalid?lang=cs", follow_redirects=False)
+    assert response.status_code == 404
+
+    response = client.get("/en/configure/invalid", follow_redirects=False)
+    assert response.status_code == 404
+
+
+def test_www_host_redirect_uses_method_preserving_status_for_post_requests():
+    """Canonical host redirects should preserve POST semantics for operational endpoints."""
+    with patch("app.main.config.SITE_URL", "https://example.test"):
+        www_client = TestClient(app, base_url="https://www.example.test")
+        response = www_client.post(
+            "/api/perf-metrics",
+            json={"page_path": "/calendar.bmp", "lcp_ms": 1234.5},
+            follow_redirects=False,
+        )
+
+    assert response.status_code == 308
+    assert response.headers["location"] == "https://example.test/api/perf-metrics"
+
+
+@pytest.mark.asyncio
+async def test_lifespan_cancels_initial_generation_before_closing_resources():
+    """Shutdown should cancel pending initial generation before closing shared resources."""
+    events: list[str] = []
+
+    async def fake_initial_generation():
+        events.append("started")
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            events.append("cancelled")
+            raise
+
+    async def fake_close_shared_http_clients():
+        events.append("close_http")
+
+    async def fake_close_all_databases():
+        events.append("close_db")
+
+    def fake_stop_scheduler():
+        events.append("stop_scheduler")
+
+    with (
+        patch("app.main.warm_teams_renderer_assets", lambda: None),
+        patch("app.main.start_scheduler"),
+        patch("app.main.stop_scheduler", fake_stop_scheduler),
+        patch("app.main.run_initial_generation", fake_initial_generation),
+        patch("app.main.close_shared_http_clients", fake_close_shared_http_clients),
+        patch.object(main_module.Database, "close_all", fake_close_all_databases),
+    ):
+        async with main_module.lifespan(app):
+            await asyncio.sleep(0)
+
+    assert events == ["started", "cancelled", "stop_scheduler", "close_http", "close_db"]
 
 
 def test_header_contains_language_switcher():
@@ -743,6 +825,49 @@ def test_stats_dashboard_localizes_range_and_fallback_labels():
     assert "100.0%" in html
 
 
+def test_operational_api_endpoints_require_token_when_configured():
+    """Read-only operational API endpoints should require a token when configured."""
+    with patch.object(api_routes.config, "ADMIN_API_TOKEN", SecretStr("secret-token")):
+        response = client.get("/api/stats")
+        assert response.status_code == 401
+        assert response.json() == {"detail": "Unauthorized"}
+
+        response = client.get("/api/stats", headers={"X-Admin-Token": "secret-token"})
+        assert response.status_code == 200
+
+        response = client.get("/api/stats/history")
+        assert response.status_code == 401
+
+        response = client.get("/api/perf-metrics")
+        assert response.status_code == 401
+
+        response = client.get(
+            "/api/perf-metrics",
+            headers={"Authorization": "Bearer secret-token"},
+        )
+        assert response.status_code == 200
+
+
+def test_perf_metrics_post_remains_public_when_operational_token_is_configured():
+    """POST /api/perf-metrics stays public for browser-side web-vitals ingestion."""
+    payload = {
+        "page_path": "/calendar.bmp",
+        "lcp_ms": 1200.5,
+        "cls": 0.05,
+        "fcp_ms": 800.0,
+        "ttfb_ms": 150.0,
+        "inp_ms": 50.0,
+        "connection_type": "4g",
+        "device_memory": 8.0,
+    }
+
+    with patch.object(api_routes.config, "ADMIN_API_TOKEN", SecretStr("secret-token")):
+        response = client.post("/api/perf-metrics", json=payload)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
 def test_api_stats_endpoint_returns_correct_structure():
     """Test /api/stats endpoint returns new structure with 24h stats."""
     response = client.get("/api/stats")
@@ -766,6 +891,31 @@ def test_api_stats_endpoint_returns_correct_structure():
     assert requests["avg_response_ms"] is None or isinstance(
         requests["avg_response_ms"], (int, float)
     )
+
+
+def test_api_stats_history_endpoint_returns_hourly_history():
+    """Test /api/stats/history returns hourly stats derived from request data."""
+    mock_history = [
+        {
+            "timestamp": "2026-04-01T11:00:00+00:00",
+            "hour_count": 1,
+            "day_count": 3,
+        },
+        {
+            "timestamp": "2026-04-01T10:00:00+00:00",
+            "hour_count": 2,
+            "day_count": 2,
+        },
+    ]
+
+    with patch(
+        "app.routes.api.Database.get_request_stats_history",
+        new=AsyncMock(return_value=mock_history),
+    ):
+        response = client.get("/api/stats/history?limit=24")
+
+    assert response.status_code == 200
+    assert response.json() == {"history": mock_history, "count": 2}
 
 
 def test_stats_link_in_header():
@@ -1146,6 +1296,18 @@ def test_get_race_info_for_stats_matches_string_round_values():
     assert actual_race_name == "Bahrain Grand Prix"
 
 
+def test_get_driver_number_uses_shared_metadata_map():
+    """Driver number helper should resolve known F1 codes from shared metadata."""
+    assert _get_driver_number("VER", 2026) == 1
+    assert _get_driver_number("UNKNOWN", 2026) is None
+
+
+def test_get_team_id_uses_shared_metadata_map():
+    """Team id helper should resolve route payload ids from shared metadata."""
+    assert _get_team_id("Oracle Red Bull Racing") == "red_bull"
+    assert _get_team_id("Unknown Team") is None
+
+
 def test_get_race_data_from_static_matches_string_round_values():
     """Round-based race lookup should accept string rounds from cached static data."""
 
@@ -1180,6 +1342,53 @@ def test_calendar_bmp_with_bwry_display():
     assert response.headers["content-type"] == "image/bmp"
     assert response.content[:2] == b"BM"
     assert int.from_bytes(response.content[28:30], byteorder="little") == 4
+
+
+def test_schedule_calendar_analytics_uses_background_task():
+    tracked_coro = object()
+
+    with (
+        patch.object(
+            images_routes, "_track_calendar_analytics", new=Mock(return_value=tracked_coro)
+        ) as mock_track,
+        patch.object(images_routes, "create_supervised_task") as mock_create_task,
+    ):
+        _schedule_calendar_analytics(
+            lang="en",
+            tz="Europe/Prague",
+            year=2026,
+            race_round=5,
+            race_key="2026-round-5-monaco-2026-05-24",
+            user_agent="TestAgent/1.0",
+            referrer="https://example.com",
+        )
+
+    mock_track.assert_called_once_with(
+        lang="en",
+        tz="Europe/Prague",
+        year=2026,
+        race_round=5,
+        race_key="2026-round-5-monaco-2026-05-24",
+        user_agent="TestAgent/1.0",
+        referrer="https://example.com",
+    )
+    mock_create_task.assert_called_once_with(tracked_coro, name="calendar_analytics")
+
+
+def test_calendar_bmp_rate_limit_returns_429(monkeypatch):
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(images_routes.config, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(images_routes.config, "IMAGE_RATE_LIMIT_PER_MINUTE", 1)
+
+    try:
+        first = client.get("/calendar.bmp")
+        second = client.get("/calendar.bmp")
+    finally:
+        _reset_rate_limit_state_for_tests()
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["detail"] == "Rate limit exceeded"
 
 
 def test_calendar_bmp_error_response_is_not_cached(monkeypatch):
@@ -1299,6 +1508,33 @@ def test_teams_bmp_caches_pregenerated_assets_with_shared_image_key(tmp_path, mo
 # ============================================================================
 # API Endpoint Tests
 # ============================================================================
+
+
+def test_perf_metrics_rate_limit_returns_429(monkeypatch):
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(api_routes.config, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(api_routes.config, "PERF_METRICS_RATE_LIMIT_PER_MINUTE", 1)
+
+    payload = {
+        "page_path": "/calendar.bmp",
+        "lcp_ms": 1000.0,
+        "cls": 0.01,
+        "fcp_ms": 500.0,
+        "ttfb_ms": 200.0,
+        "inp_ms": 100.0,
+        "connection_type": "4g",
+        "device_memory": 8.0,
+    }
+
+    try:
+        first = client.post("/api/perf-metrics", json=payload)
+        second = client.post("/api/perf-metrics", json=payload)
+    finally:
+        _reset_rate_limit_state_for_tests()
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.json()["detail"] == "Rate limit exceeded"
 
 
 def test_api_races_endpoint():

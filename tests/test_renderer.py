@@ -27,6 +27,18 @@ from app.services.bwry_renderer import BwryColors, BwryRenderer
 from app.services.font_utils import fit_brand_font_box
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
+from app.services.renderer_common import (
+    build_sprint_qualifying_label,
+    build_team_header_values,
+    crop_to_content,
+    draw_team_logo,
+    format_schedule_session_name,
+    format_team_driver_display_name,
+    get_team_logo_key,
+    get_text_y,
+    split_teams_for_columns,
+    translate_session_name,
+)
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 from app.services.teams_service import TeamsService
 from app.services.weather_service import WeatherData
@@ -231,28 +243,24 @@ def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
     assert rendered.mode == "1"
 
 
-@pytest.mark.parametrize(
-    ("lang", "expected"),
-    [
-        ("cs", "Sprint Kvalifikace"),
-        ("sk", "Sprint Kvalifikácia"),
-        ("pl", "Sprint Kwalifikacje"),
-        ("en", "Sprint Qualifying"),
-        ("de", "Sprint Qualifying"),
-        ("ja", "スプリント予選"),
-        ("zh-CN", "冲刺赛排位赛"),
-        ("pt-BR", "Sprint Classificação"),
-    ],
-)
+@pytest.mark.parametrize("lang", ["cs", "sk", "pl", "en", "de", "ja", "zh-CN", "pt-BR"])
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
-def test_translate_session_name_uses_full_localized_sprint_qualifying_labels(
-    renderer_cls, lang, expected
-):
-    """Sprint qualifying aliases should use the localized sprint and qualifying strings."""
+def test_translate_session_name_prefers_dedicated_sprint_qualifying_key(renderer_cls, lang):
+    """Sprint qualifying aliases should prefer the dedicated locale key when present."""
     renderer = renderer_cls(get_translator(lang), lang)
-    assert renderer._translate_session_name("SprintQualifying") == expected
-    assert renderer._translate_session_name("Sprint Qualifying") == expected
-    assert renderer._translate_session_name("Sprint Shootout") == expected
+    expected = renderer.translator["session_sprintqualifying"]
+    assert (
+        translate_session_name("SprintQualifying", renderer.translator, renderer.lang_code)
+        == expected
+    )
+    assert (
+        translate_session_name("Sprint Qualifying", renderer.translator, renderer.lang_code)
+        == expected
+    )
+    assert (
+        translate_session_name("Sprint Shootout", renderer.translator, renderer.lang_code)
+        == expected
+    )
 
 
 @pytest.mark.parametrize(
@@ -269,27 +277,24 @@ def test_translate_session_name_uses_full_localized_sprint_qualifying_labels(
 def test_build_sprint_qualifying_label_uses_localized_abbreviation(renderer_cls, lang, expected):
     """Abbreviated sprint qualifying labels should use each locale's qualifying initial."""
     renderer = renderer_cls(get_translator(lang), lang)
-    assert renderer._build_sprint_qualifying_label(abbreviated=True) == expected
+    assert (
+        build_sprint_qualifying_label(renderer.translator, renderer.lang_code, abbreviated=True)
+        == expected
+    )
 
 
-@pytest.mark.parametrize(
-    ("lang", "expected"),
-    [
-        ("en", "Sprint Qualifying"),
-        ("cs", "Sprint Kvalifikace"),
-        ("pt-BR", "Sprint Classificação"),
-        ("ja", "スプリント予選"),
-        ("zh-CN", "冲刺赛排位赛"),
-    ],
-)
+@pytest.mark.parametrize("lang", ["en", "cs", "pt-BR", "ja", "zh-CN"])
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
-def test_format_schedule_session_name_keeps_full_label_when_space_available(
-    renderer_cls, lang, expected
-):
-    """Schedule rows should keep the full localized label when there is sufficient width."""
+def test_format_schedule_session_name_prefers_dedicated_label(renderer_cls, lang):
+    """Schedule rows should use the dedicated sprint-qualifying translation when available."""
     renderer = renderer_cls(get_translator(lang), lang)
     draw = ImageDraw.Draw(Image.new("RGB", (800, 480), "white"))
-    assert renderer._format_schedule_session_name(draw, "Sprint Qualifying", 180) == expected
+    assert (
+        format_schedule_session_name(
+            draw, "Sprint Qualifying", 180, renderer.lang_code, renderer.translator
+        )
+        == renderer.translator["session_sprintqualifying"]
+    )
 
 
 def test_spectra6_renderer_draws_cancelled_label_in_countdown(monkeypatch):
@@ -723,14 +728,14 @@ def test_render_teams_drivers_partial_data():
 
 
 def test_team_logo_key_supports_2026_new_teams():
-    assert Renderer._get_team_logo_key("Audi") == "audi"
-    assert Renderer._get_team_logo_key("Cadillac Formula 1 Team") == "cadillac"
+    assert get_team_logo_key("Audi") == "audi"
+    assert get_team_logo_key("Cadillac Formula 1 Team") == "cadillac"
 
 
 def test_split_teams_for_columns_keeps_11th_team_visible():
     teams = list(range(11))
 
-    left, right = Renderer._split_teams_for_columns(teams)
+    left, right = split_teams_for_columns(teams)
 
     assert left == [0, 1, 2, 3, 4, 5]
     assert right == [6, 7, 8, 9, 10]
@@ -781,7 +786,7 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
     image = Image.new(image_mode, (renderer.width, renderer.height), background)
     draw = ImageDraw.Draw(image)
 
-    left_teams, right_teams = renderer._split_teams_for_columns(teams_data.teams)
+    left_teams, right_teams = split_teams_for_columns(teams_data.teams)
     teams_per_col = max(len(left_teams), len(right_teams), 1)
     row_gap = 2
     row_height = (
@@ -806,7 +811,7 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
                 name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
                 if not name:
                     name = driver.driver_code or "TBA"
-                display_name = renderer._format_team_driver_display_name(name)
+                display_name = format_team_driver_display_name(name)
                 driver_y = driver_y_start + i * driver_row_height
                 driver_name_x = photo_x + photo_size + renderer.layout["driver_name_padding"] + 4
                 max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
@@ -819,7 +824,7 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
                     min_size=12,
                     bold=True,
                 )
-                driver_text_y = renderer._get_text_y(
+                driver_text_y = get_text_y(
                     draw, driver_font, driver_row_height, driver_y, display_name
                 )
                 bbox = draw.textbbox((driver_name_x, driver_text_y), display_name, font=driver_font)
@@ -840,7 +845,7 @@ def test_team_header_values_shorten_red_bull_power_units(renderer_cls):
         drivers=[],
     )
 
-    team_name, meta_text, team_pos, team_pts = renderer_cls._build_team_header_values(team)
+    team_name, meta_text, team_pos, team_pts = build_team_header_values(team)
 
     assert team_name == "Red Bull Racing"
     assert meta_text == "RB22 | RB Ford DM01"
@@ -2323,8 +2328,8 @@ def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch)
     assert renderer._team_logos["mclaren"].getpixel((0, 0))[:3] == (255, 135, 0)
 
 
-def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch):
-    """Spectra 6 should render the header F1 logo in monochrome like the other display modes."""
+def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch, mock_race_data):
+    """Spectra 6 should select the shared monochrome F1 logo asset during rendering."""
     images_dir = tmp_path / "images"
     images_dir.mkdir(parents=True)
 
@@ -2338,11 +2343,23 @@ def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch):
 
     monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", images_dir)
 
-    image = Image.new("RGB", (80, 30), (255, 255, 255))
-    Spectra6Renderer._draw_f1_logo(image, 80, 30)
+    captured: dict[str, object] = {}
+    original_draw_f1_logo = spectra6_renderer_module.draw_f1_logo
 
-    center = image.getpixel((40, 15))
-    assert center[0] == center[1] == center[2]
+    def spy_draw_f1_logo(*args, **kwargs):
+        captured["logo_path"] = kwargs["logo_path"]
+        return original_draw_f1_logo(*args, **kwargs)
+
+    monkeypatch.setattr(spectra6_renderer_module, "draw_f1_logo", spy_draw_f1_logo)
+
+    renderer = Spectra6Renderer(get_translator("en"))
+    bmp_data = renderer.render_calendar(mock_race_data)
+    img = Image.open(BytesIO(bmp_data))
+
+    assert captured["logo_path"].name == "eInkF1logo.jpg"
+    assert img.format == "BMP"
+    assert img.size == (800, 480)
+    assert img.mode == "P"
 
 
 def test_renderer_prefers_color_team_logo_assets_for_1bit_sizing(tmp_path, monkeypatch):
@@ -2456,7 +2473,7 @@ def test_renderer_crop_to_content_ignores_fully_opaque_alpha_for_white_backgroun
     draw = ImageDraw.Draw(logo)
     draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
 
-    prepared = Renderer._crop_to_content(logo)
+    prepared = crop_to_content(logo, use_binary_mask=True)
 
     assert prepared.size == (101, 46)
 
@@ -2468,13 +2485,19 @@ def test_renderer_draw_team_logo_centers_logo_in_1bit_mode():
     image = Image.new("1", (220, 80), 1)
     team = TeamEntry(constructor_name="Audi", chassis="", power_unit="", drivers=[])
 
-    renderer._draw_team_logo(
+    draw_team_logo(
         image,
         team,
+        team_logos=renderer._team_logos,
+        get_team_logo_key_fn=get_team_logo_key,
         driver_area_y=10,
         driver_area_h=30,
         container_left=100,
         container_right=180,
+        paste_logo_fn=lambda canvas, logo_resized, x, y: canvas.paste(
+            renderer._logo_to_1bit(logo_resized),
+            (x, y),
+        ),
     )
 
     bbox = ImageOps.invert(image.convert("L")).getbbox()
@@ -2568,7 +2591,7 @@ def test_renderer_preserves_half_points_in_team_rows(renderer_cls):
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
 def test_renderer_maps_exact_rb_constructor_name(renderer_cls):
     """The RB constructor alias should resolve to the Racing Bulls logo key."""
-    assert renderer_cls._get_team_logo_key("RB") == "racing_bulls"
+    assert get_team_logo_key("RB") == "racing_bulls"
 
 
 @pytest.mark.parametrize("lang", ["en", "cs"])
@@ -2757,3 +2780,65 @@ def test_map_to_bwry_palette_preserves_near_white_edges():
         BwryColors.IDX_WHITE,
         BwryColors.IDX_YELLOW,
     ]
+
+
+def test_spectra6_renderer_load_track_image_does_not_use_wildcard_fallback(
+    monkeypatch, mock_race_data
+):
+    captured = {}
+
+    def fake_load_track_image_asset(*args, **kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(
+        spectra6_renderer_module, "load_track_image_asset", fake_load_track_image_asset
+    )
+
+    Spectra6Renderer._load_track_image(mock_race_data)
+
+    assert "fallback_glob" not in captured
+
+
+@pytest.mark.parametrize(
+    ("renderer_cls", "renderer_module", "expected_country_map"),
+    [
+        (BwrRenderer, bwr_renderer_module, {}),
+        (BwryRenderer, bwry_renderer_module, bwry_renderer_module.COUNTRY_MAP),
+    ],
+)
+def test_results_section_uses_renderer_results_header_hook(
+    monkeypatch,
+    mock_race_data,
+    mock_historical_data,
+    renderer_cls,
+    renderer_module,
+    expected_country_map,
+):
+    renderer = renderer_cls(get_translator("en"))
+    image = Image.new("RGB", (800, 480), "white")
+    draw = ImageDraw.Draw(image)
+    captured = {}
+
+    def fake_draw_results_section(draw_ctx, image_ctx, **kwargs):
+        header_fn = kwargs["draw_results_header_fn"]
+        captured["is_bound_method"] = getattr(header_fn, "__self__", None) is renderer
+        captured["visual_top"] = header_fn(
+            draw_ctx,
+            image_ctx,
+            kwargs["y_start"],
+            kwargs["historical_data"].season or "",
+            kwargs["race_data"]["circuit"]["country"],
+        )
+
+    def fake_draw_results_header(*args, **kwargs):
+        captured["country_map"] = kwargs["country_map"]
+        return 0
+
+    monkeypatch.setattr(spectra6_renderer_module, "draw_results_section", fake_draw_results_section)
+    monkeypatch.setattr(renderer_module, "draw_results_header", fake_draw_results_header)
+
+    renderer._draw_results_section(draw, image, mock_race_data, mock_historical_data)
+
+    assert captured["is_bound_method"] is True
+    assert captured["country_map"] == expected_country_map
+    assert captured["visual_top"] == 0

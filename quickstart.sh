@@ -26,9 +26,9 @@ if command -v docker &> /dev/null; then
     case $choice in
         1)
             echo "Starting with Docker Compose..."
-            docker-compose up -d
+            docker compose up -d
             echo "✅ Service started on http://localhost:8000"
-            echo "📊 View logs: docker-compose logs -f"
+            echo "📊 View logs: docker compose logs -f"
             ;;
         2)
             echo "Building Docker image..."

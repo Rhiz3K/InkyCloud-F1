@@ -1,6 +1,8 @@
 """Tests for S3 backup service."""
 
 import os
+import shutil
+import sqlite3
 import tempfile
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
@@ -30,9 +32,6 @@ class TestBackupFilename:
             mock_now = datetime(2025, 3, 15, 14, 30, 45, tzinfo=timezone.utc)
             mock_dt.now.return_value = mock_now
             mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
-
-            # Re-import needed to pick up mocked datetime
-            from app.services.backup import generate_backup_filename
 
             filename = generate_backup_filename()
             assert "2025-03-15" in filename
@@ -123,14 +122,27 @@ class TestPerformBackup:
             assert result is False
 
     def test_perform_backup_success(self):
-        """Test successful backup execution."""
-        # Create a temporary database file
+        """Test successful backup execution with a consistent SQLite snapshot."""
+        # Create a temporary SQLite database file with WAL enabled.
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp_db:
-            tmp_db.write(b"test database content")
             tmp_db_path = tmp_db.name
+
+        uploaded_copy = f"{tmp_db_path}.uploaded"
+
+        conn = sqlite3.connect(tmp_db_path)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("CREATE TABLE races (id INTEGER PRIMARY KEY, name TEXT)")
+            conn.execute("INSERT INTO races (name) VALUES (?)", ("Australian Grand Prix",))
+            conn.commit()
+        finally:
+            conn.close()
 
         try:
             mock_s3_client = MagicMock()
+            mock_s3_client.upload_file.side_effect = lambda src, *_args: shutil.copy2(
+                src, uploaded_copy
+            )
 
             with (
                 patch("app.services.backup.is_backup_configured", return_value=True),
@@ -151,8 +163,18 @@ class TestPerformBackup:
                 call_args = mock_s3_client.upload_file.call_args
                 assert call_args[0][1] == "test-bucket"  # bucket name
                 assert call_args[0][2].startswith(BACKUP_FILENAME_PREFIX)  # key
+
+            snapshot = sqlite3.connect(uploaded_copy)
+            try:
+                rows = snapshot.execute("SELECT name FROM races").fetchall()
+            finally:
+                snapshot.close()
+
+            assert rows == [("Australian Grand Prix",)]
         finally:
             os.unlink(tmp_db_path)
+            if os.path.exists(uploaded_copy):
+                os.unlink(uploaded_copy)
 
 
 class TestCleanupOldBackups:

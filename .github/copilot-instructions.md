@@ -156,7 +156,7 @@ Future-proof for Sprint Qualifying when F1 adds it - follow the same `session_*`
 
 ## Docker & Deployment
 
-Production runs in Docker with Python 3.14.3-slim. The Dockerfile installs system deps for Pillow (`libjpeg-dev`, `zlib1g-dev`). Service is stateless and scales horizontally.
+Production runs in Docker with Python 3.13-slim. The Dockerfile installs system deps for Pillow (`libjpeg-dev`, `zlib1g-dev`). Service is stateless and scales horizontally.
 
 Health check: `GET /health` returns `{"status": "healthy"}`
 

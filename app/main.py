@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import mimetypes
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -14,8 +14,8 @@ import sentry_sdk
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
@@ -27,8 +27,11 @@ from app.routes.images import router as images_router
 from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
+from app.services.database import Database
+from app.services.http_client import close_shared_http_clients
 from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
 from app.services.warmup import warm_teams_renderer_assets
+from app.utils.async_tasks import create_supervised_task
 from app.utils.race_times import (  # noqa: F401
     convert_race_times_to_timezone as _convert_race_times_to_timezone,
 )
@@ -108,11 +111,19 @@ async def lifespan(_app: FastAPI):
         sentry_sdk.capture_exception(exc)
 
     start_scheduler()
-    asyncio.create_task(run_initial_generation())
+    initial_generation_task = create_supervised_task(
+        run_initial_generation(), name="initial_generation"
+    )
 
     yield
 
+    if not initial_generation_task.done():
+        initial_generation_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await initial_generation_task
     stop_scheduler()
+    await close_shared_http_clients()
+    await Database.close_all()
     logger.info("Shutting down F1 E-Ink calendar service")
 
 
@@ -125,45 +136,70 @@ app = FastAPI(
 )
 
 
-class StaticCacheMiddleware(BaseHTTPMiddleware):
-    async def dispatch(  # skipcq: PYL-R0201 - must be instance method (BaseHTTPMiddleware)
-        self, request: StarletteRequest, call_next
-    ) -> StarletteResponse:
-        response = await call_next(request)
-        path = request.url.path
+class StaticCacheMiddleware:
+    def __init__(self, asgi_app):
+        self.app = asgi_app
 
-        if path.startswith("/static/"):
-            if "/fonts/" in path:
-                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-            elif path.endswith((".png", ".jpg", ".bmp", ".ico", ".svg", ".webmanifest")):
-                response.headers["Cache-Control"] = "public, max-age=86400"
-            elif path.endswith((".css", ".js")):
-                response.headers["Cache-Control"] = "public, max-age=3600"
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-        return response
+        path = scope.get("path", "")
+
+        async def send_with_cache_headers(message):
+            if (
+                message["type"] == "http.response.start"
+                and path.startswith("/static/")
+                and message.get("status", 500) < 400
+            ):
+                headers = MutableHeaders(scope=message)
+                if "/fonts/" in path:
+                    headers["Cache-Control"] = "public, max-age=31536000, immutable"
+                elif path.endswith((".png", ".jpg", ".bmp", ".ico", ".svg", ".webmanifest")):
+                    headers["Cache-Control"] = "public, max-age=86400"
+                elif path.endswith((".css", ".js")):
+                    headers["Cache-Control"] = "public, max-age=3600"
+
+            await send(message)
+
+        await self.app(scope, receive, send_with_cache_headers)
 
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(  # skipcq: PYL-R0201 - must be instance method (BaseHTTPMiddleware)
-        self, request: StarletteRequest, call_next
-    ) -> StarletteResponse:
-        host = request.headers.get("host", "").split(":", 1)[0].lower()
+class SecurityHeadersMiddleware:
+    def __init__(self, asgi_app):
+        self.app = asgi_app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = Headers(scope=scope)
+        host = headers.get("host", "").split(":", 1)[0].lower()
         canonical_host = urlparse(str(config.SITE_URL)).hostname or ""
+        scheme = scope.get("scheme", "http")
+        path = scope.get("path", "")
+        query_string = scope.get("query_string", b"").decode()
+
         if host == f"www.{canonical_host}":
-            target = f"{str(config.SITE_URL).rstrip('/')}{request.url.path}"
-            if request.url.query:
-                target = f"{target}?{request.url.query}"
-            redirect = RedirectResponse(url=target, status_code=301)
-            if request.url.scheme == "https":
+            target = f"{str(config.SITE_URL).rstrip('/')}{path}"
+            if query_string:
+                target = f"{target}?{query_string}"
+            redirect = RedirectResponse(url=target, status_code=308)
+            if scheme == "https":
                 redirect.headers["Strict-Transport-Security"] = "max-age=31536000"
-            return redirect
+            await redirect(scope, receive, send)
+            return
 
-        response = await call_next(request)
+        async def send_with_security_headers(message):
+            if message["type"] == "http.response.start" and scheme == "https":
+                response_headers = MutableHeaders(scope=message)
+                response_headers["Strict-Transport-Security"] = "max-age=31536000"
 
-        if request.url.scheme == "https":
-            response.headers["Strict-Transport-Security"] = "max-age=31536000"
+            await send(message)
 
-        return response
+        await self.app(scope, receive, send_with_security_headers)
 
 
 def _resolve_error_ui_language(request: StarletteRequest) -> str:

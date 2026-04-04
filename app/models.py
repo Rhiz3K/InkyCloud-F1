@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 logger = logging.getLogger(__name__)
 
@@ -124,8 +124,10 @@ class F1Response(BaseModel):
 class ScheduleEvent(BaseModel):
     """Formatted schedule event for display."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     name: str
-    datetime: datetime
+    event_datetime: datetime = Field(alias="datetime")
     display_time: str
 
 

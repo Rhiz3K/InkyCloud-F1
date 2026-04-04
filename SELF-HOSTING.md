@@ -59,13 +59,13 @@ docker run -p 8000:8000 --env-file .env f1-eink-cal
 
 ```bash
 # Start the service
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
 # Stop the service
-docker-compose down
+docker compose down
 ```
 
 ### Local Development
@@ -774,12 +774,12 @@ Name your track images using the `circuitId`:
 
 ## Tech Stack
 
-- **Python 3.14.3**: Modern Python with type hints
+- **Python 3.13**: Modern stable Python with type hints
 - **FastAPI**: High-performance web framework
 - **Pillow**: Image generation and manipulation
 - **HTTPX**: Async HTTP client for API calls
 - **Sentry-SDK**: Error tracking and monitoring
-- **pytz**: Timezone handling
+- **zoneinfo**: Timezone handling (Python standard library)
 
 ---
 

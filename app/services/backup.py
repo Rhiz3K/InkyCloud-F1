@@ -2,7 +2,7 @@
 
 import logging
 import os
-import shutil
+import sqlite3
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -19,6 +19,28 @@ BACKUP_FILENAME_PREFIX = "f1_backup_"
 BACKUP_FILENAME_FORMAT = f"{BACKUP_FILENAME_PREFIX}%Y-%m-%d_%H-%M-%S.db"
 
 
+def _resolve_secret(value: Any) -> str | None:
+    """Return a plain-text secret value from either SecretStr or str input."""
+    if value is None:
+        return None
+    if hasattr(value, "get_secret_value"):
+        return value.get_secret_value()
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def _create_sqlite_snapshot(db_path: Path, temp_path: str) -> None:
+    """Create a consistent SQLite snapshot using SQLite's online backup API."""
+    src = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    dst = sqlite3.connect(temp_path)
+    try:
+        src.backup(dst)
+    finally:
+        dst.close()
+        src.close()
+
+
 def _get_s3_client():
     """
     Create and return a boto3 S3 client configured for the backup endpoint.
@@ -26,11 +48,14 @@ def _get_s3_client():
     Returns:
         boto3 S3 client or None if configuration is incomplete.
     """
+    access_key_id = _resolve_secret(config.S3_ACCESS_KEY_ID)
+    secret_access_key = _resolve_secret(config.S3_SECRET_ACCESS_KEY)
+
     if not config.S3_ENDPOINT_URL:
         logger.debug("S3_ENDPOINT_URL not configured, skipping S3 client creation")
         return None
 
-    if not config.S3_ACCESS_KEY_ID or not config.S3_SECRET_ACCESS_KEY:
+    if not access_key_id or not secret_access_key:
         logger.warning("S3 credentials not configured, backup disabled")
         return None
 
@@ -48,8 +73,8 @@ def _get_s3_client():
     return boto3.client(
         "s3",
         endpoint_url=config.S3_ENDPOINT_URL,
-        aws_access_key_id=config.S3_ACCESS_KEY_ID,
-        aws_secret_access_key=config.S3_SECRET_ACCESS_KEY,
+        aws_access_key_id=access_key_id,
+        aws_secret_access_key=secret_access_key,
         region_name=config.S3_REGION,
     )
 
@@ -66,8 +91,8 @@ def is_backup_configured() -> bool:
 
     required = [
         config.S3_ENDPOINT_URL,
-        config.S3_ACCESS_KEY_ID,
-        config.S3_SECRET_ACCESS_KEY,
+        _resolve_secret(config.S3_ACCESS_KEY_ID),
+        _resolve_secret(config.S3_SECRET_ACCESS_KEY),
         config.S3_BUCKET_NAME,
     ]
     return all(required)
@@ -115,8 +140,8 @@ def perform_backup() -> bool:
         temp_fd, temp_path = tempfile.mkstemp(suffix=".db")
         os.close(temp_fd)
 
-        logger.info("Creating backup copy of %s", db_path)
-        shutil.copy2(db_path, temp_path)
+        logger.info("Creating SQLite snapshot of %s", db_path)
+        _create_sqlite_snapshot(db_path, temp_path)
 
         # Generate backup filename and upload
         backup_filename = generate_backup_filename()
@@ -230,7 +255,10 @@ def get_backup_config_info() -> dict[str, Any]:
         "region": config.S3_REGION,
         "schedule": config.BACKUP_CRON,
         "retention_days": config.BACKUP_RETENTION_DAYS,
-        "credentials_configured": bool(config.S3_ACCESS_KEY_ID and config.S3_SECRET_ACCESS_KEY),
+        "credentials_configured": bool(
+            _resolve_secret(config.S3_ACCESS_KEY_ID)
+            and _resolve_secret(config.S3_SECRET_ACCESS_KEY)
+        ),
     }
 
 
@@ -421,10 +449,10 @@ def perform_backup_with_details() -> dict[str, Any]:
 
     temp_path = None
     try:
-        # Create temporary copy of database
+        # Create a consistent SQLite snapshot of the live database
         temp_fd, temp_path = tempfile.mkstemp(suffix=".db")
         os.close(temp_fd)
-        shutil.copy2(db_path, temp_path)
+        _create_sqlite_snapshot(db_path, temp_path)
 
         # Generate filename and get size
         backup_filename = generate_backup_filename()

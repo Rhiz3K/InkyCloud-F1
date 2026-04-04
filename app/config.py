@@ -4,17 +4,19 @@ import logging
 from functools import lru_cache
 from typing import Optional, TypeVar
 
-import pytz
 from dotenv import load_dotenv
 from pydantic import (
     Field,
     HttpUrl,
+    SecretStr,
     TypeAdapter,
     ValidationError,
     ValidationInfo,
     field_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.utils.timezones import is_valid_timezone
 
 # Load environment variables
 load_dotenv()
@@ -98,6 +100,10 @@ class Config(BaseSettings):
         "https://analytics.example.com/api/send",
         description="Umami analytics endpoint",
     )
+    GITHUB_API_BASE_URL: str = Field(
+        "https://api.github.com",
+        description="GitHub REST API base URL",
+    )
     UMAMI_ENABLED: bool = Field(False, description="Toggle Umami analytics")
     ANALYTICS_HOSTNAME: str = Field("", description="Hostname for analytics tracking")
 
@@ -107,6 +113,19 @@ class Config(BaseSettings):
         description="Jolpica F1 API endpoint",
     )
     REQUEST_TIMEOUT: int = Field(10, gt=0, description="HTTP request timeout in seconds")
+
+    RATE_LIMIT_ENABLED: bool = Field(True, description="Enable lightweight in-memory rate limiting")
+    IMAGE_RATE_LIMIT_PER_MINUTE: int = Field(
+        120, gt=0, description="Per-IP BMP requests allowed per minute"
+    )
+    PERF_METRICS_RATE_LIMIT_PER_MINUTE: int = Field(
+        240, gt=0, description="Per-IP perf metrics posts allowed per minute"
+    )
+
+    ADMIN_API_TOKEN: Optional[SecretStr] = Field(
+        default=None,
+        description="Optional bearer token required for read-only operational API endpoints",
+    )
 
     # Internationalization
     DEFAULT_LANG: str = Field("en", description="Default language code")
@@ -126,6 +145,13 @@ class Config(BaseSettings):
 
     # Scheduler settings
     SCHEDULER_ENABLED: bool = Field(True, description="Toggle background scheduler")
+    STATS_RETENTION_DAYS: int = Field(
+        0,
+        ge=0,
+        description=(
+            "Days to retain API/request/performance statistics (0=disabled, keep indefinitely)"
+        ),
+    )
 
     # Weather integration
     WEATHER_ENABLED: bool = Field(True, description="Toggle weather forecast display")
@@ -148,8 +174,10 @@ class Config(BaseSettings):
 
     # S3 settings (for backup)
     S3_ENDPOINT_URL: Optional[str] = Field(default=None, description="S3-compatible endpoint URL")
-    S3_ACCESS_KEY_ID: Optional[str] = Field(default=None, description="S3 access key ID")
-    S3_SECRET_ACCESS_KEY: Optional[str] = Field(default=None, description="S3 secret access key")
+    S3_ACCESS_KEY_ID: Optional[SecretStr] = Field(default=None, description="S3 access key ID")
+    S3_SECRET_ACCESS_KEY: Optional[SecretStr] = Field(
+        default=None, description="S3 secret access key"
+    )
     S3_BUCKET_NAME: Optional[str] = Field(default=None, description="S3 bucket name for backups")
     S3_REGION: str = Field("auto", description="S3 region (use 'auto' for Cloudflare R2)")
 
@@ -182,7 +210,12 @@ class Config(BaseSettings):
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer < 65536")
 
-    @field_validator("REQUEST_TIMEOUT", mode="before")
+    @field_validator(
+        "REQUEST_TIMEOUT",
+        "IMAGE_RATE_LIMIT_PER_MINUTE",
+        "PERF_METRICS_RATE_LIMIT_PER_MINUTE",
+        mode="before",
+    )
     @classmethod
     def validate_timeout(cls, value: object, info: ValidationInfo) -> int:
         """
@@ -230,7 +263,7 @@ class Config(BaseSettings):
         if info.field_name is None:
             return "Europe/Prague"
         default: str = cls.model_fields[info.field_name].default
-        if isinstance(value, str) and value in pytz.all_timezones:
+        if isinstance(value, str) and is_valid_timezone(value):
             return value
         return _warn_invalid(info.field_name, value, default, "unknown timezone")
 
@@ -245,7 +278,9 @@ class Config(BaseSettings):
         return _warn_invalid(info.field_name, value, default, "unsupported language code")
 
     @field_validator(
+        "SITE_URL",
         "UMAMI_API_URL",
+        "GITHUB_API_BASE_URL",
         "JOLPICA_API_URL",
         "OPEN_METEO_URL",
         "OPEN_METEO_ARCHIVE_URL",
@@ -263,7 +298,7 @@ class Config(BaseSettings):
         except ValidationError:
             return _warn_invalid(info.field_name, value, default, "must be a valid URL")
 
-    @field_validator("BACKUP_RETENTION_DAYS", mode="before")
+    @field_validator("BACKUP_RETENTION_DAYS", "STATS_RETENTION_DAYS", mode="before")
     @classmethod
     def validate_retention_days(cls, value: object, info: ValidationInfo) -> int:
         """
@@ -317,6 +352,7 @@ def _reset_config_cache_for_tests() -> None:
     """Allow tests to rebuild configuration with fresh environment variables."""
 
     get_config.cache_clear()
+    globals()["config"] = get_config()
 
 
 config = get_config()

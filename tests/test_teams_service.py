@@ -1,7 +1,10 @@
 """Test teams service helpers and season data."""
 
+from datetime import datetime, timezone
+
 from app.models import TeamDriverEntry, TeamEntry, TeamsData
-from app.services.teams_service import TeamsService
+from app.services.teams_service import TeamsService, get_default_teams_year
+from app.utils.f1_season import get_current_f1_season
 
 
 def test_load_2026_teams_data():
@@ -97,3 +100,19 @@ def test_match_constructor_name_handles_sponsor_prefixed_williams():
     )
 
     assert matched == "Williams"
+
+
+def test_get_current_f1_season_falls_back_to_current_year_for_future_seasons(caplog):
+    future_date = datetime(2027, 4, 1, tzinfo=timezone.utc)
+
+    with caplog.at_level("WARNING"):
+        season = get_current_f1_season(future_date)
+
+    assert season == 2027
+    assert "falling back to current year 2027" in caplog.text
+
+
+def test_get_default_teams_year_falls_back_to_latest_bundled_season(monkeypatch):
+    monkeypatch.setattr("app.services.teams_service.get_current_f1_season", lambda: 2027)
+
+    assert get_default_teams_year() == 2026

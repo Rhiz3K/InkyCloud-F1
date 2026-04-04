@@ -7,13 +7,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.20] - 2026-04-03
+
+### Frontend
+
+#### Fixed
+
+- **Weather tooltip hover/click parity** - Kept the disabled `Race day` weather hint visible when desktop users click after hovering while preserving tap-to-toggle dismissal for touch users, so the floating tooltip no longer disappears until the pointer leaves and re-enters the trigger
+
+### Backend
+
+#### Fixed
+
+- **SQLite backup snapshots** - Replaced byte-for-byte SQLite file copies with SQLite's online backup API for both scheduled and detailed S3 backups so WAL-enabled databases upload crash-safe, internally consistent snapshots
+- **Translation and season fallbacks** - Stopped recursive i18n fallback loops when the default locale file is missing and made season helpers fall back to the current year beyond the last hardcoded race-start date while still preferring the newest bundled teams dataset
+- **Config test cache reset** - Refreshed the module-level `config` singleton whenever tests clear the config cache so patched environment variables propagate consistently across imports
+- **Static-analysis hygiene cleanup** - Reworked the config test-reset helper, analytics/standings/version logging calls, database cursor context-manager nesting, schema-init state naming, stats cleanup query whitelisting, and ASGI middleware constructor names so the branch stays clean under DeepSource Python review without changing runtime behavior
+- **Background task supervision** - Replaced fire-and-forget `create_task()` call sites for startup generation and web-vitals analytics with supervised background tasks that keep references, log failures, and report exceptions to Sentry instead of dropping them silently
+- **Configurable stats retention** - Extended the scheduled stats cleanup path to cover `api_calls` and `perf_metrics` alongside legacy `request_stats`, but now gate it behind `STATS_RETENTION_DAYS` so deployments keep statistics indefinitely by default and can opt into bounded cleanup only when explicitly configured
+- **Hourly stats history source-of-truth** - Switched `/api/stats/history` to derive hourly and rolling-24h counts directly from persisted `api_calls` so historical stats work against existing production data even when the legacy `request_stats` snapshot table is empty, and rolling windows now stay correct across sparse hourly gaps
+- **Cross-instance DB initialization safety** - Serialized schema initialization and migrations per database path instead of per `Database()` instance so concurrent request-scoped database handles cannot race each other into duplicate `ALTER TABLE` migrations on older SQLite files
+- **ASGI middleware migration** - Replaced `BaseHTTPMiddleware` wrappers for static cache headers and canonical-host/HSTS handling with pure ASGI middleware so streaming responses keep middleware compatibility without sacrificing the existing redirect and cache behavior
+- **Shared outbound HTTP clients** - Reused long-lived `httpx.AsyncClient` instances for Jolpica, Open-Meteo, GitHub release checks, and Umami requests, then closed them during app shutdown so outbound API calls stop paying per-request client setup costs without leaking connections across tests or process exit
+- **Shared HTTP retry helper** - Consolidated the duplicated Jolpica 429 backoff logic into `app.utils.http.fetch_with_retry()` so F1, standings, and teams services share one tested retry path instead of maintaining three drift-prone copies
+- **Config-driven standings endpoints** - Switched standings fetches to derive their Jolpica base URL from `config.JOLPICA_API_URL` and use UTC-aware default-year resolution so mirrored endpoints and year-rollover behavior stay consistent with the rest of the services layer
+- **BMP cache headroom** - Increased the in-memory BMP cache capacity to 512 entries so localized display and weather combinations fit without immediate LRU eviction churn during normal traffic
+- **Non-blocking BMP analytics** - Moved calendar BMP analytics dispatch in the image routes onto supervised background tasks so download responses no longer wait on Umami network round-trips
+- **Configure redirect validation** - Validate configure screen types before localized redirect canonicalization so invalid `/configure/...` language-query permutations return a 404 instead of bubbling a `KeyError` into a 500
+- **Query-safe redirect merging** - Hardened `_redirect_path()` to merge existing canonical query strings with preserved request parameters instead of producing malformed double-`?` redirects if future targets include their own query string
+- **Method-preserving canonical host redirects** - Switched the `www` to apex redirect middleware to HTTP 308 so canonical redirects keep POST request bodies intact for endpoints like `/api/perf-metrics`
+- **Static error cache headers** - Limited static-asset cache headers to successful `/static/...` responses so missing files keep their default `no-store` semantics instead of inheriting public asset caching
+- **Startup task shutdown ordering** - Cancel pending initial image generation before closing shared HTTP clients and database handles so shutdown cannot race a still-running startup task against torn-down resources
+- **Scheduler shutdown drain clarity** - Made scheduler shutdown explicitly wait for in-flight jobs after cancelling the startup generation task so shared HTTP/database resources are only closed once background work has drained
+- **Umami warning deduplication** - Stopped re-raising already-logged non-200 Umami responses so failed analytics calls emit one warning instead of noisy duplicate log lines
+- **Next-race retry parity** - Moved `F1Service.get_next_race()` onto the shared Jolpica retry helper so the primary upcoming-race fetch now retries 429s the same way as the rest of the live API client
+- **Local env example visibility** - Stopped ignoring `.env.local.example` so the checked-in local development template remains visible to contributors while `.env.local` stays untracked
+- **Consistent dev extras** - Aligned `[project.optional-dependencies].dev` with `[dependency-groups].dev` so `pip install -e "[dev]"` and `uv sync --dev` install the same linting, typing, test, and data-science helper toolchain
+- **Consistent byte formatting** - Matched the shared frontend `formatBytes()` helper to the backend decimal-unit formatter so cache/stat sizes render the same KB/MB/GB values across server and browser UI
+- **Shared circuit metadata maps** - Moved the duplicated `CIRCUIT_ID_MAP` and `COUNTRY_MAP` constants into one shared module so renderer and service updates stay in sync across display modes and API helpers
+- **Endpoint rate limiting** - Added lightweight per-IP in-memory throttling for BMP generation and `POST /api/perf-metrics` so expensive image renders and analytics ingestion have a basic abuse guard by default
+- **Zero-valued stats aggregates** - Preserved legitimate `0.0` values in page, trend, aggregate, and 24-hour API stats payloads instead of collapsing them to `None`, so perfect vitals samples and zero-latency operational windows remain visible in dashboards
+- **Safer BMP purge timing** - Deferred deletion of pregenerated BMP assets until after static next-race data is available, so a transiently missing race snapshot no longer wipes the last known-good BMP set before generation can begin
+- **Persistent SQLite connections** - Reworked `Database` to reuse one loop-aware SQLite connection per instance instead of reopening and reconfiguring a fresh connection on every operation, and now close live database handles during app shutdown
+- **Configurable GitHub API base URL** - Moved GitHub release/version requests onto `config.GITHUB_API_BASE_URL` so those external API calls follow the same environment-driven configuration path as the rest of the services
+- **Renderer asset handle cleanup** - Wrapped disk-backed `Image.open()` calls for logos, tracks, flags, driver portraits, and team logos in context-managed loads so PIL image conversions keep returning detached images without leaking file handles during repeated preview and render jobs
+- **Schedule event field naming** - Renamed the internal `ScheduleEvent` timestamp attribute to `event_datetime` while keeping `datetime` as a compatibility alias so model code no longer shadows the imported `datetime` type
+- **Standings metadata extraction** - Moved season-facing driver-number and team-id lookup tables out of `api.py` into a shared utility module so route handlers no longer own that update-prone mapping data
+- **BWR renderer helper deduplication** - Extracted shared track-image and results-header helpers for the BWR and BWRY renderers so multi-color calendar variants stop carrying near-identical fallback and flag-loading logic in parallel
+- **Shared renderer text helpers** - Moved common team-layout and text-measurement helpers out of the 1-bit and Spectra 6 renderers so both primary renderer classes now reuse one source of truth for column splits, truncation, alignment, and team header formatting
+- **Shared schedule label helpers** - Centralized localized session-name normalization and sprint-qualifying label formatting so the monochrome and Spectra 6 renderers no longer maintain duplicate schedule translation logic, and the Spectra 6 results footer now uses the canonical `session_qualifying` / `session_race` translation keys
+- **Sprint-qualifying accent normalization** - Normalize `SprintQualifying`/`SprintShootout`/`Shootout` aliases before Spectra 6 accent-color lookup so sprint-qualifying schedule rows keep their dedicated highlight color instead of silently falling back to black
+- **Shared logo/result text helpers** - Moved team-logo keying, logo crop utilities, and historical-result text fitting into shared renderer helpers so both primary renderers stop carrying duplicate asset-prep logic
+- **Shared results header helper** - Centralized the year/flag footer header renderer so monochrome and Spectra 6 variants share one flag-loading path, including ISO fallback handling for countries like `UK`, `USA`, and `UAE`
+- **Shared new-track message helper** - Moved the centered `NEW TRACK` footer message into a shared renderer helper so monochrome and Spectra 6 variants stop duplicating the same fallback layout math
+- **Shared renderer font fallbacks** - Centralized Symbola, weather-icon, and Racing Sans One fallback loading so the primary renderers reuse one source of truth for icon and number font fallback behavior
+- **Shared driver portrait helper** - Moved surname normalization, racing-number rendering, and portrait resize/paste logic into one shared helper so the monochrome and Spectra 6 team cards stop carrying duplicate driver-photo rendering code
+- **Shared schedule-section helper** - Centralized schedule title rendering, row iteration, and countdown handoff so the monochrome and Spectra 6 calendar renderers reuse one schedule-section layout flow
+- **Shared race-header helper** - Moved the logo/title split-header layout into one shared helper so monochrome and Spectra 6 race views now share the same title-block geometry and text positioning
+- **Shared circuit-stats helper** - Centralized circuit fact composition and right-column stat-block layout so monochrome and Spectra 6 renderers stop duplicating the same lap/length/history rendering logic
+- **Shared track-section helper** - Centralized circuit label layout and track-image placement so monochrome and Spectra 6 renderers now share the same left-column track-section geometry while keeping display-specific image preparation
+- **Shared team-card layout helper** - Centralized the common team-row card geometry, meta-text placement, and logo container math so monochrome and Spectra 6 renderers now share the same card skeleton while keeping display-specific stats and driver-row rendering
+- **Shared countdown-box helper** - Centralized race-status/countdown rendering and optional weather overlay layout so monochrome and Spectra 6 renderers now share one countdown/status box flow with only display colors passed in
+- **Shared team stats/driver-row helpers** - Centralized the repeated team-card stats panel and driver-row rendering flow so monochrome and Spectra 6 renderers now only pass badge colors and text fills instead of maintaining duplicate row logic
+- **Shared track asset loader** - Centralized source/fallback track asset resolution so monochrome and Spectra 6 renderers now share one loader path with only variant suffixes and fallback directories passed in
+- **Shared results-section helper** - Centralized footer separator/new-track branching and qualifying/race column dispatch so monochrome and Spectra 6 renderers now share one historical-results section flow with only display colors and callbacks passed in
+- **Shared multi-color results header helper** - Generalized the shared footer year/flag renderer to accept preferred flag-directory fallback chains and route footer rendering through overridable renderer hooks so B/W/R and B/W/R/Y variants reuse the shared header flow without bypassing their display-specific flag assets
+- **Shared schedule-row helper** - Centralized schedule date/day/time parsing and row text layout so monochrome and Spectra 6 renderers now differ only in the session-name fill color passed into one shared row renderer
+- **Shared track-stem helper** - Centralized circuit-id/location normalization for track asset candidate lookup so monochrome and Spectra 6 renderers now share the same race-data-to-track-stem resolution path before applying display-specific asset fallbacks
+- **Removed team-logo wrapper methods** - Inlined the last display-specific team-logo callback wrappers into the shared team-card flow so monochrome and Spectra 6 renderers no longer carry separate `_draw_team_logo()` pass-through methods
+- **Removed results-header wrapper methods** - Inlined the last monochrome and Spectra 6 results-header pass-through wrappers into the shared footer-section callback wiring so those renderers now call the shared year/flag helper directly
+- **Removed layout utility wrapper methods** - Swapped remaining team-layout callsites and tests over to shared `split_teams_for_columns()`, `get_text_y()`, and `right_align_x()` helpers so the primary renderers no longer carry duplicate pass-through utilities for those calculations
+- **Removed shared formatter wrapper methods** - Rewired remaining team-card/result callsites and tests to use shared `build_team_header_values()`, `format_team_driver_display_name()`, `format_points()`, `clamp_text()`, and `fit_result_text()` helpers directly so the primary renderers no longer keep utility pass-through methods for those common formatting paths
+- **Removed shared logo helper wrapper methods** - Swapped remaining team-logo keying and crop callsites/tests over to shared `get_team_logo_key()`, `crop_to_content()`, and `crop_primary_horizontal_band()` helpers so the primary renderers no longer keep private pass-through utilities for logo preparation
+- **Removed shared schedule i18n wrapper methods** - Rewired remaining schedule/session callsites and tests to use shared `format_schedule_session_name()`, `build_sprint_qualifying_label()`, and `translate_session_name()` helpers directly so the primary renderers no longer keep pass-through i18n wrappers for session labels
+- **Shared F1 logo and track placeholder helpers** - Moved the last identical header-logo and missing-track placeholder drawing logic into `renderer_common` so monochrome and Spectra 6 renderers now share those visual fallbacks instead of keeping duplicate local helpers
+
+### Security
+
+#### Fixed
+
+- **Optional operational API token hardening** - Followed up the original token-gated operational endpoints with release-ready validation, docs, and changelog coverage so deployments can lock down `/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics` without breaking browser-side `POST /api/perf-metrics` web-vitals ingestion
+- **Masked S3 credentials** - Stored S3 access keys as `SecretStr` values and resolved them only at S3 client creation time so accidental config logging and tracebacks no longer expose raw backup credentials
+- **SITE_URL validation** - Added the shared URL validator to `SITE_URL` so malformed canonical host configuration falls back safely instead of leaking invalid redirect/canonical origins
+
+### Development
+
+#### Changed
+
+- **Stable Python baseline** - Relaxed the project runtime/tooling baseline from pre-release Python `3.14.3` to stable Python `3.13` across packaging metadata, Docker images, CI workflows, and local setup docs
+- **Compose quickstart refresh** - Switched the quickstart helper to the modern `docker compose` CLI and removed the obsolete top-level `version` field from `docker-compose.yml`
+- **CI dependency caching and coverage** - Enabled pip dependency caching in the main CI workflow, installed the unified dev extras set directly, and turned on pytest coverage reporting so pull requests surface both test failures and app coverage regressions in one run
+- **Example env sync** - Updated `.env.example` and `.env.local.example` to include the new GitHub API base URL, rate-limiting, operational API token, and statistics-retention settings so deployment templates match the current config surface
+- **Native async pytest style** - Converted the async task and analytics test modules away from `asyncio.run()` wrappers to native `pytest.mark.asyncio` tests so they follow the configured strict asyncio test mode directly
+- **Weather test async migration** - Converted the weather service test suite from nested `asyncio.run()` wrappers to native async pytest cases so async cache and forecast coverage now runs directly under the configured strict event-loop mode
+- **Remaining async test migration** - Converted the shared HTTP client/retry, F1 season, standings, and database async test modules away from `asyncio.run()` wrappers so the remaining service-layer async coverage now runs directly under pytest-managed event loops
+- **Stdlib timezone support** - Replaced `pytz` with a shared `zoneinfo` helper for config validation, request parameter checks, and race schedule conversion so timezone handling now uses the Python standard library across the app
+
 ## [1.2.19] - 2026-03-31
 
 ### Frontend
 
 #### Changed
 
-- **Calendar configure tooltip refresh** - Reworked the weather availability hint into a floating tooltip that follows the pointer, stays clear of the desktop sidebar, and remains keyboard-accessible by using `aria-disabled` state instead of relying on native disabled-button hover behavior
+- **Calendar configure tooltip refresh** - Reworked the weather availability hint into a floating tooltip that follows the pointer, stays clear of the desktop sidebar, and remains accessible across mouse, keyboard, and touch interactions by using `aria-disabled` state instead of relying on native disabled-button hover behavior
 - **Credits wording and layout sync** - Aligned homepage and desktop credits labels with the mobile drawer wording, expanded provider attribution rows, and standardized entries such as `Jolpica-F1 API`, `Weather-icons`, analytics, hosting, and device sources
 
 ### Backend
@@ -26,6 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- **Optional operational API token introduction** - Added the initial opt-in token checks for read-only operational metrics endpoints so deployments can lock down `/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics` without breaking browser-side `POST /api/perf-metrics` web-vitals ingestion
 - **Dependency vulnerability updates** - Bumped `pygments` in `uv.lock` and `picomatch` in `package-lock.json` to patched versions to clear the open GitHub security alerts on the release branch
 
 ### Development

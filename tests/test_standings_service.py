@@ -1,9 +1,11 @@
 """Test standings service."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import AnyHttpUrl
 
+from app.services.http_client import _reset_shared_http_clients_for_tests
 from app.services.standings_service import StandingsService
 
 MOCK_DRIVER_STANDINGS_RESPONSE = {
@@ -92,16 +94,21 @@ class MockResponse:
             raise Exception(f"HTTP {self.status_code}")
 
 
+@pytest.fixture(autouse=True)
+def reset_shared_clients():
+    _reset_shared_http_clients_for_tests()
+    yield
+    _reset_shared_http_clients_for_tests()
+
+
 @pytest.mark.asyncio
 async def test_get_driver_standings():
     service = StandingsService()
     service._cache.clear()
 
-    with patch("httpx.AsyncClient") as mock_client:
+    with patch("app.services.standings_service.httpx.AsyncClient") as mock_client:
         mock_instance = AsyncMock()
         mock_instance.get = AsyncMock(return_value=MockResponse(MOCK_DRIVER_STANDINGS_RESPONSE))
-        mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_instance.__aexit__ = AsyncMock(return_value=None)
         mock_client.return_value = mock_instance
 
         standings = await service.get_driver_standings(2024)
@@ -119,13 +126,11 @@ async def test_get_constructor_standings():
     service = StandingsService()
     service._cache.clear()
 
-    with patch("httpx.AsyncClient") as mock_client:
+    with patch("app.services.standings_service.httpx.AsyncClient") as mock_client:
         mock_instance = AsyncMock()
         mock_instance.get = AsyncMock(
             return_value=MockResponse(MOCK_CONSTRUCTOR_STANDINGS_RESPONSE)
         )
-        mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_instance.__aexit__ = AsyncMock(return_value=None)
         mock_client.return_value = mock_instance
 
         standings = await service.get_constructor_standings(2024)
@@ -145,15 +150,13 @@ async def test_get_all_standings():
     async def mock_get(url):
         if "driverStandings" in url:
             return MockResponse(MOCK_DRIVER_STANDINGS_RESPONSE)
-        elif "constructorStandings" in url:
+        if "constructorStandings" in url:
             return MockResponse(MOCK_CONSTRUCTOR_STANDINGS_RESPONSE)
         raise ValueError(f"Unexpected URL: {url}")
 
-    with patch("httpx.AsyncClient") as mock_client:
+    with patch("app.services.standings_service.httpx.AsyncClient") as mock_client:
         mock_instance = AsyncMock()
-        mock_instance.get = mock_get
-        mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_instance.get = AsyncMock(side_effect=mock_get)
         mock_client.return_value = mock_instance
 
         standings_data = await service.get_all_standings(2024)
@@ -177,11 +180,9 @@ async def test_standings_cache():
         call_count += 1
         return MockResponse(MOCK_DRIVER_STANDINGS_RESPONSE)
 
-    with patch("httpx.AsyncClient") as mock_client:
+    with patch("app.services.standings_service.httpx.AsyncClient") as mock_client:
         mock_instance = AsyncMock()
-        mock_instance.get = mock_get
-        mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_instance.get = AsyncMock(side_effect=mock_get)
         mock_client.return_value = mock_instance
 
         await service.get_driver_standings(2024)
@@ -191,17 +192,47 @@ async def test_standings_cache():
 
 
 @pytest.mark.asyncio
+async def test_standings_use_configured_jolpica_api_base_url():
+    service = StandingsService()
+    service._cache.clear()
+    mock_response = MagicMock()
+    mock_response.json.return_value = MOCK_DRIVER_STANDINGS_RESPONSE
+
+    with (
+        patch(
+            "app.services.standings_service.config.JOLPICA_API_URL",
+            AnyHttpUrl("https://mirror.example.test/ergast/f1"),
+        ),
+        patch(
+            "app.services.standings_service.get_shared_http_client",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "app.services.standings_service.fetch_with_retry",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ) as mock_fetch,
+    ):
+        await service.get_driver_standings(2024)
+        await service.get_constructor_standings(2024)
+
+    fetched_urls = [call.args[1] for call in mock_fetch.await_args_list]
+    assert fetched_urls == [
+        "https://mirror.example.test/ergast/f1/2024/driverStandings.json",
+        "https://mirror.example.test/ergast/f1/2024/constructorStandings.json",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_empty_standings_response():
     service = StandingsService()
     service._cache.clear()
 
     empty_response = {"MRData": {"StandingsTable": {"StandingsLists": []}}}
 
-    with patch("httpx.AsyncClient") as mock_client:
+    with patch("app.services.standings_service.httpx.AsyncClient") as mock_client:
         mock_instance = AsyncMock()
         mock_instance.get = AsyncMock(return_value=MockResponse(empty_response))
-        mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_instance.__aexit__ = AsyncMock(return_value=None)
         mock_client.return_value = mock_instance
 
         standings = await service.get_driver_standings(2024)

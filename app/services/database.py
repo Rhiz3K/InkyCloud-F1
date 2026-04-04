@@ -1,9 +1,13 @@
 """Database service for caching metadata and statistics in SQLite."""
 
+import asyncio
 import logging
+import threading
+import weakref
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
+from typing import AsyncIterator, ClassVar, Optional
 
 import aiosqlite
 
@@ -11,8 +15,19 @@ from app.config import config
 
 logger = logging.getLogger(__name__)
 
+STATS_CLEANUP_QUERIES = {
+    "request_stats": "DELETE FROM request_stats WHERE timestamp < ?",
+    "api_calls": "DELETE FROM api_calls WHERE timestamp < ?",
+    "perf_metrics": "DELETE FROM perf_metrics WHERE timestamp < ?",
+}
+
 
 class Database:
+    _instances: ClassVar[weakref.WeakSet["Database"]] = weakref.WeakSet()
+    initialized_paths: ClassVar[set[str]] = set()
+    schema_init_locks: ClassVar[dict[str, threading.Lock]] = {}
+    schema_state_lock: ClassVar[threading.Lock] = threading.Lock()
+
     """
     Async SQLite database for metadata and statistics.
 
@@ -32,16 +47,57 @@ class Database:
         """
         self.db_path = db_path or config.DATABASE_PATH
         self._ensure_directory()
-        self._initialized = False
+        self._connection: aiosqlite.Connection | None = None
+        self._connection_loop: asyncio.AbstractEventLoop | None = None
+        self._connection_lock = asyncio.Lock()
+        self._instances.add(self)
 
     def _ensure_directory(self) -> None:
         """Ensure the database directory exists."""
         db_dir = Path(self.db_path).parent
         db_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_connection(self) -> aiosqlite.Connection:
-        """Get a database connection context manager with WAL mode enabled."""
-        return aiosqlite.connect(self.db_path)
+    async def _ensure_connection(self) -> aiosqlite.Connection:
+        """Return a persistent connection for this Database instance and event loop."""
+        current_loop = asyncio.get_running_loop()
+
+        async with self._connection_lock:
+            if self._connection is not None and self._connection_loop is current_loop:
+                return self._connection
+
+            if self._connection is not None:
+                try:
+                    await self._connection.close()
+                except Exception:
+                    logger.debug("Failed to close stale database connection", exc_info=True)
+
+            conn = await aiosqlite.connect(self.db_path)
+            await self._configure_connection(conn)
+            self._connection = conn
+            self._connection_loop = current_loop
+            return conn
+
+    @asynccontextmanager
+    async def _get_connection(self) -> AsyncIterator[aiosqlite.Connection]:
+        """Yield the persistent database connection without recreating it per operation."""
+        yield await self._ensure_connection()
+
+    async def close(self) -> None:
+        """Close this instance's persistent connection, if any."""
+        async with self._connection_lock:
+            if self._connection is None:
+                return
+            try:
+                await self._connection.close()
+            finally:
+                self._connection = None
+                self._connection_loop = None
+
+    @classmethod
+    async def close_all(cls) -> None:
+        """Close all live Database instance connections."""
+        for db in list(cls._instances):
+            await db.close()
 
     @staticmethod
     async def _configure_connection(conn: aiosqlite.Connection) -> None:
@@ -51,113 +107,128 @@ class Database:
 
     async def _init_db_if_needed(self) -> None:
         """Initialize database schema if not already done."""
-        if self._initialized:
+        cls = type(self)
+
+        if self.db_path in cls.initialized_paths:
             return
 
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            await conn.executescript(
+        with cls.schema_state_lock:
+            if self.db_path in cls.initialized_paths:
+                return
+            path_lock = cls.schema_init_locks.setdefault(self.db_path, threading.Lock())
+
+        await asyncio.to_thread(path_lock.acquire)
+        try:
+            if self.db_path in cls.initialized_paths:
+                return
+            async with self._get_connection() as conn:
+                await conn.executescript(
+                    """
+                    -- Generated images table
+                    CREATE TABLE IF NOT EXISTS generated_images (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        image_key TEXT UNIQUE NOT NULL,
+                        image_path TEXT NOT NULL,
+                        lang TEXT NOT NULL,
+                        season INTEGER,
+                        round INTEGER,
+                        generated_at TEXT NOT NULL
+                    );
+
+                    -- Cache metadata table
+                    CREATE TABLE IF NOT EXISTS cache_meta (
+                        key TEXT PRIMARY KEY,
+                        value TEXT,
+                        updated_at TEXT NOT NULL
+                    );
+
+                    -- Request statistics table (legacy hourly snapshots)
+                    CREATE TABLE IF NOT EXISTS request_stats (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        hour_count INTEGER NOT NULL,
+                        day_count INTEGER NOT NULL
+                    );
+
+                    -- API calls table (individual call logging)
+                    CREATE TABLE IF NOT EXISTS api_calls (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        endpoint TEXT NOT NULL,
+                        response_time_ms REAL,
+                        response_size_bytes INTEGER,
+                        lang TEXT,
+                        tz TEXT,
+                        year INTEGER,
+                        round INTEGER,
+                        display_type TEXT,
+                        race_name TEXT,
+                        is_auto_selected INTEGER DEFAULT 0
+                    );
+
+                    -- Performance metrics table (Real User Monitoring)
+                    CREATE TABLE IF NOT EXISTS perf_metrics (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        page_path TEXT NOT NULL,
+                        lcp_ms REAL,
+                        cls REAL,
+                        fcp_ms REAL,
+                        ttfb_ms REAL,
+                        inp_ms REAL,
+                        user_agent TEXT,
+                        connection_type TEXT,
+                        device_memory REAL
+                    );
+
+                    -- Circuit weather cache table (batch circuit caching)
+                    CREATE TABLE IF NOT EXISTS circuit_weather (
+                        circuit_id TEXT PRIMARY KEY,
+                        circuit_name TEXT,
+                        temperature_c REAL,
+                        weather_code INTEGER,
+                        precipitation_probability INTEGER,
+                        fetched_at TEXT NOT NULL
+                    );
+
+                    -- Weather cache table (key-based caching with TTL)
+                    CREATE TABLE IF NOT EXISTS weather_cache (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        cache_key TEXT UNIQUE NOT NULL,
+                        temperature_c REAL NOT NULL,
+                        weather_code INTEGER NOT NULL,
+                        precipitation_probability INTEGER NOT NULL,
+                        cached_at TEXT NOT NULL,
+                        expires_at TEXT NOT NULL
+                    );
+
+                    -- Create indexes (note: idx_api_calls_race created after migrations)
+                    CREATE INDEX IF NOT EXISTS idx_images_key ON generated_images(image_key);
+                    CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON request_stats(timestamp);
+                    CREATE INDEX IF NOT EXISTS idx_api_calls_timestamp ON api_calls(timestamp);
+                    CREATE INDEX IF NOT EXISTS idx_perf_metrics_timestamp
+                        ON perf_metrics(timestamp);
+                    CREATE INDEX IF NOT EXISTS idx_weather_cache_key ON weather_cache(cache_key);
+                    CREATE INDEX IF NOT EXISTS idx_weather_cache_expires
+                        ON weather_cache(expires_at);
                 """
-                -- Generated images table
-                CREATE TABLE IF NOT EXISTS generated_images (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    image_key TEXT UNIQUE NOT NULL,
-                    image_path TEXT NOT NULL,
-                    lang TEXT NOT NULL,
-                    season INTEGER,
-                    round INTEGER,
-                    generated_at TEXT NOT NULL
-                );
+                )
+                await conn.commit()
 
-                -- Cache metadata table
-                CREATE TABLE IF NOT EXISTS cache_meta (
-                    key TEXT PRIMARY KEY,
-                    value TEXT,
-                    updated_at TEXT NOT NULL
-                );
+                # Run migrations for existing databases
+                await self._run_migrations(conn)
 
-                -- Request statistics table (legacy hourly snapshots)
-                CREATE TABLE IF NOT EXISTS request_stats (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT NOT NULL,
-                    hour_count INTEGER NOT NULL,
-                    day_count INTEGER NOT NULL
-                );
+                # Create index on year/round AFTER migrations ensure columns exist
+                await conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_api_calls_race ON api_calls(year, round)"
+                )
+                await conn.commit()
 
-                -- API calls table (individual call logging)
-                CREATE TABLE IF NOT EXISTS api_calls (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT NOT NULL,
-                    endpoint TEXT NOT NULL,
-                    response_time_ms REAL,
-                    response_size_bytes INTEGER,
-                    lang TEXT,
-                    tz TEXT,
-                    year INTEGER,
-                    round INTEGER,
-                    display_type TEXT,
-                    race_name TEXT,
-                    is_auto_selected INTEGER DEFAULT 0
-                );
-
-                -- Performance metrics table (Real User Monitoring)
-                CREATE TABLE IF NOT EXISTS perf_metrics (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT NOT NULL,
-                    page_path TEXT NOT NULL,
-                    lcp_ms REAL,
-                    cls REAL,
-                    fcp_ms REAL,
-                    ttfb_ms REAL,
-                    inp_ms REAL,
-                    user_agent TEXT,
-                    connection_type TEXT,
-                    device_memory REAL
-                );
-
-                -- Circuit weather cache table (batch circuit caching)
-                CREATE TABLE IF NOT EXISTS circuit_weather (
-                    circuit_id TEXT PRIMARY KEY,
-                    circuit_name TEXT,
-                    temperature_c REAL,
-                    weather_code INTEGER,
-                    precipitation_probability INTEGER,
-                    fetched_at TEXT NOT NULL
-                );
-
-                -- Weather cache table (key-based caching with TTL)
-                CREATE TABLE IF NOT EXISTS weather_cache (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    cache_key TEXT UNIQUE NOT NULL,
-                    temperature_c REAL NOT NULL,
-                    weather_code INTEGER NOT NULL,
-                    precipitation_probability INTEGER NOT NULL,
-                    cached_at TEXT NOT NULL,
-                    expires_at TEXT NOT NULL
-                );
-
-                -- Create indexes (note: idx_api_calls_race created after migrations)
-                CREATE INDEX IF NOT EXISTS idx_images_key ON generated_images(image_key);
-                CREATE INDEX IF NOT EXISTS idx_stats_timestamp ON request_stats(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_api_calls_timestamp ON api_calls(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_perf_metrics_timestamp ON perf_metrics(timestamp);
-                CREATE INDEX IF NOT EXISTS idx_weather_cache_key ON weather_cache(cache_key);
-                CREATE INDEX IF NOT EXISTS idx_weather_cache_expires ON weather_cache(expires_at);
-            """
-            )
-            await conn.commit()
-
-            # Run migrations for existing databases
-            await self._run_migrations(conn)
-
-            # Create index on year/round AFTER migrations ensure columns exist
-            await conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_api_calls_race ON api_calls(year, round)"
-            )
-            await conn.commit()
-
-            logger.info("Database initialized at %s", self.db_path)
-        self._initialized = True
+                logger.info("Database initialized at %s", self.db_path)
+                with cls.schema_state_lock:
+                    cls.initialized_paths.add(self.db_path)
+        finally:
+            path_lock.release()
 
     @staticmethod
     async def _run_migrations(conn: aiosqlite.Connection) -> None:
@@ -207,7 +278,6 @@ class Database:
         """
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO generated_images
@@ -239,22 +309,22 @@ class Database:
             Path to image file or None
         """
         await self._init_db_if_needed()
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            async with conn.execute(
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
                 "SELECT image_path FROM generated_images WHERE image_key = ?",
                 (image_key,),
-            ) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    return row["image_path"]
-                return None
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+            if row:
+                return row["image_path"]
+            return None
 
     async def set_cache_meta(self, key: str, value: str) -> None:
         """Set a cache metadata value."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO cache_meta (key, value, updated_at)
@@ -270,13 +340,17 @@ class Database:
     async def get_cache_meta(self, key: str) -> Optional[str]:
         """Get a cache metadata value."""
         await self._init_db_if_needed()
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            async with conn.execute("SELECT value FROM cache_meta WHERE key = ?", (key,)) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    return row["value"]
-                return None
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
+                "SELECT value FROM cache_meta WHERE key = ?",
+                (key,),
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+            if row:
+                return row["value"]
+            return None
 
     async def save_request_stats(self, hour_count: int, day_count: int) -> None:
         """
@@ -288,7 +362,6 @@ class Database:
         """
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO request_stats (timestamp, hour_count, day_count)
@@ -301,7 +374,7 @@ class Database:
 
     async def get_request_stats_history(self, limit: int = 168) -> list[dict]:
         """
-        Get historical request statistics.
+        Get historical request statistics derived from stored API calls.
 
         Args:
             limit: Maximum number of records to return (default 168 = 7 days of hourly data)
@@ -310,50 +383,81 @@ class Database:
             List of stats records with timestamp, hour_count, day_count
         """
         await self._init_db_if_needed()
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            async with conn.execute(
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=limit + 24)).isoformat()
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
                 """
+                WITH hourly AS (
+                    SELECT
+                        substr(timestamp, 1, 13) || ':00:00+00:00' AS timestamp,
+                        COUNT(*) AS hour_count
+                    FROM api_calls
+                    WHERE timestamp > ?
+                    GROUP BY substr(timestamp, 1, 13)
+                ),
+                annotated AS (
+                    SELECT
+                        timestamp,
+                        hour_count,
+                        (
+                            SELECT COALESCE(SUM(h2.hour_count), 0)
+                            FROM hourly h2
+                            WHERE datetime(h2.timestamp)
+                                BETWEEN datetime(hourly.timestamp, '-23 hours')
+                                AND datetime(hourly.timestamp)
+                        ) AS day_count
+                    FROM hourly
+                )
                 SELECT timestamp, hour_count, day_count
-                FROM request_stats
+                FROM annotated
                 ORDER BY timestamp DESC
                 LIMIT ?
-                """,
-                (limit,),
-            ) as cursor:
-                rows = await cursor.fetchall()
-                return [
-                    {
-                        "timestamp": row["timestamp"],
-                        "hour_count": row["hour_count"],
-                        "day_count": row["day_count"],
-                    }
-                    for row in rows
-                ]
+            """,
+                (cutoff, limit),
+            ) as cursor,
+        ):
+            rows = await cursor.fetchall()
+            return [
+                {
+                    "timestamp": row["timestamp"],
+                    "hour_count": row["hour_count"],
+                    "day_count": row["day_count"],
+                }
+                for row in rows
+            ]
 
     async def cleanup_old_stats(self, days: int = 30) -> int:
         """
-        Remove request stats older than specified days.
+        Remove stats rows older than specified days across all metrics tables.
 
         Args:
             days: Number of days to keep
 
         Returns:
-            Number of deleted records
+            Number of deleted records across request_stats, api_calls, and perf_metrics
         """
         await self._init_db_if_needed()
         cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        deleted_counts: dict[str, int] = {}
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            cursor = await conn.execute(
-                "DELETE FROM request_stats WHERE timestamp < ?", (cutoff_date,)
-            )
-            deleted = cursor.rowcount
+            for table_name, query in STATS_CLEANUP_QUERIES.items():
+                cursor = await conn.execute(query, (cutoff_date,))
+                deleted_counts[table_name] = cursor.rowcount
+
             await conn.commit()
-            if deleted > 0:
-                logger.info("Cleaned up %s old stats records", deleted)
-            return deleted
+
+        deleted_total = sum(deleted_counts.values())
+        if deleted_total > 0:
+            logger.info(
+                "Cleaned up %s old stats records (request_stats=%s, api_calls=%s, perf_metrics=%s)",
+                deleted_total,
+                deleted_counts.get("request_stats", 0),
+                deleted_counts.get("api_calls", 0),
+                deleted_counts.get("perf_metrics", 0),
+            )
+        return deleted_total
 
     async def save_api_calls_batch(self, calls: list[dict]) -> int:
         """
@@ -372,7 +476,6 @@ class Database:
 
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.executemany(
                 """
                 INSERT INTO api_calls
@@ -414,32 +517,33 @@ class Database:
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
 
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            async with conn.execute(
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
                 """
-                SELECT
-                    COUNT(*) as count,
-                    AVG(response_time_ms) as avg_ms,
-                    COALESCE(SUM(response_size_bytes), 0) as total_bytes
-                FROM api_calls
-                WHERE timestamp > ?
-                """,
+            SELECT
+                COUNT(*) as count,
+                AVG(response_time_ms) as avg_ms,
+                COALESCE(SUM(response_size_bytes), 0) as total_bytes
+            FROM api_calls
+            WHERE timestamp > ?
+            """,
                 (cutoff,),
-            ) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    avg_ms = round(row["avg_ms"], 1) if row["avg_ms"] else None
-                    return {
-                        "count_24h": row["count"] or 0,
-                        "avg_response_ms": avg_ms,
-                        "total_bytes_24h": row["total_bytes"] or 0,
-                    }
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+            if row:
+                avg_ms = round(row["avg_ms"], 1) if row["avg_ms"] is not None else None
                 return {
-                    "count_24h": 0,
-                    "avg_response_ms": None,
-                    "total_bytes_24h": 0,
+                    "count_24h": row["count"] or 0,
+                    "avg_response_ms": avg_ms,
+                    "total_bytes_24h": row["total_bytes"] or 0,
                 }
+            return {
+                "count_24h": 0,
+                "avg_response_ms": None,
+                "total_bytes_24h": 0,
+            }
 
     async def get_stats_for_range(self, hours: int) -> dict:
         """
@@ -457,8 +561,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-
             # Basic stats: count, response times, data transfer
             async with conn.execute(
                 """
@@ -639,14 +741,15 @@ class Database:
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            async with conn.execute(
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
                 "SELECT COUNT(*) as count FROM api_calls WHERE timestamp > ?",
                 (cutoff,),
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row["count"] if row else 0
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+            return row["count"] if row else 0
 
     async def get_popular_tz_variants(
         self,
@@ -673,30 +776,29 @@ class Database:
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            async with conn.execute(
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
                 """
-                SELECT lang, tz, COUNT(*) as count
-                FROM api_calls
-                WHERE timestamp > ?
-                  AND endpoint = '/calendar.bmp'
-                  AND tz IS NOT NULL
-                  AND tz != ''
-                  AND tz != ?
-                  AND year IS NULL
-                  AND round IS NULL
-                GROUP BY lang, tz
-                HAVING COUNT(*) >= ?
-                ORDER BY count DESC
-                LIMIT ?
-                """,
+            SELECT lang, tz, COUNT(*) as count
+            FROM api_calls
+            WHERE timestamp > ?
+              AND endpoint = '/calendar.bmp'
+              AND tz IS NOT NULL
+              AND tz != ''
+              AND tz != ?
+              AND year IS NULL
+              AND round IS NULL
+            GROUP BY lang, tz
+            HAVING COUNT(*) >= ?
+            ORDER BY count DESC
+            LIMIT ?
+            """,
                 (cutoff, exclude_tz, min_requests, limit),
-            ) as cursor:
-                rows = await cursor.fetchall()
-                return [
-                    {"lang": row["lang"], "tz": row["tz"], "count": row["count"]} for row in rows
-                ]
+            ) as cursor,
+        ):
+            rows = await cursor.fetchall()
+            return [{"lang": row["lang"], "tz": row["tz"], "count": row["count"]} for row in rows]
 
     async def save_perf_metric(
         self,
@@ -713,7 +815,6 @@ class Database:
         """Persist a single client-side performance metric payload."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO perf_metrics
@@ -742,8 +843,6 @@ class Database:
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-
             # Get aggregate stats
             async with conn.execute(
                 """
@@ -828,35 +927,35 @@ class Database:
             return {
                 "sample_count": row["sample_count"],
                 "lcp": {
-                    "avg": round(row["avg_lcp"], 0) if row["avg_lcp"] else None,
-                    "min": round(row["min_lcp"], 0) if row["min_lcp"] else None,
-                    "max": round(row["max_lcp"], 0) if row["max_lcp"] else None,
+                    "avg": round(row["avg_lcp"], 0) if row["avg_lcp"] is not None else None,
+                    "min": round(row["min_lcp"], 0) if row["min_lcp"] is not None else None,
+                    "max": round(row["max_lcp"], 0) if row["max_lcp"] is not None else None,
                     "p50": self._calculate_percentile(lcp_values, 50),
                     "p75": self._calculate_percentile(lcp_values, 75),
                     "p95": self._calculate_percentile(lcp_values, 95),
                 },
                 "cls": {
-                    "avg": round(row["avg_cls"], 3) if row["avg_cls"] else None,
+                    "avg": round(row["avg_cls"], 3) if row["avg_cls"] is not None else None,
                     "p50": self._calculate_percentile_fine(cls_values, 50),
                     "p75": self._calculate_percentile_fine(cls_values, 75),
                     "p95": self._calculate_percentile_fine(cls_values, 95),
                 },
                 "fcp": {
-                    "avg": round(row["avg_fcp"], 0) if row["avg_fcp"] else None,
+                    "avg": round(row["avg_fcp"], 0) if row["avg_fcp"] is not None else None,
                     "p50": self._calculate_percentile(fcp_values, 50),
                     "p75": self._calculate_percentile(fcp_values, 75),
                     "p95": self._calculate_percentile(fcp_values, 95),
                 },
                 "ttfb": {
-                    "avg": round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None,
-                    "min": round(row["min_ttfb"], 0) if row["min_ttfb"] else None,
-                    "max": round(row["max_ttfb"], 0) if row["max_ttfb"] else None,
+                    "avg": round(row["avg_ttfb"], 0) if row["avg_ttfb"] is not None else None,
+                    "min": round(row["min_ttfb"], 0) if row["min_ttfb"] is not None else None,
+                    "max": round(row["max_ttfb"], 0) if row["max_ttfb"] is not None else None,
                     "p50": self._calculate_percentile(ttfb_values, 50),
                     "p75": self._calculate_percentile(ttfb_values, 75),
                     "p95": self._calculate_percentile(ttfb_values, 95),
                 },
                 "inp": {
-                    "avg": round(row["avg_inp"], 0) if row["avg_inp"] else None,
+                    "avg": round(row["avg_inp"], 0) if row["avg_inp"] is not None else None,
                     "p50": self._calculate_percentile(inp_values, 50),
                     "p75": self._calculate_percentile(inp_values, 75),
                     "p95": self._calculate_percentile(inp_values, 95),
@@ -868,38 +967,38 @@ class Database:
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-
-            async with conn.execute(
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
                 """
-                SELECT
-                    page_path,
-                    COUNT(*) as sample_count,
-                    AVG(lcp_ms) as avg_lcp,
-                    AVG(cls) as avg_cls,
-                    AVG(fcp_ms) as avg_fcp,
-                    AVG(ttfb_ms) as avg_ttfb
-                FROM perf_metrics
-                WHERE timestamp > ?
-                GROUP BY page_path
-                ORDER BY sample_count DESC
-                LIMIT 10
-                """,
+            SELECT
+                page_path,
+                COUNT(*) as sample_count,
+                AVG(lcp_ms) as avg_lcp,
+                AVG(cls) as avg_cls,
+                AVG(fcp_ms) as avg_fcp,
+                AVG(ttfb_ms) as avg_ttfb
+            FROM perf_metrics
+            WHERE timestamp > ?
+            GROUP BY page_path
+            ORDER BY sample_count DESC
+            LIMIT 10
+            """,
                 (cutoff,),
-            ) as cursor:
-                rows = await cursor.fetchall()
-                return [
-                    {
-                        "page": row["page_path"],
-                        "samples": row["sample_count"],
-                        "lcp": round(row["avg_lcp"], 0) if row["avg_lcp"] else None,
-                        "cls": round(row["avg_cls"], 3) if row["avg_cls"] else None,
-                        "fcp": round(row["avg_fcp"], 0) if row["avg_fcp"] else None,
-                        "ttfb": round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None,
-                    }
-                    for row in rows
-                ]
+            ) as cursor,
+        ):
+            rows = await cursor.fetchall()
+            return [
+                {
+                    "page": row["page_path"],
+                    "samples": row["sample_count"],
+                    "lcp": round(row["avg_lcp"], 0) if row["avg_lcp"] is not None else None,
+                    "cls": round(row["avg_cls"], 3) if row["avg_cls"] is not None else None,
+                    "fcp": round(row["avg_fcp"], 0) if row["avg_fcp"] is not None else None,
+                    "ttfb": round(row["avg_ttfb"], 0) if row["avg_ttfb"] is not None else None,
+                }
+                for row in rows
+            ]
 
     @staticmethod
     def _calculate_percentile(values: list[float], percentile: int) -> float | None:
@@ -942,34 +1041,39 @@ class Database:
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-
-            async with conn.execute(
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
                 """
-                SELECT
-                    strftime('%Y-%m-%d %H:00', timestamp) as hour,
-                    AVG(lcp_ms) as avg_lcp,
-                    AVG(fcp_ms) as avg_fcp,
-                    AVG(ttfb_ms) as avg_ttfb,
-                    COUNT(*) as samples
-                FROM perf_metrics
-                WHERE timestamp > ?
-                GROUP BY hour
-                ORDER BY hour ASC
-                """,
+            SELECT
+                strftime('%Y-%m-%d %H:00', timestamp) as hour,
+                AVG(lcp_ms) as avg_lcp,
+                AVG(fcp_ms) as avg_fcp,
+                AVG(ttfb_ms) as avg_ttfb,
+                COUNT(*) as samples
+            FROM perf_metrics
+            WHERE timestamp > ?
+            GROUP BY hour
+            ORDER BY hour ASC
+            """,
                 (cutoff,),
-            ) as cursor:
-                rows = await cursor.fetchall()
-                return {
-                    "hours": [row["hour"] for row in rows],
-                    "lcp": [round(row["avg_lcp"], 0) if row["avg_lcp"] else None for row in rows],
-                    "fcp": [round(row["avg_fcp"], 0) if row["avg_fcp"] else None for row in rows],
-                    "ttfb": [
-                        round(row["avg_ttfb"], 0) if row["avg_ttfb"] else None for row in rows
-                    ],
-                    "samples": [row["samples"] for row in rows],
-                }
+            ) as cursor,
+        ):
+            rows = await cursor.fetchall()
+            return {
+                "hours": [row["hour"] for row in rows],
+                "lcp": [
+                    round(row["avg_lcp"], 0) if row["avg_lcp"] is not None else None for row in rows
+                ],
+                "fcp": [
+                    round(row["avg_fcp"], 0) if row["avg_fcp"] is not None else None for row in rows
+                ],
+                "ttfb": [
+                    round(row["avg_ttfb"], 0) if row["avg_ttfb"] is not None else None
+                    for row in rows
+                ],
+                "samples": [row["samples"] for row in rows],
+            }
 
     # =========================================================================
     # Circuit Weather Cache Methods (batch circuit caching)
@@ -986,7 +1090,6 @@ class Database:
         """Store or update cached weather for a circuit (upsert)."""
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO circuit_weather
@@ -1014,48 +1117,50 @@ class Database:
     async def get_circuit_weather(self, circuit_id: str) -> Optional[dict]:
         """Retrieve cached weather data for a circuit (may be stale)."""
         await self._init_db_if_needed()
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            async with conn.execute(
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
                 """
-                SELECT temperature_c, weather_code, precipitation_probability, fetched_at
-                FROM circuit_weather
-                WHERE circuit_id = ?
-                """,
+            SELECT temperature_c, weather_code, precipitation_probability, fetched_at
+            FROM circuit_weather
+            WHERE circuit_id = ?
+            """,
                 (circuit_id,),
-            ) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    return {
-                        "temperature_c": row["temperature_c"],
-                        "weather_code": row["weather_code"],
-                        "precipitation_probability": row["precipitation_probability"],
-                        "fetched_at": row["fetched_at"],
-                    }
-                return None
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+            if row:
+                return {
+                    "temperature_c": row["temperature_c"],
+                    "weather_code": row["weather_code"],
+                    "precipitation_probability": row["precipitation_probability"],
+                    "fetched_at": row["fetched_at"],
+                }
+            return None
 
     async def load_all_circuit_weather(self) -> dict[str, dict]:
         """Load all cached circuit weather records from the database."""
         await self._init_db_if_needed()
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            async with conn.execute(
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
                 """
-                SELECT circuit_id, temperature_c, weather_code,
-                       precipitation_probability, fetched_at
-                FROM circuit_weather
-                """
-            ) as cursor:
-                rows = await cursor.fetchall()
-                return {
-                    row["circuit_id"]: {
-                        "temperature_c": row["temperature_c"],
-                        "weather_code": row["weather_code"],
-                        "precipitation_probability": row["precipitation_probability"],
-                        "fetched_at": row["fetched_at"],
-                    }
-                    for row in rows
+            SELECT circuit_id, temperature_c, weather_code,
+                   precipitation_probability, fetched_at
+            FROM circuit_weather
+            """
+            ) as cursor,
+        ):
+            rows = await cursor.fetchall()
+            return {
+                row["circuit_id"]: {
+                    "temperature_c": row["temperature_c"],
+                    "weather_code": row["weather_code"],
+                    "precipitation_probability": row["precipitation_probability"],
+                    "fetched_at": row["fetched_at"],
                 }
+                for row in rows
+            }
 
     # =========================================================================
     # Weather Cache Methods (key-based caching with TTL)
@@ -1075,7 +1180,6 @@ class Database:
         expires_at = now + timedelta(minutes=ttl_minutes)
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             await conn.execute(
                 """
                 INSERT INTO weather_cache
@@ -1105,24 +1209,25 @@ class Database:
         await self._init_db_if_needed()
         now = datetime.now(timezone.utc).isoformat()
 
-        async with self._get_connection() as conn:
-            await self._configure_connection(conn)
-            async with conn.execute(
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
                 """
-                SELECT temperature_c, weather_code, precipitation_probability
-                FROM weather_cache
-                WHERE cache_key = ? AND expires_at > ?
-                """,
+            SELECT temperature_c, weather_code, precipitation_probability
+            FROM weather_cache
+            WHERE cache_key = ? AND expires_at > ?
+            """,
                 (cache_key, now),
-            ) as cursor:
-                row = await cursor.fetchone()
-                if row:
-                    return (
-                        row["temperature_c"],
-                        row["weather_code"],
-                        row["precipitation_probability"],
-                    )
-                return None
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+            if row:
+                return (
+                    row["temperature_c"],
+                    row["weather_code"],
+                    row["precipitation_probability"],
+                )
+            return None
 
     async def cleanup_expired_weather_cache(self) -> int:
         """Remove expired weather cache entries."""
@@ -1130,7 +1235,6 @@ class Database:
         now = datetime.now(timezone.utc).isoformat()
 
         async with self._get_connection() as conn:
-            await self._configure_connection(conn)
             cursor = await conn.execute(
                 "DELETE FROM weather_cache WHERE expires_at <= ?",
                 (now,),

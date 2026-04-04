@@ -200,7 +200,7 @@ AGENTS.md
 
 # Local environment files
 .env.local
-.env.local.example
+!.env.local.example
 
 # Auto-generated files
 .auto-claude/

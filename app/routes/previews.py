@@ -27,8 +27,8 @@ def _bmp_to_png(
     bmp_data: bytes, width: int = 400, full_size: bool = False, preserve_color: bool = False
 ) -> bytes:
     """Convert a rendered BMP into a PNG preview."""
-    img_file = Image.open(BytesIO(bmp_data))
-    img = img_file.convert("RGB" if preserve_color else "L")
+    with Image.open(BytesIO(bmp_data)) as img_file:
+        img = img_file.convert("RGB" if preserve_color else "L")
 
     if not full_size:
         ratio = width / img.width

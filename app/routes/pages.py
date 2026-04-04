@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import markdown
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -29,6 +29,41 @@ _DISPLAY_TYPE_LABELS = {
     "bwry": "B/W/R/Y",
 }
 _VALID_SCREEN_TYPES = {"calendar", "teams"}
+_STATS_TIME_RANGES = ("1h", "24h", "7d", "30d", "365d")
+_STATIC_CANONICAL_PATHS = {
+    "privacy": "/privacy",
+    "changelog": "/changelog",
+    "api_docs": "/api/docs/html",
+    "stats": "/stats",
+}
+_LOCALIZED_ROOT_PATHS = {lang: "/" if lang == "en" else f"/{lang}/" for lang in VALID_LANGUAGES}
+_LOCALIZED_CANONICAL_PATHS = {
+    page_key: {
+        lang: canonical_path if lang == "en" else f"/{lang}{canonical_path}"
+        for lang in VALID_LANGUAGES
+    }
+    for page_key, canonical_path in _STATIC_CANONICAL_PATHS.items()
+}
+_LOCALIZED_CONFIGURE_PATHS = {
+    lang: {
+        screen_type: (
+            f"/configure/{screen_type}" if lang == "en" else f"/{lang}/configure/{screen_type}"
+        )
+        for screen_type in sorted(_VALID_SCREEN_TYPES)
+    }
+    for lang in VALID_LANGUAGES
+}
+_LOCALIZED_STATS_PATHS = {
+    lang: {
+        time_range: (
+            _LOCALIZED_CANONICAL_PATHS["stats"][lang]
+            if time_range == "24h"
+            else f"{_LOCALIZED_CANONICAL_PATHS['stats'][lang]}?range={time_range}"
+        )
+        for time_range in _STATS_TIME_RANGES
+    }
+    for lang in VALID_LANGUAGES
+}
 
 
 def _strip_empty_unreleased_section(changelog_text: str) -> str:
@@ -80,20 +115,56 @@ def _redirect_path(
     ):
         raise ValueError(f"Redirect target must stay on-site: {target_path}")
 
-    query = request.url.query if preserve_query else ""
-    target = f"{target_path}?{query}" if query else target_path
-    return RedirectResponse(url=target, status_code=301)
+    if preserve_query and request.url.query:
+        merged_query = parse_qsl(target_parts.query, keep_blank_values=True)
+        merged_query.extend(parse_qsl(request.url.query, keep_blank_values=True))
+        target_path = urlunsplit(
+            (
+                "",
+                "",
+                target_parts.path,
+                urlencode(merged_query, doseq=True),
+                target_parts.fragment,
+            )
+        )
+
+    return RedirectResponse(url=target_path, status_code=301)
 
 
-def _redirect_localized_path(
-    request: Request, lang_prefix: str, canonical_path: str
+def _canonical_root_path(lang_prefix: str) -> str:
+    """Return the canonical root path for a validated UI language."""
+    return _LOCALIZED_ROOT_PATHS[lang_prefix]
+
+
+def _canonical_page_path(page_key: str, lang_prefix: str) -> str:
+    """Return the canonical localized path for a static public page."""
+    return _LOCALIZED_CANONICAL_PATHS[page_key][lang_prefix]
+
+
+def _validate_screen_type(screen_type: str) -> str:
+    """Return a validated configure screen type or raise a localized 404."""
+    if screen_type not in _VALID_SCREEN_TYPES:
+        raise HTTPException(status_code=404, detail="Unknown screen type")
+    return screen_type
+
+
+def _canonical_configure_path(lang_prefix: str, screen_type: str) -> str:
+    """Return the canonical localized configure path for a validated screen type."""
+    return _LOCALIZED_CONFIGURE_PATHS[lang_prefix][_validate_screen_type(screen_type)]
+
+
+def _canonical_stats_path(lang_prefix: str, time_range: str) -> str:
+    """Return the canonical localized stats path for a validated range."""
+    return _LOCALIZED_STATS_PATHS[lang_prefix][time_range]
+
+
+def _redirect_localized_public_page(
+    request: Request, lang_prefix: str, page_key: str
 ) -> RedirectResponse:
     """Redirect a localized public URL to its canonical path or 404 for unknown languages."""
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
-    if lang_prefix == "en":
-        return _redirect_path(request, canonical_path)
-    return _redirect_path(request, f"/{lang_prefix}{canonical_path}")
+    return _redirect_path(request, _canonical_page_path(page_key, lang_prefix))
 
 
 # ============================================================================
@@ -134,7 +205,7 @@ async def _home_handler(request: Request, ui_lang: str) -> HTMLResponse:
 async def root(request: Request, lang: str = Query(default=None)):
     """Home page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        return _redirect_path(request, f"/{lang}/", preserve_query=False)
+        return _redirect_path(request, _canonical_root_path(lang), preserve_query=False)
     if lang is not None and lang not in VALID_LANGUAGES:
         return _redirect_path(request, "/", preserve_query=False)
     if request.method == "HEAD":
@@ -150,7 +221,7 @@ async def root_lang(request: Request, lang_prefix: str, lang: str = Query(defaul
     if lang_prefix == "en":
         return _redirect_path(request, "/", preserve_query=False)
     if lang is not None:
-        return _redirect_path(request, f"/{lang_prefix}/", preserve_query=False)
+        return _redirect_path(request, _canonical_root_path(lang_prefix), preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _home_handler(request, lang_prefix)
@@ -190,7 +261,7 @@ async def configure_screen_slash_redirect(request: Request, screen_type: str):
     """Normalize configure page URLs to the canonical no-trailing-slash form."""
     if screen_type not in _VALID_SCREEN_TYPES:
         raise HTTPException(status_code=404, detail="Unknown screen type")
-    return _redirect_path(request, f"/configure/{screen_type}")
+    return _redirect_path(request, _canonical_configure_path("en", screen_type))
 
 
 @router.api_route(
@@ -198,10 +269,15 @@ async def configure_screen_slash_redirect(request: Request, screen_type: str):
 )
 async def configure_screen(request: Request, screen_type: str, lang: str = Query(default=None)):
     """Configure page (English default)."""
+    screen_type = _validate_screen_type(screen_type)
     if lang in VALID_LANGUAGES and lang != "en":
-        return _redirect_path(request, f"/{lang}/configure/{screen_type}", preserve_query=False)
+        return _redirect_path(
+            request, _canonical_configure_path(lang, screen_type), preserve_query=False
+        )
     if lang is not None and lang not in VALID_LANGUAGES:
-        return _redirect_path(request, f"/configure/{screen_type}", preserve_query=False)
+        return _redirect_path(
+            request, _canonical_configure_path("en", screen_type), preserve_query=False
+        )
     if request.method == "HEAD":
         return _head_ok()
     return await _configure_handler(request, screen_type, "en")
@@ -221,8 +297,8 @@ async def configure_screen_lang_slash_redirect(
     if screen_type not in _VALID_SCREEN_TYPES:
         raise HTTPException(status_code=404, detail="Unknown screen type")
     if lang_prefix == "en":
-        return _redirect_path(request, f"/configure/{screen_type}")
-    return _redirect_path(request, f"/{lang_prefix}/configure/{screen_type}")
+        return _redirect_path(request, _canonical_configure_path("en", screen_type))
+    return _redirect_path(request, _canonical_configure_path(lang_prefix, screen_type))
 
 
 @router.api_route(
@@ -234,13 +310,16 @@ async def configure_screen_lang(
     request: Request, lang_prefix: str, screen_type: str, lang: str = Query(default=None)
 ):
     """Configure page with language prefix."""
+    screen_type = _validate_screen_type(screen_type)
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
-        return _redirect_path(request, f"/configure/{screen_type}", preserve_query=False)
+        return _redirect_path(
+            request, _canonical_configure_path("en", screen_type), preserve_query=False
+        )
     if lang is not None:
         return _redirect_path(
-            request, f"/{lang_prefix}/configure/{screen_type}", preserve_query=False
+            request, _canonical_configure_path(lang_prefix, screen_type), preserve_query=False
         )
     if request.method == "HEAD":
         return _head_ok()
@@ -272,9 +351,9 @@ async def _privacy_handler(request: Request, ui_lang: str) -> HTMLResponse:
 async def privacy(request: Request, lang: str = Query(default=None)):
     """Privacy page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        return _redirect_path(request, f"/{lang}/privacy", preserve_query=False)
+        return _redirect_path(request, _canonical_page_path("privacy", lang), preserve_query=False)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return _redirect_path(request, "/privacy", preserve_query=False)
+        return _redirect_path(request, _canonical_page_path("privacy", "en"), preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _privacy_handler(request, "en")
@@ -283,7 +362,7 @@ async def privacy(request: Request, lang: str = Query(default=None)):
 @router.api_route("/privacy/", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def privacy_slash_redirect(request: Request):
     """Normalize privacy URLs to the canonical no-trailing-slash form."""
-    return _redirect_path(request, "/privacy")
+    return _redirect_path(request, _canonical_page_path("privacy", "en"))
 
 
 @router.api_route(
@@ -294,9 +373,11 @@ async def privacy_lang(request: Request, lang_prefix: str, lang: str = Query(def
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
-        return _redirect_path(request, "/privacy", preserve_query=False)
+        return _redirect_path(request, _canonical_page_path("privacy", "en"), preserve_query=False)
     if lang is not None:
-        return _redirect_path(request, f"/{lang_prefix}/privacy", preserve_query=False)
+        return _redirect_path(
+            request, _canonical_page_path("privacy", lang_prefix), preserve_query=False
+        )
     if request.method == "HEAD":
         return _head_ok()
     return await _privacy_handler(request, lang_prefix)
@@ -307,7 +388,7 @@ async def privacy_lang(request: Request, lang_prefix: str, lang: str = Query(def
 )
 async def privacy_lang_slash_redirect(request: Request, lang_prefix: str):
     """Normalize localized privacy URLs to the canonical no-trailing-slash form."""
-    return _redirect_localized_path(request, lang_prefix, "/privacy")
+    return _redirect_localized_public_page(request, lang_prefix, "privacy")
 
 
 # ============================================================================
@@ -356,9 +437,13 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
 async def changelog(request: Request, lang: str = Query(default=None)):
     """Changelog page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        return _redirect_path(request, f"/{lang}/changelog", preserve_query=False)
+        return _redirect_path(
+            request, _canonical_page_path("changelog", lang), preserve_query=False
+        )
     if lang is not None and lang not in VALID_LANGUAGES:
-        return _redirect_path(request, "/changelog", preserve_query=False)
+        return _redirect_path(
+            request, _canonical_page_path("changelog", "en"), preserve_query=False
+        )
     if request.method == "HEAD":
         return _head_ok()
     return await _changelog_handler(request, "en")
@@ -367,7 +452,7 @@ async def changelog(request: Request, lang: str = Query(default=None)):
 @router.api_route("/changelog/", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def changelog_slash_redirect(request: Request):
     """Normalize changelog URLs to the canonical no-trailing-slash form."""
-    return _redirect_path(request, "/changelog")
+    return _redirect_path(request, _canonical_page_path("changelog", "en"))
 
 
 @router.api_route(
@@ -378,9 +463,13 @@ async def changelog_lang(request: Request, lang_prefix: str, lang: str = Query(d
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
-        return _redirect_path(request, "/changelog", preserve_query=False)
+        return _redirect_path(
+            request, _canonical_page_path("changelog", "en"), preserve_query=False
+        )
     if lang is not None:
-        return _redirect_path(request, f"/{lang_prefix}/changelog", preserve_query=False)
+        return _redirect_path(
+            request, _canonical_page_path("changelog", lang_prefix), preserve_query=False
+        )
     if request.method == "HEAD":
         return _head_ok()
     return await _changelog_handler(request, lang_prefix)
@@ -391,7 +480,7 @@ async def changelog_lang(request: Request, lang_prefix: str, lang: str = Query(d
 )
 async def changelog_lang_slash_redirect(request: Request, lang_prefix: str):
     """Normalize localized changelog URLs to the canonical no-trailing-slash form."""
-    return _redirect_localized_path(request, lang_prefix, "/changelog")
+    return _redirect_localized_public_page(request, lang_prefix, "changelog")
 
 
 # ============================================================================
@@ -421,9 +510,9 @@ async def _api_docs_handler(request: Request, ui_lang: str) -> HTMLResponse:
 async def api_docs_html(request: Request, lang: str = Query(default=None)):
     """API docs page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        return _redirect_path(request, f"/{lang}/api/docs/html", preserve_query=False)
+        return _redirect_path(request, _canonical_page_path("api_docs", lang), preserve_query=False)
     if lang is not None and lang not in VALID_LANGUAGES:
-        return _redirect_path(request, "/api/docs/html", preserve_query=False)
+        return _redirect_path(request, _canonical_page_path("api_docs", "en"), preserve_query=False)
     if request.method == "HEAD":
         return _head_ok()
     return await _api_docs_handler(request, "en")
@@ -432,7 +521,7 @@ async def api_docs_html(request: Request, lang: str = Query(default=None)):
 @router.api_route("/api/docs/html/", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def api_docs_html_slash_redirect(request: Request):
     """Normalize API docs URLs to the canonical no-trailing-slash form."""
-    return _redirect_path(request, "/api/docs/html")
+    return _redirect_path(request, _canonical_page_path("api_docs", "en"))
 
 
 @router.api_route(
@@ -445,9 +534,11 @@ async def api_docs_html_lang(request: Request, lang_prefix: str, lang: str = Que
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
-        return _redirect_path(request, "/api/docs/html", preserve_query=False)
+        return _redirect_path(request, _canonical_page_path("api_docs", "en"), preserve_query=False)
     if lang is not None:
-        return _redirect_path(request, f"/{lang_prefix}/api/docs/html", preserve_query=False)
+        return _redirect_path(
+            request, _canonical_page_path("api_docs", lang_prefix), preserve_query=False
+        )
     if request.method == "HEAD":
         return _head_ok()
     return await _api_docs_handler(request, lang_prefix)
@@ -460,7 +551,7 @@ async def api_docs_html_lang(request: Request, lang_prefix: str, lang: str = Que
 )
 async def api_docs_html_lang_slash_redirect(request: Request, lang_prefix: str):
     """Normalize localized API docs URLs to the canonical no-trailing-slash form."""
-    return _redirect_localized_path(request, lang_prefix, "/api/docs/html")
+    return _redirect_localized_public_page(request, lang_prefix, "api_docs")
 
 
 # ============================================================================
@@ -474,9 +565,12 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
     hours = hours_map.get(time_range, 24)
 
     db = Database()
-    stats = await db.get_stats_for_range(hours)
-    _enrich_display_type_stats(stats)
-    perf_stats = await db.get_perf_stats(hours)
+    try:
+        stats = await db.get_stats_for_range(hours)
+        _enrich_display_type_stats(stats)
+        perf_stats = await db.get_perf_stats(hours)
+    finally:
+        await db.close()
 
     base_url = lang_url("/stats", ui_lang)
     url = f"{base_url}?range={time_range}" if time_range != "24h" else base_url
@@ -512,15 +606,13 @@ async def stats_dashboard(
 ):
     """Stats page (English default)."""
     if lang in VALID_LANGUAGES and lang != "en":
-        redirect_url = f"/{lang}/stats"
-        if time_range != "24h":
-            redirect_url += f"?range={time_range}"
-        return _redirect_path(request, redirect_url, preserve_query=False)
+        return _redirect_path(
+            request, _canonical_stats_path(lang, time_range), preserve_query=False
+        )
     if lang is not None and lang not in VALID_LANGUAGES:
-        redirect_url = "/stats"
-        if time_range != "24h":
-            redirect_url += f"?range={time_range}"
-        return _redirect_path(request, redirect_url, preserve_query=False)
+        return _redirect_path(
+            request, _canonical_stats_path("en", time_range), preserve_query=False
+        )
     if request.method == "HEAD":
         return _head_ok()
     return await _stats_handler(request, time_range, "en")
@@ -529,7 +621,7 @@ async def stats_dashboard(
 @router.api_route("/stats/", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def stats_dashboard_slash_redirect(request: Request):
     """Normalize stats URLs to the canonical no-trailing-slash form."""
-    return _redirect_path(request, "/stats")
+    return _redirect_path(request, _canonical_page_path("stats", "en"))
 
 
 @router.api_route("/{lang_prefix}/stats", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
@@ -543,15 +635,13 @@ async def stats_dashboard_lang(
     if lang_prefix not in VALID_LANGUAGES:
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
-        redirect_url = "/stats"
-        if time_range != "24h":
-            redirect_url += f"?range={time_range}"
-        return _redirect_path(request, redirect_url, preserve_query=False)
+        return _redirect_path(
+            request, _canonical_stats_path("en", time_range), preserve_query=False
+        )
     if lang is not None:
-        redirect_url = f"/{lang_prefix}/stats"
-        if time_range != "24h":
-            redirect_url += f"?range={time_range}"
-        return _redirect_path(request, redirect_url, preserve_query=False)
+        return _redirect_path(
+            request, _canonical_stats_path(lang_prefix, time_range), preserve_query=False
+        )
     if request.method == "HEAD":
         return _head_ok()
     return await _stats_handler(request, time_range, lang_prefix)
@@ -560,7 +650,7 @@ async def stats_dashboard_lang(
 @router.api_route("/{lang_prefix}/stats/", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
 async def stats_dashboard_lang_slash_redirect(request: Request, lang_prefix: str):
     """Normalize localized stats URLs to the canonical no-trailing-slash form."""
-    return _redirect_localized_path(request, lang_prefix, "/stats")
+    return _redirect_localized_public_page(request, lang_prefix, "stats")
 
 
 @router.api_route("/{lang_prefix}", methods=_HTML_ROUTE_METHODS, response_class=HTMLResponse)
@@ -570,4 +660,4 @@ async def root_lang_no_slash(request: Request, lang_prefix: str):
         raise HTTPException(status_code=404, detail="Not found")
     if lang_prefix == "en":
         return _redirect_path(request, "/", preserve_query=False)
-    return _redirect_path(request, f"/{lang_prefix}/", preserve_query=False)
+    return _redirect_path(request, _canonical_root_path(lang_prefix), preserve_query=False)
