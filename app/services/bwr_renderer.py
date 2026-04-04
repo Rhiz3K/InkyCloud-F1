@@ -10,7 +10,7 @@ from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.font_utils import FONTS_DIR
 from app.services.renderer import Renderer
 from app.services.renderer_common import draw_results_header
-from app.services.spectra6_renderer import IMAGES_DIR, TRACKS_DIR, Spectra6Renderer, logger
+from app.services.spectra6_renderer import TRACKS_DIR, Spectra6Renderer, logger
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwr_palette
 
@@ -48,37 +48,6 @@ class BwrRenderer(Spectra6Renderer):
         if team_key == "sauber":
             return Renderer.normalize_sauber_logo_for_non_spectra(prepared)
         return prepared
-
-    @staticmethod
-    def _draw_f1_logo(image: Image.Image, width: int, height: int) -> None:
-        logo_candidates = [IMAGES_DIR / "eInkF1logo.jpg"]
-
-        for logo_path in logo_candidates:
-            if not logo_path.exists():
-                continue
-
-            try:
-                with Image.open(logo_path) as logo_file:
-                    pad = 2
-                    target_w = width - (pad * 2)
-                    target_h = height - (pad * 2)
-                    logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
-
-                    logo = logo_file.convert("L")
-                    threshold = 128
-                    logo = logo.point(  # type: ignore[arg-type,operator,misc]
-                        lambda p, threshold=threshold: 255 if p > threshold else 0
-                    )
-                    logo = logo.convert("1").convert("RGB")
-
-                    x = (width - logo.width) // 2
-                    y = (height - logo.height) // 2
-                    image.paste(logo, (x, y))
-                    return
-            except Exception as exc:
-                logger.warning("Failed to load BWR logo %s: %s", logo_path, exc)
-
-        logger.warning("No BWR-compatible F1 logo found")
 
     @classmethod
     def _load_variant_track_image(

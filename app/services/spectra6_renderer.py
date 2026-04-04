@@ -661,16 +661,6 @@ class Spectra6Renderer:
             ),
         )
 
-    def _abbreviate_schedule_term(self, term: str) -> str:
-        """Reduce a localized schedule term to its leading letter or character."""
-        stripped = term.strip()
-        if not stripped:
-            return term
-        first_char = stripped[0]
-        if self.lang_code in CJK_LANG_CODES:
-            return first_char
-        return f"{first_char}."
-
     def _draw_countdown_box(
         self,
         draw: ImageDraw.ImageDraw,

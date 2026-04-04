@@ -325,14 +325,14 @@ class WeatherService:
     def _get_cached(self, key: str) -> Optional[WeatherData]:
         if key in _weather_cache:
             data, cached_at = _weather_cache[key]
-            if datetime.now() - cached_at < timedelta(minutes=self.cache_minutes):
+            if datetime.now(timezone.utc) - cached_at < timedelta(minutes=self.cache_minutes):
                 return data
             del _weather_cache[key]
         return None
 
     @staticmethod
     def _set_cached(key: str, data: WeatherData) -> None:
-        _weather_cache[key] = (data, datetime.now())
+        _weather_cache[key] = (data, datetime.now(timezone.utc))
 
 
 def clear_weather_cache() -> None:

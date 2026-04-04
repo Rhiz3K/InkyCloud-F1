@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -61,7 +61,7 @@ class StandingsService:
         self, year: Optional[int] = None, limit: int = 10
     ) -> list[DriverStanding]:
         if year is None:
-            year = datetime.now().year
+            year = datetime.now(timezone.utc).year
 
         cached = self._get_cached(year, "drivers")
         if cached:
@@ -121,7 +121,7 @@ class StandingsService:
         self, year: Optional[int] = None, limit: int = 10
     ) -> list[ConstructorStanding]:
         if year is None:
-            year = datetime.now().year
+            year = datetime.now(timezone.utc).year
 
         cached = self._get_cached(year, "constructors")
         if cached:
@@ -174,7 +174,7 @@ class StandingsService:
 
     async def get_all_standings(self, year: Optional[int] = None, limit: int = 10) -> StandingsData:
         if year is None:
-            year = datetime.now().year
+            year = datetime.now(timezone.utc).year
 
         cached_drivers = self._get_cached(year, "drivers")
         cached_constructors = self._get_cached(year, "constructors")

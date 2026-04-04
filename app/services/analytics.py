@@ -1,31 +1,16 @@
 """Analytics service for tracking requests with Umami."""
 
-import asyncio
 import logging
-from typing import Any, Coroutine, Optional, Set
+from typing import Any, Optional
 from urllib.parse import urlencode
 
 import httpx
 
 from app.config import config
 from app.services.http_client import get_shared_http_client
+from app.utils.async_tasks import create_supervised_task
 
 logger = logging.getLogger(__name__)
-
-# Keep references to background tasks to prevent garbage collection
-_background_tasks: Set[asyncio.Task] = set()
-
-
-def _create_background_task(coro: Coroutine) -> Optional[asyncio.Task]:
-    """Create a background task and keep reference to prevent garbage collection."""
-    try:
-        task = asyncio.create_task(coro)
-        _background_tasks.add(task)
-        task.add_done_callback(lambda t: _background_tasks.discard(t))
-        return task
-    except Exception as e:
-        logger.warning(f"Failed to create analytics task: {str(e)}")
-        return None
 
 
 async def _send_to_umami(
@@ -137,7 +122,7 @@ async def track_pageview(
         logger.debug("Umami tracking disabled")
         return
 
-    _create_background_task(
+    create_supervised_task(
         _send_to_umami(
             url=url,
             title=title,
@@ -146,7 +131,8 @@ async def track_pageview(
             referrer=referrer,
             event_name=None,  # No event name = pageview
             event_data=None,
-        )
+        ),
+        name="analytics_pageview",
     )
 
 
@@ -173,7 +159,7 @@ async def track_event(
         logger.debug("Umami tracking disabled")
         return
 
-    _create_background_task(
+    create_supervised_task(
         _send_to_umami(
             url=url,
             title=f"Event: {event_name}",
@@ -182,7 +168,8 @@ async def track_event(
             referrer="",
             event_name=event_name,
             event_data=event_data,
-        )
+        ),
+        name="analytics_event",
     )
 
 

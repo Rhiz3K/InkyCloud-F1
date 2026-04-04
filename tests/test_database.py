@@ -162,6 +162,48 @@ class TestDatabaseConnectionLifecycle:
         assert migration_calls == 1
 
 
+class TestGeneratedImageAndCacheMetaDatabase:
+    """Tests for generated image and cache metadata helpers."""
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_save_and_get_generated_image(tmp_path):
+        db = Database(str(tmp_path / "generated-images.db"))
+        try:
+            await db.save_generated_image(
+                "calendar_en",
+                "/data/images/calendar_en.bmp",
+                "en",
+                season=2026,
+                round_num=5,
+            )
+            assert await db.get_image_path("calendar_en") == "/data/images/calendar_en.bmp"
+
+            await db.save_generated_image(
+                "calendar_en",
+                "/data/images/calendar_en_v2.bmp",
+                "en",
+            )
+            assert await db.get_image_path("calendar_en") == "/data/images/calendar_en_v2.bmp"
+            assert await db.get_image_path("nonexistent") is None
+        finally:
+            await db.close()
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_set_and_get_cache_meta(tmp_path):
+        db = Database(str(tmp_path / "cache-meta.db"))
+        try:
+            await db.set_cache_meta("last_round", "5")
+            assert await db.get_cache_meta("last_round") == "5"
+
+            await db.set_cache_meta("last_round", "6")
+            assert await db.get_cache_meta("last_round") == "6"
+            assert await db.get_cache_meta("nonexistent") is None
+        finally:
+            await db.close()
+
+
 class TestApiCallStatsDatabase:
     """Tests for API call statistics."""
 
@@ -300,6 +342,48 @@ class TestApiCallStatsDatabase:
 
     @staticmethod
     @pytest.mark.asyncio
+    async def test_get_api_calls_count(tmp_path):
+        db = Database(str(tmp_path / "api-call-count.db"))
+        try:
+            now = datetime.now(timezone.utc)
+            await db.save_api_calls_batch(
+                [
+                    {
+                        "timestamp": now.isoformat(),
+                        "endpoint": "/calendar.bmp",
+                        "response_time_ms": 100.0,
+                        "response_size_bytes": 1024,
+                        "lang": "en",
+                        "tz": "Europe/Prague",
+                        "year": 2026,
+                        "round": 1,
+                        "display_type": "1bit",
+                        "race_name": "Australian Grand Prix",
+                        "is_auto_selected": 0,
+                    },
+                    {
+                        "timestamp": (now - timedelta(hours=2)).isoformat(),
+                        "endpoint": "/teams.bmp",
+                        "response_time_ms": 110.0,
+                        "response_size_bytes": 2048,
+                        "lang": "cs",
+                        "tz": None,
+                        "year": 2026,
+                        "round": None,
+                        "display_type": "bwr",
+                        "race_name": None,
+                        "is_auto_selected": 0,
+                    },
+                ]
+            )
+
+            assert await db.get_api_calls_count(hours=1) == 1
+            assert await db.get_api_calls_count(hours=3) == 2
+        finally:
+            await db.close()
+
+    @staticmethod
+    @pytest.mark.asyncio
     async def test_get_stats_for_range_aggregates_race_rows_across_auto_selection(tmp_path):
         """Race breakdown aggregates one race even when requests mix auto/manual selection."""
         db = Database(str(tmp_path / "race-stats.db"))
@@ -379,10 +463,13 @@ class TestApiCallStatsDatabase:
         """Rolling day_count should exclude populated buckets older than 24 clock hours."""
         db = Database(str(tmp_path / "history-gap.db"))
         try:
+            now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+            older = now - timedelta(days=2)
+            recent = now - timedelta(hours=2)
             await db.save_api_calls_batch(
                 [
                     {
-                        "timestamp": "2026-04-01T10:15:00+00:00",
+                        "timestamp": (older + timedelta(minutes=15)).isoformat(),
                         "endpoint": "/calendar.bmp",
                         "response_time_ms": 100.0,
                         "response_size_bytes": 1024,
@@ -395,7 +482,7 @@ class TestApiCallStatsDatabase:
                         "is_auto_selected": 0,
                     },
                     {
-                        "timestamp": "2026-04-03T10:05:00+00:00",
+                        "timestamp": (recent + timedelta(minutes=5)).isoformat(),
                         "endpoint": "/calendar.bmp",
                         "response_time_ms": 120.0,
                         "response_size_bytes": 1024,
@@ -413,7 +500,7 @@ class TestApiCallStatsDatabase:
             history = await db.get_request_stats_history(limit=10)
 
             assert history[0] == {
-                "timestamp": "2026-04-03T10:00:00+00:00",
+                "timestamp": recent.isoformat(),
                 "hour_count": 1,
                 "day_count": 1,
             }
@@ -541,10 +628,13 @@ class TestRequestStatsHistory:
     async def test_get_request_stats_history_aggregates_api_calls_by_hour(tmp_path):
         db = Database(str(tmp_path / "history.db"))
         try:
+            now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+            hour_10 = now - timedelta(hours=2)
+            hour_11 = now - timedelta(hours=1)
             await db.save_api_calls_batch(
                 [
                     {
-                        "timestamp": "2026-04-01T10:15:00+00:00",
+                        "timestamp": (hour_10 + timedelta(minutes=15)).isoformat(),
                         "endpoint": "/calendar.bmp",
                         "response_time_ms": 100.0,
                         "response_size_bytes": 1024,
@@ -557,7 +647,7 @@ class TestRequestStatsHistory:
                         "is_auto_selected": 0,
                     },
                     {
-                        "timestamp": "2026-04-01T10:45:00+00:00",
+                        "timestamp": (hour_10 + timedelta(minutes=45)).isoformat(),
                         "endpoint": "/teams.bmp",
                         "response_time_ms": 120.0,
                         "response_size_bytes": 2048,
@@ -570,7 +660,7 @@ class TestRequestStatsHistory:
                         "is_auto_selected": 0,
                     },
                     {
-                        "timestamp": "2026-04-01T11:05:00+00:00",
+                        "timestamp": (hour_11 + timedelta(minutes=5)).isoformat(),
                         "endpoint": "/calendar.bmp",
                         "response_time_ms": 130.0,
                         "response_size_bytes": 4096,
@@ -589,12 +679,12 @@ class TestRequestStatsHistory:
 
             assert history == [
                 {
-                    "timestamp": "2026-04-01T11:00:00+00:00",
+                    "timestamp": hour_11.isoformat(),
                     "hour_count": 1,
                     "day_count": 3,
                 },
                 {
-                    "timestamp": "2026-04-01T10:00:00+00:00",
+                    "timestamp": hour_10.isoformat(),
                     "hour_count": 2,
                     "day_count": 2,
                 },
@@ -637,5 +727,53 @@ class TestPerfMetricsAggregation:
             assert 0.0 in trends["lcp"]
             assert 0.0 in trends["fcp"]
             assert 0.0 in trends["ttfb"]
+        finally:
+            await db.close()
+
+
+class TestWeatherCacheDatabase:
+    """Tests for key-based weather cache persistence."""
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_weather_cache_save_and_get(tmp_path):
+        db = Database(str(tmp_path / "weather-cache.db"))
+        try:
+            await db.save_weather_cache("circuit_monaco_2026", 22.5, 1, 10, ttl_minutes=120)
+
+            result = await db.get_weather_cache("circuit_monaco_2026")
+
+            assert result is not None
+            temp, code, precip = result
+            assert temp == 22.5
+            assert code == 1
+            assert precip == 10
+            assert await db.get_weather_cache("nonexistent") is None
+        finally:
+            await db.close()
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_weather_cache_expired_entries_not_returned(tmp_path):
+        db = Database(str(tmp_path / "weather-cache-expired.db"))
+        try:
+            await db.save_weather_cache("expired_key", 15.0, 3, 50, ttl_minutes=0)
+            assert await db.get_weather_cache("expired_key") is None
+        finally:
+            await db.close()
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_cleanup_expired_weather_cache(tmp_path):
+        db = Database(str(tmp_path / "weather-cache-cleanup.db"))
+        try:
+            await db.save_weather_cache("fresh", 20.0, 1, 5, ttl_minutes=120)
+            await db.save_weather_cache("stale", 15.0, 3, 50, ttl_minutes=0)
+
+            deleted = await db.cleanup_expired_weather_cache()
+
+            assert deleted >= 1
+            assert await db.get_weather_cache("fresh") is not None
+            assert await db.get_weather_cache("stale") is None
         finally:
             await db.close()

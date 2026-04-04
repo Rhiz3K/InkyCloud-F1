@@ -304,79 +304,6 @@ class Renderer:
             ),
         )
 
-    def _draw_trophy(
-        self, draw: ImageDraw.ImageDraw, x: int, y: int, position: int, size: int = 16
-    ) -> int:
-        """Draw trophy with position number inside. P1=white/outline, P2-P3=black/filled."""
-        w, h = size, size
-        cx = x + w // 2
-
-        is_p1 = position == 1
-        cup_fill = 1 if is_p1 else 0
-        num_fill = 0 if is_p1 else 1
-
-        cup_bottom_width = w // 2
-        cup_height = h * 2 // 3
-        cup_left_top = x + 1
-        cup_right_top = x + w - 1
-        cup_left_bottom = x + (w - cup_bottom_width) // 2
-        cup_right_bottom = cup_left_bottom + cup_bottom_width
-
-        cup_polygon = [
-            (cup_left_top, y),
-            (cup_right_top, y),
-            (cup_right_bottom, y + cup_height),
-            (cup_left_bottom, y + cup_height),
-        ]
-        draw.polygon(cup_polygon, fill=cup_fill, outline=0)
-
-        handle_size = 3
-        draw.arc(
-            [(x - handle_size, y + 2), (x + handle_size, y + cup_height - 2)],
-            start=90,
-            end=270,
-            fill=0,
-            width=2,
-        )
-        draw.arc(
-            [(x + w - handle_size, y + 2), (x + w + handle_size, y + cup_height - 2)],
-            start=-90,
-            end=90,
-            fill=0,
-            width=2,
-        )
-
-        stem_width = 3
-        stem_left = x + (w - stem_width) // 2
-        stem_top = y + cup_height
-        stem_bottom = y + h - 3
-        draw.rectangle(
-            [(stem_left, stem_top), (stem_left + stem_width, stem_bottom)],
-            fill=cup_fill,
-            outline=0,
-        )
-
-        base_width = w - 4
-        base_left = x + (w - base_width) // 2
-        base_top = y + h - 3
-        base_bottom = y + h
-        draw.rectangle(
-            [(base_left, base_top), (base_left + base_width, base_bottom)],
-            fill=cup_fill,
-            outline=0,
-        )
-
-        num_str = str(position)
-        num_bbox = draw.textbbox((0, 0), num_str, font=self.fonts["circuit_stats"])
-        num_w = num_bbox[2] - num_bbox[0]
-        num_h = num_bbox[3] - num_bbox[1]
-        top_offset = num_bbox[1]
-        text_x = cx - num_w // 2
-        text_y = y + (cup_height - num_h) // 2 - top_offset
-        draw.text((text_x, text_y), num_str, fill=num_fill, font=self.fonts["circuit_stats"])
-
-        return w + 4
-
     @staticmethod
     def _draw_team_stats_panel_mono(
         draw: ImageDraw.ImageDraw,
@@ -949,16 +876,6 @@ class Renderer:
                 )
             ),
         )
-
-    def _abbreviate_schedule_term(self, term: str) -> str:
-        """Reduce a localized schedule term to its leading letter or character."""
-        stripped = term.strip()
-        if not stripped:
-            return term
-        first_char = stripped[0]
-        if self.lang_code in CJK_LANG_CODES:
-            return first_char
-        return f"{first_char}."
 
     def _draw_countdown_box(
         self,

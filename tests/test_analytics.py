@@ -7,21 +7,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from app.services.analytics import (
-    _background_tasks,
     _send_to_umami,
     get_umami_script_tag,
     track_event,
     track_pageview,
 )
 from app.services.http_client import _reset_shared_http_clients_for_tests
+from app.utils import async_tasks
 
 
 @pytest.fixture(autouse=True)
 def reset_test_state():
     _reset_shared_http_clients_for_tests()
-    _background_tasks.clear()
+    async_tasks._background_tasks.clear()
     yield
-    _background_tasks.clear()
+    async_tasks._background_tasks.clear()
     _reset_shared_http_clients_for_tests()
 
 

@@ -779,7 +779,7 @@ Name your track images using the `circuitId`:
 - **Pillow**: Image generation and manipulation
 - **HTTPX**: Async HTTP client for API calls
 - **Sentry-SDK**: Error tracking and monitoring
-- **pytz**: Timezone handling
+- **zoneinfo**: Timezone handling (Python standard library)
 
 ---
 

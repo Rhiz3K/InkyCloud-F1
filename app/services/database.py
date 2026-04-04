@@ -383,6 +383,7 @@ class Database:
             List of stats records with timestamp, hour_count, day_count
         """
         await self._init_db_if_needed()
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=limit + 24)).isoformat()
         async with (
             self._get_connection() as conn,
             conn.execute(
@@ -392,6 +393,7 @@ class Database:
                         substr(timestamp, 1, 13) || ':00:00+00:00' AS timestamp,
                         COUNT(*) AS hour_count
                     FROM api_calls
+                    WHERE timestamp > ?
                     GROUP BY substr(timestamp, 1, 13)
                 ),
                 annotated AS (
@@ -412,7 +414,7 @@ class Database:
                 ORDER BY timestamp DESC
                 LIMIT ?
             """,
-                (limit,),
+                (cutoff, limit),
             ) as cursor,
         ):
             rows = await cursor.fetchall()
