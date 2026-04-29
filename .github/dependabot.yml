@@ -15,6 +15,37 @@ updates:
     open-pull-requests-limit: 10
     registries:
       - github-self-hosted
+    groups:
+      python-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      python-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Node dependencies for Tailwind asset builds
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      npm-minor-and-patch:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Docker dependencies
   - package-ecosystem: "docker"

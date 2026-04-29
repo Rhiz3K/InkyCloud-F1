@@ -96,6 +96,17 @@ def write_season_file(output_path: Path, season_payload: dict[str, Any]) -> None
     output_path.write_text(json.dumps(season_payload, indent=2) + "\n", encoding="utf-8")
 
 
+def has_material_season_change(
+    season_payload: dict[str, Any], existing_payload: dict[str, Any] | None
+) -> bool:
+    """Return True when calendar data changed beyond generated_at metadata."""
+    if existing_payload is None:
+        return True
+
+    material_keys = ("season", "total_races", "races")
+    return any(season_payload.get(key) != existing_payload.get(key) for key in material_keys)
+
+
 async def fetch_season(client: httpx.AsyncClient, year: int) -> dict:
     """Fetch full season calendar from API."""
     url = f"{API_BASE}/{year}.json?limit=30"
@@ -125,6 +136,11 @@ async def main(target_years: list[int]) -> None:
                 output_path = SEASONS_DIR / f"{year}.json"
                 existing_data = _load_existing_season(output_path)
                 data = preserve_cancelled_races(await fetch_season(client, year), existing_data)
+
+                if not has_material_season_change(data, existing_data):
+                    print(f"  No calendar changes for {year}; keeping existing file")
+                    await asyncio.sleep(2)
+                    continue
 
                 write_season_file(output_path, data)
                 print(f"  Saved {data['total_races']} races to {output_path}")

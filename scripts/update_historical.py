@@ -27,6 +27,17 @@ CIRCUITS_PATH = Path(__file__).parent.parent / "app" / "assets" / "circuits_data
 CURRENT_YEAR = datetime.now().year
 
 
+def has_material_historical_change(
+    results: dict, existing_historical: dict | None
+) -> bool:
+    """Return True when historical results changed beyond updated_at metadata."""
+    if not existing_historical:
+        return True
+
+    material_keys = ("season", "qualifying", "race")
+    return any(results.get(key) != existing_historical.get(key) for key in material_keys)
+
+
 async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | None:
     """Fetch latest qualifying and race results for a circuit."""
     for year in [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]:
@@ -110,27 +121,36 @@ async def main(circuit_filter: str | None = None) -> None:
     print(f"Updating {len(circuit_ids)} circuits...")
 
     updated_count = 0
+    has_changes = False
     async with httpx.AsyncClient(timeout=30) as client:
         for circuit_id in circuit_ids:
             print(f"  {circuit_id}...", end=" ", flush=True)
 
             results = await fetch_results(client, circuit_id)
             if results:
-                circuits[circuit_id]["historical"] = results
-                print(f"OK ({results['season']})")
-                updated_count += 1
+                existing_historical = circuits[circuit_id].get("historical")
+                if has_material_historical_change(results, existing_historical):
+                    circuits[circuit_id]["historical"] = results
+                    print(f"Updated ({results['season']})")
+                    updated_count += 1
+                    has_changes = True
+                else:
+                    print(f"Unchanged ({results['season']})")
             else:
                 print("No data")
 
             # Rate limiting
             await asyncio.sleep(2.5)
 
-    # Save updated data
-    with open(CIRCUITS_PATH, "w", encoding="utf-8") as f:
-        json.dump(circuits, f, indent=2)
+    if has_changes:
+        with open(CIRCUITS_PATH, "w", encoding="utf-8") as f:
+            json.dump(circuits, f, indent=2)
+    else:
+        print("\nNo material historical changes; keeping existing file")
 
     print(f"\nUpdated {updated_count}/{len(circuit_ids)} circuits")
-    print(f"Saved to {CIRCUITS_PATH}")
+    if has_changes:
+        print(f"Saved to {CIRCUITS_PATH}")
 
 
 if __name__ == "__main__":
