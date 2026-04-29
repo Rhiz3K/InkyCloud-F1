@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
-- **PostCSS security patch** - Refreshed the Tailwind toolchain lockfile so PostCSS resolves to a patched release reported by Dependabot security alerts
+- **PostCSS security patch** - Refreshed the Tailwind toolchain lockfile so the vulnerable PostCSS dependency path reported by Dependabot is no longer present
 - **Tailwind dependency update** - Upgraded Tailwind CSS to 4.2.4 and added the separate Tailwind CLI package so the asset build keeps working while closing the Dependabot npm update
 
 ### Frontend
