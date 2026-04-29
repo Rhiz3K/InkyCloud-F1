@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.22] - 2026-04-29
+
+### Security
+
+#### Fixed
+
+- **PostCSS security patch** - Refreshed the Tailwind toolchain lockfile so PostCSS resolves to a patched release reported by Dependabot security alerts
+
 ## [1.2.21] - 2026-04-29
 
 ### Backend
@@ -19,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
-- **Dependabot security patches** - Raised the locked and declared minimum versions for Pillow, lxml, python-dotenv, and pytest, and refreshed the PostCSS lockfile entry, to patched releases reported by Dependabot security alerts
+- **Dependabot security patches** - Raised the locked and declared minimum versions for Pillow, lxml, python-dotenv, and pytest to patched releases reported by Dependabot security alerts
 
 ### Development
 
