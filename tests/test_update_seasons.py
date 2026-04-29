@@ -156,6 +156,87 @@ def test_write_season_file_appends_trailing_newline(tmp_path):
     assert output_path.read_bytes().endswith(b"\n")
 
 
+def test_season_change_detection_ignores_generated_at_only_changes():
+    existing = {
+        "season": "2026",
+        "generated_at": "2026-03-24T00:00:00+00:00",
+        "total_races": 1,
+        "races": [
+            _race(
+                season="2026",
+                round_value="1",
+                race_name="Australian Grand Prix",
+                circuit_id="albert_park",
+                date="2026-03-08",
+            )
+        ],
+    }
+    refreshed = {
+        **existing,
+        "generated_at": "2026-04-06T00:00:00+00:00",
+    }
+
+    assert not update_seasons.has_material_season_change(refreshed, existing)
+
+
+def test_season_change_detection_detects_calendar_changes():
+    existing = {
+        "season": "2026",
+        "generated_at": "2026-03-24T00:00:00+00:00",
+        "total_races": 1,
+        "races": [
+            _race(
+                season="2026",
+                round_value="1",
+                race_name="Australian Grand Prix",
+                circuit_id="albert_park",
+                date="2026-03-08",
+            )
+        ],
+    }
+    refreshed = {
+        **existing,
+        "generated_at": "2026-04-06T00:00:00+00:00",
+        "total_races": 2,
+        "races": [
+            *existing["races"],
+            _race(
+                season="2026",
+                round_value="2",
+                race_name="Chinese Grand Prix",
+                circuit_id="shanghai",
+                date="2026-03-15",
+            ),
+        ],
+    }
+
+    assert update_seasons.has_material_season_change(refreshed, existing)
+
+
+def test_season_change_detection_detects_new_payload_fields():
+    existing = {
+        "season": "2026",
+        "generated_at": "2026-03-24T00:00:00+00:00",
+        "total_races": 1,
+        "races": [
+            _race(
+                season="2026",
+                round_value="1",
+                race_name="Australian Grand Prix",
+                circuit_id="albert_park",
+                date="2026-03-08",
+            )
+        ],
+    }
+    refreshed = {
+        **existing,
+        "generated_at": "2026-04-06T00:00:00+00:00",
+        "source_revision": "jolpica-2026-04-06",
+    }
+
+    assert update_seasons.has_material_season_change(refreshed, existing)
+
+
 def test_static_2026_calendar_keeps_cancelled_bahrain_and_jeddah():
     season_path = Path(__file__).resolve().parents[1] / "app" / "assets" / "seasons" / "2026.json"
     season_data = json.loads(season_path.read_text(encoding="utf-8"))
