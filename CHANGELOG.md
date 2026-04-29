@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **PostCSS security patch** - Refreshed the Tailwind toolchain lockfile so PostCSS resolves to a patched release reported by Dependabot security alerts
+- **Tailwind dependency update** - Upgraded Tailwind CSS to 4.2.4 and added the separate Tailwind CLI package so the asset build keeps working while closing the Dependabot npm update
+
+### Frontend
+
+#### Changed
+
+- **Tailwind 4 CSS build** - Switched the Tailwind input stylesheet to the v4 import flow and explicitly load the existing JS config so custom racing colors, Space Mono, and neo shadows remain generated
 
 ## [1.2.21] - 2026-04-29
 
