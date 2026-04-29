@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
-- **F1 data refresh noise** - Stopped scheduled F1 data updates from opening pull requests when Jolpica refreshes only `generated_at` or `updated_at` metadata, while keeping real historical result and season-calendar changes detectable
+- **F1 data refresh noise** - Stopped scheduled F1 data updates from opening pull requests when Jolpica refreshes only `generated_at` or `updated_at` metadata, while keeping real historical result, season-calendar, and future payload-field changes detectable through a shared exclusion-based material-diff helper
 
 ### Security
 
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-- **Dependabot security grouping** - Added explicit grouped security-update rules for Python and npm dependencies, and added npm to the weekly Dependabot coverage for Tailwind asset tooling
+- **Dependabot security grouping** - Added explicit grouped security-update rules for Python and Tailwind-scoped npm dependencies, and added npm to the weekly Dependabot coverage for Tailwind asset tooling
 
 ## [1.2.20] - 2026-04-03
 
