@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.22] - 2026-04-29
 
+### Backend
+
+#### Fixed
+
+- **Jolpica standings URL handling** - Derived standings URLs from the configured next-race endpoint instead of appending season standings paths to `current/next.json`, and downgraded missing standings 404s to warnings so expected empty API responses no longer flood GlitchTip
+
 ### Security
 
 #### Fixed
