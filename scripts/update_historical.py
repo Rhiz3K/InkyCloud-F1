@@ -27,9 +27,7 @@ CIRCUITS_PATH = Path(__file__).parent.parent / "app" / "assets" / "circuits_data
 CURRENT_YEAR = datetime.now().year
 
 
-def has_material_historical_change(
-    results: dict, existing_historical: dict | None
-) -> bool:
+def has_material_historical_change(results: dict, existing_historical: dict | None) -> bool:
     """Return True when historical results changed beyond updated_at metadata."""
     if not existing_historical:
         return True
