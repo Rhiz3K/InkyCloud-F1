@@ -22,6 +22,8 @@ import httpx
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from scripts.material_diff import has_material_change
+
 API_BASE = "https://api.jolpi.ca/ergast/f1"
 CIRCUITS_PATH = Path(__file__).parent.parent / "app" / "assets" / "circuits_data.json"
 CURRENT_YEAR = datetime.now().year
@@ -29,11 +31,7 @@ CURRENT_YEAR = datetime.now().year
 
 def has_material_historical_change(results: dict, existing_historical: dict | None) -> bool:
     """Return True when historical results changed beyond updated_at metadata."""
-    if not existing_historical:
-        return True
-
-    material_keys = ("season", "qualifying", "race")
-    return any(results.get(key) != existing_historical.get(key) for key in material_keys)
+    return has_material_change(results, existing_historical, ignored_keys=("updated_at",))
 
 
 async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | None:

@@ -38,11 +38,17 @@ updates:
       npm-security:
         applies-to: security-updates
         patterns:
-          - "*"
+          - "tailwindcss"
+          - "@tailwindcss/*"
+          - "postcss"
+          - "autoprefixer"
       npm-minor-and-patch:
         applies-to: version-updates
         patterns:
-          - "*"
+          - "tailwindcss"
+          - "@tailwindcss/*"
+          - "postcss"
+          - "autoprefixer"
         update-types:
           - "minor"
           - "patch"

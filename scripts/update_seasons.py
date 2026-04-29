@@ -23,6 +23,8 @@ import httpx
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from scripts.material_diff import has_material_change
+
 API_BASE = "https://api.jolpi.ca/ergast/f1"
 SEASONS_DIR = Path(__file__).parent.parent / "app" / "assets" / "seasons"
 
@@ -100,11 +102,7 @@ def has_material_season_change(
     season_payload: dict[str, Any], existing_payload: dict[str, Any] | None
 ) -> bool:
     """Return True when calendar data changed beyond generated_at metadata."""
-    if existing_payload is None:
-        return True
-
-    material_keys = ("season", "total_races", "races")
-    return any(season_payload.get(key) != existing_payload.get(key) for key in material_keys)
+    return has_material_change(season_payload, existing_payload, ignored_keys=("generated_at",))
 
 
 async def fetch_season(client: httpx.AsyncClient, year: int) -> dict:
