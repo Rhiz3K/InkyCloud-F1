@@ -212,12 +212,49 @@ def test_sitemap_xml_get_returns_valid_xml():
     assert "application/xml" in response.headers["content-type"]
 
     root = ET.fromstring(response.text)
-    ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    ns = {
+        "sm": "http://www.sitemaps.org/schemas/sitemap/0.9",
+        "xhtml": "http://www.w3.org/1999/xhtml",
+    }
     locs = [elem.text for elem in root.findall("sm:url/sm:loc", ns)]
 
     assert any(loc == f"{site_url}/" for loc in locs)
     assert any(loc == f"{site_url}/cs/" for loc in locs)
     assert any(loc == f"{site_url}/configure/calendar" for loc in locs)
+    assert f"{site_url}/stats" not in locs
+    assert all("?" not in loc for loc in locs)
+    assert len(locs) == len(set(locs))
+    assert len(locs) == 78
+
+    root_entry = next(
+        url for url in root.findall("sm:url", ns) if url.find("sm:loc", ns).text == f"{site_url}/"
+    )
+    alternates = root_entry.findall("xhtml:link", ns)
+    alternate_hreflangs = {link.attrib["hreflang"] for link in alternates}
+    alternate_hrefs = {link.attrib["href"] for link in alternates}
+    assert "x-default" in alternate_hreflangs
+    assert "cs" in alternate_hreflangs
+    assert f"{site_url}/cs/" in alternate_hrefs
+    assert f"{site_url}/" in alternate_hrefs
+
+
+def test_sitemap_xml_escapes_site_url_values():
+    """Sitemap XML should stay parseable when SITE_URL contains escapable characters."""
+    with patch("app.routes.seo.config.SITE_URL", "https://example.test?src=seo&lang=en"):
+        response = client.get("/sitemap.xml")
+
+    assert response.status_code == 200
+    root = ET.fromstring(response.text)
+    ns = {
+        "sm": "http://www.sitemaps.org/schemas/sitemap/0.9",
+        "xhtml": "http://www.w3.org/1999/xhtml",
+    }
+    first_loc = root.find("sm:url/sm:loc", ns)
+    first_alternate = root.find("sm:url/xhtml:link", ns)
+    assert first_loc is not None
+    assert first_alternate is not None
+    assert "&" in first_loc.text
+    assert "&" in first_alternate.attrib["href"]
 
 
 def test_sitemap_xml_head_returns_empty_body():
