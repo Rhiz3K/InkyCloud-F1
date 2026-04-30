@@ -27,6 +27,7 @@ SITEMAP_PAGES: tuple[SitemapPage, ...] = (
     SitemapPage("/", "1.0", "daily"),
     SitemapPage("/configure/calendar", "0.9", "weekly"),
     SitemapPage("/configure/teams", "0.9", "weekly"),
+    SitemapPage("/stats", "0.9", "weekly"),
     SitemapPage("/api/docs/html", "0.8", "monthly"),
     SitemapPage("/changelog", "0.7", "weekly"),
     SitemapPage("/privacy", "0.3", "yearly"),

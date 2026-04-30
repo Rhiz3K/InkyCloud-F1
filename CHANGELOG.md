@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **Jolpica standings URL handling** - Derived standings URLs from the configured next-race endpoint instead of appending season standings paths to `current/next.json`, and downgraded missing standings 404s to warnings so expected empty API responses no longer flood GlitchTip
-- **Search Console sitemap compatibility** - Rebuilt `sitemap.xml` generation with escaped XML values, canonical localized page URLs, hreflang alternates, a trailing-slash fetch alias, and a smaller indexable page set so Google can classify and crawl the submitted sitemap reliably
+- **Search Console sitemap compatibility** - Rebuilt `sitemap.xml` generation with escaped XML values, canonical localized page URLs including the public stats dashboard, hreflang alternates, and a trailing-slash fetch alias so Google can classify and crawl the submitted sitemap reliably
 
 ### Security
 

@@ -221,10 +221,11 @@ def test_sitemap_xml_get_returns_valid_xml():
     assert any(loc == f"{site_url}/" for loc in locs)
     assert any(loc == f"{site_url}/cs/" for loc in locs)
     assert any(loc == f"{site_url}/configure/calendar" for loc in locs)
-    assert f"{site_url}/stats" not in locs
+    assert any(loc == f"{site_url}/stats" for loc in locs)
+    assert any(loc == f"{site_url}/cs/stats" for loc in locs)
     assert all("?" not in loc for loc in locs)
     assert len(locs) == len(set(locs))
-    assert len(locs) == 78
+    assert len(locs) == 91
 
     root_entry = None
     for url in root.findall("sm:url", ns):
