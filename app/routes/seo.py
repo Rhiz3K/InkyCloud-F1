@@ -65,6 +65,7 @@ Sitemap: {site_url}/sitemap.xml
 
 
 @router.api_route("/sitemap.xml", methods=["GET", "HEAD"])
+@router.api_route("/sitemap.xml/", methods=["GET", "HEAD"])
 async def sitemap_xml() -> Response:
     """Serve sitemap.xml with subdirectory language URLs."""
     site_url = str(config.SITE_URL).rstrip("/")

@@ -243,6 +243,16 @@ def test_sitemap_xml_get_returns_valid_xml():
     assert f"{site_url}/" in alternate_hrefs
 
 
+def test_sitemap_xml_trailing_slash_alias_returns_xml():
+    """Trailing-slash sitemap URL should stay fetchable for Search Console retries."""
+    canonical_response = client.get("/sitemap.xml")
+    alias_response = client.get("/sitemap.xml/")
+
+    assert alias_response.status_code == 200
+    assert "application/xml" in alias_response.headers["content-type"]
+    assert alias_response.text == canonical_response.text
+
+
 def test_sitemap_xml_escapes_site_url_values():
     """Sitemap XML should stay parseable when SITE_URL contains escapable characters."""
     with patch("app.routes.seo.config.SITE_URL", "https://example.test?src=seo&lang=en"):
