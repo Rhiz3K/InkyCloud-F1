@@ -226,9 +226,14 @@ def test_sitemap_xml_get_returns_valid_xml():
     assert len(locs) == len(set(locs))
     assert len(locs) == 78
 
-    root_entry = next(
-        url for url in root.findall("sm:url", ns) if url.find("sm:loc", ns).text == f"{site_url}/"
-    )
+    root_entry = None
+    for url in root.findall("sm:url", ns):
+        loc = url.find("sm:loc", ns)
+        if loc is not None and loc.text == f"{site_url}/":
+            root_entry = url
+            break
+
+    assert root_entry is not None
     alternates = root_entry.findall("xhtml:link", ns)
     alternate_hreflangs = {link.attrib["hreflang"] for link in alternates}
     alternate_hrefs = {link.attrib["href"] for link in alternates}
