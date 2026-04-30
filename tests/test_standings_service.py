@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 from pydantic import AnyHttpUrl
 
@@ -221,6 +222,71 @@ async def test_standings_use_configured_jolpica_api_base_url():
         "https://mirror.example.test/ergast/f1/2024/driverStandings.json",
         "https://mirror.example.test/ergast/f1/2024/constructorStandings.json",
     ]
+
+
+@pytest.mark.asyncio
+async def test_standings_derives_base_url_from_next_race_endpoint():
+    service = StandingsService()
+    service._cache.clear()
+    mock_response = MagicMock()
+    mock_response.json.return_value = MOCK_CONSTRUCTOR_STANDINGS_RESPONSE
+
+    with (
+        patch(
+            "app.services.standings_service.config.JOLPICA_API_URL",
+            "https://api.jolpi.ca/ergast/f1/current/next.json",
+        ),
+        patch(
+            "app.services.standings_service.get_shared_http_client",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "app.services.standings_service.fetch_with_retry",
+            new_callable=AsyncMock,
+            return_value=mock_response,
+        ) as mock_fetch,
+    ):
+        await service.get_constructor_standings(2025)
+
+    assert mock_fetch.await_args.args[1] == (
+        "https://api.jolpi.ca/ergast/f1/2025/constructorStandings.json"
+    )
+
+
+@pytest.mark.asyncio
+async def test_constructor_standings_404_returns_empty_without_error_log(caplog):
+    service = StandingsService()
+    service._cache.clear()
+    url = "https://api.jolpi.ca/ergast/f1/2025/constructorStandings.json"
+    request = httpx.Request("GET", url)
+    response = httpx.Response(404, request=request)
+    missing_standings = httpx.HTTPStatusError(
+        "Client error '404 Not Found'",
+        request=request,
+        response=response,
+    )
+
+    with (
+        patch(
+            "app.services.standings_service.config.JOLPICA_API_URL",
+            "https://api.jolpi.ca/ergast/f1/current/next.json",
+        ),
+        patch(
+            "app.services.standings_service.get_shared_http_client",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "app.services.standings_service.fetch_with_retry",
+            new_callable=AsyncMock,
+            side_effect=missing_standings,
+        ),
+        caplog.at_level("WARNING", logger="app.services.standings_service"),
+    ):
+        standings = await service.get_constructor_standings(2025)
+
+    assert standings == []
+    assert "Constructor standings are not available for 2025" in caplog.text
+    assert not [record for record in caplog.records if record.levelname == "ERROR"]
 
 
 @pytest.mark.asyncio

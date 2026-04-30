@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.22] - 2026-04-30
+
+### Backend
+
+#### Fixed
+
+- **Jolpica standings URL handling** - Derived standings URLs from the configured next-race endpoint instead of appending season standings paths to `current/next.json`, and downgraded missing standings 404s to warnings so expected empty API responses no longer flood GlitchTip
+- **Search Console sitemap compatibility** - Rebuilt `sitemap.xml` generation with escaped XML values, canonical localized page URLs including the public stats dashboard, hreflang alternates, and a trailing-slash fetch alias so Google can classify and crawl the submitted sitemap reliably
+
+### Security
+
+#### Fixed
+
+- **PostCSS security patch** - Refreshed the Tailwind toolchain lockfile so the vulnerable PostCSS dependency path reported by Dependabot is no longer present
+- **Tailwind dependency update** - Upgraded Tailwind CSS to 4.2.4 and added the separate Tailwind CLI package so the asset build keeps working while closing the Dependabot npm update
+
+### Frontend
+
+#### Changed
+
+- **Tailwind 4 CSS build** - Switched the Tailwind input stylesheet to the v4 import flow and explicitly load the existing JS config so custom racing colors, Space Mono, and neo shadows remain generated
+
 ## [1.2.21] - 2026-04-29
 
 ### Backend

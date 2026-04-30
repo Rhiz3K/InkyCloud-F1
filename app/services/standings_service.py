@@ -55,6 +55,19 @@ class StandingsService:
         self._cache[key] = CacheEntry(data)
         logger.debug("Cached %s", key)
 
+    @staticmethod
+    def _derive_standings_base_url(api_url: str) -> str:
+        """Derive the season endpoint root from either a Jolpica base URL or race endpoint."""
+        normalized = api_url.rstrip("/")
+        for suffix in ("/current/next.json", "/current.json", ".json"):
+            if normalized.endswith(suffix):
+                return normalized[: -len(suffix)].rstrip("/")
+        return normalized
+
+    @staticmethod
+    def _is_missing_standings_error(exc: httpx.HTTPStatusError) -> bool:
+        return exc.response.status_code == 404
+
     async def get_driver_standings(
         self, year: Optional[int] = None, limit: int = 10
     ) -> list[DriverStanding]:
@@ -67,7 +80,7 @@ class StandingsService:
 
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-            base_url = str(config.JOLPICA_API_URL).rstrip("/")
+            base_url = self._derive_standings_base_url(str(config.JOLPICA_API_URL))
             url = f"{base_url}/{year}/driverStandings.json"
             logger.info("Fetching driver standings from %s", url)
             response = await fetch_with_retry(client, url, logger=logger)
@@ -112,6 +125,14 @@ class StandingsService:
 
             return driver_standings[:limit]
 
+        except httpx.HTTPStatusError as e:
+            if self._is_missing_standings_error(e):
+                logger.warning(
+                    "Driver standings are not available for %s at %s", year, e.request.url
+                )
+                return []
+            logger.error("HTTP error fetching driver standings: %s", e, exc_info=True)
+            return []
         except Exception as e:
             logger.error("Error fetching driver standings: %s", e, exc_info=True)
             return []
@@ -128,7 +149,7 @@ class StandingsService:
 
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-            base_url = str(config.JOLPICA_API_URL).rstrip("/")
+            base_url = self._derive_standings_base_url(str(config.JOLPICA_API_URL))
             url = f"{base_url}/{year}/constructorStandings.json"
             logger.info("Fetching constructor standings from %s", url)
             response = await fetch_with_retry(client, url, logger=logger)
@@ -168,6 +189,14 @@ class StandingsService:
 
             return constructor_standings[:limit]
 
+        except httpx.HTTPStatusError as e:
+            if self._is_missing_standings_error(e):
+                logger.warning(
+                    "Constructor standings are not available for %s at %s", year, e.request.url
+                )
+                return []
+            logger.error("HTTP error fetching constructor standings: %s", e, exc_info=True)
+            return []
         except Exception as e:
             logger.error("Error fetching constructor standings: %s", e, exc_info=True)
             return []
