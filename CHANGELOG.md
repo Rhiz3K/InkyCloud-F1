@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.23] - 2026-05-04
+
+### Frontend
+
+#### Added
+
+- **Villeneuve track assets** - Added the source PSD and B/W, B/W/R, B/W/R/Y, and Spectra 6 rendered track images for Circuit Gilles Villeneuve display support
+
 ## [1.2.22] - 2026-04-30
 
 ### Backend
