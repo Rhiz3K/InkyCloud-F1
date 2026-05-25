@@ -1325,9 +1325,17 @@ block content %}
   }
 
   // Timezone handling - simple list sorted by UTC offset
+  const timezoneAliases = {{ timezone_aliases | tojson }};
+
+  function normalizeTimezone(tz) {
+    return timezoneAliases[tz] || tz;
+  }
+
   let allTimezones = [];
   try {
-    allTimezones = Intl.supportedValuesOf("timeZone");
+    allTimezones = Array.from(
+      new Set(Intl.supportedValuesOf("timeZone").map(normalizeTimezone)),
+    ).sort();
   } catch (e) {
     console.error("Intl.supportedValuesOf not supported", e);
     // Fallback to basic list if needed, or rely on popularTz
@@ -1546,6 +1554,7 @@ block content %}
   }
 
   function selectTimezone(tz) {
+    tz = normalizeTimezone(tz);
     selectedTz = tz;
     document.getElementById("tz").value = tz;
     renderTzList();
@@ -1555,7 +1564,7 @@ block content %}
 
   function selectTimezoneMobile() {
     const select = document.getElementById("tzSelectMobile");
-    const tz = select.value;
+    const tz = normalizeTimezone(select.value);
     if (tz) {
       selectedTz = tz;
       document.getElementById("tz").value = tz;
@@ -1630,7 +1639,7 @@ block content %}
 
   function initTimezone() {
     try {
-      browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      browserTz = normalizeTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
       if (browserTz) {
         // Always try to select browser TZ first
         selectTimezone(browserTz);
