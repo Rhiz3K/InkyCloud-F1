@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **IST timezone aliases** - Accept and canonicalize `Asia/Calcutta` as `Asia/Kolkata` in calendar BMP requests and timezone conversion helpers so legacy links still render instead of returning an invalid-timezone error
 
+### Development
+
+#### Changed
+
+- **Tailwind tooling update** - Updated `tailwindcss` and `@tailwindcss/cli` to 4.3.0 so the checked-in Tailwind asset build stays current with the npm minor-and-patch dependency group
+
 ## [1.2.23] - 2026-05-04
 
 ### Frontend
