@@ -376,52 +376,52 @@
     "fastest_lap_driver": "Valtteri Bottas",
     "fastest_lap_year": "2019",
     "historical": {
-      "season": 2025,
-      "updated_at": "2026-03-30",
+      "season": 2026,
+      "updated_at": "2026-05-25",
       "qualifying": [
         {
           "pos": 1,
           "code": "RUS",
           "name": "Russell",
           "team": "Mercedes",
-          "time": "1:10.899"
+          "time": "1:12.578"
         },
         {
-          "pos": 3,
-          "code": "PIA",
-          "name": "Piastri",
-          "team": "McLaren",
-          "time": "1:11.120"
+          "pos": 2,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:12.646"
         },
         {
           "pos": 7,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "1:11.625"
+          "code": "HAD",
+          "name": "Hadjar",
+          "team": "Red Bull",
+          "time": "1:12.935"
         }
       ],
       "race": [
         {
           "pos": 1,
-          "code": "RUS",
-          "name": "Russell",
-          "team": "Mercedes",
-          "time": "1:31:52.688"
-        },
-        {
-          "pos": 2,
-          "code": "VER",
-          "name": "Verstappen",
-          "team": "Red Bull",
-          "time": "+0.228"
-        },
-        {
-          "pos": 3,
           "code": "ANT",
           "name": "Antonelli",
           "team": "Mercedes",
-          "time": "+1.014"
+          "time": "1:28:15.758"
+        },
+        {
+          "pos": 2,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "+10.768"
+        },
+        {
+          "pos": 3,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+11.276"
         }
       ]
     }
