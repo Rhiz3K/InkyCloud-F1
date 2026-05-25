@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.25] - 2026-05-25
+
+### Frontend
+
+#### Added
+
+- **Monaco track assets** - Added the source PSD and B/W, B/W/R, B/W/R/Y, and Spectra 6 rendered track images for Circuit de Monaco display support
+
 ## [1.2.24] - 2026-05-25
 
 ### Frontend
