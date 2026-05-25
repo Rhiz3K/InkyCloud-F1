@@ -1479,6 +1479,8 @@ def draw_schedule_row(
     regular_text_fill,
     session_text_fill,
     format_schedule_session_name_fn,
+    session_text_shadow_fill=None,
+    session_text_shadow_offset: tuple[int, int] = (1, 1),
 ) -> None:
     """Draw one localized schedule row using shared date/time/name layout."""
     dt = event.get("datetime")
@@ -1512,6 +1514,15 @@ def draw_schedule_row(
     draw.text((schedule_date_x, y), date_str, fill=regular_text_fill, font=font_reg)
     draw.text((schedule_day_x, y), day_str, fill=regular_text_fill, font=font_reg)
     draw.text((schedule_time_x, y), time_str, fill=regular_text_fill, font=font_reg)
+    if session_text_shadow_fill is not None and session_text_shadow_fill != session_text_fill:
+        shadow_x = schedule_name_x + session_text_shadow_offset[0]
+        shadow_y = y + session_text_shadow_offset[1]
+        draw.text(
+            (shadow_x, shadow_y),
+            translated_name,
+            fill=session_text_shadow_fill,
+            font=font_bold,
+        )
     draw.text((schedule_name_x, y), translated_name, fill=session_text_fill, font=font_bold)
 
 

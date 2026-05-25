@@ -1046,6 +1046,15 @@ def test_configure_calendar_mobile_timezone_selector():
     assert 'id="tzSelectMobile"' in html
 
 
+def test_configure_calendar_normalizes_legacy_ist_timezone_alias():
+    """Test configure JS normalizes browser legacy IST aliases before URL updates."""
+    response = client.get("/configure/calendar")
+    html = response.text
+    assert '"Asia/Calcutta": "Asia/Kolkata"' in html
+    assert "normalizeTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone)" in html
+    assert "tz = normalizeTimezone(tz)" in html
+
+
 def test_configure_calendar_mobile_race_selector():
     """Test configure calendar page has mobile race selector."""
     response = client.get("/configure/calendar")
@@ -1308,6 +1317,13 @@ def test_calendar_bmp_with_lang():
 def test_calendar_bmp_with_timezone():
     """Test /calendar.bmp with timezone parameter."""
     response = client.get("/calendar.bmp?tz=Europe/Prague")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+
+
+def test_calendar_bmp_accepts_legacy_ist_timezone_alias():
+    """Test /calendar.bmp accepts browser legacy IST timezone aliases."""
+    response = client.get("/calendar.bmp?tz=Asia%2FCalcutta")
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/bmp"
 
@@ -1691,6 +1707,24 @@ def test_convert_race_times_to_timezone():
     assert result["schedule"][0]["display_time"] == "Sat 05:30"
     assert result["schedule"][1]["display_time"] == "Sun 09:00"
     assert "-05:00" in result["schedule"][0]["datetime"]
+
+
+def test_convert_race_times_to_timezone_normalizes_legacy_ist_timezone_alias():
+    """Test timezone conversion accepts and canonicalizes legacy IST aliases."""
+    from app.main import _convert_race_times_to_timezone
+
+    race_data = {
+        "race_date": "02.03.2025",
+        "schedule": [
+            {"name": "Race", "datetime": "2025-03-02T14:00:00+00:00"},
+        ],
+    }
+
+    result = _convert_race_times_to_timezone(race_data, "Asia/Calcutta")
+
+    assert result["timezone"] == "Asia/Kolkata"
+    assert result["schedule"][0]["display_time"] == "Sun 19:30"
+    assert "+05:30" in result["schedule"][0]["datetime"]
 
 
 def test_convert_race_times_to_timezone_invalid_tz():

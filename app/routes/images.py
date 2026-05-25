@@ -27,7 +27,7 @@ from app.state import get_bmp_cache, record_api_call
 from app.utils.async_tasks import create_supervised_task
 from app.utils.race_times import convert_race_times_to_timezone
 from app.utils.rate_limit import enforce_rate_limit
-from app.utils.timezones import is_valid_timezone
+from app.utils.timezones import is_valid_timezone, normalize_timezone
 
 from .deps import get_f1_service
 
@@ -431,6 +431,7 @@ async def get_calendar_bmp(
     display = _normalize_display(display)
     weather_type = _normalize_weather_type(weather_type)
     _validate_timezone_param(tz)
+    tz = normalize_timezone(tz) if tz else None
     _validate_calendar_selection(year, race_key)
 
     is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(

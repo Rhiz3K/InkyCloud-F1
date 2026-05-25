@@ -23,7 +23,7 @@ from app.models import (
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.http_client import get_shared_http_client
 from app.utils.http import fetch_with_retry
-from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone
+from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone, normalize_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class F1Service:
         self.api_base_url = self._derive_api_base_url(self.api_url)
         self.timeout = config.REQUEST_TIMEOUT
         effective_timezone = timezone_name if timezone_name is not None else timezone
-        self.timezone_str = effective_timezone or config.DEFAULT_TIMEZONE
+        self.timezone_str = normalize_timezone(effective_timezone or config.DEFAULT_TIMEZONE)
         try:
             self.target_tz = get_timezone(self.timezone_str)
         except ZoneInfoNotFoundError:

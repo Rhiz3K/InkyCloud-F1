@@ -660,6 +660,7 @@ class Spectra6Renderer:
             font_reg=self.fonts["schedule_row"],
             regular_text_fill=self.colors.BLACK,
             session_text_fill=self._get_session_color(normalized_session_name),
+            session_text_shadow_fill=self.colors.BLACK,
             format_schedule_session_name_fn=(
                 lambda draw_ctx, session_name, max_width: format_schedule_session_name(
                     draw_ctx, session_name, max_width, self.lang_code, self.translator
