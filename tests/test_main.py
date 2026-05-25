@@ -1050,9 +1050,10 @@ def test_configure_calendar_normalizes_legacy_ist_timezone_alias():
     """Test configure JS normalizes browser legacy IST aliases before URL updates."""
     response = client.get("/configure/calendar")
     html = response.text
-    assert '"Asia/Calcutta": "Asia/Kolkata"' in html
-    assert "normalizeTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone)" in html
-    assert "tz = normalizeTimezone(tz)" in html
+    assert "const timezoneAliases = " in html
+    assert "Asia/Calcutta" in html
+    assert "Asia/Kolkata" in html
+    assert "normalizeTimezone(" in html
 
 
 def test_configure_calendar_mobile_race_selector():

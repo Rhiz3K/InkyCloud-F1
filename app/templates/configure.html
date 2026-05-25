@@ -1325,9 +1325,7 @@ block content %}
   }
 
   // Timezone handling - simple list sorted by UTC offset
-  const timezoneAliases = {
-    "Asia/Calcutta": "Asia/Kolkata",
-  };
+  const timezoneAliases = {{ timezone_aliases | tojson }};
 
   function normalizeTimezone(tz) {
     return timezoneAliases[tz] || tz;

@@ -14,6 +14,7 @@ from app.config import VALID_LANGUAGES, config
 from app.services.analytics import track_pageview
 from app.services.database import Database
 from app.services.version_service import get_cached_version, refresh_version_info
+from app.utils.timezones import TIMEZONE_ALIASES
 from app.web.api_docs import build_api_docs_context
 from app.web.templates import calc_percent, get_template_context, lang_url, templates
 
@@ -250,6 +251,7 @@ async def _configure_handler(request: Request, screen_type: str, ui_lang: str) -
     context["active_page"] = "configure"
     context["screen_type"] = screen_type
     context["default_timezone"] = config.DEFAULT_TIMEZONE
+    context["timezone_aliases"] = TIMEZONE_ALIASES
 
     return templates.TemplateResponse(request, "configure.html", context)
 
