@@ -254,6 +254,17 @@ def test_sitemap_xml_trailing_slash_alias_returns_xml():
     assert alias_response.text == canonical_response.text
 
 
+def test_sitemap_xml_omits_unverified_lastmod_values():
+    """Sitemap should not emit lastmod unless it reflects real page changes."""
+    response = client.get("/sitemap.xml")
+
+    assert response.status_code == 200
+    root = ET.fromstring(response.text)
+    ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+
+    assert root.findall("sm:url/sm:lastmod", ns) == []
+
+
 def test_sitemap_xml_escapes_site_url_values():
     """Sitemap XML should stay parseable when SITE_URL contains escapable characters."""
     with patch("app.routes.seo.config.SITE_URL", "https://example.test?src=seo&lang=en"):

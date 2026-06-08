@@ -30,6 +30,7 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 | `tz`           | Any IANA timezone                | `?tz=America/New_York`               |
 | `year`         | Season year                      | `?year=2026`                         |
 | `round`        | Race round number                | `?year=2026&round=5`                 |
+| `race_key`     | Specific race key from `/api/races/{year}` (requires `year`) | `?year=2026&race_key=2026-round-5-monaco-2026-05-24` |
 | `display`      | `1bit`, `bwr`, `bwry`, `spectra6` | `?display=bwry`                      |
 | `weather`      | `true`, `false`                  | `?weather=false`                     |
 | `weather_type` | `race_day`, `race`, `current`, `off` | `?weather=true&weather_type=current` |
@@ -40,6 +41,7 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 https://f1.inkycloud.click/calendar.bmp?lang=cs
 https://f1.inkycloud.click/calendar.bmp?lang=en&tz=America/New_York
 https://f1.inkycloud.click/calendar.bmp?lang=en&year=2026&round=5
+https://f1.inkycloud.click/calendar.bmp?lang=en&year=2026&race_key=2026-round-5-monaco-2026-05-24
 https://f1.inkycloud.click/calendar.bmp?lang=en&display=bwr
 https://f1.inkycloud.click/calendar.bmp?lang=en&display=bwry
 https://f1.inkycloud.click/calendar.bmp?lang=en&display=spectra6
@@ -75,6 +77,7 @@ _SVERIO PaperBoard 7.5" GDEM075F52 four-color 800×480 ePaper (black/white/yello
 - **Track Info** — Circuit map, length, laps, and first GP year
 - **Display-Specific Track Art** — `1bit`, `bwr`, `bwry`, and `spectra6` now prefer per-display source artwork before falling back to generic circuit assets
 - **Interactive configure flow** — Localized `/configure/calendar` and `/configure/teams` pages with pregenerated previews, direct BMP URLs, weather/display switching, and season leaders sidebar
+- **SEO-friendly public pages** — Canonical URLs, hreflang alternates, `robots.txt`, and a localized `sitemap.xml` without synthetic daily `lastmod` churn
 - **Session Schedule** — FP1, FP2, FP3, Qualifying, Sprint, Race times
 
 ### Roadmap
@@ -126,16 +129,19 @@ if (httpCode == HTTP_CODE_OK) {
 
 ---
 
-## API Endpoints
+## Public Routes and API Endpoints
 
 The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides these endpoints:
 
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
-| `GET /calendar.bmp`                      | Calendar BMP with `display`, `weather`, and `tz` params |
+| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, and `tz` params |
 | `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`) |
 | `GET /`                                  | Landing page with screen type selection                 |
 | `GET /configure/{screen}`                | Interactive localized preview/config page (calendar/teams) |
+| `GET /stats`                             | Public usage statistics dashboard                       |
+| `GET /privacy`                           | Privacy policy page                                     |
+| `GET /changelog`                         | Public changelog page                                   |
 | `GET /preview/{screen}.png`              | Pre-generated localized homepage preview PNG            |
 | `GET /preview/configure/{screen}.png`    | Pre-generated localized configure preview PNG           |
 | `GET /api`                               | JSON API documentation                                  |
@@ -150,7 +156,12 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 | `GET /api/stats/history`                 | Historical hourly request statistics                    |
 | `POST /api/perf-metrics`                 | Store frontend performance metrics (Core Web Vitals)    |
 | `GET /api/perf-metrics`                  | Read aggregated frontend performance metrics            |
+| `GET /robots.txt`                        | Crawler policy with canonical sitemap reference         |
+| `GET /sitemap.xml`                       | Localized sitemap with canonical URLs and hreflang alternates |
+| `GET /sw.js`                             | Service worker script                                   |
 | `GET /health`                            | Health check                                            |
+
+When `ADMIN_API_TOKEN` is configured, read-only operational endpoints (`/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics`) require either `X-Admin-Token` or `Authorization: Bearer <token>`. Public image endpoints and `POST /api/perf-metrics` remain available, with rate limits applied.
 
 ---
 
@@ -175,7 +186,11 @@ Local development requires **Python 3.13+**.
 git clone https://github.com/Rhiz3K/InkyCloud-F1.git
 cd InkyCloud-F1
 docker build -t f1-eink-cal .
-docker run -p 8000:8000 f1-eink-cal
+docker volume create f1_data
+docker run -p 8000:8000 \
+  -v f1_data:/app/data \
+  -e SITE_URL=http://localhost:8000 \
+  f1-eink-cal
 ```
 
 ### Deployment Guides

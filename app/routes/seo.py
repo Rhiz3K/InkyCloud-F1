@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from xml.sax.saxutils import escape
 
 from fastapi import APIRouter
@@ -70,7 +69,6 @@ Sitemap: {site_url}/sitemap.xml
 async def sitemap_xml() -> Response:
     """Serve sitemap.xml with subdirectory language URLs."""
     site_url = str(config.SITE_URL).rstrip("/")
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     urls: list[str] = []
 
@@ -99,7 +97,6 @@ async def sitemap_xml() -> Response:
                 f"""  <url>
     <loc>{_xml_escape(url_loc)}</loc>
 {alternate_links}
-    <lastmod>{today}</lastmod>
     <changefreq>{page.changefreq}</changefreq>
     <priority>{page.priority}</priority>
   </url>"""

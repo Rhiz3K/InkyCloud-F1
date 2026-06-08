@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.26] - 2026-06-08
+
+### Frontend
+
+#### Added
+
+- **Catalunya track assets** - Added the source PSD and B/W, B/W/R, B/W/R/Y, and Spectra 6 rendered track images for Circuit de Barcelona-Catalunya display support
+
+### Backend
+
+#### Fixed
+
+- **Sitemap lastmod accuracy** - Removed synthetic daily `lastmod` values from `sitemap.xml` so sitemap metadata no longer claims every localized page changed on every request
+
+### Documentation
+
+#### Changed
+
+- **README project status refresh** - Updated public route, API, SEO, Docker quick-start, `race_key`, and operational API token documentation to match the current app behavior
+
 ## [1.2.25] - 2026-05-25
 
 ### Frontend
