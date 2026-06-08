@@ -437,52 +437,52 @@
     "fastest_lap_driver": "Lewis Hamilton",
     "fastest_lap_year": "2021",
     "historical": {
-      "season": 2025,
-      "updated_at": "2026-03-30",
+      "season": 2026,
+      "updated_at": "2026-06-08",
       "qualifying": [
         {
           "pos": 1,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "1:09.954"
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:12.051"
         },
         {
           "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:12.094"
+        },
+        {
+          "pos": 4,
           "code": "LEC",
           "name": "Leclerc",
           "team": "Ferrari",
-          "time": "1:10.063"
-        },
-        {
-          "pos": 3,
-          "code": "PIA",
-          "name": "Piastri",
-          "team": "McLaren",
-          "time": "1:10.129"
+          "time": "1:12.351"
         }
       ],
       "race": [
         {
           "pos": 1,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "1:40:33.843"
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "2:23:31.243"
         },
         {
           "pos": 2,
-          "code": "LEC",
-          "name": "Leclerc",
+          "code": "HAM",
+          "name": "Hamilton",
           "team": "Ferrari",
-          "time": "+3.131"
+          "time": "+6.271"
         },
         {
           "pos": 3,
-          "code": "PIA",
-          "name": "Piastri",
-          "team": "McLaren",
-          "time": "+3.658"
+          "code": "HAD",
+          "name": "Hadjar",
+          "team": "Red Bull",
+          "time": "+23.394"
         }
       ]
     }
