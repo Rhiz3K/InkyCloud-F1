@@ -12,9 +12,10 @@ _RATE_LIMIT_BUCKETS: TTLCache[str, int] = TTLCache(maxsize=10_000, ttl=RATE_LIMI
 
 
 def _get_client_identifier(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        return forwarded_for.split(",", 1)[0].strip() or "unknown"
+    # uvicorn runs with --proxy-headers/--forwarded-allow-ips, so request.client.host is
+    # already the proxy-validated client IP. We must NOT parse X-Forwarded-For ourselves:
+    # the leftmost entry is attacker-supplied, letting a client forge a fresh rate-limit
+    # bucket on every request and bypass the quota entirely.
     if request.client and request.client.host:
         return request.client.host
     return "unknown"

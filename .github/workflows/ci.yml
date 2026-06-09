@@ -10,6 +10,11 @@ on:
 jobs:
   test:
     runs-on: [self-hosted, linux]
+    # SECURITY: this job runs on a persistent self-hosted runner and executes checked-out
+    # code (setup.py, conftest, tests, Dockerfile). Never run untrusted fork-PR code here —
+    # a malicious PR could compromise the runner and harvest secrets from other workflows
+    # (e.g. release.yml's SYNC_PAT on the same pool). Only run for same-repo refs.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     permissions:
       contents: read
       id-token: write  # Required for OIDC authentication with DeepSource

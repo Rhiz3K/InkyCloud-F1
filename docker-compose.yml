@@ -5,7 +5,11 @@ services:
       dockerfile: Dockerfile
     container_name: f1-eink-cal
     ports:
-      - "8000:8000"
+      # Bind to loopback only: the app is meant to sit behind a reverse proxy (Coolify/Traefik
+      # reach it over the Docker network, not this host port). Its HSTS/www redirect only apply
+      # on HTTPS, so exposing :8000 on 0.0.0.0 would serve the app in plaintext to the LAN.
+      # Change to "8000:8000" only if you intentionally want direct host access without a proxy.
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env
     restart: unless-stopped

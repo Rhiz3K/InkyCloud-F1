@@ -27,7 +27,13 @@ _LANGUAGE_VALUES = list(LANGUAGE_CODES)
 
 
 def _require_operational_api_auth(request: Request) -> None:
-    """Require a token for operational read APIs when configured."""
+    """Gate operational read APIs (stats / perf-metrics) behind a token when one is configured.
+
+    These endpoints mirror data already shown on the public ``/stats`` dashboard, so they are
+    intentionally public by default. Set ``ADMIN_API_TOKEN`` to require ``X-Admin-Token`` /
+    ``Authorization: Bearer`` and lock them down — until then access is open by design, not by
+    oversight.
+    """
     configured_token = config.ADMIN_API_TOKEN
     if configured_token is None:
         return
