@@ -37,9 +37,11 @@ def _sanitize_rendered_html(html: str) -> str:
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(html, "html.parser")
-    for tag in soup(_UNSAFE_HTML_TAGS):
+    # Snapshot the result sets with list() before mutating the tree (also avoids a pylint
+    # E1133 false positive: it can't infer that bs4 result sets are iterable).
+    for tag in list(soup(_UNSAFE_HTML_TAGS)):
         tag.decompose()
-    for tag in soup.find_all(True):
+    for tag in list(soup.find_all(True)):
         for attr, value in list(tag.attrs.items()):
             lowered = attr.lower()
             if lowered.startswith("on"):
