@@ -2802,7 +2802,7 @@ def test_spectra6_renderer_load_track_image_does_not_use_wildcard_fallback(
 @pytest.mark.parametrize(
     ("renderer_cls", "renderer_module", "expected_country_map"),
     [
-        (BwrRenderer, bwr_renderer_module, {}),
+        (BwrRenderer, bwr_renderer_module, bwr_renderer_module.COUNTRY_MAP),
         (BwryRenderer, bwry_renderer_module, bwry_renderer_module.COUNTRY_MAP),
     ],
 )
