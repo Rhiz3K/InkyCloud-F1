@@ -15,10 +15,12 @@ logger = logging.getLogger(__name__)
 GITHUB_OWNER = "Rhiz3K"
 GITHUB_REPO = "InkyCloud-F1"
 
-# Cache for version info (refreshed at midnight and on deployment)
+# Cache for version info (refreshed hourly by the scheduler and on deployment).
+# TTL matches the hourly refresh cadence so the changelog page serves the cached value instead
+# of doing a blocking inline GitHub fetch for ~55 minutes of every hour.
 _version_cache: "VersionInfo | None" = None
 _version_cache_fetched_at: float | None = None
-VERSION_CACHE_TTL_SECONDS = 300
+VERSION_CACHE_TTL_SECONDS = 3600
 
 
 @dataclass

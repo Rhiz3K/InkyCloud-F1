@@ -494,20 +494,36 @@ class TeamsService:
         try:
             json_data = self._load_from_json(year)
             if json_data:
-                driver_standings, constructor_standings = await self._fetch_standings(year)
+                try:
+                    driver_standings, constructor_standings = await self._fetch_standings(year)
 
-                if not driver_standings and not constructor_standings and year >= 2026:
-                    logger.info("No standings for %d, falling back to %d", year, year - 1)
-                    driver_standings, constructor_standings = await self._fetch_standings(year - 1)
+                    if not driver_standings and not constructor_standings and year >= 2026:
+                        logger.info("No standings for %d, falling back to %d", year, year - 1)
+                        driver_standings, constructor_standings = await self._fetch_standings(
+                            year - 1
+                        )
 
-                json_data = self._merge_standings(
-                    json_data, driver_standings, constructor_standings
-                )
+                    json_data = self._merge_standings(
+                        json_data, driver_standings, constructor_standings
+                    )
+                except Exception as e:
+                    # Standings are enrichment on top of the bundled team/driver JSON. On an
+                    # upstream (jolpica) failure, keep the JSON teams without live positions
+                    # rather than discarding a perfectly good dashboard and caching a blank one.
+                    logger.warning(
+                        "Standings fetch failed for %d; serving teams without standings: %s",
+                        year,
+                        e,
+                    )
+
                 self._set_cache(year, json_data)
                 return json_data
 
             api_data = await self._fetch_from_api(year)
-            self._set_cache(year, api_data)
+            # Never cache an empty result, so a transient outage retries instead of pinning a
+            # blank dashboard for the full cache TTL.
+            if api_data.teams:
+                self._set_cache(year, api_data)
             return api_data
 
         except Exception as e:

@@ -3,7 +3,7 @@
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
 from pathlib import Path
 from typing import Optional
@@ -35,6 +35,13 @@ CIRCUITS_DATA_PATH = ASSETS_DIR / "circuits_data.json"
 # Minimum year for historical data - qualifying data in modern format (Q1/Q2/Q3) started in 2006
 # Using 2003 as a safe minimum when qualifying results became reliably available in Ergast
 MIN_HISTORICAL_YEAR = 2003
+
+# Default UTC time used when a session/race time is missing from the data. Shared by the
+# display conversion and the next-race selection so the two never disagree at the boundary.
+DEFAULT_SESSION_TIME_UTC = "12:00:00Z"
+# Keep a race selected as "next" until this long after lights-out, so the calendar doesn't
+# advance to the following Grand Prix the instant the current race starts.
+NEXT_RACE_GRACE = timedelta(hours=4)
 
 
 class F1Service:
@@ -210,8 +217,8 @@ class F1Service:
         def parse_and_convert(date_str: str, time_str: Optional[str]) -> Optional[datetime]:
             """Parse date and time, convert to target timezone."""
             if not time_str:
-                # If no time, use noon UTC as default
-                time_str = "12:00:00Z"
+                # If no time, use a stable default shared with next-race selection.
+                time_str = DEFAULT_SESSION_TIME_UTC
 
             # Combine date and time
             dt_str = f"{date_str}T{time_str}"
@@ -657,12 +664,13 @@ class F1Service:
                         continue
 
                     # Parse race datetime
-                    race_time = race.time or "14:00:00Z"
+                    race_time = race.time or DEFAULT_SESSION_TIME_UTC
                     dt_str = f"{race.date}T{race_time}"
                     race_dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
 
-                    # If race is in the future, this is the next race
-                    if race_dt > now:
+                    # Keep the current race selected until NEXT_RACE_GRACE after lights-out, so
+                    # the display doesn't flip to the next GP mid-race.
+                    if race_dt + NEXT_RACE_GRACE > now:
                         logger.info(
                             "Found next race from static: %s (%s)", race.raceName, race.date
                         )

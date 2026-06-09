@@ -139,8 +139,8 @@ class WeatherService:
             lon: Longitude in decimal degrees.
 
         Returns:
-            WeatherData with temperature_c, weather_code, precipitation_probability.
-            Uses defaults (20.0C, code 0, prob 0) if API omits values.
+            WeatherData with temperature_c, weather_code, precipitation_probability, or None
+            when the response lacks a current temperature (rather than fabricating defaults).
         """
         params: dict[str, str | int | float] = {
             "latitude": round(lat, 2),
@@ -156,19 +156,33 @@ class WeatherService:
         response.raise_for_status()
         data = response.json()
 
-        current = data.get("current", {})
-        hourly = data.get("hourly", {})
+        current = data.get("current") or {}
+        hourly = data.get("hourly") or {}
 
-        temp = current.get("temperature_2m", 20.0)
-        code = current.get("weather_code", 0)
+        # Don't fabricate weather: a 200 response with a missing/partial current block must not
+        # be cached and displayed as 20C/sunny. Return None so the caller falls back gracefully.
+        if "temperature_2m" not in current:
+            logger.warning("open-meteo returned no current temperature for %s,%s", lat, lon)
+            return None
 
-        precip_probs = hourly.get("precipitation_probability", [])
-        precip = precip_probs[0] if precip_probs else 0
+        # Precipitation probability lives only in the hourly array; pick the slot matching the
+        # current local hour instead of index 0 (which is 00:00 and wrong for most of the day).
+        precip_probs = hourly.get("precipitation_probability") or []
+        precip_times = hourly.get("time") or []
+        current_hour = str(current.get("time", ""))[:13]  # YYYY-MM-DDTHH
+        precip = 0
+        if precip_probs:
+            idx = 0
+            for i, t in enumerate(precip_times):
+                if str(t)[:13] == current_hour and i < len(precip_probs):
+                    idx = i
+                    break
+            precip = precip_probs[idx] or 0
 
         return WeatherData(
-            temperature_c=temp,
-            weather_code=code,
-            precipitation_probability=precip or 0,
+            temperature_c=current["temperature_2m"],
+            weather_code=current.get("weather_code", 0),
+            precipitation_probability=precip,
         )
 
     async def get_race_weather(
@@ -720,3 +734,30 @@ async def get_cached_weather_from_db(db: "Database", cache_key: str) -> Optional
             precipitation_probability=precip,
         )
     return None
+
+
+async def load_prefetched_weather_from_db(db: "Database") -> int:
+    """Warm the in-memory next-race weather cache from the persisted DB cache on startup.
+
+    Without this the hourly prefetch's DB writes were never read back, so a restart discarded
+    the prefetched weather until the next :55 run. Keys mirror the prefetch save keys and the
+    in-memory read keys exactly, so warmed entries are served by get_current/get_race_weather.
+    """
+    details = _get_next_race_details()
+    if not details:
+        return 0
+
+    lat, lon, race_dt = details
+    keys = (
+        f"current_{round(lat, 2)}_{round(lon, 2)}",
+        f"{round(lat, 2)}_{round(lon, 2)}_{race_dt.isoformat()}",
+    )
+
+    loaded = 0
+    now = datetime.now(timezone.utc)
+    for cache_key in keys:
+        data = await get_cached_weather_from_db(db, cache_key)
+        if data:
+            _weather_cache[cache_key] = (data, now)
+            loaded += 1
+    return loaded
