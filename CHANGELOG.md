@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.27] - 2026-06-09
+
+### Security
+
+#### Fixed
+
+- **Starlette host-header advisory (CVE-2026-48710)** - Upgraded locked `starlette` to 1.2.1 to resolve the Dependabot alert for missing `Host` header validation that could poison `request.url.path`
+- **CI no longer runs untrusted fork PRs on the self-hosted runner** - Gated the `test` job so pull requests from forks don't execute checked-out code on the persistent self-hosted runner that shares secrets with the release workflow
+- **Rate-limit client identification** - Per-IP rate limiting now uses the proxy-validated client address instead of the spoofable leftmost `X-Forwarded-For` entry, so a client can no longer forge a fresh bucket on every request
+- **Changelog HTML sanitization** - Rendered changelog markdown is sanitized (script/style/event-handler/`javascript:` removal) as defense-in-depth before being emitted
+- **Configure page output escaping** - Upstream team/driver/country strings injected into the configure DOM are now HTML-escaped
+
+### Backend
+
+#### Fixed
+
+- **Atomic image generation** - Hourly generation writes all variants before pruning stale files and isolates each render, so a single failed variant can no longer delete the entire pregenerated set for an hour
+- **Renderers no longer block the event loop** - Calendar/teams BMP rendering and PNG conversion run in a worker thread, so a cache miss or the hourly bulk job no longer stalls concurrent requests
+- **Black/White/Red results flags** - Restored the country-to-flag map for the BWR renderer, fixing the Austrian GP rendering the Australian flag and several Grands Prix rendering no flag
+- **Sauber logo on BWR/BWRY teams screens** - Keyed the team-logo cache per renderer class so the palette-specific Sauber logo preparation runs instead of inheriting the Spectra 6 variant
+- **Scheduler misfire handling** - Background jobs use a 5-minute misfire grace, so a briefly-busy event loop no longer silently skips hourly generation or the daily backup
+- **Popular-timezone pregeneration is served** - Calendar requests for popular non-default timezones now serve the pregenerated BMP instead of always rendering on demand
+- **Teams dashboard resilience** - A standings-fetch failure keeps the bundled team data instead of caching a blank dashboard for an hour
+- **Current weather accuracy** - Precipitation probability is read from the current hour instead of midnight, and missing API fields return no data instead of fabricating 20°C/sunny weather
+- **Next-race boundary** - The calendar keeps showing the current race for a grace window after lights-out instead of flipping to the next Grand Prix the moment it starts
+- **Statistics durability** - The in-memory API-call buffer is bounded, re-queued on a failed flush, and flushed on shutdown
+- **Weather restart persistence** - Prefetched next-race weather is restored from the database on startup instead of being discarded
+
+#### Changed
+
+- **Statistics retention default** - `STATS_RETENTION_DAYS` now defaults to 90 days to bound statistics table and backup growth
+- **Version info caching** - The changelog page serves cached GitHub version info for the full hourly refresh window instead of blocking on an inline fetch when the short cache expired
+- **uvicorn minimum version** - Raised to 0.30 for CIDR support in `--forwarded-allow-ips`
+
+### Frontend
+
+#### Fixed
+
+- **Configure preview timezone** - The pre-rendered preview is used only when the selected timezone matches the server default, so non-default-timezone visitors see an accurate preview
+- **Service worker asset freshness** - Static assets use a stale-while-revalidate strategy so updated scripts and styles reach returning visitors without a manual cache-version bump
+
+### Development
+
+#### Changed
+
+- **Operational API documentation** - Clarified that the stats and perf-metrics read endpoints are public by design unless `ADMIN_API_TOKEN` is configured
+- **Docker Compose port binding** - The published port binds to loopback by default so the app is not served in plaintext when fronted by a reverse proxy
+
 ## [1.2.26] - 2026-06-08
 
 ### Frontend
