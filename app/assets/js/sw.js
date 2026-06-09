@@ -51,7 +51,13 @@ self.addEventListener("fetch", (event) => {
                             return response;
                         })
                         .catch(() => cached);
-                    return cached || network;
+                    // When serving from cache, keep the SW alive until the background
+                    // revalidation finishes so the cache.put isn't dropped mid-flight.
+                    if (cached) {
+                        event.waitUntil(network.catch(() => {}));
+                        return cached;
+                    }
+                    return network;
                 }),
             ),
         );

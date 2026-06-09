@@ -172,11 +172,14 @@ class WeatherService:
         current_hour = str(current.get("time", ""))[:13]  # YYYY-MM-DDTHH
         precip = 0
         if precip_probs:
+            # Prefer the hourly slot matching the API's reported current time; only fall back to
+            # the first (00:00) slot when the time field is missing or no slot matches.
             idx = 0
-            for i, t in enumerate(precip_times):
-                if str(t)[:13] == current_hour and i < len(precip_probs):
-                    idx = i
-                    break
+            if current_hour:
+                for i, t in enumerate(precip_times):
+                    if str(t)[:13] == current_hour and i < len(precip_probs):
+                        idx = i
+                        break
             precip = precip_probs[idx] or 0
 
         return WeatherData(

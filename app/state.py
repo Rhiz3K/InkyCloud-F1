@@ -18,6 +18,7 @@ _api_calls_buffer: list = []
 
 
 def _trim_api_calls_buffer() -> None:
+    """Drop the oldest buffered calls when the buffer exceeds its cap."""
     overflow = len(_api_calls_buffer) - API_CALLS_BUFFER_MAXSIZE
     if overflow > 0:
         del _api_calls_buffer[:overflow]

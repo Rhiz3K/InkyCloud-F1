@@ -3,6 +3,7 @@
 import io
 import json
 import logging
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -75,6 +76,10 @@ TRACKS_PROCESSED_DIR = ASSETS_DIR / "tracks_processed"
 IMAGES_DIR = ASSETS_DIR / "images"
 FLAGS_DIR = ASSETS_DIR / "flags_spectra6"
 TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
+
+# Guards the lazy class-level asset caches below. Rendering now runs in a thread pool
+# (asyncio.to_thread), so these caches can be populated concurrently from multiple threads.
+_ASSET_CACHE_LOCK = threading.Lock()
 
 TEXT_BASELINE_REF = "ÁŽÝgy"
 
@@ -865,8 +870,10 @@ class Spectra6Renderer:
         """Return the process-wide cache of color driver portraits."""
         cache_key = str(IMAGES_DIR)
         if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
-            cls._cached_driver_photos = cls._load_driver_photos()
-            cls._cached_driver_photos_key = cache_key
+            with _ASSET_CACHE_LOCK:
+                if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
+                    cls._cached_driver_photos = cls._load_driver_photos()
+                    cls._cached_driver_photos_key = cache_key
         return cls._cached_driver_photos
 
     @classmethod
@@ -899,8 +906,10 @@ class Spectra6Renderer:
         # the base Spectra6 cache — otherwise their palette-specific logo prep never runs.
         cache_key = (cls.__name__, str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
         if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
-            cls._cached_team_logos = cls._load_team_logos()
-            cls._cached_team_logos_key = cache_key
+            with _ASSET_CACHE_LOCK:
+                if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
+                    cls._cached_team_logos = cls._load_team_logos()
+                    cls._cached_team_logos_key = cache_key
         return cls._cached_team_logos
 
     @classmethod

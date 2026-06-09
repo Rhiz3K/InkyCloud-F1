@@ -19,7 +19,15 @@ FONTS_DIR = Path(__file__).parent.parent / "assets" / "fonts"
 _thread_local = threading.local()
 
 
+_FONT_CACHE_MAXSIZE = 256
+
+
 def _cached_truetype(path: str, size: int, *, index: int = 0) -> FreeTypeFont:
+    """Return a per-thread cached TrueType font, loading it on first use.
+
+    fit_ui_font probes many sizes, so the cache is bounded: once it exceeds
+    _FONT_CACHE_MAXSIZE entries it is cleared to avoid unbounded growth.
+    """
     cache = getattr(_thread_local, "fonts", None)
     if cache is None:
         cache = {}
@@ -27,6 +35,8 @@ def _cached_truetype(path: str, size: int, *, index: int = 0) -> FreeTypeFont:
     key = (path, size, index)
     font = cache.get(key)
     if font is None:
+        if len(cache) >= _FONT_CACHE_MAXSIZE:
+            cache.clear()
         font = ImageFont.truetype(path, size, index=index)
         cache[key] = font
     return font

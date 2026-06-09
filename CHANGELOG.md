@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Atomic image generation** - Hourly generation writes all variants before pruning stale files and isolates each render, so a single failed variant can no longer delete the entire pregenerated set for an hour
 - **Renderers no longer block the event loop** - Calendar/teams BMP rendering and PNG conversion run in a worker thread, so a cache miss or the hourly bulk job no longer stalls concurrent requests
+- **Thread-safe renderer asset caches** - Guarded the shared team-logo and driver-photo caches with a lock now that rendering runs in a thread pool, so concurrent first-loads can't race into redundant disk reads
 - **Black/White/Red results flags** - Restored the country-to-flag map for the BWR renderer, fixing the Austrian GP rendering the Australian flag and several Grands Prix rendering no flag
 - **Sauber logo on BWR/BWRY teams screens** - Keyed the team-logo cache per renderer class so the palette-specific Sauber logo preparation runs instead of inheriting the Spectra 6 variant
 - **Scheduler misfire handling** - Background jobs use a 5-minute misfire grace, so a briefly-busy event loop no longer silently skips hourly generation or the daily backup

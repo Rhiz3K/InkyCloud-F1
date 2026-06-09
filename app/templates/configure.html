@@ -1150,7 +1150,7 @@ block content %}
       raceList.innerHTML = html;
 
       // Build mobile select (use ISO codes for text, no images in select options)
-      mobileSelect.innerHTML = `<option value="">${t.nextRace}</option>`;
+      let mobileHtml = `<option value="">${t.nextRace}</option>`;
       racesData.forEach((race) => {
         const date = race.date ? new Date(race.date) : null;
         const dateStr = date
@@ -1164,8 +1164,9 @@ block content %}
         const isoDisplay = iso ? iso.toUpperCase() : "🏁";
         const name = race.race_name.replace(" Grand Prix", " GP");
         const cancelledLabel = race.is_cancelled ? ` [${t.cancelled}]` : "";
-        mobileSelect.innerHTML += `<option value="${escapeHtml(race.race_key)}">${dateStr} ${isoDisplay} ${escapeHtml(name)}${cancelledLabel}</option>`;
+        mobileHtml += `<option value="${escapeHtml(race.race_key)}">${dateStr} ${isoDisplay} ${escapeHtml(name)}${cancelledLabel}</option>`;
       });
+      mobileSelect.innerHTML = mobileHtml;
     } catch (e) {
       console.error("Failed to load races:", e);
       raceList.innerHTML =

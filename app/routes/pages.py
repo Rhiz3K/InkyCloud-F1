@@ -45,7 +45,10 @@ def _sanitize_rendered_html(html: str) -> str:
             if lowered.startswith("on"):
                 del tag.attrs[attr]
             elif lowered in {"href", "src"} and isinstance(value, str):
-                if value.strip().lower().replace("\t", "").startswith("javascript:"):
+                # Strip control/whitespace chars first so "java\tscript:" / "java\nscript:"
+                # can't slip through, and block data:/vbscript: URI vectors as well.
+                cleaned = "".join(ch for ch in value if ord(ch) > 32).lower()
+                if cleaned.startswith(("javascript:", "data:", "vbscript:")):
                     del tag.attrs[attr]
     return str(soup)
 
