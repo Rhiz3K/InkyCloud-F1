@@ -29,7 +29,12 @@ from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
 from app.services.database import Database
 from app.services.http_client import close_shared_http_clients
-from app.services.scheduler import run_initial_generation, start_scheduler, stop_scheduler
+from app.services.scheduler import (
+    flush_api_calls_to_db,
+    run_initial_generation,
+    start_scheduler,
+    stop_scheduler,
+)
 from app.services.warmup import warm_teams_renderer_assets
 from app.utils.async_tasks import create_supervised_task
 from app.utils.race_times import (  # noqa: F401
@@ -122,6 +127,12 @@ async def lifespan(_app: FastAPI):
         with suppress(asyncio.CancelledError):
             await initial_generation_task
     stop_scheduler()
+    # Persist any buffered API calls before closing DB connections, so a deploy/restart doesn't
+    # discard up to a minute of request stats.
+    try:
+        await flush_api_calls_to_db()
+    except Exception as exc:
+        logger.error("Final API-call flush on shutdown failed: %s", exc, exc_info=True)
     await close_shared_http_clients()
     await Database.close_all()
     logger.info("Shutting down F1 E-Ink calendar service")

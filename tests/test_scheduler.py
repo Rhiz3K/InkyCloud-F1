@@ -52,21 +52,24 @@ async def test_collect_and_generate_uses_configured_stats_retention(tmp_path):
     with (
         patch("app.services.scheduler.Database", return_value=db),
         patch("app.services.scheduler.F1Service") as f1_service_cls,
-        patch("app.services.scheduler._delete_existing_bmps", return_value=0),
+        patch("app.services.scheduler._delete_stale_bmps", return_value=0),
         patch("app.services.scheduler._load_historical_data", return_value={}),
         patch(
             "app.services.scheduler._load_weather_context",
             new=AsyncMock(return_value=(None, None, {"off": None})),
         ),
-        patch("app.services.scheduler._generate_base_variants", new=AsyncMock(return_value=0)),
+        patch(
+            "app.services.scheduler._generate_base_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
         patch(
             "app.services.scheduler._generate_popular_tz_variants",
-            new=AsyncMock(return_value=0),
+            new=AsyncMock(return_value=(set(), 0)),
         ),
         patch("app.services.scheduler.generate_preview_pngs", new=AsyncMock()),
         patch(
             "app.services.scheduler._generate_teams_bmp_variants",
-            new=AsyncMock(return_value=0),
+            new=AsyncMock(return_value=(set(), 0)),
         ),
         patch("app.services.scheduler.clear_bmp_cache"),
         patch("app.services.scheduler.config.IMAGES_PATH", str(tmp_path / "images")),
@@ -90,21 +93,24 @@ async def test_collect_and_generate_skips_stats_cleanup_when_retention_disabled(
     with (
         patch("app.services.scheduler.Database", return_value=db),
         patch("app.services.scheduler.F1Service") as f1_service_cls,
-        patch("app.services.scheduler._delete_existing_bmps", return_value=0),
+        patch("app.services.scheduler._delete_stale_bmps", return_value=0),
         patch("app.services.scheduler._load_historical_data", return_value={}),
         patch(
             "app.services.scheduler._load_weather_context",
             new=AsyncMock(return_value=(None, None, {"off": None})),
         ),
-        patch("app.services.scheduler._generate_base_variants", new=AsyncMock(return_value=0)),
+        patch(
+            "app.services.scheduler._generate_base_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
         patch(
             "app.services.scheduler._generate_popular_tz_variants",
-            new=AsyncMock(return_value=0),
+            new=AsyncMock(return_value=(set(), 0)),
         ),
         patch("app.services.scheduler.generate_preview_pngs", new=AsyncMock()),
         patch(
             "app.services.scheduler._generate_teams_bmp_variants",
-            new=AsyncMock(return_value=0),
+            new=AsyncMock(return_value=(set(), 0)),
         ),
         patch("app.services.scheduler.clear_bmp_cache"),
         patch("app.services.scheduler.config.IMAGES_PATH", str(tmp_path / "images")),

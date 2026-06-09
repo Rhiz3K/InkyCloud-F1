@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from io import BytesIO
 from pathlib import Path
@@ -60,8 +61,10 @@ async def _render_teams_preview(
         raise RuntimeError(f"No teams data available for preview season {season}")
 
     renderer = _get_teams_renderer(display, translator, lang)
-    bmp_data = renderer.render_teams_drivers(teams_data)
-    png_data = _bmp_to_png(
+    # Render + PNG conversion are CPU-bound; keep them off the event loop.
+    bmp_data = await asyncio.to_thread(renderer.render_teams_drivers, teams_data)
+    png_data = await asyncio.to_thread(
+        _bmp_to_png,
         bmp_data,
         width=400,
         full_size=full_size,

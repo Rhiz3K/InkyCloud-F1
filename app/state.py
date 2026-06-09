@@ -11,7 +11,16 @@ BMP_CACHE_TTL_SECONDS = 3600
 # Cover all localized display/weather variants without immediate LRU churn.
 _bmp_cache: TTLCache = TTLCache(maxsize=BMP_CACHE_MAXSIZE, ttl=BMP_CACHE_TTL_SECONDS)
 
+# Bound the buffer so a serving instance whose flush job never runs (e.g. SCHEDULER_ENABLED
+# is false) cannot grow it without limit. Oldest entries are dropped past the cap.
+API_CALLS_BUFFER_MAXSIZE = 10_000
 _api_calls_buffer: list = []
+
+
+def _trim_api_calls_buffer() -> None:
+    overflow = len(_api_calls_buffer) - API_CALLS_BUFFER_MAXSIZE
+    if overflow > 0:
+        del _api_calls_buffer[:overflow]
 
 
 def clear_bmp_cache() -> None:
@@ -49,9 +58,18 @@ def record_api_call(
         "display_type": display_type,
     }
     _api_calls_buffer.append(call)
+    _trim_api_calls_buffer()
 
 
 def get_and_clear_api_calls_buffer() -> list:
     calls = _api_calls_buffer[:]
     _api_calls_buffer.clear()
     return calls
+
+
+def requeue_api_calls(calls: list) -> None:
+    """Put calls back at the front of the buffer after a failed flush, respecting the cap."""
+    if not calls:
+        return
+    _api_calls_buffer[:0] = calls
+    _trim_api_calls_buffer()
