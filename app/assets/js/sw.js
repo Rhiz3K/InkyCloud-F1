@@ -1,6 +1,6 @@
 // Bump the cache version whenever routing-critical frontend assets change.
 // This forces clients to drop stale locale-switching logic from previous releases.
-const CACHE_NAME = "f1-eink-v3";
+const CACHE_NAME = "f1-eink-v4";
 const STATIC_ASSETS = [
     "/static/css/tailwind.min.css",
     "/static/css/styles.css",
@@ -37,19 +37,23 @@ self.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
 
     if (url.pathname.startsWith("/static/")) {
+        // Stale-while-revalidate: serve the cached asset immediately, but always re-fetch in the
+        // background so an updated common.js / stylesheet reaches returning visitors on their next
+        // load even when CACHE_NAME wasn't bumped. Pure cache-first served stale assets forever.
         event.respondWith(
-            caches.match(event.request).then((cached) => {
-                if (cached) return cached;
-                return fetch(event.request).then((response) => {
-                    if (response.ok) {
-                        const clone = response.clone();
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, clone);
-                        });
-                    }
-                    return response;
-                });
-            }),
+            caches.open(CACHE_NAME).then((cache) =>
+                cache.match(event.request).then((cached) => {
+                    const network = fetch(event.request)
+                        .then((response) => {
+                            if (response.ok) {
+                                cache.put(event.request, response.clone());
+                            }
+                            return response;
+                        })
+                        .catch(() => cached);
+                    return cached || network;
+                }),
+            ),
         );
         return;
     }

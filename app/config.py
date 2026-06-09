@@ -146,10 +146,11 @@ class Config(BaseSettings):
     # Scheduler settings
     SCHEDULER_ENABLED: bool = Field(True, description="Toggle background scheduler")
     STATS_RETENTION_DAYS: int = Field(
-        0,
+        90,
         ge=0,
         description=(
-            "Days to retain API/request/performance statistics (0=disabled, keep indefinitely)"
+            "Days to retain API/request/performance statistics "
+            "(0=disabled, keep indefinitely; default prunes to bound unbounded table growth)"
         ),
     )
 

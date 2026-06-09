@@ -456,10 +456,19 @@ block content %}
     Russia: "ru",
   };
 
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
   function getFlagHtml(country, size = "h-4") {
     const iso = COUNTRY_ISO[country];
     if (iso) {
-      return `<img src="/static/flags/${iso}.png" alt="${country}" class="inline ${size} w-auto" loading="lazy" decoding="async">`;
+      return `<img src="/static/flags/${iso}.png" alt="${escapeHtml(country)}" class="inline ${size} w-auto" loading="lazy" decoding="async">`;
     }
     return "🏁";
   }
@@ -596,12 +605,12 @@ block content %}
 
         html += `<span class="flex-1 flex items-center gap-2 min-w-0">`;
         if (teamId) {
-          html += `<img src="/static/images/teams/${teamId}.png" alt="" class="h-4 w-4 object-contain flex-shrink-0" onerror="this.style.display='none'">`;
+          html += `<img src="/static/images/teams/${encodeURIComponent(teamId)}.png" alt="" class="h-4 w-4 object-contain flex-shrink-0" onerror="this.style.display='none'">`;
         }
-        html += `<span class="text-xs font-bold truncate">${teamName}</span>`;
+        html += `<span class="text-xs font-bold truncate">${escapeHtml(teamName)}</span>`;
         html += `</span>`;
 
-        html += `<span class="text-xs font-mono flex-shrink-0">${driverNum} ${driverCode}</span>`;
+        html += `<span class="text-xs font-mono flex-shrink-0">${escapeHtml(driverNum)} ${escapeHtml(driverCode)}</span>`;
       }
 
       html += `</button>`;
@@ -1011,8 +1020,10 @@ block content %}
 
   function canUsePrerenderedPreview() {
     if (currentScreenType === "calendar") {
-      // Pre-rendered previews available for next race with default timezone
-      const isDefaultTz = !selectedTz || selectedTz === browserTz;
+      // Pre-rendered previews are generated server-side in the server's DEFAULT_TIMEZONE,
+      // so they're only accurate when the selected tz matches that default. Comparing against
+      // browserTz served Prague-time previews to every non-Prague visitor.
+      const isDefaultTz = !selectedTz || selectedTz === defaultTimezone;
       return !selectedYear && !selectedRound && !selectedRaceKey && isDefaultTz;
     } else if (currentScreenType === "teams") {
       return selectedTeamsYear === getCurrentSeason();
@@ -1131,7 +1142,7 @@ block content %}
                     data-round="${roundValue}" data-race-key="${raceKey}" onclick="selectRaceFromList(${activeSeasonYear}, ${roundArg}, '${raceKey}')">
                     <span class="race-date font-mono font-bold w-10 ${dateClass}">${dateStr}</span>
                     <span class="flex-shrink-0">${flagHtml}</span>
-                    <span class="font-bold truncate flex-1 ${nameClass}">${name.trim()}</span>
+                    <span class="font-bold truncate flex-1 ${nameClass}">${escapeHtml(name.trim())}</span>
                     ${statusBadge}
                 </button>`;
       });
@@ -1153,7 +1164,7 @@ block content %}
         const isoDisplay = iso ? iso.toUpperCase() : "🏁";
         const name = race.race_name.replace(" Grand Prix", " GP");
         const cancelledLabel = race.is_cancelled ? ` [${t.cancelled}]` : "";
-        mobileSelect.innerHTML += `<option value="${race.race_key}">${dateStr} ${isoDisplay} ${name}${cancelledLabel}</option>`;
+        mobileSelect.innerHTML += `<option value="${escapeHtml(race.race_key)}">${dateStr} ${isoDisplay} ${escapeHtml(name)}${cancelledLabel}</option>`;
       });
     } catch (e) {
       console.error("Failed to load races:", e);
