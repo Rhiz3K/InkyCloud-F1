@@ -508,13 +508,16 @@ class TeamsService:
                     )
                 except Exception as e:
                     # Standings are enrichment on top of the bundled team/driver JSON. On an
-                    # upstream (jolpica) failure, keep the JSON teams without live positions
-                    # rather than discarding a perfectly good dashboard and caching a blank one.
+                    # upstream (jolpica) failure, serve the JSON teams without live positions
+                    # rather than discarding a perfectly good dashboard — but do NOT cache the
+                    # degraded result, so the next request/scheduler run retries immediately
+                    # instead of pinning a standings-less dashboard for the full cache TTL.
                     logger.warning(
                         "Standings fetch failed for %d; serving teams without standings: %s",
                         year,
                         e,
                     )
+                    return json_data
 
                 self._set_cache(year, json_data)
                 return json_data

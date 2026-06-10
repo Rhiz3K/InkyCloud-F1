@@ -3,7 +3,6 @@
 import io
 import json
 import logging
-import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -19,6 +18,7 @@ from app.services.font_utils import (
     load_ui_font,
 )
 from app.services.renderer_common import (
+    ASSET_CACHE_LOCK,
     build_team_header_values,
     build_track_stems,
     clamp_text,
@@ -77,9 +77,9 @@ IMAGES_DIR = ASSETS_DIR / "images"
 FLAGS_DIR = ASSETS_DIR / "flags_spectra6"
 TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
 
-# Guards the lazy class-level asset caches below. Rendering now runs in a thread pool
-# (asyncio.to_thread), so these caches can be populated concurrently from multiple threads.
-_ASSET_CACHE_LOCK = threading.Lock()
+# Shared with the 1bit Renderer hierarchy: rendering runs in a thread pool, so the lazy
+# class-level asset caches can be populated concurrently from multiple threads.
+_ASSET_CACHE_LOCK = ASSET_CACHE_LOCK
 
 TEXT_BASELINE_REF = "ÁŽÝgy"
 

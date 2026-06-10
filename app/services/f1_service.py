@@ -513,7 +513,7 @@ class F1Service:
             for race in races:
                 try:
                     race_date_str = race.get("date", "")
-                    race_time_str = race.get("time", "12:00:00Z")
+                    race_time_str = race.get("time", DEFAULT_SESSION_TIME_UTC)
                     round_num = self._extract_round_number(race)
                     circuit = race.get("Circuit") or {}
                     location = circuit.get("Location") or {}

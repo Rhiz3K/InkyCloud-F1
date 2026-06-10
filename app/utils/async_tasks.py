@@ -1,16 +1,42 @@
-"""Helpers for supervised background asyncio tasks."""
+"""Helpers for supervised background asyncio tasks and render offloading."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable
-from typing import Any
+from collections.abc import Awaitable, Callable
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, TypeVar
 
 import sentry_sdk
 
 logger = logging.getLogger(__name__)
 _background_tasks: set[asyncio.Task[Any]] = set()
+
+T = TypeVar("T")
+
+# Dedicated executor for CPU-bound Pillow rendering. Two workers bound the number of
+# per-thread font caches (each CJK face costs ~2 MB heap) while still keeping renders off
+# the event loop; renders queue beyond that, which matches the pre-offload serialization.
+_render_executor: ThreadPoolExecutor | None = None
+
+
+def _get_render_executor() -> ThreadPoolExecutor:
+    global _render_executor
+    if _render_executor is None:
+        _render_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="render")
+    return _render_executor
+
+
+async def run_render(func: Callable[[], T]) -> T:
+    """Run a zero-arg render callable on the dedicated render executor.
+
+    The callable should CONSTRUCT the renderer inside itself, not just call render_*:
+    renderer __init__ loads fonts into a per-thread cache, so building it on the event
+    loop and rendering in a worker would share FreeTypeFont objects across threads.
+    """
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_get_render_executor(), func)
 
 
 async def _run_supervised(coro: Awaitable[Any], name: str) -> Any:

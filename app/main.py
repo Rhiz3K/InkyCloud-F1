@@ -36,7 +36,7 @@ from app.services.scheduler import (
     stop_scheduler,
 )
 from app.services.warmup import warm_teams_renderer_assets
-from app.utils.async_tasks import create_supervised_task
+from app.utils.async_tasks import create_supervised_task, run_render
 from app.utils.race_times import (  # noqa: F401
     convert_race_times_to_timezone as _convert_race_times_to_timezone,
 )
@@ -110,7 +110,9 @@ async def lifespan(_app: FastAPI):
 
     _check_persistent_storage()
     try:
-        await asyncio.to_thread(warm_teams_renderer_assets)
+        # Warm on the render executor so the per-thread font caches it populates are the
+        # ones actual renders will reuse.
+        await run_render(warm_teams_renderer_assets)
     except Exception as exc:
         logger.error("Teams renderer warmup failed: %s", exc, exc_info=True)
         sentry_sdk.capture_exception(exc)
@@ -127,6 +129,9 @@ async def lifespan(_app: FastAPI):
         with suppress(asyncio.CancelledError):
             await initial_generation_task
     stop_scheduler()
+    # APScheduler defers job cancellation by a loop tick; yield briefly so a cancelled
+    # in-flight flush can re-queue its batch before the final flush snapshots the buffer.
+    await asyncio.sleep(0.05)
     # Persist any buffered API calls before closing DB connections, so a deploy/restart doesn't
     # discard up to a minute of request stats.
     try:

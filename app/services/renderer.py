@@ -18,6 +18,7 @@ from app.services.font_utils import (
     load_ui_font,
 )
 from app.services.renderer_common import (
+    ASSET_CACHE_LOCK,
     build_team_header_values,
     build_track_stems,
     clamp_text,
@@ -1106,8 +1107,10 @@ class Renderer:
         """Return the process-wide cache of prepared driver silhouettes."""
         cache_key = str(IMAGES_DIR)
         if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
-            cls._cached_driver_photos = cls._load_driver_photos()
-            cls._cached_driver_photos_key = cache_key
+            with ASSET_CACHE_LOCK:
+                if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
+                    cls._cached_driver_photos = cls._load_driver_photos()
+                    cls._cached_driver_photos_key = cache_key
         return cls._cached_driver_photos
 
     @classmethod
@@ -1143,8 +1146,10 @@ class Renderer:
         """Return the process-wide cache of prepared team logo source images."""
         cache_key = (str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
         if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
-            cls._cached_team_logos = cls._load_team_logos()
-            cls._cached_team_logos_key = cache_key
+            with ASSET_CACHE_LOCK:
+                if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
+                    cls._cached_team_logos = cls._load_team_logos()
+                    cls._cached_team_logos_key = cache_key
         return cls._cached_team_logos
 
     @classmethod

@@ -1,7 +1,9 @@
 """Scheduler service for hourly image generation using static data."""
 
 import asyncio
+import functools
 import logging
+import os
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
@@ -12,14 +14,11 @@ from apscheduler.triggers.cron import CronTrigger
 from PIL import Image
 
 from app.config import LANGUAGE_CODES, config
-from app.services.bwr_renderer import BwrRenderer
-from app.services.bwry_renderer import BwryRenderer
 from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.image_keys import get_calendar_image_key, get_teams_image_key
-from app.services.renderer import Renderer
-from app.services.spectra6_renderer import Spectra6Renderer
+from app.services.renderers import create_renderer
 from app.services.version_service import refresh_version_info
 from app.services.weather_service import (
     WeatherData,
@@ -31,6 +30,7 @@ from app.services.weather_service import (
     set_cached_circuit_weather,
 )
 from app.state import clear_bmp_cache, get_and_clear_api_calls_buffer, requeue_api_calls
+from app.utils.async_tasks import run_render
 from app.utils.race_times import convert_race_times_to_timezone
 
 logger = logging.getLogger(__name__)
@@ -92,6 +92,102 @@ def _bmp_to_png(
     return buffer.getvalue()
 
 
+async def _atomic_write_bytes(path: Path, data: bytes) -> None:
+    """Write to a temp file in the same directory, then atomically replace the target.
+
+    Pregenerated files are rewritten in place every hour while requests serve them
+    concurrently; a plain "wb" open truncates first, so a reader could get an empty or
+    partial image (and cache it). os.replace guarantees readers see old-or-new, never torn.
+    """
+    tmp_path = path.with_name(f".{path.name}.tmp")
+    async with aiofiles.open(tmp_path, "wb") as f:
+        await f.write(data)
+    os.replace(tmp_path, path)
+
+
+def _render_calendar_variant_bytes(
+    lang: str,
+    display: str,
+    race_data: dict,
+    historical_data,
+    weather_data: WeatherData | None,
+    weather_type: str,
+) -> bytes:
+    """Construct the renderer and render in the worker thread.
+
+    Construction must happen in the SAME thread as the render: renderer __init__ loads
+    fonts into a per-thread cache, so building on the event loop would share FreeTypeFont
+    objects across render threads.
+    """
+    translator = get_translator(lang)
+    renderer = create_renderer(display, translator, lang)
+    return renderer.render_calendar(race_data, historical_data, weather_data, weather_type)
+
+
+def _render_teams_variant_bytes(lang: str, display: str, teams_data) -> bytes:
+    """Construct the renderer and render the teams screen in the worker thread."""
+    translator = get_translator(lang)
+    renderer = create_renderer(display, translator, lang)
+    return renderer.render_teams_drivers(teams_data)
+
+
+def _render_calendar_preview_pngs(
+    lang: str,
+    display_name: str,
+    race_data: dict,
+    historical_data,
+    weather_variants: list[tuple[str, WeatherData | None]],
+) -> list[tuple[str, bytes]]:
+    """Render all calendar preview PNGs for one (lang, display) in the worker thread."""
+    translator = get_translator(lang)
+    renderer = create_renderer(display_name, translator, lang)
+    is_color = display_name in {"spectra6", "bwr", "bwry"}
+
+    outputs: list[tuple[str, bytes]] = []
+    for weather_type, wd in weather_variants:
+        bmp_data = renderer.render_calendar(race_data, historical_data, wd, weather_type)
+
+        suffix = f"_{lang}"
+        if display_name != "1bit":
+            suffix += f"_{display_name}"
+        if weather_type != "off":
+            suffix += f"_weather_{weather_type}"
+
+        if display_name == "1bit" and weather_type == "off":
+            outputs.append((f"preview_calendar_{lang}.png", _bmp_to_png(bmp_data, width=400)))
+
+        outputs.append(
+            (
+                f"configure_calendar{suffix}.png",
+                _bmp_to_png(bmp_data, full_size=True, preserve_color=is_color),
+            )
+        )
+    return outputs
+
+
+def _render_teams_preview_pngs(lang: str, display_name: str, teams_data) -> list[tuple[str, bytes]]:
+    """Render the teams preview PNGs for one (lang, display) in the worker thread."""
+    translator = get_translator(lang)
+    renderer = create_renderer(display_name, translator, lang)
+    is_color = display_name in {"spectra6", "bwr", "bwry"}
+    bmp_data = renderer.render_teams_drivers(teams_data)
+
+    outputs: list[tuple[str, bytes]] = []
+    if display_name == "1bit":
+        outputs.append((f"preview_teams_{lang}.png", _bmp_to_png(bmp_data, width=400)))
+
+    suffix = f"_{lang}"
+    if display_name != "1bit":
+        suffix += f"_{display_name}"
+    outputs.append(
+        (
+            f"configure_teams{suffix}.png",
+            _bmp_to_png(bmp_data, full_size=True, preserve_color=is_color),
+        )
+    )
+    return outputs
+
+
 async def generate_preview_pngs(race_data: dict | None, historical_data) -> None:
     """
     Generate PNG preview images for landing page.
@@ -121,63 +217,29 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
         _, _, weather_by_type = await get_weather_context(race_data)
         weather_variants = list(weather_by_type.items())
 
+    display_types = ["1bit", "spectra6", "bwr", "bwry"]
+
     for lang in SUPPORTED_LANGUAGES:
-        translator = get_translator(lang)
-
-        # Calendar preview - generate variants for different weather types and displays
+        # Calendar preview - render in the worker thread (construction included), write atomically
         if race_data:
-            # Display variants: 1bit, spectra6, black/white/red, and black/white/red/yellow
-            display_variants = [
-                ("1bit", Renderer(translator, lang)),
-                ("spectra6", Spectra6Renderer(translator, lang)),
-                ("bwr", BwrRenderer(translator, lang)),
-                ("bwry", BwryRenderer(translator, lang)),
-            ]
-
-            for display_name, display_renderer in display_variants:
-                for weather_type, wd in weather_variants:
-                    try:
-                        bmp_data = display_renderer.render_calendar(
-                            race_data, historical_data, wd, weather_type
-                        )
-
-                        # Build filename suffix
-                        suffix = f"_{lang}"
-                        if display_name == "spectra6":
-                            suffix += "_spectra6"
-                        elif display_name == "bwr":
-                            suffix += "_bwr"
-                        elif display_name == "bwry":
-                            suffix += "_bwry"
-                        if weather_type != "off":
-                            suffix += f"_weather_{weather_type}"
-
-                        is_color = display_name in {"spectra6", "bwr", "bwry"}
-
-                        # Homepage preview (small, only for default 1bit+off)
-                        if display_name == "1bit" and weather_type == "off":
-                            homepage_png = _bmp_to_png(bmp_data, width=400)
-                            homepage_path = images_dir / f"preview_calendar_{lang}.png"
-                            async with aiofiles.open(homepage_path, "wb") as f:
-                                await f.write(homepage_png)
-
-                        # Configure preview (full size, all variants)
-                        configure_png = _bmp_to_png(
-                            bmp_data, full_size=True, preserve_color=is_color
-                        )
-                        configure_path = images_dir / f"configure_calendar{suffix}.png"
-                        async with aiofiles.open(configure_path, "wb") as f:
-                            await f.write(configure_png)
-
-                        logger.debug("Generated configure preview: %s", configure_path)
-                    except Exception as e:
-                        logger.error(
-                            "Error generating calendar preview (%s, %s, %s): %s",
+            for display_name in display_types:
+                try:
+                    outputs = await run_render(
+                        functools.partial(
+                            _render_calendar_preview_pngs,
                             lang,
                             display_name,
-                            weather_type,
-                            e,
+                            race_data,
+                            historical_data,
+                            weather_variants,
                         )
+                    )
+                    for filename, png_data in outputs:
+                        await _atomic_write_bytes(images_dir / filename, png_data)
+                except Exception as e:
+                    logger.error(
+                        "Error generating calendar preview (%s, %s): %s", lang, display_name, e
+                    )
 
             logger.info("Generated calendar previews for %s", lang)
 
@@ -188,40 +250,18 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
                     "Skipping teams previews for %s: no teams data for %d", lang, teams_year
                 )
                 continue
-            display_variants = [
-                ("1bit", Renderer(translator, lang)),
-                ("spectra6", Spectra6Renderer(translator, lang)),
-                ("bwr", BwrRenderer(translator, lang)),
-                ("bwry", BwryRenderer(translator, lang)),
-            ]
 
-            homepage_path = images_dir / f"preview_teams_{lang}.png"
-            configure_paths: list[Path] = []
-
-            for display_name, display_renderer in display_variants:
-                bmp_data = display_renderer.render_teams_drivers(teams_data)
-                is_color = display_name in {"spectra6", "bwr", "bwry"}
-
-                if display_name == "1bit":
-                    homepage_png = _bmp_to_png(bmp_data, width=400)
-                    async with aiofiles.open(homepage_path, "wb") as f:
-                        await f.write(homepage_png)
-
-                suffix = f"_{lang}"
-                if display_name != "1bit":
-                    suffix += f"_{display_name}"
-
-                configure_png = _bmp_to_png(
-                    bmp_data,
-                    full_size=True,
-                    preserve_color=is_color,
+            written_paths: list[Path] = []
+            for display_name in display_types:
+                outputs = await run_render(
+                    functools.partial(_render_teams_preview_pngs, lang, display_name, teams_data)
                 )
-                configure_path = images_dir / f"configure_teams{suffix}.png"
-                async with aiofiles.open(configure_path, "wb") as f:
-                    await f.write(configure_png)
-                configure_paths.append(configure_path)
+                for filename, png_data in outputs:
+                    path = images_dir / filename
+                    await _atomic_write_bytes(path, png_data)
+                    written_paths.append(path)
 
-            logger.info("Generated teams previews: %s, %s", homepage_path, configure_paths)
+            logger.info("Generated teams previews for %s: %s", lang, written_paths)
         except Exception as e:
             logger.error("Error generating teams preview (%s): %s", lang, e)
 
@@ -242,28 +282,25 @@ async def _generate_variant(
     Returns the written path on success, or None if this variant failed — so one bad
     render never propagates up and aborts the whole generation run.
     """
-    translator = get_translator(lang)
-    if display == "spectra6":
-        renderer = Spectra6Renderer(translator, lang)
-    elif display == "bwr":
-        renderer = BwrRenderer(translator, lang)
-    elif display == "bwry":
-        renderer = BwryRenderer(translator, lang)
-    else:
-        renderer = Renderer(translator, lang)
-
     wd = weather_data if weather_type != "off" else None
     image_key = _get_image_key(lang, tz, display, weather_type)
     image_path = images_dir / f"{image_key}.bmp"
 
     try:
-        # render_calendar is CPU-bound (Pillow + pure-Python palette/packing); offload it so the
-        # hourly bulk generation doesn't block the event loop for the whole run.
-        bmp_data = await asyncio.to_thread(
-            renderer.render_calendar, race_data, historical_data, wd, weather_type
+        # Rendering is CPU-bound (Pillow + pure-Python palette/packing); run it on the render
+        # executor, constructing the renderer in the worker so fonts stay thread-local.
+        bmp_data = await run_render(
+            functools.partial(
+                _render_calendar_variant_bytes,
+                lang,
+                display,
+                race_data,
+                historical_data,
+                wd,
+                weather_type,
+            )
         )
-        async with aiofiles.open(image_path, "wb") as f:
-            await f.write(bmp_data)
+        await _atomic_write_bytes(image_path, bmp_data)
         await db.save_generated_image(image_key=image_key, image_path=str(image_path), lang=lang)
     except Exception as exc:
         logger.error(
@@ -286,10 +323,10 @@ def _delete_stale_bmps(images_dir: Path, *, keep: set[Path]) -> int:
     are genuinely no longer produced (e.g. a timezone that dropped out of popularity, or last
     season's teams files) rather than casualties of a mid-run failure.
     """
-    keep_resolved = {p.resolve() for p in keep}
+    keep_names = {p.name for p in keep}
     removed = 0
     for bmp_file in images_dir.glob("*.bmp"):
-        if bmp_file.resolve() not in keep_resolved:
+        if bmp_file.name not in keep_names:
             bmp_file.unlink()
             removed += 1
     return removed
@@ -401,7 +438,13 @@ async def _generate_popular_tz_variants(
             logger.debug("Skipping unsupported language: %s", lang)
             continue
 
-        race_data_converted = convert_race_times_to_timezone(race_data, tz)
+        try:
+            race_data_converted = convert_race_times_to_timezone(race_data, tz)
+        except Exception as exc:
+            # One bad DB-sourced tz must not abort the rest of the run (and everything after it).
+            failures += 1
+            logger.error("Error converting race times to %s: %s", tz, exc, exc_info=True)
+            continue
 
         for display in display_types:
             for weather_type, wd in weather_by_type.items():
@@ -453,24 +496,15 @@ async def _generate_teams_bmp_variants(
     display_variants = ["1bit", "spectra6", "bwr", "bwry"]
 
     for lang in SUPPORTED_LANGUAGES:
-        translator = get_translator(lang)
         for display in display_variants:
             try:
-                if display == "spectra6":
-                    renderer = Spectra6Renderer(translator, lang)
-                elif display == "bwr":
-                    renderer = BwrRenderer(translator, lang)
-                elif display == "bwry":
-                    renderer = BwryRenderer(translator, lang)
-                else:
-                    renderer = Renderer(translator, lang)
-
-                bmp_data = await asyncio.to_thread(renderer.render_teams_drivers, teams_data)
+                bmp_data = await run_render(
+                    functools.partial(_render_teams_variant_bytes, lang, display, teams_data)
+                )
                 image_key = get_teams_image_key(lang, teams_year, display=display)
                 image_path = images_dir / f"{image_key}.bmp"
 
-                async with aiofiles.open(image_path, "wb") as f:
-                    await f.write(bmp_data)
+                await _atomic_write_bytes(image_path, bmp_data)
 
                 await db.save_generated_image(
                     image_key=image_key,
@@ -523,6 +557,11 @@ async def collect_and_generate() -> None:
 
             _, _, weather_by_type = await _load_weather_context(race_data)
 
+            # When weather is enabled but no live data came back (open-meteo outage), the
+            # weather-variant BMPs simply aren't produced this run. Treat that as degraded so
+            # the stale prune doesn't delete every previously-good *_weather_* file.
+            weather_degraded = config.WEATHER_ENABLED and len(weather_by_type) <= 1
+
             display_types = ["1bit", "spectra6", "bwr", "bwry"]
             logger.info(
                 "Generating variants: displays=%s, weather=%s",
@@ -566,15 +605,17 @@ async def collect_and_generate() -> None:
             generated_paths |= teams_paths
             total_failures += teams_failures
 
-            # Only prune when the whole run succeeded, so a transient render failure never
-            # deletes a previously-good file the devices are still serving.
-            if total_failures == 0:
+            # Only prune when the whole run succeeded (and weather wasn't degraded), so a
+            # transient failure never deletes a previously-good file devices still serve.
+            if total_failures == 0 and not weather_degraded:
                 removed = _delete_stale_bmps(images_dir, keep=generated_paths)
                 if removed:
                     logger.info("Pruned %d stale BMP files", removed)
             else:
                 logger.warning(
-                    "Skipping stale-BMP prune: %d variant(s) failed this run", total_failures
+                    "Skipping stale-BMP prune: %d variant failure(s), weather_degraded=%s",
+                    total_failures,
+                    weather_degraded,
                 )
 
             await db.set_cache_meta("last_generation", datetime.now(timezone.utc).isoformat())
@@ -605,17 +646,29 @@ async def flush_api_calls_to_db() -> None:
     calls = get_and_clear_api_calls_buffer()
     if not calls:
         return
+    db = Database()
     try:
-        db = Database()
         try:
             count = await db.save_api_calls_batch(calls)
+        except asyncio.CancelledError:
+            # APScheduler's shutdown cancels in-flight jobs; put the batch back so the
+            # lifespan's final flush can persist it instead of silently dropping it.
+            requeue_api_calls(calls)
+            raise
+        except Exception as e:
+            # Re-queue ONLY on save failure — a post-commit cleanup error must not re-queue
+            # an already-persisted batch (that would double-count stats).
+            requeue_api_calls(calls)
+            logger.error(
+                "Error flushing API calls (re-queued %d): %s", len(calls), e, exc_info=True
+            )
+        else:
             logger.debug("Flushed %d API calls to database", count)
-        finally:
+    finally:
+        try:
             await db.close()
-    except Exception as e:
-        # Re-queue so a transient DB error (locked/full disk) doesn't silently discard stats.
-        requeue_api_calls(calls)
-        logger.error("Error flushing API calls (re-queued %d): %s", len(calls), e, exc_info=True)
+        except Exception as e:
+            logger.warning("Error closing database after API-call flush: %s", e)
 
 
 async def fetch_all_circuits_weather() -> None:
@@ -923,7 +976,7 @@ def start_scheduler() -> None:
     Initialize and start the background scheduler with all jobs.
 
     Jobs: hourly image gen (:00), API flush (every min), weather (:55 if
-    enabled), backup (if configured), version refresh (00:05 daily).
+    enabled), backup (if configured), version refresh (hourly at :05).
     Returns if scheduler disabled or already running.
     """
     global scheduler  # skipcq: PYL-W0603 - singleton pattern for scheduler instance

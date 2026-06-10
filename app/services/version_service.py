@@ -122,7 +122,7 @@ async def fetch_version_info() -> VersionInfo:
     except Exception as e:
         logger.error("Error fetching GitHub commit: %s", e)
 
-    _version_cache = VersionInfo(
+    info = VersionInfo(
         release_tag=release_tag,
         release_name=release_name,
         release_date=release_date,
@@ -132,6 +132,15 @@ async def fetch_version_info() -> VersionInfo:
         commit_message=commit_message,
         last_updated=commit_date,
     )
+
+    # Don't overwrite a previously-good cache with an all-None result: with the 1h TTL a
+    # single failed refresh (GitHub down/rate-limited) would otherwise pin "unknown" on the
+    # changelog page for the whole hour instead of keeping the last known version.
+    if release_tag is None and commit_sha is None and _version_cache is not None:
+        logger.warning("Version fetch returned no data; keeping previous cached version info")
+        return _version_cache
+
+    _version_cache = info
     _version_cache_fetched_at = time.time()
 
     return _version_cache
@@ -141,7 +150,7 @@ async def refresh_version_info() -> VersionInfo | None:
     """
     Refresh version info from GitHub API.
 
-    Called by scheduler at midnight and on startup.
+    Called by the scheduler hourly (at :05) and on startup.
 
     Returns:
         VersionInfo if fetch succeeded, None otherwise.
