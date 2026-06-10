@@ -37,27 +37,30 @@ self.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
 
     if (url.pathname.startsWith("/static/")) {
-        // Stale-while-revalidate: serve the cached asset immediately, but always re-fetch in the
-        // background so an updated common.js / stylesheet reaches returning visitors on their next
-        // load even when CACHE_NAME wasn't bumped. Pure cache-first served stale assets forever.
+        // CSS/JS get stale-while-revalidate so an updated stylesheet/script reaches returning
+        // visitors even when CACHE_NAME wasn't bumped. Fonts/images are served cache-first:
+        // the server marks them immutable/long-lived, so background revalidation would be a
+        // permanent no-op costing a fetch + Cache Storage write per asset on every view.
+        const revalidate = /\.(css|js)$/.test(url.pathname);
         event.respondWith(
             caches.open(CACHE_NAME).then((cache) =>
                 cache.match(event.request).then((cached) => {
+                    if (cached && !revalidate) return cached;
                     const network = fetch(event.request)
                         .then((response) => {
-                            if (response.ok) {
-                                cache.put(event.request, response.clone());
-                            }
-                            return response;
+                            if (!response.ok) return response;
+                            // Chain the cache write so the promise below settles only after
+                            // the body is fully stored — waitUntil must cover the put, or the
+                            // browser may kill the idle SW mid-write and keep the stale asset.
+                            return cache
+                                .put(event.request, response.clone())
+                                .then(() => response, () => response);
                         })
-                        // On network failure fall back to the cached copy; if there's no cache
-                        // either, resolve to a network-error Response so respondWith never gets
-                        // undefined (cache-miss + offline).
+                        // On network failure fall back to the cached copy; with no cache either,
+                        // resolve to a network-error Response so respondWith never gets undefined.
                         .catch(() => cached ?? Response.error());
-                    // When serving from cache, keep the SW alive until the background
-                    // revalidation finishes so the cache.put isn't dropped mid-flight.
                     if (cached) {
-                        event.waitUntil(network.catch(() => {}));
+                        event.waitUntil(network);
                         return cached;
                     }
                     return network;

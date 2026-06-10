@@ -1128,9 +1128,15 @@ block content %}
           .replace("Grand Prix", "");
         const isPast = race.is_past;
         const isCancelled = Boolean(race.is_cancelled);
-        const raceKey = race.race_key || "";
-        const roundValue = race.round ?? "";
-        const roundArg = race.round ?? "null";
+        // raceKey/round land in attribute and inline-JS contexts where escapeHtml is the
+        // wrong tool: allowlist raceKey to the exact alphabet the server slugify emits, and
+        // coerce round to a numeric literal or null so onclick can never become invalid JS
+        // (round ?? would pass "" through) or execute a poisoned upstream value.
+        const rawRaceKey = race.race_key || "";
+        const raceKey = /^[a-z0-9][a-z0-9-]*$/.test(rawRaceKey) ? rawRaceKey : "";
+        const roundNum = /^[0-9]+$/.test(String(race.round ?? "")) ? Number(race.round) : null;
+        const roundValue = roundNum ?? "";
+        const roundArg = roundNum ?? "null";
         const stateClass = isCancelled ? "" : (isPast ? "opacity-40 grayscale" : "");
         const dateClass = isCancelled ? "text-racing-red" : "text-gray-400 group-hover:text-black";
         const nameClass = isCancelled ? "text-racing-red" : "";
