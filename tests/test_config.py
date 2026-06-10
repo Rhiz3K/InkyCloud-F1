@@ -66,7 +66,7 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert str(config.OPEN_METEO_ARCHIVE_URL) == "https://archive-api.open-meteo.com/v1/archive"
     assert config.SENTRY_TRACES_SAMPLE_RATE == 0.1
     assert config.DEFAULT_LANG == "en"
-    assert config.STATS_RETENTION_DAYS == 90
+    assert config.STATS_RETENTION_DAYS == 0
 
 
 def test_translator_english():

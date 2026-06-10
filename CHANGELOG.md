@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-- **Statistics retention default** - `STATS_RETENTION_DAYS` now defaults to 90 days to bound statistics table and backup growth
+- **Statistics retention documentation** - Clarified that `STATS_RETENTION_DAYS` keeps all history by default (0) and pruning is opt-in to bound statistics table and backup growth
 - **Version info caching** - The changelog page serves cached GitHub version info for the full hourly refresh window instead of blocking on an inline fetch when the short cache expired
 - **uvicorn minimum version** - Raised to 0.30 for CIDR support in `--forwarded-allow-ips`
 
