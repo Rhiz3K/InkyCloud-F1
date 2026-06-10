@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import functools
 import logging
+import os
 import time
 from io import BytesIO
 from pathlib import Path
@@ -245,14 +246,23 @@ _PREGEN_MAX_AGE_SECONDS = 6 * 3600
 
 
 def _fresh_pregenerated_path(image_path: Path) -> Path | None:
-    """Return the path only when the file exists and is recent enough to trust."""
+    """Return the path only when it stays inside IMAGES_PATH and is recent enough to trust.
+
+    The filename is derived from allowlisted enum values plus a validated IANA timezone, so
+    traversal isn't reachable in practice — the realpath containment check is the explicit
+    sink-side barrier (defense in depth, and the pattern scanners recognize).
+    """
+    images_dir = os.path.realpath(config.IMAGES_PATH)
+    resolved = os.path.realpath(image_path)
+    if not resolved.startswith(images_dir + os.sep):
+        return None
     try:
-        mtime = image_path.stat().st_mtime
+        mtime = os.stat(resolved).st_mtime
     except OSError:
         return None
     if time.time() - mtime > _PREGEN_MAX_AGE_SECONDS:
         return None
-    return image_path
+    return Path(resolved)
 
 
 def _get_valid_teams_filenames(year: int) -> dict[tuple[str, str], str]:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -15,17 +16,16 @@ _background_tasks: set[asyncio.Task[Any]] = set()
 
 T = TypeVar("T")
 
-# Dedicated executor for CPU-bound Pillow rendering. Two workers bound the number of
-# per-thread font caches (each CJK face costs ~2 MB heap) while still keeping renders off
-# the event loop; renders queue beyond that, which matches the pre-offload serialization.
-_render_executor: ThreadPoolExecutor | None = None
 
-
+@functools.lru_cache(maxsize=1)
 def _get_render_executor() -> ThreadPoolExecutor:
-    global _render_executor
-    if _render_executor is None:
-        _render_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="render")
-    return _render_executor
+    """Lazily create the dedicated executor for CPU-bound Pillow rendering.
+
+    Two workers bound the number of per-thread font caches (each CJK face costs ~2 MB heap)
+    while still keeping renders off the event loop; renders queue beyond that, which matches
+    the pre-offload serialization.
+    """
+    return ThreadPoolExecutor(max_workers=2, thread_name_prefix="render")
 
 
 async def run_render(func: Callable[[], T]) -> T:
