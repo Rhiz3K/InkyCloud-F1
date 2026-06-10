@@ -14,27 +14,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **Starlette host-header advisory (CVE-2026-48710)** - Upgraded locked `starlette` to 1.2.1 to resolve the Dependabot alert for missing `Host` header validation that could poison `request.url.path`
-- **CI no longer runs untrusted fork PRs on the self-hosted runner** - Gated the `test` job so pull requests from forks don't execute checked-out code on the persistent self-hosted runner that shares secrets with the release workflow
+- **CI no longer runs untrusted fork PRs on the self-hosted runner** - Gated the `test` job so pull requests from forks don't execute checked-out code on the persistent self-hosted runner that shares secrets with the release workflow; fork PRs run the same validation on an ephemeral GitHub-hosted runner instead
 - **Rate-limit client identification** - Per-IP rate limiting now uses the proxy-validated client address instead of the spoofable leftmost `X-Forwarded-For` entry, so a client can no longer forge a fresh bucket on every request
 - **Changelog HTML sanitization** - Rendered changelog markdown is sanitized (script/style/event-handler/`javascript:` removal) as defense-in-depth before being emitted
-- **Configure page output escaping** - Upstream team/driver/country strings injected into the configure DOM are now HTML-escaped
+- **Configure page output escaping** - Upstream team/driver/country strings injected into the configure DOM are now HTML-escaped, and race-list round/race-key values are coerced to numeric/slug-safe forms before reaching attribute and inline-JS contexts
 
 ### Backend
 
 #### Fixed
 
 - **Atomic image generation** - Hourly generation writes all variants before pruning stale files and isolates each render, so a single failed variant can no longer delete the entire pregenerated set for an hour
-- **Renderers no longer block the event loop** - Calendar/teams BMP rendering and PNG conversion run in a worker thread, so a cache miss or the hourly bulk job no longer stalls concurrent requests
-- **Thread-safe renderer asset caches** - Guarded the shared team-logo and driver-photo caches with a lock now that rendering runs in a thread pool, so concurrent first-loads can't race into redundant disk reads
+- **Renderers no longer block the event loop** - Calendar/teams BMP rendering and PNG conversion (including hourly preview generation) run on a small dedicated render executor, with renderers constructed in the worker thread so font objects stay thread-local
+- **Thread-safe renderer asset caches** - Guarded the shared team-logo and driver-photo caches (both the Spectra 6 and 1-bit hierarchies) with a lock now that rendering runs in a thread pool, so concurrent first-loads can't race into redundant disk reads
+- **Atomic pregenerated file writes** - BMPs and preview PNGs are written to a temp file and atomically renamed, so a request landing mid-rewrite can no longer read (and cache) a truncated image
+- **Pregenerated freshness gate** - Pregenerated calendar/teams files are served only while less than 6 hours old, so a variant that stops regenerating (dropped timezone popularity, persistent render failure) falls back to on-demand rendering instead of showing the previous race indefinitely
+- **Stale prune protects weather variants** - The hourly prune is skipped when weather is enabled but no live weather came back, so an open-meteo outage no longer deletes every previously-good weather-variant BMP
 - **Black/White/Red results flags** - Restored the country-to-flag map for the BWR renderer, fixing the Austrian GP rendering the Australian flag and several Grands Prix rendering no flag
 - **Sauber logo on BWR/BWRY teams screens** - Keyed the team-logo cache per renderer class so the palette-specific Sauber logo preparation runs instead of inheriting the Spectra 6 variant
 - **Scheduler misfire handling** - Background jobs use a 5-minute misfire grace, so a briefly-busy event loop no longer silently skips hourly generation or the daily backup
 - **Popular-timezone pregeneration is served** - Calendar requests for popular non-default timezones now serve the pregenerated BMP instead of always rendering on demand
-- **Teams dashboard resilience** - A standings-fetch failure keeps the bundled team data instead of caching a blank dashboard for an hour
-- **Current weather accuracy** - Precipitation probability is read from the current hour instead of midnight, and missing API fields return no data instead of fabricating 20°C/sunny weather
+- **Teams dashboard resilience** - A standings-fetch failure serves the bundled team data without caching it, so the next request retries standings immediately instead of pinning a degraded dashboard for the cache TTL
+- **Weather accuracy** - Precipitation probability is read from the current hour instead of midnight, and missing or null API fields return no data instead of fabricating 20°C/sunny weather on both the current and race-day paths
 - **Next-race boundary** - The calendar keeps showing the current race for a grace window after lights-out instead of flipping to the next Grand Prix the moment it starts
-- **Statistics durability** - The in-memory API-call buffer is bounded, re-queued on a failed flush, and flushed on shutdown
-- **Weather restart persistence** - Prefetched next-race weather is restored from the database on startup instead of being discarded
+- **Statistics durability** - The in-memory API-call buffer is bounded structurally (deque), re-queued on a failed or cancelled flush, and flushed on shutdown after scheduler job cancellations settle
+- **Version info resilience** - A failed GitHub refresh keeps the last known version instead of caching an empty result for the full hourly window
+- **Weather restart persistence** - Prefetched next-race weather is restored from the database on startup under UTC-normalized cache keys shared by all save/read sites, stamped with its original fetch time so true data age drives expiry
 
 #### Changed
 
@@ -47,14 +51,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **Configure preview timezone** - The pre-rendered preview is used only when the selected timezone matches the server default, so non-default-timezone visitors see an accurate preview
-- **Service worker asset freshness** - Static assets use a stale-while-revalidate strategy so updated scripts and styles reach returning visitors without a manual cache-version bump
+- **Service worker asset freshness** - CSS/JS use a stale-while-revalidate strategy (with the cache write covered by the worker lifetime, always resolving to a valid response) so updates reach returning visitors without a manual cache-version bump; immutable fonts/images stay cache-first
 
 ### Development
 
 #### Changed
 
 - **Operational API documentation** - Clarified that the stats and perf-metrics read endpoints are public by design unless `ADMIN_API_TOKEN` is configured
-- **Docker Compose port binding** - The published port binds to loopback by default so the app is not served in plaintext when fronted by a reverse proxy
+- **Docker Compose port binding** - Documented narrowing the published port to loopback when fronting the app with a reverse proxy (the default stays LAN-reachable for directly-polling e-ink devices)
+- **Single renderer factory and image-key source** - The display-to-renderer mapping and pregenerated-filename derivation each live in one shared helper instead of four/two diverging copies
 
 ## [1.2.26] - 2026-06-08
 
