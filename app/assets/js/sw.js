@@ -50,7 +50,10 @@ self.addEventListener("fetch", (event) => {
                             }
                             return response;
                         })
-                        .catch(() => cached);
+                        // On network failure fall back to the cached copy; if there's no cache
+                        // either, resolve to a network-error Response so respondWith never gets
+                        // undefined (cache-miss + offline).
+                        .catch(() => cached ?? Response.error());
                     // When serving from cache, keep the SW alive until the background
                     // revalidation finishes so the cache.put isn't dropped mid-flight.
                     if (cached) {
