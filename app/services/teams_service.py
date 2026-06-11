@@ -23,6 +23,12 @@ SEASONS_DIR = Path(__file__).parent.parent / "assets" / "seasons"
 
 CACHE_TTL_SECONDS = 3600
 
+
+def is_teams_data_cacheable(data: TeamsData) -> bool:
+    """Return True only for complete teams data safe to keep in caches/prebuilt images."""
+    return bool(data.teams) and data.standings_complete
+
+
 MANUAL_DRIVER_NUMBER_OVERRIDES = {
     2026: {
         "norris": 1,
@@ -517,15 +523,16 @@ class TeamsService:
                         year,
                         e,
                     )
-                    return json_data
+                    return json_data.model_copy(update={"standings_complete": False})
 
-                self._set_cache(year, json_data)
+                if is_teams_data_cacheable(json_data):
+                    self._set_cache(year, json_data)
                 return json_data
 
             api_data = await self._fetch_from_api(year)
-            # Never cache an empty result, so a transient outage retries instead of pinning a
-            # blank dashboard for the full cache TTL.
-            if api_data.teams:
+            # Never cache an empty/degraded result, so a transient outage retries instead of
+            # pinning a blank or standings-less dashboard for the full cache TTL.
+            if is_teams_data_cacheable(api_data):
                 self._set_cache(year, api_data)
             return api_data
 

@@ -17,7 +17,7 @@ from pydantic import SecretStr
 from app import main as main_module
 from app.config import LANGUAGE_CODES, config
 from app.main import app
-from app.models import ConstructorStanding, DriverStanding, StandingsData
+from app.models import ConstructorStanding, DriverStanding, StandingsData, TeamEntry, TeamsData
 from app.routes import api as api_routes
 from app.routes import images as images_routes
 from app.routes.api import _get_driver_number, _get_team_id
@@ -522,10 +522,14 @@ async def test_lifespan_cancels_initial_generation_before_closing_resources():
     def fake_stop_scheduler():
         events.append("stop_scheduler")
 
+    def fake_shutdown_render_executor():
+        events.append("shutdown_render")
+
     with (
         patch("app.main.warm_teams_renderer_assets", lambda: None),
         patch("app.main.start_scheduler"),
         patch("app.main.stop_scheduler", fake_stop_scheduler),
+        patch("app.main.shutdown_render_executor", fake_shutdown_render_executor),
         patch("app.main.run_initial_generation", fake_initial_generation),
         patch("app.main.close_shared_http_clients", fake_close_shared_http_clients),
         patch.object(main_module.Database, "close_all", fake_close_all_databases),
@@ -533,7 +537,14 @@ async def test_lifespan_cancels_initial_generation_before_closing_resources():
         async with main_module.lifespan(app):
             await asyncio.sleep(0)
 
-    assert events == ["started", "cancelled", "stop_scheduler", "close_http", "close_db"]
+    assert events == [
+        "started",
+        "cancelled",
+        "stop_scheduler",
+        "shutdown_render",
+        "close_http",
+        "close_db",
+    ]
 
 
 def test_header_contains_language_switcher():
@@ -1584,6 +1595,28 @@ def test_teams_bmp_caches_pregenerated_assets_with_shared_image_key(tmp_path, mo
     expected_key = get_teams_image_key("en", 2026, display="bwr")
     assert get_bmp_cache()[expected_key] == b"BMpregenerated"
     assert "teams:en:2026:bwr" not in get_bmp_cache()
+
+
+def test_teams_bmp_does_not_cache_degraded_standings(monkeypatch):
+    """A transient standings outage should not pin a degraded teams BMP in memory."""
+    clear_bmp_cache()
+    degraded_teams = TeamsData(
+        season=2026,
+        teams=[TeamEntry(constructor_name="Test Team")],
+        standings_complete=False,
+    )
+
+    monkeypatch.setattr(images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: None)
+    monkeypatch.setattr(images_routes, "run_render", AsyncMock(return_value=b"BMdynamic"))
+    teams_service_cls = Mock()
+    teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(return_value=degraded_teams)
+    monkeypatch.setattr(images_routes, "TeamsService", teams_service_cls)
+
+    response = client.get("/teams.bmp?year=2026")
+
+    assert response.status_code == 200
+    assert response.content == b"BMdynamic"
+    assert get_teams_image_key("en", 2026, display="1bit") not in get_bmp_cache()
 
 
 # ============================================================================

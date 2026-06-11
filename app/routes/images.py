@@ -20,7 +20,11 @@ from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.image_keys import get_calendar_image_key, get_teams_image_key
 from app.services.renderers import AnyRenderer, create_renderer
-from app.services.teams_service import TeamsService, get_default_teams_year
+from app.services.teams_service import (
+    TeamsService,
+    get_default_teams_year,
+    is_teams_data_cacheable,
+)
 from app.services.weather_service import get_weather_context
 from app.state import get_bmp_cache, record_api_call
 from app.utils.async_tasks import create_supervised_task, run_render
@@ -715,10 +719,12 @@ async def get_teams_bmp(
         bmp_data = await run_render(
             functools.partial(_render_teams_bytes, display, lang, teams_data)
         )
-        # Don't cache an empty dashboard: a transient upstream outage would otherwise pin a
-        # blank teams screen on every device for the full cache TTL.
-        if teams_data.teams:
+        # Don't cache incomplete dashboards: a transient upstream outage would otherwise pin a
+        # blank or standings-less teams screen on every device for the full cache TTL.
+        if is_teams_data_cacheable(teams_data):
             get_bmp_cache()[cache_key] = bmp_data
+        elif teams_data.teams:
+            logger.warning("Teams standings incomplete for %s; serving but not caching", year)
         else:
             logger.warning("Teams data empty for %s; serving but not caching", year)
 

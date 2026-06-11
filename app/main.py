@@ -36,7 +36,7 @@ from app.services.scheduler import (
     stop_scheduler,
 )
 from app.services.warmup import warm_teams_renderer_assets
-from app.utils.async_tasks import create_supervised_task, run_render
+from app.utils.async_tasks import create_supervised_task, run_render, shutdown_render_executor
 from app.utils.race_times import (  # noqa: F401
     convert_race_times_to_timezone as _convert_race_times_to_timezone,
 )
@@ -138,6 +138,7 @@ async def lifespan(_app: FastAPI):
         await flush_api_calls_to_db()
     except Exception as exc:
         logger.error("Final API-call flush on shutdown failed: %s", exc, exc_info=True)
+    shutdown_render_executor()
     await close_shared_http_clients()
     await Database.close_all()
     logger.info("Shutting down F1 E-Ink calendar service")

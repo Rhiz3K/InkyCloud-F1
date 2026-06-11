@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import atexit
 import functools
 import logging
 from collections.abc import Awaitable, Callable
@@ -37,6 +38,19 @@ async def run_render(func: Callable[[], T]) -> T:
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_get_render_executor(), func)
+
+
+def shutdown_render_executor(*, wait: bool = True) -> None:
+    """Shut down the dedicated render executor if it has been initialized."""
+    if _get_render_executor.cache_info().currsize == 0:
+        return
+
+    executor = _get_render_executor()
+    _get_render_executor.cache_clear()
+    executor.shutdown(wait=wait)
+
+
+atexit.register(shutdown_render_executor, wait=False)
 
 
 async def _run_supervised(coro: Awaitable[Any], name: str) -> Any:

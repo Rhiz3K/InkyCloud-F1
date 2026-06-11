@@ -4,6 +4,8 @@ import asyncio
 import functools
 import logging
 import os
+import uuid
+from contextlib import suppress
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
@@ -99,10 +101,14 @@ async def _atomic_write_bytes(path: Path, data: bytes) -> None:
     concurrently; a plain "wb" open truncates first, so a reader could get an empty or
     partial image (and cache it). os.replace guarantees readers see old-or-new, never torn.
     """
-    tmp_path = path.with_name(f".{path.name}.tmp")
-    async with aiofiles.open(tmp_path, "wb") as f:
-        await f.write(data)
-    os.replace(tmp_path, path)
+    tmp_path = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        async with aiofiles.open(tmp_path, "wb") as f:
+            await f.write(data)
+        os.replace(tmp_path, path)
+    finally:
+        with suppress(FileNotFoundError):
+            tmp_path.unlink()
 
 
 def _render_calendar_variant_bytes(
@@ -199,7 +205,11 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
         race_data: Next race data from static JSON
         historical_data: Historical race data for the circuit
     """
-    from app.services.teams_service import TeamsService, get_default_teams_year
+    from app.services.teams_service import (
+        TeamsService,
+        get_default_teams_year,
+        is_teams_data_cacheable,
+    )
 
     images_dir = Path(config.IMAGES_PATH)
     images_dir.mkdir(parents=True, exist_ok=True)
@@ -245,10 +255,22 @@ async def generate_preview_pngs(race_data: dict | None, historical_data) -> None
 
         # Teams preview
         try:
-            if teams_data is None or not teams_data.teams:
+            if teams_data is None:
                 logger.warning(
                     "Skipping teams previews for %s: no teams data for %d", lang, teams_year
                 )
+                continue
+            if not is_teams_data_cacheable(teams_data):
+                if teams_data.teams:
+                    logger.warning(
+                        "Skipping teams previews for %s: standings incomplete for %d",
+                        lang,
+                        teams_year,
+                    )
+                else:
+                    logger.warning(
+                        "Skipping teams previews for %s: no teams data for %d", lang, teams_year
+                    )
                 continue
 
             written_paths: list[Path] = []
@@ -369,6 +391,73 @@ async def _load_weather_context(
     return current_weather, race_weather, weather_by_type
 
 
+def _parse_coordinate(value: object) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _has_weather_coordinates(race_data: dict) -> bool:
+    circuit = race_data.get("circuit", {})
+    displayed_lon = circuit.get("long") if circuit.get("long") is not None else circuit.get("lon")
+    lat = _parse_coordinate(circuit.get("lat"))
+    lon = _parse_coordinate(displayed_lon)
+    return lat is not None and lon is not None and -90 <= lat <= 90 and -180 <= lon <= 180
+
+
+def _parse_race_datetime_utc(race_data: dict) -> datetime | None:
+    schedule = race_data.get("schedule", [])
+    race_session = next(
+        (session for session in schedule if str(session.get("name", "")).lower() == "race"),
+        None,
+    )
+    if not race_session:
+        return None
+
+    dt_str = race_session.get("datetime")
+    if not dt_str:
+        return None
+
+    try:
+        race_dt = datetime.fromisoformat(str(dt_str).replace("Z", "+00:00"))
+    except ValueError:
+        logger.debug("Invalid race datetime for weather degradation check: %s", dt_str)
+        return None
+
+    if race_dt.tzinfo is None:
+        return race_dt.replace(tzinfo=timezone.utc)
+    return race_dt.astimezone(timezone.utc)
+
+
+def _race_weather_expected(race_data: dict) -> bool:
+    race_dt = _parse_race_datetime_utc(race_data)
+    if race_dt is None:
+        return False
+
+    now = datetime.now(timezone.utc)
+    if race_dt < now:
+        return True
+
+    # WeatherService can fetch up to 16 forecast days, including today.
+    forecast_days = (race_dt.date() - now.date()).days + 1
+    return forecast_days <= 16
+
+
+def _weather_context_degraded(
+    race_data: dict,
+    weather_by_type: dict[str, WeatherData | None],
+) -> bool:
+    if not config.WEATHER_ENABLED or not _has_weather_coordinates(race_data):
+        return False
+
+    expected = {"current"}
+    if _race_weather_expected(race_data):
+        expected.add("race")
+
+    return any(weather_by_type.get(weather_type) is None for weather_type in expected)
+
+
 async def _generate_base_variants(
     *,
     images_dir: Path,
@@ -477,7 +566,11 @@ async def _generate_teams_bmp_variants(
     Returns (written paths, failure count). A failed/empty upstream fetch counts as a failure
     so the caller skips stale pruning and keeps the previous teams BMPs in place.
     """
-    from app.services.teams_service import TeamsService, get_default_teams_year
+    from app.services.teams_service import (
+        TeamsService,
+        get_default_teams_year,
+        is_teams_data_cacheable,
+    )
 
     teams_year = get_default_teams_year()
     teams_service = TeamsService()
@@ -489,6 +582,9 @@ async def _generate_teams_bmp_variants(
 
     if not teams_data.teams:
         logger.warning("Skipping teams BMP generation: no teams data for %d", teams_year)
+        return set(), 1
+    if not is_teams_data_cacheable(teams_data):
+        logger.warning("Skipping teams BMP generation: standings incomplete for %d", teams_year)
         return set(), 1
 
     generated: set[Path] = set()
@@ -557,10 +653,10 @@ async def collect_and_generate() -> None:
 
             _, _, weather_by_type = await _load_weather_context(race_data)
 
-            # When weather is enabled but no live data came back (open-meteo outage), the
-            # weather-variant BMPs simply aren't produced this run. Treat that as degraded so
-            # the stale prune doesn't delete every previously-good *_weather_* file.
-            weather_degraded = config.WEATHER_ENABLED and len(weather_by_type) <= 1
+            # When an expected weather variant is missing (open-meteo outage or partial
+            # failure), it simply isn't produced this run. Treat that as degraded so stale
+            # pruning doesn't delete previously-good *_weather_* files.
+            weather_degraded = _weather_context_degraded(race_data, weather_by_type)
 
             display_types = ["1bit", "spectra6", "bwr", "bwry"]
             logger.info(
