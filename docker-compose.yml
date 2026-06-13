@@ -5,6 +5,9 @@ services:
       dockerfile: Dockerfile
     container_name: f1-eink-cal
     ports:
+      # Bound on all interfaces because the documented self-hosting flow has LAN e-ink devices
+      # fetching /calendar.bmp from this port directly. When fronting with a reverse proxy,
+      # narrow it to "127.0.0.1:8000:8000" so the app isn't also reachable over plain HTTP.
       - "8000:8000"
     env_file:
       - .env

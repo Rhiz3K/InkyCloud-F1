@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+import threading
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -13,6 +14,10 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.font_utils import CJK_LANG_CODES, FONTS_DIR, fit_brand_font_box, fit_ui_font
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
+
+# Guards lazy class-level asset caches in the renderer hierarchies (team logos, driver
+# photos). Rendering runs in a thread pool, so first-load population can race without it.
+ASSET_CACHE_LOCK = threading.Lock()
 
 
 def split_teams_for_columns(teams: list) -> tuple[list, list]:

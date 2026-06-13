@@ -18,6 +18,7 @@ from app.services.font_utils import (
     load_ui_font,
 )
 from app.services.renderer_common import (
+    ASSET_CACHE_LOCK,
     build_team_header_values,
     build_track_stems,
     clamp_text,
@@ -76,6 +77,10 @@ IMAGES_DIR = ASSETS_DIR / "images"
 FLAGS_DIR = ASSETS_DIR / "flags_spectra6"
 TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
 
+# Shared with the 1bit Renderer hierarchy: rendering runs in a thread pool, so the lazy
+# class-level asset caches can be populated concurrently from multiple threads.
+_ASSET_CACHE_LOCK = ASSET_CACHE_LOCK
+
 TEXT_BASELINE_REF = "ÁŽÝgy"
 
 
@@ -105,7 +110,7 @@ class Spectra6Renderer:
     _cached_driver_photos: dict[str, Image.Image] | None = None
     _cached_driver_photos_key: str | None = None
     _cached_team_logos: dict[str, Image.Image] | None = None
-    _cached_team_logos_key: tuple[str, str] | None = None
+    _cached_team_logos_key: tuple[str, str, str] | None = None
 
     def __init__(self, translator: dict, lang_code: str = "en"):
         """Initialize the Spectra 6 renderer, fonts, and layout constants."""
@@ -865,8 +870,10 @@ class Spectra6Renderer:
         """Return the process-wide cache of color driver portraits."""
         cache_key = str(IMAGES_DIR)
         if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
-            cls._cached_driver_photos = cls._load_driver_photos()
-            cls._cached_driver_photos_key = cache_key
+            with _ASSET_CACHE_LOCK:
+                if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
+                    cls._cached_driver_photos = cls._load_driver_photos()
+                    cls._cached_driver_photos_key = cache_key
         return cls._cached_driver_photos
 
     @classmethod
@@ -895,10 +902,14 @@ class Spectra6Renderer:
     @classmethod
     def _get_cached_team_logos(cls) -> dict[str, Image.Image]:
         """Return the process-wide cache of prepared color team logos."""
-        cache_key = (str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
+        # Key by cls so subclasses (BWR/BWRY) that override _prepare_team_logo don't inherit
+        # the base Spectra6 cache — otherwise their palette-specific logo prep never runs.
+        cache_key = (cls.__name__, str(IMAGES_DIR), str(TEAMS_COLOR_DIR))
         if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
-            cls._cached_team_logos = cls._load_team_logos()
-            cls._cached_team_logos_key = cache_key
+            with _ASSET_CACHE_LOCK:
+                if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
+                    cls._cached_team_logos = cls._load_team_logos()
+                    cls._cached_team_logos_key = cache_key
         return cls._cached_team_logos
 
     @classmethod

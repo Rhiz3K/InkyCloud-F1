@@ -149,7 +149,8 @@ class Config(BaseSettings):
         0,
         ge=0,
         description=(
-            "Days to retain API/request/performance statistics (0=disabled, keep indefinitely)"
+            "Days to retain API/request/performance statistics. Default 0 keeps all history "
+            "(never deletes); set e.g. 90 to opt into pruning and bound table/backup growth"
         ),
     )
 

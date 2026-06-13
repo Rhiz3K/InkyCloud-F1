@@ -10,6 +10,11 @@ on:
 jobs:
   test:
     runs-on: [self-hosted, linux]
+    # SECURITY: this job runs on a persistent self-hosted runner and executes checked-out
+    # code (setup.py, conftest, tests, Dockerfile). Never run untrusted fork-PR code here —
+    # a malicious PR could compromise the runner and harvest secrets from other workflows
+    # (e.g. release.yml's SYNC_PAT on the same pool). Only run for same-repo refs.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
     permissions:
       contents: read
       id-token: write  # Required for OIDC authentication with DeepSource
@@ -55,6 +60,59 @@ jobs:
           --cov-report=term-missing \
           --cov-report=xml
     
+    - name: Test Docker build
+      run: |
+        docker build -t f1-eink-cal:test .
+
+  # Fork PRs are excluded from the self-hosted job above for security; run the same
+  # validation for them on an ephemeral GitHub-hosted runner so community PRs still get CI.
+  test-fork:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 0
+
+    - name: Verify CHANGELOG update for main PRs
+      if: github.base_ref == 'main'
+      run: |
+        if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx "CHANGELOG.md"; then
+          echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
+          exit 1
+        fi
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.13"
+        cache: "pip"
+
+    - name: Validate release readiness for main PRs
+      if: github.base_ref == 'main'
+      run: |
+        python -m app.utils.release_validation
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools
+        pip install -e .[dev]
+
+    - name: Lint with ruff
+      run: |
+        ruff check .
+
+    - name: Run tests
+      run: |
+        pytest tests/ -v -m "not benchmark" \
+          --cov=app \
+          --cov-report=term-missing \
+          --cov-report=xml
+
     - name: Test Docker build
       run: |
         docker build -t f1-eink-cal:test .

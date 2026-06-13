@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
-from app.services.circuit_metadata import CIRCUIT_ID_MAP
+from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
 from app.services.font_utils import FONTS_DIR
 from app.services.renderer import Renderer
 from app.services.renderer_common import draw_results_header
@@ -121,7 +121,7 @@ class BwrRenderer(Spectra6Renderer):
             year_font=self.fonts["results_year"],
             text_fill=self.colors.BLACK,
             outline_fill=self.colors.BLACK,
-            country_map={},
+            country_map=COUNTRY_MAP,
             flags_dirs=(FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR),
             prepare_flag_image=lambda opened_flag: opened_flag.convert("RGB"),
             logger=logger,

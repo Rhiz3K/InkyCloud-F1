@@ -1,12 +1,19 @@
 """Tests for scheduler helpers."""
 
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from app.models import TeamEntry, TeamsData
 from app.services.image_keys import get_teams_image_key
-from app.services.scheduler import _get_image_key, collect_and_generate
+from app.services.scheduler import (
+    _atomic_write_bytes,
+    _generate_teams_bmp_variants,
+    _get_image_key,
+    collect_and_generate,
+)
 
 
 def test_get_image_key_uses_bwr_suffix():
@@ -41,6 +48,24 @@ def test_get_teams_image_key_rejects_unknown_display():
 
 
 @pytest.mark.asyncio
+async def test_atomic_write_bytes_uses_unique_temp_path_per_call(tmp_path, monkeypatch):
+    """Concurrent writers to one target must not share the same temp filename."""
+    replace_sources: list[str] = []
+
+    def fake_replace(source, _target):
+        replace_sources.append(source.name)
+        source.unlink()
+
+    monkeypatch.setattr("app.services.scheduler.os.replace", fake_replace)
+
+    image_path = tmp_path / "calendar_en.bmp"
+    await _atomic_write_bytes(image_path, b"first")
+    await _atomic_write_bytes(image_path, b"second")
+
+    assert len(set(replace_sources)) == 2
+
+
+@pytest.mark.asyncio
 async def test_collect_and_generate_uses_configured_stats_retention(tmp_path):
     db = SimpleNamespace(
         set_cache_meta=AsyncMock(),
@@ -52,21 +77,24 @@ async def test_collect_and_generate_uses_configured_stats_retention(tmp_path):
     with (
         patch("app.services.scheduler.Database", return_value=db),
         patch("app.services.scheduler.F1Service") as f1_service_cls,
-        patch("app.services.scheduler._delete_existing_bmps", return_value=0),
+        patch("app.services.scheduler._delete_stale_bmps", return_value=0),
         patch("app.services.scheduler._load_historical_data", return_value={}),
         patch(
             "app.services.scheduler._load_weather_context",
             new=AsyncMock(return_value=(None, None, {"off": None})),
         ),
-        patch("app.services.scheduler._generate_base_variants", new=AsyncMock(return_value=0)),
+        patch(
+            "app.services.scheduler._generate_base_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
         patch(
             "app.services.scheduler._generate_popular_tz_variants",
-            new=AsyncMock(return_value=0),
+            new=AsyncMock(return_value=(set(), 0)),
         ),
         patch("app.services.scheduler.generate_preview_pngs", new=AsyncMock()),
         patch(
             "app.services.scheduler._generate_teams_bmp_variants",
-            new=AsyncMock(return_value=0),
+            new=AsyncMock(return_value=(set(), 0)),
         ),
         patch("app.services.scheduler.clear_bmp_cache"),
         patch("app.services.scheduler.config.IMAGES_PATH", str(tmp_path / "images")),
@@ -90,21 +118,24 @@ async def test_collect_and_generate_skips_stats_cleanup_when_retention_disabled(
     with (
         patch("app.services.scheduler.Database", return_value=db),
         patch("app.services.scheduler.F1Service") as f1_service_cls,
-        patch("app.services.scheduler._delete_existing_bmps", return_value=0),
+        patch("app.services.scheduler._delete_stale_bmps", return_value=0),
         patch("app.services.scheduler._load_historical_data", return_value={}),
         patch(
             "app.services.scheduler._load_weather_context",
             new=AsyncMock(return_value=(None, None, {"off": None})),
         ),
-        patch("app.services.scheduler._generate_base_variants", new=AsyncMock(return_value=0)),
+        patch(
+            "app.services.scheduler._generate_base_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
         patch(
             "app.services.scheduler._generate_popular_tz_variants",
-            new=AsyncMock(return_value=0),
+            new=AsyncMock(return_value=(set(), 0)),
         ),
         patch("app.services.scheduler.generate_preview_pngs", new=AsyncMock()),
         patch(
             "app.services.scheduler._generate_teams_bmp_variants",
-            new=AsyncMock(return_value=0),
+            new=AsyncMock(return_value=(set(), 0)),
         ),
         patch("app.services.scheduler.clear_bmp_cache"),
         patch("app.services.scheduler.config.IMAGES_PATH", str(tmp_path / "images")),
@@ -114,3 +145,78 @@ async def test_collect_and_generate_skips_stats_cleanup_when_retention_disabled(
         await collect_and_generate()
 
     db.cleanup_old_stats.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_collect_and_generate_skips_stale_prune_when_race_weather_missing(tmp_path):
+    """A partial weather outage must not prune previously-good race-day BMP variants."""
+    db = SimpleNamespace(
+        set_cache_meta=AsyncMock(),
+        cleanup_old_stats=AsyncMock(),
+        close=AsyncMock(),
+    )
+    race_dt = datetime.now(timezone.utc) + timedelta(days=2)
+    race_data = {
+        "race_name": "Test Grand Prix",
+        "circuit": {"circuitId": "test", "lat": "50.0", "long": "14.0"},
+        "schedule": [{"name": "Race", "datetime": race_dt.isoformat()}],
+    }
+    prune = Mock(return_value=0)
+
+    with (
+        patch("app.services.scheduler.Database", return_value=db),
+        patch("app.services.scheduler.F1Service") as f1_service_cls,
+        patch("app.services.scheduler._delete_stale_bmps", prune),
+        patch("app.services.scheduler._load_historical_data", return_value={}),
+        patch(
+            "app.services.scheduler._load_weather_context",
+            new=AsyncMock(return_value=(object(), None, {"off": None, "current": object()})),
+        ),
+        patch(
+            "app.services.scheduler._generate_base_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
+        patch(
+            "app.services.scheduler._generate_popular_tz_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
+        patch("app.services.scheduler.generate_preview_pngs", new=AsyncMock()),
+        patch(
+            "app.services.scheduler._generate_teams_bmp_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
+        patch("app.services.scheduler.clear_bmp_cache"),
+        patch("app.services.scheduler.config.IMAGES_PATH", str(tmp_path / "images")),
+        patch("app.services.scheduler.config.STATS_RETENTION_DAYS", 0),
+        patch("app.services.scheduler.config.WEATHER_ENABLED", True),
+    ):
+        f1_service_cls.return_value.get_next_race_from_static.return_value = race_data
+        await collect_and_generate()
+
+    prune.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_generate_teams_bmp_variants_treats_incomplete_standings_as_failure(tmp_path):
+    """Scheduler should keep old teams BMPs when standings enrichment was degraded."""
+    db = SimpleNamespace(save_generated_image=AsyncMock())
+    degraded_teams = TeamsData(
+        season=2026,
+        teams=[TeamEntry(constructor_name="Test Team")],
+        standings_complete=False,
+    )
+
+    with (
+        patch("app.services.teams_service.get_default_teams_year", return_value=2026),
+        patch("app.services.teams_service.TeamsService") as teams_service_cls,
+        patch("app.services.scheduler.run_render", new=AsyncMock(return_value=b"BM")),
+    ):
+        teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(
+            return_value=degraded_teams
+        )
+
+        generated, failures = await _generate_teams_bmp_variants(images_dir=tmp_path, db=db)
+
+    assert generated == set()
+    assert failures == 1
+    db.save_generated_image.assert_not_awaited()

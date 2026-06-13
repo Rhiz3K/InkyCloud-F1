@@ -23,6 +23,12 @@ SEASONS_DIR = Path(__file__).parent.parent / "assets" / "seasons"
 
 CACHE_TTL_SECONDS = 3600
 
+
+def is_teams_data_cacheable(data: TeamsData) -> bool:
+    """Return True only for complete teams data safe to keep in caches/prebuilt images."""
+    return bool(data.teams) and data.standings_complete
+
+
 MANUAL_DRIVER_NUMBER_OVERRIDES = {
     2026: {
         "norris": 1,
@@ -494,20 +500,40 @@ class TeamsService:
         try:
             json_data = self._load_from_json(year)
             if json_data:
-                driver_standings, constructor_standings = await self._fetch_standings(year)
+                try:
+                    driver_standings, constructor_standings = await self._fetch_standings(year)
 
-                if not driver_standings and not constructor_standings and year >= 2026:
-                    logger.info("No standings for %d, falling back to %d", year, year - 1)
-                    driver_standings, constructor_standings = await self._fetch_standings(year - 1)
+                    if not driver_standings and not constructor_standings and year >= 2026:
+                        logger.info("No standings for %d, falling back to %d", year, year - 1)
+                        driver_standings, constructor_standings = await self._fetch_standings(
+                            year - 1
+                        )
 
-                json_data = self._merge_standings(
-                    json_data, driver_standings, constructor_standings
-                )
-                self._set_cache(year, json_data)
+                    json_data = self._merge_standings(
+                        json_data, driver_standings, constructor_standings
+                    )
+                except Exception as e:
+                    # Standings are enrichment on top of the bundled team/driver JSON. On an
+                    # upstream (jolpica) failure, serve the JSON teams without live positions
+                    # rather than discarding a perfectly good dashboard — but do NOT cache the
+                    # degraded result, so the next request/scheduler run retries immediately
+                    # instead of pinning a standings-less dashboard for the full cache TTL.
+                    logger.warning(
+                        "Standings fetch failed for %d; serving teams without standings: %s",
+                        year,
+                        e,
+                    )
+                    return json_data.model_copy(update={"standings_complete": False})
+
+                if is_teams_data_cacheable(json_data):
+                    self._set_cache(year, json_data)
                 return json_data
 
             api_data = await self._fetch_from_api(year)
-            self._set_cache(year, api_data)
+            # Never cache an empty/degraded result, so a transient outage retries instead of
+            # pinning a blank or standings-less dashboard for the full cache TTL.
+            if is_teams_data_cacheable(api_data):
+                self._set_cache(year, api_data)
             return api_data
 
         except Exception as e:

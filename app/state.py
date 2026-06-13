@@ -1,4 +1,5 @@
 import logging
+from collections import deque
 from datetime import datetime, timezone
 
 from cachetools import TTLCache
@@ -11,7 +12,11 @@ BMP_CACHE_TTL_SECONDS = 3600
 # Cover all localized display/weather variants without immediate LRU churn.
 _bmp_cache: TTLCache = TTLCache(maxsize=BMP_CACHE_MAXSIZE, ttl=BMP_CACHE_TTL_SECONDS)
 
-_api_calls_buffer: list = []
+# Bound the buffer so a serving instance whose flush job never runs (e.g. SCHEDULER_ENABLED
+# is false) cannot grow it without limit. deque(maxlen) enforces the cap structurally:
+# appends past the cap drop the oldest entry, so no mutation site can forget to trim.
+API_CALLS_BUFFER_MAXSIZE = 10_000
+_api_calls_buffer: deque = deque(maxlen=API_CALLS_BUFFER_MAXSIZE)
 
 
 def clear_bmp_cache() -> None:
@@ -52,6 +57,20 @@ def record_api_call(
 
 
 def get_and_clear_api_calls_buffer() -> list:
-    calls = _api_calls_buffer[:]
+    calls = list(_api_calls_buffer)
     _api_calls_buffer.clear()
     return calls
+
+
+def requeue_api_calls(calls: list) -> None:
+    """Put calls back at the front of the buffer after a failed flush.
+
+    Rebuilds in chronological order (requeued calls are older than anything buffered since);
+    deque.extend with maxlen then drops the oldest overflow. extendleft on a full deque would
+    instead evict from the right — the newest records — which is the wrong end to lose.
+    """
+    if not calls:
+        return
+    combined = list(calls) + list(_api_calls_buffer)
+    _api_calls_buffer.clear()
+    _api_calls_buffer.extend(combined)

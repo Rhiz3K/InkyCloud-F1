@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 from io import BytesIO
 from pathlib import Path
@@ -11,12 +12,10 @@ from fastapi.responses import FileResponse, RedirectResponse, Response, Streamin
 from PIL import Image
 
 from app.config import LANGUAGE_CODES, config
-from app.services.bwr_renderer import BwrRenderer
-from app.services.bwry_renderer import BwryRenderer
 from app.services.i18n import get_translator
-from app.services.renderer import Renderer
-from app.services.spectra6_renderer import Spectra6Renderer
+from app.services.renderers import create_renderer
 from app.services.teams_service import TeamsService, get_default_teams_year
+from app.utils.async_tasks import run_render
 
 router = APIRouter()
 _ALLOWED_LANGS = {lang: lang for lang in LANGUAGE_CODES}
@@ -39,33 +38,30 @@ def _bmp_to_png(
     return buffer.getvalue()
 
 
-def _get_teams_renderer(display: str, translator: dict, lang: str):
-    if display == "spectra6":
-        return Spectra6Renderer(translator, lang)
-    if display == "bwr":
-        return BwrRenderer(translator, lang)
-    if display == "bwry":
-        return BwryRenderer(translator, lang)
-    return Renderer(translator, lang)
+def _build_teams_preview_png(lang: str, display: str, teams_data, full_size: bool) -> bytes:
+    """Construct the renderer, render, and convert to PNG — all in the worker thread."""
+    translator = get_translator(lang)
+    renderer = create_renderer(display, translator, lang)
+    bmp_data = renderer.render_teams_drivers(teams_data)
+    return _bmp_to_png(
+        bmp_data,
+        width=400,
+        full_size=full_size,
+        preserve_color=display in {"spectra6", "bwr", "bwry"},
+    )
 
 
 async def _render_teams_preview(
     lang: str, display: str = "1bit", *, full_size: bool
 ) -> StreamingResponse:
-    translator = get_translator(lang)
     season = get_default_teams_year()
     teams_service = TeamsService()
     teams_data = await teams_service.get_teams_and_drivers(season)
     if not teams_data.teams:
         raise RuntimeError(f"No teams data available for preview season {season}")
 
-    renderer = _get_teams_renderer(display, translator, lang)
-    bmp_data = renderer.render_teams_drivers(teams_data)
-    png_data = _bmp_to_png(
-        bmp_data,
-        width=400,
-        full_size=full_size,
-        preserve_color=display in {"spectra6", "bwr", "bwry"},
+    png_data = await run_render(
+        functools.partial(_build_teams_preview_png, lang, display, teams_data, full_size)
     )
     return StreamingResponse(
         BytesIO(png_data),

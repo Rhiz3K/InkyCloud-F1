@@ -1204,8 +1204,8 @@ class Database:
             )
             await conn.commit()
 
-    async def get_weather_cache(self, cache_key: str) -> Optional[tuple[float, int, int]]:
-        """Get weather data from database cache if not expired."""
+    async def get_weather_cache(self, cache_key: str) -> Optional[tuple[float, int, int, str]]:
+        """Get non-expired weather data plus its original cached_at timestamp."""
         await self._init_db_if_needed()
         now = datetime.now(timezone.utc).isoformat()
 
@@ -1213,7 +1213,7 @@ class Database:
             self._get_connection() as conn,
             conn.execute(
                 """
-            SELECT temperature_c, weather_code, precipitation_probability
+            SELECT temperature_c, weather_code, precipitation_probability, cached_at
             FROM weather_cache
             WHERE cache_key = ? AND expires_at > ?
             """,
@@ -1226,6 +1226,7 @@ class Database:
                     row["temperature_c"],
                     row["weather_code"],
                     row["precipitation_probability"],
+                    row["cached_at"],
                 )
             return None
 

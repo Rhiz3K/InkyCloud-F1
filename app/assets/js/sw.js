@@ -1,6 +1,6 @@
 // Bump the cache version whenever routing-critical frontend assets change.
 // This forces clients to drop stale locale-switching logic from previous releases.
-const CACHE_NAME = "f1-eink-v3";
+const CACHE_NAME = "f1-eink-v4";
 const STATIC_ASSETS = [
     "/static/css/tailwind.min.css",
     "/static/css/styles.css",
@@ -37,19 +37,35 @@ self.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
 
     if (url.pathname.startsWith("/static/")) {
+        // CSS/JS get stale-while-revalidate so an updated stylesheet/script reaches returning
+        // visitors even when CACHE_NAME wasn't bumped. Fonts/images are served cache-first:
+        // the server marks them immutable/long-lived, so background revalidation would be a
+        // permanent no-op costing a fetch + Cache Storage write per asset on every view.
+        const revalidate = /\.(css|js)$/.test(url.pathname);
         event.respondWith(
-            caches.match(event.request).then((cached) => {
-                if (cached) return cached;
-                return fetch(event.request).then((response) => {
-                    if (response.ok) {
-                        const clone = response.clone();
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, clone);
-                        });
+            caches.open(CACHE_NAME).then((cache) =>
+                cache.match(event.request).then((cached) => {
+                    if (cached && !revalidate) return cached;
+                    const network = fetch(event.request)
+                        .then((response) => {
+                            if (!response.ok) return response;
+                            // Chain the cache write so the promise below settles only after
+                            // the body is fully stored — waitUntil must cover the put, or the
+                            // browser may kill the idle SW mid-write and keep the stale asset.
+                            return cache
+                                .put(event.request, response.clone())
+                                .then(() => response, () => response);
+                        })
+                        // On network failure fall back to the cached copy; with no cache either,
+                        // resolve to a network-error Response so respondWith never gets undefined.
+                        .catch(() => cached ?? Response.error());
+                    if (cached) {
+                        event.waitUntil(network);
+                        return cached;
                     }
-                    return response;
-                });
-            }),
+                    return network;
+                }),
+            ),
         );
         return;
     }

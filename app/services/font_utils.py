@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 
 from PIL import ImageDraw, ImageFont
@@ -11,6 +12,35 @@ from PIL.ImageFont import FreeTypeFont
 logger = logging.getLogger(__name__)
 
 FONTS_DIR = Path(__file__).parent.parent / "assets" / "fonts"
+
+# Rendering runs in a thread pool (asyncio.to_thread), so fonts are cached PER THREAD rather
+# than globally: a PIL FreeTypeFont is not guaranteed safe to use from multiple threads at once,
+# but per-thread reuse still avoids reopening the font file on every fit_ui_font size probe.
+_thread_local = threading.local()
+
+
+_FONT_CACHE_MAXSIZE = 256
+
+
+def _cached_truetype(path: str, size: int, *, index: int = 0) -> FreeTypeFont:
+    """Return a per-thread cached TrueType font, loading it on first use.
+
+    fit_ui_font probes many sizes, so the cache is bounded: once it exceeds
+    _FONT_CACHE_MAXSIZE entries it is cleared to avoid unbounded growth.
+    """
+    cache = getattr(_thread_local, "fonts", None)
+    if cache is None:
+        cache = {}
+        _thread_local.fonts = cache
+    key = (path, size, index)
+    font = cache.get(key)
+    if font is None:
+        if len(cache) >= _FONT_CACHE_MAXSIZE:
+            cache.clear()
+        font = ImageFont.truetype(path, size, index=index)
+        cache[key] = font
+    return font
+
 
 _CJK_FONT_FILES = {
     "regular": (
@@ -33,13 +63,13 @@ def load_brand_font(size: int, *, bold: bool = False) -> FreeTypeFont | ImageFon
     font_path = FONTS_DIR / font_filename
     if font_path.exists():
         try:
-            return ImageFont.truetype(str(font_path), size)
+            return _cached_truetype(str(font_path), size)
         except OSError as exc:
             logger.warning("Failed to load TitilliumWeb %s: %s", font_path.name, exc)
 
     fallback_name = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
     try:
-        return ImageFont.truetype(fallback_name, size)
+        return _cached_truetype(fallback_name, size)
     except OSError:
         return ImageFont.load_default()
 
@@ -126,7 +156,7 @@ def _load_cjk_font(lang_code: str, size: int) -> FreeTypeFont | ImageFont.ImageF
         if not font_path.exists():
             continue
         try:
-            return ImageFont.truetype(str(font_path), size, index=face_index)
+            return _cached_truetype(str(font_path), size, index=face_index)
         except Exception as exc:
             logger.warning("Failed to load CJK font %s (index %s): %s", font_path, face_index, exc)
     return None

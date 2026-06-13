@@ -747,10 +747,11 @@ class TestWeatherCacheDatabase:
             result = await db.get_weather_cache("circuit_monaco_2026")
 
             assert result is not None
-            temp, code, precip = result
+            temp, code, precip, cached_at = result
             assert temp == 22.5
             assert code == 1
             assert precip == 10
+            assert cached_at
             assert await db.get_weather_cache("nonexistent") is None
         finally:
             await db.close()

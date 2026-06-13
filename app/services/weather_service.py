@@ -67,6 +67,21 @@ def _to_utc_datetime(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+def _current_weather_cache_key(lat: float, lon: float) -> str:
+    """Cache key for current weather — single source for readers, prefetch, and warm-load."""
+    return f"current_{round(lat, 2)}_{round(lon, 2)}"
+
+
+def _race_weather_cache_key(lat: float, lon: float, race_datetime: datetime) -> str:
+    """Cache key for race-day weather, normalized to UTC.
+
+    All sites (reader, prefetch save, startup warm-load) must build this identically:
+    a local-offset isoformat here once made the restart warm-load populate a key the
+    reader never looked up.
+    """
+    return f"{round(lat, 2)}_{round(lon, 2)}_{_to_utc_datetime(race_datetime).isoformat()}"
+
+
 @dataclass
 class WeatherData:
     temperature_c: float
@@ -104,7 +119,7 @@ class WeatherService:
         Returns:
             WeatherData or None if invalid coords, API failure, or no data.
         """
-        cache_key = f"current_{round(lat, 2)}_{round(lon, 2)}"
+        cache_key = _current_weather_cache_key(lat, lon)
         cached = self._get_cached(cache_key)
         if cached is not None:
             logger.debug("Current weather cache hit for %s", cache_key)
@@ -139,8 +154,8 @@ class WeatherService:
             lon: Longitude in decimal degrees.
 
         Returns:
-            WeatherData with temperature_c, weather_code, precipitation_probability.
-            Uses defaults (20.0C, code 0, prob 0) if API omits values.
+            WeatherData with temperature_c, weather_code, precipitation_probability, or None
+            when the response lacks a current temperature (rather than fabricating defaults).
         """
         params: dict[str, str | int | float] = {
             "latitude": round(lat, 2),
@@ -156,19 +171,36 @@ class WeatherService:
         response.raise_for_status()
         data = response.json()
 
-        current = data.get("current", {})
-        hourly = data.get("hourly", {})
+        current = data.get("current") or {}
+        hourly = data.get("hourly") or {}
 
-        temp = current.get("temperature_2m", 20.0)
-        code = current.get("weather_code", 0)
+        # Don't fabricate weather: a 200 response with a missing/partial current block must not
+        # be cached and displayed as 20C/sunny. Return None so the caller falls back gracefully.
+        if "temperature_2m" not in current:
+            logger.warning("open-meteo returned no current temperature for %s,%s", lat, lon)
+            return None
 
-        precip_probs = hourly.get("precipitation_probability", [])
-        precip = precip_probs[0] if precip_probs else 0
+        # Precipitation probability lives only in the hourly array; pick the slot matching the
+        # current local hour instead of index 0 (which is 00:00 and wrong for most of the day).
+        precip_probs = hourly.get("precipitation_probability") or []
+        precip_times = hourly.get("time") or []
+        current_hour = str(current.get("time", ""))[:13]  # YYYY-MM-DDTHH
+        precip = 0
+        if precip_probs:
+            # Prefer the hourly slot matching the API's reported current time; only fall back to
+            # the first (00:00) slot when the time field is missing or no slot matches.
+            idx = 0
+            if current_hour:
+                for i, t in enumerate(precip_times):
+                    if str(t)[:13] == current_hour and i < len(precip_probs):
+                        idx = i
+                        break
+            precip = precip_probs[idx] or 0
 
         return WeatherData(
-            temperature_c=temp,
-            weather_code=code,
-            precipitation_probability=precip or 0,
+            temperature_c=current["temperature_2m"],
+            weather_code=current.get("weather_code", 0),
+            precipitation_probability=precip,
         )
 
     async def get_race_weather(
@@ -179,7 +211,7 @@ class WeatherService:
     ) -> Optional[WeatherData]:
         race_datetime_utc = _to_utc_datetime(race_datetime)
 
-        cache_key = f"{round(lat, 2)}_{round(lon, 2)}_{race_datetime_utc.isoformat()}"
+        cache_key = _race_weather_cache_key(lat, lon, race_datetime)
         cached = self._get_cached(cache_key)
         if cached is not None:
             logger.debug("Weather cache hit for %s", cache_key)
@@ -507,9 +539,17 @@ def _match_hourly_weather(
     else:
         precip_probability = int(precip_value or 0)
 
+    # Never fabricate weather: a missing/short/null temperature array must yield "no data",
+    # not a synthetic 20C/sunny that gets cached, persisted, and baked into BMPs.
+    temperature = temps[matched_index] if matched_index < len(temps) else None
+    if temperature is None:
+        logger.warning("No temperature in hourly data for %s", race_hour_str)
+        return None
+    code = codes[matched_index] if matched_index < len(codes) else None
+
     return WeatherData(
-        temperature_c=temps[matched_index] if matched_index < len(temps) else 20.0,
-        weather_code=codes[matched_index] if matched_index < len(codes) else 0,
+        temperature_c=temperature,
+        weather_code=code if code is not None else 0,
         precipitation_probability=precip_probability,
         precipitation_display_override=precip_display_override,
     )
@@ -683,7 +723,7 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
 
     current_weather = await weather_service.get_current_weather(lat, lon)
     if current_weather:
-        cache_key = f"current_{round(lat, 2)}_{round(lon, 2)}"
+        cache_key = _current_weather_cache_key(lat, lon)
         await db.save_weather_cache(
             cache_key=cache_key,
             temperature_c=current_weather.temperature_c,
@@ -695,7 +735,7 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
 
     race_weather = await weather_service.get_race_weather(lat, lon, race_dt)
     if race_weather:
-        cache_key = f"{round(lat, 2)}_{round(lon, 2)}_{race_dt.isoformat()}"
+        cache_key = _race_weather_cache_key(lat, lon, race_dt)
         await db.save_weather_cache(
             cache_key=cache_key,
             temperature_c=race_weather.temperature_c,
@@ -713,10 +753,50 @@ async def get_cached_weather_from_db(db: "Database", cache_key: str) -> Optional
     """Get weather from DB cache."""
     cached = await db.get_weather_cache(cache_key)
     if cached:
-        temp_c, code, precip = cached
+        temp_c, code, precip, _cached_at = cached
         return WeatherData(
             temperature_c=temp_c,
             weather_code=code,
             precipitation_probability=precip,
         )
     return None
+
+
+async def load_prefetched_weather_from_db(db: "Database") -> int:
+    """Warm the in-memory next-race weather cache from the persisted DB cache on startup.
+
+    Without this the hourly prefetch's DB writes were never read back, so a restart discarded
+    the prefetched weather until the next :55 run. Keys are built via the shared
+    _current_weather_cache_key/_race_weather_cache_key helpers used by save and read sites.
+    """
+    details = _get_next_race_details()
+    if not details:
+        return 0
+
+    lat, lon, race_dt = details
+    keys = (
+        _current_weather_cache_key(lat, lon),
+        _race_weather_cache_key(lat, lon, race_dt),
+    )
+
+    loaded = 0
+    now = datetime.now(timezone.utc)
+    for cache_key in keys:
+        cached = await db.get_weather_cache(cache_key)
+        if not cached:
+            continue
+        temp_c, code, precip, cached_at_str = cached
+        data = WeatherData(
+            temperature_c=temp_c,
+            weather_code=code,
+            precipitation_probability=precip,
+        )
+        # Stamp with the ORIGINAL fetch time so the in-memory TTL measures true data age;
+        # stamping "now" would serve up-to-2h-old data as fresh for another full window.
+        try:
+            cached_at = datetime.fromisoformat(cached_at_str)
+        except (TypeError, ValueError):
+            cached_at = now
+        _weather_cache[cache_key] = (data, cached_at)
+        loaded += 1
+    return loaded

@@ -23,6 +23,38 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 _HTML_ROUTE_METHODS = ("GET", "HEAD")
 
+# Elements that should never survive in rendered changelog HTML.
+_UNSAFE_HTML_TAGS = ("script", "style", "iframe", "object", "embed", "link", "meta", "base")
+
+
+def _sanitize_rendered_html(html: str) -> str:
+    """Strip script/style/event-handler/javascript: vectors from rendered markdown HTML.
+
+    The changelog is rendered with raw-HTML-passthrough markdown extensions and emitted via
+    ``| safe``. CHANGELOG.md is maintainer-controlled, so this is defense-in-depth: it keeps a
+    future where less-trusted content reaches that file from becoming stored XSS.
+    """
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    # Snapshot the result sets with list() before mutating the tree (also avoids a pylint
+    # E1133 false positive: it can't infer that bs4 result sets are iterable).
+    for tag in list(soup(_UNSAFE_HTML_TAGS)):
+        tag.decompose()
+    for tag in list(soup.find_all(True)):
+        for attr, value in list(tag.attrs.items()):
+            lowered = attr.lower()
+            if lowered.startswith("on"):
+                del tag.attrs[attr]
+            elif lowered in {"href", "src"} and isinstance(value, str):
+                # Strip control/whitespace chars first so "java\tscript:" / "java\nscript:"
+                # can't slip through, and block data:/vbscript: URI vectors as well.
+                cleaned = "".join(ch for ch in value if ord(ch) > 32).lower()
+                if cleaned.startswith(("javascript:", "data:", "vbscript:")):
+                    del tag.attrs[attr]
+    return str(soup)
+
+
 _DISPLAY_TYPE_LABELS = {
     "1bit": "1-BIT",
     "spectra6": "SPECTRA 6",
@@ -413,9 +445,11 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
     if changelog_path.exists():
         changelog_content = changelog_path.read_text(encoding="utf-8")
         changelog_content = _strip_empty_unreleased_section(changelog_content)
-        changelog_html = markdown.markdown(
-            changelog_content,
-            extensions=["extra", "toc", "md_in_html"],
+        changelog_html = _sanitize_rendered_html(
+            markdown.markdown(
+                changelog_content,
+                extensions=["extra", "toc", "md_in_html"],
+            )
         )
     else:
         changelog_html = "<p>Changelog not found.</p>"

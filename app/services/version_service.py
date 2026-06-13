@@ -15,10 +15,12 @@ logger = logging.getLogger(__name__)
 GITHUB_OWNER = "Rhiz3K"
 GITHUB_REPO = "InkyCloud-F1"
 
-# Cache for version info (refreshed at midnight and on deployment)
+# Cache for version info (refreshed hourly by the scheduler and on deployment).
+# TTL matches the hourly refresh cadence so the changelog page serves the cached value instead
+# of doing a blocking inline GitHub fetch for ~55 minutes of every hour.
 _version_cache: "VersionInfo | None" = None
 _version_cache_fetched_at: float | None = None
-VERSION_CACHE_TTL_SECONDS = 300
+VERSION_CACHE_TTL_SECONDS = 3600
 
 
 @dataclass
@@ -120,7 +122,7 @@ async def fetch_version_info() -> VersionInfo:
     except Exception as e:
         logger.error("Error fetching GitHub commit: %s", e)
 
-    _version_cache = VersionInfo(
+    info = VersionInfo(
         release_tag=release_tag,
         release_name=release_name,
         release_date=release_date,
@@ -130,6 +132,15 @@ async def fetch_version_info() -> VersionInfo:
         commit_message=commit_message,
         last_updated=commit_date,
     )
+
+    # Don't overwrite a previously-good cache with an all-None result: with the 1h TTL a
+    # single failed refresh (GitHub down/rate-limited) would otherwise pin "unknown" on the
+    # changelog page for the whole hour instead of keeping the last known version.
+    if release_tag is None and commit_sha is None and _version_cache is not None:
+        logger.warning("Version fetch returned no data; keeping previous cached version info")
+        return _version_cache
+
+    _version_cache = info
     _version_cache_fetched_at = time.time()
 
     return _version_cache
@@ -139,7 +150,7 @@ async def refresh_version_info() -> VersionInfo | None:
     """
     Refresh version info from GitHub API.
 
-    Called by scheduler at midnight and on startup.
+    Called by the scheduler hourly (at :05) and on startup.
 
     Returns:
         VersionInfo if fetch succeeded, None otherwise.

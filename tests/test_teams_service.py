@@ -2,6 +2,8 @@
 
 from datetime import datetime, timezone
 
+import pytest
+
 from app.models import TeamDriverEntry, TeamEntry, TeamsData
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.utils.f1_season import get_current_f1_season
@@ -100,6 +102,38 @@ def test_match_constructor_name_handles_sponsor_prefixed_williams():
     )
 
     assert matched == "Williams"
+
+
+@pytest.mark.asyncio
+async def test_get_teams_and_drivers_marks_standings_failure_as_incomplete(monkeypatch):
+    service = TeamsService()
+    service._cache.clear()
+    teams_data = TeamsData(
+        season=2026,
+        teams=[
+            TeamEntry(
+                constructor_name="Audi",
+                drivers=[TeamDriverEntry(driver_id="hulkenberg", name="Nico Hülkenberg")],
+            )
+        ],
+    )
+    calls = 0
+
+    async def fail_standings(_year: int):
+        nonlocal calls
+        calls += 1
+        raise RuntimeError("standings unavailable")
+
+    monkeypatch.setattr(service, "_load_from_json", lambda _year: teams_data)
+    monkeypatch.setattr(service, "_fetch_standings", fail_standings)
+
+    first = await service.get_teams_and_drivers(2026)
+    second = await service.get_teams_and_drivers(2026)
+
+    assert first.teams
+    assert first.standings_complete is False
+    assert second.standings_complete is False
+    assert calls == 2
 
 
 def test_get_current_f1_season_falls_back_to_current_year_for_future_seasons(caplog):
