@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.28] - 2026-06-14
+
+### Frontend
+
+#### Added
+
+- **Red Bull Ring track assets** - Added the source PSD and B/W, B/W/R, B/W/R/Y, and Spectra 6 rendered track images for Red Bull Ring display support
+
 ## [1.2.27] - 2026-06-09
 
 ### Security
