@@ -438,7 +438,7 @@
     "fastest_lap_year": "2021",
     "historical": {
       "season": 2026,
-      "updated_at": "2026-06-08",
+      "updated_at": "2026-06-15",
       "qualifying": [
         {
           "pos": 1,
@@ -479,10 +479,10 @@
         },
         {
           "pos": 3,
-          "code": "HAD",
-          "name": "Hadjar",
-          "team": "Red Bull",
-          "time": "+23.394"
+          "code": "GAS",
+          "name": "Gasly",
+          "team": "Alpine F1 Team",
+          "time": "+20.369"
         }
       ]
     }
@@ -498,52 +498,52 @@
     "fastest_lap_driver": "Oscar Piastri",
     "fastest_lap_year": "2025",
     "historical": {
-      "season": 2025,
-      "updated_at": "2026-03-30",
+      "season": 2026,
+      "updated_at": "2026-06-15",
       "qualifying": [
         {
           "pos": 1,
-          "code": "PIA",
-          "name": "Piastri",
-          "team": "McLaren",
-          "time": "1:11.546"
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:14.679"
         },
         {
           "pos": 2,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "1:11.755"
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:14.743"
         },
         {
-          "pos": 3,
-          "code": "VER",
-          "name": "Verstappen",
-          "team": "Red Bull",
-          "time": "1:11.848"
+          "pos": 10,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:15.281"
         }
       ],
       "race": [
         {
           "pos": 1,
-          "code": "PIA",
-          "name": "Piastri",
-          "team": "McLaren",
-          "time": "1:32:57.375"
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:32:28.105"
         },
         {
           "pos": 2,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "+2.471"
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+19.561"
         },
         {
           "pos": 3,
-          "code": "LEC",
-          "name": "Leclerc",
-          "team": "Ferrari",
-          "time": "+10.455"
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+23.719"
         }
       ]
     }
