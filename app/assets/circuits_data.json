@@ -559,52 +559,52 @@
     "fastest_lap_driver": "Oscar Piastri",
     "fastest_lap_year": "2025",
     "historical": {
-      "season": 2025,
-      "updated_at": "2026-03-30",
+      "season": 2026,
+      "updated_at": "2026-06-29",
       "qualifying": [
         {
           "pos": 1,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "1:03.971"
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:06.113"
         },
         {
-          "pos": 2,
-          "code": "LEC",
-          "name": "Leclerc",
-          "team": "Ferrari",
-          "time": "1:04.492"
+          "pos": 4,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:06.414"
         },
         {
-          "pos": 3,
+          "pos": 7,
           "code": "PIA",
           "name": "Piastri",
           "team": "McLaren",
-          "time": "1:04.554"
+          "time": "1:06.511"
         }
       ],
       "race": [
         {
           "pos": 1,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "1:23:47.693"
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:26:37.979"
         },
         {
           "pos": 2,
-          "code": "PIA",
-          "name": "Piastri",
-          "team": "McLaren",
-          "time": "+2.695"
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+1.611"
         },
         {
           "pos": 3,
-          "code": "LEC",
-          "name": "Leclerc",
-          "team": "Ferrari",
-          "time": "+19.820"
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "+1.986"
         }
       ]
     }
