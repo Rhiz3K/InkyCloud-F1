@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.29] - 2026-06-29
+
+### Frontend
+
+#### Added
+
+- **Silverstone track assets** - Added the source PSD and B/W, B/W/R, B/W/R/Y, and Spectra 6 rendered track images for Silverstone Circuit display support
+
 ## [1.2.28] - 2026-06-14
 
 ### Frontend
