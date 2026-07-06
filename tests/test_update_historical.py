@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from urllib.parse import parse_qs, urlparse
+
+import pytest
+
 from scripts import update_historical
 from scripts.material_diff import has_material_change
 
@@ -55,3 +59,93 @@ def test_material_change_detection_detects_new_payload_fields():
     }
 
     assert has_material_change(refreshed, existing, ignored_keys=("updated_at",))
+
+
+class _MockHistoricalResponse:
+    def __init__(self, payload: dict):
+        self._payload = payload
+
+    def json(self):
+        return self._payload
+
+    def raise_for_status(self):
+        return None
+
+
+class _MockHistoricalClient:
+    async def get(self, url: str):
+        parsed = urlparse(url)
+        query = parse_qs(parsed.query)
+        limit = int(query.get("limit", ["0"])[0])
+
+        if parsed.path.endswith("/qualifying.json"):
+            if limit <= 3:
+                qualifying = [
+                    _qualifying_result(1, "RUS", "Russell", "Mercedes", "1:06.113"),
+                    _qualifying_result(4, "ANT", "Antonelli", "Mercedes", "1:06.414"),
+                    _qualifying_result(7, "PIA", "Piastri", "McLaren", "1:06.511"),
+                ]
+            else:
+                qualifying = [
+                    _qualifying_result(1, "RUS", "Russell", "Mercedes", "1:06.113"),
+                    _qualifying_result(2, "LEC", "Leclerc", "Ferrari", "1:06.349"),
+                    _qualifying_result(3, "HAM", "Hamilton", "Ferrari", "1:06.408"),
+                    _qualifying_result(4, "ANT", "Antonelli", "Mercedes", "1:06.414"),
+                ]
+
+            return _MockHistoricalResponse(
+                {"MRData": {"RaceTable": {"Races": [{"QualifyingResults": qualifying}]}}}
+            )
+
+        return _MockHistoricalResponse(
+            {
+                "MRData": {
+                    "RaceTable": {
+                        "Races": [
+                            {
+                                "Results": [
+                                    _race_result(1, "RUS", "Russell", "Mercedes", "1:26:37.979"),
+                                    _race_result(2, "VER", "Verstappen", "Red Bull", "+1.611"),
+                                    _race_result(3, "ANT", "Antonelli", "Mercedes", "+1.986"),
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        )
+
+
+def _qualifying_result(pos: int, code: str, name: str, team: str, q3_time: str) -> dict:
+    return {
+        "position": str(pos),
+        "Driver": {"code": code, "familyName": name},
+        "Constructor": {"name": team},
+        "Q3": q3_time,
+    }
+
+
+def _race_result(pos: int, code: str, name: str, team: str, time: str) -> dict:
+    return {
+        "position": str(pos),
+        "Driver": {"code": code, "familyName": name},
+        "Constructor": {"name": team},
+        "Time": {"time": time},
+    }
+
+
+@pytest.mark.asyncio
+async def test_fetch_results_uses_actual_top_three_qualifying_positions(monkeypatch):
+    monkeypatch.setattr(update_historical, "CURRENT_YEAR", 2026)
+
+    results = await update_historical.fetch_results(
+        _MockHistoricalClient(),
+        "red_bull_ring",
+    )
+
+    assert results is not None
+    assert [(entry["pos"], entry["code"]) for entry in results["qualifying"]] == [
+        (1, "RUS"),
+        (2, "LEC"),
+        (3, "HAM"),
+    ]

@@ -1067,12 +1067,31 @@ def _register_backup_job(sched: AsyncIOScheduler) -> None:
     logger.info("S3 backup job registered (cron: %s)", config.BACKUP_CRON)
 
 
+async def refresh_historical_results() -> None:
+    """Refresh static historical results daily and regenerate images when data changes."""
+    try:
+        from scripts.update_historical import main as update_historical_main
+
+        updated_count = await update_historical_main()
+        if updated_count:
+            logger.info(
+                "Historical results refreshed for %s circuits; regenerating images",
+                updated_count,
+            )
+            await collect_and_generate()
+        else:
+            logger.info("Historical results refresh completed with no material changes")
+    except Exception as e:
+        logger.error("Error refreshing historical results: %s", e, exc_info=True)
+
+
 def start_scheduler() -> None:
     """
     Initialize and start the background scheduler with all jobs.
 
     Jobs: hourly image gen (:00), API flush (every min), weather (:55 if
-    enabled), backup (if configured), version refresh (hourly at :05).
+    enabled), historical refresh (daily at 06:10 UTC), backup (if configured),
+    version refresh (hourly at :05).
     Returns if scheduler disabled or already running.
     """
     global scheduler  # skipcq: PYL-W0603 - singleton pattern for scheduler instance
@@ -1115,6 +1134,15 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
 
+    # Daily: Refresh historical results from Jolpica and regenerate images if changed.
+    scheduler.add_job(
+        refresh_historical_results,
+        trigger=CronTrigger(hour=6, minute=10, timezone=timezone.utc),
+        id="historical_results_refresh",
+        name="Daily historical results refresh from Jolpica",
+        replace_existing=True,
+    )
+
     # Every minute: Flush API calls buffer to database
     scheduler.add_job(
         flush_api_calls_to_db,
@@ -1149,7 +1177,8 @@ def start_scheduler() -> None:
     scheduler.start()
     weather_info = ", weather at :55" if config.WEATHER_ENABLED else ""
     logger.info(
-        "Scheduler started - generation at :00%s, API flush every min, version at :05",
+        "Scheduler started - generation at :00%s, historical refresh daily at 06:10 UTC, "
+        "API flush every min, version at :05",
         weather_info,
     )
 

@@ -393,7 +393,7 @@ class F1Service:
         Returns:
             List of QualifyingResultEntry objects (top 3)
         """
-        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/qualifying.json?limit=3"
+        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/qualifying.json?limit=100"
         logger.info("Fetching qualifying results: %s", url)
 
         try:
@@ -407,6 +407,11 @@ class F1Service:
 
             qualifying_data = races[0].get("QualifyingResults", [])
             results = []
+
+            qualifying_data = sorted(
+                qualifying_data,
+                key=lambda item: int(item.get("position", 0)),
+            )
 
             for entry in qualifying_data[:3]:
                 driver_data = entry.get("Driver", {})
@@ -461,6 +466,11 @@ class F1Service:
 
             results_data = races[0].get("Results", [])
             results = []
+
+            results_data = sorted(
+                results_data,
+                key=lambda item: int(item.get("position", 0)),
+            )
 
             for entry in results_data[:3]:
                 driver_data = entry.get("Driver", {})

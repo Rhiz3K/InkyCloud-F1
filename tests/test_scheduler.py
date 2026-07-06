@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from app.models import TeamEntry, TeamsData
+from app.services import scheduler as scheduler_module
 from app.services.image_keys import get_teams_image_key
 from app.services.scheduler import (
     _atomic_write_bytes,
@@ -45,6 +46,40 @@ def test_get_teams_image_key_includes_year():
 def test_get_teams_image_key_rejects_unknown_display():
     with pytest.raises(ValueError, match="Unsupported display mode: invalid"):
         get_teams_image_key("en", 2026, display="invalid")
+
+
+def test_start_scheduler_registers_daily_historical_refresh(monkeypatch):
+    added_jobs = []
+
+    class FakeScheduler:
+        def add_job(self, func, *, trigger, id, name, replace_existing):
+            added_jobs.append(
+                {
+                    "func": func,
+                    "trigger": trigger,
+                    "id": id,
+                    "name": name,
+                    "replace_existing": replace_existing,
+                }
+            )
+
+        def start(self):
+            return None
+
+    monkeypatch.setattr(scheduler_module, "scheduler", None)
+    monkeypatch.setattr(scheduler_module.config, "SCHEDULER_ENABLED", True)
+    monkeypatch.setattr(scheduler_module.config, "WEATHER_ENABLED", False)
+    monkeypatch.setattr(scheduler_module, "AsyncIOScheduler", lambda **_kwargs: FakeScheduler())
+
+    scheduler_module.start_scheduler()
+
+    historical_job = next(
+        (job for job in added_jobs if job["id"] == "historical_results_refresh"),
+        None,
+    )
+    assert historical_job is not None
+    assert historical_job["func"] is scheduler_module.refresh_historical_results
+    assert historical_job["replace_existing"] is True
 
 
 @pytest.mark.asyncio

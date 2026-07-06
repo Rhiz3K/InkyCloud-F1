@@ -26,7 +26,10 @@ jobs:
         fetch-depth: 0
 
     - name: Verify CHANGELOG update for main PRs
-      if: github.event_name == 'pull_request' && github.base_ref == 'main'
+      if: >-
+        github.event_name == 'pull_request' &&
+        github.base_ref == 'main' &&
+        github.actor != 'dependabot[bot]'
       run: |
         if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx "CHANGELOG.md"; then
           echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
@@ -40,7 +43,10 @@ jobs:
         cache: "pip"
 
     - name: Validate release readiness for main PRs
-      if: github.event_name == 'pull_request' && github.base_ref == 'main'
+      if: >-
+        github.event_name == 'pull_request' &&
+        github.base_ref == 'main' &&
+        github.actor != 'dependabot[bot]'
       run: |
         python -m app.utils.release_validation
     
@@ -79,7 +85,9 @@ jobs:
         fetch-depth: 0
 
     - name: Verify CHANGELOG update for main PRs
-      if: github.base_ref == 'main'
+      if: >-
+        github.base_ref == 'main' &&
+        github.actor != 'dependabot[bot]'
       run: |
         if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx "CHANGELOG.md"; then
           echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
@@ -93,7 +101,9 @@ jobs:
         cache: "pip"
 
     - name: Validate release readiness for main PRs
-      if: github.base_ref == 'main'
+      if: >-
+        github.base_ref == 'main' &&
+        github.actor != 'dependabot[bot]'
       run: |
         python -m app.utils.release_validation
 

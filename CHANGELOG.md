@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.30] - 2026-07-06
+
+### Frontend
+
+#### Added
+
+- **Spa-Francorchamps track assets** - Added the source PSD and B/W, B/W/R, B/W/R/Y, and Spectra 6 rendered track images for Circuit de Spa-Francorchamps display support
+
+#### Changed
+
+- **Tailwind tooling patch** - Updated the Tailwind CLI lockfile to 4.3.2 and regenerated the checked-in minified Tailwind asset with the patched toolchain
+
+### Backend
+
+#### Fixed
+
+- **F1 result ordering** - Fetch full Jolpica qualifying and race result payloads and sort them by numeric position before storing top-three finishers, fixing completed races that showed paginated subsets instead of the actual podium/order
+- **Bundled historical results** - Refreshed the bundled completed-race data with corrected 2025 and 2026 qualifying/race results so production displays no longer depend on stale generated snapshots
+
+#### Changed
+
+- **Daily historical result refresh** - The application now refreshes completed-race results once per day and regenerates display data when results change, replacing scheduled PR-based historical result updates
+
+### Development
+
+#### Changed
+
+- **Dependabot auto-merge** - Safe Dependabot security, patch, and minor PRs now enable squash auto-merge after required checks, while release-gate CI checks skip Dependabot PRs so routine dependency updates are not blocked by changelog/version requirements
+- **F1 data workflow scope** - Kept manual season-calendar refresh support while removing the scheduled historical-data PR path now handled by the running application
+
 ## [1.2.29] - 2026-06-29
 
 ### Frontend

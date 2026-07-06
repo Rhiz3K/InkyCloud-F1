@@ -39,7 +39,7 @@ async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | No
     for year in [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]:
         try:
             # Fetch qualifying
-            q_url = f"{API_BASE}/{year}/circuits/{circuit_id}/qualifying.json?limit=3"
+            q_url = f"{API_BASE}/{year}/circuits/{circuit_id}/qualifying.json?limit=100"
             q_resp = await client.get(q_url)
             q_resp.raise_for_status()
             q_data = q_resp.json()
@@ -60,7 +60,11 @@ async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | No
 
             # Parse qualifying
             qualifying = []
-            for q in q_races[0].get("QualifyingResults", [])[:3]:
+            qualifying_results = sorted(
+                q_races[0].get("QualifyingResults", []),
+                key=lambda entry: int(entry["position"]),
+            )
+            for q in qualifying_results[:3]:
                 qualifying.append(
                     {
                         "pos": int(q["position"]),
@@ -73,7 +77,11 @@ async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | No
 
             # Parse race
             race = []
-            for r in r_races[0].get("Results", [])[:3]:
+            race_results = sorted(
+                r_races[0].get("Results", []),
+                key=lambda entry: int(entry["position"]),
+            )
+            for r in race_results[:3]:
                 race.append(
                     {
                         "pos": int(r["position"]),
@@ -100,7 +108,7 @@ async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | No
     return None
 
 
-async def main(circuit_filter: str | None = None) -> None:
+async def main(circuit_filter: str | None = None) -> int:
     """Update historical data for circuits."""
     with open(CIRCUITS_PATH, encoding="utf-8") as f:
         circuits = json.load(f)
@@ -110,7 +118,7 @@ async def main(circuit_filter: str | None = None) -> None:
         circuit_ids = [circuit_filter] if circuit_filter in circuits else []
         if not circuit_ids:
             print(f"Circuit '{circuit_filter}' not found in circuits_data.json")
-            return
+            return 0
     else:
         circuit_ids = list(circuits.keys())
 
@@ -147,6 +155,7 @@ async def main(circuit_filter: str | None = None) -> None:
     print(f"\nUpdated {updated_count}/{len(circuit_ids)} circuits")
     if has_changes:
         print(f"Saved to {CIRCUITS_PATH}")
+    return updated_count
 
 
 if __name__ == "__main__":
