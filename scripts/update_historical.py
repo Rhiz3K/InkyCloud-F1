@@ -98,9 +98,7 @@ async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | No
 
             # Parse qualifying
             qualifying = []
-            qualifying_results = _sort_entries_by_position(
-                q_races[0].get("QualifyingResults")
-            )
+            qualifying_results = _sort_entries_by_position(q_races[0].get("QualifyingResults"))
             for position, q in qualifying_results[:3]:
                 driver = q.get("Driver") or {}
                 constructor = q.get("Constructor") or {}

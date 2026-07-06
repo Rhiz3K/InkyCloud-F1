@@ -121,15 +121,7 @@ class _MockHistoricalClient:
             if self.include_bad_positions:
                 race.insert(0, _race_result("NC", "BAD", "Badpos", "Test", "+9 laps"))
 
-        return _MockHistoricalResponse(
-            {
-                "MRData": {
-                    "RaceTable": {
-                        "Races": [{"Results": race}]
-                    }
-                }
-            }
-        )
+        return _MockHistoricalResponse({"MRData": {"RaceTable": {"Races": [{"Results": race}]}}})
 
 
 def _qualifying_result(pos: int | str, code: str, name: str, team: str, q3_time: str) -> dict:
