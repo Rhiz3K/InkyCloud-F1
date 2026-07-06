@@ -2,14 +2,6 @@ name: Update F1 Season Data
 
 on:
   workflow_dispatch:
-    inputs:
-      update_type:
-        description: 'What to update'
-        required: true
-        default: 'seasons'
-        type: choice
-        options:
-          - seasons
 
 jobs:
   update:

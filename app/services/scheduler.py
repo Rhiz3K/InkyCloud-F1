@@ -5,6 +5,7 @@ import functools
 import logging
 import os
 import uuid
+import weakref
 from contextlib import suppress
 from datetime import datetime, timezone
 from io import BytesIO
@@ -42,6 +43,19 @@ scheduler: AsyncIOScheduler | None = None
 
 # Supported languages for image generation
 SUPPORTED_LANGUAGES = list(LANGUAGE_CODES)
+
+_generation_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def _get_generation_lock() -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    lock = _generation_locks.get(loop)
+    if lock is None:
+        lock = asyncio.Lock()
+        _generation_locks[loop] = lock
+    return lock
 
 
 def _get_image_key(
@@ -632,6 +646,12 @@ async def _generate_teams_bmp_variants(
 
 async def collect_and_generate() -> None:
     """Generate pregenerated calendar and teams BMP variants from static data."""
+    async with _get_generation_lock():
+        await _collect_and_generate_unlocked()
+
+
+async def _collect_and_generate_unlocked() -> None:
+    """Generate pregenerated calendar and teams BMP variants without acquiring the lock."""
     logger.info("Starting image generation from static data")
 
     try:
@@ -1072,15 +1092,16 @@ async def refresh_historical_results() -> None:
     try:
         from scripts.update_historical import main as update_historical_main
 
-        updated_count = await update_historical_main()
-        if updated_count:
-            logger.info(
-                "Historical results refreshed for %s circuits; regenerating images",
-                updated_count,
-            )
-            await collect_and_generate()
-        else:
-            logger.info("Historical results refresh completed with no material changes")
+        async with _get_generation_lock():
+            updated_count = await update_historical_main()
+            if updated_count:
+                logger.info(
+                    "Historical results refreshed for %s circuits; regenerating images",
+                    updated_count,
+                )
+                await _collect_and_generate_unlocked()
+            else:
+                logger.info("Historical results refresh completed with no material changes")
     except Exception as e:
         logger.error("Error refreshing historical results: %s", e, exc_info=True)
 

@@ -44,6 +44,29 @@ DEFAULT_SESSION_TIME_UTC = "12:00:00Z"
 NEXT_RACE_GRACE = timedelta(hours=4)
 
 
+def _parse_result_position(entry: object) -> int | None:
+    if not isinstance(entry, dict):
+        return None
+
+    try:
+        return int(entry.get("position"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _sort_entries_by_position(entries: object) -> list[tuple[int, dict]]:
+    if not isinstance(entries, list):
+        return []
+
+    positioned_entries = []
+    for entry in entries:
+        position = _parse_result_position(entry)
+        if position is not None and isinstance(entry, dict):
+            positioned_entries.append((position, entry))
+
+    return sorted(positioned_entries, key=lambda item: item[0])
+
+
 class F1Service:
     """Service for fetching F1 race data from Jolpica API."""
 
@@ -405,21 +428,16 @@ class F1Service:
             if not races:
                 return []
 
-            qualifying_data = races[0].get("QualifyingResults", [])
             results = []
+            qualifying_data = _sort_entries_by_position(races[0].get("QualifyingResults"))
 
-            qualifying_data = sorted(
-                qualifying_data,
-                key=lambda item: int(item.get("position", 0)),
-            )
-
-            for entry in qualifying_data[:3]:
-                driver_data = entry.get("Driver", {})
-                constructor_data = entry.get("Constructor", {})
+            for position, entry in qualifying_data[:3]:
+                driver_data = entry.get("Driver") or {}
+                constructor_data = entry.get("Constructor") or {}
 
                 results.append(
                     QualifyingResultEntry(
-                        position=int(entry.get("position", 0)),
+                        position=position,
                         driver=DriverInfo(
                             code=driver_data.get("code", ""),
                             given_name=driver_data.get("givenName", ""),
@@ -452,7 +470,7 @@ class F1Service:
         Returns:
             List of RaceResultEntry objects (top 3)
         """
-        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/results.json?limit=3"
+        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/results.json?limit=100"
         logger.info("Fetching race results: %s", url)
 
         try:
@@ -464,22 +482,17 @@ class F1Service:
             if not races:
                 return []
 
-            results_data = races[0].get("Results", [])
             results = []
+            results_data = _sort_entries_by_position(races[0].get("Results"))
 
-            results_data = sorted(
-                results_data,
-                key=lambda item: int(item.get("position", 0)),
-            )
-
-            for entry in results_data[:3]:
-                driver_data = entry.get("Driver", {})
-                constructor_data = entry.get("Constructor", {})
-                time_data = entry.get("Time", {})
+            for position, entry in results_data[:3]:
+                driver_data = entry.get("Driver") or {}
+                constructor_data = entry.get("Constructor") or {}
+                time_data = entry.get("Time") or {}
 
                 results.append(
                     RaceResultEntry(
-                        position=int(entry.get("position", 0)),
+                        position=position,
                         driver=DriverInfo(
                             code=driver_data.get("code", ""),
                             given_name=driver_data.get("givenName", ""),

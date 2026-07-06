@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **F1 result ordering** - Fetch full Jolpica qualifying and race result payloads and sort them by numeric position before storing top-three finishers, fixing completed races that showed paginated subsets instead of the actual podium/order
 - **Bundled historical results** - Refreshed the bundled completed-race data with corrected 2025 and 2026 qualifying/race results so production displays no longer depend on stale generated snapshots
+- **Historical refresh consistency** - Historical result refreshes now ignore malformed/non-numeric result positions, write `circuits_data.json` atomically, and serialize updates with image generation so readers never see partial result data
 
 #### Changed
 
@@ -34,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-- **Dependabot auto-merge** - Safe Dependabot security, patch, and minor PRs now enable squash auto-merge after required checks, while release-gate CI checks skip Dependabot PRs so routine dependency updates are not blocked by changelog/version requirements
+- **Dependabot auto-merge** - Safe Dependabot security, patch, and minor PRs now enable squash auto-merge after required checks, while release-gate CI checks skip Dependabot PRs by PR author and the metadata action is pinned to a reviewed commit
 - **F1 data workflow scope** - Kept manual season-calendar refresh support while removing the scheduled historical-data PR path now handled by the running application
 
 ## [1.2.29] - 2026-06-29

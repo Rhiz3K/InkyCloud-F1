@@ -1,5 +1,6 @@
 """Tests for scheduler helpers."""
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -98,6 +99,29 @@ async def test_atomic_write_bytes_uses_unique_temp_path_per_call(tmp_path, monke
     await _atomic_write_bytes(image_path, b"second")
 
     assert len(set(replace_sources)) == 2
+
+
+@pytest.mark.asyncio
+async def test_refresh_historical_results_waits_for_generation_lock(monkeypatch):
+    calls = []
+
+    async def fake_update_historical():
+        calls.append("update")
+        return 0
+
+    from scripts import update_historical
+
+    monkeypatch.setattr(update_historical, "main", fake_update_historical)
+
+    lock = scheduler_module._get_generation_lock()
+    async with lock:
+        refresh_task = asyncio.create_task(scheduler_module.refresh_historical_results())
+        await asyncio.sleep(0)
+
+        assert calls == []
+
+    await refresh_task
+    assert calls == ["update"]
 
 
 @pytest.mark.asyncio
