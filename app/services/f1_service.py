@@ -23,6 +23,7 @@ from app.models import (
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.http_client import get_shared_http_client
 from app.utils.http import fetch_with_retry
+from app.utils.result_entries import ResultEntry, get_result_mapping, sort_entries_by_position
 from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone, normalize_timezone
 
 logger = logging.getLogger(__name__)
@@ -44,31 +45,20 @@ DEFAULT_SESSION_TIME_UTC = "12:00:00Z"
 NEXT_RACE_GRACE = timedelta(hours=4)
 
 
-def _parse_result_position(entry: object) -> int | None:
-    if not isinstance(entry, dict):
-        return None
-
-    position = entry.get("position")
-    if position is None:
-        return None
-
-    try:
-        return int(position)
-    except (TypeError, ValueError):
-        return None
+def _driver_info_from_result(entry: ResultEntry) -> DriverInfo:
+    """Build driver info from a normalized result entry."""
+    driver_data = get_result_mapping(entry, "Driver")
+    return DriverInfo(
+        code=driver_data.get("code", ""),
+        given_name=driver_data.get("givenName", ""),
+        family_name=driver_data.get("familyName", ""),
+    )
 
 
-def _sort_entries_by_position(entries: object) -> list[tuple[int, dict]]:
-    if not isinstance(entries, list):
-        return []
-
-    positioned_entries = []
-    for entry in entries:
-        position = _parse_result_position(entry)
-        if position is not None and isinstance(entry, dict):
-            positioned_entries.append((position, entry))
-
-    return sorted(positioned_entries, key=lambda item: item[0])
+def _constructor_info_from_result(entry: ResultEntry) -> ConstructorInfo:
+    """Build constructor info from a normalized result entry."""
+    constructor_data = get_result_mapping(entry, "Constructor")
+    return ConstructorInfo(name=constructor_data.get("name", ""))
 
 
 class F1Service:
@@ -433,30 +423,21 @@ class F1Service:
                 return []
 
             results = []
-            qualifying_data = _sort_entries_by_position(races[0].get("QualifyingResults"))
+            qualifying_data = sort_entries_by_position(races[0].get("QualifyingResults"))
 
             for position, entry in qualifying_data[:3]:
-                driver_data = entry.get("Driver") or {}
-                constructor_data = entry.get("Constructor") or {}
-
                 results.append(
                     QualifyingResultEntry(
                         position=position,
-                        driver=DriverInfo(
-                            code=driver_data.get("code", ""),
-                            given_name=driver_data.get("givenName", ""),
-                            family_name=driver_data.get("familyName", ""),
-                        ),
-                        constructor=ConstructorInfo(
-                            name=constructor_data.get("name", ""),
-                        ),
+                        driver=_driver_info_from_result(entry),
+                        constructor=_constructor_info_from_result(entry),
                         q3_time=entry.get("Q3"),
                     )
                 )
 
             return results
 
-        except Exception as e:
+        except (httpx.HTTPError, AttributeError, KeyError, TypeError, ValueError) as e:
             logger.warning("Failed to fetch qualifying results: %s", e)
             return []
 
@@ -487,31 +468,23 @@ class F1Service:
                 return []
 
             results = []
-            results_data = _sort_entries_by_position(races[0].get("Results"))
+            results_data = sort_entries_by_position(races[0].get("Results"))
 
             for position, entry in results_data[:3]:
-                driver_data = entry.get("Driver") or {}
-                constructor_data = entry.get("Constructor") or {}
-                time_data = entry.get("Time") or {}
+                time_data = get_result_mapping(entry, "Time")
 
                 results.append(
                     RaceResultEntry(
                         position=position,
-                        driver=DriverInfo(
-                            code=driver_data.get("code", ""),
-                            given_name=driver_data.get("givenName", ""),
-                            family_name=driver_data.get("familyName", ""),
-                        ),
-                        constructor=ConstructorInfo(
-                            name=constructor_data.get("name", ""),
-                        ),
+                        driver=_driver_info_from_result(entry),
+                        constructor=_constructor_info_from_result(entry),
                         time=time_data.get("time"),
                     )
                 )
 
             return results
 
-        except Exception as e:
+        except (httpx.HTTPError, AttributeError, KeyError, TypeError, ValueError) as e:
             logger.warning("Failed to fetch race results: %s", e)
             return []
 

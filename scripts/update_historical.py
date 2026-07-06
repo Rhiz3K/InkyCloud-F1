@@ -25,6 +25,7 @@ import httpx
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.utils.result_entries import ResultEntry, get_result_mapping, sort_entries_by_position
 from scripts.material_diff import has_material_change
 
 API_BASE = "https://api.jolpi.ca/ergast/f1"
@@ -37,33 +38,6 @@ def has_material_historical_change(results: dict, existing_historical: dict | No
     return has_material_change(results, existing_historical, ignored_keys=("updated_at",))
 
 
-def _parse_result_position(entry: object) -> int | None:
-    if not isinstance(entry, dict):
-        return None
-
-    position = entry.get("position")
-    if position is None:
-        return None
-
-    try:
-        return int(position)
-    except (TypeError, ValueError):
-        return None
-
-
-def _sort_entries_by_position(entries: object) -> list[tuple[int, dict]]:
-    if not isinstance(entries, list):
-        return []
-
-    positioned_entries = []
-    for entry in entries:
-        position = _parse_result_position(entry)
-        if position is not None and isinstance(entry, dict):
-            positioned_entries.append((position, entry))
-
-    return sorted(positioned_entries, key=lambda item: item[0])
-
-
 def _write_json_atomic(path: Path, payload: dict) -> None:
     tmp_path = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
     try:
@@ -74,6 +48,33 @@ def _write_json_atomic(path: Path, payload: dict) -> None:
     finally:
         with suppress(FileNotFoundError):
             tmp_path.unlink()
+
+
+def _format_qualifying_result(position: int, entry: ResultEntry) -> dict:
+    """Convert a normalized qualifying API row into stored historical JSON."""
+    driver = get_result_mapping(entry, "Driver")
+    constructor = get_result_mapping(entry, "Constructor")
+    return {
+        "pos": position,
+        "code": driver.get("code", ""),
+        "name": driver.get("familyName", ""),
+        "team": constructor.get("name", ""),
+        "time": entry.get("Q3") or entry.get("Q2") or entry.get("Q1"),
+    }
+
+
+def _format_race_result(position: int, entry: ResultEntry) -> dict:
+    """Convert a normalized race API row into stored historical JSON."""
+    driver = get_result_mapping(entry, "Driver")
+    constructor = get_result_mapping(entry, "Constructor")
+    time_data = get_result_mapping(entry, "Time")
+    return {
+        "pos": position,
+        "code": driver.get("code", ""),
+        "name": driver.get("familyName", ""),
+        "team": constructor.get("name", ""),
+        "time": time_data.get("time"),
+    }
 
 
 async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | None:
@@ -100,49 +101,24 @@ async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | No
             if not r_races:
                 continue
 
-            # Parse qualifying
-            qualifying = []
-            qualifying_results = _sort_entries_by_position(q_races[0].get("QualifyingResults"))
-            for position, q in qualifying_results[:3]:
-                driver = q.get("Driver") or {}
-                constructor = q.get("Constructor") or {}
-                qualifying.append(
-                    {
-                        "pos": position,
-                        "code": driver.get("code", ""),
-                        "name": driver.get("familyName", ""),
-                        "team": constructor.get("name", ""),
-                        "time": q.get("Q3") or q.get("Q2") or q.get("Q1"),
-                    }
-                )
-
-            # Parse race
-            race = []
-            race_results = _sort_entries_by_position(r_races[0].get("Results"))
-            for position, r in race_results[:3]:
-                driver = r.get("Driver") or {}
-                constructor = r.get("Constructor") or {}
-                time_data = r.get("Time") or {}
-                race.append(
-                    {
-                        "pos": position,
-                        "code": driver.get("code", ""),
-                        "name": driver.get("familyName", ""),
-                        "team": constructor.get("name", ""),
-                        "time": time_data.get("time"),
-                    }
-                )
+            qualifying_results = sort_entries_by_position(q_races[0].get("QualifyingResults"))
+            race_results = sort_entries_by_position(r_races[0].get("Results"))
 
             return {
                 "season": year,
                 "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                "qualifying": qualifying,
-                "race": race,
+                "qualifying": [
+                    _format_qualifying_result(position, entry)
+                    for position, entry in qualifying_results[:3]
+                ],
+                "race": [
+                    _format_race_result(position, entry) for position, entry in race_results[:3]
+                ],
             }
 
         except httpx.HTTPStatusError:
             continue
-        except Exception as e:
+        except (httpx.HTTPError, AttributeError, KeyError, TypeError, ValueError) as e:
             print(f"  Error fetching {circuit_id}/{year}: {e}")
             continue
 

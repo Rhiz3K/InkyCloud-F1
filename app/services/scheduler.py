@@ -1102,7 +1102,7 @@ async def refresh_historical_results() -> None:
                 await _collect_and_generate_unlocked()
             else:
                 logger.info("Historical results refresh completed with no material changes")
-    except Exception as e:
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError) as e:
         logger.error("Error refreshing historical results: %s", e, exc_info=True)
 
 
