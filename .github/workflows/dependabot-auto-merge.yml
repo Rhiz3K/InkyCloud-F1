@@ -17,6 +17,8 @@ jobs:
       github.repository == 'Rhiz3K/InkyCloud-F1' &&
       github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    env:
+      DEPENDABOT_METADATA_TOKEN: ${{ secrets.DEPENDABOT_METADATA_TOKEN }}
 
     steps:
       - name: Fetch Dependabot metadata
@@ -24,11 +26,18 @@ jobs:
         uses: dependabot/fetch-metadata@d7267f607e9d3fb96fc2fbe83e0af444713e90b7
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Fetch Dependabot alert metadata
+        id: alert_metadata
+        if: env.DEPENDABOT_METADATA_TOKEN != ''
+        uses: dependabot/fetch-metadata@d7267f607e9d3fb96fc2fbe83e0af444713e90b7
+        with:
+          github-token: "${{ env.DEPENDABOT_METADATA_TOKEN }}"
           alert-lookup: true
 
       - name: Enable auto-merge for safe dependency updates
         if: >-
-          steps.metadata.outputs.alert-state == 'OPEN' ||
+          steps.alert_metadata.outputs.alert-state == 'OPEN' ||
           steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
           steps.metadata.outputs.update-type == 'version-update:semver-minor'
         env:
