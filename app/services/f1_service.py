@@ -48,8 +48,12 @@ def _parse_result_position(entry: object) -> int | None:
     if not isinstance(entry, dict):
         return None
 
+    position = entry.get("position")
+    if position is None:
+        return None
+
     try:
-        return int(entry.get("position"))
+        return int(position)
     except (TypeError, ValueError):
         return None
 

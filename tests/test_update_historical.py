@@ -214,5 +214,6 @@ def test_write_json_atomic_replaces_target(tmp_path, monkeypatch):
 
     update_historical._write_json_atomic(target, {"new": True})
 
-    assert replace_calls == [(replace_calls[0][0], target)]
+    assert len(replace_calls) == 1
+    assert replace_calls[0][1] == target
     assert target.read_text(encoding="utf-8") == '{\n  "new": true\n}\n'
