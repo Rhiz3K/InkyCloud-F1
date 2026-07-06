@@ -559,52 +559,52 @@
     "fastest_lap_driver": "Oscar Piastri",
     "fastest_lap_year": "2025",
     "historical": {
-      "season": 2025,
-      "updated_at": "2026-03-30",
+      "season": 2026,
+      "updated_at": "2026-07-06",
       "qualifying": [
         {
           "pos": 1,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "1:03.971"
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:06.113"
         },
         {
-          "pos": 2,
-          "code": "LEC",
-          "name": "Leclerc",
-          "team": "Ferrari",
-          "time": "1:04.492"
+          "pos": 4,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:06.414"
         },
         {
-          "pos": 3,
+          "pos": 7,
           "code": "PIA",
           "name": "Piastri",
           "team": "McLaren",
-          "time": "1:04.554"
+          "time": "1:06.511"
         }
       ],
       "race": [
         {
           "pos": 1,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "1:23:47.693"
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:26:37.979"
         },
         {
           "pos": 2,
-          "code": "PIA",
-          "name": "Piastri",
-          "team": "McLaren",
-          "time": "+2.695"
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+1.611"
         },
         {
           "pos": 3,
-          "code": "LEC",
-          "name": "Leclerc",
-          "team": "Ferrari",
-          "time": "+19.820"
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "+1.986"
         }
       ]
     }
@@ -620,52 +620,52 @@
     "fastest_lap_driver": "Max Verstappen",
     "fastest_lap_year": "2020",
     "historical": {
-      "season": 2025,
-      "updated_at": "2026-03-30",
+      "season": 2026,
+      "updated_at": "2026-07-06",
       "qualifying": [
         {
           "pos": 1,
-          "code": "VER",
-          "name": "Verstappen",
-          "team": "Red Bull",
-          "time": "1:24.892"
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:28.111"
         },
         {
           "pos": 2,
-          "code": "PIA",
-          "name": "Piastri",
-          "team": "McLaren",
-          "time": "1:24.995"
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:28.286"
         },
         {
           "pos": 5,
-          "code": "HAM",
-          "name": "Hamilton",
-          "team": "Ferrari",
-          "time": "1:25.095"
+          "code": "HAD",
+          "name": "Hadjar",
+          "team": "Red Bull",
+          "time": "1:28.746"
         }
       ],
       "race": [
         {
           "pos": 1,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "1:37:15.735"
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:27:11.335"
         },
         {
           "pos": 2,
-          "code": "PIA",
-          "name": "Piastri",
-          "team": "McLaren",
-          "time": "+6.812"
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+0.427"
         },
         {
           "pos": 3,
-          "code": "HUL",
-          "name": "H\u00fclkenberg",
-          "team": "Sauber",
-          "time": "+34.742"
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "+0.772"
         }
       ]
     }
