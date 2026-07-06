@@ -1094,16 +1094,16 @@ async def refresh_historical_results() -> None:
     try:
         from scripts.update_historical import main as update_historical_main
 
-        async with _get_generation_lock():
-            updated_count = await update_historical_main()
-            if updated_count:
-                logger.info(
-                    "Historical results refreshed for %s circuits; regenerating images",
-                    updated_count,
-                )
+        updated_count = await update_historical_main()
+        if updated_count:
+            logger.info(
+                "Historical results refreshed for %s circuits; regenerating images",
+                updated_count,
+            )
+            async with _get_generation_lock():
                 await _collect_and_generate_unlocked()
-            else:
-                logger.info("Historical results refresh completed with no material changes")
+        else:
+            logger.info("Historical results refresh completed with no material changes")
     except (ImportError, OSError, RuntimeError, TypeError, ValueError) as e:
         logger.error("Error refreshing historical results: %s", e, exc_info=True)
 

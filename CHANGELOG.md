@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-- **Dependabot auto-merge** - Safe Dependabot security, patch, and minor PRs now enable squash auto-merge after required checks, while release-gate CI checks skip Dependabot PRs by PR author and the metadata action is pinned to a reviewed commit
+- **Dependabot auto-merge** - Safe Dependabot security, patch, and minor PRs now enable squash auto-merge after required checks, with security PRs detected from Dependabot alert metadata; release-gate CI checks skip Dependabot PRs by PR author and the metadata action is pinned to a reviewed commit
 - **F1 data workflow scope** - Kept manual season-calendar refresh support while removing the scheduled historical-data PR path now handled by the running application
 
 ## [1.2.29] - 2026-06-29

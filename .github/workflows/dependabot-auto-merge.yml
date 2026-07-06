@@ -1,13 +1,14 @@
 name: Dependabot Auto-Merge
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
   contents: write
   pull-requests: write
+  security-events: read
 
 jobs:
   enable-auto-merge:
@@ -23,10 +24,11 @@ jobs:
         uses: dependabot/fetch-metadata@d7267f607e9d3fb96fc2fbe83e0af444713e90b7
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
+          alert-lookup: true
 
       - name: Enable auto-merge for safe dependency updates
         if: >-
-          steps.metadata.outputs.update-type == 'security-update' ||
+          steps.metadata.outputs.alert-state == 'OPEN' ||
           steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
           steps.metadata.outputs.update-type == 'version-update:semver-minor'
         env:

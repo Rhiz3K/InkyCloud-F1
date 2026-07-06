@@ -104,26 +104,36 @@ async def test_atomic_write_bytes_uses_unique_temp_path_per_call(tmp_path, monke
 
 
 @pytest.mark.asyncio
-async def test_refresh_historical_results_waits_for_generation_lock(monkeypatch):
+async def test_refresh_historical_results_waits_for_generation_lock_before_regeneration(
+    monkeypatch,
+):
     calls = []
 
     async def fake_update_historical():
         calls.append("update")
-        return 0
+        return 1
+
+    async def fake_collect_and_generate():
+        calls.append("generate")
 
     from scripts import update_historical
 
     monkeypatch.setattr(update_historical, "main", fake_update_historical)
+    monkeypatch.setattr(
+        scheduler_module,
+        "_collect_and_generate_unlocked",
+        fake_collect_and_generate,
+    )
 
     lock = scheduler_module._get_generation_lock()
     async with lock:
         refresh_task = asyncio.create_task(scheduler_module.refresh_historical_results())
         await asyncio.sleep(0)
 
-        assert calls == []
+        assert calls == ["update"]
 
     await refresh_task
-    assert calls == ["update"]
+    assert calls == ["update", "generate"]
 
 
 @pytest.mark.asyncio
