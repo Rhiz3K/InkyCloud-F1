@@ -68,7 +68,8 @@ class _MockHistoricalResponse:
     def json(self):
         return self._payload
 
-    def raise_for_status(self):
+    @staticmethod
+    def raise_for_status():
         return None
 
 

@@ -406,6 +406,8 @@ async def _load_weather_context(
 
 
 def _parse_coordinate(value: object) -> float | None:
+    if not isinstance(value, (str, bytes, int, float)):
+        return None
     try:
         return float(value)
     except (TypeError, ValueError):

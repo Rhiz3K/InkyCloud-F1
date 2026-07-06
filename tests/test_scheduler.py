@@ -53,7 +53,8 @@ def test_start_scheduler_registers_daily_historical_refresh(monkeypatch):
     added_jobs = []
 
     class FakeScheduler:
-        def add_job(self, func, *, trigger, id, name, replace_existing):
+        @staticmethod
+        def add_job(func, *, trigger, id, name, replace_existing):
             added_jobs.append(
                 {
                     "func": func,
@@ -64,7 +65,8 @@ def test_start_scheduler_registers_daily_historical_refresh(monkeypatch):
                 }
             )
 
-        def start(self):
+        @staticmethod
+        def start():
             return None
 
     monkeypatch.setattr(scheduler_module, "scheduler", None)
