@@ -132,7 +132,7 @@ class F1Service:
             return False
 
         try:
-            return int(round_value) > 0
+            return int(str(round_value)) > 0
         except (TypeError, ValueError):
             return False
 
@@ -180,7 +180,7 @@ class F1Service:
             return None
 
         try:
-            round_num = int(round_value)
+            round_num = int(str(round_value))
         except (TypeError, ValueError):
             return None
 
@@ -612,11 +612,11 @@ class F1Service:
 
         # Build allowlist of valid season files that exist
         allowed_files: dict[int, Path] = {}
-        for f in SEASONS_DIR.glob("*.json"):
+        for season_file in SEASONS_DIR.glob("*.json"):
             try:
-                file_year = int(f.stem)
+                file_year = int(season_file.stem)
                 if 2000 <= file_year <= 2100:
-                    allowed_files[file_year] = f.resolve()
+                    allowed_files[file_year] = season_file.resolve()
             except ValueError:
                 continue
 
@@ -627,8 +627,8 @@ class F1Service:
         resolved_path = allowed_files[year]
 
         try:
-            with open(resolved_path, encoding="utf-8") as f:
-                data = json.load(f)
+            with open(resolved_path, encoding="utf-8") as season_handle:
+                data = json.load(season_handle)
 
             races = []
             for race_data in data.get("races", []):

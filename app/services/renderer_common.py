@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import re
 import threading
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -104,7 +104,7 @@ def format_team_driver_display_name(name: str) -> str:
 
 def format_points(value: float | int | None) -> str:
     """Format points while preserving half-points for display."""
-    if value in (None, 0):
+    if value is None or value == 0:
         return "0"
     value_float = float(value)
     if value_float.is_integer():
@@ -152,7 +152,7 @@ def abbreviate_schedule_term(term: str, lang_code: str) -> str:
 
 
 def build_sprint_qualifying_label(
-    translator: dict[str, str] | object,
+    translator: Mapping[str, str],
     lang_code: str,
     *,
     abbreviated: bool,
@@ -168,7 +168,7 @@ def build_sprint_qualifying_label(
     return f"{sprint_label}{separator}{qualifying_label}"
 
 
-def get_dedicated_sprint_qualifying_label(translator: dict[str, str] | object) -> str | None:
+def get_dedicated_sprint_qualifying_label(translator: Mapping[str, str]) -> str | None:
     """Return a locale-specific sprint-qualifying label when one is defined."""
     label = translator.get("session_sprintqualifying")
     if isinstance(label, str) and label:
@@ -176,7 +176,7 @@ def get_dedicated_sprint_qualifying_label(translator: dict[str, str] | object) -
     return None
 
 
-def translate_session_name(name: str, translator: dict[str, str] | object, lang_code: str) -> str:
+def translate_session_name(name: str, translator: Mapping[str, str], lang_code: str) -> str:
     """Translate session names while normalizing API/static variants."""
     if not name:
         return ""
@@ -200,7 +200,7 @@ def format_schedule_session_name(
     name: str,
     max_width: int,
     lang_code: str,
-    translator: dict[str, str] | object,
+    translator: Mapping[str, str],
 ) -> str:
     """Return the best-fitting localized schedule label for a session."""
     if normalize_session_name(name) != "sprintqualifying":
@@ -267,7 +267,9 @@ def crop_to_content(img: Image.Image, *, use_binary_mask: bool = False) -> Image
     """Crop a logo to visible content, respecting transparency when present."""
     if "A" in img.getbands():
         alpha = img.getchannel("A")
-        if alpha.getextrema()[0] < 255:
+        extrema = alpha.getextrema()
+        alpha_min = extrema[0] if extrema is not None else None
+        if not isinstance(alpha_min, tuple) and alpha_min is not None and alpha_min < 255:
             bbox = alpha.getbbox()
             if bbox:
                 return img.crop(bbox)
@@ -283,15 +285,28 @@ def crop_to_content(img: Image.Image, *, use_binary_mask: bool = False) -> Image
 
 def crop_primary_horizontal_band(img: Image.Image) -> Image.Image:
     """Keep only the dominant upper band for tall stacked logo assets."""
-    if "A" in img.getbands() and img.getchannel("A").getextrema()[0] < 255:
-        mask = img.getchannel("A")
+    alpha = img.getchannel("A") if "A" in img.getbands() else None
+    alpha_extrema = alpha.getextrema() if alpha is not None else None
+    alpha_min = alpha_extrema[0] if alpha_extrema is not None else None
+    if (
+        alpha is not None
+        and not isinstance(alpha_min, tuple)
+        and alpha_min is not None
+        and alpha_min < 255
+    ):
+        mask = alpha
     else:
         mask = ImageOps.invert(img.convert("L"))
     rows = []
     for y in range(mask.height):
         active = 0
         for x in range(mask.width):
-            if mask.getpixel((x, y)) > 16:
+            pixel = mask.getpixel((x, y))
+            if isinstance(pixel, tuple):
+                pixel_value: float | int = max(pixel) if pixel else 0
+            else:
+                pixel_value = pixel or 0
+            if pixel_value > 16:
                 active += 1
         rows.append(active)
 
@@ -386,6 +401,7 @@ def load_results_flag_image(
     if not iso_code:
         return None
 
+    directories: tuple[Path, ...]
     if isinstance(flags_dirs, Path):
         directories = (flags_dirs,)
     else:
@@ -1143,7 +1159,7 @@ def draw_countdown_box(
     schedule_row_bold_font,
     icon_small_font,
     weather_icon_font,
-    translator: dict[str, str] | object,
+    translator: Mapping[str, str],
     datetime_cls,
     text_baseline_ref: str,
     rain_icon: str,
@@ -1275,13 +1291,13 @@ def draw_countdown_box(
     total_content_w = flag_w + 6 + countdown_w
 
     if weather_data:
-        cur_x = x_left + padding_x
+        cur_x = int(x_left + padding_x)
     else:
         box_width = x_right - x_left
-        cur_x = x_left + (box_width - total_content_w) // 2
+        cur_x = int(x_left + (box_width - total_content_w) // 2)
 
     draw.text((cur_x, text_y), flag_icon, fill=text_fill, font=icon_small_font)
-    cur_x += flag_w + 6
+    cur_x += int(flag_w + 6)
     draw.text((cur_x, text_y), countdown_str, fill=text_fill, font=schedule_row_bold_font)
 
     if weather_data:
@@ -1294,7 +1310,7 @@ def draw_circuit_stats_block(
     draw: ImageDraw.ImageDraw,
     circuit_data: dict,
     *,
-    translator: dict[str, str] | object,
+    translator: Mapping[str, str],
     results_y_start: int,
     right_column_x: int,
     canvas_width: int,
@@ -1338,13 +1354,13 @@ def draw_circuit_stats_block(
     total_stats_height = len(stats) * row_height
     y_start = results_y_start - 3 - total_stats_height
 
-    max_icon_width = 0
+    max_icon_width: float = 0
     for icon, _text in stats:
         icon_bbox = draw.textbbox((0, 0), icon, font=font_icon)
         icon_width = icon_bbox[2] - icon_bbox[0]
         max_icon_width = max(max_icon_width, icon_width)
 
-    max_text_width = 0
+    max_text_width: float = 0
     for _icon, text_value in stats:
         text_bbox = draw.textbbox((0, 0), text_value, font=font_value)
         value_text_width = text_bbox[2] - text_bbox[0]
@@ -1478,7 +1494,7 @@ def draw_schedule_row(
     schedule_day_x: int,
     schedule_time_x: int,
     schedule_name_x: int,
-    translator: dict[str, str] | object,
+    translator: Mapping[str, str],
     lang_code: str,
     font_reg,
     regular_text_fill,
@@ -1541,7 +1557,7 @@ def draw_schedule_section(
     schedule_start_y: int,
     schedule_row_height: int,
     results_y_start: int,
-    translator: dict[str, str] | object,
+    translator: Mapping[str, str],
     lang_code: str,
     title_fill,
     draw_schedule_row_fn,

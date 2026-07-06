@@ -35,7 +35,7 @@ class BwryRenderer(BwrRenderer):
 
     def __init__(self, translator: dict, lang_code: str = "en"):
         super().__init__(translator, lang_code)
-        self.colors = BwryColors
+        self.colors = BwryColors  # type: ignore[assignment]
 
     @classmethod
     def _load_track_image(cls, race_data: dict) -> Image.Image | None:

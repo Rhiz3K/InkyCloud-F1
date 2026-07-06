@@ -922,7 +922,7 @@ class Spectra6Renderer:
 
     def _to_indexed_bmp(self, image: Image.Image) -> bytes:
         """Convert RGB image to indexed 6-color BMP for Spectra 6 display."""
-        palette_flat = []
+        palette_flat: list[int] = []
         for color in self.colors.PALETTE:
             palette_flat.extend(color)
 
