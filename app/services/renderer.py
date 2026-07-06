@@ -1170,7 +1170,10 @@ class Renderer:
 
         for x in range(rgba.width):
             for y in range(rgba.height):
-                r, g, b, a = rgba.getpixel((x, y))
+                pixel = rgba.getpixel((x, y))
+                if not isinstance(pixel, tuple) or len(pixel) < 4:
+                    continue
+                r, g, b, a = (int(channel) for channel in pixel[:4])
                 if a == 0:
                     continue
                 if r < 48 and g < 48 and b < 48:

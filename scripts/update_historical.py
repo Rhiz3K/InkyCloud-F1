@@ -13,7 +13,10 @@ This script is meant to be run:
 import argparse
 import asyncio
 import json
+import os
 import sys
+import uuid
+from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,6 +25,7 @@ import httpx
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from app.utils.result_entries import ResultEntry, get_result_mapping, sort_entries_by_position
 from scripts.material_diff import has_material_change
 
 API_BASE = "https://api.jolpi.ca/ergast/f1"
@@ -34,12 +38,51 @@ def has_material_historical_change(results: dict, existing_historical: dict | No
     return has_material_change(results, existing_historical, ignored_keys=("updated_at",))
 
 
+def _write_json_atomic(path: Path, payload: dict) -> None:
+    tmp_path = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+            f.write("\n")
+        os.replace(tmp_path, path)
+    finally:
+        with suppress(FileNotFoundError):
+            tmp_path.unlink()
+
+
+def _format_qualifying_result(position: int, entry: ResultEntry) -> dict:
+    """Convert a normalized qualifying API row into stored historical JSON."""
+    driver = get_result_mapping(entry, "Driver")
+    constructor = get_result_mapping(entry, "Constructor")
+    return {
+        "pos": position,
+        "code": driver.get("code", ""),
+        "name": driver.get("familyName", ""),
+        "team": constructor.get("name", ""),
+        "time": entry.get("Q3") or entry.get("Q2") or entry.get("Q1"),
+    }
+
+
+def _format_race_result(position: int, entry: ResultEntry) -> dict:
+    """Convert a normalized race API row into stored historical JSON."""
+    driver = get_result_mapping(entry, "Driver")
+    constructor = get_result_mapping(entry, "Constructor")
+    time_data = get_result_mapping(entry, "Time")
+    return {
+        "pos": position,
+        "code": driver.get("code", ""),
+        "name": driver.get("familyName", ""),
+        "team": constructor.get("name", ""),
+        "time": time_data.get("time"),
+    }
+
+
 async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | None:
     """Fetch latest qualifying and race results for a circuit."""
     for year in [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2]:
         try:
             # Fetch qualifying
-            q_url = f"{API_BASE}/{year}/circuits/{circuit_id}/qualifying.json?limit=3"
+            q_url = f"{API_BASE}/{year}/circuits/{circuit_id}/qualifying.json?limit=100"
             q_resp = await client.get(q_url)
             q_resp.raise_for_status()
             q_data = q_resp.json()
@@ -49,7 +92,7 @@ async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | No
                 continue
 
             # Fetch race results
-            r_url = f"{API_BASE}/{year}/circuits/{circuit_id}/results.json?limit=3"
+            r_url = f"{API_BASE}/{year}/circuits/{circuit_id}/results.json?limit=100"
             r_resp = await client.get(r_url)
             r_resp.raise_for_status()
             r_data = r_resp.json()
@@ -58,49 +101,31 @@ async def fetch_results(client: httpx.AsyncClient, circuit_id: str) -> dict | No
             if not r_races:
                 continue
 
-            # Parse qualifying
-            qualifying = []
-            for q in q_races[0].get("QualifyingResults", [])[:3]:
-                qualifying.append(
-                    {
-                        "pos": int(q["position"]),
-                        "code": q["Driver"]["code"],
-                        "name": q["Driver"]["familyName"],
-                        "team": q["Constructor"]["name"],
-                        "time": q.get("Q3") or q.get("Q2") or q.get("Q1"),
-                    }
-                )
-
-            # Parse race
-            race = []
-            for r in r_races[0].get("Results", [])[:3]:
-                race.append(
-                    {
-                        "pos": int(r["position"]),
-                        "code": r["Driver"]["code"],
-                        "name": r["Driver"]["familyName"],
-                        "team": r["Constructor"]["name"],
-                        "time": r.get("Time", {}).get("time"),
-                    }
-                )
+            qualifying_results = sort_entries_by_position(q_races[0].get("QualifyingResults"))
+            race_results = sort_entries_by_position(r_races[0].get("Results"))
 
             return {
                 "season": year,
                 "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                "qualifying": qualifying,
-                "race": race,
+                "qualifying": [
+                    _format_qualifying_result(position, entry)
+                    for position, entry in qualifying_results[:3]
+                ],
+                "race": [
+                    _format_race_result(position, entry) for position, entry in race_results[:3]
+                ],
             }
 
         except httpx.HTTPStatusError:
             continue
-        except Exception as e:
+        except (httpx.HTTPError, AttributeError, KeyError, TypeError, ValueError) as e:
             print(f"  Error fetching {circuit_id}/{year}: {e}")
             continue
 
     return None
 
 
-async def main(circuit_filter: str | None = None) -> None:
+async def main(circuit_filter: str | None = None) -> int:
     """Update historical data for circuits."""
     with open(CIRCUITS_PATH, encoding="utf-8") as f:
         circuits = json.load(f)
@@ -110,7 +135,7 @@ async def main(circuit_filter: str | None = None) -> None:
         circuit_ids = [circuit_filter] if circuit_filter in circuits else []
         if not circuit_ids:
             print(f"Circuit '{circuit_filter}' not found in circuits_data.json")
-            return
+            return 0
     else:
         circuit_ids = list(circuits.keys())
 
@@ -139,14 +164,14 @@ async def main(circuit_filter: str | None = None) -> None:
             await asyncio.sleep(2.5)
 
     if has_changes:
-        with open(CIRCUITS_PATH, "w", encoding="utf-8") as f:
-            json.dump(circuits, f, indent=2)
+        _write_json_atomic(CIRCUITS_PATH, circuits)
     else:
         print("\nNo material historical changes; keeping existing file")
 
     print(f"\nUpdated {updated_count}/{len(circuit_ids)} circuits")
     if has_changes:
         print(f"Saved to {CIRCUITS_PATH}")
+    return updated_count
 
 
 if __name__ == "__main__":

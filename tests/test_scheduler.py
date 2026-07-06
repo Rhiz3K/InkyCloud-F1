@@ -1,5 +1,6 @@
 """Tests for scheduler helpers."""
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -7,6 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from app.models import TeamEntry, TeamsData
+from app.services import scheduler as scheduler_module
 from app.services.image_keys import get_teams_image_key
 from app.services.scheduler import (
     _atomic_write_bytes,
@@ -47,6 +49,42 @@ def test_get_teams_image_key_rejects_unknown_display():
         get_teams_image_key("en", 2026, display="invalid")
 
 
+def test_start_scheduler_registers_daily_historical_refresh(monkeypatch):
+    added_jobs = []
+
+    class FakeScheduler:
+        @staticmethod
+        def add_job(func, *, trigger, id, name, replace_existing):
+            added_jobs.append(
+                {
+                    "func": func,
+                    "trigger": trigger,
+                    "id": id,
+                    "name": name,
+                    "replace_existing": replace_existing,
+                }
+            )
+
+        @staticmethod
+        def start():
+            return None
+
+    monkeypatch.setattr(scheduler_module, "scheduler", None)
+    monkeypatch.setattr(scheduler_module.config, "SCHEDULER_ENABLED", True)
+    monkeypatch.setattr(scheduler_module.config, "WEATHER_ENABLED", False)
+    monkeypatch.setattr(scheduler_module, "AsyncIOScheduler", lambda **_kwargs: FakeScheduler())
+
+    scheduler_module.start_scheduler()
+
+    historical_job = next(
+        (job for job in added_jobs if job["id"] == "historical_results_refresh"),
+        None,
+    )
+    assert historical_job is not None
+    assert historical_job["func"] is scheduler_module.refresh_historical_results
+    assert historical_job["replace_existing"] is True
+
+
 @pytest.mark.asyncio
 async def test_atomic_write_bytes_uses_unique_temp_path_per_call(tmp_path, monkeypatch):
     """Concurrent writers to one target must not share the same temp filename."""
@@ -63,6 +101,39 @@ async def test_atomic_write_bytes_uses_unique_temp_path_per_call(tmp_path, monke
     await _atomic_write_bytes(image_path, b"second")
 
     assert len(set(replace_sources)) == 2
+
+
+@pytest.mark.asyncio
+async def test_refresh_historical_results_waits_for_generation_lock_before_regeneration(
+    monkeypatch,
+):
+    calls = []
+
+    async def fake_update_historical():
+        calls.append("update")
+        return 1
+
+    async def fake_collect_and_generate():
+        calls.append("generate")
+
+    from scripts import update_historical
+
+    monkeypatch.setattr(update_historical, "main", fake_update_historical)
+    monkeypatch.setattr(
+        scheduler_module,
+        "_collect_and_generate_unlocked",
+        fake_collect_and_generate,
+    )
+
+    lock = scheduler_module._get_generation_lock()
+    async with lock:
+        refresh_task = asyncio.create_task(scheduler_module.refresh_historical_results())
+        await asyncio.sleep(0)
+
+        assert calls == ["update"]
+
+    await refresh_task
+    assert calls == ["update", "generate"]
 
 
 @pytest.mark.asyncio

@@ -362,6 +362,180 @@ async def test_get_season_races_uses_configured_api_base_url(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_fetch_race_results_fetches_full_payload_and_sorts_actual_podium(monkeypatch):
+    service = F1Service()
+    mock_fetch = AsyncMock(
+        return_value=MockResponse(
+            {
+                "MRData": {
+                    "RaceTable": {
+                        "Races": [
+                            {
+                                "Results": [
+                                    {
+                                        "position": "1",
+                                        "Driver": {
+                                            "code": "RUS",
+                                            "givenName": "George",
+                                            "familyName": "Russell",
+                                        },
+                                        "Constructor": {"name": "Mercedes"},
+                                        "Time": {"time": "1:26:37.979"},
+                                    },
+                                    {
+                                        "position": "2",
+                                        "Driver": {
+                                            "code": "VER",
+                                            "givenName": "Max",
+                                            "familyName": "Verstappen",
+                                        },
+                                        "Constructor": {"name": "Red Bull"},
+                                        "Time": {"time": "+1.611"},
+                                    },
+                                    {
+                                        "position": "3",
+                                        "Driver": {
+                                            "code": "ANT",
+                                            "givenName": "Kimi",
+                                            "familyName": "Antonelli",
+                                        },
+                                        "Constructor": {"name": "Mercedes"},
+                                        "Time": {"time": "+1.986"},
+                                    },
+                                    {
+                                        "position": "4",
+                                        "Driver": {
+                                            "code": "PIA",
+                                            "givenName": "Oscar",
+                                            "familyName": "Piastri",
+                                        },
+                                        "Constructor": {"name": "McLaren"},
+                                        "Time": {"time": "+3.012"},
+                                    },
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        )
+    )
+
+    monkeypatch.setattr(f1_service_module, "fetch_with_retry", mock_fetch)
+
+    results = await service._fetch_race_results(object(), "red_bull_ring", 2026)
+
+    assert [entry.driver.code for entry in results] == ["RUS", "VER", "ANT"]
+    assert mock_fetch.await_args.args[1].endswith("/results.json?limit=100")
+
+
+@pytest.mark.asyncio
+async def test_fetch_historical_result_helpers_ignore_bad_positions(monkeypatch):
+    service = F1Service()
+    qualifying_response = MockResponse(
+        {
+            "MRData": {
+                "RaceTable": {
+                    "Races": [
+                        {
+                            "QualifyingResults": [
+                                None,
+                                {"position": "NC", "Driver": {"code": "BAD"}, "Constructor": {}},
+                                {
+                                    "position": "3",
+                                    "Driver": {
+                                        "code": "HAM",
+                                        "givenName": "Lewis",
+                                        "familyName": "Hamilton",
+                                    },
+                                    "Constructor": {"name": "Ferrari"},
+                                    "Q3": "1:06.408",
+                                },
+                                {
+                                    "position": "1",
+                                    "Driver": {
+                                        "code": "RUS",
+                                        "givenName": "George",
+                                        "familyName": "Russell",
+                                    },
+                                    "Constructor": {"name": "Mercedes"},
+                                    "Q3": "1:06.113",
+                                },
+                                {
+                                    "position": "2",
+                                    "Driver": {
+                                        "code": "LEC",
+                                        "givenName": "Charles",
+                                        "familyName": "Leclerc",
+                                    },
+                                    "Constructor": {"name": "Ferrari"},
+                                    "Q3": "1:06.349",
+                                },
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    )
+    race_response = MockResponse(
+        {
+            "MRData": {
+                "RaceTable": {
+                    "Races": [
+                        {
+                            "Results": [
+                                None,
+                                {"position": "NC", "Driver": {"code": "BAD"}, "Constructor": {}},
+                                {
+                                    "position": "3",
+                                    "Driver": {
+                                        "code": "ANT",
+                                        "givenName": "Kimi",
+                                        "familyName": "Antonelli",
+                                    },
+                                    "Constructor": {"name": "Mercedes"},
+                                    "Time": {"time": "+1.986"},
+                                },
+                                {
+                                    "position": "1",
+                                    "Driver": {
+                                        "code": "RUS",
+                                        "givenName": "George",
+                                        "familyName": "Russell",
+                                    },
+                                    "Constructor": {"name": "Mercedes"},
+                                    "Time": {"time": "1:26:37.979"},
+                                },
+                                {
+                                    "position": "2",
+                                    "Driver": {
+                                        "code": "VER",
+                                        "givenName": "Max",
+                                        "familyName": "Verstappen",
+                                    },
+                                    "Constructor": {"name": "Red Bull"},
+                                    "Time": {"time": "+1.611"},
+                                },
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+    )
+    mock_fetch = AsyncMock(side_effect=[qualifying_response, race_response])
+
+    monkeypatch.setattr(f1_service_module, "fetch_with_retry", mock_fetch)
+
+    qualifying = await service._fetch_qualifying_results(object(), "red_bull_ring", 2026)
+    race = await service._fetch_race_results(object(), "red_bull_ring", 2026)
+
+    assert [entry.driver.code for entry in qualifying] == ["RUS", "LEC", "HAM"]
+    assert [entry.driver.code for entry in race] == ["RUS", "VER", "ANT"]
+
+
+@pytest.mark.asyncio
 async def test_get_season_races_handles_null_circuit_and_missing_time(monkeypatch):
     service = F1Service(timezone_name="UTC")
     mock_response = MockResponse(

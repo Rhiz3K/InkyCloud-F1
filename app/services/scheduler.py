@@ -5,6 +5,7 @@ import functools
 import logging
 import os
 import uuid
+import weakref
 from contextlib import suppress
 from datetime import datetime, timezone
 from io import BytesIO
@@ -42,6 +43,19 @@ scheduler: AsyncIOScheduler | None = None
 
 # Supported languages for image generation
 SUPPORTED_LANGUAGES = list(LANGUAGE_CODES)
+
+_generation_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def _get_generation_lock() -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    lock = _generation_locks.get(loop)
+    if lock is None:
+        lock = asyncio.Lock()
+        _generation_locks[loop] = lock
+    return lock
 
 
 def _get_image_key(
@@ -392,6 +406,8 @@ async def _load_weather_context(
 
 
 def _parse_coordinate(value: object) -> float | None:
+    if not isinstance(value, (str, bytes, int, float)):
+        return None
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -632,6 +648,12 @@ async def _generate_teams_bmp_variants(
 
 async def collect_and_generate() -> None:
     """Generate pregenerated calendar and teams BMP variants from static data."""
+    async with _get_generation_lock():
+        await _collect_and_generate_unlocked()
+
+
+async def _collect_and_generate_unlocked() -> None:
+    """Generate pregenerated calendar and teams BMP variants without acquiring the lock."""
     logger.info("Starting image generation from static data")
 
     try:
@@ -1067,12 +1089,32 @@ def _register_backup_job(sched: AsyncIOScheduler) -> None:
     logger.info("S3 backup job registered (cron: %s)", config.BACKUP_CRON)
 
 
+async def refresh_historical_results() -> None:
+    """Refresh static historical results daily and regenerate images when data changes."""
+    try:
+        from scripts.update_historical import main as update_historical_main
+
+        updated_count = await update_historical_main()
+        if updated_count:
+            logger.info(
+                "Historical results refreshed for %s circuits; regenerating images",
+                updated_count,
+            )
+            async with _get_generation_lock():
+                await _collect_and_generate_unlocked()
+        else:
+            logger.info("Historical results refresh completed with no material changes")
+    except (ImportError, OSError, RuntimeError, TypeError, ValueError) as e:
+        logger.error("Error refreshing historical results: %s", e, exc_info=True)
+
+
 def start_scheduler() -> None:
     """
     Initialize and start the background scheduler with all jobs.
 
     Jobs: hourly image gen (:00), API flush (every min), weather (:55 if
-    enabled), backup (if configured), version refresh (hourly at :05).
+    enabled), historical refresh (daily at 06:10 UTC), backup (if configured),
+    version refresh (hourly at :05).
     Returns if scheduler disabled or already running.
     """
     global scheduler  # skipcq: PYL-W0603 - singleton pattern for scheduler instance
@@ -1115,6 +1157,15 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
 
+    # Daily: Refresh historical results from Jolpica and regenerate images if changed.
+    scheduler.add_job(
+        refresh_historical_results,
+        trigger=CronTrigger(hour=6, minute=10, timezone=timezone.utc),
+        id="historical_results_refresh",
+        name="Daily historical results refresh from Jolpica",
+        replace_existing=True,
+    )
+
     # Every minute: Flush API calls buffer to database
     scheduler.add_job(
         flush_api_calls_to_db,
@@ -1149,7 +1200,8 @@ def start_scheduler() -> None:
     scheduler.start()
     weather_info = ", weather at :55" if config.WEATHER_ENABLED else ""
     logger.info(
-        "Scheduler started - generation at :00%s, API flush every min, version at :05",
+        "Scheduler started - generation at :00%s, historical refresh daily at 06:10 UTC, "
+        "API flush every min, version at :05",
         weather_info,
     )
 

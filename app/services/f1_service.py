@@ -23,6 +23,7 @@ from app.models import (
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.http_client import get_shared_http_client
 from app.utils.http import fetch_with_retry
+from app.utils.result_entries import ResultEntry, get_result_mapping, sort_entries_by_position
 from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone, normalize_timezone
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,22 @@ DEFAULT_SESSION_TIME_UTC = "12:00:00Z"
 # Keep a race selected as "next" until this long after lights-out, so the calendar doesn't
 # advance to the following Grand Prix the instant the current race starts.
 NEXT_RACE_GRACE = timedelta(hours=4)
+
+
+def _driver_info_from_result(entry: ResultEntry) -> DriverInfo:
+    """Build driver info from a normalized result entry."""
+    driver_data = get_result_mapping(entry, "Driver")
+    return DriverInfo(
+        code=driver_data.get("code", ""),
+        given_name=driver_data.get("givenName", ""),
+        family_name=driver_data.get("familyName", ""),
+    )
+
+
+def _constructor_info_from_result(entry: ResultEntry) -> ConstructorInfo:
+    """Build constructor info from a normalized result entry."""
+    constructor_data = get_result_mapping(entry, "Constructor")
+    return ConstructorInfo(name=constructor_data.get("name", ""))
 
 
 class F1Service:
@@ -115,7 +132,7 @@ class F1Service:
             return False
 
         try:
-            return int(round_value) > 0
+            return int(str(round_value)) > 0
         except (TypeError, ValueError):
             return False
 
@@ -163,7 +180,7 @@ class F1Service:
             return None
 
         try:
-            round_num = int(round_value)
+            round_num = int(str(round_value))
         except (TypeError, ValueError):
             return None
 
@@ -393,7 +410,7 @@ class F1Service:
         Returns:
             List of QualifyingResultEntry objects (top 3)
         """
-        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/qualifying.json?limit=3"
+        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/qualifying.json?limit=100"
         logger.info("Fetching qualifying results: %s", url)
 
         try:
@@ -405,31 +422,22 @@ class F1Service:
             if not races:
                 return []
 
-            qualifying_data = races[0].get("QualifyingResults", [])
             results = []
+            qualifying_data = sort_entries_by_position(races[0].get("QualifyingResults"))
 
-            for entry in qualifying_data[:3]:
-                driver_data = entry.get("Driver", {})
-                constructor_data = entry.get("Constructor", {})
-
+            for position, entry in qualifying_data[:3]:
                 results.append(
                     QualifyingResultEntry(
-                        position=int(entry.get("position", 0)),
-                        driver=DriverInfo(
-                            code=driver_data.get("code", ""),
-                            given_name=driver_data.get("givenName", ""),
-                            family_name=driver_data.get("familyName", ""),
-                        ),
-                        constructor=ConstructorInfo(
-                            name=constructor_data.get("name", ""),
-                        ),
+                        position=position,
+                        driver=_driver_info_from_result(entry),
+                        constructor=_constructor_info_from_result(entry),
                         q3_time=entry.get("Q3"),
                     )
                 )
 
             return results
 
-        except Exception as e:
+        except (httpx.HTTPError, AttributeError, KeyError, TypeError, ValueError) as e:
             logger.warning("Failed to fetch qualifying results: %s", e)
             return []
 
@@ -447,7 +455,7 @@ class F1Service:
         Returns:
             List of RaceResultEntry objects (top 3)
         """
-        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/results.json?limit=3"
+        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/results.json?limit=100"
         logger.info("Fetching race results: %s", url)
 
         try:
@@ -459,32 +467,24 @@ class F1Service:
             if not races:
                 return []
 
-            results_data = races[0].get("Results", [])
             results = []
+            results_data = sort_entries_by_position(races[0].get("Results"))
 
-            for entry in results_data[:3]:
-                driver_data = entry.get("Driver", {})
-                constructor_data = entry.get("Constructor", {})
-                time_data = entry.get("Time", {})
+            for position, entry in results_data[:3]:
+                time_data = get_result_mapping(entry, "Time")
 
                 results.append(
                     RaceResultEntry(
-                        position=int(entry.get("position", 0)),
-                        driver=DriverInfo(
-                            code=driver_data.get("code", ""),
-                            given_name=driver_data.get("givenName", ""),
-                            family_name=driver_data.get("familyName", ""),
-                        ),
-                        constructor=ConstructorInfo(
-                            name=constructor_data.get("name", ""),
-                        ),
+                        position=position,
+                        driver=_driver_info_from_result(entry),
+                        constructor=_constructor_info_from_result(entry),
                         time=time_data.get("time"),
                     )
                 )
 
             return results
 
-        except Exception as e:
+        except (httpx.HTTPError, AttributeError, KeyError, TypeError, ValueError) as e:
             logger.warning("Failed to fetch race results: %s", e)
             return []
 
@@ -612,11 +612,11 @@ class F1Service:
 
         # Build allowlist of valid season files that exist
         allowed_files: dict[int, Path] = {}
-        for f in SEASONS_DIR.glob("*.json"):
+        for season_file in SEASONS_DIR.glob("*.json"):
             try:
-                file_year = int(f.stem)
+                file_year = int(season_file.stem)
                 if 2000 <= file_year <= 2100:
-                    allowed_files[file_year] = f.resolve()
+                    allowed_files[file_year] = season_file.resolve()
             except ValueError:
                 continue
 
@@ -627,8 +627,8 @@ class F1Service:
         resolved_path = allowed_files[year]
 
         try:
-            with open(resolved_path, encoding="utf-8") as f:
-                data = json.load(f)
+            with open(resolved_path, encoding="utf-8") as season_handle:
+                data = json.load(season_handle)
 
             races = []
             for race_data in data.get("races", []):

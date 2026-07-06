@@ -36,7 +36,7 @@ class BwrRenderer(Spectra6Renderer):
 
     def __init__(self, translator: dict, lang_code: str = "en"):
         super().__init__(translator, lang_code)
-        self.colors = BwrColors
+        self.colors = BwrColors  # type: ignore[assignment]
         self.layout["results_flag_max_width_percent"] = 80  # type: ignore[index]
         self.layout["results_flag_gap"] = 3  # type: ignore[index]
         self.layout["results_flag_bottom_padding"] = 4  # type: ignore[index]
