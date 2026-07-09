@@ -7,11 +7,14 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app.services.backup import (
     BACKUP_FILENAME_PREFIX,
     generate_backup_filename,
     is_backup_configured,
 )
+from scripts import backup_cli
 
 
 class TestBackupFilename:
@@ -95,6 +98,18 @@ class TestBackupConfiguration:
             mock_config.S3_BUCKET_NAME = "test-bucket"
 
             assert is_backup_configured() is True
+
+
+def test_manual_backup_refuses_to_run_when_disabled(capsys):
+    with (
+        patch("app.config.config.BACKUP_ENABLED", False),
+        patch("app.services.backup.perform_backup_with_details") as perform_backup,
+    ):
+        result = backup_cli.cmd_now()
+
+    assert result == 1
+    assert "Backup is disabled" in capsys.readouterr().out
+    perform_backup.assert_not_called()
 
 
 class TestPerformBackup:
@@ -249,14 +264,12 @@ class TestCronParsing:
         assert result["month"] == "*"
         assert result["day_of_week"] == "1"
 
-    def test_parse_default_cron(self):
-        """Test that default cron is used for invalid expressions."""
+    def test_parse_invalid_cron_raises(self):
+        """Invalid expressions must be rejected before APScheduler startup."""
         from app.services.scheduler import _parse_cron_expression
 
-        result = _parse_cron_expression("invalid")
+        with pytest.raises(ValueError, match="five fields"):
+            _parse_cron_expression("invalid")
 
-        assert result["minute"] == "0"
-        assert result["hour"] == "3"
-        assert result["day"] == "*"
-        assert result["month"] == "*"
-        assert result["day_of_week"] == "*"
+        with pytest.raises(ValueError):
+            _parse_cron_expression("60 3 * * *")

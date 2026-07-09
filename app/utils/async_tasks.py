@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 _background_tasks: set[asyncio.Task[Any]] = set()
 
 T = TypeVar("T")
+RENDER_WORKER_COUNT = 2
 
 
 @functools.lru_cache(maxsize=1)
@@ -26,7 +27,7 @@ def _get_render_executor() -> ThreadPoolExecutor:
     while still keeping renders off the event loop; renders queue beyond that, which matches
     the pre-offload serialization.
     """
-    return ThreadPoolExecutor(max_workers=2, thread_name_prefix="render")
+    return ThreadPoolExecutor(max_workers=RENDER_WORKER_COUNT, thread_name_prefix="render")
 
 
 async def run_render(func: Callable[[], T]) -> T:
@@ -72,3 +73,22 @@ def create_supervised_task(coro: Awaitable[Any], *, name: str) -> asyncio.Task[A
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
     return task
+
+
+async def drain_background_tasks(*, timeout: float = 5.0) -> None:
+    """Let supervised tasks finish before shared shutdown resources are closed."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+
+    while _background_tasks:
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            pending = set(_background_tasks)
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+            logger.warning("Cancelled %d background task(s) during shutdown", len(pending))
+            return
+
+        snapshot = set(_background_tasks)
+        await asyncio.wait(snapshot, timeout=remaining)

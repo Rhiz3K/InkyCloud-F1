@@ -61,7 +61,10 @@ def get_translator(lang: str) -> dict:
 
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing translation file {translation_file}: {str(e)}")
-        return {}
     except Exception as e:
         logger.error(f"Error loading translations: {str(e)}")
-        return {}
+
+    if lang != config.DEFAULT_LANG:
+        logger.warning("Falling back to %s translations", config.DEFAULT_LANG)
+        return get_translator(config.DEFAULT_LANG)
+    return {}

@@ -121,6 +121,9 @@ class Config(BaseSettings):
     PERF_METRICS_RATE_LIMIT_PER_MINUTE: int = Field(
         240, gt=0, description="Per-IP perf metrics posts allowed per minute"
     )
+    DATA_API_RATE_LIMIT_PER_MINUTE: int = Field(
+        120, gt=0, description="Per-IP live F1 data API requests allowed per minute"
+    )
 
     ADMIN_API_TOKEN: Optional[SecretStr] = Field(
         default=None,
@@ -215,6 +218,7 @@ class Config(BaseSettings):
         "REQUEST_TIMEOUT",
         "IMAGE_RATE_LIMIT_PER_MINUTE",
         "PERF_METRICS_RATE_LIMIT_PER_MINUTE",
+        "DATA_API_RATE_LIMIT_PER_MINUTE",
         mode="before",
     )
     @classmethod
@@ -341,6 +345,38 @@ class Config(BaseSettings):
                 value,
             )
             return None
+
+    @field_validator("ADMIN_API_TOKEN", mode="before")
+    @classmethod
+    def validate_admin_api_token(cls, value: object) -> SecretStr | None:
+        """Reject an explicitly configured empty token instead of weakening auth silently."""
+        if value is None:
+            return None
+        raw_value = value.get_secret_value() if isinstance(value, SecretStr) else str(value)
+        if not raw_value.strip():
+            raise ValueError("ADMIN_API_TOKEN must not be empty when configured")
+        return SecretStr(raw_value.strip())
+
+    @field_validator("DATABASE_PATH", "IMAGES_PATH", mode="before")
+    @classmethod
+    def validate_storage_path(cls, value: object, info: ValidationInfo) -> str:
+        """Reject paths that SQLite/pathlib would reinterpret as the current directory."""
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{info.field_name} must be a non-empty path")
+        return value.strip()
+
+    @field_validator("DISPLAY_WIDTH", "DISPLAY_HEIGHT", mode="before")
+    @classmethod
+    def validate_fixed_display_dimensions(cls, value: object, info: ValidationInfo) -> int:
+        """Keep the hardware canvas fixed even when matching environment variables exist."""
+        expected = 800 if info.field_name == "DISPLAY_WIDTH" else 480
+        try:
+            parsed = int(value)  # type: ignore[call-overload]
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{info.field_name} must be {expected}") from exc
+        if parsed != expected:
+            raise ValueError(f"{info.field_name} must be {expected}")
+        return expected
 
 
 @lru_cache()

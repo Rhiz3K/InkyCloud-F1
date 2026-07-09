@@ -5,6 +5,7 @@ import json
 import logging
 import time
 import unicodedata
+import weakref
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +23,15 @@ JOLPICA_BASE_URL = "https://api.jolpi.ca/ergast/f1"
 SEASONS_DIR = Path(__file__).parent.parent / "assets" / "seasons"
 
 CACHE_TTL_SECONDS = 3600
+_fetch_locks: weakref.WeakKeyDictionary[
+    asyncio.AbstractEventLoop, dict[int, asyncio.Lock]
+] = weakref.WeakKeyDictionary()
+
+
+def _get_fetch_lock(year: int) -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    locks = _fetch_locks.setdefault(loop, {})
+    return locks.setdefault(year, asyncio.Lock())
 
 
 def is_teams_data_cacheable(data: TeamsData) -> bool:
@@ -126,12 +136,13 @@ class TeamsService:
 
     @classmethod
     def _get_override_driver_id(cls, driver: TeamDriverEntry, season: int) -> str | None:
-        if driver.driver_id:
+        overrides = MANUAL_DRIVER_NUMBER_OVERRIDES.get(season, {})
+        if driver.driver_id in overrides:
             return driver.driver_id
 
         name_fallbacks = MANUAL_DRIVER_NUMBER_OVERRIDE_NAME_FALLBACKS.get(season, {})
         normalized_name = cls._normalize_driver_lookup_key(driver.name)
-        return name_fallbacks.get(normalized_name)
+        return name_fallbacks.get(normalized_name, driver.driver_id or None)
 
     @classmethod
     def _apply_manual_overrides(cls, teams_data: TeamsData) -> TeamsData:
@@ -294,6 +305,7 @@ class TeamsService:
             self._normalize_driver_lookup_key(name): stats
             for name, stats in driver_standings.items()
         }
+        standings_complete = bool(driver_standings) and bool(constructor_standings)
 
         for team in teams_data.teams:
             matched_name = self._match_constructor_name(team.constructor_name, api_names)
@@ -301,6 +313,9 @@ class TeamsService:
                 stats = constructor_standings[matched_name]
                 team.position = stats["position"]
                 team.points = stats["points"]
+            elif constructor_standings:
+                standings_complete = False
+                logger.warning("No constructor standings match for %s", team.constructor_name)
 
             for driver in team.drivers:
                 driver_name = driver.name
@@ -327,8 +342,12 @@ class TeamsService:
                     driver.position = driver_match["position"]
                     driver.points = driver_match["points"]
                     driver.wins = driver_match["wins"]
+                elif driver_standings:
+                    standings_complete = False
+                    logger.warning("No driver standings match for %s", driver.name)
 
         teams_data.teams.sort(key=lambda t: t.position if t.position else 999)
+        teams_data.standings_complete = standings_complete
         return teams_data
 
     async def _fetch_from_api(self, year: int) -> TeamsData:
@@ -422,7 +441,7 @@ class TeamsService:
             driver_id = entry.get("Driver", {}).get("driverId", "")
             constructors = entry.get("Constructors", [])
             if constructors and driver_id:
-                driver_to_constructor[driver_id] = constructors[0].get("constructorId", "")
+                driver_to_constructor[driver_id] = constructors[-1].get("constructorId", "")
             driver_standings_map[driver_id] = {
                 "position": int(entry.get("position", 0)),
                 "points": float(entry.get("points", 0)),
@@ -490,6 +509,19 @@ class TeamsService:
         return self._apply_manual_overrides(TeamsData(season=year, teams=teams))
 
     async def get_teams_and_drivers(self, year: Optional[int] = None) -> TeamsData:
+        """Return teams data while coalescing concurrent cold-cache fetches per season."""
+        resolved_year = year if year is not None else get_default_teams_year()
+        cached = self._get_cached(resolved_year)
+        if cached:
+            return cached
+
+        async with _get_fetch_lock(resolved_year):
+            cached = self._get_cached(resolved_year)
+            if cached:
+                return cached
+            return await self._load_teams_and_drivers(resolved_year)
+
+    async def _load_teams_and_drivers(self, year: int) -> TeamsData:
         if year is None:
             year = get_default_teams_year()
 

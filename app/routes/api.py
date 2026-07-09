@@ -16,7 +16,8 @@ from app.state import get_bmp_cache
 from app.utils.async_tasks import create_supervised_task
 from app.utils.f1_season import get_current_f1_season
 from app.utils.rate_limit import enforce_rate_limit
-from app.utils.standings_metadata import DRIVER_NUMBERS, TEAM_ID_MAP
+from app.utils.standings_metadata import TEAM_ID_MAP, get_driver_number
+from app.version import APP_VERSION
 
 from .deps import get_f1_service
 
@@ -24,6 +25,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 _LANGUAGE_VALUES = list(LANGUAGE_CODES)
+
+
+def _matches_round(race: dict, round_num: int) -> bool:
+    round_value = race.get("round")
+    if not isinstance(round_value, (str, int, float)):
+        return False
+    try:
+        return int(round_value) == round_num
+    except (TypeError, ValueError):
+        return False
 
 
 def _require_operational_api_auth(request: Request) -> None:
@@ -39,6 +50,9 @@ def _require_operational_api_auth(request: Request) -> None:
         return
 
     expected = configured_token.get_secret_value()
+    if not expected:
+        logger.error("ADMIN_API_TOKEN is configured but empty")
+        raise HTTPException(status_code=503, detail="Operational API authentication unavailable")
     provided = request.headers.get("X-Admin-Token")
 
     authorization = request.headers.get("Authorization", "")
@@ -55,7 +69,7 @@ async def api_info() -> dict:
     """API documentation endpoint."""
     return {
         "service": "F1 E-Ink Calendar API",
-        "version": "0.1.0",
+        "version": APP_VERSION,
         "description": (
             f"Generate {config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} BMP images "
             "for E-Ink displays showing F1 race schedules"
@@ -326,18 +340,37 @@ async def get_stats_history(request: Request, limit: int = Query(default=168, le
 
 
 @router.get("/api/races/{year}")
-async def get_season_races(year: int, f1_service: F1Service = Depends(get_f1_service)) -> dict:
+async def get_season_races(
+    year: int, request: Request, f1_service: F1Service = Depends(get_f1_service)
+) -> dict:
     """Return all races for a given season."""
-    races = await f1_service.get_season_races(year)
+    enforce_rate_limit(
+        request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE
+    )
+    races = f1_service.get_all_races_from_static(year)
+    if not races:
+        races = await f1_service.get_season_races(year)
     return {"year": year, "races": races}
 
 
 @router.get("/api/race/{year}/{round_num}")
 async def get_race_detail(
-    year: int, round_num: int, f1_service: F1Service = Depends(get_f1_service)
+    year: int,
+    round_num: int,
+    request: Request,
+    f1_service: F1Service = Depends(get_f1_service),
 ) -> dict:
     """Return details for a single race round."""
-    race = await f1_service.get_race_by_round(year, round_num)
+    enforce_rate_limit(
+        request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE
+    )
+    static_races = f1_service.get_all_races_from_static(year)
+    race = next(
+        (item for item in static_races if _matches_round(item, round_num)),
+        None,
+    )
+    if race is None:
+        race = await f1_service.get_race_by_round(year, round_num)
     if not race:
         raise HTTPException(status_code=404, detail="Race not found")
     return race
@@ -346,14 +379,18 @@ async def get_race_detail(
 @router.get("/api/teams/{year}")
 async def get_teams(year: int) -> dict:
     """Get teams and drivers for a season."""
-    teams_service = TeamsService()
-    teams_data = await teams_service.get_teams_and_drivers(year)
-    return {"season": teams_data.season, "teams": [t.model_dump() for t in teams_data.teams]}
+    try:
+        teams_service = TeamsService()
+        teams_data = await teams_service.get_teams_and_drivers(year)
+        return {"season": teams_data.season, "teams": [t.model_dump() for t in teams_data.teams]}
+    except Exception as exc:
+        logger.error("Failed to load teams for %s: %s", year, exc, exc_info=True)
+        raise HTTPException(status_code=503, detail="Teams data temporarily unavailable") from exc
 
 
-def _get_driver_number(driver_code: str, _year: int) -> int | None:
+def _get_driver_number(driver_code: str, year: int) -> int | None:
     """Map a driver code to the display number used in leader payloads."""
-    return DRIVER_NUMBERS.get(driver_code)
+    return get_driver_number(driver_code, year)
 
 
 def _get_team_id(team_name: str) -> str | None:

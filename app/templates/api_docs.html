@@ -130,6 +130,19 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               </td>
             </tr>
             <tr>
+              <td class="px-3 py-2 font-mono text-racing-red font-bold">
+                race_key
+              </td>
+              <td class="px-3 py-2">string</td>
+              <td class="px-3 py-2">
+                {{ t.get("api_docs_race_key_desc", "Stable race identifier; requires year") }}
+                <br /><span class="text-xs text-gray-500"
+                  >{{ t.get("api_docs_optional", "optional") }} — {{ eg }}
+                  <code class="bg-gray-100 px-1">2026-05-monaco</code></span
+                >
+              </td>
+            </tr>
+            <tr>
               <td class="px-3 py-2 font-mono text-racing-red font-bold">tz</td>
               <td class="px-3 py-2">string</td>
               <td class="px-3 py-2">
@@ -182,7 +195,9 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 {{ weather_type_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
+                  <code class="bg-gray-100 px-1">off</code>,
                   <code class="bg-gray-100 px-1">race_day</code>,
+                  <code class="bg-gray-100 px-1">race</code>,
                   <code class="bg-gray-100 px-1">current</code></span
                 >
               </td>
@@ -762,7 +777,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
 </div>
 {% endblock %} {% block scripts %}
 <script>
-  const currentUiLang = "{{ ui_lang }}";
+  const currentUiLang = {{ ui_lang | tojson }};
   const copyText = '{{ t.get("api_docs_copy", "Copy") }}';
   const copiedText = '{{ t.get("api_docs_copied", "Copied!") }}';
   const loadingText = "{{ loading_text }}";

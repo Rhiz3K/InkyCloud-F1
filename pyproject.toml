@@ -1,6 +1,6 @@
 [project]
 name = "f1-eink-cal"
-version = "0.1.0"
+version = "1.2.31"
 description = "F1 E-Ink calendar service generating 800x480 1-bit BMPs for LaskaKit displays"
 readme = "README.md"
 authors = [
@@ -77,6 +77,12 @@ ignore = []
 [tool.ruff.lint.per-file-ignores]
 # Ignore line length in main.py due to inline HTML templates
 "app/main.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.13"
+files = ["app"]
+ignore_missing_imports = true
+explicit_package_bases = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -58,6 +58,10 @@ jobs:
     - name: Lint with ruff
       run: |
         ruff check .
+
+    - name: Type-check application
+      run: |
+        mypy
     
     - name: Run tests
       run: |
@@ -115,6 +119,10 @@ jobs:
     - name: Lint with ruff
       run: |
         ruff check .
+
+    - name: Type-check application
+      run: |
+        mypy
 
     - name: Run tests
       run: |

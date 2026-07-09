@@ -8,6 +8,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from app.utils.atomic_io import atomic_write_bytes_sync
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwry_palette
 
 TARGET_WIDTH = 87
@@ -45,7 +46,7 @@ def process_flag_image(input_path: Path, output_path: Path) -> dict:
     resized = original.resize((TARGET_WIDTH, TARGET_HEIGHT), Image.Resampling.LANCZOS)
 
     final = map_to_bwry_palette(resized, PALETTE)
-    output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
+    atomic_write_bytes_sync(output_path, encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 
     return {

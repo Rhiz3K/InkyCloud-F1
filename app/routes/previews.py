@@ -7,7 +7,7 @@ import logging
 from io import BytesIO
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 from PIL import Image
 
@@ -16,6 +16,7 @@ from app.services.i18n import get_translator
 from app.services.renderers import create_renderer
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.utils.async_tasks import run_render
+from app.utils.rate_limit import enforce_rate_limit
 
 router = APIRouter()
 _ALLOWED_LANGS = {lang: lang for lang in LANGUAGE_CODES}
@@ -71,7 +72,9 @@ async def _render_teams_preview(
 
 
 @router.get("/preview/{screen_type}.png", response_model=None)
-async def get_preview_png(screen_type: str, lang: str = Query(default="en")) -> Response:
+async def get_preview_png(
+    screen_type: str, request: Request, lang: str = Query(default="en")
+) -> Response:
     """Serve pre-generated preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
 
@@ -92,6 +95,9 @@ async def get_preview_png(screen_type: str, lang: str = Query(default="en")) -> 
 
     if safe_screen == "teams":
         try:
+            enforce_rate_limit(
+                request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
+            )
             return await _render_teams_preview(safe_lang, full_size=False)
         except Exception as exc:
             logger.warning("Falling back to dynamic teams homepage preview failed: %s", exc)
@@ -102,6 +108,7 @@ async def get_preview_png(screen_type: str, lang: str = Query(default="en")) -> 
 @router.get("/preview/configure/{screen_type}.png", response_model=None)
 async def get_configure_preview_png(
     screen_type: str,
+    request: Request,
     lang: str = Query(default="en"),
     weather_type: str = Query(default="off"),
     display: str = Query(default="1bit"),
@@ -158,6 +165,9 @@ async def get_configure_preview_png(
 
     if safe_screen == "teams":
         try:
+            enforce_rate_limit(
+                request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
+            )
             return await _render_teams_preview(
                 safe_lang,
                 safe_display,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
 import markdown
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -21,10 +21,11 @@ from app.web.templates import calc_percent, get_template_context, lang_url, temp
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-_HTML_ROUTE_METHODS = ("GET", "HEAD")
+_HTML_ROUTE_METHODS = ["GET", "HEAD"]
 
 # Elements that should never survive in rendered changelog HTML.
 _UNSAFE_HTML_TAGS = ("script", "style", "iframe", "object", "embed", "link", "meta", "base")
+_URI_HTML_ATTRIBUTES = {"href", "src", "xlink:href", "action", "formaction", "poster"}
 
 
 def _sanitize_rendered_html(html: str) -> str:
@@ -44,9 +45,9 @@ def _sanitize_rendered_html(html: str) -> str:
     for tag in list(soup.find_all(True)):
         for attr, value in list(tag.attrs.items()):
             lowered = attr.lower()
-            if lowered.startswith("on"):
+            if lowered.startswith("on") or lowered == "style":
                 del tag.attrs[attr]
-            elif lowered in {"href", "src"} and isinstance(value, str):
+            elif lowered in _URI_HTML_ATTRIBUTES and isinstance(value, str):
                 # Strip control/whitespace chars first so "java\tscript:" / "java\nscript:"
                 # can't slip through, and block data:/vbscript: URI vectors as well.
                 cleaned = "".join(ch for ch in value if ord(ch) > 32).lower()
@@ -139,12 +140,18 @@ def _redirect_path(
     request: Request, target_path: str, *, preserve_query: bool = True
 ) -> RedirectResponse:
     """Return a permanent redirect using a relative path to avoid scheme downgrades."""
+    if any(ord(char) < 32 for char in target_path):
+        raise ValueError(f"Redirect target contains control characters: {target_path!r}")
+
     target_parts = urlsplit(target_path)
+    decoded_path = unquote(target_parts.path)
     if (
         target_parts.scheme
         or target_parts.netloc
         or not target_path.startswith("/")
         or target_path.startswith("//")
+        or "\\" in decoded_path
+        or decoded_path.startswith("//")
     ):
         raise ValueError(f"Redirect target must stay on-site: {target_path}")
 
@@ -537,7 +544,7 @@ async def _api_docs_handler(request: Request, ui_lang: str) -> HTMLResponse:
 
     context = get_template_context(request, ui_lang)
     context["active_page"] = "api"
-    context.update(build_api_docs_context(ui_lang, str(request.base_url).rstrip("/")))
+    context.update(build_api_docs_context(ui_lang, str(config.SITE_URL).rstrip("/")))
 
     return templates.TemplateResponse(request, "api_docs.html", context)
 
@@ -600,13 +607,19 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
     hours_map = {"1h": 1, "24h": 24, "7d": 168, "30d": 720, "365d": 8760}
     hours = hours_map.get(time_range, 24)
 
-    db = Database()
+    db: Database | None = None
     try:
+        db = Database()
         stats = await db.get_stats_for_range(hours)
         _enrich_display_type_stats(stats)
         perf_stats = await db.get_perf_stats(hours)
+    except Exception as exc:
+        logger.error("Failed to load statistics dashboard data: %s", exc, exc_info=True)
+        stats = {}
+        perf_stats = {}
     finally:
-        await db.close()
+        if db is not None:
+            await db.close()
 
     base_url = lang_url("/stats", ui_lang)
     url = f"{base_url}?range={time_range}" if time_range != "24h" else base_url

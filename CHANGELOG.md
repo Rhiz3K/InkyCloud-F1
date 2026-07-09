@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.31] - 2026-07-09
+
+### Security
+
+#### Fixed
+
+- **Configuration and request hardening** - Reject empty admin tokens and storage paths, keep the display dimensions fixed, validate backup cron expressions without crashing startup, use fixed-window rate limiting, and add baseline browser security headers
+- **HTML and redirect defense-in-depth** - Cover all relevant URI-bearing changelog attributes, remove inline style vectors, reject backslash redirect paths, and build API examples from the configured public URL instead of the request Host header
+
+### Backend
+
+#### Fixed
+
+- **Production historical refresh** - Move the daily refresh into the shipped application package, reject incomplete Jolpica podium rows, write updates atomically, persist refresh age, and catch up a missed daily run at startup
+- **Scheduler and persistence resilience** - Requeue statistics on every database failure path, isolate shutdown cleanup, prevent overlapping weather/history jobs, validate cached weather age, and keep previously-good images during degraded runs
+- **F1 data correctness** - Preserve complete cancelled-race fields, cache static seasons by mtime, skip only malformed historical rows, use current driver numbers, and keep standings/team mappings aligned with the latest constructor data
+- **API and image reliability** - Retry transient transport/5xx failures, avoid pregenerated-image read races, return controlled render errors, validate timezones consistently, and use static data plus rate limits for public race endpoints
+
+#### Changed
+
+- **Image generation performance** - Build preview PNGs from already-rendered BMPs, cache track and F1-logo decoding, share driver-photo caches, remove redundant font loads, and warm both render workers before serving traffic
+- **Asset preprocessing** - Use shared palette mapping and atomic output for all preprocessors, normalize circuit IDs, and add the missing Spectra 6 flag generator
+
+### Development
+
+#### Changed
+
+- **Release and CI consistency** - Align Python, frontend, runtime, and API version metadata at 1.2.31, keep Docker on Python 3.13, and run mypy for production code in both CI paths
+- **Dependency automation resilience** - Keep ordinary Dependabot updates eligible for auto-merge when optional security metadata lookup fails and exclude Python Docker base-image minor upgrades from generic semver auto-merge
+
 ## [1.2.30] - 2026-07-06
 
 ### Frontend

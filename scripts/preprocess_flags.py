@@ -43,6 +43,8 @@ except ImportError as exc:
 
 from PIL import Image
 
+from app.utils.atomic_io import atomic_save_image
+
 # Constants
 TARGET_WIDTH = 87
 TARGET_HEIGHT = 58
@@ -352,7 +354,7 @@ def process_flag_image(input_path: Path, output_path: Path) -> dict:
     final = Image.fromarray(output, mode="L").convert("1")
 
     # Save as BMP
-    final.save(output_path, format="BMP")
+    atomic_save_image(output_path, final, format="BMP")
     output_size = output_path.stat().st_size
 
     return {

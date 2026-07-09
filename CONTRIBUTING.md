@@ -49,6 +49,9 @@ ruff check .
 
 # Format code
 ruff format .
+
+# Type-check production code
+mypy
 ```
 
 ### Running Tests

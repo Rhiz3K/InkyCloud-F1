@@ -7,6 +7,7 @@ import re
 import threading
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
@@ -18,6 +19,19 @@ from app.services.track_assets import build_track_stem_candidates, resolve_track
 # Guards lazy class-level asset caches in the renderer hierarchies (team logos, driver
 # photos). Rendering runs in a thread pool, so first-load population can race without it.
 ASSET_CACHE_LOCK = threading.Lock()
+
+
+@lru_cache(maxsize=128)
+def _load_image_file(path_value: str, mtime_ns: int) -> Image.Image:
+    """Decode an immutable image asset once per path revision."""
+    del mtime_ns  # Included in the cache key so replaced assets are reloaded.
+    with Image.open(path_value) as image_file:
+        return image_file.copy()
+
+
+def _load_image_copy(path: Path) -> Image.Image:
+    """Return an independent copy of a cached image asset."""
+    return _load_image_file(str(path), path.stat().st_mtime_ns).copy()
 
 
 def split_teams_for_columns(teams: list) -> tuple[list, list]:
@@ -46,7 +60,7 @@ def get_text_y(
 def right_align_x(draw: ImageDraw.ImageDraw, text: str, right_edge: int, font) -> int:
     """Return the x-coordinate that right-aligns text to the given edge."""
     bbox = draw.textbbox((0, 0), text, font=font)
-    return int(right_edge - (bbox[2] - bbox[0]))
+    return int(right_edge - bbox[2])
 
 
 def text_width(draw: ImageDraw.ImageDraw, text: str, font) -> int:
@@ -981,10 +995,12 @@ def draw_team_row(
 
 def normalize_driver_photo_key(driver_name: str) -> str:
     """Normalize a driver surname into the local portrait asset key."""
-    surname = driver_name.split()[-1].lower() if driver_name else ""
+    parts = driver_name.split()
+    if not parts:
+        return ""
+    surname = parts[-1].lower()
     if surname in ("jr.", "jr"):
-        parts = driver_name.split()
-        surname = parts[-2].lower() if len(parts) > 1 else surname
+        surname = parts[-2].rstrip(",").lower() if len(parts) > 1 else surname
     return (
         surname.replace("ü", "u")
         .replace("ö", "o")
@@ -1088,15 +1104,15 @@ def draw_f1_logo(
         return
 
     try:
-        with Image.open(logo_path) as logo_file:
-            pad = 2
-            target_w = width - (pad * 2)
-            target_h = height - (pad * 2)
-            logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
-            logo = prepare_logo_fn(logo_file)
-            x = (width - logo.width) // 2
-            y = (height - logo.height) // 2
-            image.paste(logo, (x, y))
+        logo_file = _load_image_copy(logo_path)
+        pad = 2
+        target_w = width - (pad * 2)
+        target_h = height - (pad * 2)
+        logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+        logo = prepare_logo_fn(logo_file)
+        x = (width - logo.width) // 2
+        y = (height - logo.height) // 2
+        image.paste(logo, (x, y))
     except Exception as exc:
         logger.warning("Failed to load F1 logo: %s", exc)
 
@@ -1144,8 +1160,7 @@ def load_track_image_asset(
     source_path = resolve_track_source_path(source_dir, track_stems, variant_suffix=variant_suffix)
     if source_path:
         try:
-            with Image.open(source_path) as track_image:
-                return track_image.copy()
+            return _load_image_copy(source_path)
         except Exception as exc:
             if logger is not None:
                 logger.warning("Failed to load track %s: %s", source_path, exc)
@@ -1156,8 +1171,7 @@ def load_track_image_asset(
             if not track_path.exists():
                 continue
             try:
-                with Image.open(track_path) as track_image:
-                    return track_image.copy()
+                return _load_image_copy(track_path)
             except Exception as exc:
                 if logger is not None:
                     logger.warning("Failed to load track %s: %s", track_path, exc)
@@ -1166,8 +1180,7 @@ def load_track_image_asset(
         all_fallback = list(fallback_dir.glob(fallback_glob))
         if all_fallback:
             try:
-                with Image.open(all_fallback[0]) as track_image:
-                    return track_image.copy()
+                return _load_image_copy(all_fallback[0])
             except Exception as exc:
                 if logger is not None:
                     logger.warning("Failed to load track %s: %s", all_fallback[0], exc)

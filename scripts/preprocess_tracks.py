@@ -23,11 +23,13 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
+from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.track_assets import (
     discover_track_source_stems,
     resolve_track_source_path,
     strip_track_variant_suffix,
 )
+from app.utils.atomic_io import atomic_save_image
 
 # Constants
 MAX_WIDTH = 490  # Maximum track image width
@@ -83,7 +85,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
     final = binary.convert("1")
 
     # Save as BMP
-    final.save(output_path, format="BMP")
+    atomic_save_image(output_path, final, format="BMP")
     output_size = output_path.stat().st_size
 
     return {
@@ -126,7 +128,8 @@ def main(circuits: list[str] | None = None) -> None:
     total_output_size = 0
 
     for track_path in sorted(track_files):
-        output_stem = strip_track_variant_suffix(track_path.stem)
+        source_stem = strip_track_variant_suffix(track_path.stem)
+        output_stem = CIRCUIT_ID_MAP.get(source_stem, source_stem)
         output_path = OUTPUT_DIR / f"{output_stem}.bmp"
 
         try:

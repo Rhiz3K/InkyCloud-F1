@@ -32,6 +32,7 @@ from app.services.f1_service import F1Service
 from app.services.image_keys import get_teams_image_key
 from app.state import clear_bmp_cache, get_bmp_cache
 from app.utils.rate_limit import _reset_rate_limit_state_for_tests
+from app.version import APP_VERSION
 
 client = TestClient(app)
 
@@ -331,6 +332,15 @@ def test_www_host_redirects_to_canonical_apex():
     assert response.status_code == 308
     assert response.headers["location"] == "https://example.test/stats?range=7d"
     assert response.headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_responses_include_baseline_security_headers():
+    response = client.get("/health")
+
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["permissions-policy"] == "camera=(), microphone=(), geolocation=()"
 
 
 def test_www_host_redirect_ignores_site_url_port_when_matching_host():
@@ -687,6 +697,15 @@ def test_api_docs_html_contains_required_sections():
     assert "tryCalendarBmp" in html or "Try it" in html
 
 
+def test_api_docs_examples_use_configured_public_site_url():
+    with patch("app.routes.pages.config.SITE_URL", "https://public.example.test"):
+        external_host_client = TestClient(app, base_url="https://attacker.example")
+        response = external_host_client.get("/api/docs/html")
+
+    assert "https://public.example.test/calendar.bmp" in response.text
+    assert "https://attacker.example/calendar.bmp" not in response.text
+
+
 def test_api_docs_html_lang_parameter():
     """Test API docs HTML page respects ?lang= query parameter."""
     response = client.get("/api/docs/html?lang=cs")
@@ -921,6 +940,13 @@ def test_operational_api_endpoints_require_token_when_configured():
             headers={"Authorization": "Bearer secret-token"},
         )
         assert response.status_code == 200
+
+
+def test_operational_api_rejects_runtime_empty_token_misconfiguration():
+    with patch.object(api_routes.config, "ADMIN_API_TOKEN", SecretStr("")):
+        response = client.get("/api/stats", headers={"X-Admin-Token": ""})
+
+    assert response.status_code == 503
 
 
 def test_perf_metrics_post_remains_public_when_operational_token_is_configured():
@@ -1390,7 +1416,10 @@ def test_get_race_info_for_stats_matches_string_round_values():
 
 def test_get_driver_number_uses_shared_metadata_map():
     """Driver number helper should resolve known F1 codes from shared metadata."""
-    assert _get_driver_number("VER", 2026) == 1
+    assert _get_driver_number("VER", 2026) == 3
+    assert _get_driver_number("NOR", 2026) == 1
+    assert _get_driver_number("PER", 2026) == 11
+    assert _get_driver_number("LIN", 2026) == 41
     assert _get_driver_number("UNKNOWN", 2026) is None
 
 
@@ -1481,6 +1510,7 @@ def test_calendar_bmp_rate_limit_returns_429(monkeypatch):
     assert first.status_code == 200
     assert second.status_code == 429
     assert second.json()["detail"] == "Rate limit exceeded"
+    assert second.headers["Retry-After"] == "60"
 
 
 def test_calendar_bmp_error_response_is_not_cached(monkeypatch):
@@ -1659,6 +1689,13 @@ def test_api_races_endpoint():
     assert "races" in data or "year" in data or isinstance(data, list)
 
 
+def test_api_info_uses_package_version():
+    response = client.get("/api")
+
+    assert response.status_code == 200
+    assert response.json()["version"] == APP_VERSION
+
+
 def test_api_races_invalid_year():
     """Test /api/races with invalid year."""
     response = client.get("/api/races/1900")
@@ -1697,6 +1734,45 @@ def test_changelog_has_no_collapsible_sections():
     html = response.text
     assert "<details" not in html
     assert "<summary>Backend</summary>" not in html
+
+
+def test_changelog_sanitizer_blocks_extended_uri_and_inline_style_vectors():
+    from app.routes.pages import _sanitize_rendered_html
+
+    sanitized = _sanitize_rendered_html(
+        '<form action="java\tscript:alert(1)">'
+        '<button formaction="data:text/html,x">x</button>'
+        '<video poster="vbscript:alert(1)"></video>'
+        '<a xlink:href="javascript:alert(1)" style="background:url(javascript:x)">x</a>'
+        "</form>"
+    )
+
+    assert "javascript:" not in sanitized.lower()
+    assert "vbscript:" not in sanitized.lower()
+    assert "data:text" not in sanitized.lower()
+    assert "style=" not in sanitized.lower()
+
+
+def test_redirect_helper_rejects_backslash_network_paths():
+    from starlette.requests import Request
+
+    from app.routes.pages import _redirect_path
+
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [],
+            "query_string": b"",
+            "scheme": "https",
+            "server": ("example.test", 443),
+            "client": ("127.0.0.1", 1234),
+        }
+    )
+
+    with pytest.raises(ValueError, match="stay on-site"):
+        _redirect_path(request, "/\\evil.example/path")
 
 
 def test_changelog_lang_parameter():

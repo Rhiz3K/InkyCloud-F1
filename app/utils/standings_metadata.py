@@ -29,6 +29,38 @@ DRIVER_NUMBERS = {
     "BOR": 5,
 }
 
+DRIVER_NUMBERS_BY_YEAR = {
+    2026: {
+        "NOR": 1,
+        "PIA": 81,
+        "RUS": 63,
+        "ANT": 12,
+        "LEC": 16,
+        "HAM": 44,
+        "VER": 3,
+        "HAD": 6,
+        "LAW": 30,
+        "LIN": 41,
+        "ALO": 14,
+        "STR": 18,
+        "GAS": 10,
+        "COL": 43,
+        "ALB": 23,
+        "SAI": 55,
+        "HUL": 27,
+        "BOR": 5,
+        "OCO": 31,
+        "BEA": 87,
+        "PER": 11,
+        "BOT": 77,
+    }
+}
+
+
+def get_driver_number(driver_code: str, year: int) -> int | None:
+    """Resolve a season-aware car number, falling back to legacy metadata."""
+    return DRIVER_NUMBERS_BY_YEAR.get(year, {}).get(driver_code, DRIVER_NUMBERS.get(driver_code))
+
 TEAM_ID_MAP = {
     "McLaren": "mclaren",
     "Ferrari": "ferrari",

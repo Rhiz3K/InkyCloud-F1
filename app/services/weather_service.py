@@ -9,6 +9,7 @@ import httpx
 
 from app.config import config
 from app.services.http_client import get_shared_http_client
+from app.utils.http import fetch_with_retry
 
 if TYPE_CHECKING:
     from app.services.database import Database
@@ -58,7 +59,8 @@ _weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
 
 # Circuit weather cache - populated by scheduler, read by renderer
 # Maps circuit_id -> WeatherData
-_circuit_weather_cache: dict[str, "WeatherData"] = {}
+_circuit_weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
+CIRCUIT_WEATHER_TTL_MINUTES = 120
 
 
 def _to_utc_datetime(dt: datetime) -> datetime:
@@ -167,8 +169,7 @@ class WeatherService:
         }
 
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-        response = await client.get(OPEN_METEO_URL, params=params)
-        response.raise_for_status()
+        response = await fetch_with_retry(client, OPEN_METEO_URL, params=params, logger=logger)
         data = response.json()
 
         current = data.get("current") or {}
@@ -314,8 +315,7 @@ class WeatherService:
         }
 
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-        response = await client.get(OPEN_METEO_URL, params=params)
-        response.raise_for_status()
+        response = await fetch_with_retry(client, OPEN_METEO_URL, params=params, logger=logger)
         data = response.json()
 
         return _match_hourly_weather(
@@ -343,8 +343,9 @@ class WeatherService:
         }
 
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-        response = await client.get(OPEN_METEO_ARCHIVE_URL, params=params)
-        response.raise_for_status()
+        response = await fetch_with_retry(
+            client, OPEN_METEO_ARCHIVE_URL, params=params, logger=logger
+        )
         data = response.json()
 
         return _match_hourly_weather(
@@ -356,15 +357,15 @@ class WeatherService:
 
     def _get_cached(self, key: str) -> Optional[WeatherData]:
         if key in _weather_cache:
-            data, cached_at = _weather_cache[key]
-            if datetime.now(timezone.utc) - cached_at < timedelta(minutes=self.cache_minutes):
+            data, expires_at = _weather_cache[key]
+            if datetime.now(timezone.utc) < expires_at:
                 return data
             del _weather_cache[key]
         return None
 
-    @staticmethod
-    def _set_cached(key: str, data: WeatherData) -> None:
-        _weather_cache[key] = (data, datetime.now(timezone.utc))
+    def _set_cached(self, key: str, data: WeatherData) -> None:
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=self.cache_minutes)
+        _weather_cache[key] = (data, expires_at)
 
 
 def clear_weather_cache() -> None:
@@ -391,7 +392,14 @@ def get_cached_circuit_weather(circuit_id: str) -> Optional[WeatherData]:
     Returns:
         Cached WeatherData or None if not found.
     """
-    return _circuit_weather_cache.get(circuit_id)
+    cached = _circuit_weather_cache.get(circuit_id)
+    if cached is None:
+        return None
+    data, expires_at = cached
+    if datetime.now(timezone.utc) >= expires_at:
+        del _circuit_weather_cache[circuit_id]
+        return None
+    return data
 
 
 def set_cached_circuit_weather(circuit_id: str, data: WeatherData) -> None:
@@ -402,7 +410,8 @@ def set_cached_circuit_weather(circuit_id: str, data: WeatherData) -> None:
         circuit_id (str): Circuit identifier to associate with the weather data.
         data (WeatherData): WeatherData to store; overwrites any existing entry.
     """
-    _circuit_weather_cache[circuit_id] = data
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=CIRCUIT_WEATHER_TTL_MINUTES)
+    _circuit_weather_cache[circuit_id] = (data, expires_at)
 
 
 def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
@@ -419,11 +428,24 @@ def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
     count = 0
     for circuit_id, data in weather_dict.items():
         try:
-            _circuit_weather_cache[circuit_id] = WeatherData(
+            weather = WeatherData(
                 temperature_c=data.get("temperature_c", 20.0),
                 weather_code=data.get("weather_code", 0),
                 precipitation_probability=data.get("precipitation_probability", 0),
             )
+            fetched_at_raw = data.get("fetched_at")
+            try:
+                if not isinstance(fetched_at_raw, str):
+                    raise TypeError("fetched_at is not a string")
+                fetched_at = datetime.fromisoformat(fetched_at_raw)
+                if fetched_at.tzinfo is None:
+                    fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+            except (TypeError, ValueError):
+                fetched_at = datetime.now(timezone.utc)
+            expires_at = fetched_at + timedelta(minutes=CIRCUIT_WEATHER_TTL_MINUTES)
+            if expires_at <= datetime.now(timezone.utc):
+                continue
+            _circuit_weather_cache[circuit_id] = (weather, expires_at)
             count += 1
         except (TypeError, ValueError) as e:
             logger.warning("Invalid weather data for %s: %s", circuit_id, e)
@@ -797,6 +819,8 @@ async def load_prefetched_weather_from_db(db: "Database") -> int:
             cached_at = datetime.fromisoformat(cached_at_str)
         except (TypeError, ValueError):
             cached_at = now
-        _weather_cache[cache_key] = (data, cached_at)
+        if cached_at.tzinfo is None:
+            cached_at = cached_at.replace(tzinfo=timezone.utc)
+        _weather_cache[cache_key] = (data, cached_at + timedelta(minutes=120))
         loaded += 1
     return loaded

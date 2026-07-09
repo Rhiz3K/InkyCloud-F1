@@ -23,7 +23,8 @@ import httpx
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scripts.material_diff import has_material_change
+from app.utils.atomic_io import atomic_write_json
+from app.utils.material_diff import has_material_change
 
 API_BASE = "https://api.jolpi.ca/ergast/f1"
 SEASONS_DIR = Path(__file__).parent.parent / "app" / "assets" / "seasons"
@@ -94,8 +95,8 @@ def preserve_cancelled_races(
 
 
 def write_season_file(output_path: Path, season_payload: dict[str, Any]) -> None:
-    """Write season JSON with a trailing newline for POSIX-friendly diffs."""
-    output_path.write_text(json.dumps(season_payload, indent=2) + "\n", encoding="utf-8")
+    """Atomically write season JSON with a trailing newline."""
+    atomic_write_json(output_path, season_payload)
 
 
 def has_material_season_change(
@@ -115,6 +116,15 @@ async def fetch_season(client: httpx.AsyncClient, year: int) -> dict:
 
     data = response.json()
     races = data["MRData"]["RaceTable"]["Races"]
+    if not isinstance(races, list) or not races:
+        raise ValueError(f"Jolpica returned no races for {year}")
+    if any(
+        not isinstance(race, dict)
+        or not race.get("date")
+        or not (race.get("Circuit") or {}).get("circuitId")
+        for race in races
+    ):
+        raise ValueError(f"Jolpica returned malformed race data for {year}")
 
     return {
         "season": str(year),
@@ -134,6 +144,13 @@ async def main(target_years: list[int]) -> None:
                 output_path = SEASONS_DIR / f"{year}.json"
                 existing_data = _load_existing_season(output_path)
                 data = preserve_cancelled_races(await fetch_season(client, year), existing_data)
+
+                existing_count = len((existing_data or {}).get("races", []))
+                if existing_count and data["total_races"] < existing_count:
+                    raise ValueError(
+                        f"Refusing partial calendar for {year}: "
+                        f"received {data['total_races']} races, existing file has {existing_count}"
+                    )
 
                 if not has_material_season_change(data, existing_data):
                     print(f"  No calendar changes for {year}; keeping existing file")

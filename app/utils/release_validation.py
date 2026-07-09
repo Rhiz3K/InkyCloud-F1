@@ -44,10 +44,11 @@ def parse_latest_release_section(changelog: str) -> ReleaseValidationResult:
 
     unreleased_body = ""
     unreleased_index = changelog.find(UNRELEASED_HEADING)
-    if unreleased_index != -1 and unreleased_index < first_match.start():
-        unreleased_body = changelog[
-            unreleased_index + len(UNRELEASED_HEADING) : first_match.start()
-        ].strip()
+    if unreleased_index == -1 or unreleased_index > first_match.start():
+        raise ValueError(f"Missing required {UNRELEASED_HEADING} heading before latest release")
+    unreleased_body = changelog[
+        unreleased_index + len(UNRELEASED_HEADING) : first_match.start()
+    ].strip()
 
     next_match = matches[1] if len(matches) > 1 else None
     release_end = next_match.start() if next_match else len(changelog)

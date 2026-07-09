@@ -102,7 +102,12 @@ def cmd_test():
 
 def cmd_now():
     """Perform backup immediately."""
+    from app.config import config
     from app.services.backup import perform_backup_with_details
+
+    if not config.BACKUP_ENABLED:
+        print("Backup is disabled. Set BACKUP_ENABLED=true before running a manual backup.")
+        return 1
 
     print("Starting manual backup...")
     print()

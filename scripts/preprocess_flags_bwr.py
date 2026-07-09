@@ -8,15 +8,11 @@ from pathlib import Path
 
 from PIL import Image
 
-from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
+from app.utils.atomic_io import atomic_write_bytes_sync
+from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwr_palette
 
 TARGET_WIDTH = 87
 TARGET_HEIGHT = 58
-RED_HUE_DOMINANCE = 1.18
-RED_MIN = 110
-WHITE_THRESHOLD = 215
-BLACK_THRESHOLD = 75
-
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
 FLAGS_INPUT_DIR = PROJECT_ROOT / "app" / "assets" / "flags_flat"
@@ -41,45 +37,14 @@ def normalize_image(image: Image.Image) -> Image.Image:
     return image
 
 
-def is_red_pixel(r: int, g: int, b: int) -> bool:
-    return r >= RED_MIN and r >= int(g * RED_HUE_DOMINANCE) and r >= int(b * RED_HUE_DOMINANCE)
-
-
-def classify_pixel(r: int, g: int, b: int) -> tuple[int, int, int]:
-    if is_red_pixel(r, g, b):
-        return RED
-
-    luminance = int(0.299 * r + 0.587 * g + 0.114 * b)
-    if luminance >= WHITE_THRESHOLD:
-        return WHITE
-    if luminance <= BLACK_THRESHOLD:
-        return BLACK
-    return BLACK if luminance < 150 else WHITE
-
-
 def process_flag_image(input_path: Path, output_path: Path) -> dict:
     original = normalize_image(Image.open(input_path))
     original_size = input_path.stat().st_size
     original_dimensions = original.size
     resized = original.resize((TARGET_WIDTH, TARGET_HEIGHT), Image.Resampling.LANCZOS)
 
-    source_pixels: list[tuple[int, int, int]] = []
-    pixel_access = resized.load()
-    for y in range(resized.height):
-        for x in range(resized.width):
-            pixel = pixel_access[x, y]
-            if isinstance(pixel, tuple):
-                r, g, b = pixel[:3]
-            else:
-                r = g = b = pixel
-            source_pixels.append((int(r), int(g), int(b)))
-
-    pixels = [classify_pixel(pixel[0], pixel[1], pixel[2]) for pixel in source_pixels]
-    mapped = Image.new("RGB", resized.size, WHITE)
-    mapped.putdata(pixels)
-
-    final = quantize_to_palette(mapped, PALETTE, colors=3)
-    output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
+    final = map_to_bwr_palette(resized, PALETTE)
+    atomic_write_bytes_sync(output_path, encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 
     return {

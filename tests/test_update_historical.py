@@ -6,8 +6,8 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from scripts import update_historical
-from scripts.material_diff import has_material_change
+from app.services import historical_refresh as update_historical
+from app.utils.material_diff import has_material_change
 
 
 def _historical_payload(
@@ -59,6 +59,13 @@ def test_material_change_detection_detects_new_payload_fields():
     }
 
     assert has_material_change(refreshed, existing, ignored_keys=("updated_at",))
+
+
+def test_older_historical_results_never_replace_newer_stored_season():
+    existing = _historical_payload("2026-06-01")
+    older = {**_historical_payload("2025-06-01"), "season": 2025}
+
+    assert update_historical._would_regress_season(older, existing)
 
 
 class _MockHistoricalResponse:
@@ -123,6 +130,21 @@ class _MockHistoricalClient:
                 race.insert(0, _race_result("NC", "BAD", "Badpos", "Test", "+9 laps"))
 
         return _MockHistoricalResponse({"MRData": {"RaceTable": {"Races": [{"Results": race}]}}})
+
+
+class _MalformedCurrentYearClient(_MockHistoricalClient):
+    async def get(self, url: str):
+        if "/2026/" in url and urlparse(url).path.endswith("/qualifying.json"):
+            malformed = [
+                _qualifying_result(1, "RUS", "Russell", "Mercedes", "1:06.113"),
+                _qualifying_result(2, "LEC", "Leclerc", "Ferrari", "1:06.349"),
+                _qualifying_result(3, "HAM", "Hamilton", "Ferrari", "1:06.408"),
+            ]
+            malformed[0].pop("Driver")
+            return _MockHistoricalResponse(
+                {"MRData": {"RaceTable": {"Races": [{"QualifyingResults": malformed}]}}}
+            )
+        return await super().get(url)
 
 
 def _qualifying_result(pos: int | str, code: str, name: str, team: str, q3_time: str) -> dict:
@@ -199,11 +221,27 @@ async def test_fetch_results_ignores_non_numeric_positions(monkeypatch):
     ]
 
 
+@pytest.mark.asyncio
+async def test_fetch_results_falls_back_when_current_year_contains_malformed_rows(monkeypatch):
+    monkeypatch.setattr(update_historical, "CURRENT_YEAR", 2026)
+
+    results = await update_historical.fetch_results(
+        _MalformedCurrentYearClient(),
+        "red_bull_ring",
+    )
+
+    assert results is not None
+    assert results["season"] == 2025
+    assert all(entry["code"] for entry in results["qualifying"])
+
+
 def test_write_json_atomic_replaces_target(tmp_path, monkeypatch):
     target = tmp_path / "circuits_data.json"
     target.write_text('{"old": true}', encoding="utf-8")
     replace_calls = []
-    real_replace = update_historical.os.replace
+    from app.utils import atomic_io
+
+    real_replace = atomic_io.os.replace
 
     def fake_replace(source, destination):
         replace_calls.append((source, destination))
@@ -211,9 +249,9 @@ def test_write_json_atomic_replaces_target(tmp_path, monkeypatch):
         assert source.name.startswith(f".{target.name}.")
         real_replace(source, destination)
 
-    monkeypatch.setattr(update_historical.os, "replace", fake_replace)
+    monkeypatch.setattr(atomic_io.os, "replace", fake_replace)
 
-    update_historical._write_json_atomic(target, {"new": True})
+    atomic_io.atomic_write_json(target, {"new": True})
 
     assert len(replace_calls) == 1
     assert replace_calls[0][1] == target

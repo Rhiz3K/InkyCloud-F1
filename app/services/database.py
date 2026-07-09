@@ -103,6 +103,7 @@ class Database:
     async def _configure_connection(conn: aiosqlite.Connection) -> None:
         """Configure connection settings after it's opened."""
         await conn.execute("PRAGMA journal_mode=WAL;")
+        await conn.execute("PRAGMA busy_timeout=30000;")
         conn.row_factory = aiosqlite.Row
 
     async def _init_db_if_needed(self) -> None:
@@ -442,11 +443,14 @@ class Database:
         deleted_counts: dict[str, int] = {}
 
         async with self._get_connection() as conn:
-            for table_name, query in STATS_CLEANUP_QUERIES.items():
-                cursor = await conn.execute(query, (cutoff_date,))
-                deleted_counts[table_name] = cursor.rowcount
-
-            await conn.commit()
+            try:
+                for table_name, query in STATS_CLEANUP_QUERIES.items():
+                    cursor = await conn.execute(query, (cutoff_date,))
+                    deleted_counts[table_name] = cursor.rowcount
+                await conn.commit()
+            except Exception:
+                await conn.rollback()
+                raise
 
         deleted_total = sum(deleted_counts.values())
         if deleted_total > 0:
@@ -474,6 +478,20 @@ class Database:
         if not calls:
             return 0
 
+        valid_calls = [
+            call
+            for call in calls
+            if isinstance(call.get("timestamp"), str)
+            and call["timestamp"]
+            and isinstance(call.get("endpoint"), str)
+            and call["endpoint"]
+        ]
+        skipped_count = len(calls) - len(valid_calls)
+        if skipped_count:
+            logger.warning("Skipping %s malformed API-call records", skipped_count)
+        if not valid_calls:
+            return 0
+
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
             await conn.executemany(
@@ -485,8 +503,8 @@ class Database:
                 """,
                 [
                     (
-                        call["timestamp"],
-                        call["endpoint"],
+                        call.get("timestamp"),
+                        call.get("endpoint"),
                         call.get("response_time_ms"),
                         call.get("response_size_bytes"),
                         call.get("lang"),
@@ -497,12 +515,12 @@ class Database:
                         call.get("race_name"),
                         call.get("is_auto_selected", 0),
                     )
-                    for call in calls
+                    for call in valid_calls
                 ],
             )
             await conn.commit()
-            logger.debug("Saved %s API calls to database", len(calls))
-            return len(calls)
+            logger.debug("Saved %s API calls to database", len(valid_calls))
+            return len(valid_calls)
 
     async def get_api_calls_stats_24h(self) -> dict:
         """

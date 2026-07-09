@@ -5,6 +5,9 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+from pydantic import ValidationError
+
 import app.config as config_module
 import app.services.i18n as i18n_module
 from app.services.i18n import get_translator
@@ -35,6 +38,26 @@ def test_config_defaults():
     assert config.DISPLAY_WIDTH == 800
     assert config.DISPLAY_HEIGHT == 480
     assert config.DEFAULT_LANG in config_module.LANGUAGE_CODES
+
+
+@pytest.mark.parametrize("field_name", ["DATABASE_PATH", "IMAGES_PATH"])
+def test_config_rejects_empty_storage_paths(field_name):
+    with pytest.raises(ValidationError):
+        config_module.Config(_env_file=None, **{field_name: "   "})
+
+
+def test_config_rejects_explicitly_empty_admin_token():
+    with pytest.raises(ValidationError):
+        config_module.Config(_env_file=None, ADMIN_API_TOKEN="")
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [("DISPLAY_WIDTH", "801"), ("DISPLAY_HEIGHT", "481")],
+)
+def test_config_rejects_display_dimension_overrides(field_name, value):
+    with pytest.raises(ValidationError):
+        config_module.Config(_env_file=None, **{field_name: value})
 
 
 def test_config_invalid_env_falls_back(monkeypatch):
@@ -90,6 +113,19 @@ def test_translator_fallback():
     translator = get_translator("unknown")
     # Should fall back to default language
     assert "next_race" in translator
+
+
+def test_corrupted_non_default_translation_falls_back_to_default(tmp_path, monkeypatch):
+    from app.services import i18n
+
+    broken = tmp_path / "cs.json"
+    broken.write_text("{broken", encoding="utf-8")
+    monkeypatch.setitem(i18n._TRANSLATION_FILES, "cs", broken)
+    i18n._translations_cache.clear()
+
+    translator = i18n.get_translator("cs")
+
+    assert translator["next_race"] == "Next Race"
 
 
 def test_all_translation_files_match_english_keys():

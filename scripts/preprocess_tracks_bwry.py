@@ -15,6 +15,7 @@ from app.services.track_assets import (
     resolve_track_source_path,
     strip_track_variant_suffix,
 )
+from app.utils.atomic_io import atomic_write_bytes_sync
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwry_palette
 
 MAX_WIDTH = 490
@@ -85,7 +86,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
         original = original.resize(new_size, Image.Resampling.LANCZOS)
 
     final = map_to_bwry_palette(original, PALETTE)
-    output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
+    atomic_write_bytes_sync(output_path, encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 
     return {

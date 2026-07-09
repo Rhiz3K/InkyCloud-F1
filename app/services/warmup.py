@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def warm_teams_renderer_assets(lang: str | None = None) -> None:
-    """Preload teams renderer assets so the first request avoids logo warmup."""
+    """Preload shared teams assets and default-locale fonts on one render worker."""
     resolved_lang = lang or config.DEFAULT_LANG
     translator = get_translator(resolved_lang)
     renderers = (

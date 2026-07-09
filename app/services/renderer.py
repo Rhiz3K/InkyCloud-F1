@@ -121,7 +121,6 @@ class Renderer:
             "footer": self._load_font(12),
             "circuit_stats": self._load_font(18),
             "circuit_stats_value": self._load_font(18, bold=True),
-            "icon": self._load_icon_font(22),
             "icon_small": self._load_icon_font(22),
             "driver_number": self._racing_fonts[22],
             "weather": self._load_font(12, bold=True),

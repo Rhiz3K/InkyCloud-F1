@@ -137,7 +137,6 @@ class Spectra6Renderer:
             "footer": self._load_font(12),
             "circuit_stats": self._load_font(18),
             "circuit_stats_value": self._load_font(18, bold=True),
-            "icon": self._load_icon_font(22),
             "icon_small": self._load_icon_font(22),
             "weather": self._load_font(12, bold=True),
             "weather_icon": self._load_icon_font(40),
@@ -581,13 +580,16 @@ class Spectra6Renderer:
     @staticmethod
     def _load_track_image(race_data: dict) -> Image.Image | None:
         """Load the best available Spectra 6 track image for a race."""
-        return load_track_image_asset(
+        track_image = load_track_image_asset(
             build_track_stems(race_data),
             source_dir=TRACKS_DIR,
             variant_suffix="spectra6",
             fallback_dir=TRACKS_SPECTRA6_DIR,
             logger=logger,
         )
+        # Pillow resizes palette-mode images with nearest-neighbour semantics even when
+        # LANCZOS is requested. Normalize processed BMP fallbacks before layout resizing.
+        return track_image.convert("RGB") if track_image is not None else None
 
     def _session_palette_color(self, color_name: str) -> tuple[int, int, int]:
         """Return a session accent color, falling back to black when unsupported."""
@@ -869,12 +871,19 @@ class Spectra6Renderer:
     def _get_cached_driver_photos(cls) -> dict[str, Image.Image]:
         """Return the process-wide cache of color driver portraits."""
         cache_key = str(IMAGES_DIR)
-        if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
+        cache_owner = Spectra6Renderer
+        if (
+            cache_owner._cached_driver_photos is None
+            or cache_owner._cached_driver_photos_key != cache_key
+        ):
             with _ASSET_CACHE_LOCK:
-                if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
-                    cls._cached_driver_photos = cls._load_driver_photos()
-                    cls._cached_driver_photos_key = cache_key
-        return cls._cached_driver_photos
+                if (
+                    cache_owner._cached_driver_photos is None
+                    or cache_owner._cached_driver_photos_key != cache_key
+                ):
+                    cache_owner._cached_driver_photos = cls._load_driver_photos()
+                    cache_owner._cached_driver_photos_key = cache_key
+        return cache_owner._cached_driver_photos
 
     @classmethod
     def _load_team_logos(cls) -> dict[str, Image.Image]:

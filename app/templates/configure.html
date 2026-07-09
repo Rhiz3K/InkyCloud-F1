@@ -473,7 +473,7 @@ block content %}
     return "🏁";
   }
 
-  let currentUiLang = "{{ ui_lang }}";
+  let currentUiLang = {{ ui_lang | tojson }};
   const uiText = {{ configure_ui_text | tojson }};
   let currentScreenType = "{{ screen_type }}";
   let currentDisplayType = "1bit";

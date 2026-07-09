@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import AsyncMock
+
+import pytest
 
 from scripts import update_seasons
 
@@ -248,3 +251,29 @@ def test_static_2026_calendar_keeps_cancelled_bahrain_and_jeddah():
     }
 
     assert {"bahrain", "jeddah"}.issubset(cancelled_circuits)
+
+
+@pytest.mark.asyncio
+async def test_fetch_season_rejects_empty_calendar():
+    response = AsyncMock()
+    response.raise_for_status = lambda: None
+    response.json = lambda: {"MRData": {"RaceTable": {"Races": []}}}
+    client = AsyncMock()
+    client.get.return_value = response
+
+    with pytest.raises(ValueError, match="no races"):
+        await update_seasons.fetch_season(client, 2027)
+
+
+@pytest.mark.asyncio
+async def test_fetch_season_rejects_malformed_race_rows():
+    response = AsyncMock()
+    response.raise_for_status = lambda: None
+    response.json = lambda: {
+        "MRData": {"RaceTable": {"Races": [{"date": "2027-03-01", "Circuit": {}}]}}
+    }
+    client = AsyncMock()
+    client.get.return_value = response
+
+    with pytest.raises(ValueError, match="malformed"):
+        await update_seasons.fetch_season(client, 2027)

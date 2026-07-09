@@ -132,3 +132,16 @@ def test_parse_latest_release_section_ignores_footer_links(monkeypatch):
     result = release_validation.parse_latest_release_section(changelog)
 
     assert result.release_body == ""
+
+
+def test_parse_latest_release_section_requires_unreleased_heading(monkeypatch):
+    changelog = """# Changelog
+
+## [1.3.0] - 2026-03-14
+
+- Added release notes
+"""
+    monkeypatch.setattr(release_validation, "get_latest_git_tag", lambda: SemVer(1, 2, 9))
+
+    with pytest.raises(ValueError, match="Missing required"):
+        release_validation.parse_latest_release_section(changelog)

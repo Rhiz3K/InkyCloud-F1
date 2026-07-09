@@ -138,6 +138,7 @@ async def fetch_version_info() -> VersionInfo:
     # changelog page for the whole hour instead of keeping the last known version.
     if release_tag is None and commit_sha is None and _version_cache is not None:
         logger.warning("Version fetch returned no data; keeping previous cached version info")
+        _version_cache_fetched_at = time.time()
         return _version_cache
 
     _version_cache = info

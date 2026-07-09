@@ -211,7 +211,7 @@ class StandingsService:
         if cached_drivers and cached_constructors:
             return StandingsData(
                 season=year,
-                round=cached_drivers.round,
+                round=max(cached_drivers.round, cached_constructors.round),
                 driver_standings=cached_drivers.driver_standings[:limit],
                 constructor_standings=cached_constructors.constructor_standings[:limit],
             )
@@ -222,7 +222,11 @@ class StandingsService:
         )
 
         cached_drivers = self._get_cached(year, "drivers")
-        round_num = cached_drivers.round if cached_drivers else 0
+        cached_constructors = self._get_cached(year, "constructors")
+        round_num = max(
+            cached_drivers.round if cached_drivers else 0,
+            cached_constructors.round if cached_constructors else 0,
+        )
 
         return StandingsData(
             season=year,

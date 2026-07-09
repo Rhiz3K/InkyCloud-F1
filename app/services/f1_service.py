@@ -5,6 +5,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -43,6 +44,30 @@ DEFAULT_SESSION_TIME_UTC = "12:00:00Z"
 # Keep a race selected as "next" until this long after lights-out, so the calendar doesn't
 # advance to the following Grand Prix the instant the current race starts.
 NEXT_RACE_GRACE = timedelta(hours=4)
+
+
+@lru_cache(maxsize=32)
+def _load_static_season_file(path: str, mtime_ns: int) -> tuple[Race, ...]:
+    """Load and validate a season file once per path/version."""
+    del mtime_ns  # Included in the cache key to invalidate atomically replaced files.
+    with open(path, encoding="utf-8") as season_handle:
+        data = json.load(season_handle)
+
+    races: list[Race] = []
+    for race_data in data.get("races", []):
+        try:
+            races.append(Race(**race_data))
+        except Exception as exc:
+            logger.warning("Failed to parse race: %s: %s", race_data.get("raceName"), exc)
+    return tuple(races)
+
+
+@lru_cache(maxsize=8)
+def _load_circuits_file(path: str, mtime_ns: int) -> dict:
+    """Cache the circuit JSON until an atomic replacement changes its mtime."""
+    del mtime_ns
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 def _driver_info_from_result(entry: ResultEntry) -> DriverInfo:
@@ -128,11 +153,11 @@ class F1Service:
         """Return True when the race has a valid round number assigned."""
         round_value = race_data.get("round")
 
-        if round_value in (None, ""):
+        if not isinstance(round_value, (str, int, float)) or round_value == "":
             return False
 
         try:
-            return int(str(round_value)) > 0
+            return int(round_value) > 0
         except (TypeError, ValueError):
             return False
 
@@ -286,6 +311,7 @@ class F1Service:
         # Sort events by datetime
         schedule_events.sort(key=lambda x: x["datetime"])
 
+        now = datetime.now(self.target_tz)
         return {
             "race_name": race.raceName,
             "round": race.round,
@@ -308,6 +334,12 @@ class F1Service:
             },
             "schedule": schedule_events,
             "race_date": race_dt.strftime("%d.%m.%Y") if race_dt else race.date,
+            "date": race.date,
+            "datetime": race_dt.isoformat() if race_dt else None,
+            "is_past": race_dt < now if race_dt else False,
+            "circuit_id": race.Circuit.circuitId,
+            "circuit_name": race.Circuit.circuitName,
+            "country": race.Circuit.Location.country,
             "timezone": self.timezone_str,
         }
 
@@ -610,33 +642,15 @@ class F1Service:
             logger.warning("Invalid year value: %s", year)
             return []
 
-        # Build allowlist of valid season files that exist
-        allowed_files: dict[int, Path] = {}
-        for season_file in SEASONS_DIR.glob("*.json"):
-            try:
-                file_year = int(season_file.stem)
-                if 2000 <= file_year <= 2100:
-                    allowed_files[file_year] = season_file.resolve()
-            except ValueError:
-                continue
-
-        if year not in allowed_files:
-            logger.warning("Static season file not found for year: %s", year)
-            return []
-
-        resolved_path = allowed_files[year]
-
         try:
-            with open(resolved_path, encoding="utf-8") as season_handle:
-                data = json.load(season_handle)
-
-            races = []
-            for race_data in data.get("races", []):
-                try:
-                    races.append(Race(**race_data))
-                except Exception as e:
-                    logger.warning("Failed to parse race: %s: %s", race_data.get("raceName"), e)
-
+            seasons_dir = SEASONS_DIR.resolve()
+            resolved_path = (seasons_dir / f"{year}.json").resolve()
+            if not resolved_path.is_relative_to(seasons_dir) or not resolved_path.is_file():
+                logger.warning("Static season file not found for year: %s", year)
+                return []
+            races = list(
+                _load_static_season_file(str(resolved_path), resolved_path.stat().st_mtime_ns)
+            )
             logger.info("Loaded %s races from static file for %s", len(races), year)
             return races
 
@@ -667,6 +681,8 @@ class F1Service:
                     race_time = race.time or DEFAULT_SESSION_TIME_UTC
                     dt_str = f"{race.date}T{race_time}"
                     race_dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                    if race_dt.tzinfo is None:
+                        race_dt = race_dt.replace(tzinfo=dt_timezone.utc)
 
                     # Keep the current race selected until NEXT_RACE_GRACE after lights-out, so
                     # the display doesn't flip to the next GP mid-race.
@@ -719,8 +735,10 @@ class F1Service:
         mapped_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
 
         try:
-            with open(CIRCUITS_DATA_PATH, encoding="utf-8") as f:
-                circuits_data = json.load(f)
+            resolved_path = CIRCUITS_DATA_PATH.resolve()
+            circuits_data = _load_circuits_file(
+                str(resolved_path), resolved_path.stat().st_mtime_ns
+            )
 
             circuit = circuits_data.get(mapped_id, {})
             historical = circuit.get("historical")
@@ -729,37 +747,43 @@ class F1Service:
                 logger.info("No historical data for circuit %s", mapped_id)
                 return HistoricalData(is_new_track=True)
 
-            # Parse qualifying results
             qualifying_results = []
             for q in historical.get("qualifying", []):
-                qualifying_results.append(
-                    QualifyingResultEntry(
-                        position=q["pos"],
-                        driver=DriverInfo(
-                            code=q["code"],
-                            given_name="",  # Not stored in static data
-                            family_name=q["name"],
-                        ),
-                        constructor=ConstructorInfo(name=q["team"]),
-                        q3_time=q.get("time"),
+                try:
+                    qualifying_results.append(
+                        QualifyingResultEntry(
+                            position=q["pos"],
+                            driver=DriverInfo(
+                                code=q["code"],
+                                given_name="",
+                                family_name=q["name"],
+                            ),
+                            constructor=ConstructorInfo(name=q["team"]),
+                            q3_time=q.get("time"),
+                        )
                     )
-                )
+                except (KeyError, TypeError, ValueError) as exc:
+                    logger.warning(
+                        "Skipping malformed qualifying history for %s: %s", mapped_id, exc
+                    )
 
-            # Parse race results
             race_results = []
             for r in historical.get("race", []):
-                race_results.append(
-                    RaceResultEntry(
-                        position=r["pos"],
-                        driver=DriverInfo(
-                            code=r["code"],
-                            given_name="",
-                            family_name=r["name"],
-                        ),
-                        constructor=ConstructorInfo(name=r["team"]),
-                        time=r.get("time"),
+                try:
+                    race_results.append(
+                        RaceResultEntry(
+                            position=r["pos"],
+                            driver=DriverInfo(
+                                code=r["code"],
+                                given_name="",
+                                family_name=r["name"],
+                            ),
+                            constructor=ConstructorInfo(name=r["team"]),
+                            time=r.get("time"),
+                        )
                     )
-                )
+                except (KeyError, TypeError, ValueError) as exc:
+                    logger.warning("Skipping malformed race history for %s: %s", mapped_id, exc)
 
             return HistoricalData(
                 season=historical.get("season"),

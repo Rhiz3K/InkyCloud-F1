@@ -12,7 +12,7 @@ from urllib.parse import urlencode
 
 import sentry_sdk
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.services.analytics import track_event, track_pageview
@@ -83,7 +83,7 @@ def _get_cache_key(
 
 def _to_round_number(round_value: str | int | None) -> int | None:
     """Convert a round identifier to a positive integer when possible."""
-    if round_value in (None, ""):
+    if round_value is None or round_value == "":
         return None
 
     try:
@@ -528,34 +528,41 @@ async def get_calendar_bmp(
     )
     if image_path is not None:
         logger.info("Serving pre-generated image: %s", image_path)
-        bmp_data = image_path.read_bytes()
-        get_bmp_cache()[cache_key] = bmp_data
-        _record_calendar_api_call(
-            start_time=start_time,
-            size_bytes=len(bmp_data),
-            lang=lang,
-            display=display,
-            tz=tz,
-            actual_year=actual_year,
-            actual_round=actual_round,
-            actual_race_name=actual_race_name,
-            is_auto_selected=is_auto_selected,
-        )
-        _schedule_calendar_analytics(
-            lang=lang,
-            tz=tz,
-            year=year,
-            race_round=race_round,
-            race_key=race_key,
-            user_agent=user_agent,
-            referrer=referrer,
-        )
-        return FileResponse(
-            path=str(image_path),
-            media_type="image/bmp",
-            filename="calendar.bmp",
-            headers={"Cache-Control": "public, max-age=3600", "X-Cache": "MISS"},
-        )
+        try:
+            bmp_data = image_path.read_bytes()
+        except OSError as exc:
+            logger.info("Pre-generated image disappeared before read; rendering: %s", exc)
+        else:
+            get_bmp_cache()[cache_key] = bmp_data
+            _record_calendar_api_call(
+                start_time=start_time,
+                size_bytes=len(bmp_data),
+                lang=lang,
+                display=display,
+                tz=tz,
+                actual_year=actual_year,
+                actual_round=actual_round,
+                actual_race_name=actual_race_name,
+                is_auto_selected=is_auto_selected,
+            )
+            _schedule_calendar_analytics(
+                lang=lang,
+                tz=tz,
+                year=year,
+                race_round=race_round,
+                race_key=race_key,
+                user_agent=user_agent,
+                referrer=referrer,
+            )
+            return StreamingResponse(
+                BytesIO(bmp_data),
+                media_type="image/bmp",
+                headers={
+                    "Content-Disposition": 'inline; filename="calendar.bmp"',
+                    "Cache-Control": "public, max-age=3600",
+                    "X-Cache": "MISS",
+                },
+            )
 
     try:
         target_tz = tz or config.DEFAULT_TIMEZONE
@@ -613,7 +620,9 @@ async def get_calendar_bmp(
         logger.error("Error generating calendar: %s", exc, exc_info=True)
         sentry_sdk.capture_exception(exc)
 
-        bmp_data = await run_render(functools.partial(_render_error_bytes, display, lang, str(exc)))
+        bmp_data = await run_render(
+            functools.partial(_render_error_bytes, display, lang, "Temporary rendering error")
+        )
 
         auto_selected = year is None and race_round is None and race_key is None
         record_api_call(
@@ -632,7 +641,10 @@ async def get_calendar_bmp(
         return StreamingResponse(
             BytesIO(bmp_data),
             media_type="image/bmp",
-            headers={"Content-Disposition": 'inline; filename="calendar.bmp"'},
+            headers={
+                "Content-Disposition": 'inline; filename="calendar.bmp"',
+                "Cache-Control": "no-store",
+            },
         )
 
 

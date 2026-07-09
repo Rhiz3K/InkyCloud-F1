@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.version_service import fetch_version_info
+from app.services import version_service
+from app.services.version_service import VersionInfo, fetch_version_info
 
 
 @pytest.mark.asyncio
@@ -44,3 +45,20 @@ async def test_fetch_version_info_uses_configured_github_api_base_url():
     ]
     assert info.release_tag == "v1.2.20"
     assert info.commit_sha_short == "1234567"
+
+
+@pytest.mark.asyncio
+async def test_failed_refresh_extends_last_good_cache_freshness(monkeypatch):
+    cached = VersionInfo(None, None, None, "abc", "abc", None, None, None)
+    monkeypatch.setattr(version_service, "_version_cache", cached)
+    monkeypatch.setattr(version_service, "_version_cache_fetched_at", 1.0)
+    monkeypatch.setattr(version_service.time, "time", lambda: 42.0)
+
+    client = AsyncMock()
+    client.get.side_effect = [AsyncMock(status_code=503), AsyncMock(status_code=503)]
+    monkeypatch.setattr(version_service, "get_shared_http_client", lambda *_args, **_kwargs: client)
+
+    result = await fetch_version_info()
+
+    assert result is cached
+    assert version_service._version_cache_fetched_at == 42.0
