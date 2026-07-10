@@ -155,6 +155,7 @@
   "standings_after_round": "Po rundzie",
   "nav_changelog": "Zmiany",
   "changelog_title": "Dziennik zmian",
+  "changelog_not_found": "Nie znaleziono dziennika zmian.",
   "changelog_version": "Wersja",
   "changelog_last_updated": "Ostatnia aktualizacja",
   "changelog_commit": "Ostatni commit",

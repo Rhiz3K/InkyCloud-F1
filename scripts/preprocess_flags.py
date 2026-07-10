@@ -304,23 +304,16 @@ def process_flag_image(input_path: Path, output_path: Path) -> dict:
     Returns:
         Dictionary with processing stats
     """
-    # Load original
-    original = Image.open(input_path)
+    # Load an independent image so the source file is closed before CPU-heavy processing.
+    with Image.open(input_path) as opened:
+        original_dimensions = opened.size
+        if opened.mode in ("RGBA", "P"):
+            rgba = opened.convert("RGBA")
+            original = Image.new("RGB", rgba.size, (255, 255, 255))
+            original.paste(rgba, mask=rgba.getchannel("A"))
+        else:
+            original = opened.convert("RGB")
     original_size = input_path.stat().st_size
-
-    # Convert to RGB (handle transparency)
-    if original.mode in ("RGBA", "P"):
-        background = Image.new("RGB", original.size, (255, 255, 255))
-        if original.mode == "P":
-            original = original.convert("RGBA")
-        if original.mode == "RGBA":
-            background.paste(
-                original,
-                mask=original.split()[3] if len(original.split()) == 4 else None,
-            )
-            original = background
-    elif original.mode != "RGB":
-        original = original.convert("RGB")
 
     # Resize to target dimensions
     resized = original.resize((TARGET_WIDTH, TARGET_HEIGHT), Image.Resampling.LANCZOS)
@@ -358,13 +351,13 @@ def process_flag_image(input_path: Path, output_path: Path) -> dict:
     final = Image.fromarray(output, mode="L").convert("1")
 
     # Save as BMP
-    atomic_save_image(output_path, final, format="BMP")
+    atomic_save_image(output_path, final, image_format="BMP")
     output_size = output_path.stat().st_size
 
     return {
         "input_size": original_size,
         "output_size": output_size,
-        "original_dimensions": Image.open(input_path).size,
+        "original_dimensions": original_dimensions,
         "final_dimensions": final.size,
         "color_mappings": color_mappings,
         "num_colors": len(colors),

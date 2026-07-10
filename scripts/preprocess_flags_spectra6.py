@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 from PIL import Image
 
@@ -21,6 +22,15 @@ FLAGS_OUTPUT_DIR = PROJECT_ROOT / "app" / "assets" / "flags_spectra6"
 PALETTE = Spectra6Colors.PALETTE
 
 
+class FlagStats(TypedDict):
+    """Sizes and dimensions reported for one processed flag."""
+
+    input_size: int
+    output_size: int
+    original_dimensions: tuple[int, int]
+    final_dimensions: tuple[int, int]
+
+
 def normalize_image(image: Image.Image) -> Image.Image:
     """Flatten transparent flag pixels onto the display's white background."""
     if image.mode in ("RGBA", "LA", "P") or "transparency" in image.info:
@@ -31,7 +41,8 @@ def normalize_image(image: Image.Image) -> Image.Image:
     return image.convert("RGB")
 
 
-def process_flag_image(input_path: Path, output_path: Path) -> dict[str, object]:
+def process_flag_image(input_path: Path, output_path: Path) -> FlagStats:
+    """Convert one source flag into a palette-constrained Spectra 6 BMP."""
     with Image.open(input_path) as input_image:
         original = normalize_image(input_image)
     original_size = input_path.stat().st_size
@@ -65,8 +76,8 @@ def main() -> None:
             stats = process_flag_image(flag_path, output_path)
             print(
                 f" {flag_path.name:12} -> {output_path.name:12} "
-                f"({int(stats['input_size']) / 1024:6.0f}KB -> "
-                f"{int(stats['output_size']) / 1024:5.0f}KB)"
+                f"({stats['input_size'] / 1024:6.0f}KB -> "
+                f"{stats['output_size'] / 1024:5.0f}KB)"
             )
         except Exception as exc:
             failures += 1

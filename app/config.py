@@ -233,9 +233,9 @@ class Config(BaseSettings):
         mode="before",
     )
     @classmethod
-    def validate_timeout(cls, value: object, info: ValidationInfo) -> int:
+    def validate_positive_int(cls, value: object, info: ValidationInfo) -> int:
         """
-        Validate and coerce a configured request timeout into a positive integer.
+        Validate and coerce a configured timeout or rate limit into a positive integer.
 
         If the validator is invoked without a field name, returns 10. If `value`
         can be converted to an integer > 0, that integer is returned; otherwise
@@ -246,15 +246,15 @@ class Config(BaseSettings):
             info: Validation metadata; if `info.field_name` is None, uses 10.
 
         Returns:
-            An integer timeout in seconds (positive integer or field default).
+            A positive integer or the configured field default.
         """
         if info.field_name is None:
             return 10
         default: int = cls.model_fields[info.field_name].default
         try:
-            timeout = int(value)  # type: ignore[call-overload]
-            if timeout > 0:
-                return timeout
+            parsed = int(value)  # type: ignore[call-overload]
+            if parsed > 0:
+                return parsed
         except (TypeError, ValueError):
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer")
@@ -262,6 +262,7 @@ class Config(BaseSettings):
     @field_validator("SENTRY_TRACES_SAMPLE_RATE", mode="before")
     @classmethod
     def validate_sample_rate(cls, value: object, info: ValidationInfo) -> float:
+        """Accept a Sentry sampling rate in the inclusive range from zero to one."""
         if info.field_name is None:
             return 0.1
         default: float = cls.model_fields[info.field_name].default
@@ -276,6 +277,7 @@ class Config(BaseSettings):
     @field_validator("DEFAULT_TIMEZONE", mode="before")
     @classmethod
     def validate_timezone(cls, value: object, info: ValidationInfo) -> str:
+        """Return a supported timezone name or the configured default."""
         if info.field_name is None:
             return "Europe/Prague"
         default: str = cls.model_fields[info.field_name].default
@@ -286,6 +288,7 @@ class Config(BaseSettings):
     @field_validator("DEFAULT_LANG", mode="before")
     @classmethod
     def validate_default_lang(cls, value: object, info: ValidationInfo) -> str:
+        """Return a supported interface language or the configured default."""
         if info.field_name is None:
             return "en"
         default: str = cls.model_fields[info.field_name].default
@@ -304,6 +307,7 @@ class Config(BaseSettings):
     )
     @classmethod
     def validate_url(cls, value: object, info: ValidationInfo) -> str:
+        """Normalize HTTP URLs and fall back to the field default when invalid."""
         if info.field_name is None:
             return "https://example.com"
         default: str = cls.model_fields[info.field_name].default
@@ -343,6 +347,7 @@ class Config(BaseSettings):
     @field_validator("S3_ENDPOINT_URL", mode="before")
     @classmethod
     def validate_s3_endpoint(cls, value: object, info: ValidationInfo) -> Optional[str]:
+        """Normalize an optional S3 endpoint and disable backups when it is invalid."""
         if info.field_name is None:
             return None
         if value is None or value == "":
@@ -383,12 +388,13 @@ class Config(BaseSettings):
     def validate_fixed_display_dimensions(cls, value: object, info: ValidationInfo) -> int:
         """Keep the hardware canvas fixed even when matching environment variables exist."""
         expected = 800 if info.field_name == "DISPLAY_WIDTH" else 480
-        try:
-            parsed = int(value)  # type: ignore[call-overload]
-        except (TypeError, ValueError) as exc:
-            raise ValueError(f"{info.field_name} must be {expected}") from exc
-        if parsed != expected:
-            raise ValueError(f"{info.field_name} must be {expected}")
+        if value != expected and value != str(expected):
+            logger.warning(
+                "Ignoring %s=%r; the hardware canvas is fixed at %s",
+                info.field_name,
+                value,
+                expected,
+            )
         return expected
 
 

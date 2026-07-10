@@ -155,6 +155,7 @@
   "standings_after_round": "Après la manche",
   "nav_changelog": "Modifications",
   "changelog_title": "Journal des modifications",
+  "changelog_not_found": "Journal des modifications introuvable.",
   "changelog_version": "Version",
   "changelog_last_updated": "Dernière mise à jour",
   "changelog_commit": "Dernier commit",

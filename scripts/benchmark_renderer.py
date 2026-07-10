@@ -495,7 +495,7 @@ def print_footer():
 
 def save_results_json(results: dict, memory: dict, cache_memory: dict, output_path: Path):
     """Save benchmark results to JSON file."""
-    output = {
+    output: dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "system": {
             "python_version": platform.python_version(),

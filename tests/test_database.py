@@ -723,6 +723,18 @@ class TestPerfMetricsAggregation:
 
     @staticmethod
     @pytest.mark.asyncio
+    async def test_empty_perf_aggregates_report_zero_percentile_samples(tmp_path):
+        db = Database(str(tmp_path / "empty-perf.db"))
+        try:
+            aggregate = await db.get_perf_stats(hours=24)
+
+            assert aggregate["sample_count"] == 0
+            assert aggregate["percentile_sample_count"] == 0
+        finally:
+            await db.close()
+
+    @staticmethod
+    @pytest.mark.asyncio
     async def test_perf_aggregates_preserve_zero_values(tmp_path):
         db = Database(str(tmp_path / "perf.db"))
         try:
@@ -741,6 +753,7 @@ class TestPerfMetricsAggregation:
 
             perfect_page = next(row for row in by_page if row["page"] == "/perfect")
             assert aggregate["lcp"]["avg"] == 0.0
+            assert aggregate["percentile_sample_count"] == 1
             assert aggregate["cls"]["avg"] == 0.0
             assert aggregate["fcp"]["avg"] == 0.0
             assert aggregate["ttfb"]["avg"] == 0.0

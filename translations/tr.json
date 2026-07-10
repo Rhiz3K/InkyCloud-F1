@@ -155,6 +155,7 @@
   "standings_after_round": "Tur sonrası",
   "nav_changelog": "Değişiklikler",
   "changelog_title": "Değişiklik günlüğü",
+  "changelog_not_found": "Değişiklik günlüğü bulunamadı.",
   "changelog_version": "Sürüm",
   "changelog_last_updated": "Son güncelleme",
   "changelog_commit": "Son commit",

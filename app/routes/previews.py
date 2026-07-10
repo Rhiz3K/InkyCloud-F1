@@ -80,13 +80,11 @@ async def get_preview_png(
         )
 
     if safe_screen == "teams":
+        enforce_rate_limit(
+            request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
+        )
         try:
-            enforce_rate_limit(
-                request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
-            )
             return await _render_teams_preview(safe_lang, full_size=False)
-        except HTTPException:
-            raise
         except Exception as exc:
             logger.warning("Falling back to dynamic teams homepage preview failed: %s", exc)
 
@@ -144,17 +142,15 @@ async def get_configure_preview_png(
         )
 
     if safe_screen == "teams":
+        enforce_rate_limit(
+            request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
+        )
         try:
-            enforce_rate_limit(
-                request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
-            )
             return await _render_teams_preview(
                 safe_lang,
                 safe_display,
                 full_size=True,
             )
-        except HTTPException:
-            raise
         except Exception as exc:
             logger.warning("Falling back to dynamic teams configure preview failed: %s", exc)
 

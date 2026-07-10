@@ -120,6 +120,7 @@ def scrape_circuit_data(url_slug: str, client: httpx.Client) -> dict:
 
 
 def _load_existing_circuits(output_path: Path) -> dict[str, dict]:
+    """Load the maintained circuit mapping or fail before an unsafe overwrite."""
     if not output_path.exists():
         return {}
     try:
@@ -133,7 +134,13 @@ def _load_existing_circuits(output_path: Path) -> dict[str, dict]:
 
 def _merge_circuit_entry(existing: dict, *, race_name: str, url_slug: str, scraped: dict) -> dict:
     """Merge scraped metadata without dropping maintained fields such as historical podiums."""
-    return {**existing, "race_name": race_name, "url_slug": url_slug, **scraped}
+    present_scraped_values = {key: value for key, value in scraped.items() if value is not None}
+    return {
+        **existing,
+        "race_name": race_name,
+        "url_slug": url_slug,
+        **present_scraped_values,
+    }
 
 
 def main() -> bool:

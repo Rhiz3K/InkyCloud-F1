@@ -1,5 +1,6 @@
 """Test teams service helpers and season data."""
 
+import asyncio
 from datetime import datetime, timezone
 
 import pytest
@@ -30,6 +31,17 @@ def test_load_2026_teams_data():
     assert [driver.driver_number for driver in red_bull.drivers] == [3, 6]
     assert [driver.name for driver in audi.drivers] == ["Gabriel Bortoleto", "Nico Hülkenberg"]
     assert [driver.name for driver in cadillac.drivers] == ["Sergio Pérez", "Valtteri Bottas"]
+
+
+def test_bundled_teams_loader_rejects_symlinked_files(tmp_path, monkeypatch):
+    seasons_dir = tmp_path / "seasons"
+    seasons_dir.mkdir()
+    outside_file = tmp_path / "2026_teams.json"
+    outside_file.write_text('{"year": 2026, "teams": []}', encoding="utf-8")
+    (seasons_dir / "2026_teams.json").symlink_to(outside_file)
+    monkeypatch.setattr(teams_service_module, "SEASONS_DIR", seasons_dir)
+
+    assert TeamsService()._load_from_json(2026) is None
 
 
 def test_apply_manual_2026_driver_number_overrides_uses_driver_id():
@@ -207,3 +219,35 @@ async def test_invalid_year_is_rejected_before_fetch_lock_creation():
 
     with pytest.raises(ValueError, match="Unsupported F1 season"):
         await service.get_teams_and_drivers(999999)
+
+
+@pytest.mark.asyncio
+async def test_waiting_fetch_rechecks_negative_cache_inside_lock(monkeypatch):
+    """Concurrent misses should produce one empty upstream fetch, not a serialized stampede."""
+    service = TeamsService()
+    service._cache.clear()
+    service._negative_cache.clear()
+    fetch_started = asyncio.Event()
+    release_fetch = asyncio.Event()
+    calls = 0
+
+    async def load_empty(year: int) -> TeamsData:
+        nonlocal calls
+        calls += 1
+        fetch_started.set()
+        await release_fetch.wait()
+        return TeamsData(season=year, teams=[], standings_complete=False)
+
+    monkeypatch.setattr(service, "_load_teams_and_drivers", load_empty)
+    first_task = asyncio.create_task(service.get_teams_and_drivers(2026))
+    await fetch_started.wait()
+    second_task = asyncio.create_task(service.get_teams_and_drivers(2026))
+    await asyncio.sleep(0)
+    release_fetch.set()
+
+    first, second = await asyncio.gather(first_task, second_task)
+
+    assert not first.teams
+    assert not second.teams
+    assert calls == 1
+    service._negative_cache.clear()

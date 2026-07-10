@@ -155,6 +155,7 @@
   "standings_after_round": "第几轮后",
   "nav_changelog": "更新日志",
   "changelog_title": "更新日志",
+  "changelog_not_found": "未找到更新日志。",
   "changelog_version": "版本",
   "changelog_last_updated": "最后更新",
   "changelog_commit": "最新提交",

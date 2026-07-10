@@ -725,7 +725,7 @@ async def _fetch_all_circuits_weather_unlocked() -> None:
     Fetch weather for all F1 circuits, cache in memory, and persist to DB.
 
     Iterates circuits from current season, fetches weather sequentially with
-    1s pause, stores in cache and SQLite. Retries failed circuits up to 10x.
+    1s pause, stores in cache and SQLite. Retries failed circuits up to 3x.
     Returns immediately if weather is disabled.
     """
     if not config.WEATHER_ENABLED:
@@ -817,7 +817,7 @@ async def _fetch_all_circuits_weather_unlocked() -> None:
                 # 1 second delay between requests
                 await asyncio.sleep(1)
 
-            # Retry rounds (attempts 2-10)
+            # Retry rounds (attempts 2-3)
             for round_num in range(2, max_attempts + 1):
                 if not failed:
                     break

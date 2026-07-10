@@ -147,6 +147,22 @@ async def test_atomic_write_bytes_uses_unique_temp_path_per_call(tmp_path, monke
     assert len(set(replace_sources)) == 2
 
 
+def test_directory_fsync_failure_is_tolerated(monkeypatch, tmp_path):
+    """Filesystems without directory fsync support must still close the descriptor."""
+    from app.utils import atomic_io
+
+    closed: list[int] = []
+    monkeypatch.setattr(atomic_io.os, "open", lambda *_args: 17)
+    monkeypatch.setattr(
+        atomic_io.os, "fsync", lambda _descriptor: (_ for _ in ()).throw(OSError("unsupported"))
+    )
+    monkeypatch.setattr(atomic_io.os, "close", closed.append)
+
+    atomic_io._fsync_directory(tmp_path)
+
+    assert closed == [17]
+
+
 @pytest.mark.asyncio
 async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeypatch):
     calls = []

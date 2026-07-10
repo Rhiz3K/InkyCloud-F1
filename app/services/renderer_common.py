@@ -29,6 +29,17 @@ _DECODED_IMAGE_CACHE_MAX_BYTES = 64 * 1024 * 1024
 _DECODED_IMAGE_CACHE_LOCK = threading.Lock()
 
 
+def _countdown_plural_category(value: int, lang_code: str) -> str:
+    """Return the translation plural category used by countdown labels."""
+    if value == 1 or (lang_code in {"fr", "pt-BR"} and value == 0):
+        return "one"
+    if lang_code in {"cs", "sk"} and 2 <= value <= 4:
+        return "few"
+    if lang_code == "pl" and value % 10 in {2, 3, 4} and value % 100 not in {12, 13, 14}:
+        return "few"
+    return "many"
+
+
 def _decoded_image_size(image: Image.Image) -> int:
     return image.width * image.height * len(image.getbands())
 
@@ -1261,6 +1272,101 @@ def load_track_image_asset(
     return None
 
 
+def _find_race_datetime(schedule: Sequence, datetime_cls):
+    """Return the race session datetime from a normalized weekend schedule."""
+    for event in schedule:
+        if event.get("name", "").lower() != "race":
+            continue
+        value = event.get("datetime")
+        if isinstance(value, str):
+            return datetime_cls.fromisoformat(value)
+        if isinstance(value, datetime):
+            return value
+        return None
+    return None
+
+
+def _resolve_countdown_status(
+    *, is_cancelled: bool, race_dt, datetime_cls, translator: Mapping[str, str]
+) -> tuple[str | None, timedelta | None]:
+    """Resolve a cancelled/live/completed label or a future-race delta."""
+    if is_cancelled:
+        return translator.get("cancelled", "CANCELLED"), None
+    if race_dt is None:
+        return None, None
+
+    now = datetime_cls.now(race_dt.tzinfo) if race_dt.tzinfo else datetime_cls.now()
+    delta = race_dt - now
+    if delta.total_seconds() > 0:
+        return None, delta
+
+    status_key = "race_ongoing" if now < race_dt + timedelta(hours=3) else "race_completed"
+    fallback = "IN PROGRESS" if status_key == "race_ongoing" else "COMPLETED"
+    return translator.get(status_key, fallback), delta
+
+
+def _draw_countdown_weather(
+    draw: ImageDraw.ImageDraw,
+    weather_data,
+    *,
+    x_right: int,
+    text_y: float,
+    padding_x: int,
+    rain_icon: str,
+    weather_icon_font,
+    text_font,
+    text_fill,
+) -> None:
+    """Right-align the weather summary inside a countdown/status box."""
+    temperature = f"{weather_data.temp_display} "
+    precipitation = weather_data.precip_display
+    weather_icon_bbox = draw.textbbox((0, 0), weather_data.icon, font=weather_icon_font)
+    temperature_bbox = draw.textbbox((0, 0), temperature, font=text_font)
+    rain_icon_bbox = draw.textbbox((0, 0), rain_icon, font=weather_icon_font)
+    precipitation_bbox = draw.textbbox((0, 0), precipitation, font=text_font)
+    weather_icon_width = weather_icon_bbox[2] - weather_icon_bbox[0]
+    temperature_width = temperature_bbox[2] - temperature_bbox[0]
+    rain_icon_width = rain_icon_bbox[2] - rain_icon_bbox[0]
+    precipitation_width = precipitation_bbox[2] - precipitation_bbox[0]
+    total_width = (
+        weather_icon_width + 4 + temperature_width + rain_icon_width + 3 + precipitation_width
+    )
+    current_x = x_right - padding_x - total_width
+    draw.text((current_x, text_y), weather_data.icon, fill=text_fill, font=weather_icon_font)
+    current_x += weather_icon_width + 4
+    draw.text((current_x, text_y), temperature, fill=text_fill, font=text_font)
+    current_x += temperature_width
+    draw.text((current_x, text_y), rain_icon, fill=text_fill, font=weather_icon_font)
+    current_x += rain_icon_width + 3
+    draw.text((current_x, text_y), precipitation, fill=text_fill, font=text_font)
+
+
+def _countdown_unit_labels(
+    days: int,
+    hours: int,
+    *,
+    translator: Mapping[str, str],
+    lang_code: str,
+    weather_type: str,
+) -> tuple[str, str]:
+    """Return short weather-mode labels or locale-aware plural labels."""
+    if weather_type in {"current", "race_day", "race"}:
+        return (
+            translator.get("countdown_days_short", "d"),
+            translator.get("countdown_hours_short", "h"),
+        )
+    return (
+        translator.get(
+            f"countdown_days_{_countdown_plural_category(days, lang_code)}",
+            translator.get("countdown_days", "days"),
+        ),
+        translator.get(
+            f"countdown_hours_{_countdown_plural_category(hours, lang_code)}",
+            translator.get("countdown_hours", "hours"),
+        ),
+    )
+
+
 def draw_countdown_box(
     draw: ImageDraw.ImageDraw,
     race_data: dict,
@@ -1286,16 +1392,7 @@ def draw_countdown_box(
 ) -> int:
     """Draw the countdown/status box and return its bottom y-coordinate."""
     is_cancelled = race_data.get("is_cancelled", False)
-    schedule = race_data.get("schedule", [])
-    race_dt = None
-    for event in schedule:
-        if event.get("name", "").lower() == "race":
-            dt = event.get("datetime")
-            if isinstance(dt, str):
-                race_dt = datetime_cls.fromisoformat(dt)
-            elif isinstance(dt, datetime):
-                race_dt = dt
-            break
+    race_dt = _find_race_datetime(race_data.get("schedule", []), datetime_cls)
 
     if not is_cancelled and not race_dt:
         return schedule_bottom
@@ -1319,51 +1416,12 @@ def draw_countdown_box(
 
     text_y = y_top + padding_y - ref_bbox[1]
 
-    status_text = None
-    if is_cancelled:
-        status_text = translator.get("cancelled", "CANCELLED")
-    else:
-        if race_dt is None:
-            return schedule_bottom
-
-        active_race_dt = race_dt
-        now = (
-            datetime_cls.now(active_race_dt.tzinfo) if active_race_dt.tzinfo else datetime_cls.now()
-        )
-        delta = active_race_dt - now
-
-        if delta.total_seconds() <= 0:
-            status_key = (
-                "race_ongoing" if now < active_race_dt + timedelta(hours=3) else "race_completed"
-            )
-            status_text = translator.get(
-                status_key,
-                "IN PROGRESS" if status_key == "race_ongoing" else "COMPLETED",
-            )
-
-    def draw_weather_block() -> None:
-        temp_str = f"{weather_data.temp_display} "
-        precip_str = weather_data.precip_display
-
-        weather_icon_bbox = draw.textbbox((0, 0), weather_data.icon, font=weather_icon_font)
-        weather_icon_w = weather_icon_bbox[2] - weather_icon_bbox[0]
-        temp_bbox = draw.textbbox((0, 0), temp_str, font=schedule_row_bold_font)
-        temp_w = temp_bbox[2] - temp_bbox[0]
-        rain_icon_bbox = draw.textbbox((0, 0), rain_icon, font=weather_icon_font)
-        rain_icon_w = rain_icon_bbox[2] - rain_icon_bbox[0]
-        precip_bbox = draw.textbbox((0, 0), precip_str, font=schedule_row_bold_font)
-        precip_w = precip_bbox[2] - precip_bbox[0]
-
-        total_w = weather_icon_w + 4 + temp_w + rain_icon_w + 3 + precip_w
-        cur_x = x_right - padding_x - total_w
-
-        draw.text((cur_x, text_y), weather_data.icon, fill=text_fill, font=weather_icon_font)
-        cur_x += weather_icon_w + 4
-        draw.text((cur_x, text_y), temp_str, fill=text_fill, font=schedule_row_bold_font)
-        cur_x += temp_w
-        draw.text((cur_x, text_y), rain_icon, fill=text_fill, font=weather_icon_font)
-        cur_x += rain_icon_w + 3
-        draw.text((cur_x, text_y), precip_str, fill=text_fill, font=schedule_row_bold_font)
+    status_text, delta = _resolve_countdown_status(
+        is_cancelled=is_cancelled,
+        race_dt=race_dt,
+        datetime_cls=datetime_cls,
+        translator=translator,
+    )
 
     if status_text:
         show_weather = weather_data is not None and not is_cancelled
@@ -1375,44 +1433,33 @@ def draw_countdown_box(
         draw.text((text_x, text_y), status_text, fill=text_fill, font=schedule_row_bold_font)
         if not show_weather:
             return int(y_bottom)
-        draw_weather_block()
+        _draw_countdown_weather(
+            draw,
+            weather_data,
+            x_right=x_right,
+            text_y=text_y,
+            padding_x=padding_x,
+            rain_icon=rain_icon,
+            weather_icon_font=weather_icon_font,
+            text_font=schedule_row_bold_font,
+            text_fill=text_fill,
+        )
         return int(y_bottom)
 
-    if race_dt is None:
-        return schedule_bottom
-
-    active_race_dt = race_dt
-    now = datetime_cls.now(active_race_dt.tzinfo) if active_race_dt.tzinfo else datetime_cls.now()
-    delta = active_race_dt - now
-    if delta.total_seconds() <= 0:
+    if delta is None or delta.total_seconds() <= 0:
         return schedule_bottom
 
     days = delta.days
     hours = delta.seconds // 3600
 
     flag_icon = "🏁"
-    if weather_type in ("current", "race_day", "race"):
-        days_label = translator.get("countdown_days_short", "d")
-        hours_label = translator.get("countdown_hours_short", "h")
-    else:
-
-        def plural_category(value: int) -> str:
-            if value == 1:
-                return "one"
-            if lang_code in {"cs", "sk"} and 2 <= value <= 4:
-                return "few"
-            if lang_code == "pl" and value % 10 in {2, 3, 4} and value % 100 not in {12, 13, 14}:
-                return "few"
-            return "many"
-
-        days_label = translator.get(
-            f"countdown_days_{plural_category(days)}",
-            translator.get("countdown_days", "days"),
-        )
-        hours_label = translator.get(
-            f"countdown_hours_{plural_category(hours)}",
-            translator.get("countdown_hours", "hours"),
-        )
+    days_label, hours_label = _countdown_unit_labels(
+        days,
+        hours,
+        translator=translator,
+        lang_code=lang_code,
+        weather_type=weather_type,
+    )
     countdown_str = f"{days} {days_label} {hours} {hours_label}"
 
     flag_bbox = draw.textbbox((0, 0), flag_icon, font=icon_small_font)
@@ -1432,7 +1479,17 @@ def draw_countdown_box(
     draw.text((cur_x, text_y), countdown_str, fill=text_fill, font=schedule_row_bold_font)
 
     if weather_data:
-        draw_weather_block()
+        _draw_countdown_weather(
+            draw,
+            weather_data,
+            x_right=x_right,
+            text_y=text_y,
+            padding_x=padding_x,
+            rain_icon=rain_icon,
+            weather_icon_font=weather_icon_font,
+            text_font=schedule_row_bold_font,
+            text_fill=text_fill,
+        )
 
     return int(y_bottom)
 

@@ -85,7 +85,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
     final = binary.convert("1")
 
     # Save as BMP
-    atomic_save_image(output_path, final, format="BMP")
+    atomic_save_image(output_path, final, image_format="BMP")
     output_size = output_path.stat().st_size
 
     return {
@@ -111,11 +111,11 @@ def main(circuits: list[str] | None = None) -> None:
         wanted = {circuit.strip().lower() for circuit in circuits if circuit.strip()}
         track_stems = [stem for stem in track_stems if stem in wanted]
 
-    track_files = [
-        resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bw")
-        for track_stem in track_stems
-    ]
-    track_files = [track_path for track_path in track_files if track_path is not None]
+    track_files: list[Path] = []
+    for track_stem in track_stems:
+        track_path = resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bw")
+        if track_path is not None:
+            track_files.append(track_path)
 
     if not track_files:
         print(f"No track images found in {TRACKS_DIR}")
@@ -149,7 +149,8 @@ def main(circuits: list[str] | None = None) -> None:
 
     print("-" * 60)
     print(f" Total: {total_input_size / 1024 / 1024:.1f}MB -> {total_output_size / 1024:.0f}KB")
-    print(f" Compression: {total_input_size / total_output_size:.1f}x")
+    compression = f"{total_input_size / total_output_size:.1f}x" if total_output_size else "n/a"
+    print(f" Compression: {compression}")
     print("=" * 60)
     print(f"\nProcessed images saved to: {OUTPUT_DIR}")
     if failures:

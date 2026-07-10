@@ -17,6 +17,7 @@ jobs:
           # A PAT/App token lets the resulting PR run CI without manual approval. The workflow still
           # works with GITHUB_TOKEN, but GitHub may require a maintainer to approve that CI run.
           token: ${{ secrets.DATA_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
@@ -32,7 +33,7 @@ jobs:
       - name: Check for changes
         id: check_changes
         run: |
-          git diff --quiet app/assets/ || echo "changes=true" >> $GITHUB_OUTPUT
+          git diff --quiet app/assets/ || echo "changes=true" >> "$GITHUB_OUTPUT"
 
       - name: Create Pull Request
         if: steps.check_changes.outputs.changes == 'true'
@@ -45,5 +46,6 @@ jobs:
           git checkout -b "$BRANCH"
           git add app/assets/
           git commit -m "chore: update F1 data"
+          gh auth setup-git
           git push -u origin "$BRANCH"
           gh pr create --title "chore: update F1 season data" --body "Manual F1 season calendar update from Jolpica API. Historical race results are refreshed daily by the running app." --base main --head "$BRANCH"

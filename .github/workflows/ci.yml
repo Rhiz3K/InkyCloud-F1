@@ -24,6 +24,7 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Verify CHANGELOG update for main PRs
       if: >-
@@ -31,8 +32,10 @@ jobs:
         github.base_ref == 'main' &&
         github.event.pull_request.user.login != 'dependabot[bot]' &&
         github.event.pull_request.user.login != 'github-actions[bot]'
+      env:
+        BASE_REF: ${{ github.base_ref }}
       run: |
-        if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx "CHANGELOG.md"; then
+        if ! git diff --name-only "origin/${BASE_REF}...HEAD" | grep -qx "CHANGELOG.md"; then
           echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
           exit 1
         fi
@@ -89,14 +92,17 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha }}
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Verify CHANGELOG update for main PRs
       if: >-
         github.base_ref == 'main' &&
         github.event.pull_request.user.login != 'dependabot[bot]' &&
         github.event.pull_request.user.login != 'github-actions[bot]'
+      env:
+        BASE_REF: ${{ github.base_ref }}
       run: |
-        if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx "CHANGELOG.md"; then
+        if ! git diff --name-only "origin/${BASE_REF}...HEAD" | grep -qx "CHANGELOG.md"; then
           echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
           exit 1
         fi

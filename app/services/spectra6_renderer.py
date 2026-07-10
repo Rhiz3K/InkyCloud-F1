@@ -721,19 +721,18 @@ class Spectra6Renderer(RendererBase):
     def _get_cached_driver_photos(cls) -> dict[str, Image.Image]:
         """Return the process-wide cache of color driver portraits."""
         cache_key = str(IMAGES_DIR)
-        cache_owner = Spectra6Renderer
         if (
-            cache_owner._cached_driver_photos is None
-            or cache_owner._cached_driver_photos_key != cache_key
+            Spectra6Renderer._cached_driver_photos is None
+            or Spectra6Renderer._cached_driver_photos_key != cache_key
         ):
             with _ASSET_CACHE_LOCK:
                 if (
-                    cache_owner._cached_driver_photos is None
-                    or cache_owner._cached_driver_photos_key != cache_key
+                    Spectra6Renderer._cached_driver_photos is None
+                    or Spectra6Renderer._cached_driver_photos_key != cache_key
                 ):
-                    cache_owner._cached_driver_photos = cls._load_driver_photos()
-                    cache_owner._cached_driver_photos_key = cache_key
-        return cache_owner._cached_driver_photos
+                    Spectra6Renderer._cached_driver_photos = cls._load_driver_photos()
+                    Spectra6Renderer._cached_driver_photos_key = cache_key
+        return Spectra6Renderer._cached_driver_photos
 
     @classmethod
     def _load_team_logos(cls) -> dict[str, Image.Image]:

@@ -79,9 +79,11 @@ class Renderer(RendererBase):
         self._initialize_renderer(translator, lang_code)
 
     def _new_canvas(self) -> Image.Image:
-        return Image.new("1", (self.width, self.height), 1)
+        """Create the hardware-contract 800x480 monochrome canvas."""
+        return Image.new("1", (800, 480), 1)
 
     def _encode_image(self, image: Image.Image) -> bytes:
+        """Encode the monochrome canvas as a BMP payload."""
         return self._to_bmp(image)
 
     def _draw_teams_header(

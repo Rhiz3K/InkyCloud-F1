@@ -90,11 +90,9 @@ def map_to_bwr_palette(
         lum=luminance,
     )
 
-    # The explicit preserve thresholds collapse to the same neutral split once color masks
-    # are applied: values below bw_threshold are black, all remaining values are white.
-    del black_preserve_threshold
+    neutral_threshold = max(bw_threshold, black_preserve_threshold)
     indices = luminance.point(
-        [black_index if value < bw_threshold else white_index for value in range(256)]
+        [black_index if value < neutral_threshold else white_index for value in range(256)]
     )
     indices.paste(red_index, mask=red_mask)
     return _palette_image_from_indices(indices, palette)
@@ -158,9 +156,9 @@ def map_to_bwry_palette(
         lum=luminance,
     )
 
-    del black_preserve_threshold
+    neutral_threshold = max(bw_threshold, black_preserve_threshold)
     indices = luminance.point(
-        [black_index if value < bw_threshold else white_index for value in range(256)]
+        [black_index if value < neutral_threshold else white_index for value in range(256)]
     )
     indices.paste(red_index, mask=red_mask)
     indices.paste(yellow_index, mask=yellow_mask)

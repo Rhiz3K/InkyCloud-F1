@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
 
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageFont import FreeTypeFont
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 Font = FreeTypeFont | ImageFont.ImageFont
 
 
-class RendererBase:
+class RendererBase(ABC):
     """Own renderer state and the display-independent render sequence."""
 
     width: int
@@ -42,6 +43,7 @@ class RendererBase:
         *,
         include_bold_circuit_location: bool = False,
     ) -> None:
+        """Initialize shared dimensions, locale state, fonts, and layout constants."""
         self.width = config.DISPLAY_WIDTH
         self.height = config.DISPLAY_HEIGHT
         self.translator = translator
@@ -146,7 +148,7 @@ class RendererBase:
             canvas_width=self.width,
             canvas_height=self.height,
             header_height=self.layout["header_height"],
-            draw_team_row_fn=getattr(self, "_draw_team_row"),
+            draw_team_row_fn=self._draw_team_row,
         )
 
     def _get_racing_font(self, size: int) -> Font:
@@ -158,9 +160,9 @@ class RendererBase:
     def _ensure_teams_assets(self) -> None:
         """Lazy-load cached driver and team assets used by the teams screen."""
         if self._driver_photos is None:
-            self._driver_photos = getattr(self, "_get_cached_driver_photos")()
+            self._driver_photos = self._get_cached_driver_photos()
         if self._team_logos is None:
-            self._team_logos = getattr(self, "_get_cached_team_logos")()
+            self._team_logos = self._get_cached_team_logos()
 
     def ensure_teams_assets(self) -> None:
         """Public warmup hook for teams assets used outside the renderer."""
@@ -188,20 +190,25 @@ class RendererBase:
         """Load the stylized racing number font used for driver numbers."""
         return load_racing_font(size, logger, self._load_font)
 
+    @abstractmethod
     def _new_canvas(self) -> Image.Image:
-        raise NotImplementedError
+        """Create a blank canvas in the variant's native image mode."""
 
+    @abstractmethod
     def _encode_image(self, image: Image.Image) -> bytes:
-        raise NotImplementedError
+        """Encode a rendered canvas as the variant's BMP payload."""
 
+    @abstractmethod
     def _draw_header(self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict) -> None:
-        raise NotImplementedError
+        """Draw the calendar header."""
 
+    @abstractmethod
     def _draw_track_section(
         self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict
     ) -> None:
-        raise NotImplementedError
+        """Draw the circuit identity and track image section."""
 
+    @abstractmethod
     def _draw_schedule_section(
         self,
         draw: ImageDraw.ImageDraw,
@@ -209,13 +216,15 @@ class RendererBase:
         weather_data: WeatherData | None = None,
         weather_type: str = "",
     ) -> int:
-        raise NotImplementedError
+        """Draw the race-weekend schedule and return its lower boundary."""
 
+    @abstractmethod
     def _draw_circuit_stats(
         self, draw: ImageDraw.ImageDraw, race_data: dict, schedule_bottom: int
     ) -> None:
-        raise NotImplementedError
+        """Draw circuit statistics below the schedule."""
 
+    @abstractmethod
     def _draw_results_section(
         self,
         draw: ImageDraw.ImageDraw,
@@ -223,9 +232,33 @@ class RendererBase:
         race_data: dict,
         historical_data: HistoricalData | None,
     ) -> None:
-        raise NotImplementedError
+        """Draw historical qualifying and race results."""
 
+    @abstractmethod
     def _draw_teams_header(
         self, draw: ImageDraw.ImageDraw, image: Image.Image, season: int
     ) -> None:
-        raise NotImplementedError
+        """Draw the teams dashboard header."""
+
+    @abstractmethod
+    def _draw_team_row(
+        self,
+        image: Image.Image,
+        draw: ImageDraw.ImageDraw,
+        x_start: int,
+        y: int,
+        x_end: int,
+        team,
+        row_height: int,
+    ) -> None:
+        """Draw one team entry in the dashboard."""
+
+    @classmethod
+    @abstractmethod
+    def _get_cached_driver_photos(cls) -> dict[str, Image.Image]:
+        """Return prepared driver images shared by renderer instances."""
+
+    @classmethod
+    @abstractmethod
+    def _get_cached_team_logos(cls) -> dict[str, Image.Image]:
+        """Return prepared team logos shared by renderer instances."""

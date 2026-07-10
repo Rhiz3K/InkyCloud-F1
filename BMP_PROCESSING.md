@@ -379,7 +379,7 @@ Current state:
 - `app/assets/flags_spectra6/*.bmp` contains the preprocessed assets
 - regenerate them with `python scripts/preprocess_flags_spectra6.py`
 
-So Spectra 6 flag assets are present, but their regeneration pipeline is not yet documented in a dedicated script.
+The dedicated script above is the supported regeneration pipeline for these assets.
 
 ### 8.4 `bwry` flags
 

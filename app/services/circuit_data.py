@@ -15,11 +15,9 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=4)
-def _load_circuits_data_file(path_value: str, mtime_ns: int, size: int, inode: int) -> dict:
-    """Load one immutable file version identified by stable filesystem metadata."""
-    del mtime_ns, size, inode
-    with open(path_value, encoding="utf-8") as handle:
-        data = json.load(handle)
+def _parse_circuits_data(payload: str) -> dict:
+    """Parse and cache an immutable circuit-data snapshot by its contents."""
+    data = json.loads(payload)
     return data if isinstance(data, dict) else {}
 
 
@@ -38,8 +36,7 @@ def load_circuits_data() -> dict:
     """Read the current runtime-or-bundled circuit data without stale process state."""
     path = get_circuits_data_path()
     try:
-        stat = path.stat()
-        return _load_circuits_data_file(str(path), stat.st_mtime_ns, stat.st_size, stat.st_ino)
+        return _parse_circuits_data(path.read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError) as exc:
         logger.warning("Failed to load circuit data from %s: %s", path, exc)
         return {}

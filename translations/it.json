@@ -155,6 +155,7 @@
   "standings_after_round": "Dopo il round",
   "nav_changelog": "Modifiche",
   "changelog_title": "Registro modifiche",
+  "changelog_not_found": "Registro delle modifiche non trovato.",
   "changelog_version": "Versione",
   "changelog_last_updated": "Ultimo aggiornamento",
   "changelog_commit": "Ultimo commit",

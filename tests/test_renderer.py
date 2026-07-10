@@ -248,6 +248,8 @@ def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
         ("de", timedelta(days=1, hours=1, minutes=5), "1 Tag 1 Stunde"),
         ("cs", timedelta(days=3, hours=3, minutes=5), "3 dny 3 hodiny"),
         ("pl", timedelta(days=22, hours=2, minutes=5), "22 dni 2 godziny"),
+        ("fr", timedelta(hours=1, minutes=5), "0 jour 1 heure"),
+        ("pt-BR", timedelta(hours=1, minutes=5), "0 dia 1 hora"),
     ],
 )
 def test_countdown_uses_locale_plural_forms(monkeypatch, lang, delta, expected):
@@ -271,6 +273,15 @@ def test_countdown_uses_locale_plural_forms(monkeypatch, lang, delta, expected):
     )
 
     assert expected in captured_text
+
+
+def test_monochrome_canvas_ignores_mutated_instance_dimensions():
+    """The display contract stays 800x480 even if instance state is corrupted."""
+    renderer = Renderer(get_translator("en"), "en")
+    renderer.width = 1
+    renderer.height = 1
+
+    assert renderer._new_canvas().size == (800, 480)
 
 
 @pytest.mark.parametrize("lang", ["cs", "sk", "pl", "en", "de", "ja", "zh-CN", "pt-BR"])

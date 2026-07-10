@@ -1,13 +1,14 @@
 import os
 import sys
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 sys.path.append(os.getcwd())
 from app.services.renderer import Renderer
 
 
-def get_visual_top(font, text):
+def get_visual_top(font: ImageFont.FreeTypeFont | ImageFont.ImageFont, text: str) -> int:
+    """Return the first row containing a rendered black text pixel."""
     # Create a reasonably large image
     img = Image.new("1", (200, 100), 1)  # White bg
     draw = ImageDraw.Draw(img)
@@ -18,6 +19,8 @@ def get_visual_top(font, text):
     # Find first row with a black pixel (0)
     width, height = img.size
     pixels = img.load()
+    if pixels is None:
+        raise RuntimeError("Failed to access rendered alignment pixels")
 
     for y in range(height):
         for x in range(width):
@@ -26,7 +29,8 @@ def get_visual_top(font, text):
     return 0
 
 
-def measure_alignment():
+def measure_alignment() -> None:
+    """Print the visual baseline difference between year and header fonts."""
     # Helper to load fonts via Renderer (mocks not needed for this)
     renderer = Renderer({})
 

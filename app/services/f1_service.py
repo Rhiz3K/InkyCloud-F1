@@ -20,7 +20,7 @@ from app.models import (
     Race,
     RaceResultEntry,
 )
-from app.services.circuit_data import get_circuits_data_path
+from app.services.circuit_data import get_circuits_data_path, load_circuits_data
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.http_client import get_shared_http_client
 from app.utils.http import fetch_with_retry
@@ -41,11 +41,9 @@ NEXT_RACE_GRACE = timedelta(hours=4)
 
 
 @lru_cache(maxsize=32)
-def _load_static_season_file(path: str, mtime_ns: int) -> tuple[Race, ...]:
-    """Load and validate a season file once per path/version."""
-    del mtime_ns  # Included in the cache key to invalidate atomically replaced files.
-    with open(path, encoding="utf-8") as season_handle:
-        data = json.load(season_handle)
+def _parse_static_season(payload: str) -> tuple[Race, ...]:
+    """Parse and validate a season snapshot cached by its contents."""
+    data = json.loads(payload)
 
     races: list[Race] = []
     for race_data in data.get("races", []):
@@ -56,12 +54,19 @@ def _load_static_season_file(path: str, mtime_ns: int) -> tuple[Race, ...]:
     return tuple(races)
 
 
-@lru_cache(maxsize=8)
-def _load_circuits_file(path: str, mtime_ns: int) -> dict:
-    """Cache the circuit JSON until an atomic replacement changes its mtime."""
-    del mtime_ns
-    with open(path, encoding="utf-8") as handle:
-        return json.load(handle)
+def _find_static_season_path(year: int) -> Path | None:
+    """Find an allowlisted season file without deriving a filesystem path from input."""
+    expected_name = f"{year}.json"
+    try:
+        return next(
+            candidate
+            for candidate in SEASONS_DIR.iterdir()
+            if not candidate.is_symlink()
+            and candidate.is_file()
+            and candidate.name == expected_name
+        )
+    except (OSError, StopIteration):
+        return None
 
 
 class F1Service:
@@ -414,14 +419,11 @@ class F1Service:
             return []
 
         try:
-            seasons_dir = SEASONS_DIR.resolve()
-            resolved_path = (seasons_dir / f"{year}.json").resolve()
-            if not resolved_path.is_relative_to(seasons_dir) or not resolved_path.is_file():
+            season_path = _find_static_season_path(year)
+            if season_path is None:
                 logger.warning("Static season file not found for year: %s", year)
                 return []
-            races = list(
-                _load_static_season_file(str(resolved_path), resolved_path.stat().st_mtime_ns)
-            )
+            races = list(_parse_static_season(season_path.read_text(encoding="utf-8")))
             logger.info("Loaded %s races from static file for %s", len(races), year)
             return races
 
@@ -536,10 +538,7 @@ class F1Service:
         mapped_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
 
         try:
-            resolved_path = get_circuits_data_path().resolve()
-            circuits_data = _load_circuits_file(
-                str(resolved_path), resolved_path.stat().st_mtime_ns
-            )
+            circuits_data = load_circuits_data()
 
             circuit = circuits_data.get(mapped_id, {})
             historical = circuit.get("historical")

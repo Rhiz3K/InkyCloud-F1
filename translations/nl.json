@@ -155,6 +155,7 @@
   "standings_after_round": "Na ronde",
   "nav_changelog": "Wijzigingen",
   "changelog_title": "Wijzigingslog",
+  "changelog_not_found": "Wijzigingslog niet gevonden.",
   "changelog_version": "Versie",
   "changelog_last_updated": "Laatst bijgewerkt",
   "changelog_commit": "Laatste commit",

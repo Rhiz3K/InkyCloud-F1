@@ -13,13 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies in a source-independent layer so code and asset changes reuse it.
-COPY pyproject.toml setup.py MANIFEST.in README.md ./
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    python -c 'import tomllib; print("\n".join(tomllib.load(open("pyproject.toml", "rb"))["project"]["dependencies"]))' > /tmp/requirements.txt && \
-    pip install --no-cache-dir --prefix=/install --no-warn-script-location -r /tmp/requirements.txt
+# Install exact locked dependencies in a source-independent layer.
+COPY requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes --prefix=/install \
+    --no-warn-script-location -r requirements.lock
 
 # Build and install the application without duplicating dependency resolution.
+COPY pyproject.toml setup.py MANIFEST.in README.md ./
 COPY app/ ./app/
 COPY translations/ ./translations/
 COPY CHANGELOG.md LICENSE ./

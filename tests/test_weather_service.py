@@ -601,16 +601,19 @@ class TestCircuitWeatherCache:
     @staticmethod
     def test_load_circuit_weather_to_cache():
         """Test bulk loading weather data from dict."""
+        fetched_at = datetime.now(timezone.utc).isoformat()
         weather_dict = {
             "albert_park": {
                 "temperature_c": 22.5,
                 "weather_code": 1,
                 "precipitation_probability": 15,
+                "fetched_at": fetched_at,
             },
             "monaco": {
                 "temperature_c": 28.0,
                 "weather_code": 0,
                 "precipitation_probability": 5,
+                "fetched_at": fetched_at,
             },
         }
 
@@ -626,38 +629,41 @@ class TestCircuitWeatherCache:
         assert monaco.temperature_c == 28.0
 
     @staticmethod
-    def test_load_circuit_weather_with_defaults():
-        """Test bulk loading with missing fields uses defaults."""
+    def test_load_circuit_weather_requires_temperature_and_timestamp():
+        """Persisted entries missing provenance fields must not manufacture live weather."""
         weather_dict = {
-            "silverstone": {},  # All fields missing
-            "spa": {"temperature_c": 18.0},  # Only temp provided
+            "silverstone": {},
+            "spa": {"temperature_c": 18.0},
         }
 
         count = load_circuit_weather_to_cache(weather_dict)
-        assert count == 2
-
-        silverstone = get_cached_circuit_weather("silverstone")
-        assert silverstone is not None
-        assert silverstone.temperature_c == 20.0  # Default
-        assert silverstone.weather_code == 0  # Default
-        assert silverstone.precipitation_probability == 0  # Default
-
-        spa = get_cached_circuit_weather("spa")
-        assert spa is not None
-        assert spa.temperature_c == 18.0
-        assert spa.weather_code == 0  # Default
+        assert count == 0
+        assert get_cached_circuit_weather("silverstone") is None
+        assert get_cached_circuit_weather("spa") is None
 
     @staticmethod
     def test_load_circuit_weather_skips_invalid():
         """Test that invalid data is skipped gracefully."""
+        fetched_at = datetime.now(timezone.utc).isoformat()
         weather_dict = {
-            "valid": {"temperature_c": 25.0, "weather_code": 0, "precipitation_probability": 10},
-            "invalid": {"temperature_c": "not_a_number"},  # Invalid type
+            "valid": {
+                "temperature_c": 25.0,
+                "weather_code": 0,
+                "precipitation_probability": 10,
+                "fetched_at": fetched_at,
+            },
+            "invalid": {
+                "temperature_c": "not_a_number",
+                "fetched_at": fetched_at,
+            },
+            "invalid_timestamp": {
+                "temperature_c": 18.0,
+                "fetched_at": "not-a-timestamp",
+            },
         }
 
         count = load_circuit_weather_to_cache(weather_dict)
-        # Should load valid entry, skip invalid
-        assert count >= 1
+        assert count == 1
 
         valid = get_cached_circuit_weather("valid")
         assert valid is not None

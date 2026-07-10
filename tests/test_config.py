@@ -63,12 +63,18 @@ def test_shipped_example_env_files_boot(env_file, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("field_name", "value"),
-    [("DISPLAY_WIDTH", "801"), ("DISPLAY_HEIGHT", "481")],
+    ("field_name", "value", "expected"),
+    [
+        ("DISPLAY_WIDTH", "801", 800),
+        ("DISPLAY_HEIGHT", "481", 480),
+        ("DISPLAY_WIDTH", "not-a-number", 800),
+        ("DISPLAY_HEIGHT", "not-a-number", 480),
+    ],
 )
-def test_config_rejects_display_dimension_overrides(field_name, value):
-    with pytest.raises(ValidationError):
-        config_module.Config(_env_file=None, **{field_name: value})
+def test_config_ignores_display_dimension_overrides(field_name, value, expected):
+    config = config_module.Config(_env_file=None, **{field_name: value})
+
+    assert getattr(config, field_name) == expected
 
 
 def test_config_invalid_env_falls_back(monkeypatch):
@@ -127,18 +133,16 @@ def test_translator_fallback():
 
 
 def test_corrupted_non_default_translation_falls_back_to_default(tmp_path, monkeypatch):
-    from app.services import i18n
-
     broken = tmp_path / "cs.json"
     broken.write_text("{broken", encoding="utf-8")
-    monkeypatch.setitem(i18n._TRANSLATION_FILES, "cs", broken)
-    i18n._translations_cache.clear()
+    monkeypatch.setitem(i18n_module._TRANSLATION_FILES, "cs", broken)
+    i18n_module._translations_cache.clear()
 
-    translator = i18n.get_translator("cs")
+    translator = i18n_module.get_translator("cs")
 
     assert translator["next_race"] == "Next Race"
-    assert i18n.get_translator("cs") is translator
-    i18n._translations_cache.clear()
+    assert i18n_module.get_translator("cs") is translator
+    i18n_module._translations_cache.clear()
 
 
 def test_all_translation_files_match_english_keys():

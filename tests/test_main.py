@@ -772,6 +772,23 @@ def test_stats_dashboard_renders_zero_state_when_database_fails():
     assert "Total Requests" in response.text
 
 
+def test_stats_dashboard_ignores_database_close_failure():
+    """Cleanup failures must not replace an otherwise valid dashboard response."""
+    database = Mock()
+    database.get_stats_for_range = AsyncMock(return_value=pages_routes._empty_stats())
+    database.get_perf_stats = AsyncMock(return_value={"sample_count": 0})
+    database.close = AsyncMock(side_effect=RuntimeError("close failed"))
+
+    with (
+        patch("app.routes.pages.Database", return_value=database),
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        response = client.get("/stats")
+
+    assert response.status_code == 200
+    database.close.assert_awaited_once()
+
+
 def test_stats_dashboard_accepts_range_parameter():
     """Test /stats endpoint accepts range query parameter."""
     for range_val in ["1h", "24h", "7d", "30d", "365d"]:
@@ -1701,6 +1718,27 @@ def test_teams_bmp_caches_pregenerated_assets_with_shared_image_key(tmp_path, mo
     assert "teams:en:2026:bwr" not in get_bmp_cache()
 
 
+def test_teams_bmp_falls_back_when_pregenerated_read_races_with_cleanup(monkeypatch):
+    """A vanished prebuilt image should fall through to dynamic rendering."""
+    clear_bmp_cache()
+    disappearing_path = Mock()
+    disappearing_path.read_bytes.side_effect = OSError("removed")
+    monkeypatch.setattr(
+        images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: disappearing_path
+    )
+    monkeypatch.setattr(images_routes, "run_render", AsyncMock(return_value=b"BMdynamic"))
+    teams_service_cls = Mock()
+    teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(
+        return_value=TeamsData(season=2026, teams=[], standings_complete=False)
+    )
+    monkeypatch.setattr(images_routes, "TeamsService", teams_service_cls)
+
+    response = client.get("/teams.bmp?year=2026")
+
+    assert response.status_code == 200
+    assert response.content == b"BMdynamic"
+
+
 def test_teams_bmp_does_not_cache_degraded_standings(monkeypatch):
     """A transient standings outage should not pin a degraded teams BMP in memory."""
     clear_bmp_cache()
@@ -1863,6 +1901,27 @@ def test_changelog_returns_html():
     response = client.get("/changelog")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
+
+
+def test_missing_changelog_message_is_localized(tmp_path):
+    """The missing-file fallback should use the active locale and remain escaped."""
+    missing_path = tmp_path / "missing.md"
+    with (
+        patch.object(pages_routes, "CHANGELOG_PATH", missing_path),
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        response = client.get("/cs/changelog")
+
+    assert response.status_code == 200
+    assert "Historie změn nebyla nalezena." in response.text
+
+
+def test_service_worker_revalidates_unversioned_fonts():
+    """Font replacements must use the same stale-while-revalidate path as other assets."""
+    service_worker = (previews_routes.ASSETS_DIR / "js" / "sw.js").read_text(encoding="utf-8")
+
+    assert 'startsWith("/static/fonts/")' not in service_worker
+    assert "event.waitUntil(network)" in service_worker
 
 
 def test_changelog_render_is_cached_by_file_version():

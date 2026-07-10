@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from functools import lru_cache
+from html import escape
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
@@ -127,9 +128,8 @@ def _strip_empty_unreleased_section(changelog_text: str) -> str:
 
 
 @lru_cache(maxsize=4)
-def _render_changelog_file(path_value: str, mtime_ns: int) -> str:
+def _render_changelog_file(path_value: str, _mtime_ns: int) -> str:
     """Read and render a specific changelog file version."""
-    del mtime_ns
     changelog_content = Path(path_value).read_text(encoding="utf-8")
     changelog_content = _strip_empty_unreleased_section(changelog_content)
     return _sanitize_rendered_html(
@@ -140,13 +140,13 @@ def _render_changelog_file(path_value: str, mtime_ns: int) -> str:
     )
 
 
-def _load_changelog_html(changelog_path: Path) -> str:
+def _load_changelog_html(changelog_path: Path) -> str | None:
     """Load cached changelog HTML without doing file or parser work on the event loop."""
     try:
         mtime_ns = changelog_path.stat().st_mtime_ns
-    except FileNotFoundError:
-        return "<p>Changelog not found.</p>"
-    return _render_changelog_file(str(changelog_path), mtime_ns)
+        return _render_changelog_file(str(changelog_path), mtime_ns)
+    except OSError:
+        return None
 
 
 def _empty_stats() -> dict:
@@ -510,7 +510,9 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
 
     context = get_template_context(request, ui_lang)
     context["active_page"] = "changelog"
-    context["changelog_html"] = changelog_html
+    context["changelog_html"] = changelog_html or (
+        f"<p>{escape(context['t'].get('changelog_not_found', 'Changelog not found.'))}</p>"
+    )
     context["version_info"] = version_info
 
     return templates.TemplateResponse(request, "changelog.html", context)
@@ -660,7 +662,10 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
         perf_stats = {"sample_count": 0}
     finally:
         if db is not None:
-            await db.close()
+            try:
+                await db.close()
+            except Exception as exc:
+                logger.warning("Failed to close statistics database: %s", exc, exc_info=True)
 
     base_url = lang_url("/stats", ui_lang)
     url = f"{base_url}?range={time_range}" if time_range != "24h" else base_url

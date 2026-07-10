@@ -155,6 +155,7 @@
   "standings_after_round": "Po kole",
   "nav_changelog": "Změny",
   "changelog_title": "Historie změn",
+  "changelog_not_found": "Historie změn nebyla nalezena.",
   "changelog_version": "Verze",
   "changelog_last_updated": "Poslední aktualizace",
   "changelog_commit": "Poslední commit",

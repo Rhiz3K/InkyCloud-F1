@@ -64,6 +64,7 @@ CIRCUIT_WEATHER_TTL_MINUTES = 120
 
 
 def _to_utc_datetime(dt: datetime) -> datetime:
+    """Normalize naive and aware datetimes to an aware UTC value."""
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
@@ -86,6 +87,8 @@ def _race_weather_cache_key(lat: float, lon: float, race_datetime: datetime) -> 
 
 @dataclass
 class WeatherData:
+    """Normalized weather values required by the e-ink renderers."""
+
     temperature_c: float
     weather_code: int
     precipitation_probability: int
@@ -93,21 +96,27 @@ class WeatherData:
 
     @property
     def icon(self) -> str:
+        """Return the weather-icons glyph for the WMO condition code."""
         return WEATHER_ICONS.get(self.weather_code, "\u2601")
 
     @property
     def temp_display(self) -> str:
+        """Return rounded Celsius temperature text for the display."""
         return f"{int(round(self.temperature_c))}\u00b0"
 
     @property
     def precip_display(self) -> str:
+        """Return precipitation probability or a preformatted amount."""
         if self.precipitation_display_override is not None:
             return self.precipitation_display_override
         return f"{self.precipitation_probability}%"
 
 
 class WeatherService:
+    """Fetch and cache current, forecast, and historical Open-Meteo data."""
+
     def __init__(self, timeout: int = 10, cache_minutes: int = 60):
+        """Configure HTTP timeout and in-memory response TTL."""
         self.timeout = httpx.Timeout(timeout)
         self.cache_minutes = cache_minutes
 
@@ -355,7 +364,9 @@ class WeatherService:
             precipitation_as_amount=True,
         )
 
-    def _get_cached(self, key: str) -> Optional[WeatherData]:
+    @staticmethod
+    def _get_cached(key: str) -> Optional[WeatherData]:
+        """Return a fresh cached weather response and evict expired entries."""
         if key in _weather_cache:
             data, expires_at = _weather_cache[key]
             if datetime.now(timezone.utc) < expires_at:
@@ -364,6 +375,7 @@ class WeatherService:
         return None
 
     def _set_cached(self, key: str, data: WeatherData) -> None:
+        """Cache a weather response using this service's configured TTL."""
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=self.cache_minutes)
         _weather_cache[key] = (data, expires_at)
 
@@ -428,26 +440,29 @@ def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
     count = 0
     for circuit_id, data in weather_dict.items():
         try:
+            temperature_raw = data["temperature_c"]
+            fetched_at_raw = data["fetched_at"]
+            if isinstance(temperature_raw, bool) or not isinstance(temperature_raw, (int, float)):
+                raise TypeError("temperature_c must be numeric")
+            if not isinstance(fetched_at_raw, str):
+                raise TypeError("fetched_at is not a string")
+            fetched_at = datetime.fromisoformat(fetched_at_raw)
+            if fetched_at.tzinfo is None:
+                fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+            else:
+                fetched_at = fetched_at.astimezone(timezone.utc)
+
             weather = WeatherData(
-                temperature_c=data.get("temperature_c", 20.0),
+                temperature_c=float(temperature_raw),
                 weather_code=data.get("weather_code", 0),
                 precipitation_probability=data.get("precipitation_probability", 0),
             )
-            fetched_at_raw = data.get("fetched_at")
-            try:
-                if not isinstance(fetched_at_raw, str):
-                    raise TypeError("fetched_at is not a string")
-                fetched_at = datetime.fromisoformat(fetched_at_raw)
-                if fetched_at.tzinfo is None:
-                    fetched_at = fetched_at.replace(tzinfo=timezone.utc)
-            except (TypeError, ValueError):
-                fetched_at = datetime.now(timezone.utc)
             expires_at = fetched_at + timedelta(minutes=CIRCUIT_WEATHER_TTL_MINUTES)
             if expires_at <= datetime.now(timezone.utc):
                 continue
             _circuit_weather_cache[circuit_id] = (weather, expires_at)
             count += 1
-        except (TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError) as e:
             logger.warning("Invalid weather data for %s: %s", circuit_id, e)
             continue
     return count

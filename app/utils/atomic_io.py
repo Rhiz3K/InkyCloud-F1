@@ -12,6 +12,7 @@ from typing import Any
 
 
 def _temporary_path(path: Path) -> Path:
+    """Return a unique temporary sibling path for an atomic replacement."""
     return path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
 
 
@@ -47,12 +48,12 @@ def atomic_write_bytes_sync(path: Path, data: bytes) -> None:
             tmp_path.unlink()
 
 
-def atomic_save_image(path: Path, image: Any, *, format: str) -> None:
+def atomic_save_image(path: Path, image: Any, *, image_format: str) -> None:
     """Save a Pillow-compatible image to a temporary file and atomically replace *path*."""
     tmp_path = _temporary_path(path)
     try:
-        image.save(tmp_path, format=format)
-        with open(tmp_path, "rb") as handle:
+        image.save(tmp_path, format=image_format)
+        with tmp_path.open("rb") as handle:
             os.fsync(handle.fileno())
         os.replace(tmp_path, path)
         _fsync_directory(path.parent)
@@ -85,11 +86,15 @@ def _fsync_directory(directory: Path) -> None:
     except OSError:
         return
     try:
-        os.fsync(descriptor)
+        try:
+            os.fsync(descriptor)
+        except OSError:
+            return
     finally:
         os.close(descriptor)
 
 
 def _fsync_file(path: Path) -> None:
-    with open(path, "rb") as handle:
+    """Flush an already-written file to stable storage."""
+    with path.open("rb") as handle:
         os.fsync(handle.fileno())

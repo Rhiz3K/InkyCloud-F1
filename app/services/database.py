@@ -24,29 +24,13 @@ STATS_CLEANUP_QUERIES = {
 
 
 async def _acquire_thread_lock(lock: threading.Lock) -> None:
-    """Acquire a thread lock without leaking it when the awaiting task is cancelled."""
-    while True:
-        attempt = asyncio.create_task(asyncio.to_thread(lock.acquire, False))
-        try:
-            acquired = await asyncio.shield(attempt)
-        except asyncio.CancelledError:
-            acquired = await attempt
-            if acquired:
-                lock.release()
-            raise
-        if acquired:
-            return
+    """Poll a thread lock without blocking the event loop."""
+    while not lock.acquire(blocking=False):
         await asyncio.sleep(0.01)
 
 
 class Database:
-    _instances: ClassVar[weakref.WeakSet["Database"]] = weakref.WeakSet()
-    initialized_paths: ClassVar[set[str]] = set()
-    schema_init_locks: ClassVar[dict[str, threading.Lock]] = {}
-    schema_state_lock: ClassVar[threading.Lock] = threading.Lock()
-
-    """
-    Async SQLite database for metadata and statistics.
+    """Async SQLite database for metadata and statistics.
 
     Note: Race data and historical results are now stored in static JSON files.
     This database only stores:
@@ -54,6 +38,11 @@ class Database:
     - Cache timestamps
     - Request statistics
     """
+
+    _instances: ClassVar[weakref.WeakSet["Database"]] = weakref.WeakSet()
+    initialized_paths: ClassVar[set[str]] = set()
+    schema_init_locks: ClassVar[dict[str, threading.Lock]] = {}
+    schema_state_lock: ClassVar[threading.Lock] = threading.Lock()
 
     def __init__(self, db_path: str | None = None):
         """
@@ -885,6 +874,7 @@ class Database:
             if not row or row["sample_count"] == 0:
                 return {
                     "sample_count": 0,
+                    "percentile_sample_count": 0,
                     "lcp": {
                         "avg": None,
                         "min": None,
@@ -915,7 +905,7 @@ class Database:
                 LIMIT ?""",
                 (cutoff, PERF_STATS_SAMPLE_LIMIT),
             ) as cursor:
-                samples = await cursor.fetchall()
+                samples = list(await cursor.fetchall())
             lcp_values = sorted(r["lcp_ms"] for r in samples if r["lcp_ms"] is not None)
             cls_values = sorted(r["cls"] for r in samples if r["cls"] is not None)
             fcp_values = sorted(r["fcp_ms"] for r in samples if r["fcp_ms"] is not None)
@@ -924,6 +914,7 @@ class Database:
 
             return {
                 "sample_count": row["sample_count"],
+                "percentile_sample_count": len(samples),
                 "lcp": {
                     "avg": round(row["avg_lcp"], 0) if row["avg_lcp"] is not None else None,
                     "min": round(row["min_lcp"], 0) if row["min_lcp"] is not None else None,

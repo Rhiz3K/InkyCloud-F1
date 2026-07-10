@@ -252,7 +252,8 @@ class TestCleanupOldBackups:
 class TestCronParsing:
     """Tests for cron expression parsing."""
 
-    def test_parse_valid_cron(self):
+    @staticmethod
+    def test_parse_valid_cron():
         """Test parsing a valid cron expression."""
         from app.services.scheduler import _parse_cron_expression
 

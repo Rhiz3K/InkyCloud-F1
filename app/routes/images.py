@@ -695,30 +695,34 @@ async def get_teams_bmp(
 
         image_path = _get_pregenerated_teams_path(lang=lang, year=year, display=display)
         if image_path is not None:
-            bmp_data = image_path.read_bytes()
-            get_bmp_cache()[cache_key] = bmp_data
+            try:
+                bmp_data = image_path.read_bytes()
+            except OSError as exc:
+                logger.info("Pre-generated teams image disappeared before read; rendering: %s", exc)
+            else:
+                get_bmp_cache()[cache_key] = bmp_data
 
-            record_api_call(
-                "/teams.bmp",
-                (time.time() - start_time) * 1000,
-                len(bmp_data),
-                lang,
-                None,
-                year,
-                None,
-                None,
-                False,
-                display_type=display,
-            )
+                record_api_call(
+                    "/teams.bmp",
+                    (time.time() - start_time) * 1000,
+                    len(bmp_data),
+                    lang,
+                    None,
+                    year,
+                    None,
+                    None,
+                    False,
+                    display_type=display,
+                )
 
-            return StreamingResponse(
-                BytesIO(bmp_data),
-                media_type="image/bmp",
-                headers={
-                    "Content-Disposition": 'inline; filename="teams.bmp"',
-                    "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
-                },
-            )
+                return StreamingResponse(
+                    BytesIO(bmp_data),
+                    media_type="image/bmp",
+                    headers={
+                        "Content-Disposition": 'inline; filename="teams.bmp"',
+                        "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
+                    },
+                )
 
         teams_service = TeamsService()
         teams_data = await teams_service.get_teams_and_drivers(year)

@@ -155,6 +155,7 @@
   "standings_after_round": "ラウンド後",
   "nav_changelog": "変更履歴",
   "changelog_title": "変更履歴",
+  "changelog_not_found": "変更履歴が見つかりません。",
   "changelog_version": "バージョン",
   "changelog_last_updated": "最終更新",
   "changelog_commit": "最新コミット",

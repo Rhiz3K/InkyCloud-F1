@@ -37,13 +37,10 @@ self.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
 
     if (url.pathname.startsWith("/static/")) {
-        // Only versioned font files are cache-first. CSS, scripts, and unversioned images use
-        // stale-while-revalidate so asset replacements reach returning visitors.
-        const revalidate = !url.pathname.startsWith("/static/fonts/");
+        // Static assets are stale-while-revalidate so replacements reach returning visitors.
         event.respondWith(
             caches.open(CACHE_NAME).then((cache) =>
                 cache.match(event.request).then((cached) => {
-                    if (cached && !revalidate) return cached;
                     const network = fetch(event.request)
                         .then((response) => {
                             if (!response.ok) return response;

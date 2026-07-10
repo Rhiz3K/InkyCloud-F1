@@ -166,6 +166,18 @@ def test_get_all_races_from_static_marks_cancelled_races(tmp_path, monkeypatch):
     assert races[1]["race_key"] == "2026-cancelled-jeddah-2026-04-19"
 
 
+def test_static_season_loader_rejects_symlinked_files(tmp_path, monkeypatch):
+    """Season discovery must not follow an allowlisted filename outside the assets directory."""
+    seasons_dir = tmp_path / "seasons"
+    seasons_dir.mkdir()
+    outside_file = tmp_path / "2026.json"
+    outside_file.write_text('{"races": []}', encoding="utf-8")
+    (seasons_dir / "2026.json").symlink_to(outside_file)
+    monkeypatch.setattr(f1_service_module, "SEASONS_DIR", seasons_dir)
+
+    assert F1Service.get_season_from_static(2026) == []
+
+
 @pytest.mark.asyncio
 async def test_get_season_races_merges_cancelled_races_from_static(tmp_path, monkeypatch):
     seasons_dir = tmp_path / "seasons"

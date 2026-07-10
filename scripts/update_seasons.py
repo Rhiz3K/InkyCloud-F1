@@ -37,7 +37,7 @@ def _has_scheduled_round(race: dict[str, Any]) -> bool:
         return False
 
     try:
-        return int(round_value) > 0
+        return int(str(round_value)) > 0
     except (TypeError, ValueError):
         return False
 

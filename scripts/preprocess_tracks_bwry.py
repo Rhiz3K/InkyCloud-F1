@@ -113,11 +113,11 @@ def main(circuits: list[str] | None = None) -> None:
         wanted = {circuit.strip().lower() for circuit in circuits if circuit.strip()}
         track_stems = [stem for stem in track_stems if stem in wanted]
 
-    track_files = [
-        resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bwry")
-        for track_stem in track_stems
-    ]
-    track_files = [track_path for track_path in track_files if track_path is not None]
+    track_files: list[Path] = []
+    for track_stem in track_stems:
+        track_path = resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bwry")
+        if track_path is not None:
+            track_files.append(track_path)
 
     if not track_files:
         print(f"No track images found in {TRACKS_DIR}")
