@@ -669,6 +669,20 @@ class TestCircuitWeatherCache:
         assert valid is not None
 
     @staticmethod
+    @pytest.mark.parametrize("temperature", [float("nan"), float("inf"), float("-inf")])
+    def test_load_circuit_weather_rejects_non_finite_temperature(temperature):
+        """Persisted non-finite temperatures must not enter the live cache."""
+        weather_dict = {
+            "invalid": {
+                "temperature_c": temperature,
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+            },
+        }
+
+        assert load_circuit_weather_to_cache(weather_dict) == 0
+        assert get_cached_circuit_weather("invalid") is None
+
+    @staticmethod
     def test_clear_circuit_weather_cache():
         """Test clearing the circuit weather cache."""
         weather = WeatherData(temperature_c=25.0, weather_code=0, precipitation_probability=10)

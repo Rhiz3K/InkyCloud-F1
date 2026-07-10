@@ -7,17 +7,23 @@ on: # zizmor: ignore[dangerous-triggers]
     branches: [main]
     types: [opened, reopened, synchronize, ready_for_review]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
+
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   enable-auto-merge:
+    name: Enable Dependabot auto-merge
     if: >-
       github.event.pull_request.user.login == 'dependabot[bot]' &&
       github.repository == 'Rhiz3K/InkyCloud-F1' &&
       github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to update the protected branch through GitHub's auto-merge queue.
+      pull-requests: write # Required to enable auto-merge on the Dependabot pull request.
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
@@ -26,6 +32,9 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Enable auto-merge for safe dependency updates
+        # Advisory state is intentionally not a separate gate: this only enables GitHub's
+        # auto-merge queue, and branch protection still requires every configured check to pass.
+        # Docker and semver-major updates remain excluded for manual review.
         if: >-
           always() &&
           steps.metadata.outcome == 'success' &&

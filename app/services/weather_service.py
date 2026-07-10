@@ -1,6 +1,7 @@
 """Weather service using Open-Meteo APIs for race weekend weather."""
 
 import logging
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Optional
@@ -444,6 +445,9 @@ def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
             fetched_at_raw = data["fetched_at"]
             if isinstance(temperature_raw, bool) or not isinstance(temperature_raw, (int, float)):
                 raise TypeError("temperature_c must be numeric")
+            temperature = float(temperature_raw)
+            if not math.isfinite(temperature):
+                raise ValueError("temperature_c must be finite")
             if not isinstance(fetched_at_raw, str):
                 raise TypeError("fetched_at is not a string")
             fetched_at = datetime.fromisoformat(fetched_at_raw)
@@ -453,7 +457,7 @@ def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
                 fetched_at = fetched_at.astimezone(timezone.utc)
 
             weather = WeatherData(
-                temperature_c=float(temperature_raw),
+                temperature_c=temperature,
                 weather_code=data.get("weather_code", 0),
                 precipitation_probability=data.get("precipitation_probability", 0),
             )
