@@ -277,3 +277,34 @@ async def test_fetch_season_rejects_malformed_race_rows():
 
     with pytest.raises(ValueError, match="malformed"):
         await update_seasons.fetch_season(client, 2027)
+
+
+@pytest.mark.asyncio
+async def test_main_returns_false_when_any_year_fails(tmp_path, monkeypatch):
+    async def fake_fetch(_client, year):
+        if year == 2027:
+            raise RuntimeError("upstream unavailable")
+        return {"season": str(year), "generated_at": "now", "total_races": 1, "races": [{}]}
+
+    monkeypatch.setattr(update_seasons, "SEASONS_DIR", tmp_path)
+    monkeypatch.setattr(update_seasons, "fetch_season", fake_fetch)
+    monkeypatch.setattr(update_seasons.asyncio, "sleep", AsyncMock())
+
+    assert await update_seasons.main([2026, 2027]) is False
+
+
+@pytest.mark.asyncio
+async def test_main_returns_true_when_all_years_succeed(tmp_path, monkeypatch):
+    async def fake_fetch(_client, year):
+        return {
+            "season": str(year),
+            "generated_at": "now",
+            "total_races": 1,
+            "races": [{"date": "2027-03-01", "Circuit": {"circuitId": "test"}}],
+        }
+
+    monkeypatch.setattr(update_seasons, "SEASONS_DIR", tmp_path)
+    monkeypatch.setattr(update_seasons, "fetch_season", fake_fetch)
+    monkeypatch.setattr(update_seasons.asyncio, "sleep", AsyncMock())
+
+    assert await update_seasons.main([2027]) is True

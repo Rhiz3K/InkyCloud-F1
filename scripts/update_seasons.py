@@ -134,9 +134,10 @@ async def fetch_season(client: httpx.AsyncClient, year: int) -> dict:
     }
 
 
-async def main(target_years: list[int]) -> None:
-    """Download and save season data for specified years."""
+async def main(target_years: list[int]) -> bool:
+    """Download season data and return whether every requested year succeeded."""
     SEASONS_DIR.mkdir(parents=True, exist_ok=True)
+    succeeded = True
 
     async with httpx.AsyncClient(timeout=30) as client:
         for year in target_years:
@@ -165,10 +166,13 @@ async def main(target_years: list[int]) -> None:
 
             except httpx.HTTPStatusError as e:
                 print(f"  Error fetching {year}: HTTP {e.response.status_code}")
+                succeeded = False
             except Exception as e:
                 print(f"  Error fetching {year}: {e}")
+                succeeded = False
 
     print("\nDone!")
+    return succeeded
 
 
 if __name__ == "__main__":
@@ -189,4 +193,4 @@ if __name__ == "__main__":
         years_to_update = [current_year, current_year + 1]
 
     print(f"Updating seasons: {years_to_update}")
-    asyncio.run(main(years_to_update))
+    raise SystemExit(0 if asyncio.run(main(years_to_update)) else 1)

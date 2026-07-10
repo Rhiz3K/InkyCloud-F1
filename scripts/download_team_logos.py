@@ -5,11 +5,11 @@ import asyncio
 import logging
 import shutil
 import subprocess
-from io import BytesIO
 from pathlib import Path
 
 import httpx
-from PIL import Image
+
+from app.utils.image_assets import atomic_save_image, decode_image_bytes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -94,8 +94,8 @@ async def download_team_logo(
                 raise
             content = await asyncio.to_thread(download_with_curl, url)
 
-        img = Image.open(BytesIO(content)).convert("RGBA")
-        img.save(output_path, "PNG")
+        img = decode_image_bytes(content).convert("RGBA")
+        atomic_save_image(output_path, img, image_format="PNG")
         logger.info("Saved %s color logo to %s (%s)", team_id, output_path, img.size)
         return True
 
@@ -104,7 +104,7 @@ async def download_team_logo(
         return False
 
 
-async def main():
+async def main() -> bool:
     """Download all configured color team logo assets."""
     output_dir = Path(__file__).parent.parent / "app" / "assets" / "images" / "teams_color"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -126,7 +126,8 @@ async def main():
 
     success = sum(results)
     logger.info("Downloaded %s/%s team logos", success, len(results))
+    return success == len(results)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(0 if asyncio.run(main()) else 1)

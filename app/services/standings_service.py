@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import time
+import weakref
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -11,11 +12,23 @@ import httpx
 from app.config import config
 from app.models import ConstructorStanding, DriverStanding, StandingsData
 from app.services.http_client import get_shared_http_client
+from app.utils.f1_season import is_supported_f1_season
 from app.utils.http import fetch_with_retry
+from app.utils.jolpica import get_jolpica_base_url
 
 logger = logging.getLogger(__name__)
 
 CACHE_TTL_SECONDS = 3600
+NEGATIVE_CACHE_TTL_SECONDS = 60
+_fetch_locks: weakref.WeakKeyDictionary[
+    asyncio.AbstractEventLoop, dict[tuple[int, str], asyncio.Lock]
+] = weakref.WeakKeyDictionary()
+
+
+def _get_fetch_lock(year: int, standings_type: str) -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    locks = _fetch_locks.setdefault(loop, {})
+    return locks.setdefault((year, standings_type), asyncio.Lock())
 
 
 class CacheEntry:
@@ -33,6 +46,7 @@ class StandingsService:
     """Service for fetching F1 championship standings from Jolpica API."""
 
     _shared_cache: dict[str, CacheEntry] = {}
+    _negative_cache: dict[str, float] = {}
 
     def __init__(self):
         self.timeout = config.REQUEST_TIMEOUT
@@ -55,14 +69,20 @@ class StandingsService:
         self._cache[key] = CacheEntry(data)
         logger.debug("Cached %s", key)
 
+    @classmethod
+    def _is_negative_cached(cls, key: str) -> bool:
+        expires_at = cls._negative_cache.get(key)
+        if expires_at is None:
+            return False
+        if time.time() < expires_at:
+            return True
+        cls._negative_cache.pop(key, None)
+        return False
+
     @staticmethod
     def _derive_standings_base_url(api_url: str) -> str:
         """Derive the season endpoint root from either a Jolpica base URL or race endpoint."""
-        normalized = api_url.rstrip("/")
-        for suffix in ("/current/next.json", "/current.json", ".json"):
-            if normalized.endswith(suffix):
-                return normalized[: -len(suffix)].rstrip("/")
-        return normalized
+        return get_jolpica_base_url(api_url)
 
     @staticmethod
     def _is_missing_standings_error(exc: httpx.HTTPStatusError) -> bool:
@@ -74,10 +94,30 @@ class StandingsService:
         if year is None:
             year = datetime.now(timezone.utc).year
 
+        if not is_supported_f1_season(year):
+            raise ValueError(f"Unsupported F1 season: {year}")
+
+        key = self._get_cache_key(year, "drivers")
         cached = self._get_cached(year, "drivers")
         if cached:
             return cached.driver_standings[:limit]
+        if self._is_negative_cached(key):
+            return []
 
+        async with _get_fetch_lock(year, "drivers"):
+            cached = self._get_cached(year, "drivers")
+            if cached:
+                return cached.driver_standings[:limit]
+            if self._is_negative_cached(key):
+                return []
+            result = await self._fetch_driver_standings(year, limit)
+            if result:
+                self._negative_cache.pop(key, None)
+            else:
+                self._negative_cache[key] = time.time() + NEGATIVE_CACHE_TTL_SECONDS
+            return result
+
+    async def _fetch_driver_standings(self, year: int, limit: int) -> list[DriverStanding]:
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             base_url = self._derive_standings_base_url(str(config.JOLPICA_API_URL))
@@ -143,10 +183,32 @@ class StandingsService:
         if year is None:
             year = datetime.now(timezone.utc).year
 
+        if not is_supported_f1_season(year):
+            raise ValueError(f"Unsupported F1 season: {year}")
+
+        key = self._get_cache_key(year, "constructors")
         cached = self._get_cached(year, "constructors")
         if cached:
             return cached.constructor_standings[:limit]
+        if self._is_negative_cached(key):
+            return []
 
+        async with _get_fetch_lock(year, "constructors"):
+            cached = self._get_cached(year, "constructors")
+            if cached:
+                return cached.constructor_standings[:limit]
+            if self._is_negative_cached(key):
+                return []
+            result = await self._fetch_constructor_standings(year, limit)
+            if result:
+                self._negative_cache.pop(key, None)
+            else:
+                self._negative_cache[key] = time.time() + NEGATIVE_CACHE_TTL_SECONDS
+            return result
+
+    async def _fetch_constructor_standings(
+        self, year: int, limit: int
+    ) -> list[ConstructorStanding]:
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             base_url = self._derive_standings_base_url(str(config.JOLPICA_API_URL))

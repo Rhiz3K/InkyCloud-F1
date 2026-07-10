@@ -75,6 +75,7 @@ def main() -> None:
 
     total_input_size = 0
     total_output_size = 0
+    failures = 0
     for flag_path in sorted(flag_files):
         output_path = FLAGS_OUTPUT_DIR / f"{flag_path.stem}.bmp"
         try:
@@ -86,11 +87,14 @@ def main() -> None:
                 f"({stats['input_size'] / 1024:6.0f}KB -> {stats['output_size'] / 1024:5.0f}KB)"
             )
         except Exception as exc:
+            failures += 1
             print(f" {flag_path.name:12} -> ERROR: {exc}")
 
     print("-" * 60)
     print(f" Total: {total_input_size / 1024:.1f}KB -> {total_output_size / 1024:.1f}KB")
     print(f"\nProcessed flags saved to: {FLAGS_OUTPUT_DIR}")
+    if failures:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

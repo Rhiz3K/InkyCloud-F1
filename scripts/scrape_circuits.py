@@ -12,6 +12,8 @@ from pathlib import Path
 
 import httpx
 
+from app.utils.atomic_io import atomic_write_json
+
 # List of 2026 races with their URL slugs and circuit IDs (matching Jolpica API)
 RACES_2026 = [
     ("australia", "Australian Grand Prix", "albert_park"),
@@ -86,7 +88,7 @@ def scrape_circuit_data(url_slug: str, client: httpx.Client) -> dict:
     pairs = extract_dt_dd_pairs(html)
 
     # Map to our data structure
-    data = {
+    data: dict[str, str | int | None] = {
         "circuit_length": None,
         "first_grand_prix": None,
         "number_of_laps": None,
@@ -117,9 +119,30 @@ def scrape_circuit_data(url_slug: str, client: httpx.Client) -> dict:
     return data
 
 
-def main():
+def _load_existing_circuits(output_path: Path) -> dict[str, dict]:
+    if not output_path.exists():
+        return {}
+    try:
+        payload = json.loads(output_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Cannot safely update existing circuit data: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("Cannot safely update circuit data: root must be an object")
+    return payload
+
+
+def _merge_circuit_entry(
+    existing: dict, *, race_name: str, url_slug: str, scraped: dict
+) -> dict:
+    """Merge scraped metadata without dropping maintained fields such as historical podiums."""
+    return {**existing, "race_name": race_name, "url_slug": url_slug, **scraped}
+
+
+def main() -> bool:
     """Main function to scrape all circuits."""
-    circuits_data = {}
+    output_path = Path(__file__).parent.parent / "app" / "assets" / "circuits_data.json"
+    circuits_data = _load_existing_circuits(output_path)
+    failures = 0
 
     # Use a session for connection reuse
     user_agent = (
@@ -137,22 +160,23 @@ def main():
             print(f"Scraping: {race_name}")
 
             circuit_data = scrape_circuit_data(url_slug, client)
+            if not circuit_data:
+                failures += 1
+                continue
 
-            circuits_data[circuit_id] = {
-                "race_name": race_name,
-                "url_slug": url_slug,
-                **circuit_data,
-            }
+            circuits_data[circuit_id] = _merge_circuit_entry(
+                circuits_data.get(circuit_id, {}),
+                race_name=race_name,
+                url_slug=url_slug,
+                scraped=circuit_data,
+            )
 
             # Be polite - wait between requests
             time.sleep(1)
 
     # Save to JSON
-    output_path = Path(__file__).parent.parent / "app" / "assets" / "circuits_data.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(circuits_data, f, indent=2, ensure_ascii=False)
+    atomic_write_json(output_path, circuits_data)
 
     print(f"\nSaved circuit data to: {output_path}")
     print(f"Total circuits: {len(circuits_data)}")
@@ -163,7 +187,8 @@ def main():
         length = data.get("circuit_length") or "N/A"
         laps = data.get("number_of_laps") or "N/A"
         print(f"  {circuit_id}: {length}, {laps} laps")
+    return failures == 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(0 if main() else 1)

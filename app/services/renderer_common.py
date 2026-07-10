@@ -7,31 +7,97 @@ import re
 import threading
 from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
-from functools import lru_cache
 from pathlib import Path
 
+from cachetools import LRUCache
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
-from app.services.font_utils import CJK_LANG_CODES, FONTS_DIR, fit_brand_font_box, fit_ui_font
+from app.services.font_utils import (
+    CJK_LANG_CODES,
+    FONTS_DIR,
+    fit_brand_font_box,
+    fit_ui_font,
+    load_optional_truetype,
+)
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 
 # Guards lazy class-level asset caches in the renderer hierarchies (team logos, driver
 # photos). Rendering runs in a thread pool, so first-load population can race without it.
 ASSET_CACHE_LOCK = threading.Lock()
+_DECODED_IMAGE_CACHE_MAX_BYTES = 64 * 1024 * 1024
+_DECODED_IMAGE_CACHE_LOCK = threading.Lock()
 
 
-@lru_cache(maxsize=128)
+def _decoded_image_size(image: Image.Image) -> int:
+    return image.width * image.height * len(image.getbands())
+
+
+_DECODED_IMAGE_CACHE: LRUCache[tuple[str, int], Image.Image] = LRUCache(
+    maxsize=_DECODED_IMAGE_CACHE_MAX_BYTES,
+    getsizeof=_decoded_image_size,
+)
+
+
 def _load_image_file(path_value: str, mtime_ns: int) -> Image.Image:
-    """Decode an immutable image asset once per path revision."""
-    del mtime_ns  # Included in the cache key so replaced assets are reloaded.
+    """Decode an immutable image asset with a byte-bounded process cache."""
+    cache_key = (path_value, mtime_ns)
+    with _DECODED_IMAGE_CACHE_LOCK:
+        cached = _DECODED_IMAGE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
     with Image.open(path_value) as image_file:
-        return image_file.copy()
+        decoded = image_file.copy()
+
+    if _decoded_image_size(decoded) <= _DECODED_IMAGE_CACHE.maxsize:
+        with _DECODED_IMAGE_CACHE_LOCK:
+            _DECODED_IMAGE_CACHE[cache_key] = decoded
+    return decoded
 
 
 def _load_image_copy(path: Path) -> Image.Image:
     """Return an independent copy of a cached image asset."""
     return _load_image_file(str(path), path.stat().st_mtime_ns).copy()
+
+
+_ROUND_RANGE_RE = re.compile(r"^(\d+)(?:\s*[-–—]\s*(\d+))?$")
+
+
+def _driver_round_window(rounds: str) -> tuple[int, int] | None:
+    normalized = rounds.strip()
+    if not normalized or normalized.lower() == "all":
+        return None
+    match = _ROUND_RANGE_RE.fullmatch(normalized)
+    if match is None:
+        return None
+    start = int(match.group(1))
+    end = int(match.group(2) or start)
+    return (min(start, end), max(start, end))
+
+
+def select_active_team_drivers(drivers: Sequence, limit: int = 2) -> list:
+    """Select the drivers active at the latest round represented by season roster data."""
+    if limit <= 0:
+        return []
+
+    windows = [
+        (driver, _driver_round_window(getattr(driver, "rounds", "All"))) for driver in drivers
+    ]
+    latest_round = max((window[1] for _, window in windows if window is not None), default=None)
+    if latest_round is None:
+        active = [driver for driver, _ in windows]
+    else:
+        active = [
+            driver
+            for driver, window in windows
+            if window is None or window[0] <= latest_round <= window[1]
+        ]
+
+    if len(active) < limit:
+        active_ids = {id(driver) for driver in active}
+        active.extend(driver for driver, _ in windows if id(driver) not in active_ids)
+    return sorted(active, key=lambda driver: driver.position or 99)[:limit]
 
 
 def split_teams_for_columns(teams: list) -> tuple[list, list]:
@@ -603,11 +669,13 @@ def draw_new_track_message(
 def load_symbol_icon_font(size: int, logger) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load the Symbola fallback icon font used for symbols and emoji-style glyphs."""
     symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
-    try:
-        return ImageFont.truetype(symbola_path, size)
-    except Exception as exc:
-        logger.warning("Failed to load Symbola font: %s", exc)
-        return ImageFont.load_default()
+    font = load_optional_truetype(
+        symbola_path,
+        size,
+        label="Symbola",
+        target_logger=logger,
+    )
+    return font or ImageFont.load_default()
 
 
 def load_weather_icon_font(
@@ -617,11 +685,13 @@ def load_weather_icon_font(
 ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load the weather icon font with a Symbola fallback."""
     font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
-    try:
-        return ImageFont.truetype(str(font_path), size)
-    except Exception as exc:
-        logger.warning("Failed to load Weather Icons font: %s", exc)
-        return load_icon_font(size)
+    font = load_optional_truetype(
+        font_path,
+        size,
+        label="Weather Icons",
+        target_logger=logger,
+    )
+    return font or load_icon_font(size)
 
 
 def load_racing_font(
@@ -631,11 +701,14 @@ def load_racing_font(
 ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load the stylized racing number font with a UI-font fallback."""
     font_path = FONTS_DIR / "RacingSansOne-Regular.ttf"
-    if font_path.exists():
-        try:
-            return ImageFont.truetype(str(font_path), size)
-        except Exception as exc:
-            logger.warning("Failed to load Racing Sans One: %s", exc)
+    font = load_optional_truetype(
+        font_path,
+        size,
+        label="Racing Sans One",
+        target_logger=logger,
+    )
+    if font is not None:
+        return font
     return load_ui_font_fallback(size, bold=True)
 
 
@@ -967,7 +1040,7 @@ def draw_team_row(
     photo_size = driver_row_height - 2
     photo_x = x_start + 4
 
-    sorted_drivers = sorted(team.drivers[:2], key=lambda d: d.position or 99)
+    sorted_drivers = select_active_team_drivers(team.drivers)
     for i, driver in enumerate(sorted_drivers):
         driver_y = driver_y_start + i * driver_row_height
         draw_team_driver_row_fn(
@@ -1201,6 +1274,7 @@ def draw_countdown_box(
     icon_small_font,
     weather_icon_font,
     translator: Mapping[str, str],
+    lang_code: str,
     datetime_cls,
     text_baseline_ref: str,
     rain_icon: str,
@@ -1321,8 +1395,27 @@ def draw_countdown_box(
         days_label = translator.get("countdown_days_short", "d")
         hours_label = translator.get("countdown_hours_short", "h")
     else:
-        days_label = translator.get("countdown_days", "days")
-        hours_label = translator.get("countdown_hours", "hours")
+        def plural_category(value: int) -> str:
+            if value == 1:
+                return "one"
+            if lang_code in {"cs", "sk"} and 2 <= value <= 4:
+                return "few"
+            if (
+                lang_code == "pl"
+                and value % 10 in {2, 3, 4}
+                and value % 100 not in {12, 13, 14}
+            ):
+                return "few"
+            return "many"
+
+        days_label = translator.get(
+            f"countdown_days_{plural_category(days)}",
+            translator.get("countdown_days", "days"),
+        )
+        hours_label = translator.get(
+            f"countdown_hours_{plural_category(hours)}",
+            translator.get("countdown_hours", "hours"),
+        )
     countdown_str = f"{days} {days_label} {hours} {hours_label}"
 
     flag_bbox = draw.textbbox((0, 0), flag_icon, font=icon_small_font)

@@ -4,9 +4,7 @@ import pytest
 
 from app.models import (
     ConstructorInfo,
-    ConstructorStanding,
     DriverInfo,
-    DriverStanding,
     HistoricalData,
     QualifyingResultEntry,
     RaceResultEntry,
@@ -202,51 +200,6 @@ def teams_data():
     return TeamsData(season=2025, teams=teams)
 
 
-@pytest.fixture
-def driver_standings():
-    """Driver championship standings."""
-    codes = [
-        "VER",
-        "NOR",
-        "LEC",
-        "SAI",
-        "HAM",
-        "RUS",
-        "PIA",
-        "ALO",
-        "STR",
-        "OCO",
-    ]
-    return [
-        DriverStanding(
-            position=i + 1,
-            points=max(0, 400 - i * 30),
-            wins=max(0, 8 - i),
-            driver_code=codes[i],
-            driver_name=f"Driver{i + 1}",
-            driver_given_name=f"First{i + 1}",
-            nationality="Test",
-            constructor_name=f"Team{(i // 2) + 1}",
-        )
-        for i in range(10)
-    ]
-
-
-@pytest.fixture
-def constructor_standings():
-    """Constructor championship standings."""
-    return [
-        ConstructorStanding(
-            position=i + 1,
-            points=max(0, 600 - i * 50),
-            wins=max(0, 10 - i * 2),
-            constructor_name=f"Team{i + 1}",
-            nationality="Test",
-        )
-        for i in range(10)
-    ]
-
-
 # ============================================================================
 # 1-bit Renderer Benchmarks
 # ============================================================================
@@ -276,21 +229,6 @@ def test_bench_render_teams_drivers(teams_data):
     translator = get_translator("en")
     renderer = Renderer(translator)
     bmp_data = renderer.render_teams_drivers(teams_data)
-    assert len(bmp_data) > 0
-
-
-@pytest.mark.benchmark
-def test_bench_render_standings_split(driver_standings, constructor_standings):
-    """Benchmark rendering the split standings view."""
-    translator = get_translator("en")
-    renderer = Renderer(translator)
-    bmp_data = renderer.render_standings(
-        driver_standings=driver_standings,
-        constructor_standings=constructor_standings,
-        view="split",
-        season=2024,
-        after_round=10,
-    )
     assert len(bmp_data) > 0
 
 

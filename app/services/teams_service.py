@@ -14,15 +14,17 @@ import httpx
 from app.config import config
 from app.models import TeamDriverEntry, TeamEntry, TeamsData
 from app.services.http_client import get_shared_http_client
-from app.utils.f1_season import get_current_f1_season
+from app.utils.f1_season import get_current_f1_season, is_supported_f1_season
 from app.utils.http import fetch_with_retry
+from app.utils.jolpica import get_jolpica_base_url
+from app.utils.standings_metadata import get_season_driver_number_by_id
 
 logger = logging.getLogger(__name__)
 
-JOLPICA_BASE_URL = "https://api.jolpi.ca/ergast/f1"
 SEASONS_DIR = Path(__file__).parent.parent / "assets" / "seasons"
 
 CACHE_TTL_SECONDS = 3600
+NEGATIVE_CACHE_TTL_SECONDS = 60
 _fetch_locks: weakref.WeakKeyDictionary[
     asyncio.AbstractEventLoop, dict[int, asyncio.Lock]
 ] = weakref.WeakKeyDictionary()
@@ -39,20 +41,6 @@ def is_teams_data_cacheable(data: TeamsData) -> bool:
     return bool(data.teams) and data.standings_complete
 
 
-MANUAL_DRIVER_NUMBER_OVERRIDES = {
-    2026: {
-        "norris": 1,
-        "verstappen": 3,
-        "hadjar": 6,
-        "lawson": 30,
-        "lindblad": 41,
-        "bortoleto": 5,
-        "hulkenberg": 27,
-        "perez": 11,
-        "bottas": 77,
-    }
-}
-
 MANUAL_DRIVER_NUMBER_OVERRIDE_NAME_FALLBACKS = {
     2026: {
         "lando norris": "norris",
@@ -68,6 +56,15 @@ MANUAL_DRIVER_NUMBER_OVERRIDE_NAME_FALLBACKS = {
 }
 
 
+def get_available_teams_years() -> list[int]:
+    """Return every season with bundled teams data."""
+    return sorted(
+        int(path.stem.split("_", 1)[0])
+        for path in SEASONS_DIR.glob("*_teams.json")
+        if path.stem.split("_", 1)[0].isdigit()
+    )
+
+
 def get_default_teams_year() -> int:
     """Resolve the newest season that has bundled teams data."""
     current_year = get_current_f1_season()
@@ -75,11 +72,7 @@ def get_default_teams_year() -> int:
     if current_path.exists():
         return current_year
 
-    available_years = sorted(
-        int(path.stem.split("_", 1)[0])
-        for path in SEASONS_DIR.glob("*_teams.json")
-        if path.stem.split("_", 1)[0].isdigit()
-    )
+    available_years = get_available_teams_years()
     if not available_years:
         return current_year
 
@@ -101,6 +94,7 @@ class CacheEntry:
 
 class TeamsService:
     _shared_cache: dict[str, CacheEntry] = {}
+    _negative_cache: dict[int, float] = {}
 
     def __init__(self):
         self.timeout = config.REQUEST_TIMEOUT
@@ -125,8 +119,18 @@ class TeamsService:
 
     @staticmethod
     def _validate_year(year: int) -> bool:
-        """Validate year is within acceptable F1 data range (1950-2030)."""
-        return isinstance(year, int) and 1950 <= year <= 2030
+        """Validate year before creating cache keys, locks, or outbound requests."""
+        return is_supported_f1_season(year)
+
+    @classmethod
+    def _is_negative_cached(cls, year: int) -> bool:
+        expires_at = cls._negative_cache.get(year)
+        if expires_at is None:
+            return False
+        if time.time() < expires_at:
+            return True
+        cls._negative_cache.pop(year, None)
+        return False
 
     @staticmethod
     def _normalize_driver_lookup_key(name: str) -> str:
@@ -136,8 +140,7 @@ class TeamsService:
 
     @classmethod
     def _get_override_driver_id(cls, driver: TeamDriverEntry, season: int) -> str | None:
-        overrides = MANUAL_DRIVER_NUMBER_OVERRIDES.get(season, {})
-        if driver.driver_id in overrides:
+        if get_season_driver_number_by_id(driver.driver_id, season) is not None:
             return driver.driver_id
 
         name_fallbacks = MANUAL_DRIVER_NUMBER_OVERRIDE_NAME_FALLBACKS.get(season, {})
@@ -146,16 +149,14 @@ class TeamsService:
 
     @classmethod
     def _apply_manual_overrides(cls, teams_data: TeamsData) -> TeamsData:
-        driver_number_overrides = MANUAL_DRIVER_NUMBER_OVERRIDES.get(teams_data.season, {})
-        if not driver_number_overrides:
-            return teams_data
-
         for team in teams_data.teams:
             for driver in team.drivers:
                 override_driver_id = cls._get_override_driver_id(driver, teams_data.season)
                 if override_driver_id is None:
                     continue
-                override_number = driver_number_overrides.get(override_driver_id)
+                override_number = get_season_driver_number_by_id(
+                    override_driver_id, teams_data.season
+                )
                 if override_number is not None:
                     driver.driver_number = override_number
 
@@ -225,8 +226,9 @@ class TeamsService:
     async def _fetch_standings(self, year: int) -> tuple[dict, dict]:
         """Fetch driver and constructor standings from API."""
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-        driver_standings_url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
-        constructor_standings_url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
+        api_base = get_jolpica_base_url()
+        driver_standings_url = f"{api_base}/{year}/driverStandings.json"
+        constructor_standings_url = f"{api_base}/{year}/constructorStandings.json"
 
         logger.info("Fetching standings for %d", year)
 
@@ -352,10 +354,11 @@ class TeamsService:
 
     async def _fetch_from_api(self, year: int) -> TeamsData:
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-        drivers_url = f"{JOLPICA_BASE_URL}/{year}/drivers.json?limit=50"
-        constructors_url = f"{JOLPICA_BASE_URL}/{year}/constructors.json"
-        driver_standings_url = f"{JOLPICA_BASE_URL}/{year}/driverStandings.json"
-        constructor_standings_url = f"{JOLPICA_BASE_URL}/{year}/constructorStandings.json"
+        api_base = get_jolpica_base_url()
+        drivers_url = f"{api_base}/{year}/drivers.json?limit=50"
+        constructors_url = f"{api_base}/{year}/constructors.json"
+        driver_standings_url = f"{api_base}/{year}/driverStandings.json"
+        constructor_standings_url = f"{api_base}/{year}/constructorStandings.json"
 
         logger.info("Fetching teams and drivers from API for %d", year)
 
@@ -404,8 +407,8 @@ class TeamsService:
         # Fallback: if no standings for future year, use previous year's standings
         if not driver_standings_entries and not constructor_standings_entries and year >= 2026:
             logger.info("No API standings for %d, falling back to %d", year, year - 1)
-            fallback_driver_url = f"{JOLPICA_BASE_URL}/{year - 1}/driverStandings.json"
-            fallback_constructor_url = f"{JOLPICA_BASE_URL}/{year - 1}/constructorStandings.json"
+            fallback_driver_url = f"{api_base}/{year - 1}/driverStandings.json"
+            fallback_constructor_url = f"{api_base}/{year - 1}/constructorStandings.json"
 
             fallback_driver_resp, fallback_constructor_resp = await asyncio.gather(
                 fetch_with_retry(client, fallback_driver_url, logger=logger),
@@ -506,20 +509,38 @@ class TeamsService:
             )
 
         teams.sort(key=lambda x: x.position if x.position else 999)
-        return self._apply_manual_overrides(TeamsData(season=year, teams=teams))
+        standings_complete = bool(driver_standings_entries) and bool(constructor_standings_entries)
+        standings_complete = standings_complete and bool(teams) and all(
+            team.position is not None
+            and bool(team.drivers)
+            and all(driver.position is not None for driver in team.drivers)
+            for team in teams
+        )
+        return self._apply_manual_overrides(
+            TeamsData(season=year, teams=teams, standings_complete=standings_complete)
+        )
 
     async def get_teams_and_drivers(self, year: Optional[int] = None) -> TeamsData:
         """Return teams data while coalescing concurrent cold-cache fetches per season."""
         resolved_year = year if year is not None else get_default_teams_year()
+        if not self._validate_year(resolved_year):
+            raise ValueError(f"Unsupported F1 season: {resolved_year}")
         cached = self._get_cached(resolved_year)
         if cached:
             return cached
+        if self._is_negative_cached(resolved_year):
+            return TeamsData(season=resolved_year, teams=[], standings_complete=False)
 
         async with _get_fetch_lock(resolved_year):
             cached = self._get_cached(resolved_year)
             if cached:
                 return cached
-            return await self._load_teams_and_drivers(resolved_year)
+            data = await self._load_teams_and_drivers(resolved_year)
+            if data.teams:
+                self._negative_cache.pop(resolved_year, None)
+            else:
+                self._negative_cache[resolved_year] = time.time() + NEGATIVE_CACHE_TTL_SECONDS
+            return data
 
     async def _load_teams_and_drivers(self, year: int) -> TeamsData:
         if year is None:
@@ -570,4 +591,4 @@ class TeamsService:
 
         except Exception as e:
             logger.error("Error fetching teams and drivers: %s", e, exc_info=True)
-            return TeamsData(season=year, teams=[])
+            return TeamsData(season=year, teams=[], standings_complete=False)

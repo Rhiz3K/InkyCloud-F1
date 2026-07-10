@@ -5,19 +5,22 @@ import functools
 import logging
 import weakref
 from datetime import datetime, timedelta, timezone
-from io import BytesIO
 from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from PIL import Image
 
 from app.config import LANGUAGE_CODES, config
 from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.historical_refresh import main as update_historical_results
 from app.services.i18n import get_translator
-from app.services.image_keys import get_calendar_image_key, get_teams_image_key
+from app.services.image_keys import (
+    get_calendar_image_key,
+    get_configure_preview_filename,
+    get_preview_filename,
+    get_teams_image_key,
+)
 from app.services.renderers import create_renderer
 from app.services.version_service import refresh_version_info
 from app.services.weather_service import (
@@ -33,6 +36,7 @@ from app.services.weather_service import (
 from app.state import clear_bmp_cache, get_and_clear_api_calls_buffer, requeue_api_calls
 from app.utils.async_tasks import run_render
 from app.utils.atomic_io import atomic_write_bytes as _atomic_write_bytes
+from app.utils.image_conversion import bmp_to_png
 from app.utils.race_times import convert_race_times_to_timezone
 
 logger = logging.getLogger(__name__)
@@ -99,40 +103,6 @@ def _get_image_key(
     )
 
 
-def _bmp_to_png(
-    bmp_data: bytes, width: int = 400, full_size: bool = False, preserve_color: bool = False
-) -> bytes:
-    """
-    Convert BMP image data to PNG bytes for web previews.
-
-    Parameters:
-        bmp_data: Raw BMP image data.
-        width: Target width (height scales proportionally).
-        full_size: If True, skip resizing.
-        preserve_color: If True, keep RGB colors (for spectra6/bwr/bwry).
-            Otherwise convert to grayscale.
-
-    Returns:
-        PNG image data as bytes.
-    """
-    with Image.open(BytesIO(bmp_data)) as img_file:
-        if preserve_color:
-            # Keep colors for multi-color displays
-            img: Image.Image = img_file.convert("RGB")
-        else:
-            # Convert to grayscale for smoother edges (anti-aliasing on resize)
-            img = img_file.convert("L")
-
-    if not full_size:
-        ratio = width / img.width
-        new_size = (width, int(img.height * ratio))
-        img = img.resize(new_size, Image.Resampling.LANCZOS)
-
-    buffer = BytesIO()
-    img.save(buffer, format="PNG", optimize=True)
-    return buffer.getvalue()
-
-
 def _render_calendar_variant_bytes(
     lang: str,
     display: str,
@@ -170,19 +140,15 @@ def _calendar_preview_pngs_from_bmp(
     bmp_data = bmp_path.read_bytes()
 
     outputs: list[tuple[str, bytes]] = []
-    suffix = f"_{lang}"
-    if display_name != "1bit":
-        suffix += f"_{display_name}"
-    if weather_type != "off":
-        suffix += f"_weather_{weather_type}"
-
     if display_name == "1bit" and weather_type == "off":
-        outputs.append((f"preview_calendar_{lang}.png", _bmp_to_png(bmp_data, width=400)))
+        outputs.append((get_preview_filename("calendar", lang), bmp_to_png(bmp_data, width=400)))
 
     outputs.append(
         (
-            f"configure_calendar{suffix}.png",
-            _bmp_to_png(bmp_data, full_size=True, preserve_color=is_color),
+            get_configure_preview_filename(
+                "calendar", lang, display=display_name, weather=weather_type
+            ),
+            bmp_to_png(bmp_data, full_size=True, preserve_color=is_color),
         )
     )
     return outputs
@@ -197,15 +163,12 @@ def _teams_preview_pngs_from_bmp(
 
     outputs: list[tuple[str, bytes]] = []
     if display_name == "1bit":
-        outputs.append((f"preview_teams_{lang}.png", _bmp_to_png(bmp_data, width=400)))
+        outputs.append((get_preview_filename("teams", lang), bmp_to_png(bmp_data, width=400)))
 
-    suffix = f"_{lang}"
-    if display_name != "1bit":
-        suffix += f"_{display_name}"
     outputs.append(
         (
-            f"configure_teams{suffix}.png",
-            _bmp_to_png(bmp_data, full_size=True, preserve_color=is_color),
+            get_configure_preview_filename("teams", lang, display=display_name),
+            bmp_to_png(bmp_data, full_size=True, preserve_color=is_color),
         )
     )
     return outputs
@@ -1040,10 +1003,40 @@ def _parse_cron_expression(cron_expr: str) -> dict:
         "hour": parts[1],
         "day": parts[2],
         "month": parts[3],
-        "day_of_week": parts[4],
+        "day_of_week": _normalize_cron_day_of_week(parts[4]),
     }
     CronTrigger(**cron_kwargs)
     return cron_kwargs
+
+
+def _normalize_cron_day_of_week(value: str) -> str:
+    """Translate standard cron's Sunday-first numbers to APScheduler weekday names."""
+    weekday_names = {
+        0: "sun",
+        1: "mon",
+        2: "tue",
+        3: "wed",
+        4: "thu",
+        5: "fri",
+        6: "sat",
+        7: "sun",
+    }
+
+    def normalize_part(part: str) -> str:
+        base, separator, step = part.partition("/")
+        if base == "*" or any(char.isalpha() for char in base):
+            normalized = base
+        elif "-" in base:
+            start, end = base.split("-", 1)
+            normalized = f"{weekday_names[int(start)]}-{weekday_names[int(end)]}"
+        else:
+            normalized = weekday_names[int(base)]
+        return f"{normalized}/{step}" if separator else normalized
+
+    try:
+        return ",".join(normalize_part(part) for part in value.split(","))
+    except (KeyError, ValueError) as exc:
+        raise ValueError(f"invalid day-of-week field: {value}") from exc
 
 
 def _register_backup_job(sched: AsyncIOScheduler) -> None:
@@ -1086,16 +1079,22 @@ async def refresh_historical_results() -> None:
 
     async with lock:
         try:
-            updated_circuits = await update_historical_results()
-            if updated_circuits:
+            result = await update_historical_results()
+            if result.updated_circuits:
                 logger.info(
                     "Historical results refreshed for %s circuits (%s); "
                     "hourly generation will publish relevant changes",
-                    len(updated_circuits),
-                    ", ".join(updated_circuits),
+                    len(result.updated_circuits),
+                    ", ".join(result.updated_circuits),
                 )
             else:
                 logger.info("Historical results refresh completed with no material changes")
+            if not result.completed:
+                logger.error(
+                    "Historical refresh incomplete; not updating freshness timestamp (failed: %s)",
+                    ", ".join(result.failed_circuits) or "no circuits attempted",
+                )
+                return
         except Exception as e:
             logger.error("Error refreshing historical results: %s", e, exc_info=True)
             return
@@ -1281,8 +1280,3 @@ async def run_initial_generation() -> None:
         logger.info("Version info refreshed on startup")
     except Exception as e:
         logger.error("Error refreshing version info on startup: %s", e, exc_info=True)
-
-
-# Legacy function names for backwards compatibility
-sync_full_season = collect_and_generate
-sync_season_to_db = collect_and_generate

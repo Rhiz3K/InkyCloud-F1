@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from urllib.parse import parse_qs, urlparse
 
+import httpx
 import pytest
 
 from app.services import historical_refresh as update_historical
@@ -167,7 +168,7 @@ def _race_result(pos: int | str, code: str, name: str, team: str, time: str) -> 
 
 @pytest.mark.asyncio
 async def test_fetch_results_uses_actual_top_three_qualifying_positions(monkeypatch):
-    monkeypatch.setattr(update_historical, "CURRENT_YEAR", 2026)
+    monkeypatch.setattr(update_historical, "_current_year", lambda: 2026)
 
     results = await update_historical.fetch_results(
         _MockHistoricalClient(),
@@ -184,7 +185,7 @@ async def test_fetch_results_uses_actual_top_three_qualifying_positions(monkeypa
 
 @pytest.mark.asyncio
 async def test_fetch_results_uses_actual_top_three_race_positions(monkeypatch):
-    monkeypatch.setattr(update_historical, "CURRENT_YEAR", 2026)
+    monkeypatch.setattr(update_historical, "_current_year", lambda: 2026)
 
     results = await update_historical.fetch_results(
         _MockHistoricalClient(),
@@ -201,7 +202,7 @@ async def test_fetch_results_uses_actual_top_three_race_positions(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_fetch_results_ignores_non_numeric_positions(monkeypatch):
-    monkeypatch.setattr(update_historical, "CURRENT_YEAR", 2026)
+    monkeypatch.setattr(update_historical, "_current_year", lambda: 2026)
 
     results = await update_historical.fetch_results(
         _MockHistoricalClient(include_bad_positions=True),
@@ -223,7 +224,7 @@ async def test_fetch_results_ignores_non_numeric_positions(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_fetch_results_falls_back_when_current_year_contains_malformed_rows(monkeypatch):
-    monkeypatch.setattr(update_historical, "CURRENT_YEAR", 2026)
+    monkeypatch.setattr(update_historical, "_current_year", lambda: 2026)
 
     results = await update_historical.fetch_results(
         _MalformedCurrentYearClient(),
@@ -256,3 +257,17 @@ def test_write_json_atomic_replaces_target(tmp_path, monkeypatch):
     assert len(replace_calls) == 1
     assert replace_calls[0][1] == target
     assert target.read_text(encoding="utf-8") == '{\n  "new": true\n}\n'
+
+
+@pytest.mark.asyncio
+async def test_fetch_status_marks_systemic_upstream_failure_incomplete(monkeypatch):
+    async def fail_fetch(*_args, **_kwargs):
+        raise httpx.ConnectError("offline")
+
+    monkeypatch.setattr(update_historical, "fetch_with_retry", fail_fetch)
+    monkeypatch.setattr(update_historical, "_current_year", lambda: 2027)
+
+    outcome = await update_historical._fetch_results_with_status(object(), "monza")
+
+    assert outcome.results is None
+    assert outcome.completed is False

@@ -17,6 +17,8 @@ FONTS_DIR = Path(__file__).parent.parent / "assets" / "fonts"
 # than globally: a PIL FreeTypeFont is not guaranteed safe to use from multiple threads at once,
 # but per-thread reuse still avoids reopening the font file on every fit_ui_font size probe.
 _thread_local = threading.local()
+_missing_font_keys: set[tuple[str, int, int]] = set()
+_missing_font_lock = threading.Lock()
 
 
 _FONT_CACHE_MAXSIZE = 256
@@ -40,6 +42,31 @@ def _cached_truetype(path: str, size: int, *, index: int = 0) -> FreeTypeFont:
         font = ImageFont.truetype(path, size, index=index)
         cache[key] = font
     return font
+
+
+def load_optional_truetype(
+    path: str | Path,
+    size: int,
+    *,
+    label: str,
+    target_logger: logging.Logger,
+    index: int = 0,
+) -> FreeTypeFont | None:
+    """Load a cached font and remember failures so missing optional fonts log only once."""
+    path_value = str(path)
+    key = (path_value, size, index)
+    with _missing_font_lock:
+        if key in _missing_font_keys:
+            return None
+    try:
+        return _cached_truetype(path_value, size, index=index)
+    except OSError as exc:
+        with _missing_font_lock:
+            first_failure = key not in _missing_font_keys
+            _missing_font_keys.add(key)
+        if first_failure:
+            target_logger.warning("Failed to load %s font: %s", label, exc)
+        return None
 
 
 _CJK_FONT_FILES = {

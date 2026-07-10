@@ -12,7 +12,7 @@ Checklist for setting up the public GitHub repository `Rhiz3K/InkyCloud-F1`.
   - [ ] Dismiss stale pull request approvals when new commits are pushed
 - [ ] **Require status checks to pass before merging**
   - [ ] Require branches to be up to date before merging
-  - [ ] Add required status checks: `test`, `lint`
+  - [ ] Add required status check: `test` (the CI job includes Ruff, mypy, tests, and Docker build)
 - [ ] **Do not allow bypassing the above settings**
 
 ## 2. Security Settings (Settings → Code security and analysis)

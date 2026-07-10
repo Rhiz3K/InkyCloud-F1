@@ -40,10 +40,9 @@ jobs:
         if: >-
           always() &&
           steps.metadata.outcome == 'success' &&
-          (steps.alert_metadata.outputs.alert-state == 'OPEN' ||
-           (steps.metadata.outputs.package-ecosystem != 'docker' &&
-            (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
-             steps.metadata.outputs.update-type == 'version-update:semver-minor')))
+          steps.metadata.outputs.package-ecosystem != 'docker' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+           steps.metadata.outputs.update-type == 'version-update:semver-minor')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}

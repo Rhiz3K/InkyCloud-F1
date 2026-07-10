@@ -8,13 +8,14 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import LANGUAGE_CODES, config
+from app.models import PerfMetricsPayload
 from app.services.analytics import track_event
 from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.teams_service import TeamsService
 from app.state import get_bmp_cache
 from app.utils.async_tasks import create_supervised_task
-from app.utils.f1_season import get_current_f1_season
+from app.utils.f1_season import get_current_f1_season, is_supported_f1_season
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.standings_metadata import TEAM_ID_MAP, get_driver_number
 from app.version import APP_VERSION
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 _LANGUAGE_VALUES = list(LANGUAGE_CODES)
+_MAX_USER_AGENT_LENGTH = 500
 
 
 def _matches_round(race: dict, round_num: int) -> bool:
@@ -35,6 +37,11 @@ def _matches_round(race: dict, round_num: int) -> bool:
         return int(round_value) == round_num
     except (TypeError, ValueError):
         return False
+
+
+def _require_supported_f1_season(year: int) -> None:
+    if not is_supported_f1_season(year):
+        raise HTTPException(status_code=422, detail="Unsupported F1 season")
 
 
 def _require_operational_api_auth(request: Request) -> None:
@@ -242,6 +249,9 @@ async def api_info() -> dict:
 async def get_stats(request: Request) -> dict:
     """Get API request statistics from database."""
     _require_operational_api_auth(request)
+    enforce_rate_limit(
+        request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE
+    )
 
     db = Database()
     try:
@@ -260,21 +270,17 @@ async def get_stats(request: Request) -> dict:
 
 
 @router.post("/api/perf-metrics")
-async def post_perf_metrics(request: Request) -> dict[str, str]:
+async def post_perf_metrics(payload: PerfMetricsPayload, request: Request) -> dict[str, str]:
     """Store client-side Web Vitals metrics for later aggregation."""
-    from app.models import PerfMetricsPayload
-
     enforce_rate_limit(
         request,
         bucket="perf_metrics",
         limit=config.PERF_METRICS_RATE_LIMIT_PER_MINUTE,
     )
 
+    user_agent = (request.headers.get("User-Agent") or "")[:_MAX_USER_AGENT_LENGTH] or None
+    db = Database()
     try:
-        data = await request.json()
-        payload = PerfMetricsPayload(**data)
-
-        db = Database()
         try:
             await db.save_perf_metric(
                 page_path=payload.page_path,
@@ -283,39 +289,44 @@ async def post_perf_metrics(request: Request) -> dict[str, str]:
                 fcp_ms=payload.fcp_ms,
                 ttfb_ms=payload.ttfb_ms,
                 inp_ms=payload.inp_ms,
-                user_agent=request.headers.get("User-Agent"),
+                user_agent=user_agent,
                 connection_type=payload.connection_type,
                 device_memory=payload.device_memory,
             )
-        finally:
-            await db.close()
+        except Exception as exc:
+            logger.warning("Failed to save perf metrics: %s", exc)
+            raise HTTPException(status_code=503, detail="Failed to save metrics") from exc
+    finally:
+        await db.close()
 
-        create_supervised_task(
-            track_event(
-                url=payload.page_path,
-                event_name="web_vitals",
-                lang="en",
-                user_agent=request.headers.get("User-Agent"),
-                event_data={
-                    "lcp": payload.lcp_ms,
-                    "cls": payload.cls,
-                    "fcp": payload.fcp_ms,
-                    "ttfb": payload.ttfb_ms,
-                },
-            ),
-            name="track_web_vitals",
-        )
+    create_supervised_task(
+        track_event(
+            url=payload.page_path,
+            event_name="web_vitals",
+            lang="en",
+            user_agent=user_agent,
+            event_data={
+                "lcp": payload.lcp_ms,
+                "cls": payload.cls,
+                "fcp": payload.fcp_ms,
+                "ttfb": payload.ttfb_ms,
+            },
+        ),
+        name="track_web_vitals",
+    )
 
-        return {"status": "ok"}
-    except Exception as exc:
-        logger.warning("Failed to save perf metrics: %s", exc)
-        return {"status": "error", "message": "Failed to save metrics"}
+    return {"status": "ok"}
 
 
 @router.get("/api/perf-metrics")
-async def get_perf_metrics(request: Request, hours: int = Query(default=24, le=720)) -> dict:
+async def get_perf_metrics(
+    request: Request, hours: int = Query(default=24, ge=1, le=720)
+) -> dict:
     """Return aggregated performance metrics for the requested lookback window."""
     _require_operational_api_auth(request)
+    enforce_rate_limit(
+        request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE
+    )
 
     db = Database()
     try:
@@ -327,9 +338,14 @@ async def get_perf_metrics(request: Request, hours: int = Query(default=24, le=7
 
 
 @router.get("/api/stats/history")
-async def get_stats_history(request: Request, limit: int = Query(default=168, le=720)) -> dict:
+async def get_stats_history(
+    request: Request, limit: int = Query(default=168, ge=1, le=720)
+) -> dict:
     """Return recent hourly request history for the stats dashboard."""
     _require_operational_api_auth(request)
+    enforce_rate_limit(
+        request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE
+    )
 
     db = Database()
     try:
@@ -347,6 +363,7 @@ async def get_season_races(
     enforce_rate_limit(
         request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE
     )
+    _require_supported_f1_season(year)
     races = f1_service.get_all_races_from_static(year)
     if not races:
         races = await f1_service.get_season_races(year)
@@ -364,6 +381,9 @@ async def get_race_detail(
     enforce_rate_limit(
         request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE
     )
+    _require_supported_f1_season(year)
+    if not 1 <= round_num <= 30:
+        raise HTTPException(status_code=422, detail="Invalid race round")
     static_races = f1_service.get_all_races_from_static(year)
     race = next(
         (item for item in static_races if _matches_round(item, round_num)),
@@ -377,8 +397,12 @@ async def get_race_detail(
 
 
 @router.get("/api/teams/{year}")
-async def get_teams(year: int) -> dict:
+async def get_teams(year: int, request: Request) -> dict:
     """Get teams and drivers for a season."""
+    enforce_rate_limit(
+        request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE
+    )
+    _require_supported_f1_season(year)
     try:
         teams_service = TeamsService()
         teams_data = await teams_service.get_teams_and_drivers(year)
@@ -403,12 +427,16 @@ def _get_team_id(team_name: str) -> str | None:
 
 @router.get("/api/standings/leader")
 @router.get("/api/standings/leader/{year}")
-async def get_standings_leader(year: int | None = None) -> dict:
+async def get_standings_leader(request: Request, year: int | None = None) -> dict:
     """Return the current driver and constructor leaders for a season."""
     from app.services.standings_service import StandingsService
 
     if year is None:
         year = get_current_f1_season()
+    enforce_rate_limit(
+        request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE
+    )
+    _require_supported_f1_season(year)
 
     standings_service = StandingsService()
 

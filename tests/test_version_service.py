@@ -62,3 +62,53 @@ async def test_failed_refresh_extends_last_good_cache_freshness(monkeypatch):
 
     assert result is cached
     assert version_service._version_cache_fetched_at == 42.0
+
+
+@pytest.mark.asyncio
+async def test_partial_refresh_keeps_release_from_last_good_cache(monkeypatch):
+    cached = VersionInfo(
+        "v1.2.30",
+        "Release 1.2.30",
+        "2026-04-01T00:00:00Z",
+        "oldsha",
+        "oldsha",
+        None,
+        None,
+        None,
+    )
+    monkeypatch.setattr(version_service, "_version_cache", cached)
+    client = AsyncMock()
+    client.get.side_effect = [
+        AsyncMock(status_code=403),
+        AsyncMock(
+            status_code=200,
+            json=lambda: {
+                "sha": "1234567890abcdef",
+                "commit": {
+                    "committer": {"date": "2026-04-03T00:00:00Z"},
+                    "message": "New commit",
+                },
+            },
+        ),
+    ]
+    monkeypatch.setattr(version_service, "get_shared_http_client", lambda *_args, **_kwargs: client)
+
+    result = await fetch_version_info()
+
+    assert result.release_tag == "v1.2.30"
+    assert result.commit_sha_short == "1234567"
+
+
+@pytest.mark.asyncio
+async def test_initial_failed_refresh_does_not_start_cache_ttl(monkeypatch):
+    monkeypatch.setattr(version_service, "_version_cache", None)
+    monkeypatch.setattr(version_service, "_version_cache_fetched_at", None)
+    client = AsyncMock()
+    client.get.side_effect = [AsyncMock(status_code=503), AsyncMock(status_code=503)]
+    monkeypatch.setattr(version_service, "get_shared_http_client", lambda *_args, **_kwargs: client)
+
+    result = await fetch_version_info()
+
+    assert result.version_string == "unknown"
+    assert version_service._version_cache is None
+    assert version_service._version_cache_fetched_at is None

@@ -25,7 +25,7 @@ Coolify is perfect for self-hosting F1 E-Ink Calendar:
 - ✅ **Auto-deploy** - Push to GitHub, auto-deploy to production
 - ✅ **Free SSL** - Automatic Let's Encrypt certificates
 - ✅ **Built-in Monitoring** - Logs, metrics, health checks
-- ✅ **Easy Scaling** - Horizontal scaling with one click
+- ✅ **Simple operation** - One stateful replica with persistent storage
 - ✅ **No Vendor Lock-in** - Run on any VPS (DigitalOcean, Hetzner, AWS, etc.)
 - ✅ **Cost-effective** - €5-10/month VPS can handle significant traffic
 
@@ -254,34 +254,22 @@ Coolify automatically provisions Let's Encrypt SSL:
 
 ## Scaling & Performance
 
-### Horizontal Scaling
+### Replica Count
 
-Scale to multiple instances for high availability:
+Keep the Coolify replica count at **1**. The application owns an in-process scheduler, in-memory
+caches, generated files, and a SQLite database. Additional replicas would run duplicate scheduled
+jobs and create competing writers even when they mount the same persistent volume.
 
-1. Go to deployment settings
-2. **"Resources"** → **"Replicas"**
-3. Set desired count (e.g., 3)
-4. Click **"Update"**
-
-Coolify automatically:
-
-- Starts multiple containers
-- Load balances traffic
-- Health checks all instances
-- Removes unhealthy containers
-
-**Recommended setup**:
-
-- **Low traffic** (<1000 req/day): 1 replica
-- **Medium traffic** (1k-10k req/day): 2 replicas
-- **High traffic** (>10k req/day): 3+ replicas
+Horizontal scaling requires an external job leader, a shared transactional database, and shared
+object storage for generated images. Do not increase the replica count until those components are
+in place.
 
 ### Resource Limits
 
 Set CPU and memory limits:
 
 ```yaml
-Resources per replica:
+Resources for the single replica:
   CPU: 0.5 cores (default)
   Memory: 512MB (recommended: 1GB)
 ```
@@ -853,6 +841,6 @@ After successful deployment:
 
 ---
 
-_Last updated: December 2024_  
+_Last updated: July 2026_
 _Coolify version: 4.x+_  
-_InkyCloud-F1 version: 0.2.0+_
+_InkyCloud-F1 version: 1.2.31+_

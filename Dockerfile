@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Builder
 # ============================================
-FROM python:3.13-slim AS builder
+FROM python:3.13-slim@sha256:eb43ff125d8d58d7449dcba7d336c23bcac412f526d861db493b9994d8010280 AS builder
 
 WORKDIR /app
 
@@ -13,19 +13,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files
+# Install dependencies in a source-independent layer so code and asset changes reuse it.
 COPY pyproject.toml setup.py MANIFEST.in README.md ./
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    python -c 'import tomllib; print("\n".join(tomllib.load(open("pyproject.toml", "rb"))["project"]["dependencies"]))' > /tmp/requirements.txt && \
+    pip install --no-cache-dir --prefix=/install --no-warn-script-location -r /tmp/requirements.txt
+
+# Build and install the application without duplicating dependency resolution.
 COPY app/ ./app/
 COPY translations/ ./translations/
-
-# Upgrade pip and install setuptools/wheel first, then install package
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir --prefix=/install --no-warn-script-location .
+COPY CHANGELOG.md LICENSE ./
+RUN pip install --no-cache-dir --no-deps --prefix=/install --no-warn-script-location .
 
 # ============================================
 # Stage 2: Runtime
 # ============================================
-FROM python:3.13-slim
+FROM python:3.13-slim@sha256:eb43ff125d8d58d7449dcba7d336c23bcac412f526d861db493b9994d8010280
 
 WORKDIR /app
 
@@ -39,11 +42,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy installed packages from builder stage
 COPY --from=builder /install /usr/local
-
-# Copy application code
-COPY app/ ./app/
-COPY translations/ ./translations/
-COPY CHANGELOG.md pyproject.toml setup.py MANIFEST.in ./
 
 # Copy and install reset-db script
 COPY scripts/reset_db.sh /usr/local/bin/reset-db
@@ -73,7 +71,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     APP_HOST=0.0.0.0 \
     APP_PORT=8000 \
-    FORWARDED_ALLOW_IPS=127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+    FORWARDED_ALLOW_IPS=127.0.0.1
 
 # Run application
 CMD ["sh", "-c", "uvicorn app.main:app --host \"${APP_HOST}\" --port \"${APP_PORT}\" --proxy-headers --forwarded-allow-ips=\"${FORWARDED_ALLOW_IPS}\""]

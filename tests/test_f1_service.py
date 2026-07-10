@@ -1,6 +1,7 @@
 """Tests for F1 service cancelled-race handling."""
 
 import json
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -83,50 +84,6 @@ class MockResponse:
     def raise_for_status(self):
         if self.status_code >= 400:
             raise Exception(f"HTTP {self.status_code}")
-
-
-@pytest.mark.asyncio
-async def test_get_next_race_uses_shared_retry_helper(monkeypatch):
-    service = F1Service()
-    mock_response = MockResponse(
-        {
-            "MRData": {
-                "RaceTable": {
-                    "Races": [
-                        {
-                            "season": "2026",
-                            "round": "1",
-                            "raceName": "Australian Grand Prix",
-                            "Circuit": {
-                                "circuitId": "albert_park",
-                                "circuitName": "Albert Park Grand Prix Circuit",
-                                "Location": {
-                                    "locality": "Melbourne",
-                                    "country": "Australia",
-                                    "lat": "-37.8497",
-                                    "long": "144.968",
-                                },
-                            },
-                            "date": "2026-03-08",
-                            "time": "04:00:00Z",
-                        }
-                    ]
-                }
-            }
-        }
-    )
-    mock_fetch = AsyncMock(return_value=mock_response)
-
-    monkeypatch.setattr(f1_service_module, "fetch_with_retry", mock_fetch)
-
-    result = await service.get_next_race()
-
-    assert result is not None
-    assert result["race_name"] == "Australian Grand Prix"
-    mock_fetch.assert_awaited_once()
-    client_arg, url_arg = mock_fetch.await_args.args[:2]
-    assert url_arg == service.api_url
-    assert client_arg is not None
 
 
 @pytest.mark.asyncio
@@ -339,6 +296,39 @@ def test_convert_race_times_includes_sprint_qualifying_session():
     assert session_names == ["FP1", "SprintQualifying", "Sprint", "Qualifying", "Race"]
 
 
+def test_next_race_static_uses_last_completed_race_for_empty_offseason(monkeypatch):
+    class FrozenDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2027, 1, 15, 12, tzinfo=tz or timezone.utc)
+
+    last_race = Race(
+        season="2026",
+        round="24",
+        raceName="Abu Dhabi Grand Prix",
+        Circuit=Circuit(
+            circuitId="yas_marina",
+            circuitName="Yas Marina Circuit",
+            Location=Location(locality="Abu Dhabi", country="UAE"),
+        ),
+        date="2026-12-06",
+        time="13:00:00Z",
+    )
+
+    monkeypatch.setattr(f1_service_module, "datetime", FrozenDateTime)
+    monkeypatch.setattr(
+        F1Service,
+        "get_season_from_static",
+        staticmethod(lambda year: [last_race] if year == 2026 else []),
+    )
+
+    result = F1Service().get_next_race_from_static()
+
+    assert result is not None
+    assert result["race_name"] == "Abu Dhabi Grand Prix"
+    assert result["season"] == "2026"
+
+
 @pytest.mark.asyncio
 async def test_get_season_races_uses_configured_api_base_url(monkeypatch):
     service = F1Service()
@@ -359,180 +349,6 @@ async def test_get_season_races_uses_configured_api_base_url(monkeypatch):
     assert (
         mock_fetch.await_args_list[1].args[1] == "https://mirror.example.com/custom/f1/2026/3.json"
     )
-
-
-@pytest.mark.asyncio
-async def test_fetch_race_results_fetches_full_payload_and_sorts_actual_podium(monkeypatch):
-    service = F1Service()
-    mock_fetch = AsyncMock(
-        return_value=MockResponse(
-            {
-                "MRData": {
-                    "RaceTable": {
-                        "Races": [
-                            {
-                                "Results": [
-                                    {
-                                        "position": "1",
-                                        "Driver": {
-                                            "code": "RUS",
-                                            "givenName": "George",
-                                            "familyName": "Russell",
-                                        },
-                                        "Constructor": {"name": "Mercedes"},
-                                        "Time": {"time": "1:26:37.979"},
-                                    },
-                                    {
-                                        "position": "2",
-                                        "Driver": {
-                                            "code": "VER",
-                                            "givenName": "Max",
-                                            "familyName": "Verstappen",
-                                        },
-                                        "Constructor": {"name": "Red Bull"},
-                                        "Time": {"time": "+1.611"},
-                                    },
-                                    {
-                                        "position": "3",
-                                        "Driver": {
-                                            "code": "ANT",
-                                            "givenName": "Kimi",
-                                            "familyName": "Antonelli",
-                                        },
-                                        "Constructor": {"name": "Mercedes"},
-                                        "Time": {"time": "+1.986"},
-                                    },
-                                    {
-                                        "position": "4",
-                                        "Driver": {
-                                            "code": "PIA",
-                                            "givenName": "Oscar",
-                                            "familyName": "Piastri",
-                                        },
-                                        "Constructor": {"name": "McLaren"},
-                                        "Time": {"time": "+3.012"},
-                                    },
-                                ]
-                            }
-                        ]
-                    }
-                }
-            }
-        )
-    )
-
-    monkeypatch.setattr(f1_service_module, "fetch_with_retry", mock_fetch)
-
-    results = await service._fetch_race_results(object(), "red_bull_ring", 2026)
-
-    assert [entry.driver.code for entry in results] == ["RUS", "VER", "ANT"]
-    assert mock_fetch.await_args.args[1].endswith("/results.json?limit=100")
-
-
-@pytest.mark.asyncio
-async def test_fetch_historical_result_helpers_ignore_bad_positions(monkeypatch):
-    service = F1Service()
-    qualifying_response = MockResponse(
-        {
-            "MRData": {
-                "RaceTable": {
-                    "Races": [
-                        {
-                            "QualifyingResults": [
-                                None,
-                                {"position": "NC", "Driver": {"code": "BAD"}, "Constructor": {}},
-                                {
-                                    "position": "3",
-                                    "Driver": {
-                                        "code": "HAM",
-                                        "givenName": "Lewis",
-                                        "familyName": "Hamilton",
-                                    },
-                                    "Constructor": {"name": "Ferrari"},
-                                    "Q3": "1:06.408",
-                                },
-                                {
-                                    "position": "1",
-                                    "Driver": {
-                                        "code": "RUS",
-                                        "givenName": "George",
-                                        "familyName": "Russell",
-                                    },
-                                    "Constructor": {"name": "Mercedes"},
-                                    "Q3": "1:06.113",
-                                },
-                                {
-                                    "position": "2",
-                                    "Driver": {
-                                        "code": "LEC",
-                                        "givenName": "Charles",
-                                        "familyName": "Leclerc",
-                                    },
-                                    "Constructor": {"name": "Ferrari"},
-                                    "Q3": "1:06.349",
-                                },
-                            ]
-                        }
-                    ]
-                }
-            }
-        }
-    )
-    race_response = MockResponse(
-        {
-            "MRData": {
-                "RaceTable": {
-                    "Races": [
-                        {
-                            "Results": [
-                                None,
-                                {"position": "NC", "Driver": {"code": "BAD"}, "Constructor": {}},
-                                {
-                                    "position": "3",
-                                    "Driver": {
-                                        "code": "ANT",
-                                        "givenName": "Kimi",
-                                        "familyName": "Antonelli",
-                                    },
-                                    "Constructor": {"name": "Mercedes"},
-                                    "Time": {"time": "+1.986"},
-                                },
-                                {
-                                    "position": "1",
-                                    "Driver": {
-                                        "code": "RUS",
-                                        "givenName": "George",
-                                        "familyName": "Russell",
-                                    },
-                                    "Constructor": {"name": "Mercedes"},
-                                    "Time": {"time": "1:26:37.979"},
-                                },
-                                {
-                                    "position": "2",
-                                    "Driver": {
-                                        "code": "VER",
-                                        "givenName": "Max",
-                                        "familyName": "Verstappen",
-                                    },
-                                    "Constructor": {"name": "Red Bull"},
-                                    "Time": {"time": "+1.611"},
-                                },
-                            ]
-                        }
-                    ]
-                }
-            }
-        }
-    )
-    mock_fetch = AsyncMock(side_effect=[qualifying_response, race_response])
-
-    monkeypatch.setattr(f1_service_module, "fetch_with_retry", mock_fetch)
-
-    qualifying = await service._fetch_qualifying_results(object(), "red_bull_ring", 2026)
-    race = await service._fetch_race_results(object(), "red_bull_ring", 2026)
-
-    assert [entry.driver.code for entry in qualifying] == ["RUS", "LEC", "HAM"]
-    assert [entry.driver.code for entry in race] == ["RUS", "VER", "ANT"]
 
 
 @pytest.mark.asyncio

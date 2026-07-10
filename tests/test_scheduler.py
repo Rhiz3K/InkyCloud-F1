@@ -10,6 +10,7 @@ from PIL import Image
 
 from app.models import TeamEntry, TeamsData
 from app.services import scheduler as scheduler_module
+from app.services.historical_refresh import HistoricalRefreshResult
 from app.services.image_keys import get_teams_image_key
 from app.services.scheduler import (
     _atomic_write_bytes,
@@ -153,7 +154,7 @@ async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeyp
 
     async def fake_update_historical():
         calls.append("update")
-        return ("red_bull_ring",)
+        return HistoricalRefreshResult(("red_bull_ring",), (), 1)
 
     async def fake_collect_and_generate():
         calls.append("generate")
@@ -170,6 +171,21 @@ async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeyp
 
     assert calls == ["update"]
     db.set_cache_meta.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_refresh_historical_results_does_not_stamp_incomplete_run(monkeypatch):
+    db = SimpleNamespace(set_cache_meta=AsyncMock(), close=AsyncMock())
+
+    async def fake_update_historical():
+        return HistoricalRefreshResult((), ("monza",), 1)
+
+    monkeypatch.setattr(scheduler_module, "update_historical_results", fake_update_historical)
+    monkeypatch.setattr(scheduler_module, "Database", lambda: db)
+
+    await scheduler_module.refresh_historical_results()
+
+    db.set_cache_meta.assert_not_awaited()
 
 
 @pytest.mark.asyncio

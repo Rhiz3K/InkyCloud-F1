@@ -8,9 +8,7 @@ from PIL import Image, ImageDraw, ImageOps
 
 from app.models import (
     ConstructorInfo,
-    ConstructorStanding,
     DriverInfo,
-    DriverStanding,
     HistoricalData,
     QualifyingResultEntry,
     RaceResultEntry,
@@ -241,6 +239,38 @@ def test_renderer_draws_cancelled_label_in_countdown(monkeypatch):
     assert rendered.format == "BMP"
     assert rendered.size == (800, 480)
     assert rendered.mode == "1"
+
+
+@pytest.mark.parametrize(
+    ("lang", "delta", "expected"),
+    [
+        ("en", timedelta(days=1, hours=1, minutes=5), "1 day 1 hour"),
+        ("de", timedelta(days=1, hours=1, minutes=5), "1 Tag 1 Stunde"),
+        ("cs", timedelta(days=3, hours=3, minutes=5), "3 dny 3 hodiny"),
+        ("pl", timedelta(days=22, hours=2, minutes=5), "22 dni 2 godziny"),
+    ],
+)
+def test_countdown_uses_locale_plural_forms(monkeypatch, lang, delta, expected):
+    renderer = Renderer(get_translator(lang), lang)
+    image = Image.new("1", (800, 480), 1)
+    draw = ImageDraw.Draw(image)
+    captured_text: list[str] = []
+    original_text = draw.text
+
+    def spy_text(xy, text, *args, **kwargs):
+        captured_text.append(str(text))
+        return original_text(xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(draw, "text", spy_text)
+    race_time = datetime.now(timezone.utc) + delta
+
+    renderer._draw_countdown_box(
+        draw,
+        {"schedule": [{"name": "Race", "datetime": race_time.isoformat()}]},
+        220,
+    )
+
+    assert expected in captured_text
 
 
 @pytest.mark.parametrize("lang", ["cs", "sk", "pl", "en", "de", "ja", "zh-CN", "pt-BR"])
@@ -937,287 +967,6 @@ def test_render_calendar_without_historical_data(mock_race_data):
     assert len(bmp_data) > 0
 
     # Verify it's a valid BMP
-    img = Image.open(BytesIO(bmp_data))
-    assert img.format == "BMP"
-    assert img.size == (800, 480)
-    assert img.mode == "1"
-
-
-@pytest.fixture
-def mock_driver_standings():
-    return [
-        DriverStanding(
-            position=1,
-            points=255.0,
-            wins=7,
-            driver_code="VER",
-            driver_name="Verstappen",
-            driver_given_name="Max",
-            nationality="Dutch",
-            constructor_name="Red Bull",
-        ),
-        DriverStanding(
-            position=2,
-            points=150.0,
-            wins=2,
-            driver_code="NOR",
-            driver_name="Norris",
-            driver_given_name="Lando",
-            nationality="British",
-            constructor_name="McLaren",
-        ),
-        DriverStanding(
-            position=3,
-            points=140.0,
-            wins=1,
-            driver_code="LEC",
-            driver_name="Leclerc",
-            driver_given_name="Charles",
-            nationality="Monegasque",
-            constructor_name="Ferrari",
-        ),
-    ]
-
-
-@pytest.fixture
-def mock_constructor_standings():
-    return [
-        ConstructorStanding(
-            position=1,
-            points=400.0,
-            wins=9,
-            constructor_name="Red Bull",
-            nationality="Austrian",
-        ),
-        ConstructorStanding(
-            position=2,
-            points=280.0,
-            wins=3,
-            constructor_name="Ferrari",
-            nationality="Italian",
-        ),
-        ConstructorStanding(
-            position=3,
-            points=250.0,
-            wins=2,
-            constructor_name="McLaren",
-            nationality="British",
-        ),
-    ]
-
-
-def test_render_standings_split(mock_driver_standings, mock_constructor_standings):
-    translator = get_translator("en")
-    renderer = Renderer(translator)
-    bmp_data = renderer.render_standings(
-        driver_standings=mock_driver_standings,
-        constructor_standings=mock_constructor_standings,
-        view="split",
-        season=2024,
-        after_round=10,
-    )
-
-    assert bmp_data is not None
-    assert len(bmp_data) > 0
-
-    img = Image.open(BytesIO(bmp_data))
-    assert img.format == "BMP"
-    assert img.size == (800, 480)
-    assert img.mode == "1"
-
-
-def test_render_standings_drivers_only(mock_driver_standings, mock_constructor_standings):
-    translator = get_translator("en")
-    renderer = Renderer(translator)
-    bmp_data = renderer.render_standings(
-        driver_standings=mock_driver_standings,
-        constructor_standings=mock_constructor_standings,
-        view="drivers",
-        season=2024,
-        after_round=10,
-    )
-
-    assert bmp_data is not None
-    assert len(bmp_data) > 0
-
-    img = Image.open(BytesIO(bmp_data))
-    assert img.format == "BMP"
-    assert img.size == (800, 480)
-    assert img.mode == "1"
-
-
-def test_render_standings_constructors_only(mock_driver_standings, mock_constructor_standings):
-    translator = get_translator("en")
-    renderer = Renderer(translator)
-    bmp_data = renderer.render_standings(
-        driver_standings=mock_driver_standings,
-        constructor_standings=mock_constructor_standings,
-        view="constructors",
-        season=2024,
-        after_round=10,
-    )
-
-    assert bmp_data is not None
-    assert len(bmp_data) > 0
-
-    img = Image.open(BytesIO(bmp_data))
-    assert img.format == "BMP"
-    assert img.size == (800, 480)
-    assert img.mode == "1"
-
-
-def test_render_standings_czech(mock_driver_standings, mock_constructor_standings):
-    translator = get_translator("cs")
-    renderer = Renderer(translator)
-    bmp_data = renderer.render_standings(
-        driver_standings=mock_driver_standings,
-        constructor_standings=mock_constructor_standings,
-        view="split",
-        season=2024,
-        after_round=10,
-    )
-
-    assert bmp_data is not None
-    assert len(bmp_data) > 0
-
-    img = Image.open(BytesIO(bmp_data))
-    assert img.format == "BMP"
-    assert img.size == (800, 480)
-    assert img.mode == "1"
-
-
-def test_render_standings_empty():
-    translator = get_translator("en")
-    renderer = Renderer(translator)
-    bmp_data = renderer.render_standings(
-        driver_standings=[],
-        constructor_standings=[],
-        view="split",
-        season=2024,
-        after_round=0,
-    )
-
-    assert bmp_data is not None
-    assert len(bmp_data) > 0
-
-    img = Image.open(BytesIO(bmp_data))
-    assert img.format == "BMP"
-    assert img.size == (800, 480)
-    assert img.mode == "1"
-
-
-def test_render_standings_24_drivers():
-    """Test rendering standings with 24 drivers (2026 grid expansion)."""
-    driver_codes = [
-        "VER",
-        "NOR",
-        "LEC",
-        "SAI",
-        "HAM",
-        "RUS",
-        "PIA",
-        "ALO",
-        "STR",
-        "OCO",
-        "GAS",
-        "TSU",
-        "ALB",
-        "SAR",
-        "BOT",
-        "ZHO",
-        "MAG",
-        "HUL",
-        "RIC",
-        "LAW",
-        "BEA",
-        "HAD",
-        "ANT",
-        "DOO",
-    ]
-    mock_24_drivers = [
-        DriverStanding(
-            position=i + 1,
-            points=max(0, 400 - i * 15),
-            wins=max(0, 10 - i),
-            driver_code=driver_codes[i],
-            driver_name=f"Driver{i + 1}",
-            driver_given_name=f"First{i + 1}",
-            nationality="Test",
-            constructor_name=f"Team{(i // 2) + 1}",
-        )
-        for i in range(24)
-    ]
-
-    translator = get_translator("en")
-    renderer = Renderer(translator)
-    bmp_data = renderer.render_standings(
-        driver_standings=mock_24_drivers,
-        constructor_standings=[],
-        view="drivers",
-        season=2026,
-        after_round=10,
-    )
-
-    assert bmp_data is not None
-    assert len(bmp_data) > 0
-
-    img = Image.open(BytesIO(bmp_data))
-    assert img.format == "BMP"
-    assert img.size == (800, 480)
-    assert img.mode == "1"
-
-
-def test_render_standings_20_drivers():
-    """Test rendering standings with 20 drivers (current 2024-2025 grid)."""
-    driver_codes = [
-        "VER",
-        "NOR",
-        "LEC",
-        "SAI",
-        "HAM",
-        "RUS",
-        "PIA",
-        "ALO",
-        "STR",
-        "OCO",
-        "GAS",
-        "TSU",
-        "ALB",
-        "SAR",
-        "BOT",
-        "ZHO",
-        "MAG",
-        "HUL",
-        "RIC",
-        "LAW",
-    ]
-    mock_20_drivers = [
-        DriverStanding(
-            position=i + 1,
-            points=max(0, 400 - i * 18),
-            wins=max(0, 8 - i),
-            driver_code=driver_codes[i],
-            driver_name=f"Driver{i + 1}",
-            driver_given_name=f"First{i + 1}",
-            nationality="Test",
-            constructor_name=f"Team{(i // 2) + 1}",
-        )
-        for i in range(20)
-    ]
-
-    translator = get_translator("en")
-    renderer = Renderer(translator)
-    bmp_data = renderer.render_standings(
-        driver_standings=mock_20_drivers,
-        constructor_standings=[],
-        view="drivers",
-        season=2025,
-        after_round=15,
-    )
-
-    assert bmp_data is not None
-    assert len(bmp_data) > 0
-
     img = Image.open(BytesIO(bmp_data))
     assert img.format == "BMP"
     assert img.size == (800, 480)

@@ -18,7 +18,7 @@ This guide covers different deployment options for the F1 E-Ink Calendar service
 - ✅ **Auto-deploy** - Push to GitHub, auto-deploy to production
 - ✅ **Free SSL** - Automatic Let's Encrypt certificates
 - ✅ **Built-in Monitoring** - Logs, metrics, health checks
-- ✅ **Easy Scaling** - Horizontal scaling with one click
+- ✅ **Predictable operation** - One application process owns SQLite and scheduled jobs
 - ✅ **No Vendor Lock-in** - Run on any VPS
 - ✅ **Cost-effective** - €5-10/month VPS handles significant traffic
 
@@ -298,11 +298,14 @@ Configure your monitoring tool to check this endpoint regularly.
 
 ### Workers
 
-For production, use multiple workers:
+Run exactly one application worker per deployment:
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
 ```
+
+Each process starts APScheduler and owns in-memory caches while writing to SQLite. Multiple
+workers would duplicate scheduled fetch/render jobs and contend for the same database and files.
 
 ### Caching
 
@@ -334,14 +337,10 @@ For automated S3 backups, see [SELF-HOSTING.md](./SELF-HOSTING.md#s3-database-ba
 
 ## Scaling
 
-The service is stateless and can be scaled horizontally:
-
-```bash
-# Docker Compose scaling
-docker compose up -d --scale f1-eink-cal=3
-```
-
-Add a load balancer (nginx, Traefik, etc.) in front of multiple instances.
+The default deployment is stateful and must remain at one replica. Before horizontal scaling,
+move SQLite to a shared transactional database, move generated images/cache state to shared
+storage, and ensure scheduled jobs have a single external leader. A load balancer alone does not
+provide those guarantees.
 
 ## Troubleshooting
 

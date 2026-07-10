@@ -3,11 +3,13 @@
 
 import asyncio
 import logging
-from io import BytesIO
 from pathlib import Path
+from typing import cast
 
 import httpx
 from PIL import Image, ImageFilter, ImageOps
+
+from app.utils.image_assets import atomic_save_image, decode_image_bytes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,7 +55,7 @@ def convert_to_silhouette(img: Image.Image) -> Image.Image:
     grayscale = Image.new("L", img_rgba.size, 255)
     for y in range(img_rgba.height):
         for x in range(img_rgba.width):
-            r, g, b, a = img_rgba.getpixel((x, y))
+            r, g, b, a = cast(tuple[int, int, int, int], img_rgba.getpixel((x, y)))
             if a > 50:
                 luminance = int(0.299 * r + 0.587 * g + 0.114 * b)
                 alpha_factor = a / 255.0
@@ -88,9 +90,9 @@ async def download_driver_number(
         response = await client.get(url)
         response.raise_for_status()
 
-        img = Image.open(BytesIO(response.content))
+        img = decode_image_bytes(response.content)
         silhouette = convert_to_silhouette(img)
-        silhouette.save(output_path, "PNG")
+        atomic_save_image(output_path, silhouette, image_format="PNG")
         logger.info(f"Saved {driver_id} number to {output_path}")
         return True
 
@@ -99,7 +101,7 @@ async def download_driver_number(
         return False
 
 
-async def main():
+async def main() -> bool:
     output_dir = Path(__file__).parent.parent / "app" / "assets" / "images" / "drivers"
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -114,7 +116,8 @@ async def main():
 
     success = sum(results)
     logger.info(f"Downloaded {success}/{len(DRIVER_CODES)} driver numbers")
+    return success == len(DRIVER_CODES)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(0 if asyncio.run(main()) else 1)

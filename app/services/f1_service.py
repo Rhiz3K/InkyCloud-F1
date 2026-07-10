@@ -15,16 +15,15 @@ from app.config import config
 from app.models import (
     ConstructorInfo,
     DriverInfo,
-    F1Response,
     HistoricalData,
     QualifyingResultEntry,
     Race,
     RaceResultEntry,
 )
+from app.services.circuit_data import get_circuits_data_path
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.http_client import get_shared_http_client
 from app.utils.http import fetch_with_retry
-from app.utils.result_entries import ResultEntry, get_result_mapping, sort_entries_by_position
 from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone, normalize_timezone
 
 logger = logging.getLogger(__name__)
@@ -32,11 +31,6 @@ logger = logging.getLogger(__name__)
 # Static data paths
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
 SEASONS_DIR = ASSETS_DIR / "seasons"
-CIRCUITS_DATA_PATH = ASSETS_DIR / "circuits_data.json"
-
-# Minimum year for historical data - qualifying data in modern format (Q1/Q2/Q3) started in 2006
-# Using 2003 as a safe minimum when qualifying results became reliably available in Ergast
-MIN_HISTORICAL_YEAR = 2003
 
 # Default UTC time used when a session/race time is missing from the data. Shared by the
 # display conversion and the next-race selection so the two never disagree at the boundary.
@@ -70,22 +64,6 @@ def _load_circuits_file(path: str, mtime_ns: int) -> dict:
         return json.load(handle)
 
 
-def _driver_info_from_result(entry: ResultEntry) -> DriverInfo:
-    """Build driver info from a normalized result entry."""
-    driver_data = get_result_mapping(entry, "Driver")
-    return DriverInfo(
-        code=driver_data.get("code", ""),
-        given_name=driver_data.get("givenName", ""),
-        family_name=driver_data.get("familyName", ""),
-    )
-
-
-def _constructor_info_from_result(entry: ResultEntry) -> ConstructorInfo:
-    """Build constructor info from a normalized result entry."""
-    constructor_data = get_result_mapping(entry, "Constructor")
-    return ConstructorInfo(name=constructor_data.get("name", ""))
-
-
 class F1Service:
     """Service for fetching F1 race data from Jolpica API."""
 
@@ -117,36 +95,6 @@ class F1Service:
             if normalized.endswith(suffix):
                 return normalized[: -len(suffix)].rstrip("/")
         return normalized
-
-    async def get_next_race(self) -> Optional[dict]:
-        """
-        Fetch the next F1 race from Jolpica API.
-
-        Returns:
-            Dictionary with race data including converted times, or None if failed
-        """
-        try:
-            client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-            logger.info("Fetching next race from %s", self.api_url)
-            response = await fetch_with_retry(client, self.api_url, logger=logger)
-
-            data = response.json()
-            f1_response = F1Response(**data)
-            race = f1_response.race
-
-            if not race:
-                logger.error("No race found in API response")
-                return None
-
-            # Convert times to Europe/Prague timezone
-            return self._convert_race_times(race)
-
-        except httpx.HTTPError as e:
-            logger.error("HTTP error fetching race data: %s", str(e), exc_info=True)
-            return None
-        except Exception as e:
-            logger.error("Error fetching race data: %s", str(e), exc_info=True)
-            return None
 
     @staticmethod
     def _has_scheduled_round(race_data: dict) -> bool:
@@ -343,183 +291,6 @@ class F1Service:
             "timezone": self.timezone_str,
         }
 
-    async def get_historical_data(self, circuit_id: str, current_season: int) -> HistoricalData:
-        """
-        Fetch historical race results for the most recent previous race at this circuit.
-
-        Logic:
-        1. Fetch all races held at this circuit.
-        2. Find the most recent season < current_season.
-        3. Fetch qualifying and race results for that season.
-        4. If no previous race exists, mark as new track.
-
-        Args:
-            circuit_id: The circuit identifier (e.g., "albert_park")
-            current_season: The current/upcoming race season year
-
-        Returns:
-            HistoricalData object with results or is_new_track=True
-        """
-        try:
-            client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-            # Step 1: Find the most recent previous race at this circuit
-            previous_season = await self._find_previous_race_season(
-                client, circuit_id, current_season
-            )
-
-            if previous_season is None:
-                logger.info("No previous race found for circuit %s", circuit_id)
-                return HistoricalData(is_new_track=True)
-
-            logger.info("Found previous race at %s in season %s", circuit_id, previous_season)
-
-            # Step 2: Fetch qualifying and race results for that season
-            qualifying_results = await self._fetch_qualifying_results(
-                client, circuit_id, previous_season
-            )
-            race_results = await self._fetch_race_results(client, circuit_id, previous_season)
-
-            return HistoricalData(
-                season=previous_season,
-                is_new_track=False,
-                qualifying_results=qualifying_results,
-                race_results=race_results,
-            )
-
-        except Exception as e:
-            logger.error("Error fetching historical data: %s", e, exc_info=True)
-            return HistoricalData(is_new_track=True)
-
-    async def _find_previous_race_season(
-        self, client: httpx.AsyncClient, circuit_id: str, current_season: int
-    ) -> Optional[int]:
-        """
-        Find the most recent season where a race was held at this circuit.
-
-        Only considers seasons >= MIN_HISTORICAL_YEAR to ensure qualifying
-        data is available in a usable format.
-
-        Args:
-            client: HTTP client
-            circuit_id: The circuit identifier
-            current_season: The current season to compare against
-
-        Returns:
-            The previous season year, or None if no previous race exists
-        """
-        url = f"{self.api_base_url}/circuits/{circuit_id}/races.json?limit=100"
-        logger.info("Fetching race history for circuit %s", circuit_id)
-
-        response = await fetch_with_retry(client, url, logger=logger)
-
-        data = response.json()
-        races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
-
-        # Filter races from previous seasons, ensuring they're recent enough
-        # to have reliable qualifying data (MIN_HISTORICAL_YEAR onwards)
-        previous_seasons = [
-            int(race["season"])
-            for race in races
-            if int(race["season"]) < current_season and int(race["season"]) >= MIN_HISTORICAL_YEAR
-        ]
-
-        if not previous_seasons:
-            return None
-
-        return max(previous_seasons)
-
-    async def _fetch_qualifying_results(
-        self, client: httpx.AsyncClient, circuit_id: str, season: int
-    ) -> list[QualifyingResultEntry]:
-        """
-        Fetch top 3 qualifying results for a specific circuit and season.
-
-        Args:
-            client: HTTP client
-            circuit_id: The circuit identifier
-            season: The season year
-
-        Returns:
-            List of QualifyingResultEntry objects (top 3)
-        """
-        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/qualifying.json?limit=100"
-        logger.info("Fetching qualifying results: %s", url)
-
-        try:
-            response = await fetch_with_retry(client, url, logger=logger)
-
-            data = response.json()
-            races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
-
-            if not races:
-                return []
-
-            results = []
-            qualifying_data = sort_entries_by_position(races[0].get("QualifyingResults"))
-
-            for position, entry in qualifying_data[:3]:
-                results.append(
-                    QualifyingResultEntry(
-                        position=position,
-                        driver=_driver_info_from_result(entry),
-                        constructor=_constructor_info_from_result(entry),
-                        q3_time=entry.get("Q3"),
-                    )
-                )
-
-            return results
-
-        except (httpx.HTTPError, AttributeError, KeyError, TypeError, ValueError) as e:
-            logger.warning("Failed to fetch qualifying results: %s", e)
-            return []
-
-    async def _fetch_race_results(
-        self, client: httpx.AsyncClient, circuit_id: str, season: int
-    ) -> list[RaceResultEntry]:
-        """
-        Fetch top 3 race results for a specific circuit and season.
-
-        Args:
-            client: HTTP client
-            circuit_id: The circuit identifier
-            season: The season year
-
-        Returns:
-            List of RaceResultEntry objects (top 3)
-        """
-        url = f"{self.api_base_url}/{season}/circuits/{circuit_id}/results.json?limit=100"
-        logger.info("Fetching race results: %s", url)
-
-        try:
-            response = await fetch_with_retry(client, url, logger=logger)
-
-            data = response.json()
-            races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
-
-            if not races:
-                return []
-
-            results = []
-            results_data = sort_entries_by_position(races[0].get("Results"))
-
-            for position, entry in results_data[:3]:
-                time_data = get_result_mapping(entry, "Time")
-
-                results.append(
-                    RaceResultEntry(
-                        position=position,
-                        driver=_driver_info_from_result(entry),
-                        constructor=_constructor_info_from_result(entry),
-                        time=time_data.get("time"),
-                    )
-                )
-
-            return results
-
-        except (httpx.HTTPError, AttributeError, KeyError, TypeError, ValueError) as e:
-            logger.warning("Failed to fetch race results: %s", e)
-            return []
-
     async def get_season_races(self, year: int) -> list[dict]:
         """
         Fetch all races for a given season.
@@ -667,6 +438,7 @@ class F1Service:
         """
         now = datetime.now(dt_timezone.utc)
         current_year = now.year
+        latest_completed: tuple[datetime, Race] | None = None
 
         # Check current year and next year
         for year in [current_year, current_year + 1]:
@@ -692,9 +464,38 @@ class F1Service:
                         )
                         return self._convert_race_times(race)
 
+                    if latest_completed is None or race_dt > latest_completed[0]:
+                        latest_completed = (race_dt, race)
+
                 except Exception as e:
                     logger.warning("Error parsing race date for %s: %s", race.raceName, e)
                     continue
+
+        # During the winter the next season file may intentionally be an empty placeholder.
+        # Keep displays useful by showing the most recent completed race until a new calendar
+        # is published, rather than degrading every automatic request to an error image.
+        if latest_completed is None:
+            for race in F1Service.get_season_from_static(current_year - 1):
+                try:
+                    if race.round in (None, ""):
+                        continue
+                    race_time = race.time or DEFAULT_SESSION_TIME_UTC
+                    race_dt = datetime.fromisoformat(
+                        f"{race.date}T{race_time}".replace("Z", "+00:00")
+                    )
+                    if race_dt.tzinfo is None:
+                        race_dt = race_dt.replace(tzinfo=dt_timezone.utc)
+                    if race_dt <= now and (
+                        latest_completed is None or race_dt > latest_completed[0]
+                    ):
+                        latest_completed = (race_dt, race)
+                except Exception as exc:
+                    logger.warning("Error parsing race date for %s: %s", race.raceName, exc)
+
+        if latest_completed is not None:
+            race = latest_completed[1]
+            logger.info("Using last completed race during off-season: %s", race.raceName)
+            return self._convert_race_times(race)
 
         logger.warning("No future races found in static data")
         return None
@@ -735,7 +536,7 @@ class F1Service:
         mapped_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
 
         try:
-            resolved_path = CIRCUITS_DATA_PATH.resolve()
+            resolved_path = get_circuits_data_path().resolve()
             circuits_data = _load_circuits_file(
                 str(resolved_path), resolved_path.stat().st_mtime_ns
             )
@@ -793,7 +594,7 @@ class F1Service:
             )
 
         except FileNotFoundError:
-            logger.error("Circuits data file not found: %s", CIRCUITS_DATA_PATH)
+            logger.error("Circuits data file not found: %s", get_circuits_data_path())
             return HistoricalData(is_new_track=True)
         except Exception as e:
             logger.error("Error loading historical data for %s: %s", circuit_id, e, exc_info=True)

@@ -19,7 +19,7 @@ from app.services.analytics import track_event, track_pageview
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.image_keys import get_calendar_image_key, get_teams_image_key
-from app.services.renderers import AnyRenderer, create_renderer
+from app.services.renderers import create_renderer
 from app.services.teams_service import (
     TeamsService,
     get_default_teams_year,
@@ -363,11 +363,6 @@ def _maybe_convert_timezone(race_data: dict, target_tz: str) -> dict:
     return convert_race_times_to_timezone(race_data, target_tz)
 
 
-def _get_renderer(display: str, translator, lang: str) -> AnyRenderer:
-    """Instantiate the renderer for the requested display mode."""
-    return create_renderer(display, translator, lang)
-
-
 def _render_calendar_bytes(
     display: str, lang: str, race_data: dict, historical_data, weather_data, weather_type: str
 ) -> bytes:
@@ -611,7 +606,7 @@ async def get_calendar_bmp(
             media_type="image/bmp",
             headers={
                 "Content-Disposition": 'inline; filename="calendar.bmp"',
-                "Cache-Control": "public, max-age=3600",
+                "Cache-Control": "public, max-age=3600" if is_cacheable else "no-store",
                 "X-Cache": "MISS",
             },
         )
@@ -767,7 +762,9 @@ async def get_teams_bmp(
         sentry_sdk.capture_exception(exc)
 
         display = _normalize_display(display)
-        bmp_data = await run_render(functools.partial(_render_error_bytes, display, lang, str(exc)))
+        bmp_data = await run_render(
+            functools.partial(_render_error_bytes, display, lang, "Temporary rendering error")
+        )
 
         record_api_call(
             "/teams.bmp",
@@ -787,6 +784,6 @@ async def get_teams_bmp(
             media_type="image/bmp",
             headers={
                 "Content-Disposition": 'inline; filename="teams.bmp"',
-                "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
+                "Cache-Control": "no-store",
             },
         )

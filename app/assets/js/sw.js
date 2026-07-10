@@ -1,6 +1,6 @@
 // Bump the cache version whenever routing-critical frontend assets change.
 // This forces clients to drop stale locale-switching logic from previous releases.
-const CACHE_NAME = "f1-eink-v4";
+const CACHE_NAME = "f1-eink-v5";
 const STATIC_ASSETS = [
     "/static/css/tailwind.min.css",
     "/static/css/styles.css",
@@ -37,11 +37,9 @@ self.addEventListener("fetch", (event) => {
     const url = new URL(event.request.url);
 
     if (url.pathname.startsWith("/static/")) {
-        // CSS/JS get stale-while-revalidate so an updated stylesheet/script reaches returning
-        // visitors even when CACHE_NAME wasn't bumped. Fonts/images are served cache-first:
-        // the server marks them immutable/long-lived, so background revalidation would be a
-        // permanent no-op costing a fetch + Cache Storage write per asset on every view.
-        const revalidate = /\.(css|js)$/.test(url.pathname);
+        // Only versioned font files are cache-first. CSS, scripts, and unversioned images use
+        // stale-while-revalidate so asset replacements reach returning visitors.
+        const revalidate = !url.pathname.startsWith("/static/fonts/");
         event.respondWith(
             caches.open(CACHE_NAME).then((cache) =>
                 cache.match(event.request).then((cached) => {

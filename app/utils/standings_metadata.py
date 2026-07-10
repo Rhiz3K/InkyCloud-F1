@@ -56,10 +56,43 @@ DRIVER_NUMBERS_BY_YEAR = {
     }
 }
 
+DRIVER_CODES_BY_ID = {
+    "norris": "NOR",
+    "piastri": "PIA",
+    "russell": "RUS",
+    "antonelli": "ANT",
+    "leclerc": "LEC",
+    "hamilton": "HAM",
+    "verstappen": "VER",
+    "hadjar": "HAD",
+    "lawson": "LAW",
+    "lindblad": "LIN",
+    "alonso": "ALO",
+    "stroll": "STR",
+    "gasly": "GAS",
+    "colapinto": "COL",
+    "albon": "ALB",
+    "sainz": "SAI",
+    "hulkenberg": "HUL",
+    "bortoleto": "BOR",
+    "ocon": "OCO",
+    "bearman": "BEA",
+    "perez": "PER",
+    "bottas": "BOT",
+}
+
 
 def get_driver_number(driver_code: str, year: int) -> int | None:
     """Resolve a season-aware car number, falling back to legacy metadata."""
     return DRIVER_NUMBERS_BY_YEAR.get(year, {}).get(driver_code, DRIVER_NUMBERS.get(driver_code))
+
+
+def get_season_driver_number_by_id(driver_id: str, year: int) -> int | None:
+    """Resolve an explicit season number by Jolpica driver id without legacy fallback."""
+    driver_code = DRIVER_CODES_BY_ID.get(driver_id)
+    if driver_code is None:
+        return None
+    return DRIVER_NUMBERS_BY_YEAR.get(year, {}).get(driver_code)
 
 TEAM_ID_MAP = {
     "McLaren": "mclaren",

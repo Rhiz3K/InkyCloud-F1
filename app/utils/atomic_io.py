@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import uuid
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
-
-import aiofiles
 
 
 def _temporary_path(path: Path) -> Path:
@@ -18,11 +17,16 @@ def _temporary_path(path: Path) -> Path:
 
 async def atomic_write_bytes(path: Path, data: bytes) -> None:
     """Atomically replace *path* with byte data written in the same directory."""
+    import aiofiles
+
     tmp_path = _temporary_path(path)
     try:
         async with aiofiles.open(tmp_path, "wb") as handle:
             await handle.write(data)
+            await handle.flush()
+        await asyncio.to_thread(_fsync_file, tmp_path)
         os.replace(tmp_path, path)
+        _fsync_directory(path.parent)
     finally:
         with suppress(FileNotFoundError):
             tmp_path.unlink()
@@ -34,7 +38,10 @@ def atomic_write_bytes_sync(path: Path, data: bytes) -> None:
     try:
         with open(tmp_path, "wb") as handle:
             handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
         os.replace(tmp_path, path)
+        _fsync_directory(path.parent)
     finally:
         with suppress(FileNotFoundError):
             tmp_path.unlink()
@@ -45,7 +52,10 @@ def atomic_save_image(path: Path, image: Any, *, format: str) -> None:
     tmp_path = _temporary_path(path)
     try:
         image.save(tmp_path, format=format)
+        with open(tmp_path, "rb") as handle:
+            os.fsync(handle.fileno())
         os.replace(tmp_path, path)
+        _fsync_directory(path.parent)
     finally:
         with suppress(FileNotFoundError):
             tmp_path.unlink()
@@ -58,7 +68,28 @@ def atomic_write_json(path: Path, payload: Any) -> None:
         with open(tmp_path, "w", encoding="utf-8") as handle:
             json.dump(payload, handle, indent=2)
             handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
         os.replace(tmp_path, path)
+        _fsync_directory(path.parent)
     finally:
         with suppress(FileNotFoundError):
             tmp_path.unlink()
+
+
+def _fsync_directory(directory: Path) -> None:
+    """Persist a rename on filesystems that require syncing the parent directory."""
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    try:
+        descriptor = os.open(directory, flags)
+    except OSError:
+        return
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _fsync_file(path: Path) -> None:
+    with open(path, "rb") as handle:
+        os.fsync(handle.fileno())

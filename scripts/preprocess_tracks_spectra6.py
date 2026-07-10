@@ -122,6 +122,7 @@ def main(circuits: list[str] | None = None) -> None:
 
     total_input_size = 0
     total_output_size = 0
+    failures = 0
     for track_path in sorted(track_files):
         source_stem = strip_track_variant_suffix(track_path.stem)
         normalized_stem = CIRCUIT_ID_MAP.get(source_stem, source_stem)
@@ -135,11 +136,14 @@ def main(circuits: list[str] | None = None) -> None:
                 f"({stats['input_size'] / 1024:6.0f}KB -> {stats['output_size'] / 1024:5.0f}KB)"
             )
         except Exception as exc:
+            failures += 1
             print(f" {track_path.name:25} -> ERROR: {exc}")
 
     print("-" * 60)
     print(f" Total: {total_input_size / 1024 / 1024:.1f}MB -> {total_output_size / 1024:.0f}KB")
     print(f"\nProcessed images saved to: {OUTPUT_DIR}")
+    if failures:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

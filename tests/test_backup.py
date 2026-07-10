@@ -262,7 +262,14 @@ class TestCronParsing:
         assert result["hour"] == "2"
         assert result["day"] == "*"
         assert result["month"] == "*"
-        assert result["day_of_week"] == "1"
+        assert result["day_of_week"] == "mon"
+
+    def test_parse_standard_cron_sunday(self):
+        from app.services.scheduler import _parse_cron_expression
+
+        result = _parse_cron_expression("0 3 * * 0")
+
+        assert result["day_of_week"] == "sun"
 
     def test_parse_invalid_cron_raises(self):
         """Invalid expressions must be rejected before APScheduler startup."""

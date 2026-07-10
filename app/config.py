@@ -6,6 +6,7 @@ from typing import Optional, TypeVar
 
 from dotenv import load_dotenv
 from pydantic import (
+    AliasChoices,
     Field,
     HttpUrl,
     SecretStr,
@@ -74,14 +75,20 @@ class Config(BaseSettings):
         "0.0.0.0",
         description="Host address the app binds to",
     )
-    APP_PORT: int = Field(8000, gt=0, lt=65536, description="Port the app listens on")
+    APP_PORT: int = Field(
+        8000,
+        gt=0,
+        lt=65536,
+        validation_alias=AliasChoices("APP_PORT", "PORT"),
+        description="Port the app listens on",
+    )
     DEBUG: bool = Field(False, description="Enable debug logging")
     SITE_URL: str = Field(
         "https://f1.inkycloud.click",
         description="Base URL for the site (used in SEO meta tags, sitemap, etc.)",
     )
     FORWARDED_ALLOW_IPS: str = Field(
-        "127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16",
+        "127.0.0.1",
         description="Trusted reverse proxy IPs/CIDRs for forwarded headers",
     )
     SKIP_PERSISTENCE_CHECK: bool = Field(
@@ -124,6 +131,9 @@ class Config(BaseSettings):
     DATA_API_RATE_LIMIT_PER_MINUTE: int = Field(
         120, gt=0, description="Per-IP live F1 data API requests allowed per minute"
     )
+    STATS_RATE_LIMIT_PER_MINUTE: int = Field(
+        60, gt=0, description="Per-IP statistics reads allowed per minute"
+    )
 
     ADMIN_API_TOKEN: Optional[SecretStr] = Field(
         default=None,
@@ -149,11 +159,11 @@ class Config(BaseSettings):
     # Scheduler settings
     SCHEDULER_ENABLED: bool = Field(True, description="Toggle background scheduler")
     STATS_RETENTION_DAYS: int = Field(
-        0,
+        90,
         ge=0,
         description=(
-            "Days to retain API/request/performance statistics. Default 0 keeps all history "
-            "(never deletes); set e.g. 90 to opt into pruning and bound table/backup growth"
+            "Days to retain API/request/performance statistics. Default 90 bounds database and "
+            "backup growth; set 0 only to explicitly retain history forever"
         ),
     )
 
@@ -219,6 +229,7 @@ class Config(BaseSettings):
         "IMAGE_RATE_LIMIT_PER_MINUTE",
         "PERF_METRICS_RATE_LIMIT_PER_MINUTE",
         "DATA_API_RATE_LIMIT_PER_MINUTE",
+        "STATS_RATE_LIMIT_PER_MINUTE",
         mode="before",
     )
     @classmethod
@@ -301,6 +312,8 @@ class Config(BaseSettings):
             validated = adapter.validate_python(value)
             return str(validated)
         except ValidationError:
+            if info.field_name == "SITE_URL":
+                default = "http://localhost:8000"
             return _warn_invalid(info.field_name, value, default, "must be a valid URL")
 
     @field_validator("BACKUP_RETENTION_DAYS", "STATS_RETENTION_DAYS", mode="before")
@@ -349,12 +362,12 @@ class Config(BaseSettings):
     @field_validator("ADMIN_API_TOKEN", mode="before")
     @classmethod
     def validate_admin_api_token(cls, value: object) -> SecretStr | None:
-        """Reject an explicitly configured empty token instead of weakening auth silently."""
+        """Treat an empty optional token as disabled; normalize configured secrets."""
         if value is None:
             return None
         raw_value = value.get_secret_value() if isinstance(value, SecretStr) else str(value)
         if not raw_value.strip():
-            raise ValueError("ADMIN_API_TOKEN must not be empty when configured")
+            return None
         return SecretStr(raw_value.strip())
 
     @field_validator("DATABASE_PATH", "IMAGES_PATH", mode="before")

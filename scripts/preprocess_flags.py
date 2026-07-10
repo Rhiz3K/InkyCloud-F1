@@ -247,6 +247,10 @@ def assign_patterns(colors: list[dict]) -> dict[int, str]:
         brightest_dominant = sorted_by_lum[-1]
 
     # Assign solid black and white
+    if darkest["index"] == brightest_dominant["index"]:
+        pattern = "solid_white" if darkest["luminance"] > 0.5 else "solid_black"
+        return {darkest["index"]: pattern}
+
     assignments = {
         darkest["index"]: "solid_black",
         brightest_dominant["index"]: "solid_white",
@@ -394,6 +398,7 @@ def main():
 
     total_input_size = 0
     total_output_size = 0
+    failures = 0
 
     for flag_path in sorted(flag_files):
         output_path = FLAGS_OUTPUT_DIR / f"{flag_path.stem}.bmp"
@@ -415,6 +420,7 @@ def main():
             print(f"{flag_path.stem:6} | {stats['num_colors']:6} | {mappings_str}")
 
         except Exception as e:
+            failures += 1
             print(f"{flag_path.stem:6} | ERROR: {e}")
 
     print("-" * 70)
@@ -426,6 +432,8 @@ def main():
     print("  vertical_lines  = ~50% black    horizontal_lines = ~50% black")
     print("  diagonal_lines  = ~33% black    checkerboard     = ~50% black")
     print("  sparse_dots     = ~11% black    solid_white      = 0% black")
+    if failures:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

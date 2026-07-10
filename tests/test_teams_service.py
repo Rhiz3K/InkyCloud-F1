@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 
 from app.models import TeamDriverEntry, TeamEntry, TeamsData
+from app.services import teams_service as teams_service_module
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.utils.f1_season import get_current_f1_season
 
@@ -150,3 +151,59 @@ def test_get_default_teams_year_falls_back_to_latest_bundled_season(monkeypatch)
     monkeypatch.setattr("app.services.teams_service.get_current_f1_season", lambda: 2027)
 
     assert get_default_teams_year() == 2026
+
+
+@pytest.mark.asyncio
+async def test_api_fallback_without_standings_is_not_cacheable(monkeypatch):
+    class Response:
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    async def fake_fetch(_client, url, **_kwargs):
+        if "/drivers.json" in url:
+            return Response(
+                {
+                    "MRData": {
+                        "DriverTable": {
+                            "Drivers": [
+                                {
+                                    "driverId": "verstappen",
+                                    "givenName": "Max",
+                                    "familyName": "Verstappen",
+                                }
+                            ]
+                        }
+                    }
+                }
+            )
+        if "/constructors.json" in url:
+            return Response(
+                {
+                    "MRData": {
+                        "ConstructorTable": {
+                            "Constructors": [{"constructorId": "red_bull", "name": "Red Bull"}]
+                        }
+                    }
+                }
+            )
+        return Response({"MRData": {"StandingsTable": {"StandingsLists": []}}})
+
+    monkeypatch.setattr(teams_service_module, "fetch_with_retry", fake_fetch)
+
+    data = await TeamsService()._fetch_from_api(2025)
+
+    assert len(data.teams) == 1
+    assert data.teams[0].drivers == []
+    assert data.standings_complete is False
+    assert teams_service_module.is_teams_data_cacheable(data) is False
+
+
+@pytest.mark.asyncio
+async def test_invalid_year_is_rejected_before_fetch_lock_creation():
+    service = TeamsService()
+
+    with pytest.raises(ValueError, match="Unsupported F1 season"):
+        await service.get_teams_and_drivers(999999)

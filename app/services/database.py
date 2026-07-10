@@ -14,12 +14,29 @@ import aiosqlite
 from app.config import config
 
 logger = logging.getLogger(__name__)
+PERF_STATS_SAMPLE_LIMIT = 10_000
 
 STATS_CLEANUP_QUERIES = {
     "request_stats": "DELETE FROM request_stats WHERE timestamp < ?",
     "api_calls": "DELETE FROM api_calls WHERE timestamp < ?",
     "perf_metrics": "DELETE FROM perf_metrics WHERE timestamp < ?",
 }
+
+
+async def _acquire_thread_lock(lock: threading.Lock) -> None:
+    """Acquire a thread lock without leaking it when the awaiting task is cancelled."""
+    while True:
+        attempt = asyncio.create_task(asyncio.to_thread(lock.acquire, False))
+        try:
+            acquired = await asyncio.shield(attempt)
+        except asyncio.CancelledError:
+            acquired = await attempt
+            if acquired:
+                lock.release()
+            raise
+        if acquired:
+            return
+        await asyncio.sleep(0.01)
 
 
 class Database:
@@ -72,7 +89,11 @@ class Database:
                     logger.debug("Failed to close stale database connection", exc_info=True)
 
             conn = await aiosqlite.connect(self.db_path)
-            await self._configure_connection(conn)
+            try:
+                await self._configure_connection(conn)
+            except BaseException:
+                await conn.close()
+                raise
             self._connection = conn
             self._connection_loop = current_loop
             return conn
@@ -118,7 +139,7 @@ class Database:
                 return
             path_lock = cls.schema_init_locks.setdefault(self.db_path, threading.Lock())
 
-        await asyncio.to_thread(path_lock.acquire)
+        await _acquire_thread_lock(path_lock)
         try:
             if self.db_path in cls.initialized_paths:
                 return
@@ -352,26 +373,6 @@ class Database:
             if row:
                 return row["value"]
             return None
-
-    async def save_request_stats(self, hour_count: int, day_count: int) -> None:
-        """
-        Save current request statistics snapshot.
-
-        Args:
-            hour_count: Number of requests in last hour
-            day_count: Number of requests in last 24 hours
-        """
-        await self._init_db_if_needed()
-        async with self._get_connection() as conn:
-            await conn.execute(
-                """
-                INSERT INTO request_stats (timestamp, hour_count, day_count)
-                VALUES (?, ?, ?)
-                """,
-                (datetime.now(timezone.utc).isoformat(), hour_count, day_count),
-            )
-            await conn.commit()
-            logger.debug("Saved request stats: hour=%s, day=%s", hour_count, day_count)
 
     async def get_request_stats_history(self, limit: int = 168) -> list[dict]:
         """
@@ -805,8 +806,7 @@ class Database:
               AND tz IS NOT NULL
               AND tz != ''
               AND tz != ?
-              AND year IS NULL
-              AND round IS NULL
+              AND is_auto_selected = 1
             GROUP BY lang, tz
             HAVING COUNT(*) >= ?
             ORDER BY count DESC
@@ -906,41 +906,21 @@ class Database:
                     "inp": {"avg": None, "p50": None, "p75": None, "p95": None},
                 }
 
-            # Fetch raw values for percentile calculation (sorted)
+            # Bound percentile memory and collapse five full scans into one recent-sample query.
             async with conn.execute(
-                """SELECT lcp_ms FROM perf_metrics
-                WHERE timestamp > ? AND lcp_ms IS NOT NULL ORDER BY lcp_ms""",
-                (cutoff,),
+                """SELECT lcp_ms, cls, fcp_ms, ttfb_ms, inp_ms
+                FROM perf_metrics
+                WHERE timestamp > ?
+                ORDER BY timestamp DESC
+                LIMIT ?""",
+                (cutoff, PERF_STATS_SAMPLE_LIMIT),
             ) as cursor:
-                lcp_values = [r["lcp_ms"] for r in await cursor.fetchall()]
-
-            async with conn.execute(
-                """SELECT cls FROM perf_metrics
-                WHERE timestamp > ? AND cls IS NOT NULL ORDER BY cls""",
-                (cutoff,),
-            ) as cursor:
-                cls_values = [r["cls"] for r in await cursor.fetchall()]
-
-            async with conn.execute(
-                """SELECT fcp_ms FROM perf_metrics
-                WHERE timestamp > ? AND fcp_ms IS NOT NULL ORDER BY fcp_ms""",
-                (cutoff,),
-            ) as cursor:
-                fcp_values = [r["fcp_ms"] for r in await cursor.fetchall()]
-
-            async with conn.execute(
-                """SELECT ttfb_ms FROM perf_metrics
-                WHERE timestamp > ? AND ttfb_ms IS NOT NULL ORDER BY ttfb_ms""",
-                (cutoff,),
-            ) as cursor:
-                ttfb_values = [r["ttfb_ms"] for r in await cursor.fetchall()]
-
-            async with conn.execute(
-                """SELECT inp_ms FROM perf_metrics
-                WHERE timestamp > ? AND inp_ms IS NOT NULL ORDER BY inp_ms""",
-                (cutoff,),
-            ) as cursor:
-                inp_values = [r["inp_ms"] for r in await cursor.fetchall()]
+                samples = await cursor.fetchall()
+            lcp_values = sorted(r["lcp_ms"] for r in samples if r["lcp_ms"] is not None)
+            cls_values = sorted(r["cls"] for r in samples if r["cls"] is not None)
+            fcp_values = sorted(r["fcp_ms"] for r in samples if r["fcp_ms"] is not None)
+            ttfb_values = sorted(r["ttfb_ms"] for r in samples if r["ttfb_ms"] is not None)
+            inp_values = sorted(r["inp_ms"] for r in samples if r["inp_ms"] is not None)
 
             return {
                 "sample_count": row["sample_count"],

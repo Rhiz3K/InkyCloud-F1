@@ -119,15 +119,18 @@ docs: update Docker deployment instructions
 
 1. **Update tests** - Ensure all tests pass
 2. **Update documentation** - Document any new features
-3. **Update CHANGELOG** - Add entry for your changes
-4. **Create PR** - Provide clear description of changes
-5. **Address feedback** - Respond to review comments
+3. **Prepare a release section** - Add a new semantic-version heading above the previous release,
+   keep `## [Unreleased]` empty, and describe the change in that new release section
+4. **Validate release metadata** - Run `python -m app.utils.release_validation`
+5. **Create PR** - Provide clear description of changes
+6. **Address feedback** - Respond to review comments
 
 ### PR Checklist
 
 - [ ] Tests added/updated and passing
 - [ ] Code follows project style (Ruff checks pass)
 - [ ] Documentation updated
+- [ ] `CHANGELOG.md` has a new versioned release section and release validation passes
 - [ ] Commit messages follow conventions
 - [ ] No breaking changes (or clearly documented)
 
@@ -150,7 +153,7 @@ InkyCloud-F1/
 │       ├── analytics.py     # Umami analytics
 │       └── i18n.py          # Translations
 ├── scripts/             # Data update & preprocessing utilities
-├── translations/        # i18n JSON files (en, cs)
+├── translations/        # i18n JSON files (13 supported locales)
 ├── tests/               # Test suite
 └── .github/             # CI/CD workflows
 ```

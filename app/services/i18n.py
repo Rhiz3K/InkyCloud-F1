@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
+from app.paths import TRANSLATIONS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 _translations_cache: Dict[str, dict] = {}
 
 # Pre-defined translation file paths (prevents path injection by avoiding user input in paths)
-_TRANSLATIONS_DIR = Path(__file__).parent.parent.parent / "translations"
+_TRANSLATIONS_DIR = TRANSLATIONS_DIR
 _TRANSLATION_FILES: Dict[str, Path] = {
     lang: _TRANSLATIONS_DIR / f"{lang}.json" for lang in LANGUAGE_CODES
 }
@@ -42,7 +43,9 @@ def get_translator(lang: str) -> dict:
     translation_file = _TRANSLATION_FILES.get(lang)
     if translation_file is None:
         logger.error(f"No translation file defined for language: {lang}")
-        return {}
+        fallback = {} if lang == config.DEFAULT_LANG else get_translator(config.DEFAULT_LANG)
+        _translations_cache[lang] = fallback
+        return fallback
 
     try:
         if translation_file.exists():
@@ -54,10 +57,13 @@ def get_translator(lang: str) -> dict:
         else:
             logger.warning(f"Translation file not found: {translation_file}")
             if lang != config.DEFAULT_LANG:
-                return get_translator(config.DEFAULT_LANG)
+                fallback = get_translator(config.DEFAULT_LANG)
+                _translations_cache[lang] = fallback
+                return fallback
 
             logger.error("Default translation file missing for %s", config.DEFAULT_LANG)
-            return {}
+            _translations_cache[lang] = {}
+            return _translations_cache[lang]
 
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing translation file {translation_file}: {str(e)}")
@@ -66,5 +72,8 @@ def get_translator(lang: str) -> dict:
 
     if lang != config.DEFAULT_LANG:
         logger.warning("Falling back to %s translations", config.DEFAULT_LANG)
-        return get_translator(config.DEFAULT_LANG)
-    return {}
+        fallback = get_translator(config.DEFAULT_LANG)
+        _translations_cache[lang] = fallback
+        return fallback
+    _translations_cache[lang] = {}
+    return _translations_cache[lang]

@@ -126,6 +126,7 @@ def main(circuits: list[str] | None = None) -> None:
 
     total_input_size = 0
     total_output_size = 0
+    failures = 0
 
     for track_path in sorted(track_files):
         source_stem = strip_track_variant_suffix(track_path.stem)
@@ -143,6 +144,7 @@ def main(circuits: list[str] | None = None) -> None:
                 f"{stats['compression_ratio']:5.1f}x)"
             )
         except Exception as e:
+            failures += 1
             print(f" {track_path.name:25} -> ERROR: {e}")
 
     print("-" * 60)
@@ -150,6 +152,8 @@ def main(circuits: list[str] | None = None) -> None:
     print(f" Compression: {total_input_size / total_output_size:.1f}x")
     print("=" * 60)
     print(f"\nProcessed images saved to: {OUTPUT_DIR}")
+    if failures:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

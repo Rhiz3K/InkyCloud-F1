@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
@@ -11,9 +13,13 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.config import VALID_LANGUAGES, config
+from app.paths import CHANGELOG_PATH
 from app.services.analytics import track_pageview
 from app.services.database import Database
+from app.services.teams_service import get_available_teams_years
 from app.services.version_service import get_cached_version, refresh_version_info
+from app.utils.f1_season import get_current_f1_season
+from app.utils.rate_limit import enforce_rate_limit
 from app.utils.timezones import TIMEZONE_ALIASES
 from app.web.api_docs import build_api_docs_context
 from app.web.templates import calc_percent, get_template_context, lang_url, templates
@@ -118,6 +124,46 @@ def _strip_empty_unreleased_section(changelog_text: str) -> str:
         return changelog_text
 
     return changelog_text[:unreleased_start] + changelog_text[first_version_start:]
+
+
+@lru_cache(maxsize=4)
+def _render_changelog_file(path_value: str, mtime_ns: int) -> str:
+    """Read and render a specific changelog file version."""
+    del mtime_ns
+    changelog_content = Path(path_value).read_text(encoding="utf-8")
+    changelog_content = _strip_empty_unreleased_section(changelog_content)
+    return _sanitize_rendered_html(
+        markdown.markdown(
+            changelog_content,
+            extensions=["extra", "toc", "md_in_html"],
+        )
+    )
+
+
+def _load_changelog_html(changelog_path: Path) -> str:
+    """Load cached changelog HTML without doing file or parser work on the event loop."""
+    try:
+        mtime_ns = changelog_path.stat().st_mtime_ns
+    except FileNotFoundError:
+        return "<p>Changelog not found.</p>"
+    return _render_changelog_file(str(changelog_path), mtime_ns)
+
+
+def _empty_stats() -> dict:
+    """Return the complete template contract for an unavailable stats database."""
+    return {
+        "total_requests": 0,
+        "avg_response_ms": 0,
+        "min_response_ms": 0,
+        "max_response_ms": 0,
+        "total_bytes": 0,
+        "endpoints": [],
+        "languages": [],
+        "display_types": [],
+        "teams_display_types": [],
+        "races": [],
+        "timezones": [],
+    }
 
 
 def _enrich_display_type_stats(stats: dict) -> None:
@@ -291,6 +337,11 @@ async def _configure_handler(request: Request, screen_type: str, ui_lang: str) -
     context["screen_type"] = screen_type
     context["default_timezone"] = config.DEFAULT_TIMEZONE
     context["timezone_aliases"] = TIMEZONE_ALIASES
+    current_teams_season = get_current_f1_season()
+    context["current_teams_season"] = current_teams_season
+    context["available_teams_seasons"] = sorted(
+        {current_teams_season, *get_available_teams_years()}, reverse=True
+    )
 
     return templates.TemplateResponse(request, "configure.html", context)
 
@@ -448,18 +499,7 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
         referrer=request.headers.get("Referer", ""),
     )
 
-    changelog_path = Path(__file__).resolve().parents[2] / "CHANGELOG.md"
-    if changelog_path.exists():
-        changelog_content = changelog_path.read_text(encoding="utf-8")
-        changelog_content = _strip_empty_unreleased_section(changelog_content)
-        changelog_html = _sanitize_rendered_html(
-            markdown.markdown(
-                changelog_content,
-                extensions=["extra", "toc", "md_in_html"],
-            )
-        )
-    else:
-        changelog_html = "<p>Changelog not found.</p>"
+    changelog_html = await asyncio.to_thread(_load_changelog_html, CHANGELOG_PATH)
 
     version_info = get_cached_version()
     if version_info is None:
@@ -604,6 +644,9 @@ async def api_docs_html_lang_slash_redirect(request: Request, lang_prefix: str):
 
 async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTMLResponse:
     """Render stats page."""
+    enforce_rate_limit(
+        request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE
+    )
     hours_map = {"1h": 1, "24h": 24, "7d": 168, "30d": 720, "365d": 8760}
     hours = hours_map.get(time_range, 24)
 
@@ -615,8 +658,8 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
         perf_stats = await db.get_perf_stats(hours)
     except Exception as exc:
         logger.error("Failed to load statistics dashboard data: %s", exc, exc_info=True)
-        stats = {}
-        perf_stats = {}
+        stats = _empty_stats()
+        perf_stats = {"sample_count": 0}
     finally:
         if db is not None:
             await db.close()

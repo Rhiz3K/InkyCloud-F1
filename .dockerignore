@@ -25,6 +25,7 @@ MANIFEST
 
 # Virtual environments
 .env
+.env.local
 .venv
 env/
 venv/
@@ -48,6 +49,7 @@ coverage.xml
 # IDE
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
@@ -81,6 +83,8 @@ test_*.py
 
 # Local development
 quickstart.sh
+node_modules/
+data/
 
 # Build artifacts
 *.pyc

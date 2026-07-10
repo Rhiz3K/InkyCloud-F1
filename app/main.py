@@ -21,12 +21,14 @@ from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 
 from app.config import VALID_LANGUAGES, config
+from app.paths import ASSETS_DIR
 from app.routes.api import router as api_router
 from app.routes.health import router as health_router
 from app.routes.images import router as images_router
 from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
+from app.services.circuit_data import ensure_runtime_circuits_data
 from app.services.database import Database
 from app.services.http_client import close_shared_http_clients
 from app.services.scheduler import (
@@ -116,6 +118,11 @@ async def lifespan(_app: FastAPI):
     logger.info("Starting F1 E-Ink calendar service")
 
     _check_persistent_storage()
+    try:
+        ensure_runtime_circuits_data()
+    except Exception as exc:
+        logger.error("Could not seed persistent circuit data: %s", exc, exc_info=True)
+        sentry_sdk.capture_exception(exc)
     try:
         # Warm on the render executor so the per-thread font caches it populates are the
         # ones actual renders will reuse.
@@ -303,7 +310,7 @@ app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
-app.mount("/static", StaticFiles(directory="app/assets"), name="static")
+app.mount("/static", StaticFiles(directory=ASSETS_DIR), name="static")
 
 # Routers - order matters! More specific routes first
 app.include_router(previews_router)  # /preview/* must be before pages (/{lang}/* patterns)

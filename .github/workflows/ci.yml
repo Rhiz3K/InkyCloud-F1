@@ -20,7 +20,7 @@ jobs:
       id-token: write  # Required for OIDC authentication with DeepSource
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       with:
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
         fetch-depth: 0
@@ -29,7 +29,8 @@ jobs:
       if: >-
         github.event_name == 'pull_request' &&
         github.base_ref == 'main' &&
-        github.event.pull_request.user.login != 'dependabot[bot]'
+        github.event.pull_request.user.login != 'dependabot[bot]' &&
+        github.event.pull_request.user.login != 'github-actions[bot]'
       run: |
         if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx "CHANGELOG.md"; then
           echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
@@ -37,7 +38,7 @@ jobs:
         fi
 
     - name: Set up Python 3.13
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
       with:
         python-version: "3.13"
         cache: "pip"
@@ -46,7 +47,8 @@ jobs:
       if: >-
         github.event_name == 'pull_request' &&
         github.base_ref == 'main' &&
-        github.event.pull_request.user.login != 'dependabot[bot]'
+        github.event.pull_request.user.login != 'dependabot[bot]' &&
+        github.event.pull_request.user.login != 'github-actions[bot]'
       run: |
         python -m app.utils.release_validation
     
@@ -83,7 +85,7 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       with:
         ref: ${{ github.event.pull_request.head.sha }}
         fetch-depth: 0
@@ -91,7 +93,8 @@ jobs:
     - name: Verify CHANGELOG update for main PRs
       if: >-
         github.base_ref == 'main' &&
-        github.event.pull_request.user.login != 'dependabot[bot]'
+        github.event.pull_request.user.login != 'dependabot[bot]' &&
+        github.event.pull_request.user.login != 'github-actions[bot]'
       run: |
         if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx "CHANGELOG.md"; then
           echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
@@ -99,7 +102,7 @@ jobs:
         fi
 
     - name: Set up Python 3.13
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
       with:
         python-version: "3.13"
         cache: "pip"
@@ -107,7 +110,8 @@ jobs:
     - name: Validate release readiness for main PRs
       if: >-
         github.base_ref == 'main' &&
-        github.event.pull_request.user.login != 'dependabot[bot]'
+        github.event.pull_request.user.login != 'dependabot[bot]' &&
+        github.event.pull_request.user.login != 'github-actions[bot]'
       run: |
         python -m app.utils.release_validation
 
