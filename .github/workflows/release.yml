@@ -7,11 +7,18 @@ on:
       - CHANGELOG.md
   workflow_dispatch:
 
+permissions: {}
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
+    name: publish
     runs-on: [self-hosted, linux]
     permissions:
-      contents: write
+      contents: write # Required to create the GitHub release and tag
 
     steps:
       - name: Checkout repository

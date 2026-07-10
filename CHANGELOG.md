@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configuration and request hardening** - Reject empty admin tokens and storage paths, keep display dimensions fixed, select static season and roster files from internal allowlists, validate backup cron expressions without crashing startup, use fixed-window rate limiting, and add baseline browser security headers
 - **HTML and redirect defense-in-depth** - Cover all relevant URI-bearing changelog attributes, remove inline style vectors, reject backslash redirect paths, and build API examples from the configured public URL instead of the request Host header
 - **Resource protection** - Bound decoded-image memory, rate-limit live F1 and statistics reads, constrain operational query windows and payload fields, preserve `429` responses, and trust forwarded client addresses only from loopback by default
-- **Supply-chain reproducibility** - Pin GitHub Actions and the Python Docker base image to reviewed immutable digests, install exact locked runtime dependencies in Docker, disable persisted checkout credentials, and keep major and Docker Dependabot updates behind human review
+- **Supply-chain reproducibility** - Pin GitHub Actions and the Python Docker base image to reviewed immutable digests, install exact locked runtime dependencies in Docker, disable persisted checkout credentials, scope workflow permissions to individual jobs, serialize release/data/benchmark runs, and keep major and Docker Dependabot updates behind human review
 
 ### Backend
 
@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **Dynamic configuration** - Derive Teams seasons from backend data, restore localized mobile navigation and missing-changelog messages, redact public render failures, avoid caching transient error images, and revalidate every static asset in the service worker
+- **Cold-start calendar preview** - Render the next-race calendar on demand while background pregeneration is still running, shorten preview caching, and fall back to the live calendar BMP instead of the generic social banner
+- **Web Vitals delivery** - Send Beacon API payloads with the JSON media type expected by FastAPI and retry with `fetch` when the browser cannot queue a beacon
 
 ### Development
 

@@ -22,6 +22,7 @@ from app.services.version_service import get_cached_version, refresh_version_inf
 from app.utils.f1_season import get_current_f1_season
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.timezones import TIMEZONE_ALIASES
+from app.version import APP_VERSION
 from app.web.api_docs import build_api_docs_context
 from app.web.templates import calc_percent, get_template_context, lang_url, templates
 
@@ -271,16 +272,19 @@ async def _home_handler(request: Request, ui_lang: str) -> HTMLResponse:
 
     context = get_template_context(request, ui_lang)
     context["active_page"] = "home"
+    context["preview_version"] = APP_VERSION
     context["screen_types"] = [
         {
             "id": "calendar",
             "name_key": "screen_calendar_name",
             "desc_key": "screen_calendar_desc",
+            "fallback_url": f"/calendar.bmp?lang={ui_lang}&weather=false",
         },
         {
             "id": "teams",
             "name_key": "screen_teams_name",
             "desc_key": "screen_teams_desc",
+            "fallback_url": f"/teams.bmp?lang={ui_lang}",
         },
     ]
 

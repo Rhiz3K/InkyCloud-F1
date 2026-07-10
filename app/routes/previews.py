@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response, Streamin
 
 from app.config import LANGUAGE_CODES, config
 from app.paths import ASSETS_DIR
+from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.image_keys import get_configure_preview_filename, get_preview_filename
 from app.services.renderers import create_renderer
@@ -23,6 +24,50 @@ from app.utils.rate_limit import enforce_rate_limit
 router = APIRouter()
 _ALLOWED_LANGS = {lang: lang for lang in LANGUAGE_CODES}
 logger = logging.getLogger(__name__)
+_PREVIEW_CACHE_CONTROL = "public, max-age=300"
+
+
+def _build_calendar_preview_png(
+    lang: str, display: str, race_data: dict, historical_data, full_size: bool
+) -> bytes:
+    """Render the next-race calendar and convert it to a browser preview PNG."""
+    translator = get_translator(lang)
+    renderer = create_renderer(display, translator, lang)
+    bmp_data = renderer.render_calendar(race_data, historical_data, None, "off")
+    return bmp_to_png(
+        bmp_data,
+        width=400,
+        full_size=full_size,
+        preserve_color=display in {"spectra6", "bwr", "bwry"},
+    )
+
+
+async def _render_calendar_preview(
+    lang: str, display: str = "1bit", *, full_size: bool
+) -> StreamingResponse:
+    """Render the next race when startup has not produced a calendar preview yet."""
+    f1_service = F1Service()
+    race_data = f1_service.get_next_race_from_static()
+    if not race_data:
+        raise RuntimeError("No race data available for calendar preview")
+
+    circuit_id = race_data.get("circuit", {}).get("circuitId", "")
+    historical_data = F1Service.get_historical_from_static(circuit_id)
+    png_data = await run_render(
+        functools.partial(
+            _build_calendar_preview_png,
+            lang,
+            display,
+            race_data,
+            historical_data,
+            full_size,
+        )
+    )
+    return StreamingResponse(
+        BytesIO(png_data),
+        media_type="image/png",
+        headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
+    )
 
 
 def _build_teams_preview_png(lang: str, display: str, teams_data, full_size: bool) -> bytes:
@@ -54,8 +99,17 @@ async def _render_teams_preview(
     return StreamingResponse(
         BytesIO(png_data),
         media_type="image/png",
-        headers={"Cache-Control": "public, max-age=300"},
+        headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
     )
+
+
+async def _render_dynamic_preview(
+    screen_type: str, lang: str, display: str = "1bit", *, full_size: bool
+) -> StreamingResponse:
+    """Render a calendar or Teams preview while pregeneration is still in progress."""
+    if screen_type == "calendar":
+        return await _render_calendar_preview(lang, display, full_size=full_size)
+    return await _render_teams_preview(lang, display, full_size=full_size)
 
 
 @router.get("/preview/{screen_type}.png", response_model=None)
@@ -77,17 +131,14 @@ async def get_preview_png(
         return FileResponse(
             preview_path,
             media_type="image/png",
-            headers={"Cache-Control": "public, max-age=3600"},
+            headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
         )
 
-    if safe_screen == "teams":
-        enforce_rate_limit(
-            request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
-        )
-        try:
-            return await _render_teams_preview(safe_lang, full_size=False)
-        except Exception as exc:
-            logger.warning("Falling back to dynamic teams homepage preview failed: %s", exc)
+    enforce_rate_limit(request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
+    try:
+        return await _render_dynamic_preview(safe_screen, safe_lang, full_size=False)
+    except Exception as exc:
+        logger.warning("Dynamic %s homepage preview failed: %s", safe_screen, exc)
 
     raise HTTPException(status_code=404, detail="Preview not generated yet")
 
@@ -129,7 +180,7 @@ async def get_configure_preview_png(
         return FileResponse(
             configure_path,
             media_type="image/png",
-            headers={"Cache-Control": "public, max-age=3600"},
+            headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
         )
 
     # Fallback to default variant if specific one not found
@@ -139,7 +190,7 @@ async def get_configure_preview_png(
         return FileResponse(
             fallback_path,
             media_type="image/png",
-            headers={"Cache-Control": "public, max-age=3600"},
+            headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
         )
 
     if safe_screen == "teams":
@@ -153,7 +204,7 @@ async def get_configure_preview_png(
                 full_size=True,
             )
         except Exception as exc:
-            logger.warning("Falling back to dynamic teams configure preview failed: %s", exc)
+            logger.warning("Dynamic teams configure preview failed: %s", exc)
 
     raise HTTPException(status_code=404, detail="Configure preview not generated yet")
 

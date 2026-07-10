@@ -3,12 +3,19 @@ name: Update F1 Season Data
 on:
   workflow_dispatch:
 
+permissions: {}
+
+concurrency:
+  group: update-f1-data-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   update:
+    name: update
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # Required to push the generated data branch
+      pull-requests: write # Required to open the generated data pull request
 
     steps:
       - name: Checkout repository

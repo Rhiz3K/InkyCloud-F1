@@ -18,7 +18,14 @@ from pydantic import SecretStr
 from app import main as main_module
 from app.config import LANGUAGE_CODES, config
 from app.main import app
-from app.models import ConstructorStanding, DriverStanding, StandingsData, TeamEntry, TeamsData
+from app.models import (
+    ConstructorStanding,
+    DriverStanding,
+    HistoricalData,
+    StandingsData,
+    TeamEntry,
+    TeamsData,
+)
 from app.routes import api as api_routes
 from app.routes import images as images_routes
 from app.routes import pages as pages_routes
@@ -1088,6 +1095,66 @@ def test_homepage_screen_type_cards():
     assert "/configure/teams" in html
     assert "Calendar" in html or "Kalendář" in html
     assert "Teams" in html or "Týmy" in html
+    assert f"/preview/calendar.png?lang=en&amp;v={APP_VERSION}" in html
+    assert "this.src = '/calendar.bmp?lang=en&amp;weather=false'" in html
+
+
+def test_calendar_preview_renders_dynamically_before_pregeneration(tmp_path, monkeypatch):
+    """The homepage calendar card should not show a generic image during cold start."""
+    race_data = {
+        "race_name": "Next Test Grand Prix",
+        "round": "8",
+        "season": "2026",
+        "circuit": {
+            "circuitId": "test_circuit",
+            "name": "Test Circuit",
+            "location": "Test City",
+            "country": "Test Country",
+        },
+        "race_date": "19.07.2026",
+        "schedule": [
+            {"name": "FP1", "display_time": "Fri 13:30"},
+            {"name": "Qualifying", "display_time": "Sat 16:00"},
+            {"name": "Race", "display_time": "Sun 15:00"},
+        ],
+    }
+
+    class StubF1Service:
+        """Provide deterministic static race data to the dynamic preview renderer."""
+
+        @staticmethod
+        def get_next_race_from_static():
+            """Return the fixed next race used by this test."""
+            return race_data
+
+        @staticmethod
+        def get_historical_from_static(circuit_id):
+            """Return a new-track marker for the requested test circuit."""
+            assert circuit_id == "test_circuit"
+            return HistoricalData(is_new_track=True)
+
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(previews_routes.config, "IMAGES_PATH", str(tmp_path))
+    monkeypatch.setattr(previews_routes, "F1Service", StubF1Service)
+    try:
+        response = client.get("/preview/calendar.png?lang=en")
+    finally:
+        _reset_rate_limit_state_for_tests()
+
+    image = Image.open(BytesIO(response.content))
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.headers["cache-control"] == "public, max-age=300"
+    assert image.format == "PNG"
+    assert image.size == (400, 240)
+
+
+def test_common_js_sends_beacon_payload_as_json():
+    """Web-vitals beacons must use JSON media type accepted by FastAPI."""
+    response = client.get("/static/js/common.js")
+
+    assert response.status_code == 200
+    assert 'new Blob([jsonPayload], { type: "application/json" })' in response.text
 
 
 def test_homepage_mobile_menu_button():
@@ -2145,7 +2212,17 @@ def test_operational_query_bounds_return_422():
     assert client.get("/api/stats/history?limit=0").status_code == 422
 
 
-def test_dynamic_preview_preserves_rate_limit_429(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    ("screen_type", "renderer_name"),
+    [
+        ("calendar", "_render_calendar_preview"),
+        ("teams", "_render_teams_preview"),
+    ],
+)
+def test_dynamic_preview_preserves_rate_limit_429(
+    tmp_path, monkeypatch, screen_type, renderer_name
+):
+    """Dynamic homepage previews must preserve rate-limit responses."""
     from fastapi.responses import Response
 
     async def fake_preview(*_args, **_kwargs):
@@ -2154,10 +2231,10 @@ def test_dynamic_preview_preserves_rate_limit_429(tmp_path, monkeypatch):
     _reset_rate_limit_state_for_tests()
     monkeypatch.setattr(previews_routes.config, "IMAGES_PATH", str(tmp_path))
     monkeypatch.setattr(previews_routes.config, "IMAGE_RATE_LIMIT_PER_MINUTE", 1)
-    monkeypatch.setattr(previews_routes, "_render_teams_preview", fake_preview)
+    monkeypatch.setattr(previews_routes, renderer_name, fake_preview)
     try:
-        assert client.get("/preview/teams.png").status_code == 200
-        limited = client.get("/preview/teams.png")
+        assert client.get(f"/preview/{screen_type}.png").status_code == 200
+        limited = client.get(f"/preview/{screen_type}.png")
     finally:
         _reset_rate_limit_state_for_tests()
 
