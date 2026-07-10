@@ -49,3 +49,13 @@ def test_runtime_circuit_data_reload_tracks_atomic_file_versions(tmp_path, monke
     assert first["monza"]["length"] == "5.7 km"
     assert second["monza"]["length"] == "5.8 km"
     assert "spa" in second
+
+
+def test_load_circuit_data_returns_empty_mapping_for_invalid_json(tmp_path, monkeypatch, caplog):
+    """A corrupt runtime snapshot must not prevent the application from starting."""
+    corrupt = tmp_path / "circuits_data.json"
+    corrupt.write_text("not-json", encoding="utf-8")
+    monkeypatch.setattr(circuit_data, "get_circuits_data_path", lambda: corrupt)
+
+    assert circuit_data.load_circuits_data() == {}
+    assert "Failed to load circuit data" in caplog.text

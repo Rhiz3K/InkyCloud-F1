@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dependency automation resilience** - Keep ordinary Dependabot updates eligible for auto-merge without a redundant alert-metadata fetch and exclude Python Docker base-image minor upgrades from generic semver auto-merge
 - **Hermetic verification** - Add `httpx2` to development dependencies, remove live API calls from endpoint tests, exercise real BMP render pipelines and persistence failure paths, and make all asset update scripts fail on partial errors
 - **Documentation enforcement** - Document every Python module, class, method, and function in `app` and `scripts`, and enforce 100% docstring coverage in both CI paths
+- **Test coverage enforcement** - Cover every application statement and branch, require 100% coverage through the shared local configuration, and enforce the same strict gate in both trusted and fork pull-request CI paths
 - **Maintenance cleanup** - Remove unused standings rendering and personal debug scripts, centralize image conversion and filename rules, validate downloaded images before atomic replacement, and align deployment guidance with the single-writer SQLite architecture
 
 ## [1.2.30] - 2026-07-06

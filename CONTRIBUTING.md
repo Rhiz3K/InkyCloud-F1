@@ -60,8 +60,8 @@ mypy
 # Run all tests
 pytest
 
-# Run with coverage
-pytest --cov=app tests/
+# Run the same strict statement + branch coverage gate as CI
+pytest tests/ -m "not benchmark" --cov=app --cov-branch --cov-fail-under=100 --cov-report=term-missing
 
 # Run specific test file
 pytest tests/test_renderer.py -v

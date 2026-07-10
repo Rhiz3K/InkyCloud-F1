@@ -107,6 +107,15 @@ markers = [
     "benchmark: performance benchmarks run only in CodSpeed workflow",
 ]
 
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+fail_under = 100
+precision = 2
+show_missing = true
+
 [dependency-groups]
 dev = [
     "httpx2>=2.5.0",

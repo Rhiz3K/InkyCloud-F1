@@ -83,6 +83,8 @@ jobs:
       run: |
         pytest tests/ -v -m "not benchmark" \
           --cov=app \
+          --cov-branch \
+          --cov-fail-under=100 \
           --cov-report=term-missing \
           --cov-report=xml
     
@@ -154,6 +156,8 @@ jobs:
       run: |
         pytest tests/ -v -m "not benchmark" \
           --cov=app \
+          --cov-branch \
+          --cov-fail-under=100 \
           --cov-report=term-missing \
           --cov-report=xml
 
