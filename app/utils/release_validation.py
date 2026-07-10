@@ -18,16 +18,21 @@ COLLAPSIBLE_HTML_RE = re.compile(r"<details\b|</details>|<summary\b", re.IGNOREC
 
 @dataclass(frozen=True, order=True)
 class SemVer:
+    """Comparable semantic-version triplet used by release validation."""
+
     major: int
     minor: int
     patch: int
 
     def __str__(self) -> str:
+        """Format the semantic version without a leading tag prefix."""
         return f"{self.major}.{self.minor}.{self.patch}"
 
 
 @dataclass(frozen=True)
 class ReleaseValidationResult:
+    """Parsed release metadata and changelog bodies used by the merge gate."""
+
     latest_version: SemVer
     latest_tag: SemVer | None
     unreleased_body: str
@@ -35,6 +40,7 @@ class ReleaseValidationResult:
 
 
 def parse_latest_release_section(changelog: str) -> ReleaseValidationResult:
+    """Parse the newest semantic release and Unreleased bodies from a changelog."""
     matches = list(VERSION_HEADING_RE.finditer(changelog))
     if not matches:
         raise ValueError("No semantic version headings found in CHANGELOG.md")
@@ -67,6 +73,7 @@ def parse_latest_release_section(changelog: str) -> ReleaseValidationResult:
 
 
 def get_latest_git_tag() -> SemVer | None:
+    """Return the newest semantic ``v*`` Git tag, if one exists."""
     git_executable = shutil.which("git")
     if git_executable is None:
         raise RuntimeError("git executable not found")
@@ -88,6 +95,7 @@ def get_latest_git_tag() -> SemVer | None:
 
 
 def validate_release_readiness(changelog_path: Path = CHANGELOG_PATH) -> ReleaseValidationResult:
+    """Validate changelog structure and version ordering for a release PR."""
     changelog = changelog_path.read_text(encoding="utf-8")
     result = parse_latest_release_section(changelog)
 
@@ -110,6 +118,7 @@ def validate_release_readiness(changelog_path: Path = CHANGELOG_PATH) -> Release
 
 
 def main() -> int:
+    """Run release validation as a command-line merge gate."""
     try:
         result = validate_release_readiness()
     except Exception as exc:

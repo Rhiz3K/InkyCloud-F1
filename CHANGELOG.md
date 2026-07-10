@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release and CI consistency** - Align Python, frontend, runtime, and API version metadata at 1.2.31, keep Docker on Python 3.13, and run mypy for production code in both CI paths
 - **Dependency automation resilience** - Keep ordinary Dependabot updates eligible for auto-merge without a redundant alert-metadata fetch and exclude Python Docker base-image minor upgrades from generic semver auto-merge
 - **Hermetic verification** - Add `httpx2` to development dependencies, remove live API calls from endpoint tests, exercise real BMP render pipelines and persistence failure paths, and make all asset update scripts fail on partial errors
+- **Documentation enforcement** - Document every Python module, class, method, and function in `app` and `scripts`, and enforce 100% docstring coverage in both CI paths
 - **Maintenance cleanup** - Remove unused standings rendering and personal debug scripts, centralize image conversion and filename rules, validate downloaded images before atomic replacement, and align deployment guidance with the single-writer SQLite architecture
 
 ## [1.2.30] - 2026-07-06

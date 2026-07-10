@@ -17,6 +17,7 @@ _RATE_LIMIT_BUCKETS: TTLCache[str, tuple[float, int]] = TTLCache(
 
 
 def _get_client_identifier(request: Request) -> str:
+    """Return the proxy-validated client host used for rate-limit buckets."""
     # uvicorn runs with --proxy-headers/--forwarded-allow-ips, so request.client.host is
     # already the proxy-validated client IP. We must NOT parse X-Forwarded-For ourselves:
     # the leftmost entry is attacker-supplied, letting a client forge a fresh rate-limit
@@ -51,4 +52,5 @@ def enforce_rate_limit(request: Request, *, bucket: str, limit: int) -> None:
 
 
 def _reset_rate_limit_state_for_tests() -> None:
+    """Clear all in-memory rate-limit buckets between tests."""
     _RATE_LIMIT_BUCKETS.clear()

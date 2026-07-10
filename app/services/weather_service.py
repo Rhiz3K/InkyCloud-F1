@@ -220,6 +220,7 @@ class WeatherService:
         lon: float,
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
+        """Return cached, forecast, or historical weather for a race timestamp."""
         race_datetime_utc = _to_utc_datetime(race_datetime)
 
         cache_key = _race_weather_cache_key(lat, lon, race_datetime)
@@ -269,6 +270,7 @@ class WeatherService:
         lon: float,
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
+        """Return cached or archived Open-Meteo weather for a past race."""
         race_datetime_utc = _to_utc_datetime(race_datetime)
 
         cache_key = f"historical_{round(lat, 2)}_{round(lon, 2)}_{race_datetime_utc.isoformat()}"
@@ -340,6 +342,7 @@ class WeatherService:
         lon: float,
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
+        """Fetch and normalize archived hourly weather for a race location."""
         race_dt_utc = _to_utc_datetime(race_datetime)
         race_date = race_dt_utc.strftime("%Y-%m-%d")
 
@@ -482,6 +485,7 @@ def clear_circuit_weather_cache() -> None:
 
 
 def _build_weather_service() -> WeatherService:
+    """Construct a weather service from the active application configuration."""
     return WeatherService(
         timeout=config.REQUEST_TIMEOUT,
         cache_minutes=config.WEATHER_CACHE_MINUTES,
@@ -489,6 +493,7 @@ def _build_weather_service() -> WeatherService:
 
 
 def _parse_coordinate(value: str | int | float | None) -> Optional[float]:
+    """Parse a coordinate-like value, returning ``None`` when invalid."""
     if value is None:
         return None
 
@@ -499,6 +504,7 @@ def _parse_coordinate(value: str | int | float | None) -> Optional[float]:
 
 
 def _extract_circuit_context(race_data: dict) -> tuple[str, Optional[float], Optional[float]]:
+    """Extract a circuit identifier and parsed coordinates from race data."""
     circuit = race_data.get("circuit", {})
     circuit_id = circuit.get("circuitId") or circuit.get("circuit_id", "")
     displayed_lon = circuit.get("long") if circuit.get("long") is not None else circuit.get("lon")
@@ -519,6 +525,7 @@ def _extract_circuit_context(race_data: dict) -> tuple[str, Optional[float], Opt
 
 
 def _format_precipitation_amount(value: float | int | None) -> str:
+    """Format a precipitation amount in millimetres without redundant zeros."""
     amount = float(value or 0)
     formatted = f"{amount:.1f}".rstrip("0").rstrip(".")
     return f"{formatted} mm"
@@ -531,6 +538,7 @@ def _match_hourly_weather(
     precipitation_key: str,
     precipitation_as_amount: bool = False,
 ) -> Optional[WeatherData]:
+    """Select the closest usable hourly weather row for a race timestamp."""
     times = hourly.get("time", [])
     temps = hourly.get("temperature_2m", [])
     codes = hourly.get("weather_code", [])
@@ -597,6 +605,7 @@ def _match_hourly_weather(
 
 
 def _extract_race_datetime(race_data: dict) -> Optional[datetime]:
+    """Extract and normalize the scheduled race-session datetime."""
     schedule = race_data.get("schedule", [])
     race_session = next(
         (session for session in schedule if str(session.get("name", "")).lower() == "race"),
@@ -623,6 +632,7 @@ async def _resolve_current_weather(
     lon: Optional[float],
     weather_service: Optional[WeatherService],
 ) -> tuple[Optional[WeatherData], Optional[WeatherService]]:
+    """Resolve current circuit weather while reusing a lazily built service."""
     current_weather: Optional[WeatherData] = (
         get_cached_circuit_weather(circuit_id) if circuit_id else None
     )
@@ -648,6 +658,7 @@ async def _resolve_race_weather(
     race_dt: Optional[datetime],
     weather_service: Optional[WeatherService],
 ) -> tuple[Optional[WeatherData], Optional[WeatherService]]:
+    """Resolve race-time weather while reusing a lazily built service."""
     if lat is None or lon is None or race_dt is None:
         return None, weather_service
 

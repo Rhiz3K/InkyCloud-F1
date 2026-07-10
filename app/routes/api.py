@@ -30,6 +30,7 @@ _MAX_USER_AGENT_LENGTH = 500
 
 
 def _matches_round(race: dict, round_num: int) -> bool:
+    """Return whether a race payload contains the requested numeric round."""
     round_value = race.get("round")
     if not isinstance(round_value, (str, int, float)):
         return False
@@ -40,6 +41,7 @@ def _matches_round(race: dict, round_num: int) -> bool:
 
 
 def _require_supported_f1_season(year: int) -> None:
+    """Raise HTTP 422 when a requested season falls outside supported bounds."""
     if not is_supported_f1_season(year):
         raise HTTPException(status_code=422, detail="Unsupported F1 season")
 

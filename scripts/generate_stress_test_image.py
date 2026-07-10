@@ -1,3 +1,5 @@
+"""Generate a renderer fixture containing deliberately long F1 text values."""
+
 import os
 import sys
 from datetime import datetime
@@ -16,6 +18,7 @@ from app.services.renderer import Renderer
 
 
 def generate_stress_image():
+    """Render and write a calendar BMP with worst-case text lengths."""
     # Longest values found + some extra stress testing
     long_race_name = "70th Anniversary Grand Prix"
     long_circuit_name = "Autódromo Internacional Nelson Piquet"

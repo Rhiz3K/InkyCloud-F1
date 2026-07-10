@@ -1,3 +1,5 @@
+"""Measure visual font-top alignment used by historical results headers."""
+
 import os
 import sys
 

@@ -17,6 +17,8 @@ FLAGS_BWRY_DIR = Path(__file__).parent.parent / "assets" / "flags_bwry"
 
 
 class BwryColors:
+    """Palette colors and indices used by black/white/red/yellow renderers."""
+
     BLACK = (0x00, 0x00, 0x00)
     WHITE = (0xFF, 0xFF, 0xFF)
     RED = (0xFF, 0x00, 0x00)
@@ -34,11 +36,13 @@ class BwryRenderer(BwrRenderer):
     """Renderer for generating black/white/red/yellow BMP images."""
 
     def __init__(self, translator: dict, lang_code: str = "en"):
+        """Initialize the shared color renderer with the BWRY palette."""
         super().__init__(translator, lang_code)
         self.colors = BwryColors  # type: ignore[assignment]
 
     @classmethod
     def _load_track_image(cls, race_data: dict) -> Image.Image | None:
+        """Load the best available BWRY track asset for a race."""
         return cls._load_variant_track_image(
             race_data,
             variant_suffix="bwry",
@@ -54,6 +58,7 @@ class BwryRenderer(BwrRenderer):
         season: int | str,
         country_name: str,
     ) -> int:
+        """Draw a results header using BWRY flag assets and palette colors."""
         return draw_results_header(
             draw,
             image,

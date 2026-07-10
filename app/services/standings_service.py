@@ -26,6 +26,7 @@ _fetch_locks: weakref.WeakKeyDictionary[
 
 
 def _get_fetch_lock(year: int, standings_type: str) -> asyncio.Lock:
+    """Return an event-loop-local lock for one season and standings type."""
     loop = asyncio.get_running_loop()
     locks = _fetch_locks.setdefault(loop, {})
     return locks.setdefault((year, standings_type), asyncio.Lock())
@@ -35,10 +36,12 @@ class CacheEntry:
     """Simple cache entry with TTL."""
 
     def __init__(self, data: StandingsData, ttl: int = CACHE_TTL_SECONDS):
+        """Store standings data with an absolute wall-clock expiry timestamp."""
         self.data = data
         self.expires_at = time.time() + ttl
 
     def is_valid(self) -> bool:
+        """Return whether this entry remains inside its TTL."""
         return time.time() < self.expires_at
 
 
@@ -49,14 +52,17 @@ class StandingsService:
     _negative_cache: dict[str, float] = {}
 
     def __init__(self):
+        """Initialize service configuration and attach the shared cache."""
         self.timeout = config.REQUEST_TIMEOUT
         self._cache = self._shared_cache
 
     @staticmethod
     def _get_cache_key(year: int, standings_type: str) -> str:
+        """Build the shared-cache key for a season and standings category."""
         return f"{year}_{standings_type}"
 
     def _get_cached(self, year: int, standings_type: str) -> Optional[StandingsData]:
+        """Return valid cached standings or ``None`` after a miss or expiry."""
         key = self._get_cache_key(year, standings_type)
         entry = self._cache.get(key)
         if entry and entry.is_valid():
@@ -65,12 +71,14 @@ class StandingsService:
         return None
 
     def _set_cache(self, year: int, standings_type: str, data: StandingsData) -> None:
+        """Store standings data under its season/category cache key."""
         key = self._get_cache_key(year, standings_type)
         self._cache[key] = CacheEntry(data)
         logger.debug("Cached %s", key)
 
     @classmethod
     def _is_negative_cached(cls, key: str) -> bool:
+        """Return whether a recent empty upstream result is still cached."""
         expires_at = cls._negative_cache.get(key)
         if expires_at is None:
             return False
@@ -86,11 +94,13 @@ class StandingsService:
 
     @staticmethod
     def _is_missing_standings_error(exc: httpx.HTTPStatusError) -> bool:
+        """Return whether an HTTP error represents unavailable standings."""
         return exc.response.status_code == 404
 
     async def get_driver_standings(
         self, year: Optional[int] = None, limit: int = 10
     ) -> list[DriverStanding]:
+        """Return bounded driver standings with cache and fetch coalescing."""
         if year is None:
             year = datetime.now(timezone.utc).year
 
@@ -118,6 +128,7 @@ class StandingsService:
             return result
 
     async def _fetch_driver_standings(self, year: int, limit: int) -> list[DriverStanding]:
+        """Fetch, normalize, cache, and bound driver standings from Jolpica."""
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             base_url = self._derive_standings_base_url(str(config.JOLPICA_API_URL))
@@ -180,6 +191,7 @@ class StandingsService:
     async def get_constructor_standings(
         self, year: Optional[int] = None, limit: int = 10
     ) -> list[ConstructorStanding]:
+        """Return bounded constructor standings with cache and fetch coalescing."""
         if year is None:
             year = datetime.now(timezone.utc).year
 
@@ -209,6 +221,7 @@ class StandingsService:
     async def _fetch_constructor_standings(
         self, year: int, limit: int
     ) -> list[ConstructorStanding]:
+        """Fetch, normalize, cache, and bound constructor standings from Jolpica."""
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             base_url = self._derive_standings_base_url(str(config.JOLPICA_API_URL))
@@ -264,6 +277,7 @@ class StandingsService:
             return []
 
     async def get_all_standings(self, year: Optional[int] = None, limit: int = 10) -> StandingsData:
+        """Return a combined driver and constructor standings snapshot."""
         if year is None:
             year = datetime.now(timezone.utc).year
 

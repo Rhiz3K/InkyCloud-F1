@@ -7,8 +7,15 @@ on:
     branches: [ main, dev ]
   workflow_dispatch:
 
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: test
     runs-on: [self-hosted, linux]
     # SECURITY: this job runs on a persistent self-hosted runner and executes checked-out
     # code (setup.py, conftest, tests, Dockerfile). Never run untrusted fork-PR code here —
@@ -67,6 +74,10 @@ jobs:
     - name: Type-check application
       run: |
         mypy
+
+    - name: Verify documentation coverage
+      run: |
+        interrogate -c pyproject.toml app scripts
     
     - name: Run tests
       run: |
@@ -82,6 +93,7 @@ jobs:
   # Fork PRs are excluded from the self-hosted job above for security; run the same
   # validation for them on an ephemeral GitHub-hosted runner so community PRs still get CI.
   test-fork:
+    name: test-fork
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
     permissions:
@@ -133,6 +145,10 @@ jobs:
     - name: Type-check application
       run: |
         mypy
+
+    - name: Verify documentation coverage
+      run: |
+        interrogate -c pyproject.toml app scripts
 
     - name: Run tests
       run: |

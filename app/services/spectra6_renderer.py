@@ -105,9 +105,11 @@ class Spectra6Renderer(RendererBase):
         )
 
     def _new_canvas(self) -> Image.Image:
+        """Create an RGB canvas initialized to the active palette white."""
         return Image.new("RGB", (self.width, self.height), self.colors.WHITE)
 
     def _encode_image(self, image: Image.Image) -> bytes:
+        """Encode an RGB canvas as a palette-indexed BMP payload."""
         return self._to_indexed_bmp(image)
 
     def render_error(self, error_message: str) -> bytes:
@@ -311,6 +313,7 @@ class Spectra6Renderer(RendererBase):
             header_height: int,
             _badge_pad_x: int,
         ) -> int:
+            """Render the color team standings summary for this row."""
             return self._draw_team_stats_panel_color(
                 draw,
                 y,
@@ -334,6 +337,7 @@ class Spectra6Renderer(RendererBase):
             driver_pos_x: int,
             badge_pad_x: int,
         ) -> None:
+            """Render one color driver entry for this team row."""
             self._draw_team_driver_row_color(
                 draw,
                 image,
@@ -356,6 +360,7 @@ class Spectra6Renderer(RendererBase):
             logo_container_left: int,
             logo_container_right: int,
         ) -> None:
+            """Render the alpha-aware team logo into this color row."""
             self._ensure_teams_assets()
             draw_team_logo(
                 image,

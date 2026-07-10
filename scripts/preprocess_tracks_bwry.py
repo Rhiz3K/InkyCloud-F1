@@ -35,6 +35,7 @@ PALETTE = [BLACK, WHITE, RED, YELLOW]
 
 
 def process_track_image(input_path: Path, output_path: Path) -> dict:
+    """Crop, scale, quantize, and atomically encode one BWRY track asset."""
     original_file = Image.open(input_path)
     if original_file.mode in ("RGBA", "LA") or "transparency" in original_file.info:
         rgba = original_file.convert("RGBA")
@@ -99,6 +100,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
 
 
 def main(circuits: list[str] | None = None) -> None:
+    """Process selected or all source tracks into BWRY BMP assets."""
     print("=" * 60)
     print(" BWRY Track Image Pre-processor")
     print("=" * 60)

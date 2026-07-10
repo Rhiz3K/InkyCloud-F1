@@ -20,6 +20,8 @@ FLAGS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "flags_processed"
 
 
 class BwrColors:
+    """Palette colors and indices used by black/white/red renderers."""
+
     BLACK = (0x00, 0x00, 0x00)
     WHITE = (0xFF, 0xFF, 0xFF)
     RED = (0xFF, 0x00, 0x00)
@@ -35,6 +37,7 @@ class BwrRenderer(Spectra6Renderer):
     """Renderer for generating black/white/red BMP images."""
 
     def __init__(self, translator: dict, lang_code: str = "en"):
+        """Initialize the shared color renderer with the BWR palette."""
         super().__init__(translator, lang_code)
         self.colors = BwrColors  # type: ignore[assignment]
 
@@ -75,6 +78,7 @@ class BwrRenderer(Spectra6Renderer):
 
     @classmethod
     def _load_track_image(cls, race_data: dict) -> Image.Image | None:
+        """Load the best available BWR track asset for a race."""
         return cls._load_variant_track_image(
             race_data,
             variant_suffix="bwr",
@@ -90,6 +94,7 @@ class BwrRenderer(Spectra6Renderer):
         season: int | str,
         country_name: str,
     ) -> int:
+        """Draw a results header using BWR flag assets and palette colors."""
         return draw_results_header(
             draw,
             image,
@@ -108,6 +113,7 @@ class BwrRenderer(Spectra6Renderer):
         )
 
     def _load_weather_icon_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        """Load the weather icon font, falling back to the generic icon font."""
         font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
         try:
             return ImageFont.truetype(str(font_path), size)

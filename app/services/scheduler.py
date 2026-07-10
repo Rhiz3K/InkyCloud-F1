@@ -61,6 +61,7 @@ _HISTORICAL_REFRESH_MAX_AGE = timedelta(days=1)
 
 
 def _get_generation_lock() -> asyncio.Lock:
+    """Return the image-generation lock scoped to the active event loop."""
     loop = asyncio.get_running_loop()
     lock = _generation_locks.get(loop)
     if lock is None:
@@ -70,6 +71,7 @@ def _get_generation_lock() -> asyncio.Lock:
 
 
 def _get_weather_fetch_lock() -> asyncio.Lock:
+    """Return the weather-fetch lock scoped to the active event loop."""
     loop = asyncio.get_running_loop()
     lock = _weather_fetch_locks.get(loop)
     if lock is None:
@@ -79,6 +81,7 @@ def _get_weather_fetch_lock() -> asyncio.Lock:
 
 
 def _get_historical_refresh_lock() -> asyncio.Lock:
+    """Return the historical-refresh lock scoped to the active event loop."""
     loop = asyncio.get_running_loop()
     lock = _historical_refresh_locks.get(loop)
     if lock is None:
@@ -349,6 +352,7 @@ async def _load_weather_context(
 
 
 def _has_weather_coordinates(race_data: dict) -> bool:
+    """Return whether race data contains valid latitude and longitude values."""
     circuit = race_data.get("circuit", {})
     displayed_lon = circuit.get("long") if circuit.get("long") is not None else circuit.get("lon")
     lat = _parse_coordinate(circuit.get("lat"))
@@ -357,6 +361,7 @@ def _has_weather_coordinates(race_data: dict) -> bool:
 
 
 def _parse_race_datetime_utc(race_data: dict) -> datetime | None:
+    """Extract the race session timestamp as an aware UTC datetime."""
     schedule = race_data.get("schedule", [])
     race_session = next(
         (session for session in schedule if str(session.get("name", "")).lower() == "race"),
@@ -381,6 +386,7 @@ def _parse_race_datetime_utc(race_data: dict) -> datetime | None:
 
 
 def _race_weather_expected(race_data: dict) -> bool:
+    """Return whether historical or forecast race weather should be available."""
     race_dt = _parse_race_datetime_utc(race_data)
     if race_dt is None:
         return False
@@ -398,6 +404,7 @@ def _weather_context_degraded(
     race_data: dict,
     weather_by_type: dict[str, WeatherData | None],
 ) -> bool:
+    """Return whether any weather source expected for rendering is unavailable."""
     if not config.WEATHER_ENABLED or not _has_weather_coordinates(race_data):
         return False
 
@@ -1021,6 +1028,7 @@ def _normalize_cron_day_of_week(value: str) -> str:
     }
 
     def normalize_part(part: str) -> str:
+        """Normalize one comma-delimited cron weekday expression."""
         base, separator, step = part.partition("/")
         if base == "*" or any(char.isalpha() for char in base):
             normalized = base

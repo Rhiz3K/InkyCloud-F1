@@ -41,6 +41,7 @@ def get_max_supported_f1_season(now: datetime | None = None) -> int:
 
 
 def is_supported_f1_season(year: object, now: datetime | None = None) -> bool:
+    """Return whether a value is an integer inside the supported season range."""
     return (
         isinstance(year, int)
         and not isinstance(year, bool)

@@ -180,10 +180,14 @@ app = FastAPI(
 
 
 class StaticCacheMiddleware:
+    """Attach asset-specific browser cache headers to successful static responses."""
+
     def __init__(self, asgi_app):
+        """Wrap an ASGI application with static cache-header handling."""
         self.app = asgi_app
 
     async def __call__(self, scope, receive, send):
+        """Forward one ASGI request, decorating eligible response headers."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -191,6 +195,7 @@ class StaticCacheMiddleware:
         path = scope.get("path", "")
 
         async def send_with_cache_headers(message):
+            """Apply cache policy before forwarding an ASGI response message."""
             if (
                 message["type"] == "http.response.start"
                 and path.startswith("/static/")
@@ -210,10 +215,14 @@ class StaticCacheMiddleware:
 
 
 class SecurityHeadersMiddleware:
+    """Apply baseline security headers and canonical-host redirects to HTTP responses."""
+
     def __init__(self, asgi_app):
+        """Wrap an ASGI application with response security handling."""
         self.app = asgi_app
 
     async def __call__(self, scope, receive, send):
+        """Process one ASGI request and secure its response headers."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -226,6 +235,7 @@ class SecurityHeadersMiddleware:
         query_string = scope.get("query_string", b"").decode()
 
         def add_security_headers(response_headers: MutableHeaders) -> None:
+            """Mutate response headers with the configured browser security policy."""
             response_headers["X-Content-Type-Options"] = "nosniff"
             response_headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
             response_headers["X-Frame-Options"] = "DENY"
@@ -243,6 +253,7 @@ class SecurityHeadersMiddleware:
             return
 
         async def send_with_security_headers(message):
+            """Secure an ASGI response-start message before forwarding it."""
             if message["type"] == "http.response.start":
                 add_security_headers(MutableHeaders(scope=message))
 

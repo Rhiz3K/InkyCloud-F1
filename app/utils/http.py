@@ -17,6 +17,7 @@ MAX_RETRY_DELAY = 300.0
 
 
 def _retry_after_seconds(response: httpx.Response) -> float | None:
+    """Parse and clamp an HTTP Retry-After header to seconds."""
     value = response.headers.get("Retry-After")
     if not value:
         return None
@@ -34,6 +35,7 @@ def _retry_after_seconds(response: httpx.Response) -> float | None:
 
 
 def _retry_delay(response: httpx.Response | None, attempt: int, base_delay: float) -> float:
+    """Calculate bounded exponential retry delay with server guidance and jitter."""
     exponential = base_delay * (2**attempt)
     retry_after = _retry_after_seconds(response) if response is not None else None
     base = max(exponential, retry_after or 0.0)

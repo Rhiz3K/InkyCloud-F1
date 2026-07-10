@@ -249,6 +249,7 @@ class Renderer(RendererBase):
             header_height: int,
             _badge_pad_x: int,
         ) -> int:
+            """Render the monochrome team standings summary for this row."""
             return self._draw_team_stats_panel_mono(
                 draw,
                 y,
@@ -271,6 +272,7 @@ class Renderer(RendererBase):
             driver_pos_x: int,
             badge_pad_x: int,
         ) -> None:
+            """Render one monochrome driver entry for this team row."""
             self._draw_team_driver_row_mono(
                 draw,
                 image,
@@ -293,6 +295,7 @@ class Renderer(RendererBase):
             logo_container_left: int,
             logo_container_right: int,
         ) -> None:
+            """Render the team logo into this row using monochrome conversion."""
             self._ensure_teams_assets()
             draw_team_logo(
                 image,
@@ -587,6 +590,7 @@ class Renderer(RendererBase):
             season: int | str,
             country_name: str,
         ) -> int:
+            """Render the monochrome historical-results header callback."""
             return draw_results_header(
                 draw_ctx,
                 image_ctx,

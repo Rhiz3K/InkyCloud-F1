@@ -17,6 +17,7 @@ WIKI_URL = "https://en.wikipedia.org/wiki/{year}_Formula_One_World_Championship"
 
 
 def clean_text(text: str) -> str:
+    """Remove citation markers and normalize whitespace from scraped text."""
     text = re.sub(r"\[.*?\]", "", text)
     text = re.sub(r"\s+", " ", text)
     return text.strip()
@@ -97,6 +98,7 @@ def parse_drivers_from_columns(numbers_cell, names_cell, rounds_cell) -> list[di
 
 
 def scrape_wiki_teams(year: int) -> dict:
+    """Scrape normalized constructor and driver data for one F1 season."""
     url = WIKI_URL.format(year=year)
     print(f"Fetching: {url}")
 
@@ -160,6 +162,7 @@ def scrape_wiki_teams(year: int) -> dict:
 
 
 def main():
+    """Scrape a requested season and write its bundled teams JSON file."""
     year = int(sys.argv[1]) if len(sys.argv) > 1 else 2025
     print(f"Scraping F1 {year} teams data from Wikipedia\n")
 

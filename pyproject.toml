@@ -38,6 +38,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "httpx2>=2.5.0",
+    "interrogate>=1.7.0",
     "mypy>=1.19.1",
     "numpy>=2.4.0",
     "pytest>=9.0.3",
@@ -96,6 +97,10 @@ files = ["app"]
 ignore_missing_imports = true
 explicit_package_bases = true
 
+[tool.interrogate]
+fail-under = 100
+verbose = 1
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
@@ -105,6 +110,7 @@ markers = [
 [dependency-groups]
 dev = [
     "httpx2>=2.5.0",
+    "interrogate>=1.7.0",
     "mypy>=1.19.1",
     "numpy>=2.4.0",
     "pytest>=9.0.3",

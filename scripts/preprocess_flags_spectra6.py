@@ -59,6 +59,7 @@ def process_flag_image(input_path: Path, output_path: Path) -> FlagStats:
 
 
 def main() -> None:
+    """Process all source flags into Spectra 6 assets and fail on errors."""
     if not FLAGS_INPUT_DIR.exists():
         print(f"Input directory not found: {FLAGS_INPUT_DIR}")
         raise SystemExit(1)

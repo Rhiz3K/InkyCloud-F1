@@ -25,6 +25,7 @@ PALETTE = [BLACK, WHITE, RED]
 
 
 def normalize_image(image: Image.Image) -> Image.Image:
+    """Flatten transparency onto white and normalize a flag to RGB."""
     if image.mode in ("RGBA", "P"):
         background = Image.new("RGB", image.size, WHITE)
         if image.mode == "P":
@@ -38,6 +39,7 @@ def normalize_image(image: Image.Image) -> Image.Image:
 
 
 def process_flag_image(input_path: Path, output_path: Path) -> dict:
+    """Resize and encode one source flag as an atomic 4-bit BWR BMP."""
     original = normalize_image(Image.open(input_path))
     original_size = input_path.stat().st_size
     original_dimensions = original.size
@@ -56,6 +58,7 @@ def process_flag_image(input_path: Path, output_path: Path) -> dict:
 
 
 def main() -> None:
+    """Process all source flags into BWR assets and fail on partial errors."""
     print("=" * 60)
     print(" BWR Flag Image Pre-processor")
     print("=" * 60)

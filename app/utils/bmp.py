@@ -11,6 +11,7 @@ RgbColor: TypeAlias = tuple[int, int, int]
 
 
 def _build_palette_image(palette: list[RgbColor]) -> Image.Image:
+    """Build a one-pixel Pillow palette image from RGB color tuples."""
     palette_flat: list[int] = []
     for color in palette:
         palette_flat.extend(color)
@@ -46,6 +47,7 @@ def _mask(expression: str, **bands: Image.Image) -> Image.Image:
 
 
 def _palette_image_from_indices(indices: Image.Image, palette: list[RgbColor]) -> Image.Image:
+    """Attach a concrete RGB palette to an image of color indices."""
     indexed = Image.frombytes("P", indices.size, indices.tobytes())
     palette_data = _build_palette_image(palette).getpalette() or []
     indexed.putpalette(palette_data)  # type: ignore[arg-type]

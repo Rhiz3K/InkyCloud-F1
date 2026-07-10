@@ -41,6 +41,7 @@ def _build_teams_preview_png(lang: str, display: str, teams_data, full_size: boo
 async def _render_teams_preview(
     lang: str, display: str = "1bit", *, full_size: bool
 ) -> StreamingResponse:
+    """Render a dynamic Teams PNG when no pregenerated preview is available."""
     season = get_default_teams_year()
     teams_service = TeamsService()
     teams_data = await teams_service.get_teams_and_drivers(season)

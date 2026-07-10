@@ -44,6 +44,7 @@ OUTPUT_WIDTH = 150
 
 
 def get_number_logo_url(driver_code: str) -> str:
+    """Build the Formula 1 CDN URL for a driver number logo."""
     path = "content/dam/fom-website/2018-redesign-assets/drivers/number-logos"
     return f"{BASE_URL}/f_png,c_limit,w_{SOURCE_WIDTH}/{path}/{driver_code}"
 
@@ -83,6 +84,7 @@ def convert_to_silhouette(img: Image.Image) -> Image.Image:
 async def download_driver_number(
     client: httpx.AsyncClient, driver_id: str, driver_code: str, output_dir: Path
 ) -> bool:
+    """Download, validate, convert, and atomically store one driver number."""
     url = get_number_logo_url(driver_code)
     output_path = output_dir / f"{driver_id}.png"
 
@@ -102,6 +104,7 @@ async def download_driver_number(
 
 
 async def main() -> bool:
+    """Download every configured driver number and report aggregate success."""
     output_dir = Path(__file__).parent.parent / "app" / "assets" / "images" / "drivers"
     output_dir.mkdir(parents=True, exist_ok=True)
 

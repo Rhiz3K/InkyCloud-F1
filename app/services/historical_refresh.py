@@ -25,22 +25,28 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class CircuitFetchOutcome:
+    """Results and completion state for one circuit refresh attempt."""
+
     results: dict | None
     completed: bool
 
 
 @dataclass(frozen=True)
 class HistoricalRefreshResult:
+    """Aggregate changed, failed, and attempted circuits from a refresh run."""
+
     updated_circuits: tuple[str, ...]
     failed_circuits: tuple[str, ...]
     attempted_circuits: int
 
     @property
     def completed(self) -> bool:
+        """Return whether at least one circuit ran and none failed."""
         return self.attempted_circuits > 0 and not self.failed_circuits
 
 
 def _current_year() -> int:
+    """Return the current UTC year at execution time."""
     return datetime.now(timezone.utc).year
 
 
@@ -50,6 +56,7 @@ def has_material_historical_change(results: dict, existing_historical: dict | No
 
 
 def _required_text(mapping: Mapping[str, Any], key: str, *, context: str) -> str:
+    """Read and normalize a required non-empty string from an upstream mapping."""
     value = mapping.get(key)
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"Missing {context}.{key}")
@@ -62,6 +69,7 @@ def _format_result(
     *,
     time_value: object,
 ) -> dict[str, object]:
+    """Normalize one validated upstream result row for persistent storage."""
     driver = get_result_mapping(entry, "Driver")
     constructor = get_result_mapping(entry, "Constructor")
     if not isinstance(time_value, str) or not time_value.strip():

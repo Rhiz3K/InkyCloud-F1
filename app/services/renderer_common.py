@@ -41,6 +41,7 @@ def _countdown_plural_category(value: int, lang_code: str) -> str:
 
 
 def _decoded_image_size(image: Image.Image) -> int:
+    """Estimate decoded image memory from dimensions and channel count."""
     return image.width * image.height * len(image.getbands())
 
 
@@ -76,6 +77,7 @@ _ROUND_RANGE_RE = re.compile(r"^(\d+)(?:\s*[-–—]\s*(\d+))?$")
 
 
 def _driver_round_window(rounds: str) -> tuple[int, int] | None:
+    """Parse a driver round label into an inclusive normalized range."""
     normalized = rounds.strip()
     if not normalized or normalized.lower() == "all":
         return None
@@ -375,6 +377,7 @@ def crop_to_content(img: Image.Image, *, use_binary_mask: bool = False) -> Image
 
 
 def _has_transparent_alpha(alpha: Image.Image | None) -> bool:
+    """Return whether an alpha channel contains any non-opaque pixels."""
     if alpha is None:
         return False
     alpha_extrema = alpha.getextrema()
@@ -383,6 +386,7 @@ def _has_transparent_alpha(alpha: Image.Image | None) -> bool:
 
 
 def _pixel_activity_value(pixel: object) -> float:
+    """Reduce a scalar or tuple pixel to a comparable activity value."""
     if isinstance(pixel, tuple):
         return float(max(pixel)) if pixel else 0.0
     if isinstance(pixel, int | float):
@@ -391,6 +395,7 @@ def _pixel_activity_value(pixel: object) -> float:
 
 
 def _active_pixel_counts(mask: Image.Image, *, threshold: float = 16) -> list[int]:
+    """Count pixels above an activity threshold for every mask row."""
     rows = []
     for y in range(mask.height):
         active = 0
@@ -406,6 +411,7 @@ def _find_horizontal_segments(
     *,
     threshold: int = 5,
 ) -> list[tuple[int, int, int]]:
+    """Find contiguous active row segments and their peak widths."""
     segments: list[tuple[int, int, int]] = []
     start: int | None = None
     for index, count in enumerate(rows):
@@ -429,6 +435,7 @@ def _preserves_stacked_logo(
     first_segment: tuple[int, int, int],
     second_segment: tuple[int, int, int],
 ) -> bool:
+    """Decide whether cropping would incorrectly split a stacked logo."""
     first_start, first_end, first_peak = first_segment
     second_start, second_end, second_peak = second_segment
     first_height = first_end - first_start
@@ -475,6 +482,7 @@ def fit_result_text(
     """Fit historical results text into the available width."""
 
     def get_width(text: str) -> int:
+        """Measure candidate result text with the active drawing font."""
         return int(draw.textbbox((0, 0), text, font=font)[2])
 
     full = f"{pos}. {driver} ({team})"
@@ -882,6 +890,7 @@ def draw_team_stats_panel(
         fill,
         align: str = "center",
     ) -> None:
+        """Draw one aligned value inside a team statistics panel cell."""
         text_bbox = draw.textbbox((0, 0), text, font=font)
         text_w = int(text_bbox[2] - text_bbox[0])
         text_h = int(text_bbox[3] - text_bbox[1])
