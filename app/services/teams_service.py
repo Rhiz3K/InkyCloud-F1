@@ -25,9 +25,9 @@ SEASONS_DIR = Path(__file__).parent.parent / "assets" / "seasons"
 
 CACHE_TTL_SECONDS = 3600
 NEGATIVE_CACHE_TTL_SECONDS = 60
-_fetch_locks: weakref.WeakKeyDictionary[
-    asyncio.AbstractEventLoop, dict[int, asyncio.Lock]
-] = weakref.WeakKeyDictionary()
+_fetch_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, dict[int, asyncio.Lock]] = (
+    weakref.WeakKeyDictionary()
+)
 
 
 def _get_fetch_lock(year: int) -> asyncio.Lock:
@@ -510,11 +510,15 @@ class TeamsService:
 
         teams.sort(key=lambda x: x.position if x.position else 999)
         standings_complete = bool(driver_standings_entries) and bool(constructor_standings_entries)
-        standings_complete = standings_complete and bool(teams) and all(
-            team.position is not None
-            and bool(team.drivers)
-            and all(driver.position is not None for driver in team.drivers)
-            for team in teams
+        standings_complete = (
+            standings_complete
+            and bool(teams)
+            and all(
+                team.position is not None
+                and bool(team.drivers)
+                and all(driver.position is not None for driver in team.drivers)
+                for team in teams
+            )
         )
         return self._apply_manual_overrides(
             TeamsData(season=year, teams=teams, standings_complete=standings_complete)

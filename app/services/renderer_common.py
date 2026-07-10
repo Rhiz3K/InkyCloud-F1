@@ -1395,16 +1395,13 @@ def draw_countdown_box(
         days_label = translator.get("countdown_days_short", "d")
         hours_label = translator.get("countdown_hours_short", "h")
     else:
+
         def plural_category(value: int) -> str:
             if value == 1:
                 return "one"
             if lang_code in {"cs", "sk"} and 2 <= value <= 4:
                 return "few"
-            if (
-                lang_code == "pl"
-                and value % 10 in {2, 3, 4}
-                and value % 100 not in {12, 13, 14}
-            ):
+            if lang_code == "pl" and value % 10 in {2, 3, 4} and value % 100 not in {12, 13, 14}:
                 return "few"
             return "many"
 

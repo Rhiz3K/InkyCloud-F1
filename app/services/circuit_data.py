@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=4)
-def _load_circuits_data_file(
-    path_value: str, mtime_ns: int, size: int, inode: int
-) -> dict:
+def _load_circuits_data_file(path_value: str, mtime_ns: int, size: int, inode: int) -> dict:
     """Load one immutable file version identified by stable filesystem metadata."""
     del mtime_ns, size, inode
     with open(path_value, encoding="utf-8") as handle:
@@ -41,9 +39,7 @@ def load_circuits_data() -> dict:
     path = get_circuits_data_path()
     try:
         stat = path.stat()
-        return _load_circuits_data_file(
-            str(path), stat.st_mtime_ns, stat.st_size, stat.st_ino
-        )
+        return _load_circuits_data_file(str(path), stat.st_mtime_ns, stat.st_size, stat.st_ino)
     except (OSError, ValueError, TypeError) as exc:
         logger.warning("Failed to load circuit data from %s: %s", path, exc)
         return {}

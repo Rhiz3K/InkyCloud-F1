@@ -229,9 +229,7 @@ async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> No
                 continue
             try:
                 outputs = await run_render(
-                    functools.partial(
-                        _teams_preview_pngs_from_bmp, bmp_path, lang, display_name
-                    )
+                    functools.partial(_teams_preview_pngs_from_bmp, bmp_path, lang, display_name)
                 )
                 for filename, png_data in outputs:
                     await _atomic_write_bytes(images_dir / filename, png_data)

@@ -121,9 +121,7 @@ class RendererBase:
         draw = ImageDraw.Draw(image)
         self._draw_header(draw, image, race_data)
         self._draw_track_section(draw, image, race_data)
-        schedule_bottom = self._draw_schedule_section(
-            draw, race_data, weather_data, weather_type
-        )
+        schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data, weather_type)
         self._draw_circuit_stats(draw, race_data, schedule_bottom)
         self._draw_results_section(draw, image, race_data, historical_data)
         return self._encode_image(image)
@@ -196,9 +194,7 @@ class RendererBase:
     def _encode_image(self, image: Image.Image) -> bytes:
         raise NotImplementedError
 
-    def _draw_header(
-        self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict
-    ) -> None:
+    def _draw_header(self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict) -> None:
         raise NotImplementedError
 
     def _draw_track_section(

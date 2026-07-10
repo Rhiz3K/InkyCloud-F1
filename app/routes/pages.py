@@ -644,9 +644,7 @@ async def api_docs_html_lang_slash_redirect(request: Request, lang_prefix: str):
 
 async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTMLResponse:
     """Render stats page."""
-    enforce_rate_limit(
-        request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE
-    )
+    enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
     hours_map = {"1h": 1, "24h": 24, "7d": 168, "30d": 720, "365d": 8760}
     hours = hours_map.get(time_range, 24)
 

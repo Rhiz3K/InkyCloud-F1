@@ -52,6 +52,7 @@ def isolate_main_endpoint_tests_from_live_services(monkeypatch):
         AsyncMock(return_value=([], [])),
     )
 
+
 MOCK_DRIVER_STANDINGS = [
     DriverStanding(
         position=1,

@@ -125,9 +125,9 @@ async def _fetch_results_with_status(
             if not race_races:
                 continue
 
-            qualifying = sort_entries_by_position(
-                qualifying_races[0].get("QualifyingResults")
-            )[:PODIUM_SIZE]
+            qualifying = sort_entries_by_position(qualifying_races[0].get("QualifyingResults"))[
+                :PODIUM_SIZE
+            ]
             race = sort_entries_by_position(race_races[0].get("Results"))[:PODIUM_SIZE]
             if len(qualifying) != PODIUM_SIZE or len(race) != PODIUM_SIZE:
                 raise ValueError("Incomplete podium results")
@@ -137,8 +137,7 @@ async def _fetch_results_with_status(
                     "season": year,
                     "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                     "qualifying": [
-                        _format_qualifying_result(position, entry)
-                        for position, entry in qualifying
+                        _format_qualifying_result(position, entry) for position, entry in qualifying
                     ],
                     "race": [_format_race_result(position, entry) for position, entry in race],
                 },
@@ -170,9 +169,7 @@ def _would_regress_season(results: dict, existing_historical: object) -> bool:
         return False
     result_season = results.get("season")
     existing_season = existing_historical.get("season")
-    if not isinstance(result_season, (str, int)) or not isinstance(
-        existing_season, (str, int)
-    ):
+    if not isinstance(result_season, (str, int)) or not isinstance(existing_season, (str, int)):
         return False
     try:
         return int(result_season) < int(existing_season)

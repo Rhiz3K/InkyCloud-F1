@@ -94,6 +94,7 @@ def get_season_driver_number_by_id(driver_id: str, year: int) -> int | None:
         return None
     return DRIVER_NUMBERS_BY_YEAR.get(year, {}).get(driver_code)
 
+
 TEAM_ID_MAP = {
     "McLaren": "mclaren",
     "Ferrari": "ferrari",

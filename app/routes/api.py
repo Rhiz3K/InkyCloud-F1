@@ -249,9 +249,7 @@ async def api_info() -> dict:
 async def get_stats(request: Request) -> dict:
     """Get API request statistics from database."""
     _require_operational_api_auth(request)
-    enforce_rate_limit(
-        request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE
-    )
+    enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
 
     db = Database()
     try:
@@ -319,14 +317,10 @@ async def post_perf_metrics(payload: PerfMetricsPayload, request: Request) -> di
 
 
 @router.get("/api/perf-metrics")
-async def get_perf_metrics(
-    request: Request, hours: int = Query(default=24, ge=1, le=720)
-) -> dict:
+async def get_perf_metrics(request: Request, hours: int = Query(default=24, ge=1, le=720)) -> dict:
     """Return aggregated performance metrics for the requested lookback window."""
     _require_operational_api_auth(request)
-    enforce_rate_limit(
-        request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE
-    )
+    enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
 
     db = Database()
     try:
@@ -343,9 +337,7 @@ async def get_stats_history(
 ) -> dict:
     """Return recent hourly request history for the stats dashboard."""
     _require_operational_api_auth(request)
-    enforce_rate_limit(
-        request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE
-    )
+    enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
 
     db = Database()
     try:
@@ -360,9 +352,7 @@ async def get_season_races(
     year: int, request: Request, f1_service: F1Service = Depends(get_f1_service)
 ) -> dict:
     """Return all races for a given season."""
-    enforce_rate_limit(
-        request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE
-    )
+    enforce_rate_limit(request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE)
     _require_supported_f1_season(year)
     races = f1_service.get_all_races_from_static(year)
     if not races:
@@ -378,9 +368,7 @@ async def get_race_detail(
     f1_service: F1Service = Depends(get_f1_service),
 ) -> dict:
     """Return details for a single race round."""
-    enforce_rate_limit(
-        request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE
-    )
+    enforce_rate_limit(request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE)
     _require_supported_f1_season(year)
     if not 1 <= round_num <= 30:
         raise HTTPException(status_code=422, detail="Invalid race round")
@@ -399,9 +387,7 @@ async def get_race_detail(
 @router.get("/api/teams/{year}")
 async def get_teams(year: int, request: Request) -> dict:
     """Get teams and drivers for a season."""
-    enforce_rate_limit(
-        request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE
-    )
+    enforce_rate_limit(request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE)
     _require_supported_f1_season(year)
     try:
         teams_service = TeamsService()
@@ -433,9 +419,7 @@ async def get_standings_leader(request: Request, year: int | None = None) -> dic
 
     if year is None:
         year = get_current_f1_season()
-    enforce_rate_limit(
-        request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE
-    )
+    enforce_rate_limit(request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE)
     _require_supported_f1_season(year)
 
     standings_service = StandingsService()

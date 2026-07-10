@@ -342,9 +342,7 @@ async def test_concurrent_driver_standings_requests_are_coalesced(monkeypatch):
 
     monkeypatch.setattr(service, "_fetch_driver_standings", fetch_driver_standings)
 
-    results = await asyncio.gather(
-        *(service.get_driver_standings(2026) for _ in range(5))
-    )
+    results = await asyncio.gather(*(service.get_driver_standings(2026) for _ in range(5)))
 
     assert calls == 1
     assert all(result[0].driver_code == "NOR" for result in results)

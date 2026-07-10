@@ -131,9 +131,7 @@ def _load_existing_circuits(output_path: Path) -> dict[str, dict]:
     return payload
 
 
-def _merge_circuit_entry(
-    existing: dict, *, race_name: str, url_slug: str, scraped: dict
-) -> dict:
+def _merge_circuit_entry(existing: dict, *, race_name: str, url_slug: str, scraped: dict) -> dict:
     """Merge scraped metadata without dropping maintained fields such as historical podiums."""
     return {**existing, "race_name": race_name, "url_slug": url_slug, **scraped}
 
