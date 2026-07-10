@@ -44,9 +44,11 @@ def clear_image_cache():
 
 
 def test_timezone_validation_and_round_conversion_edge_cases():
-    with patch("app.routes.images.is_valid_timezone", return_value=False):
-        with pytest.raises(HTTPException) as error:
-            images._validate_timezone_param("Bad/Zone")
+    with (
+        patch("app.routes.images.is_valid_timezone", return_value=False),
+        pytest.raises(HTTPException) as error,
+    ):
+        images._validate_timezone_param("Bad/Zone")
     assert error.value.status_code == 400
 
     assert images._to_round_number("") is None

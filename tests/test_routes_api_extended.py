@@ -51,9 +51,11 @@ def test_operational_auth_covers_public_empty_header_bearer_and_rejection():
     with patch("app.routes.api.config.ADMIN_API_TOKEN", None):
         api._require_operational_api_auth(_request())
 
-    with patch("app.routes.api.config.ADMIN_API_TOKEN", SecretStr("")):
-        with pytest.raises(HTTPException) as error:
-            api._require_operational_api_auth(_request())
+    with (
+        patch("app.routes.api.config.ADMIN_API_TOKEN", SecretStr("")),
+        pytest.raises(HTTPException) as error,
+    ):
+        api._require_operational_api_auth(_request())
     assert error.value.status_code == 503
 
     with patch("app.routes.api.config.ADMIN_API_TOKEN", SecretStr("secret")):

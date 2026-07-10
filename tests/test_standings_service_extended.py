@@ -52,9 +52,11 @@ async def test_driver_standings_default_invalid_and_inner_negative_cache_paths()
         dt.now.return_value.year = 2026
         assert (await service.get_driver_standings())[0].driver_code == "DRV"
 
-    with patch("app.services.standings_service.is_supported_f1_season", return_value=False):
-        with pytest.raises(ValueError, match="Unsupported"):
-            await service.get_driver_standings(1800)
+    with (
+        patch("app.services.standings_service.is_supported_f1_season", return_value=False),
+        pytest.raises(ValueError, match="Unsupported"),
+    ):
+        await service.get_driver_standings(1800)
 
     service._cache.clear()
     with (
@@ -100,9 +102,11 @@ async def test_constructor_standings_default_invalid_cached_negative_and_inner_p
         dt.now.return_value.year = 2026
         assert (await service.get_constructor_standings())[0].constructor_name == "Team"
 
-    with patch("app.services.standings_service.is_supported_f1_season", return_value=False):
-        with pytest.raises(ValueError, match="Unsupported"):
-            await service.get_constructor_standings(1800)
+    with (
+        patch("app.services.standings_service.is_supported_f1_season", return_value=False),
+        pytest.raises(ValueError, match="Unsupported"),
+    ):
+        await service.get_constructor_standings(1800)
 
     with (
         patch("app.services.standings_service.is_supported_f1_season", return_value=True),

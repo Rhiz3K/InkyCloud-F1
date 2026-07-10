@@ -212,9 +212,11 @@ def test_get_season_from_static_rejects_invalid_year_and_read_failure(tmp_path):
     assert f1.F1Service.get_season_from_static(1999) == []
     path = tmp_path / "2026.json"
     path.write_text("{}", encoding="utf-8")
-    with patch("app.services.f1_service._find_static_season_path", return_value=path):
-        with patch.object(path.__class__, "read_text", side_effect=OSError("failed")):
-            assert f1.F1Service.get_season_from_static(2026) == []
+    with (
+        patch("app.services.f1_service._find_static_season_path", return_value=path),
+        patch.object(path.__class__, "read_text", side_effect=OSError("failed")),
+    ):
+        assert f1.F1Service.get_season_from_static(2026) == []
 
 
 class _FixedDatetime(datetime):

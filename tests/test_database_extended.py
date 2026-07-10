@@ -14,21 +14,28 @@ from app.services.database import Database
 
 
 class _EmptyCursor:
+    def __init__(self):
+        self.exited = False
+
     async def __aenter__(self):
         return self
 
     async def __aexit__(self, *_args):
+        self.exited = True
         return None
 
-    async def fetchone(self):
+    @staticmethod
+    async def fetchone():
         return None
 
-    async def fetchall(self):
+    @staticmethod
+    async def fetchall():
         return []
 
 
 class _EmptyConnection:
-    def execute(self, *_args, **_kwargs):
+    @staticmethod
+    def execute(*_args, **_kwargs):
         return _EmptyCursor()
 
 

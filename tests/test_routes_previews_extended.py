@@ -54,9 +54,11 @@ def test_build_preview_helpers_render_and_preserve_color():
 @pytest.mark.asyncio
 async def test_render_calendar_preview_requires_race_and_returns_png():
     f1_service = SimpleNamespace(get_next_race_from_static=MagicMock(return_value=None))
-    with patch("app.routes.previews.F1Service", return_value=f1_service):
-        with pytest.raises(RuntimeError, match="No race data"):
-            await previews._render_calendar_preview("en", full_size=False)
+    with (
+        patch("app.routes.previews.F1Service", return_value=f1_service),
+        pytest.raises(RuntimeError, match="No race data"),
+    ):
+        await previews._render_calendar_preview("en", full_size=False)
 
     race = {"circuit": {"circuitId": "monza"}}
     f1_service.get_next_race_from_static.return_value = race
@@ -79,9 +81,9 @@ async def test_render_teams_preview_requires_data_and_returns_png():
     with (
         patch("app.routes.previews.get_default_teams_year", return_value=2026),
         patch("app.routes.previews.TeamsService", return_value=service),
+        pytest.raises(RuntimeError, match="No teams data"),
     ):
-        with pytest.raises(RuntimeError, match="No teams data"):
-            await previews._render_teams_preview("en", full_size=False)
+        await previews._render_teams_preview("en", full_size=False)
 
     service.get_teams_and_drivers.return_value = TeamsData(
         season=2026, teams=[TeamEntry(constructor_name="Team")]

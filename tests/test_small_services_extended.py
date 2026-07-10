@@ -23,7 +23,9 @@ def clear_translation_cache():
 
 
 def _secondary_language() -> str:
-    return next(lang for lang in i18n.VALID_LANGUAGES if lang != i18n.config.DEFAULT_LANG)
+    secondary = [lang for lang in i18n.VALID_LANGUAGES if lang != i18n.config.DEFAULT_LANG]
+    assert secondary
+    return secondary[0]
 
 
 def test_translator_handles_missing_mapping_for_default(monkeypatch):
