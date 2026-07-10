@@ -25,6 +25,7 @@ import time
 import tracemalloc
 from datetime import datetime, timezone
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 # Add project root to path
@@ -493,7 +494,7 @@ def print_footer():
 # =============================================================================
 
 
-def save_results_json(results: dict, memory: dict, cache_memory: dict, output_path: Path):
+def save_results_json(results: dict, memory: dict, cache_memory: dict, output_path: Path) -> None:
     """Save benchmark results to JSON file."""
     output: dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -537,7 +538,7 @@ def save_results_json(results: dict, memory: dict, cache_memory: dict, output_pa
         output["comparison"]["cache_vs_file"] = round(file_ms / cache_ms)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
+    with output_path.open("w", encoding="utf-8") as f:
         json.dump(output, f, indent=2)
 
     print(f"\n Results saved to: {output_path}")
@@ -632,12 +633,11 @@ def main():
     if file_path.exists():
         results["file"] = benchmark_file_read(file_path, args.runs * 2, args.warmup)
     else:
-        # Create temp file for benchmark
         print("    Pre-generated file not found, using temp file...")
-        temp_path = Path("/tmp/benchmark_calendar.bmp")
-        temp_path.write_bytes(bmp_data)
-        results["file"] = benchmark_file_read(temp_path, args.runs * 2, args.warmup)
-        temp_path.unlink()
+        with TemporaryDirectory(prefix="f1-benchmark-") as temp_dir:
+            temp_path = Path(temp_dir) / "calendar.bmp"
+            temp_path.write_bytes(bmp_data)
+            results["file"] = benchmark_file_read(temp_path, args.runs * 2, args.warmup)
 
     print_benchmark_result("PRE-GENERATED FILE (disk read)", results["file"], 3)
 
