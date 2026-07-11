@@ -854,4 +854,4 @@ After successful deployment:
 
 _Last updated: July 2026_
 _Coolify version: 4.x+_  
-_InkyCloud-F1 version: 1.2.31+_
+_InkyCloud-F1 version: 1.2.32+_
