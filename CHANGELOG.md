@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Full-year statistics retention** - Retain 400 days of statistics by default so the `365D` dashboard remains complete while database and backup growth stay bounded; deployments explicitly configured for 90 days must switch to `400` or `0` and redeploy
 
+### Development
+
+#### Fixed
+
+- **Post-release CI validation** - Isolate the release-validation entrypoint test from repository tags so the tagged release commit passes `main` CI without weakening the pull-request version-bump gate
+
 ## [1.2.31] - 2026-07-09
 
 ### Security
