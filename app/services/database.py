@@ -14,6 +14,7 @@ import aiosqlite
 from app.config import config
 
 logger = logging.getLogger(__name__)
+PERF_STATS_SAMPLE_LIMIT = 10_000
 
 STATS_CLEANUP_QUERIES = {
     "request_stats": "DELETE FROM request_stats WHERE timestamp < ?",
@@ -22,14 +23,14 @@ STATS_CLEANUP_QUERIES = {
 }
 
 
-class Database:
-    _instances: ClassVar[weakref.WeakSet["Database"]] = weakref.WeakSet()
-    initialized_paths: ClassVar[set[str]] = set()
-    schema_init_locks: ClassVar[dict[str, threading.Lock]] = {}
-    schema_state_lock: ClassVar[threading.Lock] = threading.Lock()
+async def _acquire_thread_lock(lock: threading.Lock) -> None:
+    """Poll a thread lock without blocking the event loop."""
+    while not lock.acquire(blocking=False):
+        await asyncio.sleep(0.01)
 
-    """
-    Async SQLite database for metadata and statistics.
+
+class Database:
+    """Async SQLite database for metadata and statistics.
 
     Note: Race data and historical results are now stored in static JSON files.
     This database only stores:
@@ -37,6 +38,11 @@ class Database:
     - Cache timestamps
     - Request statistics
     """
+
+    _instances: ClassVar[weakref.WeakSet["Database"]] = weakref.WeakSet()
+    initialized_paths: ClassVar[set[str]] = set()
+    schema_init_locks: ClassVar[dict[str, threading.Lock]] = {}
+    schema_state_lock: ClassVar[threading.Lock] = threading.Lock()
 
     def __init__(self, db_path: str | None = None):
         """
@@ -72,7 +78,11 @@ class Database:
                     logger.debug("Failed to close stale database connection", exc_info=True)
 
             conn = await aiosqlite.connect(self.db_path)
-            await self._configure_connection(conn)
+            try:
+                await self._configure_connection(conn)
+            except BaseException:
+                await conn.close()
+                raise
             self._connection = conn
             self._connection_loop = current_loop
             return conn
@@ -103,6 +113,7 @@ class Database:
     async def _configure_connection(conn: aiosqlite.Connection) -> None:
         """Configure connection settings after it's opened."""
         await conn.execute("PRAGMA journal_mode=WAL;")
+        await conn.execute("PRAGMA busy_timeout=30000;")
         conn.row_factory = aiosqlite.Row
 
     async def _init_db_if_needed(self) -> None:
@@ -117,7 +128,7 @@ class Database:
                 return
             path_lock = cls.schema_init_locks.setdefault(self.db_path, threading.Lock())
 
-        await asyncio.to_thread(path_lock.acquire)
+        await _acquire_thread_lock(path_lock)
         try:
             if self.db_path in cls.initialized_paths:
                 return
@@ -352,26 +363,6 @@ class Database:
                 return row["value"]
             return None
 
-    async def save_request_stats(self, hour_count: int, day_count: int) -> None:
-        """
-        Save current request statistics snapshot.
-
-        Args:
-            hour_count: Number of requests in last hour
-            day_count: Number of requests in last 24 hours
-        """
-        await self._init_db_if_needed()
-        async with self._get_connection() as conn:
-            await conn.execute(
-                """
-                INSERT INTO request_stats (timestamp, hour_count, day_count)
-                VALUES (?, ?, ?)
-                """,
-                (datetime.now(timezone.utc).isoformat(), hour_count, day_count),
-            )
-            await conn.commit()
-            logger.debug("Saved request stats: hour=%s, day=%s", hour_count, day_count)
-
     async def get_request_stats_history(self, limit: int = 168) -> list[dict]:
         """
         Get historical request statistics derived from stored API calls.
@@ -442,11 +433,14 @@ class Database:
         deleted_counts: dict[str, int] = {}
 
         async with self._get_connection() as conn:
-            for table_name, query in STATS_CLEANUP_QUERIES.items():
-                cursor = await conn.execute(query, (cutoff_date,))
-                deleted_counts[table_name] = cursor.rowcount
-
-            await conn.commit()
+            try:
+                for table_name, query in STATS_CLEANUP_QUERIES.items():
+                    cursor = await conn.execute(query, (cutoff_date,))
+                    deleted_counts[table_name] = cursor.rowcount
+                await conn.commit()
+            except Exception:
+                await conn.rollback()
+                raise
 
         deleted_total = sum(deleted_counts.values())
         if deleted_total > 0:
@@ -474,6 +468,20 @@ class Database:
         if not calls:
             return 0
 
+        valid_calls = [
+            call
+            for call in calls
+            if isinstance(call.get("timestamp"), str)
+            and call["timestamp"]
+            and isinstance(call.get("endpoint"), str)
+            and call["endpoint"]
+        ]
+        skipped_count = len(calls) - len(valid_calls)
+        if skipped_count:
+            logger.warning("Skipping %s malformed API-call records", skipped_count)
+        if not valid_calls:
+            return 0
+
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
             await conn.executemany(
@@ -485,8 +493,8 @@ class Database:
                 """,
                 [
                     (
-                        call["timestamp"],
-                        call["endpoint"],
+                        call.get("timestamp"),
+                        call.get("endpoint"),
                         call.get("response_time_ms"),
                         call.get("response_size_bytes"),
                         call.get("lang"),
@@ -497,12 +505,12 @@ class Database:
                         call.get("race_name"),
                         call.get("is_auto_selected", 0),
                     )
-                    for call in calls
+                    for call in valid_calls
                 ],
             )
             await conn.commit()
-            logger.debug("Saved %s API calls to database", len(calls))
-            return len(calls)
+            logger.debug("Saved %s API calls to database", len(valid_calls))
+            return len(valid_calls)
 
     async def get_api_calls_stats_24h(self) -> dict:
         """
@@ -787,8 +795,7 @@ class Database:
               AND tz IS NOT NULL
               AND tz != ''
               AND tz != ?
-              AND year IS NULL
-              AND round IS NULL
+              AND is_auto_selected = 1
             GROUP BY lang, tz
             HAVING COUNT(*) >= ?
             ORDER BY count DESC
@@ -867,6 +874,7 @@ class Database:
             if not row or row["sample_count"] == 0:
                 return {
                     "sample_count": 0,
+                    "percentile_sample_count": 0,
                     "lcp": {
                         "avg": None,
                         "min": None,
@@ -888,44 +896,25 @@ class Database:
                     "inp": {"avg": None, "p50": None, "p75": None, "p95": None},
                 }
 
-            # Fetch raw values for percentile calculation (sorted)
+            # Bound percentile memory and collapse five full scans into one recent-sample query.
             async with conn.execute(
-                """SELECT lcp_ms FROM perf_metrics
-                WHERE timestamp > ? AND lcp_ms IS NOT NULL ORDER BY lcp_ms""",
-                (cutoff,),
+                """SELECT lcp_ms, cls, fcp_ms, ttfb_ms, inp_ms
+                FROM perf_metrics
+                WHERE timestamp > ?
+                ORDER BY timestamp DESC
+                LIMIT ?""",
+                (cutoff, PERF_STATS_SAMPLE_LIMIT),
             ) as cursor:
-                lcp_values = [r["lcp_ms"] for r in await cursor.fetchall()]
-
-            async with conn.execute(
-                """SELECT cls FROM perf_metrics
-                WHERE timestamp > ? AND cls IS NOT NULL ORDER BY cls""",
-                (cutoff,),
-            ) as cursor:
-                cls_values = [r["cls"] for r in await cursor.fetchall()]
-
-            async with conn.execute(
-                """SELECT fcp_ms FROM perf_metrics
-                WHERE timestamp > ? AND fcp_ms IS NOT NULL ORDER BY fcp_ms""",
-                (cutoff,),
-            ) as cursor:
-                fcp_values = [r["fcp_ms"] for r in await cursor.fetchall()]
-
-            async with conn.execute(
-                """SELECT ttfb_ms FROM perf_metrics
-                WHERE timestamp > ? AND ttfb_ms IS NOT NULL ORDER BY ttfb_ms""",
-                (cutoff,),
-            ) as cursor:
-                ttfb_values = [r["ttfb_ms"] for r in await cursor.fetchall()]
-
-            async with conn.execute(
-                """SELECT inp_ms FROM perf_metrics
-                WHERE timestamp > ? AND inp_ms IS NOT NULL ORDER BY inp_ms""",
-                (cutoff,),
-            ) as cursor:
-                inp_values = [r["inp_ms"] for r in await cursor.fetchall()]
+                samples = list(await cursor.fetchall())
+            lcp_values = sorted(r["lcp_ms"] for r in samples if r["lcp_ms"] is not None)
+            cls_values = sorted(r["cls"] for r in samples if r["cls"] is not None)
+            fcp_values = sorted(r["fcp_ms"] for r in samples if r["fcp_ms"] is not None)
+            ttfb_values = sorted(r["ttfb_ms"] for r in samples if r["ttfb_ms"] is not None)
+            inp_values = sorted(r["inp_ms"] for r in samples if r["inp_ms"] is not None)
 
             return {
                 "sample_count": row["sample_count"],
+                "percentile_sample_count": len(samples),
                 "lcp": {
                     "avg": round(row["avg_lcp"], 0) if row["avg_lcp"] is not None else None,
                     "min": round(row["min_lcp"], 0) if row["min_lcp"] is not None else None,

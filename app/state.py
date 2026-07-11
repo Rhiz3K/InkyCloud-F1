@@ -1,3 +1,5 @@
+"""Process-local caches and buffered request-statistics state."""
+
 import logging
 from collections import deque
 from datetime import datetime, timezone
@@ -20,11 +22,13 @@ _api_calls_buffer: deque = deque(maxlen=API_CALLS_BUFFER_MAXSIZE)
 
 
 def clear_bmp_cache() -> None:
+    """Remove every generated BMP entry from the process-local cache."""
     _bmp_cache.clear()
     logger.info("BMP cache cleared")
 
 
 def get_bmp_cache() -> TTLCache:
+    """Return the shared generated-BMP cache instance."""
     return _bmp_cache
 
 
@@ -40,6 +44,7 @@ def record_api_call(
     is_auto_selected: bool = False,
     display_type: str | None = None,
 ) -> None:
+    """Append one normalized API-call record to the bounded flush buffer."""
     call = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "endpoint": endpoint,
@@ -57,6 +62,7 @@ def record_api_call(
 
 
 def get_and_clear_api_calls_buffer() -> list:
+    """Drain and return all currently buffered API-call records."""
     calls = list(_api_calls_buffer)
     _api_calls_buffer.clear()
     return calls

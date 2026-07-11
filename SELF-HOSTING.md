@@ -138,7 +138,7 @@ InkyCloud-F1/
 ├── tests/                   # Pytest test suite
 ├── .github/workflows/
 │   ├── ci.yml               # CI pipeline (lint, test, build)
-│   └── update-f1-data.yml   # Weekly auto-update action
+│   └── update-f1-data.yml   # Manual season-calendar update action
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
@@ -174,15 +174,16 @@ The application uses **static JSON files** for F1 data instead of making API cal
 | `app/assets/seasons/2026.json`  | 2026 race calendar                | Once per year                       |
 | `app/assets/circuits_data.json` | Circuit info + historical results | After each GP                       |
 
-### Automatic Updates (GitHub Action)
+### Automatic Historical Updates
 
-A GitHub Action runs every **Monday at 06:00 UTC** (after Sunday GP) to automatically update historical race results. Changes are committed directly to the repository.
+When `SCHEDULER_ENABLED=true`, the running application refreshes historical results from Jolpica
+daily at **06:10 UTC**. The refresh updates the deployed `circuits_data.json`; the regular hourly
+image job publishes any relevant data. Keep the application data directory persistent so runtime
+updates survive container replacement. If the scheduler is disabled, run the command below from
+your own scheduler after each Grand Prix.
 
-You can also trigger updates manually from the GitHub Actions tab:
-
-- **historical** - Update race results after each GP
-- **seasons** - Update season calendars (use when FIA announces changes)
-- **all** - Update both
+The `Update F1 Season Data` GitHub Action remains available as a manual workflow for season
+calendar changes; it does not refresh historical results.
 
 ### Manual Updates
 
@@ -228,13 +229,11 @@ python scripts/update_seasons.py --years 2025,2026
    curl "http://localhost:8000/calendar.bmp?year=2026&round=1" -o test.bmp
    ```
 
-### After Each Grand Prix (Automatic)
+### After Each Grand Prix
 
-The GitHub Action automatically updates historical results every Monday. If you need to trigger manually:
+The in-app scheduler refreshes historical results daily at 06:10 UTC. To refresh immediately:
 
 ```bash
-# From GitHub Actions tab
-# Or locally:
 python scripts/update_historical.py
 ```
 

@@ -9,6 +9,11 @@
 DB_PATH="${DATABASE_PATH:-/app/data/f1.db}"
 IMAGES_PATH="${IMAGES_PATH:-/app/data/images}"
 
+if [ -z "$DB_PATH" ] || [ -z "$IMAGES_PATH" ] || [ "$DB_PATH" = "/" ] || [ "$IMAGES_PATH" = "/" ]; then
+    echo "Refusing to run with an empty or root database/images path." >&2
+    exit 1
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -82,7 +87,7 @@ case "${1:-all}" in
         confirm
         
         sqlite3 "$DB_PATH" "DELETE FROM cache_meta; DELETE FROM generated_images; VACUUM;"
-        rm -rf "${IMAGES_PATH}"/*.bmp 2>/dev/null
+        find "$IMAGES_PATH" -maxdepth 1 -type f -name '*.bmp' -delete 2>/dev/null
         
         echo ""
         echo -e "${GREEN}Cache reset complete.${NC}"
@@ -100,8 +105,8 @@ case "${1:-all}" in
         echo ""
         confirm
         
-        rm -f "$DB_PATH"
-        rm -rf "${IMAGES_PATH}"/*.bmp 2>/dev/null
+        rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm"
+        find "$IMAGES_PATH" -maxdepth 1 -type f -name '*.bmp' -delete 2>/dev/null
         
         echo ""
         echo -e "${GREEN}Database deleted. Will be recreated on next request.${NC}"

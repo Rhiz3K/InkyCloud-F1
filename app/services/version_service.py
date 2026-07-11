@@ -74,6 +74,9 @@ async def fetch_version_info() -> VersionInfo:
     commit_sha_short = None
     commit_date = None
     commit_message = None
+    release_resolved = False
+    commit_resolved = False
+    previous = _version_cache
 
     client = get_shared_http_client(httpx.AsyncClient, timeout=config.REQUEST_TIMEOUT)
     # Fetch latest release
@@ -91,8 +94,13 @@ async def fetch_version_info() -> VersionInfo:
             release_tag = data.get("tag_name")
             release_name = data.get("name")
             release_date = data.get("published_at")
-            logger.info("Fetched latest release: %s", release_tag)
+            if release_tag:
+                release_resolved = True
+                logger.info("Fetched latest release: %s", release_tag)
+            else:
+                logger.warning("GitHub releases API returned a release without tag_name")
         elif response.status_code == 404:
+            release_resolved = True
             logger.info("No releases found on GitHub")
         else:
             logger.warning("GitHub releases API returned %s", response.status_code)
@@ -116,11 +124,30 @@ async def fetch_version_info() -> VersionInfo:
             commit_info = data.get("commit", {})
             commit_date = commit_info.get("committer", {}).get("date")
             commit_message = commit_info.get("message", "").split("\n")[0]
-            logger.info("Fetched latest commit: %s", commit_sha_short)
+            if commit_sha:
+                commit_resolved = True
+                logger.info("Fetched latest commit: %s", commit_sha_short)
+            else:
+                logger.warning("GitHub commits API returned a commit without sha")
         else:
             logger.warning("GitHub commits API returned %s", response.status_code)
     except Exception as e:
         logger.error("Error fetching GitHub commit: %s", e)
+
+    if previous is not None and not release_resolved:
+        release_tag = previous.release_tag
+        release_name = previous.release_name
+        release_date = previous.release_date
+    if previous is not None and not commit_resolved:
+        commit_sha = previous.commit_sha
+        commit_sha_short = previous.commit_sha_short
+        commit_date = previous.commit_date
+        commit_message = previous.commit_message
+
+    if previous is not None and not release_resolved and not commit_resolved:
+        logger.warning("Version fetch failed completely; keeping previous cached version info")
+        _version_cache_fetched_at = time.time()
+        return previous
 
     info = VersionInfo(
         release_tag=release_tag,
@@ -136,9 +163,14 @@ async def fetch_version_info() -> VersionInfo:
     # Don't overwrite a previously-good cache with an all-None result: with the 1h TTL a
     # single failed refresh (GitHub down/rate-limited) would otherwise pin "unknown" on the
     # changelog page for the whole hour instead of keeping the last known version.
-    if release_tag is None and commit_sha is None and _version_cache is not None:
+    if release_tag is None and commit_sha is None and previous is not None:
         logger.warning("Version fetch returned no data; keeping previous cached version info")
-        return _version_cache
+        _version_cache_fetched_at = time.time()
+        return previous
+
+    if release_tag is None and commit_sha is None:
+        logger.warning("Version fetch returned no data; leaving cache empty for the next retry")
+        return info
 
     _version_cache = info
     _version_cache_fetched_at = time.time()

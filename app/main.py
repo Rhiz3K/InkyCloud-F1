@@ -21,12 +21,14 @@ from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 
 from app.config import VALID_LANGUAGES, config
+from app.paths import ASSETS_DIR
 from app.routes.api import router as api_router
 from app.routes.health import router as health_router
 from app.routes.images import router as images_router
 from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
+from app.services.circuit_data import ensure_runtime_circuits_data
 from app.services.database import Database
 from app.services.http_client import close_shared_http_clients
 from app.services.scheduler import (
@@ -36,10 +38,17 @@ from app.services.scheduler import (
     stop_scheduler,
 )
 from app.services.warmup import warm_teams_renderer_assets
-from app.utils.async_tasks import create_supervised_task, run_render, shutdown_render_executor
+from app.utils.async_tasks import (
+    RENDER_WORKER_COUNT,
+    create_supervised_task,
+    drain_background_tasks,
+    run_render,
+    shutdown_render_executor,
+)
 from app.utils.race_times import (  # noqa: F401
     convert_race_times_to_timezone as _convert_race_times_to_timezone,
 )
+from app.version import APP_VERSION
 from app.web.templates import detect_ui_language, get_template_context, templates
 
 # Register font MIME types (Python's mimetypes doesn't know TTF by default)
@@ -110,9 +119,16 @@ async def lifespan(_app: FastAPI):
 
     _check_persistent_storage()
     try:
+        ensure_runtime_circuits_data()
+    except Exception as exc:
+        logger.error("Could not seed persistent circuit data: %s", exc, exc_info=True)
+        sentry_sdk.capture_exception(exc)
+    try:
         # Warm on the render executor so the per-thread font caches it populates are the
         # ones actual renders will reuse.
-        await run_render(warm_teams_renderer_assets)
+        await asyncio.gather(
+            *(run_render(warm_teams_renderer_assets) for _ in range(RENDER_WORKER_COUNT))
+        )
     except Exception as exc:
         logger.error("Teams renderer warmup failed: %s", exc, exc_info=True)
         sentry_sdk.capture_exception(exc)
@@ -138,26 +154,40 @@ async def lifespan(_app: FastAPI):
         await flush_api_calls_to_db()
     except Exception as exc:
         logger.error("Final API-call flush on shutdown failed: %s", exc, exc_info=True)
-    shutdown_render_executor()
-    await close_shared_http_clients()
-    await Database.close_all()
+    await drain_background_tasks()
+    try:
+        shutdown_render_executor()
+    except Exception as exc:
+        logger.error("Render-executor shutdown failed: %s", exc, exc_info=True)
+    try:
+        await close_shared_http_clients()
+    except Exception as exc:
+        logger.error("HTTP-client shutdown failed: %s", exc, exc_info=True)
+    try:
+        await Database.close_all()
+    except Exception as exc:
+        logger.error("Database shutdown failed: %s", exc, exc_info=True)
     logger.info("Shutting down F1 E-Ink calendar service")
 
 
 app = FastAPI(
     title="F1 E-Ink Calendar",
     description="Generates 800x480 1-bit BMPs for F1 E-Ink displays (LaskaKit)",
-    version="0.1.0",
+    version=APP_VERSION,
     lifespan=lifespan,
     redirect_slashes=False,
 )
 
 
 class StaticCacheMiddleware:
+    """Attach asset-specific browser cache headers to successful static responses."""
+
     def __init__(self, asgi_app):
+        """Wrap an ASGI application with static cache-header handling."""
         self.app = asgi_app
 
     async def __call__(self, scope, receive, send):
+        """Forward one ASGI request, decorating eligible response headers."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -165,6 +195,7 @@ class StaticCacheMiddleware:
         path = scope.get("path", "")
 
         async def send_with_cache_headers(message):
+            """Apply cache policy before forwarding an ASGI response message."""
             if (
                 message["type"] == "http.response.start"
                 and path.startswith("/static/")
@@ -184,10 +215,14 @@ class StaticCacheMiddleware:
 
 
 class SecurityHeadersMiddleware:
+    """Apply baseline security headers and canonical-host redirects to HTTP responses."""
+
     def __init__(self, asgi_app):
+        """Wrap an ASGI application with response security handling."""
         self.app = asgi_app
 
     async def __call__(self, scope, receive, send):
+        """Process one ASGI request and secure its response headers."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -199,20 +234,28 @@ class SecurityHeadersMiddleware:
         path = scope.get("path", "")
         query_string = scope.get("query_string", b"").decode()
 
+        def add_security_headers(response_headers: MutableHeaders) -> None:
+            """Mutate response headers with the configured browser security policy."""
+            response_headers["X-Content-Type-Options"] = "nosniff"
+            response_headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            response_headers["X-Frame-Options"] = "DENY"
+            response_headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+            if scheme == "https":
+                response_headers["Strict-Transport-Security"] = "max-age=31536000"
+
         if host == f"www.{canonical_host}":
             target = f"{str(config.SITE_URL).rstrip('/')}{path}"
             if query_string:
                 target = f"{target}?{query_string}"
             redirect = RedirectResponse(url=target, status_code=308)
-            if scheme == "https":
-                redirect.headers["Strict-Transport-Security"] = "max-age=31536000"
+            add_security_headers(redirect.headers)
             await redirect(scope, receive, send)
             return
 
         async def send_with_security_headers(message):
-            if message["type"] == "http.response.start" and scheme == "https":
-                response_headers = MutableHeaders(scope=message)
-                response_headers["Strict-Transport-Security"] = "max-age=31536000"
+            """Secure an ASGI response-start message before forwarding it."""
+            if message["type"] == "http.response.start":
+                add_security_headers(MutableHeaders(scope=message))
 
             await send(message)
 
@@ -278,7 +321,7 @@ app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
-app.mount("/static", StaticFiles(directory="app/assets"), name="static")
+app.mount("/static", StaticFiles(directory=ASSETS_DIR), name="static")
 
 # Routers - order matters! More specific routes first
 app.include_router(previews_router)  # /preview/* must be before pages (/{lang}/* patterns)

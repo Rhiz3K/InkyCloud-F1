@@ -1,22 +1,17 @@
 """Image rendering service using Pillow - FoxeeLab style layout."""
 
 import io
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps
-from PIL.ImageFont import FreeTypeFont
+from PIL import Image, ImageDraw, ImageOps
 
-from app.config import config
-from app.models import ConstructorStanding, DriverStanding, HistoricalData, TeamsData
+from app.models import HistoricalData
+from app.services.circuit_data import load_circuits_data
 from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
-from app.services.font_utils import (
-    CJK_LANG_CODES,
-    load_brand_font,
-    load_ui_font,
-)
+from app.services.font_utils import CJK_LANG_CODES
+from app.services.renderer_base import RendererBase
 from app.services.renderer_common import (
     ASSET_CACHE_LOCK,
     build_team_header_values,
@@ -39,7 +34,6 @@ from app.services.renderer_common import (
     draw_team_logo,
     draw_team_row,
     draw_team_stats_panel,
-    draw_teams_content,
     draw_teams_header,
     draw_track_placeholder,
     draw_track_section,
@@ -49,25 +43,13 @@ from app.services.renderer_common import (
     format_team_driver_display_name,
     get_team_logo_key,
     get_text_y,
-    load_racing_font,
-    load_symbol_icon_font,
     load_track_image_asset,
-    load_weather_icon_font,
     prepare_mono_track_image,
     right_align_x,
 )
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
-
-# Load circuit data
-CIRCUITS_DATA_PATH = Path(__file__).parent.parent / "assets" / "circuits_data.json"
-try:
-    with open(CIRCUITS_DATA_PATH, "r", encoding="utf-8") as f:
-        CIRCUITS_DATA = json.load(f)
-except Exception as e:
-    logger.warning("Failed to load circuit data: %s", e)
-    CIRCUITS_DATA = {}
 
 # Asset directories
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
@@ -84,7 +66,7 @@ MONOCHROME_1BIT_TEAM_LOGOS = {"ferrari", "cadillac", "red_bull"}
 TEXT_BASELINE_REF = "ÁŽÝgy"
 
 
-class Renderer:
+class Renderer(RendererBase):
     """Renderer for generating 1-bit BMP images in FoxeeLab style."""
 
     _cached_driver_photos: dict[str, Image.Image] | None = None
@@ -93,143 +75,15 @@ class Renderer:
     _cached_team_logos_key: tuple[str, str] | None = None
 
     def __init__(self, translator: dict, lang_code: str = "en"):
-        """
-        Initialize renderer.
+        """Initialize the monochrome renderer."""
+        self._initialize_renderer(translator, lang_code)
 
-        Args:
-            translator: Translation dictionary for the current language
-        """
-        self.width = config.DISPLAY_WIDTH
-        self.height = config.DISPLAY_HEIGHT
-        self.translator = translator
-        self.lang_code = lang_code
-        self._racing_fonts = {22: self._load_racing_font(22)}
+    def _new_canvas(self) -> Image.Image:
+        """Create the hardware-contract 800x480 monochrome canvas."""
+        return Image.new("1", (800, 480), 1)
 
-        # Load fonts - prefer TitilliumWeb, fallback to system fonts
-        self.fonts = {
-            "header_title": self._load_font(36, bold=True),  # Increased to 36 for main title
-            "header_subtitle": self._load_font(36, bold=True),  # Match title size
-            "race_name": self._load_font(20, bold=True),
-            "circuit_name": self._load_font(18, bold=True),  # Keep regular data font
-            "circuit_location": self._load_font(14),
-            "schedule_title": self._load_font(24, bold=True),  # Increased from 20
-            "schedule_row": self._load_font(20),  # Increased from 18
-            "schedule_row_bold": self._load_font(20, bold=True),  # Match size, bold
-            "results_title": self._load_font(18, bold=True),  # Slight increase
-            "results_year": self._load_font(36, bold=True),  # Double size for year header
-            "results_row": self._load_font(16),  # Increased for readability
-            "footer": self._load_font(12),
-            "circuit_stats": self._load_font(18),
-            "circuit_stats_value": self._load_font(18, bold=True),
-            "icon": self._load_icon_font(22),
-            "icon_small": self._load_icon_font(22),
-            "driver_number": self._racing_fonts[22],
-            "weather": self._load_font(12, bold=True),
-            "weather_icon": self._load_icon_font(40),
-            "weather_icon_font": self._load_weather_icon_font(22),
-        }
-
-        self._driver_photos: dict[str, Image.Image] | None = None
-        self._team_logos: dict[str, Image.Image] | None = None
-
-        # Layout constants (all in pixels)
-        self.layout = {
-            # Header
-            "header_height": 90,
-            "header_split_x": 230,
-            "header_padding_x": 15,
-            # Main content split
-            "content_y_start": 105,
-            "left_column_width": 500,  # Increased to 500 to maximize map size
-            "right_column_x": 510,  # Shifted right to 510
-            # Track map area (left column)
-            "track_padding": 10,
-            "track_map_max_height": 160,
-            "track_title_y_offset": 5,
-            # Schedule (right column)
-            "schedule_title_y": 88,
-            "schedule_start_y": 127,
-            "schedule_row_height": 22,
-            "schedule_date_x": 510,  # Shifted +20px
-            "schedule_day_x": 575,  # Shifted +20px
-            "schedule_time_x": 620,  # Shifted +20px
-            "schedule_name_x": 680,  # Shifted +20px
-            # Historical results (footer area)
-            "results_y_start": 385,  # Moved up to fit all 3 result rows (was 392)
-            "results_col1_x": 109,  # Shifted left another 5px (was 114)
-            "results_col2_x": 455,  # Shifted left another 5px (was 460)
-            "results_time_offset": 260,  # Increased gap by another 10px (was 250)
-            "results_row_height": 20,  # Reduced to 20 for tighter spacing (was 21)
-            "results_title_y_offset": 5,
-            "results_data_y_offset": 4,  # Reduced to fit content (was 6)
-            # Circuit stats (between schedule and results)
-            "circuit_stats_y": 320,  # Y position for circuit stats
-            "circuit_stats_row_height": 24,  # Height per stat row
-            "driver_name_padding": 4,
-            # General
-            "padding": 15,
-            "separator_width": 2,
-            # Standings layout
-            "standings_header_height": 60,
-            "standings_row_height": 38,
-            "standings_split_x": 400,
-            "standings_col_padding": 10,
-            "standings_pos_width": 35,
-            "standings_points_width": 60,
-        }
-
-    def render_calendar(
-        self,
-        race_data: dict,
-        historical_data: HistoricalData | None = None,
-        weather_data: WeatherData | None = None,
-        weather_type: str = "",
-    ) -> bytes:
-        """Render the main calendar screen as a 1-bit BMP."""
-        image = Image.new("1", (self.width, self.height), 1)
-        draw = ImageDraw.Draw(image)
-
-        self._draw_header(draw, image, race_data)
-        self._draw_track_section(draw, image, race_data)
-        schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data, weather_type)
-        self._draw_circuit_stats(draw, race_data, schedule_bottom)
-        self._draw_results_section(draw, image, race_data, historical_data)
-
-        return self._to_bmp(image)
-
-    def render_standings(
-        self,
-        driver_standings: list[DriverStanding],
-        constructor_standings: list[ConstructorStanding],
-        view: str = "split",
-        season: int = 2025,
-        after_round: int = 0,
-    ) -> bytes:
-        """Render championship standings as a 1-bit BMP."""
-        image = Image.new("1", (self.width, self.height), 1)
-        draw = ImageDraw.Draw(image)
-
-        self._draw_standings_header(draw, image, season, after_round)
-
-        if view == "drivers":
-            self._draw_driver_standings(draw, driver_standings, full_width=True)
-        elif view == "constructors":
-            self._draw_constructor_standings(draw, constructor_standings, full_width=True)
-        else:
-            self._draw_driver_standings(draw, driver_standings, full_width=False)
-            self._draw_constructor_standings(draw, constructor_standings, full_width=False)
-
-        return self._to_bmp(image)
-
-    def render_teams_drivers(self, teams_data: TeamsData) -> bytes:
-        """Render the teams and drivers dashboard as a 1-bit BMP."""
-        self._ensure_teams_assets()
-        image = Image.new("1", (self.width, self.height), 1)
-        draw = ImageDraw.Draw(image)
-
-        self._draw_teams_header(draw, image, teams_data.season)
-        self._draw_teams_content(image, draw, teams_data.teams)
-
+    def _encode_image(self, image: Image.Image) -> bytes:
+        """Encode the monochrome canvas as a BMP payload."""
         return self._to_bmp(image)
 
     def _draw_teams_header(
@@ -260,20 +114,6 @@ class Renderer:
                     logo_file.convert("L").point(lambda p: 255 if p > 128 else 0).convert("1")
                 ),
             ),
-        )
-
-    def _draw_teams_content(
-        self, image: Image.Image, draw: ImageDraw.ImageDraw, teams: list
-    ) -> None:
-        """Lay out the team cards into two balanced columns."""
-        draw_teams_content(
-            image,
-            draw,
-            teams,
-            canvas_width=self.width,
-            canvas_height=self.height,
-            header_height=self.layout["header_height"],
-            draw_team_row_fn=self._draw_team_row,
         )
 
     def _draw_driver_photo(
@@ -409,6 +249,7 @@ class Renderer:
             header_height: int,
             _badge_pad_x: int,
         ) -> int:
+            """Render the monochrome team standings summary for this row."""
             return self._draw_team_stats_panel_mono(
                 draw,
                 y,
@@ -431,6 +272,7 @@ class Renderer:
             driver_pos_x: int,
             badge_pad_x: int,
         ) -> None:
+            """Render one monochrome driver entry for this team row."""
             self._draw_team_driver_row_mono(
                 draw,
                 image,
@@ -453,6 +295,7 @@ class Renderer:
             logo_container_left: int,
             logo_container_right: int,
         ) -> None:
+            """Render the team logo into this row using monochrome conversion."""
             self._ensure_teams_assets()
             draw_team_logo(
                 image,
@@ -491,225 +334,6 @@ class Renderer:
             draw_team_driver_row_fn=render_team_driver_row,
             draw_team_logo_fn=draw_team_logo_cb,
         )
-
-    def _get_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
-        """Return a cached racing-style font at the requested size."""
-        if size not in self._racing_fonts:
-            self._racing_fonts[size] = self._load_racing_font(size)
-        return self._racing_fonts[size]
-
-    def _ensure_teams_assets(self) -> None:
-        """Lazy-load cached driver and team assets used by the teams screen."""
-        if self._driver_photos is None:
-            self._driver_photos = self._get_cached_driver_photos()
-        if self._team_logos is None:
-            self._team_logos = self._get_cached_team_logos()
-
-    def ensure_teams_assets(self) -> None:
-        """Public warmup hook for teams assets used outside the renderer."""
-        self._ensure_teams_assets()
-
-    def _draw_standings_header(
-        self,
-        draw: ImageDraw.ImageDraw,
-        image: Image.Image,
-        season: int,
-        after_round: int,
-    ) -> None:
-        """Draw the shared standings screen header."""
-        header_height = self.layout["header_height"]
-        split_x = self.layout["header_split_x"]
-
-        draw.rectangle([(0, 0), (split_x, header_height)], fill=1)
-        draw.line([(0, header_height - 1), (split_x, header_height - 1)], fill=0, width=2)
-        draw.rectangle([(split_x + 1, 0), (self.width, header_height)], fill=0)
-
-        draw_f1_logo(
-            image,
-            split_x,
-            header_height,
-            logo_path=IMAGES_DIR / "eInkF1logo.jpg",
-            logger=logger,
-            prepare_logo_fn=lambda logo_file: (
-                logo_file.convert("L").point(lambda p: 255 if p > 128 else 0).convert("1")
-            ),
-        )
-
-        title = self.translator.get("standings_title", "CHAMPIONSHIP STANDINGS")
-        line1 = f"{season} FIA F1 World Championship"
-        line2 = title.upper()
-
-        text_x = split_x + 15
-        total_text_height = 80
-        start_y = (header_height - total_text_height) // 2 - 5
-
-        draw.text((text_x, start_y), line1, fill=1, font=self.fonts["header_title"])
-        draw.text((text_x, start_y + 40), line2, fill=1, font=self.fonts["header_subtitle"])
-
-    def _draw_driver_standings(
-        self,
-        draw: ImageDraw.ImageDraw,
-        standings: list[DriverStanding],
-        full_width: bool = False,
-    ) -> None:
-        """Draw the driver standings in split or full-width mode."""
-        header_height = self.layout["header_height"]
-        col_padding = self.layout["standings_col_padding"] + 5
-        pos_width = self.layout["standings_pos_width"]
-
-        if full_width:
-            # Dynamic two-column layout for all drivers (20 in 2024-25, 24 from 2026)
-            total_drivers = len(standings)
-            drivers_per_col = (total_drivers + 1) // 2
-            available_height = self.height - header_height - 50
-            row_height = min(34, available_height // max(drivers_per_col, 1))
-            split_x = self.width // 2
-
-            title_y = header_height + 10
-            title = self.translator.get("standings_drivers", "DRIVERS")
-            draw.text((col_padding, title_y), title, fill=0, font=self.fonts["schedule_title"])
-
-            y = header_height + 45
-            for driver in standings[:drivers_per_col]:
-                pos_text = f"{driver.position}."
-                draw.text(
-                    (col_padding, y),
-                    pos_text,
-                    fill=0,
-                    font=self.fonts["schedule_row_bold"],
-                )
-
-                name_x = col_padding + pos_width
-                name_text = (
-                    f"{driver.driver_name} ({driver.constructor_name})"
-                    if driver.constructor_name
-                    else driver.driver_name
-                )
-                draw.text((name_x, y), name_text, fill=0, font=self.fonts["schedule_row"])
-
-                points_text = f"{int(driver.points)}"
-                points_x = split_x - col_padding - 40
-                draw.text(
-                    (points_x, y),
-                    points_text,
-                    fill=0,
-                    font=self.fonts["schedule_row_bold"],
-                )
-
-                y += row_height
-
-            draw.line(
-                [(split_x, header_height + 40), (split_x, self.height - 10)],
-                fill=0,
-                width=1,
-            )
-
-            right_x = split_x + col_padding
-            y = header_height + 45
-            for driver in standings[drivers_per_col:]:
-                pos_text = f"{driver.position}."
-                draw.text((right_x, y), pos_text, fill=0, font=self.fonts["schedule_row_bold"])
-
-                name_x = right_x + pos_width
-                name_text = (
-                    f"{driver.driver_name} ({driver.constructor_name})"
-                    if driver.constructor_name
-                    else driver.driver_name
-                )
-                draw.text((name_x, y), name_text, fill=0, font=self.fonts["schedule_row"])
-
-                points_text = f"{int(driver.points)}"
-                points_x = self.width - col_padding - 40
-                draw.text(
-                    (points_x, y),
-                    points_text,
-                    fill=0,
-                    font=self.fonts["schedule_row_bold"],
-                )
-
-                y += row_height
-        else:
-            # Single column for split view (top 10 only)
-            row_height = self.layout["standings_row_height"]
-            x_start = col_padding
-            col_width = self.layout["standings_split_x"] - col_padding
-
-            title_y = header_height + 10
-            title = self.translator.get("standings_drivers", "DRIVERS")
-            draw.text((x_start, title_y), title, fill=0, font=self.fonts["schedule_title"])
-
-            y = header_height + 45
-            for driver in standings[:10]:
-                pos_text = f"{driver.position}."
-                draw.text((x_start, y), pos_text, fill=0, font=self.fonts["schedule_row_bold"])
-
-                name_x = x_start + pos_width
-                draw.text(
-                    (name_x, y),
-                    driver.driver_name,
-                    fill=0,
-                    font=self.fonts["schedule_row"],
-                )
-
-                points_text = f"{int(driver.points)}"
-                points_x = x_start + col_width - self.layout["standings_points_width"]
-                draw.text(
-                    (points_x, y),
-                    points_text,
-                    fill=0,
-                    font=self.fonts["schedule_row_bold"],
-                )
-
-                y += row_height
-
-            split_x = self.layout["standings_split_x"]
-            draw.line(
-                [(split_x, header_height), (split_x, self.height)],
-                fill=0,
-                width=1,
-            )
-
-    def _draw_constructor_standings(
-        self,
-        draw: ImageDraw.ImageDraw,
-        standings: list[ConstructorStanding],
-        full_width: bool = False,
-    ) -> None:
-        """Draw the constructor standings in split or full-width mode."""
-        header_height = self.layout["header_height"]
-        row_height = self.layout["standings_row_height"]
-        col_padding = self.layout["standings_col_padding"] + 5
-        pos_width = self.layout["standings_pos_width"]
-
-        if full_width:
-            x_start = col_padding
-            col_width = self.width - (col_padding * 2)
-        else:
-            x_start = self.layout["standings_split_x"] + col_padding
-            col_width = self.width - self.layout["standings_split_x"] - (col_padding * 2)
-
-        title_y = header_height + 10
-        title = self.translator.get("standings_constructors", "CONSTRUCTORS")
-        draw.text((x_start, title_y), title, fill=0, font=self.fonts["schedule_title"])
-
-        y = header_height + 45
-        for _i, constructor in enumerate(standings[:10]):
-            pos_text = f"{constructor.position}."
-            draw.text((x_start, y), pos_text, fill=0, font=self.fonts["schedule_row_bold"])
-
-            name_x = x_start + pos_width
-            draw.text(
-                (name_x, y),
-                constructor.constructor_name,
-                fill=0,
-                font=self.fonts["schedule_row"],
-            )
-
-            points_text = f"{int(constructor.points)}"
-            points_x = x_start + col_width - self.layout["standings_points_width"]
-            draw.text((points_x, y), points_text, fill=0, font=self.fonts["schedule_row_bold"])
-
-            y += row_height
 
     def render_error(self, error_message: str) -> bytes:
         """
@@ -823,6 +447,7 @@ class Renderer:
             source_dir=TRACKS_DIR,
             variant_suffix="bw",
             fallback_dir=TRACKS_PROCESSED_DIR,
+            logger=logger,
         )
 
     # =========================================================================
@@ -899,6 +524,7 @@ class Renderer:
             icon_small_font=self.fonts["icon_small"],
             weather_icon_font=self.fonts["weather_icon_font"],
             translator=self.translator,
+            lang_code=self.lang_code,
             datetime_cls=datetime,
             text_baseline_ref=TEXT_BASELINE_REF,
             rain_icon=RAINDROP_ICON,
@@ -929,7 +555,7 @@ class Renderer:
         """
         circuit_id = race_data.get("circuit", {}).get("circuitId", "")
         mapped_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
-        circuit_data = CIRCUITS_DATA.get(mapped_id, {})
+        circuit_data = load_circuits_data().get(mapped_id, {})
 
         draw_circuit_stats_block(
             draw,
@@ -964,6 +590,7 @@ class Renderer:
             season: int | str,
             country_name: str,
         ) -> int:
+            """Render the monochrome historical-results header callback."""
             return draw_results_header(
                 draw_ctx,
                 image_ctx,
@@ -1036,35 +663,6 @@ class Renderer:
             fit_result_text_fn=fit_result_text,
             split_position_prefix=False,
         )
-
-    # =========================================================================
-    # Utility Methods
-    # =========================================================================
-    # =========================================================================
-    # Utility Methods
-    # =========================================================================
-
-    def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the main UI font for the active locale."""
-        return load_ui_font(self.lang_code, size, bold=bold)
-
-    @staticmethod
-    def _load_brand_font(size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the default Latin UI font used for non-localized text."""
-        return load_brand_font(size, bold=bold)
-
-    @staticmethod
-    def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the icon fallback font used for symbols and emoji-style glyphs."""
-        return load_symbol_icon_font(size, logger)
-
-    def _load_weather_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the weather icon font with a symbol fallback."""
-        return load_weather_icon_font(size, logger, self._load_icon_font)
-
-    def _load_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the stylized racing number font used for driver numbers."""
-        return load_racing_font(size, logger, self._load_font)
 
     @staticmethod
     def _load_driver_photos() -> dict[str, Image.Image]:

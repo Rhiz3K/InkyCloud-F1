@@ -8,6 +8,7 @@ from pathlib import Path
 
 from PIL import Image
 
+from app.utils.atomic_io import atomic_write_bytes_sync
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwry_palette
 
 TARGET_WIDTH = 87
@@ -26,6 +27,7 @@ PALETTE = [BLACK, WHITE, RED, YELLOW]
 
 
 def normalize_image(image: Image.Image) -> Image.Image:
+    """Flatten transparency onto white and normalize a flag to RGB."""
     if image.mode in ("RGBA", "P"):
         background = Image.new("RGB", image.size, WHITE)
         if image.mode == "P":
@@ -39,13 +41,14 @@ def normalize_image(image: Image.Image) -> Image.Image:
 
 
 def process_flag_image(input_path: Path, output_path: Path) -> dict:
+    """Resize and encode one source flag as an atomic 4-bit BWRY BMP."""
     original = normalize_image(Image.open(input_path))
     original_size = input_path.stat().st_size
     original_dimensions = original.size
     resized = original.resize((TARGET_WIDTH, TARGET_HEIGHT), Image.Resampling.LANCZOS)
 
     final = map_to_bwry_palette(resized, PALETTE)
-    output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
+    atomic_write_bytes_sync(output_path, encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 
     return {
@@ -57,6 +60,7 @@ def process_flag_image(input_path: Path, output_path: Path) -> dict:
 
 
 def main() -> None:
+    """Process all source flags into BWRY assets and fail on partial errors."""
     print("=" * 60)
     print(" BWRY Flag Image Pre-processor")
     print("=" * 60)
@@ -74,6 +78,7 @@ def main() -> None:
 
     total_input_size = 0
     total_output_size = 0
+    failures = 0
     for flag_path in sorted(flag_files):
         output_path = FLAGS_OUTPUT_DIR / f"{flag_path.stem}.bmp"
         try:
@@ -85,11 +90,14 @@ def main() -> None:
                 f"({stats['input_size'] / 1024:6.0f}KB -> {stats['output_size'] / 1024:5.0f}KB)"
             )
         except Exception as exc:
+            failures += 1
             print(f" {flag_path.name:12} -> ERROR: {exc}")
 
     print("-" * 60)
     print(f" Total: {total_input_size / 1024:.1f}KB -> {total_output_size / 1024:.1f}KB")
     print(f"\nProcessed flags saved to: {FLAGS_OUTPUT_DIR}")
+    if failures:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

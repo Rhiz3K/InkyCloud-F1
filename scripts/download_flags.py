@@ -14,6 +14,9 @@ from pathlib import Path
 
 import httpx
 
+from app.utils.atomic_io import atomic_write_bytes_sync
+from app.utils.image_assets import decode_image_bytes
+
 # F1 Country to ISO 2-letter code mapping
 COUNTRY_MAP = {
     "Australia": "au",
@@ -67,7 +70,8 @@ def download_waving_flag(iso_code: str, output_path: Path) -> bool:
     try:
         response = httpx.get(url, timeout=10.0, follow_redirects=True)
         if response.status_code == 200:
-            output_path.write_bytes(response.content)
+            decode_image_bytes(response.content, expected_format="PNG")
+            atomic_write_bytes_sync(output_path, response.content)
             return True
         print(f"  Failed: {iso_code} HTTP {response.status_code}")
         return False
@@ -82,7 +86,8 @@ def download_flat_flag(iso_code: str, output_path: Path) -> bool:
     try:
         response = httpx.get(url, timeout=10.0, follow_redirects=True)
         if response.status_code == 200:
-            output_path.write_bytes(response.content)
+            decode_image_bytes(response.content, expected_format="PNG")
+            atomic_write_bytes_sync(output_path, response.content)
             return True
         print(f"  Failed: {iso_code} HTTP {response.status_code}")
         return False

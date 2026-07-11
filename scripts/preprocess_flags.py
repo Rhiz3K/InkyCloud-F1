@@ -43,6 +43,8 @@ except ImportError as exc:
 
 from PIL import Image
 
+from app.utils.atomic_io import atomic_save_image
+
 # Constants
 TARGET_WIDTH = 87
 TARGET_HEIGHT = 58
@@ -245,6 +247,10 @@ def assign_patterns(colors: list[dict]) -> dict[int, str]:
         brightest_dominant = sorted_by_lum[-1]
 
     # Assign solid black and white
+    if darkest["index"] == brightest_dominant["index"]:
+        pattern = "solid_white" if darkest["luminance"] > 0.5 else "solid_black"
+        return {darkest["index"]: pattern}
+
     assignments = {
         darkest["index"]: "solid_black",
         brightest_dominant["index"]: "solid_white",
@@ -298,23 +304,16 @@ def process_flag_image(input_path: Path, output_path: Path) -> dict:
     Returns:
         Dictionary with processing stats
     """
-    # Load original
-    original = Image.open(input_path)
+    # Load an independent image so the source file is closed before CPU-heavy processing.
+    with Image.open(input_path) as opened:
+        original_dimensions = opened.size
+        if opened.mode in ("RGBA", "P"):
+            rgba = opened.convert("RGBA")
+            original = Image.new("RGB", rgba.size, (255, 255, 255))
+            original.paste(rgba, mask=rgba.getchannel("A"))
+        else:
+            original = opened.convert("RGB")
     original_size = input_path.stat().st_size
-
-    # Convert to RGB (handle transparency)
-    if original.mode in ("RGBA", "P"):
-        background = Image.new("RGB", original.size, (255, 255, 255))
-        if original.mode == "P":
-            original = original.convert("RGBA")
-        if original.mode == "RGBA":
-            background.paste(
-                original,
-                mask=original.split()[3] if len(original.split()) == 4 else None,
-            )
-            original = background
-    elif original.mode != "RGB":
-        original = original.convert("RGB")
 
     # Resize to target dimensions
     resized = original.resize((TARGET_WIDTH, TARGET_HEIGHT), Image.Resampling.LANCZOS)
@@ -352,13 +351,13 @@ def process_flag_image(input_path: Path, output_path: Path) -> dict:
     final = Image.fromarray(output, mode="L").convert("1")
 
     # Save as BMP
-    final.save(output_path, format="BMP")
+    atomic_save_image(output_path, final, image_format="BMP")
     output_size = output_path.stat().st_size
 
     return {
         "input_size": original_size,
         "output_size": output_size,
-        "original_dimensions": Image.open(input_path).size,
+        "original_dimensions": original_dimensions,
         "final_dimensions": final.size,
         "color_mappings": color_mappings,
         "num_colors": len(colors),
@@ -392,6 +391,7 @@ def main():
 
     total_input_size = 0
     total_output_size = 0
+    failures = 0
 
     for flag_path in sorted(flag_files):
         output_path = FLAGS_OUTPUT_DIR / f"{flag_path.stem}.bmp"
@@ -413,6 +413,7 @@ def main():
             print(f"{flag_path.stem:6} | {stats['num_colors']:6} | {mappings_str}")
 
         except Exception as e:
+            failures += 1
             print(f"{flag_path.stem:6} | ERROR: {e}")
 
     print("-" * 70)
@@ -424,6 +425,8 @@ def main():
     print("  vertical_lines  = ~50% black    horizontal_lines = ~50% black")
     print("  diagonal_lines  = ~33% black    checkerboard     = ~50% black")
     print("  sparse_dots     = ~11% black    solid_white      = 0% black")
+    if failures:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

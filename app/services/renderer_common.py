@@ -9,15 +9,108 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from cachetools import LRUCache
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
-from app.services.font_utils import CJK_LANG_CODES, FONTS_DIR, fit_brand_font_box, fit_ui_font
+from app.services.font_utils import (
+    CJK_LANG_CODES,
+    FONTS_DIR,
+    fit_brand_font_box,
+    fit_ui_font,
+    load_optional_truetype,
+)
 from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
 
 # Guards lazy class-level asset caches in the renderer hierarchies (team logos, driver
 # photos). Rendering runs in a thread pool, so first-load population can race without it.
 ASSET_CACHE_LOCK = threading.Lock()
+_DECODED_IMAGE_CACHE_MAX_BYTES = 64 * 1024 * 1024
+_DECODED_IMAGE_CACHE_LOCK = threading.Lock()
+
+
+def _countdown_plural_category(value: int, lang_code: str) -> str:
+    """Return the translation plural category used by countdown labels."""
+    if value == 1 or (lang_code in {"fr", "pt-BR"} and value == 0):
+        return "one"
+    if lang_code in {"cs", "sk"} and 2 <= value <= 4:
+        return "few"
+    if lang_code == "pl" and value % 10 in {2, 3, 4} and value % 100 not in {12, 13, 14}:
+        return "few"
+    return "many"
+
+
+def _decoded_image_size(image: Image.Image) -> int:
+    """Estimate decoded image memory from dimensions and channel count."""
+    return image.width * image.height * len(image.getbands())
+
+
+_DECODED_IMAGE_CACHE: LRUCache[tuple[str, int], Image.Image] = LRUCache(
+    maxsize=_DECODED_IMAGE_CACHE_MAX_BYTES,
+    getsizeof=_decoded_image_size,
+)
+
+
+def _load_image_file(path_value: str, mtime_ns: int) -> Image.Image:
+    """Decode an immutable image asset with a byte-bounded process cache."""
+    cache_key = (path_value, mtime_ns)
+    with _DECODED_IMAGE_CACHE_LOCK:
+        cached = _DECODED_IMAGE_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    with Image.open(path_value) as image_file:
+        decoded = image_file.copy()
+
+    if _decoded_image_size(decoded) <= _DECODED_IMAGE_CACHE.maxsize:
+        with _DECODED_IMAGE_CACHE_LOCK:
+            _DECODED_IMAGE_CACHE[cache_key] = decoded
+    return decoded
+
+
+def _load_image_copy(path: Path) -> Image.Image:
+    """Return an independent copy of a cached image asset."""
+    return _load_image_file(str(path), path.stat().st_mtime_ns).copy()
+
+
+_ROUND_RANGE_RE = re.compile(r"^(\d+)(?:\s*[-–—]\s*(\d+))?$")
+
+
+def _driver_round_window(rounds: str) -> tuple[int, int] | None:
+    """Parse a driver round label into an inclusive normalized range."""
+    normalized = rounds.strip()
+    if not normalized or normalized.lower() == "all":
+        return None
+    match = _ROUND_RANGE_RE.fullmatch(normalized)
+    if match is None:
+        return None
+    start = int(match.group(1))
+    end = int(match.group(2) or start)
+    return (min(start, end), max(start, end))
+
+
+def select_active_team_drivers(drivers: Sequence, limit: int = 2) -> list:
+    """Select the drivers active at the latest round represented by season roster data."""
+    if limit <= 0:
+        return []
+
+    windows = [
+        (driver, _driver_round_window(getattr(driver, "rounds", "All"))) for driver in drivers
+    ]
+    latest_round = max((window[1] for _, window in windows if window is not None), default=None)
+    if latest_round is None:
+        active = [driver for driver, _ in windows]
+    else:
+        active = [
+            driver
+            for driver, window in windows
+            if window is None or window[0] <= latest_round <= window[1]
+        ]
+
+    if len(active) < limit:
+        active_ids = {id(driver) for driver in active}
+        active.extend(driver for driver, _ in windows if id(driver) not in active_ids)
+    return sorted(active, key=lambda driver: driver.position or 99)[:limit]
 
 
 def split_teams_for_columns(teams: list) -> tuple[list, list]:
@@ -46,7 +139,7 @@ def get_text_y(
 def right_align_x(draw: ImageDraw.ImageDraw, text: str, right_edge: int, font) -> int:
     """Return the x-coordinate that right-aligns text to the given edge."""
     bbox = draw.textbbox((0, 0), text, font=font)
-    return int(right_edge - (bbox[2] - bbox[0]))
+    return int(right_edge - bbox[2])
 
 
 def text_width(draw: ImageDraw.ImageDraw, text: str, font) -> int:
@@ -284,6 +377,7 @@ def crop_to_content(img: Image.Image, *, use_binary_mask: bool = False) -> Image
 
 
 def _has_transparent_alpha(alpha: Image.Image | None) -> bool:
+    """Return whether an alpha channel contains any non-opaque pixels."""
     if alpha is None:
         return False
     alpha_extrema = alpha.getextrema()
@@ -292,6 +386,7 @@ def _has_transparent_alpha(alpha: Image.Image | None) -> bool:
 
 
 def _pixel_activity_value(pixel: object) -> float:
+    """Reduce a scalar or tuple pixel to a comparable activity value."""
     if isinstance(pixel, tuple):
         return float(max(pixel)) if pixel else 0.0
     if isinstance(pixel, int | float):
@@ -300,6 +395,7 @@ def _pixel_activity_value(pixel: object) -> float:
 
 
 def _active_pixel_counts(mask: Image.Image, *, threshold: float = 16) -> list[int]:
+    """Count pixels above an activity threshold for every mask row."""
     rows = []
     for y in range(mask.height):
         active = 0
@@ -315,6 +411,7 @@ def _find_horizontal_segments(
     *,
     threshold: int = 5,
 ) -> list[tuple[int, int, int]]:
+    """Find contiguous active row segments and their peak widths."""
     segments: list[tuple[int, int, int]] = []
     start: int | None = None
     for index, count in enumerate(rows):
@@ -338,6 +435,7 @@ def _preserves_stacked_logo(
     first_segment: tuple[int, int, int],
     second_segment: tuple[int, int, int],
 ) -> bool:
+    """Decide whether cropping would incorrectly split a stacked logo."""
     first_start, first_end, first_peak = first_segment
     second_start, second_end, second_peak = second_segment
     first_height = first_end - first_start
@@ -384,6 +482,7 @@ def fit_result_text(
     """Fit historical results text into the available width."""
 
     def get_width(text: str) -> int:
+        """Measure candidate result text with the active drawing font."""
         return int(draw.textbbox((0, 0), text, font=font)[2])
 
     full = f"{pos}. {driver} ({team})"
@@ -589,11 +688,13 @@ def draw_new_track_message(
 def load_symbol_icon_font(size: int, logger) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load the Symbola fallback icon font used for symbols and emoji-style glyphs."""
     symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
-    try:
-        return ImageFont.truetype(symbola_path, size)
-    except Exception as exc:
-        logger.warning("Failed to load Symbola font: %s", exc)
-        return ImageFont.load_default()
+    font = load_optional_truetype(
+        symbola_path,
+        size,
+        label="Symbola",
+        target_logger=logger,
+    )
+    return font or ImageFont.load_default()
 
 
 def load_weather_icon_font(
@@ -603,11 +704,13 @@ def load_weather_icon_font(
 ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load the weather icon font with a Symbola fallback."""
     font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
-    try:
-        return ImageFont.truetype(str(font_path), size)
-    except Exception as exc:
-        logger.warning("Failed to load Weather Icons font: %s", exc)
-        return load_icon_font(size)
+    font = load_optional_truetype(
+        font_path,
+        size,
+        label="Weather Icons",
+        target_logger=logger,
+    )
+    return font or load_icon_font(size)
 
 
 def load_racing_font(
@@ -617,11 +720,14 @@ def load_racing_font(
 ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load the stylized racing number font with a UI-font fallback."""
     font_path = FONTS_DIR / "RacingSansOne-Regular.ttf"
-    if font_path.exists():
-        try:
-            return ImageFont.truetype(str(font_path), size)
-        except Exception as exc:
-            logger.warning("Failed to load Racing Sans One: %s", exc)
+    font = load_optional_truetype(
+        font_path,
+        size,
+        label="Racing Sans One",
+        target_logger=logger,
+    )
+    if font is not None:
+        return font
     return load_ui_font_fallback(size, bold=True)
 
 
@@ -784,6 +890,7 @@ def draw_team_stats_panel(
         fill,
         align: str = "center",
     ) -> None:
+        """Draw one aligned value inside a team statistics panel cell."""
         text_bbox = draw.textbbox((0, 0), text, font=font)
         text_w = int(text_bbox[2] - text_bbox[0])
         text_h = int(text_bbox[3] - text_bbox[1])
@@ -953,7 +1060,7 @@ def draw_team_row(
     photo_size = driver_row_height - 2
     photo_x = x_start + 4
 
-    sorted_drivers = sorted(team.drivers[:2], key=lambda d: d.position or 99)
+    sorted_drivers = select_active_team_drivers(team.drivers)
     for i, driver in enumerate(sorted_drivers):
         driver_y = driver_y_start + i * driver_row_height
         draw_team_driver_row_fn(
@@ -981,10 +1088,12 @@ def draw_team_row(
 
 def normalize_driver_photo_key(driver_name: str) -> str:
     """Normalize a driver surname into the local portrait asset key."""
-    surname = driver_name.split()[-1].lower() if driver_name else ""
+    parts = driver_name.split()
+    if not parts:
+        return ""
+    surname = parts[-1].lower()
     if surname in ("jr.", "jr"):
-        parts = driver_name.split()
-        surname = parts[-2].lower() if len(parts) > 1 else surname
+        surname = parts[-2].rstrip(",").lower() if len(parts) > 1 else surname
     return (
         surname.replace("ü", "u")
         .replace("ö", "o")
@@ -1088,15 +1197,15 @@ def draw_f1_logo(
         return
 
     try:
-        with Image.open(logo_path) as logo_file:
-            pad = 2
-            target_w = width - (pad * 2)
-            target_h = height - (pad * 2)
-            logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
-            logo = prepare_logo_fn(logo_file)
-            x = (width - logo.width) // 2
-            y = (height - logo.height) // 2
-            image.paste(logo, (x, y))
+        logo_file = _load_image_copy(logo_path)
+        pad = 2
+        target_w = width - (pad * 2)
+        target_h = height - (pad * 2)
+        logo_file.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+        logo = prepare_logo_fn(logo_file)
+        x = (width - logo.width) // 2
+        y = (height - logo.height) // 2
+        image.paste(logo, (x, y))
     except Exception as exc:
         logger.warning("Failed to load F1 logo: %s", exc)
 
@@ -1144,8 +1253,7 @@ def load_track_image_asset(
     source_path = resolve_track_source_path(source_dir, track_stems, variant_suffix=variant_suffix)
     if source_path:
         try:
-            with Image.open(source_path) as track_image:
-                return track_image.copy()
+            return _load_image_copy(source_path)
         except Exception as exc:
             if logger is not None:
                 logger.warning("Failed to load track %s: %s", source_path, exc)
@@ -1156,8 +1264,7 @@ def load_track_image_asset(
             if not track_path.exists():
                 continue
             try:
-                with Image.open(track_path) as track_image:
-                    return track_image.copy()
+                return _load_image_copy(track_path)
             except Exception as exc:
                 if logger is not None:
                     logger.warning("Failed to load track %s: %s", track_path, exc)
@@ -1166,13 +1273,107 @@ def load_track_image_asset(
         all_fallback = list(fallback_dir.glob(fallback_glob))
         if all_fallback:
             try:
-                with Image.open(all_fallback[0]) as track_image:
-                    return track_image.copy()
+                return _load_image_copy(all_fallback[0])
             except Exception as exc:
                 if logger is not None:
                     logger.warning("Failed to load track %s: %s", all_fallback[0], exc)
 
     return None
+
+
+def _find_race_datetime(schedule: Sequence, datetime_cls):
+    """Return the race session datetime from a normalized weekend schedule."""
+    for event in schedule:
+        if event.get("name", "").lower() != "race":
+            continue
+        value = event.get("datetime")
+        if isinstance(value, str):
+            return datetime_cls.fromisoformat(value)
+        if isinstance(value, datetime):
+            return value
+        return None
+    return None
+
+
+def _resolve_countdown_status(
+    *, is_cancelled: bool, race_dt, datetime_cls, translator: Mapping[str, str]
+) -> tuple[str | None, timedelta | None]:
+    """Resolve a cancelled/live/completed label or a future-race delta."""
+    if is_cancelled:
+        return translator.get("cancelled", "CANCELLED"), None
+    if race_dt is None:
+        return None, None
+
+    now = datetime_cls.now(race_dt.tzinfo) if race_dt.tzinfo else datetime_cls.now()
+    delta = race_dt - now
+    if delta.total_seconds() > 0:
+        return None, delta
+
+    status_key = "race_ongoing" if now < race_dt + timedelta(hours=3) else "race_completed"
+    fallback = "IN PROGRESS" if status_key == "race_ongoing" else "COMPLETED"
+    return translator.get(status_key, fallback), delta
+
+
+def _draw_countdown_weather(
+    draw: ImageDraw.ImageDraw,
+    weather_data,
+    *,
+    x_right: int,
+    text_y: float,
+    padding_x: int,
+    rain_icon: str,
+    weather_icon_font,
+    text_font,
+    text_fill,
+) -> None:
+    """Right-align the weather summary inside a countdown/status box."""
+    temperature = f"{weather_data.temp_display} "
+    precipitation = weather_data.precip_display
+    weather_icon_bbox = draw.textbbox((0, 0), weather_data.icon, font=weather_icon_font)
+    temperature_bbox = draw.textbbox((0, 0), temperature, font=text_font)
+    rain_icon_bbox = draw.textbbox((0, 0), rain_icon, font=weather_icon_font)
+    precipitation_bbox = draw.textbbox((0, 0), precipitation, font=text_font)
+    weather_icon_width = weather_icon_bbox[2] - weather_icon_bbox[0]
+    temperature_width = temperature_bbox[2] - temperature_bbox[0]
+    rain_icon_width = rain_icon_bbox[2] - rain_icon_bbox[0]
+    precipitation_width = precipitation_bbox[2] - precipitation_bbox[0]
+    total_width = (
+        weather_icon_width + 4 + temperature_width + rain_icon_width + 3 + precipitation_width
+    )
+    current_x = x_right - padding_x - total_width
+    draw.text((current_x, text_y), weather_data.icon, fill=text_fill, font=weather_icon_font)
+    current_x += weather_icon_width + 4
+    draw.text((current_x, text_y), temperature, fill=text_fill, font=text_font)
+    current_x += temperature_width
+    draw.text((current_x, text_y), rain_icon, fill=text_fill, font=weather_icon_font)
+    current_x += rain_icon_width + 3
+    draw.text((current_x, text_y), precipitation, fill=text_fill, font=text_font)
+
+
+def _countdown_unit_labels(
+    days: int,
+    hours: int,
+    *,
+    translator: Mapping[str, str],
+    lang_code: str,
+    weather_type: str,
+) -> tuple[str, str]:
+    """Return short weather-mode labels or locale-aware plural labels."""
+    if weather_type in {"current", "race_day", "race"}:
+        return (
+            translator.get("countdown_days_short", "d"),
+            translator.get("countdown_hours_short", "h"),
+        )
+    return (
+        translator.get(
+            f"countdown_days_{_countdown_plural_category(days, lang_code)}",
+            translator.get("countdown_days", "days"),
+        ),
+        translator.get(
+            f"countdown_hours_{_countdown_plural_category(hours, lang_code)}",
+            translator.get("countdown_hours", "hours"),
+        ),
+    )
 
 
 def draw_countdown_box(
@@ -1188,6 +1389,7 @@ def draw_countdown_box(
     icon_small_font,
     weather_icon_font,
     translator: Mapping[str, str],
+    lang_code: str,
     datetime_cls,
     text_baseline_ref: str,
     rain_icon: str,
@@ -1199,16 +1401,7 @@ def draw_countdown_box(
 ) -> int:
     """Draw the countdown/status box and return its bottom y-coordinate."""
     is_cancelled = race_data.get("is_cancelled", False)
-    schedule = race_data.get("schedule", [])
-    race_dt = None
-    for event in schedule:
-        if event.get("name", "").lower() == "race":
-            dt = event.get("datetime")
-            if isinstance(dt, str):
-                race_dt = datetime_cls.fromisoformat(dt)
-            elif isinstance(dt, datetime):
-                race_dt = dt
-            break
+    race_dt = _find_race_datetime(race_data.get("schedule", []), datetime_cls)
 
     if not is_cancelled and not race_dt:
         return schedule_bottom
@@ -1232,51 +1425,12 @@ def draw_countdown_box(
 
     text_y = y_top + padding_y - ref_bbox[1]
 
-    status_text = None
-    if is_cancelled:
-        status_text = translator.get("cancelled", "CANCELLED")
-    else:
-        if race_dt is None:
-            return schedule_bottom
-
-        active_race_dt = race_dt
-        now = (
-            datetime_cls.now(active_race_dt.tzinfo) if active_race_dt.tzinfo else datetime_cls.now()
-        )
-        delta = active_race_dt - now
-
-        if delta.total_seconds() <= 0:
-            status_key = (
-                "race_ongoing" if now < active_race_dt + timedelta(hours=3) else "race_completed"
-            )
-            status_text = translator.get(
-                status_key,
-                "IN PROGRESS" if status_key == "race_ongoing" else "COMPLETED",
-            )
-
-    def draw_weather_block() -> None:
-        temp_str = f"{weather_data.temp_display} "
-        precip_str = weather_data.precip_display
-
-        weather_icon_bbox = draw.textbbox((0, 0), weather_data.icon, font=weather_icon_font)
-        weather_icon_w = weather_icon_bbox[2] - weather_icon_bbox[0]
-        temp_bbox = draw.textbbox((0, 0), temp_str, font=schedule_row_bold_font)
-        temp_w = temp_bbox[2] - temp_bbox[0]
-        rain_icon_bbox = draw.textbbox((0, 0), rain_icon, font=weather_icon_font)
-        rain_icon_w = rain_icon_bbox[2] - rain_icon_bbox[0]
-        precip_bbox = draw.textbbox((0, 0), precip_str, font=schedule_row_bold_font)
-        precip_w = precip_bbox[2] - precip_bbox[0]
-
-        total_w = weather_icon_w + 4 + temp_w + rain_icon_w + 3 + precip_w
-        cur_x = x_right - padding_x - total_w
-
-        draw.text((cur_x, text_y), weather_data.icon, fill=text_fill, font=weather_icon_font)
-        cur_x += weather_icon_w + 4
-        draw.text((cur_x, text_y), temp_str, fill=text_fill, font=schedule_row_bold_font)
-        cur_x += temp_w
-        draw.text((cur_x, text_y), rain_icon, fill=text_fill, font=weather_icon_font)
-        cur_x += rain_icon_w + 3
-        draw.text((cur_x, text_y), precip_str, fill=text_fill, font=schedule_row_bold_font)
+    status_text, delta = _resolve_countdown_status(
+        is_cancelled=is_cancelled,
+        race_dt=race_dt,
+        datetime_cls=datetime_cls,
+        translator=translator,
+    )
 
     if status_text:
         show_weather = weather_data is not None and not is_cancelled
@@ -1288,28 +1442,33 @@ def draw_countdown_box(
         draw.text((text_x, text_y), status_text, fill=text_fill, font=schedule_row_bold_font)
         if not show_weather:
             return int(y_bottom)
-        draw_weather_block()
+        _draw_countdown_weather(
+            draw,
+            weather_data,
+            x_right=x_right,
+            text_y=text_y,
+            padding_x=padding_x,
+            rain_icon=rain_icon,
+            weather_icon_font=weather_icon_font,
+            text_font=schedule_row_bold_font,
+            text_fill=text_fill,
+        )
         return int(y_bottom)
 
-    if race_dt is None:
-        return schedule_bottom
-
-    active_race_dt = race_dt
-    now = datetime_cls.now(active_race_dt.tzinfo) if active_race_dt.tzinfo else datetime_cls.now()
-    delta = active_race_dt - now
-    if delta.total_seconds() <= 0:
+    if delta is None or delta.total_seconds() <= 0:
         return schedule_bottom
 
     days = delta.days
     hours = delta.seconds // 3600
 
     flag_icon = "🏁"
-    if weather_type in ("current", "race_day", "race"):
-        days_label = translator.get("countdown_days_short", "d")
-        hours_label = translator.get("countdown_hours_short", "h")
-    else:
-        days_label = translator.get("countdown_days", "days")
-        hours_label = translator.get("countdown_hours", "hours")
+    days_label, hours_label = _countdown_unit_labels(
+        days,
+        hours,
+        translator=translator,
+        lang_code=lang_code,
+        weather_type=weather_type,
+    )
     countdown_str = f"{days} {days_label} {hours} {hours_label}"
 
     flag_bbox = draw.textbbox((0, 0), flag_icon, font=icon_small_font)
@@ -1329,7 +1488,17 @@ def draw_countdown_box(
     draw.text((cur_x, text_y), countdown_str, fill=text_fill, font=schedule_row_bold_font)
 
     if weather_data:
-        draw_weather_block()
+        _draw_countdown_weather(
+            draw,
+            weather_data,
+            x_right=x_right,
+            text_y=text_y,
+            padding_x=padding_x,
+            rain_icon=rain_icon,
+            weather_icon_font=weather_icon_font,
+            text_font=schedule_row_bold_font,
+            text_fill=text_fill,
+        )
 
     return int(y_bottom)
 

@@ -9,9 +9,9 @@ from PIL import Image, ImageDraw, ImageFont
 from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
 from app.services.font_utils import FONTS_DIR
 from app.services.renderer import Renderer
-from app.services.renderer_common import draw_results_header
+from app.services.renderer_common import draw_results_header, load_track_image_asset
 from app.services.spectra6_renderer import TRACKS_DIR, Spectra6Renderer, logger
-from app.services.track_assets import build_track_stem_candidates, resolve_track_source_path
+from app.services.track_assets import build_track_stem_candidates
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwr_palette
 
 TRACKS_BWR_DIR = Path(__file__).parent.parent / "assets" / "tracks_bwr"
@@ -20,6 +20,8 @@ FLAGS_FALLBACK_DIR = Path(__file__).parent.parent / "assets" / "flags_processed"
 
 
 class BwrColors:
+    """Palette colors and indices used by black/white/red renderers."""
+
     BLACK = (0x00, 0x00, 0x00)
     WHITE = (0xFF, 0xFF, 0xFF)
     RED = (0xFF, 0x00, 0x00)
@@ -35,11 +37,9 @@ class BwrRenderer(Spectra6Renderer):
     """Renderer for generating black/white/red BMP images."""
 
     def __init__(self, translator: dict, lang_code: str = "en"):
+        """Initialize the shared color renderer with the BWR palette."""
         super().__init__(translator, lang_code)
         self.colors = BwrColors  # type: ignore[assignment]
-        self.layout["results_flag_max_width_percent"] = 80  # type: ignore[index]
-        self.layout["results_flag_gap"] = 3  # type: ignore[index]
-        self.layout["results_flag_bottom_padding"] = 4  # type: ignore[index]
 
     @classmethod
     def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
@@ -68,33 +68,17 @@ class BwrRenderer(Spectra6Renderer):
         if not track_stems:
             return None
 
-        source_path = resolve_track_source_path(
-            source_tracks_dir,
+        return load_track_image_asset(
             track_stems,
+            source_dir=source_tracks_dir,
             variant_suffix=variant_suffix,
+            fallback_dir=processed_tracks_dir,
+            logger=logger,
         )
-        if source_path:
-            try:
-                with Image.open(source_path) as track_image:
-                    return track_image.convert("RGB")
-            except Exception as exc:
-                logger.warning("Failed to load track %s: %s", source_path, exc)
-
-        for stem in track_stems:
-            track_path = processed_tracks_dir / f"{stem}.bmp"
-            if not track_path.exists():
-                continue
-
-            try:
-                with Image.open(track_path) as track_image:
-                    return track_image.convert("RGB")
-            except Exception as exc:
-                logger.warning("Failed to load track %s: %s", track_path, exc)
-
-        return None
 
     @classmethod
     def _load_track_image(cls, race_data: dict) -> Image.Image | None:
+        """Load the best available BWR track asset for a race."""
         return cls._load_variant_track_image(
             race_data,
             variant_suffix="bwr",
@@ -110,6 +94,7 @@ class BwrRenderer(Spectra6Renderer):
         season: int | str,
         country_name: str,
     ) -> int:
+        """Draw a results header using BWR flag assets and palette colors."""
         return draw_results_header(
             draw,
             image,
@@ -128,6 +113,7 @@ class BwrRenderer(Spectra6Renderer):
         )
 
     def _load_weather_icon_font(self, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+        """Load the weather icon font, falling back to the generic icon font."""
         font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
         try:
             return ImageFont.truetype(str(font_path), size)

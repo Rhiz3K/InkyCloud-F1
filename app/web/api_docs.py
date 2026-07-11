@@ -373,6 +373,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
 
 
 def _build_english_code_examples(server_url: str) -> dict[str, str]:
+    """Build localized English curl, Python, and JavaScript examples."""
     curl_comment1 = "# Download next race calendar"
     curl_comment2 = "# With Czech language and timezone"
     curl_comment3 = "# Specific race (year and round)"
@@ -438,6 +439,7 @@ def _build_english_code_examples(server_url: str) -> dict[str, str]:
 
 
 def _build_czech_code_examples(server_url: str) -> dict[str, str]:
+    """Build localized Czech curl, Python, and JavaScript examples."""
     curl_comment1 = "# Stáhnout kalendář dalšího závodu"
     curl_comment2 = "# S českým jazykem a časovým pásmem"
     curl_comment3 = "# Konkrétní závod (rok a kolo)"

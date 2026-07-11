@@ -9,6 +9,7 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
+from app.paths import TEMPLATES_DIR
 from app.services.analytics import get_umami_script_tag
 from app.services.i18n import get_translator
 
@@ -17,7 +18,7 @@ mimetypes.add_type("font/ttf", ".ttf")
 mimetypes.add_type("font/woff", ".woff")
 mimetypes.add_type("font/woff2", ".woff2")
 
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 LANGUAGE_LABELS: dict[str, str] = {
     "cs": "CZ",
@@ -136,13 +137,6 @@ def detect_ui_language(request: Request) -> str:
     return "en"
 
 
-def resolve_ui_language(request: Request, lang: str | None) -> str:
-    """Resolve UI language from query param or cookie (English default)."""
-    if lang in VALID_LANGUAGES:
-        return lang
-    return detect_ui_language(request)
-
-
 def lang_url(path: str, lang: str) -> str:
     """Generate URL with language prefix (empty for English, /cs for Czech)."""
     if lang == "en":
@@ -158,6 +152,8 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "nav_home": t.get("nav_home", "Home"),
         "nav_stats": t.get("nav_stats", "Stats"),
         "nav_api": t.get("nav_api", "API"),
+        "nav_menu": t.get("nav_menu", "Menu"),
+        "nav_language": t.get("nav_language", "Language"),
         "nav_privacy": t.get("nav_privacy", "Privacy"),
         "nav_changelog": t.get("nav_changelog", "Changelog"),
     }

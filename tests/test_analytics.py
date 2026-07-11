@@ -4,6 +4,7 @@ import asyncio
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from app.services.analytics import (
@@ -11,6 +12,7 @@ from app.services.analytics import (
     get_umami_script_tag,
     track_event,
     track_pageview,
+    track_request,
 )
 from app.services.http_client import _reset_shared_http_clients_for_tests
 from app.utils import async_tasks
@@ -96,6 +98,25 @@ async def test_send_to_umami_custom_event(mock_config):
             "language": "en",
             "timezone": "Europe/Prague",
         }
+
+
+@pytest.mark.asyncio
+async def test_send_to_umami_event_without_data(mock_config):
+    """Events may omit their optional data payload."""
+    with patch("app.services.analytics.httpx.AsyncClient") as mock_client:
+        response = MagicMock(status_code=200, text="")
+        mock_client.return_value.post = AsyncMock(return_value=response)
+
+        await _send_to_umami(
+            url="/calendar.bmp",
+            title="Event: calendar_download",
+            lang="en",
+            event_name="calendar_download",
+        )
+
+        payload = mock_client.return_value.post.call_args.kwargs["json"]["payload"]
+        assert payload["name"] == "calendar_download"
+        assert "data" not in payload
 
 
 @pytest.mark.asyncio
@@ -233,6 +254,46 @@ async def test_send_to_umami_handles_http_errors_gracefully(mock_config):
             lang="en",
             user_agent="TestAgent/1.0",
         )
+
+
+@pytest.mark.asyncio
+async def test_send_to_umami_handles_httpx_errors(mock_config, caplog):
+    """Transport errors use the dedicated HTTP error log path."""
+    with patch("app.services.analytics.httpx.AsyncClient") as mock_client:
+        mock_client.return_value.post = AsyncMock(side_effect=httpx.ConnectError("offline"))
+
+        with caplog.at_level(logging.WARNING):
+            await _send_to_umami(url="/calendar.bmp", title="Test", lang="en")
+
+    assert "Failed to send Umami analytics: offline" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_track_request_builds_full_and_minimal_urls():
+    """The legacy wrapper preserves optional query parameters and their omission."""
+    with patch("app.services.analytics.track_pageview", new_callable=AsyncMock) as pageview:
+        await track_request(
+            "/calendar.bmp",
+            "cs",
+            user_agent="TestAgent/1.0",
+            tz="Europe/Prague",
+            year=2026,
+            round_num=5,
+        )
+        await track_request("/calendar.bmp", "en")
+
+    assert pageview.await_args_list[0].kwargs == {
+        "url": "/calendar.bmp?lang=cs&tz=Europe%2FPrague&year=2026&round=5",
+        "title": "Calendar - cs",
+        "lang": "cs",
+        "user_agent": "TestAgent/1.0",
+    }
+    assert pageview.await_args_list[1].kwargs == {
+        "url": "/calendar.bmp?lang=en",
+        "title": "Calendar - en",
+        "lang": "en",
+        "user_agent": None,
+    }
 
 
 @pytest.mark.asyncio

@@ -23,11 +23,13 @@ from pathlib import Path
 
 from PIL import Image, ImageOps
 
+from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.track_assets import (
     discover_track_source_stems,
     resolve_track_source_path,
     strip_track_variant_suffix,
 )
+from app.utils.atomic_io import atomic_save_image
 
 # Constants
 MAX_WIDTH = 490  # Maximum track image width
@@ -83,7 +85,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
     final = binary.convert("1")
 
     # Save as BMP
-    final.save(output_path, format="BMP")
+    atomic_save_image(output_path, final, image_format="BMP")
     output_size = output_path.stat().st_size
 
     return {
@@ -109,11 +111,11 @@ def main(circuits: list[str] | None = None) -> None:
         wanted = {circuit.strip().lower() for circuit in circuits if circuit.strip()}
         track_stems = [stem for stem in track_stems if stem in wanted]
 
-    track_files = [
-        resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bw")
-        for track_stem in track_stems
-    ]
-    track_files = [track_path for track_path in track_files if track_path is not None]
+    track_files: list[Path] = []
+    for track_stem in track_stems:
+        track_path = resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bw")
+        if track_path is not None:
+            track_files.append(track_path)
 
     if not track_files:
         print(f"No track images found in {TRACKS_DIR}")
@@ -124,9 +126,11 @@ def main(circuits: list[str] | None = None) -> None:
 
     total_input_size = 0
     total_output_size = 0
+    failures = 0
 
     for track_path in sorted(track_files):
-        output_stem = strip_track_variant_suffix(track_path.stem)
+        source_stem = strip_track_variant_suffix(track_path.stem)
+        output_stem = CIRCUIT_ID_MAP.get(source_stem, source_stem)
         output_path = OUTPUT_DIR / f"{output_stem}.bmp"
 
         try:
@@ -140,13 +144,17 @@ def main(circuits: list[str] | None = None) -> None:
                 f"{stats['compression_ratio']:5.1f}x)"
             )
         except Exception as e:
+            failures += 1
             print(f" {track_path.name:25} -> ERROR: {e}")
 
     print("-" * 60)
     print(f" Total: {total_input_size / 1024 / 1024:.1f}MB -> {total_output_size / 1024:.0f}KB")
-    print(f" Compression: {total_input_size / total_output_size:.1f}x")
+    compression = f"{total_input_size / total_output_size:.1f}x" if total_output_size else "n/a"
+    print(f" Compression: {compression}")
     print("=" * 60)
     print(f"\nProcessed images saved to: {OUTPUT_DIR}")
+    if failures:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

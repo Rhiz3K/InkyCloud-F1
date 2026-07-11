@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.31] - 2026-07-09
+
+### Security
+
+#### Fixed
+
+- **Configuration and request hardening** - Reject empty admin tokens and storage paths, keep display dimensions fixed, select static season and roster files from internal allowlists, validate backup cron expressions without crashing startup, use fixed-window rate limiting, and add baseline browser security headers
+- **HTML and redirect defense-in-depth** - Cover all relevant URI-bearing changelog attributes, remove inline style vectors, reject backslash redirect paths, and build API examples from the configured public URL instead of the request Host header
+- **Resource protection** - Bound decoded-image memory, rate-limit live F1 and statistics reads, constrain operational query windows and payload fields, preserve `429` responses, and trust forwarded client addresses only from loopback by default
+- **Supply-chain reproducibility** - Pin GitHub Actions and the Python Docker base image to reviewed immutable digests, install exact locked runtime dependencies in Docker, disable persisted checkout credentials, scope workflow permissions to individual jobs, serialize release/data/benchmark runs, and keep major and Docker Dependabot updates behind human review
+
+### Backend
+
+#### Fixed
+
+- **Production historical refresh** - Move the daily refresh into the shipped application package, reject incomplete Jolpica podium rows, write updates atomically, persist refresh age, and catch up a missed daily run at startup
+- **Scheduler and persistence resilience** - Requeue statistics on every database failure path, isolate shutdown cleanup, prevent overlapping weather/history jobs, validate persisted weather fields and age, recheck negative caches under fetch locks, and keep previously-good images during degraded runs
+- **F1 data correctness** - Preserve complete cancelled-race fields, cache parsed static-season snapshots by content, skip only malformed historical rows, use current driver numbers, and keep standings/team mappings aligned with the latest constructor data
+- **API and image reliability** - Retry transient transport/5xx failures, avoid pregenerated-image read races, return controlled render errors, validate timezones consistently, and use static data plus rate limits for public race endpoints
+- **Persistent F1 data** - Store mutable circuit history beside the SQLite database, reload atomic file versions without restarting, preserve maintained history during scraping, and mark daily refreshes complete only after a successful upstream run
+- **Upstream resilience** - Share the configured Jolpica base URL, coalesce standings fetches, cache bounded misses, honor `Retry-After` with jitter, and serve the latest completed race during an empty off-season calendar
+- **Rendering correctness and efficiency** - Select active team drivers by round, enforce the fixed 800x480 canvas, use a 64 MiB decoded-asset cache, accelerate BWR/BWRY palette mapping, reuse cached fallback tracks, and pluralize countdown units per locale including French and Brazilian Portuguese zero forms
+- **Storage durability** - Fsync atomic files and parent directories with unsupported-filesystem fallbacks, serialize cancellation-safe schema setup, close partially configured SQLite connections, cap statistics history and performance samples, report percentile sample sizes, and remove reset sidecars safely
+
+#### Changed
+
+- **Image generation performance** - Build preview PNGs from already-rendered BMPs, cache track and F1-logo decoding, share driver-photo caches, remove redundant font loads, and warm both render workers before serving traffic
+- **Asset preprocessing** - Use shared palette mapping and atomic output for all preprocessors, normalize circuit IDs, and add the missing Spectra 6 flag generator
+- **Installable resources** - Resolve templates, assets, translations, and changelog data from stable package paths; wheels now work outside the source checkout and Docker dependency layers no longer reinstall for every source edit
+
+### Frontend
+
+#### Fixed
+
+- **Dynamic configuration** - Derive Teams seasons from backend data, restore localized mobile navigation and missing-changelog messages, redact public render failures, avoid caching transient error images, and revalidate every static asset in the service worker
+- **Cold-start calendar preview** - Render the next-race calendar on demand while background pregeneration is still running, shorten preview caching, and fall back to the live calendar BMP instead of the generic social banner
+- **Web Vitals delivery** - Send Beacon API payloads with the JSON media type expected by FastAPI and retry with `fetch` when the browser cannot queue a beacon
+
+### Development
+
+#### Changed
+
+- **Release and CI consistency** - Align Python, frontend, runtime, and API version metadata at 1.2.31, keep Docker on Python 3.13, and run mypy for production code in both CI paths
+- **Dependency automation resilience** - Keep ordinary Dependabot updates eligible for auto-merge without a redundant alert-metadata fetch and exclude Python Docker base-image minor upgrades from generic semver auto-merge
+- **Hermetic verification** - Add `httpx2` to development dependencies, remove live API calls from endpoint tests, exercise real BMP render pipelines and persistence failure paths, and make all asset update scripts fail on partial errors
+- **Documentation enforcement** - Document every Python module, class, method, and function in `app` and `scripts`, and enforce 100% docstring coverage in both CI paths
+- **Test coverage enforcement** - Cover every application statement and branch, require 100% coverage through the shared local configuration, and enforce the same strict gate in both trusted and fork pull-request CI paths
+- **Maintenance cleanup** - Remove unused standings rendering and personal debug scripts, centralize image conversion and filename rules, validate downloaded images before atomic replacement, and align deployment guidance with the single-writer SQLite architecture
+
 ## [1.2.30] - 2026-07-06
 
 ### Frontend

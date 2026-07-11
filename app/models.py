@@ -209,7 +209,7 @@ class TeamsData(BaseModel):
     season: int
     teams: list[TeamEntry] = Field(default_factory=list)
     standings_complete: bool = Field(
-        default=True,
+        default=False,
         description="Whether championship standings enrichment completed successfully",
     )
 

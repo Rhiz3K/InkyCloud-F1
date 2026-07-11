@@ -473,8 +473,10 @@ block content %}
     return "🏁";
   }
 
-  let currentUiLang = "{{ ui_lang }}";
+  let currentUiLang = {{ ui_lang | tojson }};
   const uiText = {{ configure_ui_text | tojson }};
+  const currentTeamsSeason = {{ current_teams_season | tojson }};
+  const availableTeamsSeasons = {{ available_teams_seasons | tojson }};
   let currentScreenType = "{{ screen_type }}";
   let currentDisplayType = "1bit";
   let racesData = [];
@@ -524,17 +526,11 @@ block content %}
   }
 
   function getCurrentSeason() {
-    const now = new Date();
-    const season2026Start = new Date("2026-03-08T00:00:00Z");
-    const season2025Start = new Date("2025-03-16T00:00:00Z");
-
-    if (now >= season2026Start) return 2026;
-    if (now >= season2025Start) return 2025;
-    return 2024;
+    return currentTeamsSeason;
   }
 
   async function loadAllSeasonLeaders() {
-    const years = [2024, 2025, 2026];
+    const years = availableTeamsSeasons;
     renderTeamsSeasonButtons();
 
     await Promise.allSettled(
@@ -621,10 +617,9 @@ block content %}
 
   function getTeamsSeasonEntries() {
     const currentSeason = getCurrentSeason();
-    const explicitSeasons = [2026, 2025, 2024];
     const seasons = [{ label: String(currentSeason), year: currentSeason, isCurrent: true }];
 
-    explicitSeasons
+    availableTeamsSeasons
       .filter((year) => year !== currentSeason)
       .forEach((year) => {
         seasons.push({ label: String(year), year, disabled: year > currentSeason });

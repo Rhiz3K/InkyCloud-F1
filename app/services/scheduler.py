@@ -3,29 +3,30 @@
 import asyncio
 import functools
 import logging
-import os
-import uuid
 import weakref
-from contextlib import suppress
-from datetime import datetime, timezone
-from io import BytesIO
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import aiofiles
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from PIL import Image
 
 from app.config import LANGUAGE_CODES, config
 from app.services.database import Database
 from app.services.f1_service import F1Service
+from app.services.historical_refresh import main as update_historical_results
 from app.services.i18n import get_translator
-from app.services.image_keys import get_calendar_image_key, get_teams_image_key
+from app.services.image_keys import (
+    get_calendar_image_key,
+    get_configure_preview_filename,
+    get_preview_filename,
+    get_teams_image_key,
+)
 from app.services.renderers import create_renderer
 from app.services.version_service import refresh_version_info
 from app.services.weather_service import (
     WeatherData,
     WeatherService,
+    _parse_coordinate,
     get_weather_context,
     load_circuit_weather_to_cache,
     load_prefetched_weather_from_db,
@@ -34,6 +35,8 @@ from app.services.weather_service import (
 )
 from app.state import clear_bmp_cache, get_and_clear_api_calls_buffer, requeue_api_calls
 from app.utils.async_tasks import run_render
+from app.utils.atomic_io import atomic_write_bytes as _atomic_write_bytes
+from app.utils.image_conversion import bmp_to_png
 from app.utils.race_times import convert_race_times_to_timezone
 
 logger = logging.getLogger(__name__)
@@ -47,14 +50,43 @@ SUPPORTED_LANGUAGES = list(LANGUAGE_CODES)
 _generation_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
     weakref.WeakKeyDictionary()
 )
+_weather_fetch_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
+    weakref.WeakKeyDictionary()
+)
+_historical_refresh_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = (
+    weakref.WeakKeyDictionary()
+)
+_HISTORICAL_REFRESH_META_KEY = "last_historical_refresh"
+_HISTORICAL_REFRESH_MAX_AGE = timedelta(days=1)
 
 
 def _get_generation_lock() -> asyncio.Lock:
+    """Return the image-generation lock scoped to the active event loop."""
     loop = asyncio.get_running_loop()
     lock = _generation_locks.get(loop)
     if lock is None:
         lock = asyncio.Lock()
         _generation_locks[loop] = lock
+    return lock
+
+
+def _get_weather_fetch_lock() -> asyncio.Lock:
+    """Return the weather-fetch lock scoped to the active event loop."""
+    loop = asyncio.get_running_loop()
+    lock = _weather_fetch_locks.get(loop)
+    if lock is None:
+        lock = asyncio.Lock()
+        _weather_fetch_locks[loop] = lock
+    return lock
+
+
+def _get_historical_refresh_lock() -> asyncio.Lock:
+    """Return the historical-refresh lock scoped to the active event loop."""
+    loop = asyncio.get_running_loop()
+    lock = _historical_refresh_locks.get(loop)
+    if lock is None:
+        lock = asyncio.Lock()
+        _historical_refresh_locks[loop] = lock
     return lock
 
 
@@ -72,57 +104,6 @@ def _get_image_key(
         display=display,
         weather=weather,
     )
-
-
-def _bmp_to_png(
-    bmp_data: bytes, width: int = 400, full_size: bool = False, preserve_color: bool = False
-) -> bytes:
-    """
-    Convert BMP image data to PNG bytes for web previews.
-
-    Parameters:
-        bmp_data: Raw BMP image data.
-        width: Target width (height scales proportionally).
-        full_size: If True, skip resizing.
-        preserve_color: If True, keep RGB colors (for spectra6/bwr/bwry).
-            Otherwise convert to grayscale.
-
-    Returns:
-        PNG image data as bytes.
-    """
-    with Image.open(BytesIO(bmp_data)) as img_file:
-        if preserve_color:
-            # Keep colors for multi-color displays
-            img: Image.Image = img_file.convert("RGB")
-        else:
-            # Convert to grayscale for smoother edges (anti-aliasing on resize)
-            img = img_file.convert("L")
-
-    if not full_size:
-        ratio = width / img.width
-        new_size = (width, int(img.height * ratio))
-        img = img.resize(new_size, Image.Resampling.LANCZOS)
-
-    buffer = BytesIO()
-    img.save(buffer, format="PNG", optimize=True)
-    return buffer.getvalue()
-
-
-async def _atomic_write_bytes(path: Path, data: bytes) -> None:
-    """Write to a temp file in the same directory, then atomically replace the target.
-
-    Pregenerated files are rewritten in place every hour while requests serve them
-    concurrently; a plain "wb" open truncates first, so a reader could get an empty or
-    partial image (and cache it). os.replace guarantees readers see old-or-new, never torn.
-    """
-    tmp_path = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
-    try:
-        async with aiofiles.open(tmp_path, "wb") as f:
-            await f.write(data)
-        os.replace(tmp_path, path)
-    finally:
-        with suppress(FileNotFoundError):
-            tmp_path.unlink()
 
 
 def _render_calendar_variant_bytes(
@@ -151,155 +132,120 @@ def _render_teams_variant_bytes(lang: str, display: str, teams_data) -> bytes:
     return renderer.render_teams_drivers(teams_data)
 
 
-def _render_calendar_preview_pngs(
+def _calendar_preview_pngs_from_bmp(
+    bmp_path: Path,
     lang: str,
     display_name: str,
-    race_data: dict,
-    historical_data,
-    weather_variants: list[tuple[str, WeatherData | None]],
+    weather_type: str,
 ) -> list[tuple[str, bytes]]:
-    """Render all calendar preview PNGs for one (lang, display) in the worker thread."""
-    translator = get_translator(lang)
-    renderer = create_renderer(display_name, translator, lang)
+    """Convert one pregenerated calendar BMP into its web-preview PNGs."""
     is_color = display_name in {"spectra6", "bwr", "bwry"}
+    bmp_data = bmp_path.read_bytes()
 
     outputs: list[tuple[str, bytes]] = []
-    for weather_type, wd in weather_variants:
-        bmp_data = renderer.render_calendar(race_data, historical_data, wd, weather_type)
+    if display_name == "1bit" and weather_type == "off":
+        outputs.append((get_preview_filename("calendar", lang), bmp_to_png(bmp_data, width=400)))
 
-        suffix = f"_{lang}"
-        if display_name != "1bit":
-            suffix += f"_{display_name}"
-        if weather_type != "off":
-            suffix += f"_weather_{weather_type}"
-
-        if display_name == "1bit" and weather_type == "off":
-            outputs.append((f"preview_calendar_{lang}.png", _bmp_to_png(bmp_data, width=400)))
-
-        outputs.append(
-            (
-                f"configure_calendar{suffix}.png",
-                _bmp_to_png(bmp_data, full_size=True, preserve_color=is_color),
-            )
-        )
-    return outputs
-
-
-def _render_teams_preview_pngs(lang: str, display_name: str, teams_data) -> list[tuple[str, bytes]]:
-    """Render the teams preview PNGs for one (lang, display) in the worker thread."""
-    translator = get_translator(lang)
-    renderer = create_renderer(display_name, translator, lang)
-    is_color = display_name in {"spectra6", "bwr", "bwry"}
-    bmp_data = renderer.render_teams_drivers(teams_data)
-
-    outputs: list[tuple[str, bytes]] = []
-    if display_name == "1bit":
-        outputs.append((f"preview_teams_{lang}.png", _bmp_to_png(bmp_data, width=400)))
-
-    suffix = f"_{lang}"
-    if display_name != "1bit":
-        suffix += f"_{display_name}"
     outputs.append(
         (
-            f"configure_teams{suffix}.png",
-            _bmp_to_png(bmp_data, full_size=True, preserve_color=is_color),
+            get_configure_preview_filename(
+                "calendar", lang, display=display_name, weather=weather_type
+            ),
+            bmp_to_png(bmp_data, full_size=True, preserve_color=is_color),
         )
     )
     return outputs
 
 
-async def generate_preview_pngs(race_data: dict | None, historical_data) -> None:
+def _teams_preview_pngs_from_bmp(
+    bmp_path: Path, lang: str, display_name: str
+) -> list[tuple[str, bytes]]:
+    """Convert one pregenerated teams BMP into its web-preview PNGs."""
+    is_color = display_name in {"spectra6", "bwr", "bwry"}
+    bmp_data = bmp_path.read_bytes()
+
+    outputs: list[tuple[str, bytes]] = []
+    if display_name == "1bit":
+        outputs.append((get_preview_filename("teams", lang), bmp_to_png(bmp_data, width=400)))
+
+    outputs.append(
+        (
+            get_configure_preview_filename("teams", lang, display=display_name),
+            bmp_to_png(bmp_data, full_size=True, preserve_color=is_color),
+        )
+    )
+    return outputs
+
+
+async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> None:
     """
     Generate PNG preview images for landing page.
 
     Creates small PNG previews (400x240) for each screen type and language.
     These are used on the landing page for screen type selection.
 
-    Args:
-        race_data: Next race data from static JSON
-        historical_data: Historical race data for the circuit
+    Preview generation converts BMPs created earlier in the same scheduler run. It does not
+    invoke the expensive renderers or fetch upstream data a second time.
     """
-    from app.services.teams_service import (
-        TeamsService,
-        get_default_teams_year,
-        is_teams_data_cacheable,
-    )
-
     images_dir = Path(config.IMAGES_PATH)
     images_dir.mkdir(parents=True, exist_ok=True)
-
-    teams_year = get_default_teams_year()
-    teams_data = None
-    try:
-        teams_service = TeamsService()
-        teams_data = await teams_service.get_teams_and_drivers(teams_year)
-    except Exception as e:
-        logger.error("Error fetching teams preview data for %d: %s", teams_year, e)
-
-    weather_variants: list[tuple[str, WeatherData | None]] = [("off", None)]
-    if race_data and config.WEATHER_ENABLED:
-        _, _, weather_by_type = await get_weather_context(race_data)
-        weather_variants = list(weather_by_type.items())
-
     display_types = ["1bit", "spectra6", "bwr", "bwry"]
 
     for lang in SUPPORTED_LANGUAGES:
-        # Calendar preview - render in the worker thread (construction included), write atomically
-        if race_data:
-            for display_name in display_types:
+        calendar_written = 0
+        for display_name in display_types:
+            for weather_type in weather_types:
+                image_key = _get_image_key(lang, display=display_name, weather=weather_type)
+                bmp_path = images_dir / f"{image_key}.bmp"
+                if not bmp_path.is_file():
+                    logger.debug("Skipping missing calendar preview source: %s", bmp_path)
+                    continue
                 try:
                     outputs = await run_render(
                         functools.partial(
-                            _render_calendar_preview_pngs,
+                            _calendar_preview_pngs_from_bmp,
+                            bmp_path,
                             lang,
                             display_name,
-                            race_data,
-                            historical_data,
-                            weather_variants,
+                            weather_type,
                         )
                     )
                     for filename, png_data in outputs:
                         await _atomic_write_bytes(images_dir / filename, png_data)
+                        calendar_written += 1
                 except Exception as e:
                     logger.error(
-                        "Error generating calendar preview (%s, %s): %s", lang, display_name, e
-                    )
-
-            logger.info("Generated calendar previews for %s", lang)
-
-        # Teams preview
-        try:
-            if teams_data is None:
-                logger.warning(
-                    "Skipping teams previews for %s: no teams data for %d", lang, teams_year
-                )
-                continue
-            if not is_teams_data_cacheable(teams_data):
-                if teams_data.teams:
-                    logger.warning(
-                        "Skipping teams previews for %s: standings incomplete for %d",
+                        "Error converting calendar preview (%s, %s, %s): %s",
                         lang,
-                        teams_year,
+                        display_name,
+                        weather_type,
+                        e,
                     )
-                else:
-                    logger.warning(
-                        "Skipping teams previews for %s: no teams data for %d", lang, teams_year
-                    )
-                continue
+        logger.info("Generated %d calendar preview PNGs for %s", calendar_written, lang)
 
-            written_paths: list[Path] = []
-            for display_name in display_types:
+        teams_written = 0
+        for display_name in display_types:
+            image_key = get_teams_image_key(lang, teams_year, display=display_name)
+            bmp_path = images_dir / f"{image_key}.bmp"
+            if not bmp_path.is_file():
+                logger.debug("Skipping missing teams preview source: %s", bmp_path)
+                continue
+            try:
                 outputs = await run_render(
-                    functools.partial(_render_teams_preview_pngs, lang, display_name, teams_data)
+                    functools.partial(_teams_preview_pngs_from_bmp, bmp_path, lang, display_name)
                 )
                 for filename, png_data in outputs:
-                    path = images_dir / filename
-                    await _atomic_write_bytes(path, png_data)
-                    written_paths.append(path)
-
-            logger.info("Generated teams previews for %s: %s", lang, written_paths)
-        except Exception as e:
-            logger.error("Error generating teams preview (%s): %s", lang, e)
+                    await _atomic_write_bytes(images_dir / filename, png_data)
+                    teams_written += 1
+            except Exception as e:
+                logger.error(
+                    "Error converting teams preview (%s, %s, %d): %s",
+                    lang,
+                    display_name,
+                    teams_year,
+                    e,
+                )
+        logger.info("Generated %d teams preview PNGs for %s", teams_written, lang)
 
 
 async def _generate_variant(
@@ -405,16 +351,8 @@ async def _load_weather_context(
     return current_weather, race_weather, weather_by_type
 
 
-def _parse_coordinate(value: object) -> float | None:
-    if not isinstance(value, (str, bytes, int, float)):
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
 def _has_weather_coordinates(race_data: dict) -> bool:
+    """Return whether race data contains valid latitude and longitude values."""
     circuit = race_data.get("circuit", {})
     displayed_lon = circuit.get("long") if circuit.get("long") is not None else circuit.get("lon")
     lat = _parse_coordinate(circuit.get("lat"))
@@ -423,6 +361,7 @@ def _has_weather_coordinates(race_data: dict) -> bool:
 
 
 def _parse_race_datetime_utc(race_data: dict) -> datetime | None:
+    """Extract the race session timestamp as an aware UTC datetime."""
     schedule = race_data.get("schedule", [])
     race_session = next(
         (session for session in schedule if str(session.get("name", "")).lower() == "race"),
@@ -447,6 +386,7 @@ def _parse_race_datetime_utc(race_data: dict) -> datetime | None:
 
 
 def _race_weather_expected(race_data: dict) -> bool:
+    """Return whether historical or forecast race weather should be available."""
     race_dt = _parse_race_datetime_utc(race_data)
     if race_dt is None:
         return False
@@ -464,6 +404,7 @@ def _weather_context_degraded(
     race_data: dict,
     weather_by_type: dict[str, WeatherData | None],
 ) -> bool:
+    """Return whether any weather source expected for rendering is unavailable."""
     if not config.WEATHER_ENABLED or not _has_weather_coordinates(race_data):
         return False
 
@@ -715,13 +656,15 @@ async def _collect_and_generate_unlocked() -> None:
             generated_paths |= tz_paths
             total_failures += tz_failures
 
-            await generate_preview_pngs(race_data, historical_data)
-
             teams_paths, teams_failures = await _generate_teams_bmp_variants(
                 images_dir=images_dir, db=db
             )
             generated_paths |= teams_paths
             total_failures += teams_failures
+
+            from app.services.teams_service import get_default_teams_year
+
+            await generate_preview_pngs(list(weather_by_type), get_default_teams_year())
 
             # Only prune when the whole run succeeded (and weather wasn't degraded), so a
             # transient failure never deletes a previously-good file devices still serve.
@@ -764,37 +707,32 @@ async def flush_api_calls_to_db() -> None:
     calls = get_and_clear_api_calls_buffer()
     if not calls:
         return
-    db = Database()
+    db: Database | None = None
     try:
-        try:
-            count = await db.save_api_calls_batch(calls)
-        except asyncio.CancelledError:
-            # APScheduler's shutdown cancels in-flight jobs; put the batch back so the
-            # lifespan's final flush can persist it instead of silently dropping it.
-            requeue_api_calls(calls)
-            raise
-        except Exception as e:
-            # Re-queue ONLY on save failure — a post-commit cleanup error must not re-queue
-            # an already-persisted batch (that would double-count stats).
-            requeue_api_calls(calls)
-            logger.error(
-                "Error flushing API calls (re-queued %d): %s", len(calls), e, exc_info=True
-            )
-        else:
-            logger.debug("Flushed %d API calls to database", count)
+        db = Database()
+        count = await db.save_api_calls_batch(calls)
+    except asyncio.CancelledError:
+        requeue_api_calls(calls)
+        raise
+    except Exception as e:
+        requeue_api_calls(calls)
+        logger.error("Error flushing API calls (re-queued %d): %s", len(calls), e, exc_info=True)
+    else:
+        logger.debug("Flushed %d API calls to database", count)
     finally:
-        try:
-            await db.close()
-        except Exception as e:
-            logger.warning("Error closing database after API-call flush: %s", e)
+        if db is not None:
+            try:
+                await db.close()
+            except Exception as e:
+                logger.warning("Error closing database after API-call flush: %s", e)
 
 
-async def fetch_all_circuits_weather() -> None:
+async def _fetch_all_circuits_weather_unlocked() -> None:
     """
     Fetch weather for all F1 circuits, cache in memory, and persist to DB.
 
     Iterates circuits from current season, fetches weather sequentially with
-    1s pause, stores in cache and SQLite. Retries failed circuits up to 10x.
+    1s pause, stores in cache and SQLite. Retries failed circuits up to 3x.
     Returns immediately if weather is disabled.
     """
     if not config.WEATHER_ENABLED:
@@ -859,7 +797,7 @@ async def fetch_all_circuits_weather() -> None:
             # Track failed circuits for retry
             failed: list[dict] = []
             success_count = 0
-            max_attempts = 10
+            max_attempts = 3
 
             # Round 1: Fetch all circuits
             for circuit in circuits_to_fetch:
@@ -886,7 +824,7 @@ async def fetch_all_circuits_weather() -> None:
                 # 1 second delay between requests
                 await asyncio.sleep(1)
 
-            # Retry rounds (attempts 2-10)
+            # Retry rounds (attempts 2-3)
             for round_num in range(2, max_attempts + 1):
                 if not failed:
                     break
@@ -944,6 +882,18 @@ async def fetch_all_circuits_weather() -> None:
 
     except Exception as e:
         logger.error("Error in circuit weather fetch: %s", e, exc_info=True)
+
+
+async def fetch_all_circuits_weather() -> None:
+    """Run the batch weather refresh once per process, skipping overlapping triggers."""
+    if not config.WEATHER_ENABLED:
+        return
+    lock = _get_weather_fetch_lock()
+    if lock.locked():
+        logger.info("Circuit weather fetch already running; skipping overlapping trigger")
+        return
+    async with lock:
+        await _fetch_all_circuits_weather_unlocked()
 
 
 async def _fetch_single_circuit_weather(
@@ -1051,16 +1001,48 @@ def _parse_cron_expression(cron_expr: str) -> dict:
     """
     parts = cron_expr.strip().split()
     if len(parts) != 5:
-        logger.warning("Invalid cron expression '%s', using default '0 3 * * *'", cron_expr)
-        parts = ["0", "3", "*", "*", "*"]
+        raise ValueError("cron expression must contain five fields")
 
-    return {
+    cron_kwargs = {
         "minute": parts[0],
         "hour": parts[1],
         "day": parts[2],
         "month": parts[3],
-        "day_of_week": parts[4],
+        "day_of_week": _normalize_cron_day_of_week(parts[4]),
     }
+    CronTrigger(**cron_kwargs)
+    return cron_kwargs
+
+
+def _normalize_cron_day_of_week(value: str) -> str:
+    """Translate standard cron's Sunday-first numbers to APScheduler weekday names."""
+    weekday_names = {
+        0: "sun",
+        1: "mon",
+        2: "tue",
+        3: "wed",
+        4: "thu",
+        5: "fri",
+        6: "sat",
+        7: "sun",
+    }
+
+    def normalize_part(part: str) -> str:
+        """Normalize one comma-delimited cron weekday expression."""
+        base, separator, step = part.partition("/")
+        if base == "*" or any(char.isalpha() for char in base):
+            normalized = base
+        elif "-" in base:
+            start, end = base.split("-", 1)
+            normalized = f"{weekday_names[int(start)]}-{weekday_names[int(end)]}"
+        else:
+            normalized = weekday_names[int(base)]
+        return f"{normalized}/{step}" if separator else normalized
+
+    try:
+        return ",".join(normalize_part(part) for part in value.split(","))
+    except (KeyError, ValueError) as exc:
+        raise ValueError(f"invalid day-of-week field: {value}") from exc
 
 
 def _register_backup_job(sched: AsyncIOScheduler) -> None:
@@ -1076,11 +1058,16 @@ def _register_backup_job(sched: AsyncIOScheduler) -> None:
         logger.info("S3 backup not configured or disabled")
         return
 
-    cron_kwargs = _parse_cron_expression(config.BACKUP_CRON)
+    try:
+        cron_kwargs = _parse_cron_expression(config.BACKUP_CRON)
+        trigger = CronTrigger(**cron_kwargs)
+    except ValueError as exc:
+        logger.error("Invalid BACKUP_CRON=%r; backup job disabled: %s", config.BACKUP_CRON, exc)
+        return
 
     sched.add_job(
         _run_backup,
-        trigger=CronTrigger(**cron_kwargs),
+        trigger=trigger,
         id="s3_backup",
         name=f"S3 database backup (cron: {config.BACKUP_CRON})",
         replace_existing=True,
@@ -1090,22 +1077,67 @@ def _register_backup_job(sched: AsyncIOScheduler) -> None:
 
 
 async def refresh_historical_results() -> None:
-    """Refresh static historical results daily and regenerate images when data changes."""
-    try:
-        from scripts.update_historical import main as update_historical_main
+    """Refresh static historical results; hourly generation publishes any relevant change."""
+    lock = _get_historical_refresh_lock()
+    if lock.locked():
+        logger.info("Historical results refresh already running; skipping overlapping trigger")
+        return
 
-        updated_count = await update_historical_main()
-        if updated_count:
-            logger.info(
-                "Historical results refreshed for %s circuits; regenerating images",
-                updated_count,
+    async with lock:
+        try:
+            result = await update_historical_results()
+            if result.updated_circuits:
+                logger.info(
+                    "Historical results refreshed for %s circuits (%s); "
+                    "hourly generation will publish relevant changes",
+                    len(result.updated_circuits),
+                    ", ".join(result.updated_circuits),
+                )
+            else:
+                logger.info("Historical results refresh completed with no material changes")
+            if not result.completed:
+                logger.error(
+                    "Historical refresh incomplete; not updating freshness timestamp (failed: %s)",
+                    ", ".join(result.failed_circuits) or "no circuits attempted",
+                )
+                return
+        except Exception as e:
+            logger.error("Error refreshing historical results: %s", e, exc_info=True)
+            return
+
+        db: Database | None = None
+        try:
+            db = Database()
+            await db.set_cache_meta(
+                _HISTORICAL_REFRESH_META_KEY, datetime.now(timezone.utc).isoformat()
             )
-            async with _get_generation_lock():
-                await _collect_and_generate_unlocked()
-        else:
-            logger.info("Historical results refresh completed with no material changes")
-    except (ImportError, OSError, RuntimeError, TypeError, ValueError) as e:
-        logger.error("Error refreshing historical results: %s", e, exc_info=True)
+        except Exception as e:
+            logger.warning("Could not persist historical refresh timestamp: %s", e)
+        finally:
+            if db is not None:
+                await db.close()
+
+
+async def _historical_refresh_is_due() -> bool:
+    """Return whether startup should catch up a missed daily historical refresh."""
+    db: Database | None = None
+    try:
+        db = Database()
+        raw_timestamp = await db.get_cache_meta(_HISTORICAL_REFRESH_META_KEY)
+        if not raw_timestamp:
+            return True
+        refreshed_at = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+        if refreshed_at.tzinfo is None:
+            refreshed_at = refreshed_at.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) - refreshed_at.astimezone(timezone.utc) >= (
+            _HISTORICAL_REFRESH_MAX_AGE
+        )
+    except Exception as e:
+        logger.warning("Could not determine historical refresh age: %s", e)
+        return True
+    finally:
+        if db is not None:
+            await db.close()
 
 
 def start_scheduler() -> None:
@@ -1224,6 +1256,14 @@ async def run_initial_generation() -> None:
     """
     logger.info("Running initial generation from static data")
 
+    if config.SCHEDULER_ENABLED:
+        try:
+            if await _historical_refresh_is_due():
+                logger.info("Historical refresh is stale or missing; running startup catch-up")
+                await refresh_historical_results()
+        except Exception as e:
+            logger.error("Error in startup historical refresh: %s", e, exc_info=True)
+
     if config.WEATHER_ENABLED:
         try:
             await load_weather_from_db()
@@ -1246,8 +1286,3 @@ async def run_initial_generation() -> None:
         logger.info("Version info refreshed on startup")
     except Exception as e:
         logger.error("Error refreshing version info on startup: %s", e, exc_info=True)
-
-
-# Legacy function names for backwards compatibility
-sync_full_season = collect_and_generate
-sync_season_to_db = collect_and_generate

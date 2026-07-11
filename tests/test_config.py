@@ -5,6 +5,9 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+from pydantic import ValidationError
+
 import app.config as config_module
 import app.services.i18n as i18n_module
 from app.services.i18n import get_translator
@@ -35,6 +38,43 @@ def test_config_defaults():
     assert config.DISPLAY_WIDTH == 800
     assert config.DISPLAY_HEIGHT == 480
     assert config.DEFAULT_LANG in config_module.LANGUAGE_CODES
+    assert config.STATS_RATE_LIMIT_PER_MINUTE == 60
+
+
+@pytest.mark.parametrize("field_name", ["DATABASE_PATH", "IMAGES_PATH"])
+def test_config_rejects_empty_storage_paths(field_name):
+    with pytest.raises(ValidationError):
+        config_module.Config(_env_file=None, **{field_name: "   "})
+
+
+def test_config_treats_explicitly_empty_admin_token_as_unset():
+    config = config_module.Config(_env_file=None, ADMIN_API_TOKEN="")
+
+    assert config.ADMIN_API_TOKEN is None
+
+
+@pytest.mark.parametrize("env_file", [".env.example", ".env.local.example"])
+def test_shipped_example_env_files_boot(env_file, monkeypatch):
+    monkeypatch.delenv("ADMIN_API_TOKEN", raising=False)
+
+    config = config_module.Config(_env_file=env_file)
+
+    assert config.ADMIN_API_TOKEN is None
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value", "expected"),
+    [
+        ("DISPLAY_WIDTH", "801", 800),
+        ("DISPLAY_HEIGHT", "481", 480),
+        ("DISPLAY_WIDTH", "not-a-number", 800),
+        ("DISPLAY_HEIGHT", "not-a-number", 480),
+    ],
+)
+def test_config_ignores_display_dimension_overrides(field_name, value, expected):
+    config = config_module.Config(_env_file=None, **{field_name: value})
+
+    assert getattr(config, field_name) == expected
 
 
 def test_config_invalid_env_falls_back(monkeypatch):
@@ -59,14 +99,14 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert config.APP_PORT == 8000
     assert config.REQUEST_TIMEOUT == 10
     assert config.DEFAULT_TIMEZONE == "Europe/Prague"
-    assert str(config.SITE_URL) == "https://f1.inkycloud.click"
+    assert str(config.SITE_URL) == "http://localhost:8000"
     assert str(config.UMAMI_API_URL) == "https://analytics.example.com/api/send"
     assert str(config.GITHUB_API_BASE_URL) == "https://api.github.com"
     assert str(config.OPEN_METEO_URL) == "https://api.open-meteo.com/v1/forecast"
     assert str(config.OPEN_METEO_ARCHIVE_URL) == "https://archive-api.open-meteo.com/v1/archive"
     assert config.SENTRY_TRACES_SAMPLE_RATE == 0.1
     assert config.DEFAULT_LANG == "en"
-    assert config.STATS_RETENTION_DAYS == 0
+    assert config.STATS_RETENTION_DAYS == 90
 
 
 def test_translator_english():
@@ -90,6 +130,19 @@ def test_translator_fallback():
     translator = get_translator("unknown")
     # Should fall back to default language
     assert "next_race" in translator
+
+
+def test_corrupted_non_default_translation_falls_back_to_default(tmp_path, monkeypatch):
+    broken = tmp_path / "cs.json"
+    broken.write_text("{broken", encoding="utf-8")
+    monkeypatch.setitem(i18n_module._TRANSLATION_FILES, "cs", broken)
+    i18n_module._translations_cache.clear()
+
+    translator = i18n_module.get_translator("cs")
+
+    assert translator["next_race"] == "Next Race"
+    assert i18n_module.get_translator("cs") is translator
+    i18n_module._translations_cache.clear()
 
 
 def test_all_translation_files_match_english_keys():
@@ -120,6 +173,15 @@ def test_config_reset_updates_module_singleton(monkeypatch):
     assert config_module.config.APP_PORT == 9001
 
 
+def test_port_alias_configures_app_port(monkeypatch):
+    monkeypatch.delenv("APP_PORT", raising=False)
+    monkeypatch.setenv("PORT", "9012")
+
+    config = config_module.Config(_env_file=None)
+
+    assert config.APP_PORT == 9012
+
+
 def test_s3_secrets_are_masked_in_repr(monkeypatch):
     """S3 credentials should be stored as masked secrets in Config."""
     monkeypatch.setenv("S3_ACCESS_KEY_ID", "test-access-key")
@@ -145,3 +207,6 @@ def test_translator_missing_default_file_returns_empty_dict():
         patch.object(i18n_module.config, "DEFAULT_LANG", "en"),
     ):
         assert i18n_module.get_translator("en") == {}
+        assert i18n_module.get_translator("en") == {}
+
+    i18n_module._translations_cache.clear()

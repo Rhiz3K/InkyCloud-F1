@@ -216,12 +216,17 @@ function closeMobileNav() {
             device_memory: navigator.deviceMemory || null,
         };
 
-        if (navigator.sendBeacon) {
-            navigator.sendBeacon("/api/perf-metrics", JSON.stringify(payload));
-        } else {
+        const jsonPayload = JSON.stringify(payload);
+        const beaconQueued =
+            navigator.sendBeacon &&
+            navigator.sendBeacon(
+                "/api/perf-metrics",
+                new Blob([jsonPayload], { type: "application/json" }),
+            );
+        if (!beaconQueued) {
             fetch("/api/perf-metrics", {
                 method: "POST",
-                body: JSON.stringify(payload),
+                body: jsonPayload,
                 headers: { "Content-Type": "application/json" },
                 keepalive: true,
             }).catch(() => {});

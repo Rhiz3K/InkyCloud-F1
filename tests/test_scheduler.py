@@ -1,20 +1,23 @@
 """Tests for scheduler helpers."""
 
-import asyncio
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from PIL import Image
 
 from app.models import TeamEntry, TeamsData
 from app.services import scheduler as scheduler_module
+from app.services.historical_refresh import HistoricalRefreshResult
 from app.services.image_keys import get_teams_image_key
 from app.services.scheduler import (
     _atomic_write_bytes,
     _generate_teams_bmp_variants,
     _get_image_key,
     collect_and_generate,
+    generate_preview_pngs,
 )
 
 
@@ -47,6 +50,47 @@ def test_get_teams_image_key_includes_year():
 def test_get_teams_image_key_rejects_unknown_display():
     with pytest.raises(ValueError, match="Unsupported display mode: invalid"):
         get_teams_image_key("en", 2026, display="invalid")
+
+
+@pytest.mark.asyncio
+async def test_generate_preview_pngs_converts_existing_bmps_without_rendering(
+    tmp_path, monkeypatch
+):
+    buffer = BytesIO()
+    Image.new("1", (800, 480), 1).save(buffer, format="BMP")
+    bmp_data = buffer.getvalue()
+
+    monkeypatch.setattr(scheduler_module, "SUPPORTED_LANGUAGES", ["en"])
+    monkeypatch.setattr(scheduler_module.config, "IMAGES_PATH", str(tmp_path))
+    monkeypatch.setattr(
+        scheduler_module,
+        "create_renderer",
+        Mock(side_effect=AssertionError("preview generation must not render again")),
+    )
+
+    for display in ("1bit", "spectra6", "bwr", "bwry"):
+        (tmp_path / f"{_get_image_key('en', display=display)}.bmp").write_bytes(bmp_data)
+        teams_key = get_teams_image_key("en", 2026, display=display)
+        (tmp_path / f"{teams_key}.bmp").write_bytes(bmp_data)
+
+    await generate_preview_pngs(["off"], 2026)
+
+    assert (tmp_path / "preview_calendar_en.png").is_file()
+    assert (tmp_path / "configure_calendar_en_spectra6.png").is_file()
+    assert (tmp_path / "preview_teams_en.png").is_file()
+    assert (tmp_path / "configure_teams_en_bwry.png").is_file()
+
+
+@pytest.mark.asyncio
+async def test_generate_preview_pngs_skips_missing_bmp_sources(tmp_path, monkeypatch):
+    run_render = AsyncMock()
+    monkeypatch.setattr(scheduler_module, "SUPPORTED_LANGUAGES", ["en"])
+    monkeypatch.setattr(scheduler_module.config, "IMAGES_PATH", str(tmp_path))
+    monkeypatch.setattr(scheduler_module, "run_render", run_render)
+
+    await generate_preview_pngs(["off"], 2026)
+
+    run_render.assert_not_awaited()
 
 
 def test_start_scheduler_registers_daily_historical_refresh(monkeypatch):
@@ -94,7 +138,7 @@ async def test_atomic_write_bytes_uses_unique_temp_path_per_call(tmp_path, monke
         replace_sources.append(source.name)
         source.unlink()
 
-    monkeypatch.setattr("app.services.scheduler.os.replace", fake_replace)
+    monkeypatch.setattr("app.utils.atomic_io.os.replace", fake_replace)
 
     image_path = tmp_path / "calendar_en.bmp"
     await _atomic_write_bytes(image_path, b"first")
@@ -103,37 +147,79 @@ async def test_atomic_write_bytes_uses_unique_temp_path_per_call(tmp_path, monke
     assert len(set(replace_sources)) == 2
 
 
+def test_directory_fsync_failure_is_tolerated(monkeypatch, tmp_path):
+    """Filesystems without directory fsync support must still close the descriptor."""
+    from app.utils import atomic_io
+
+    closed: list[int] = []
+    monkeypatch.setattr(atomic_io.os, "open", lambda *_args: 17)
+    monkeypatch.setattr(
+        atomic_io.os, "fsync", lambda _descriptor: (_ for _ in ()).throw(OSError("unsupported"))
+    )
+    monkeypatch.setattr(atomic_io.os, "close", closed.append)
+
+    atomic_io._fsync_directory(tmp_path)
+
+    assert closed == [17]
+
+
 @pytest.mark.asyncio
-async def test_refresh_historical_results_waits_for_generation_lock_before_regeneration(
-    monkeypatch,
-):
+async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeypatch):
     calls = []
+    db = SimpleNamespace(set_cache_meta=AsyncMock(), close=AsyncMock())
 
     async def fake_update_historical():
         calls.append("update")
-        return 1
+        return HistoricalRefreshResult(("red_bull_ring",), (), 1)
 
     async def fake_collect_and_generate():
         calls.append("generate")
 
-    from scripts import update_historical
-
-    monkeypatch.setattr(update_historical, "main", fake_update_historical)
+    monkeypatch.setattr(scheduler_module, "update_historical_results", fake_update_historical)
+    monkeypatch.setattr(scheduler_module, "Database", lambda: db)
     monkeypatch.setattr(
         scheduler_module,
         "_collect_and_generate_unlocked",
         fake_collect_and_generate,
     )
 
-    lock = scheduler_module._get_generation_lock()
-    async with lock:
-        refresh_task = asyncio.create_task(scheduler_module.refresh_historical_results())
-        await asyncio.sleep(0)
+    await scheduler_module.refresh_historical_results()
 
-        assert calls == ["update"]
+    assert calls == ["update"]
+    db.set_cache_meta.assert_awaited_once()
 
-    await refresh_task
-    assert calls == ["update", "generate"]
+
+@pytest.mark.asyncio
+async def test_refresh_historical_results_does_not_stamp_incomplete_run(monkeypatch):
+    db = SimpleNamespace(set_cache_meta=AsyncMock(), close=AsyncMock())
+
+    async def fake_update_historical():
+        return HistoricalRefreshResult((), ("monza",), 1)
+
+    monkeypatch.setattr(scheduler_module, "update_historical_results", fake_update_historical)
+    monkeypatch.setattr(scheduler_module, "Database", lambda: db)
+
+    await scheduler_module.refresh_historical_results()
+
+    db.set_cache_meta.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_historical_refresh_due_when_timestamp_is_missing(monkeypatch):
+    db = SimpleNamespace(get_cache_meta=AsyncMock(return_value=None), close=AsyncMock())
+    monkeypatch.setattr(scheduler_module, "Database", lambda: db)
+
+    assert await scheduler_module._historical_refresh_is_due() is True
+    db.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_historical_refresh_not_due_for_recent_timestamp(monkeypatch):
+    timestamp = datetime.now(timezone.utc).isoformat()
+    db = SimpleNamespace(get_cache_meta=AsyncMock(return_value=timestamp), close=AsyncMock())
+    monkeypatch.setattr(scheduler_module, "Database", lambda: db)
+
+    assert await scheduler_module._historical_refresh_is_due() is False
 
 
 @pytest.mark.asyncio

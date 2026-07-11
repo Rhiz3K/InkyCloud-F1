@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+MIN_F1_SEASON = 1950
 
 SEASON_START_DATES: dict[int, datetime] = {
     2025: datetime(2025, 3, 16, tzinfo=timezone.utc),
@@ -31,3 +32,18 @@ def get_current_f1_season(now: datetime | None = None) -> int:
             return year
 
     return min(SEASON_START_DATES) - 1
+
+
+def get_max_supported_f1_season(now: datetime | None = None) -> int:
+    """Allow the current calendar year plus the next announced season."""
+    current_time = now or datetime.now(timezone.utc)
+    return current_time.year + 1
+
+
+def is_supported_f1_season(year: object, now: datetime | None = None) -> bool:
+    """Return whether a value is an integer inside the supported season range."""
+    return (
+        isinstance(year, int)
+        and not isinstance(year, bool)
+        and MIN_F1_SEASON <= year <= get_max_supported_f1_season(now)
+    )

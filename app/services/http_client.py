@@ -12,6 +12,7 @@ _shared_http_clients: dict[tuple[int, object], Any] = {}
 
 
 def _timeout_cache_key(timeout: object) -> object:
+    """Convert an HTTPX timeout into a stable hashable shared-client key."""
     if isinstance(timeout, httpx.Timeout):
         return (timeout.connect, timeout.read, timeout.write, timeout.pool)
     return timeout

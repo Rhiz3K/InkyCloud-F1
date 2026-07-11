@@ -1,6 +1,7 @@
 """Weather service using Open-Meteo APIs for race weekend weather."""
 
 import logging
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Optional
@@ -9,6 +10,7 @@ import httpx
 
 from app.config import config
 from app.services.http_client import get_shared_http_client
+from app.utils.http import fetch_with_retry
 
 if TYPE_CHECKING:
     from app.services.database import Database
@@ -58,10 +60,12 @@ _weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
 
 # Circuit weather cache - populated by scheduler, read by renderer
 # Maps circuit_id -> WeatherData
-_circuit_weather_cache: dict[str, "WeatherData"] = {}
+_circuit_weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
+CIRCUIT_WEATHER_TTL_MINUTES = 120
 
 
 def _to_utc_datetime(dt: datetime) -> datetime:
+    """Normalize naive and aware datetimes to an aware UTC value."""
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
@@ -84,6 +88,8 @@ def _race_weather_cache_key(lat: float, lon: float, race_datetime: datetime) -> 
 
 @dataclass
 class WeatherData:
+    """Normalized weather values required by the e-ink renderers."""
+
     temperature_c: float
     weather_code: int
     precipitation_probability: int
@@ -91,21 +97,27 @@ class WeatherData:
 
     @property
     def icon(self) -> str:
+        """Return the weather-icons glyph for the WMO condition code."""
         return WEATHER_ICONS.get(self.weather_code, "\u2601")
 
     @property
     def temp_display(self) -> str:
+        """Return rounded Celsius temperature text for the display."""
         return f"{int(round(self.temperature_c))}\u00b0"
 
     @property
     def precip_display(self) -> str:
+        """Return precipitation probability or a preformatted amount."""
         if self.precipitation_display_override is not None:
             return self.precipitation_display_override
         return f"{self.precipitation_probability}%"
 
 
 class WeatherService:
+    """Fetch and cache current, forecast, and historical Open-Meteo data."""
+
     def __init__(self, timeout: int = 10, cache_minutes: int = 60):
+        """Configure HTTP timeout and in-memory response TTL."""
         self.timeout = httpx.Timeout(timeout)
         self.cache_minutes = cache_minutes
 
@@ -167,8 +179,7 @@ class WeatherService:
         }
 
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-        response = await client.get(OPEN_METEO_URL, params=params)
-        response.raise_for_status()
+        response = await fetch_with_retry(client, OPEN_METEO_URL, params=params, logger=logger)
         data = response.json()
 
         current = data.get("current") or {}
@@ -209,6 +220,7 @@ class WeatherService:
         lon: float,
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
+        """Return cached, forecast, or historical weather for a race timestamp."""
         race_datetime_utc = _to_utc_datetime(race_datetime)
 
         cache_key = _race_weather_cache_key(lat, lon, race_datetime)
@@ -258,6 +270,7 @@ class WeatherService:
         lon: float,
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
+        """Return cached or archived Open-Meteo weather for a past race."""
         race_datetime_utc = _to_utc_datetime(race_datetime)
 
         cache_key = f"historical_{round(lat, 2)}_{round(lon, 2)}_{race_datetime_utc.isoformat()}"
@@ -314,8 +327,7 @@ class WeatherService:
         }
 
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-        response = await client.get(OPEN_METEO_URL, params=params)
-        response.raise_for_status()
+        response = await fetch_with_retry(client, OPEN_METEO_URL, params=params, logger=logger)
         data = response.json()
 
         return _match_hourly_weather(
@@ -330,6 +342,7 @@ class WeatherService:
         lon: float,
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
+        """Fetch and normalize archived hourly weather for a race location."""
         race_dt_utc = _to_utc_datetime(race_datetime)
         race_date = race_dt_utc.strftime("%Y-%m-%d")
 
@@ -343,8 +356,9 @@ class WeatherService:
         }
 
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-        response = await client.get(OPEN_METEO_ARCHIVE_URL, params=params)
-        response.raise_for_status()
+        response = await fetch_with_retry(
+            client, OPEN_METEO_ARCHIVE_URL, params=params, logger=logger
+        )
         data = response.json()
 
         return _match_hourly_weather(
@@ -354,17 +368,20 @@ class WeatherService:
             precipitation_as_amount=True,
         )
 
-    def _get_cached(self, key: str) -> Optional[WeatherData]:
+    @staticmethod
+    def _get_cached(key: str) -> Optional[WeatherData]:
+        """Return a fresh cached weather response and evict expired entries."""
         if key in _weather_cache:
-            data, cached_at = _weather_cache[key]
-            if datetime.now(timezone.utc) - cached_at < timedelta(minutes=self.cache_minutes):
+            data, expires_at = _weather_cache[key]
+            if datetime.now(timezone.utc) < expires_at:
                 return data
             del _weather_cache[key]
         return None
 
-    @staticmethod
-    def _set_cached(key: str, data: WeatherData) -> None:
-        _weather_cache[key] = (data, datetime.now(timezone.utc))
+    def _set_cached(self, key: str, data: WeatherData) -> None:
+        """Cache a weather response using this service's configured TTL."""
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=self.cache_minutes)
+        _weather_cache[key] = (data, expires_at)
 
 
 def clear_weather_cache() -> None:
@@ -391,7 +408,14 @@ def get_cached_circuit_weather(circuit_id: str) -> Optional[WeatherData]:
     Returns:
         Cached WeatherData or None if not found.
     """
-    return _circuit_weather_cache.get(circuit_id)
+    cached = _circuit_weather_cache.get(circuit_id)
+    if cached is None:
+        return None
+    data, expires_at = cached
+    if datetime.now(timezone.utc) >= expires_at:
+        del _circuit_weather_cache[circuit_id]
+        return None
+    return data
 
 
 def set_cached_circuit_weather(circuit_id: str, data: WeatherData) -> None:
@@ -402,7 +426,8 @@ def set_cached_circuit_weather(circuit_id: str, data: WeatherData) -> None:
         circuit_id (str): Circuit identifier to associate with the weather data.
         data (WeatherData): WeatherData to store; overwrites any existing entry.
     """
-    _circuit_weather_cache[circuit_id] = data
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=CIRCUIT_WEATHER_TTL_MINUTES)
+    _circuit_weather_cache[circuit_id] = (data, expires_at)
 
 
 def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
@@ -419,13 +444,32 @@ def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
     count = 0
     for circuit_id, data in weather_dict.items():
         try:
-            _circuit_weather_cache[circuit_id] = WeatherData(
-                temperature_c=data.get("temperature_c", 20.0),
+            temperature_raw = data["temperature_c"]
+            fetched_at_raw = data["fetched_at"]
+            if isinstance(temperature_raw, bool) or not isinstance(temperature_raw, (int, float)):
+                raise TypeError("temperature_c must be numeric")
+            temperature = float(temperature_raw)
+            if not math.isfinite(temperature):
+                raise ValueError("temperature_c must be finite")
+            if not isinstance(fetched_at_raw, str):
+                raise TypeError("fetched_at is not a string")
+            fetched_at = datetime.fromisoformat(fetched_at_raw)
+            if fetched_at.tzinfo is None:
+                fetched_at = fetched_at.replace(tzinfo=timezone.utc)
+            else:
+                fetched_at = fetched_at.astimezone(timezone.utc)
+
+            weather = WeatherData(
+                temperature_c=temperature,
                 weather_code=data.get("weather_code", 0),
                 precipitation_probability=data.get("precipitation_probability", 0),
             )
+            expires_at = fetched_at + timedelta(minutes=CIRCUIT_WEATHER_TTL_MINUTES)
+            if expires_at <= datetime.now(timezone.utc):
+                continue
+            _circuit_weather_cache[circuit_id] = (weather, expires_at)
             count += 1
-        except (TypeError, ValueError) as e:
+        except (KeyError, TypeError, ValueError) as e:
             logger.warning("Invalid weather data for %s: %s", circuit_id, e)
             continue
     return count
@@ -441,6 +485,7 @@ def clear_circuit_weather_cache() -> None:
 
 
 def _build_weather_service() -> WeatherService:
+    """Construct a weather service from the active application configuration."""
     return WeatherService(
         timeout=config.REQUEST_TIMEOUT,
         cache_minutes=config.WEATHER_CACHE_MINUTES,
@@ -448,6 +493,7 @@ def _build_weather_service() -> WeatherService:
 
 
 def _parse_coordinate(value: str | int | float | None) -> Optional[float]:
+    """Parse a coordinate-like value, returning ``None`` when invalid."""
     if value is None:
         return None
 
@@ -458,6 +504,7 @@ def _parse_coordinate(value: str | int | float | None) -> Optional[float]:
 
 
 def _extract_circuit_context(race_data: dict) -> tuple[str, Optional[float], Optional[float]]:
+    """Extract a circuit identifier and parsed coordinates from race data."""
     circuit = race_data.get("circuit", {})
     circuit_id = circuit.get("circuitId") or circuit.get("circuit_id", "")
     displayed_lon = circuit.get("long") if circuit.get("long") is not None else circuit.get("lon")
@@ -478,6 +525,7 @@ def _extract_circuit_context(race_data: dict) -> tuple[str, Optional[float], Opt
 
 
 def _format_precipitation_amount(value: float | int | None) -> str:
+    """Format a precipitation amount in millimetres without redundant zeros."""
     amount = float(value or 0)
     formatted = f"{amount:.1f}".rstrip("0").rstrip(".")
     return f"{formatted} mm"
@@ -490,6 +538,7 @@ def _match_hourly_weather(
     precipitation_key: str,
     precipitation_as_amount: bool = False,
 ) -> Optional[WeatherData]:
+    """Select the closest usable hourly weather row for a race timestamp."""
     times = hourly.get("time", [])
     temps = hourly.get("temperature_2m", [])
     codes = hourly.get("weather_code", [])
@@ -556,6 +605,7 @@ def _match_hourly_weather(
 
 
 def _extract_race_datetime(race_data: dict) -> Optional[datetime]:
+    """Extract and normalize the scheduled race-session datetime."""
     schedule = race_data.get("schedule", [])
     race_session = next(
         (session for session in schedule if str(session.get("name", "")).lower() == "race"),
@@ -582,6 +632,7 @@ async def _resolve_current_weather(
     lon: Optional[float],
     weather_service: Optional[WeatherService],
 ) -> tuple[Optional[WeatherData], Optional[WeatherService]]:
+    """Resolve current circuit weather while reusing a lazily built service."""
     current_weather: Optional[WeatherData] = (
         get_cached_circuit_weather(circuit_id) if circuit_id else None
     )
@@ -607,6 +658,7 @@ async def _resolve_race_weather(
     race_dt: Optional[datetime],
     weather_service: Optional[WeatherService],
 ) -> tuple[Optional[WeatherData], Optional[WeatherService]]:
+    """Resolve race-time weather while reusing a lazily built service."""
     if lat is None or lon is None or race_dt is None:
         return None, weather_service
 
@@ -797,6 +849,8 @@ async def load_prefetched_weather_from_db(db: "Database") -> int:
             cached_at = datetime.fromisoformat(cached_at_str)
         except (TypeError, ValueError):
             cached_at = now
-        _weather_cache[cache_key] = (data, cached_at)
+        if cached_at.tzinfo is None:
+            cached_at = cached_at.replace(tzinfo=timezone.utc)
+        _weather_cache[cache_key] = (data, cached_at + timedelta(minutes=120))
         loaded += 1
     return loaded

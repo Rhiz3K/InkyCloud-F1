@@ -2,29 +2,38 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from functools import lru_cache
+from html import escape
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 
 import markdown
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.config import VALID_LANGUAGES, config
+from app.paths import CHANGELOG_PATH
 from app.services.analytics import track_pageview
 from app.services.database import Database
+from app.services.teams_service import get_available_teams_years
 from app.services.version_service import get_cached_version, refresh_version_info
+from app.utils.f1_season import get_current_f1_season
+from app.utils.rate_limit import enforce_rate_limit
 from app.utils.timezones import TIMEZONE_ALIASES
+from app.version import APP_VERSION
 from app.web.api_docs import build_api_docs_context
 from app.web.templates import calc_percent, get_template_context, lang_url, templates
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-_HTML_ROUTE_METHODS = ("GET", "HEAD")
+_HTML_ROUTE_METHODS = ["GET", "HEAD"]
 
 # Elements that should never survive in rendered changelog HTML.
 _UNSAFE_HTML_TAGS = ("script", "style", "iframe", "object", "embed", "link", "meta", "base")
+_URI_HTML_ATTRIBUTES = {"href", "src", "xlink:href", "action", "formaction", "poster"}
 
 
 def _sanitize_rendered_html(html: str) -> str:
@@ -44,9 +53,9 @@ def _sanitize_rendered_html(html: str) -> str:
     for tag in list(soup.find_all(True)):
         for attr, value in list(tag.attrs.items()):
             lowered = attr.lower()
-            if lowered.startswith("on"):
+            if lowered.startswith("on") or lowered == "style":
                 del tag.attrs[attr]
-            elif lowered in {"href", "src"} and isinstance(value, str):
+            elif lowered in _URI_HTML_ATTRIBUTES and isinstance(value, str):
                 # Strip control/whitespace chars first so "java\tscript:" / "java\nscript:"
                 # can't slip through, and block data:/vbscript: URI vectors as well.
                 cleaned = "".join(ch for ch in value if ord(ch) > 32).lower()
@@ -119,6 +128,45 @@ def _strip_empty_unreleased_section(changelog_text: str) -> str:
     return changelog_text[:unreleased_start] + changelog_text[first_version_start:]
 
 
+@lru_cache(maxsize=4)
+def _render_changelog_file(path_value: str, _mtime_ns: int) -> str:
+    """Read and render a specific changelog file version."""
+    changelog_content = Path(path_value).read_text(encoding="utf-8")
+    changelog_content = _strip_empty_unreleased_section(changelog_content)
+    return _sanitize_rendered_html(
+        markdown.markdown(
+            changelog_content,
+            extensions=["extra", "toc", "md_in_html"],
+        )
+    )
+
+
+def _load_changelog_html(changelog_path: Path) -> str | None:
+    """Load cached changelog HTML without doing file or parser work on the event loop."""
+    try:
+        mtime_ns = changelog_path.stat().st_mtime_ns
+        return _render_changelog_file(str(changelog_path), mtime_ns)
+    except OSError:
+        return None
+
+
+def _empty_stats() -> dict:
+    """Return the complete template contract for an unavailable stats database."""
+    return {
+        "total_requests": 0,
+        "avg_response_ms": 0,
+        "min_response_ms": 0,
+        "max_response_ms": 0,
+        "total_bytes": 0,
+        "endpoints": [],
+        "languages": [],
+        "display_types": [],
+        "teams_display_types": [],
+        "races": [],
+        "timezones": [],
+    }
+
+
 def _enrich_display_type_stats(stats: dict) -> None:
     """Add display labels for stats template rendering."""
     for key in ("display_types", "teams_display_types"):
@@ -139,12 +187,18 @@ def _redirect_path(
     request: Request, target_path: str, *, preserve_query: bool = True
 ) -> RedirectResponse:
     """Return a permanent redirect using a relative path to avoid scheme downgrades."""
+    if any(ord(char) < 32 for char in target_path):
+        raise ValueError(f"Redirect target contains control characters: {target_path!r}")
+
     target_parts = urlsplit(target_path)
+    decoded_path = unquote(target_parts.path)
     if (
         target_parts.scheme
         or target_parts.netloc
         or not target_path.startswith("/")
         or target_path.startswith("//")
+        or "\\" in decoded_path
+        or decoded_path.startswith("//")
     ):
         raise ValueError(f"Redirect target must stay on-site: {target_path}")
 
@@ -218,16 +272,19 @@ async def _home_handler(request: Request, ui_lang: str) -> HTMLResponse:
 
     context = get_template_context(request, ui_lang)
     context["active_page"] = "home"
+    context["preview_version"] = APP_VERSION
     context["screen_types"] = [
         {
             "id": "calendar",
             "name_key": "screen_calendar_name",
             "desc_key": "screen_calendar_desc",
+            "fallback_url": f"/calendar.bmp?lang={ui_lang}&weather=false",
         },
         {
             "id": "teams",
             "name_key": "screen_teams_name",
             "desc_key": "screen_teams_desc",
+            "fallback_url": f"/teams.bmp?lang={ui_lang}",
         },
     ]
 
@@ -284,6 +341,11 @@ async def _configure_handler(request: Request, screen_type: str, ui_lang: str) -
     context["screen_type"] = screen_type
     context["default_timezone"] = config.DEFAULT_TIMEZONE
     context["timezone_aliases"] = TIMEZONE_ALIASES
+    current_teams_season = get_current_f1_season()
+    context["current_teams_season"] = current_teams_season
+    context["available_teams_seasons"] = sorted(
+        {current_teams_season, *get_available_teams_years()}, reverse=True
+    )
 
     return templates.TemplateResponse(request, "configure.html", context)
 
@@ -441,18 +503,7 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
         referrer=request.headers.get("Referer", ""),
     )
 
-    changelog_path = Path(__file__).resolve().parents[2] / "CHANGELOG.md"
-    if changelog_path.exists():
-        changelog_content = changelog_path.read_text(encoding="utf-8")
-        changelog_content = _strip_empty_unreleased_section(changelog_content)
-        changelog_html = _sanitize_rendered_html(
-            markdown.markdown(
-                changelog_content,
-                extensions=["extra", "toc", "md_in_html"],
-            )
-        )
-    else:
-        changelog_html = "<p>Changelog not found.</p>"
+    changelog_html = await asyncio.to_thread(_load_changelog_html, CHANGELOG_PATH)
 
     version_info = get_cached_version()
     if version_info is None:
@@ -463,7 +514,9 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
 
     context = get_template_context(request, ui_lang)
     context["active_page"] = "changelog"
-    context["changelog_html"] = changelog_html
+    context["changelog_html"] = changelog_html or (
+        f"<p>{escape(context['t'].get('changelog_not_found', 'Changelog not found.'))}</p>"
+    )
     context["version_info"] = version_info
 
     return templates.TemplateResponse(request, "changelog.html", context)
@@ -537,7 +590,7 @@ async def _api_docs_handler(request: Request, ui_lang: str) -> HTMLResponse:
 
     context = get_template_context(request, ui_lang)
     context["active_page"] = "api"
-    context.update(build_api_docs_context(ui_lang, str(request.base_url).rstrip("/")))
+    context.update(build_api_docs_context(ui_lang, str(config.SITE_URL).rstrip("/")))
 
     return templates.TemplateResponse(request, "api_docs.html", context)
 
@@ -597,16 +650,26 @@ async def api_docs_html_lang_slash_redirect(request: Request, lang_prefix: str):
 
 async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTMLResponse:
     """Render stats page."""
+    enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
     hours_map = {"1h": 1, "24h": 24, "7d": 168, "30d": 720, "365d": 8760}
     hours = hours_map.get(time_range, 24)
 
-    db = Database()
+    db: Database | None = None
     try:
+        db = Database()
         stats = await db.get_stats_for_range(hours)
         _enrich_display_type_stats(stats)
         perf_stats = await db.get_perf_stats(hours)
+    except Exception as exc:
+        logger.error("Failed to load statistics dashboard data: %s", exc, exc_info=True)
+        stats = _empty_stats()
+        perf_stats = {"sample_count": 0}
     finally:
-        await db.close()
+        if db is not None:
+            try:
+                await db.close()
+            except Exception as exc:
+                logger.warning("Failed to close statistics database: %s", exc, exc_info=True)
 
     base_url = lang_url("/stats", ui_lang)
     url = f"{base_url}?range={time_range}" if time_range != "24h" else base_url

@@ -3,19 +3,31 @@ name: Update F1 Season Data
 on:
   workflow_dispatch:
 
+permissions: {}
+
+concurrency:
+  group: update-f1-data-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   update:
+    name: update
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # Required to push the generated data branch
+      pull-requests: write # Required to open the generated data pull request
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          # A PAT/App token lets the resulting PR run CI without manual approval. The workflow still
+          # works with GITHUB_TOKEN, but GitHub may require a maintainer to approve that CI run.
+          token: ${{ secrets.DATA_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.13'
 
@@ -28,12 +40,12 @@ jobs:
       - name: Check for changes
         id: check_changes
         run: |
-          git diff --quiet app/assets/ || echo "changes=true" >> $GITHUB_OUTPUT
+          git diff --quiet app/assets/ || echo "changes=true" >> "$GITHUB_OUTPUT"
 
       - name: Create Pull Request
         if: steps.check_changes.outputs.changes == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DATA_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="chore/update-f1-data-$(date +%Y%m%d-%H%M%S)"
           git config user.name "github-actions[bot]"
@@ -41,5 +53,6 @@ jobs:
           git checkout -b "$BRANCH"
           git add app/assets/
           git commit -m "chore: update F1 data"
+          gh auth setup-git
           git push -u origin "$BRANCH"
           gh pr create --title "chore: update F1 season data" --body "Manual F1 season calendar update from Jolpica API. Historical race results are refreshed daily by the running app." --base main --head "$BRANCH"

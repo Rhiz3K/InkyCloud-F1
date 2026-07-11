@@ -1,6 +1,6 @@
 [project]
 name = "f1-eink-cal"
-version = "0.1.0"
+version = "1.2.31"
 description = "F1 E-Ink calendar service generating 800x480 1-bit BMPs for LaskaKit displays"
 readme = "README.md"
 authors = [
@@ -37,6 +37,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "httpx2>=2.5.0",
+    "interrogate>=1.7.0",
     "mypy>=1.19.1",
     "numpy>=2.4.0",
     "pytest>=9.0.3",
@@ -60,11 +62,22 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["app", "app.services", "app.routes", "app.utils", "app.web"]
 include-package-data = true
 
+[tool.setuptools.packages.find]
+include = ["app*"]
+namespaces = true
+
 [tool.setuptools.package-data]
-"*" = ["*.json", "*.bmp", "*.png", "*.ttf", "*.ttc", "*.jpg"]
+"app" = [
+    "assets/**/*",
+    "templates/*.html",
+    "templates/**/*.html",
+]
+
+[tool.setuptools.data-files]
+"share/f1-eink-cal" = ["CHANGELOG.md"]
+"share/f1-eink-cal/translations" = ["translations/*.json"]
 
 [tool.ruff]
 line-length = 100
@@ -78,14 +91,35 @@ ignore = []
 # Ignore line length in main.py due to inline HTML templates
 "app/main.py" = ["E501"]
 
+[tool.mypy]
+python_version = "3.13"
+files = ["app"]
+ignore_missing_imports = true
+explicit_package_bases = true
+
+[tool.interrogate]
+fail-under = 100
+verbose = 1
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
     "benchmark: performance benchmarks run only in CodSpeed workflow",
 ]
 
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+fail_under = 100
+precision = 2
+show_missing = true
+
 [dependency-groups]
 dev = [
+    "httpx2>=2.5.0",
+    "interrogate>=1.7.0",
     "mypy>=1.19.1",
     "numpy>=2.4.0",
     "pytest>=9.0.3",

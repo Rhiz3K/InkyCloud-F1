@@ -5,12 +5,13 @@ from __future__ import annotations
 import struct
 from typing import TypeAlias
 
-from PIL import Image
+from PIL import Image, ImageMath
 
 RgbColor: TypeAlias = tuple[int, int, int]
 
 
 def _build_palette_image(palette: list[RgbColor]) -> Image.Image:
+    """Build a one-pixel Pillow palette image from RGB color tuples."""
     palette_flat: list[int] = []
     for color in palette:
         palette_flat.extend(color)
@@ -27,6 +28,30 @@ def quantize_to_palette(image: Image.Image, palette: list[RgbColor], colors: int
     """Quantize an image to a fixed RGB palette without dithering."""
     palette_image = _build_palette_image(palette)
     return image.quantize(colors=colors, palette=palette_image, dither=Image.Dither.NONE)
+
+
+def _luminance_image(rgb: Image.Image) -> Image.Image:
+    """Compute integer Rec. 601 luminance in Pillow's native pixel loops."""
+    red, green, blue = rgb.split()
+    return ImageMath.unsafe_eval(
+        "convert((299 * r + 587 * g + 114 * b) / 1000, 'L')",
+        r=red,
+        g=green,
+        b=blue,
+    )
+
+
+def _mask(expression: str, **bands: Image.Image) -> Image.Image:
+    """Evaluate a trusted boolean ImageMath expression as an 8-bit mask."""
+    return ImageMath.unsafe_eval(f"convert(255 * ({expression}), 'L')", **bands)
+
+
+def _palette_image_from_indices(indices: Image.Image, palette: list[RgbColor]) -> Image.Image:
+    """Attach a concrete RGB palette to an image of color indices."""
+    indexed = Image.frombytes("P", indices.size, indices.tobytes())
+    palette_data = _build_palette_image(palette).getpalette() or []
+    indexed.putpalette(palette_data)  # type: ignore[arg-type]
+    return indexed
 
 
 def map_to_bwr_palette(
@@ -50,47 +75,29 @@ def map_to_bwr_palette(
     anti-aliased black text and line art.
     """
     rgb = image.convert("RGB")
-    indexed = Image.new("P", rgb.size, color=white_index)
-    palette_data = _build_palette_image(palette).getpalette() or []
-    indexed.putpalette(palette_data)  # type: ignore[arg-type]
+    red, green, blue = rgb.split()
+    luminance = _luminance_image(rgb)
+    green_limit = green.point([int(value * red_dominance) for value in range(256)])
+    blue_limit = blue.point([int(value * red_dominance) for value in range(256)])
+    red_mask = _mask(
+        f"(r >= {red_min}) * "
+        f"((r - max(g, b)) >= {red_margin}) * "
+        "(r >= gd) * (r >= bd) * "
+        f"(lum <= {red_max_luminance}) * (lum < {white_preserve_threshold})",
+        r=red,
+        g=green,
+        b=blue,
+        gd=green_limit,
+        bd=blue_limit,
+        lum=luminance,
+    )
 
-    src = rgb.load()
-    dst = indexed.load()
-    if src is None or dst is None:
-        raise ValueError("Failed to access image pixel data")
-
-    for y in range(rgb.height):
-        for x in range(rgb.width):
-            pixel = src[x, y]  # type: ignore[index]
-            if isinstance(pixel, tuple):
-                r, g, b = pixel[:3]
-            else:
-                r = g = b = int(pixel)
-
-            luminance = int(0.299 * r + 0.587 * g + 0.114 * b)
-
-            if luminance >= white_preserve_threshold:
-                dst[x, y] = white_index  # type: ignore[index]
-                continue
-
-            is_red = (
-                r >= red_min
-                and r - max(g, b) >= red_margin
-                and r >= int(g * red_dominance)
-                and r >= int(b * red_dominance)
-            )
-
-            if is_red and luminance <= red_max_luminance:
-                dst[x, y] = red_index  # type: ignore[index]
-                continue
-
-            if luminance <= black_preserve_threshold:
-                dst[x, y] = black_index  # type: ignore[index]
-                continue
-
-            dst[x, y] = black_index if luminance < bw_threshold else white_index  # type: ignore[index]
-
-    return indexed
+    neutral_threshold = max(bw_threshold, black_preserve_threshold)
+    indices = luminance.point(
+        [black_index if value < neutral_threshold else white_index for value in range(256)]
+    )
+    indices.paste(red_index, mask=red_mask)
+    return _palette_image_from_indices(indices, palette)
 
 
 def map_to_bwry_palette(
@@ -120,58 +127,44 @@ def map_to_bwry_palette(
     not pick up unwanted red or yellow fringes.
     """
     rgb = image.convert("RGB")
-    indexed = Image.new("P", rgb.size, color=white_index)
-    palette_data = _build_palette_image(palette).getpalette() or []
-    indexed.putpalette(palette_data)  # type: ignore[arg-type]
+    red, green, blue = rgb.split()
+    luminance = _luminance_image(rgb)
+    green_red_limit = green.point([int(value * red_dominance) for value in range(256)])
+    blue_red_limit = blue.point([int(value * red_dominance) for value in range(256)])
+    blue_yellow_limit = blue.point([int(value * yellow_dominance) for value in range(256)])
 
-    src = rgb.load()
-    dst = indexed.load()
-    if src is None or dst is None:
-        raise ValueError("Failed to access image pixel data")
+    red_mask = _mask(
+        f"(r >= {red_min}) * "
+        f"((r - max(g, b)) >= {red_margin}) * "
+        "(r >= grd) * (r >= brd) * "
+        f"(lum <= {red_max_luminance}) * (lum < {white_preserve_threshold})",
+        r=red,
+        g=green,
+        b=blue,
+        grd=green_red_limit,
+        brd=blue_red_limit,
+        lum=luminance,
+    )
+    yellow_mask = _mask(
+        f"(r >= {yellow_min}) * (g >= {yellow_min}) * "
+        f"((max(r, g) - min(r, g)) <= {yellow_rg_distance}) * "
+        f"((min(r, g) - b) >= {yellow_margin}) * "
+        "(r >= byd) * (g >= byd) * "
+        f"(lum <= {yellow_max_luminance}) * (lum < {white_preserve_threshold})",
+        r=red,
+        g=green,
+        b=blue,
+        byd=blue_yellow_limit,
+        lum=luminance,
+    )
 
-    for y in range(rgb.height):
-        for x in range(rgb.width):
-            pixel = src[x, y]  # type: ignore[index]
-            if isinstance(pixel, tuple):
-                r, g, b = pixel[:3]
-            else:
-                r = g = b = int(pixel)
-
-            luminance = int(0.299 * r + 0.587 * g + 0.114 * b)
-
-            if luminance >= white_preserve_threshold:
-                dst[x, y] = white_index  # type: ignore[index]
-                continue
-
-            is_yellow = (
-                r >= yellow_min
-                and g >= yellow_min
-                and abs(r - g) <= yellow_rg_distance
-                and min(r, g) - b >= yellow_margin
-                and r >= int(b * yellow_dominance)
-                and g >= int(b * yellow_dominance)
-            )
-            if is_yellow and luminance <= yellow_max_luminance:
-                dst[x, y] = yellow_index  # type: ignore[index]
-                continue
-
-            is_red = (
-                r >= red_min
-                and r - max(g, b) >= red_margin
-                and r >= int(g * red_dominance)
-                and r >= int(b * red_dominance)
-            )
-            if is_red and luminance <= red_max_luminance:
-                dst[x, y] = red_index  # type: ignore[index]
-                continue
-
-            if luminance <= black_preserve_threshold:
-                dst[x, y] = black_index  # type: ignore[index]
-                continue
-
-            dst[x, y] = black_index if luminance < bw_threshold else white_index  # type: ignore[index]
-
-    return indexed
+    neutral_threshold = max(bw_threshold, black_preserve_threshold)
+    indices = luminance.point(
+        [black_index if value < neutral_threshold else white_index for value in range(256)]
+    )
+    indices.paste(red_index, mask=red_mask)
+    indices.paste(yellow_index, mask=yellow_mask)
+    return _palette_image_from_indices(indices, palette)
 
 
 def encode_indexed_bmp_4bit(indexed: Image.Image, palette: list[RgbColor]) -> bytes:

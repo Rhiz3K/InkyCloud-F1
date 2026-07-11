@@ -2,6 +2,8 @@ include README.md
 include LICENSE
 include .env.example
 include EXAMPLES.md
+include CHANGELOG.md
 recursive-include translations *.json
 recursive-include app *.py
 recursive-include app/assets *
+recursive-include app/templates *.html

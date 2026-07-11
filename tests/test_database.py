@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 import pytest_asyncio
@@ -160,6 +161,27 @@ class TestDatabaseConnectionLifecycle:
             await db2.close()
 
         assert migration_calls == 1
+
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_connection_is_closed_when_configuration_fails(tmp_path, monkeypatch):
+        db = Database(str(tmp_path / "configure-failure.db"))
+        connection = Mock(close=AsyncMock())
+
+        async def fail_configuration(_connection):
+            raise RuntimeError("pragma failed")
+
+        monkeypatch.setattr(
+            "app.services.database.aiosqlite.connect",
+            AsyncMock(return_value=connection),
+        )
+        monkeypatch.setattr(db, "_configure_connection", fail_configuration)
+
+        with pytest.raises(RuntimeError, match="pragma failed"):
+            await db._ensure_connection()
+
+        connection.close.assert_awaited_once()
+        assert db._connection is None
 
 
 class TestGeneratedImageAndCacheMetaDatabase:
@@ -701,6 +723,18 @@ class TestPerfMetricsAggregation:
 
     @staticmethod
     @pytest.mark.asyncio
+    async def test_empty_perf_aggregates_report_zero_percentile_samples(tmp_path):
+        db = Database(str(tmp_path / "empty-perf.db"))
+        try:
+            aggregate = await db.get_perf_stats(hours=24)
+
+            assert aggregate["sample_count"] == 0
+            assert aggregate["percentile_sample_count"] == 0
+        finally:
+            await db.close()
+
+    @staticmethod
+    @pytest.mark.asyncio
     async def test_perf_aggregates_preserve_zero_values(tmp_path):
         db = Database(str(tmp_path / "perf.db"))
         try:
@@ -719,6 +753,7 @@ class TestPerfMetricsAggregation:
 
             perfect_page = next(row for row in by_page if row["page"] == "/perfect")
             assert aggregate["lcp"]["avg"] == 0.0
+            assert aggregate["percentile_sample_count"] == 1
             assert aggregate["cls"]["avg"] == 0.0
             assert aggregate["fcp"]["avg"] == 0.0
             assert aggregate["ttfb"]["avg"] == 0.0
@@ -730,6 +765,43 @@ class TestPerfMetricsAggregation:
             assert 0.0 in trends["lcp"]
             assert 0.0 in trends["fcp"]
             assert 0.0 in trends["ttfb"]
+        finally:
+            await db.close()
+
+
+class TestPopularTimezoneVariants:
+    @staticmethod
+    @pytest.mark.asyncio
+    async def test_uses_auto_selected_marker_with_resolved_race_metadata(tmp_path):
+        db = Database(str(tmp_path / "popular-timezones.db"))
+        now = datetime.now(timezone.utc).isoformat()
+        try:
+            await db.save_api_calls_batch(
+                [
+                    {
+                        "timestamp": now,
+                        "endpoint": "/calendar.bmp",
+                        "lang": "en",
+                        "tz": "America/New_York",
+                        "year": 2026,
+                        "round": 3,
+                        "is_auto_selected": 1,
+                    },
+                    {
+                        "timestamp": now,
+                        "endpoint": "/calendar.bmp",
+                        "lang": "cs",
+                        "tz": "Europe/London",
+                        "year": 2026,
+                        "round": 3,
+                        "is_auto_selected": 0,
+                    },
+                ]
+            )
+
+            variants = await db.get_popular_tz_variants(min_requests=1)
+
+            assert variants == [{"lang": "en", "tz": "America/New_York", "count": 1}]
         finally:
             await db.close()
 

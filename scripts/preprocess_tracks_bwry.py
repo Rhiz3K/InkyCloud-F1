@@ -15,6 +15,7 @@ from app.services.track_assets import (
     resolve_track_source_path,
     strip_track_variant_suffix,
 )
+from app.utils.atomic_io import atomic_write_bytes_sync
 from app.utils.bmp import encode_indexed_bmp_4bit, map_to_bwry_palette
 
 MAX_WIDTH = 490
@@ -34,6 +35,7 @@ PALETTE = [BLACK, WHITE, RED, YELLOW]
 
 
 def process_track_image(input_path: Path, output_path: Path) -> dict:
+    """Crop, scale, quantize, and atomically encode one BWRY track asset."""
     original_file = Image.open(input_path)
     if original_file.mode in ("RGBA", "LA") or "transparency" in original_file.info:
         rgba = original_file.convert("RGBA")
@@ -85,7 +87,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
         original = original.resize(new_size, Image.Resampling.LANCZOS)
 
     final = map_to_bwry_palette(original, PALETTE)
-    output_path.write_bytes(encode_indexed_bmp_4bit(final, PALETTE))
+    atomic_write_bytes_sync(output_path, encode_indexed_bmp_4bit(final, PALETTE))
     output_size = output_path.stat().st_size
 
     return {
@@ -98,6 +100,7 @@ def process_track_image(input_path: Path, output_path: Path) -> dict:
 
 
 def main(circuits: list[str] | None = None) -> None:
+    """Process selected or all source tracks into BWRY BMP assets."""
     print("=" * 60)
     print(" BWRY Track Image Pre-processor")
     print("=" * 60)
@@ -112,11 +115,11 @@ def main(circuits: list[str] | None = None) -> None:
         wanted = {circuit.strip().lower() for circuit in circuits if circuit.strip()}
         track_stems = [stem for stem in track_stems if stem in wanted]
 
-    track_files = [
-        resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bwry")
-        for track_stem in track_stems
-    ]
-    track_files = [track_path for track_path in track_files if track_path is not None]
+    track_files: list[Path] = []
+    for track_stem in track_stems:
+        track_path = resolve_track_source_path(TRACKS_DIR, [track_stem], variant_suffix="bwry")
+        if track_path is not None:
+            track_files.append(track_path)
 
     if not track_files:
         print(f"No track images found in {TRACKS_DIR}")
@@ -124,6 +127,7 @@ def main(circuits: list[str] | None = None) -> None:
 
     total_input_size = 0
     total_output_size = 0
+    failures = 0
     for track_path in sorted(track_files):
         source_stem = strip_track_variant_suffix(track_path.stem)
         normalized_stem = CIRCUIT_ID_MAP.get(source_stem, source_stem)
@@ -137,11 +141,14 @@ def main(circuits: list[str] | None = None) -> None:
                 f"({stats['input_size'] / 1024:6.0f}KB -> {stats['output_size'] / 1024:5.0f}KB)"
             )
         except Exception as exc:
+            failures += 1
             print(f" {track_path.name:25} -> ERROR: {exc}")
 
     print("-" * 60)
     print(f" Total: {total_input_size / 1024 / 1024:.1f}MB -> {total_output_size / 1024:.0f}KB")
     print(f"\nProcessed images saved to: {OUTPUT_DIR}")
+    if failures:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

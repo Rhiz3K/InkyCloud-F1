@@ -1,11 +1,13 @@
 """Test standings service."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 from pydantic import AnyHttpUrl
 
+from app.models import DriverStanding, StandingsData
 from app.services.http_client import _reset_shared_http_clients_for_tests
 from app.services.standings_service import StandingsService
 
@@ -98,8 +100,12 @@ class MockResponse:
 @pytest.fixture(autouse=True)
 def reset_shared_clients():
     _reset_shared_http_clients_for_tests()
+    StandingsService._shared_cache.clear()
+    StandingsService._negative_cache.clear()
     yield
     _reset_shared_http_clients_for_tests()
+    StandingsService._shared_cache.clear()
+    StandingsService._negative_cache.clear()
 
 
 @pytest.mark.asyncio
@@ -304,3 +310,51 @@ async def test_empty_standings_response():
         standings = await service.get_driver_standings(2024)
 
         assert standings == []
+
+
+@pytest.mark.asyncio
+async def test_concurrent_driver_standings_requests_are_coalesced(monkeypatch):
+    service = StandingsService()
+    calls = 0
+
+    async def fetch_driver_standings(year: int, limit: int) -> list[DriverStanding]:
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0)
+        standings = [
+            DriverStanding(
+                position=1,
+                points=25,
+                wins=1,
+                driver_code="NOR",
+                driver_name="Norris",
+                driver_given_name="Lando",
+                nationality="British",
+                constructor_name="McLaren",
+            )
+        ]
+        service._set_cache(
+            year,
+            "drivers",
+            StandingsData(season=year, round=1, driver_standings=standings),
+        )
+        return standings[:limit]
+
+    monkeypatch.setattr(service, "_fetch_driver_standings", fetch_driver_standings)
+
+    results = await asyncio.gather(*(service.get_driver_standings(2026) for _ in range(5)))
+
+    assert calls == 1
+    assert all(result[0].driver_code == "NOR" for result in results)
+
+
+@pytest.mark.asyncio
+async def test_empty_driver_standings_are_negative_cached(monkeypatch):
+    service = StandingsService()
+    fetch_driver_standings = AsyncMock(return_value=[])
+    monkeypatch.setattr(service, "_fetch_driver_standings", fetch_driver_standings)
+
+    assert await service.get_driver_standings(2026) == []
+    assert await service.get_driver_standings(2026) == []
+
+    fetch_driver_standings.assert_awaited_once_with(2026, 10)

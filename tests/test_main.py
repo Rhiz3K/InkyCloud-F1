@@ -3,6 +3,7 @@
 import asyncio
 import json
 import xml.etree.ElementTree as ET
+from io import BytesIO
 from pathlib import Path
 from typing import cast
 from unittest.mock import AsyncMock, Mock, patch
@@ -17,9 +18,18 @@ from pydantic import SecretStr
 from app import main as main_module
 from app.config import LANGUAGE_CODES, config
 from app.main import app
-from app.models import ConstructorStanding, DriverStanding, StandingsData, TeamEntry, TeamsData
+from app.models import (
+    ConstructorStanding,
+    DriverStanding,
+    HistoricalData,
+    StandingsData,
+    TeamEntry,
+    TeamsData,
+)
 from app.routes import api as api_routes
 from app.routes import images as images_routes
+from app.routes import pages as pages_routes
+from app.routes import previews as previews_routes
 from app.routes.api import _get_driver_number, _get_team_id
 from app.routes.images import (
     _get_pregenerated_calendar_path,
@@ -30,10 +40,25 @@ from app.routes.images import (
 )
 from app.services.f1_service import F1Service
 from app.services.image_keys import get_teams_image_key
+from app.services.teams_service import TeamsService
 from app.state import clear_bmp_cache, get_bmp_cache
 from app.utils.rate_limit import _reset_rate_limit_state_for_tests
+from app.version import APP_VERSION
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def isolate_main_endpoint_tests_from_live_services(monkeypatch):
+    """Keep endpoint tests deterministic and independent of public upstream APIs."""
+    monkeypatch.setattr(images_routes.config, "WEATHER_ENABLED", False)
+    monkeypatch.setattr(pages_routes, "refresh_version_info", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        TeamsService,
+        "_fetch_standings",
+        AsyncMock(return_value=([], [])),
+    )
+
 
 MOCK_DRIVER_STANDINGS = [
     DriverStanding(
@@ -331,6 +356,15 @@ def test_www_host_redirects_to_canonical_apex():
     assert response.status_code == 308
     assert response.headers["location"] == "https://example.test/stats?range=7d"
     assert response.headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_responses_include_baseline_security_headers():
+    response = client.get("/health")
+
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["permissions-policy"] == "camera=(), microphone=(), geolocation=()"
 
 
 def test_www_host_redirect_ignores_site_url_port_when_matching_host():
@@ -687,6 +721,15 @@ def test_api_docs_html_contains_required_sections():
     assert "tryCalendarBmp" in html or "Try it" in html
 
 
+def test_api_docs_examples_use_configured_public_site_url():
+    with patch("app.routes.pages.config.SITE_URL", "https://public.example.test"):
+        external_host_client = TestClient(app, base_url="https://attacker.example")
+        response = external_host_client.get("/api/docs/html")
+
+    assert "https://public.example.test/calendar.bmp" in response.text
+    assert "https://attacker.example/calendar.bmp" not in response.text
+
+
 def test_api_docs_html_lang_parameter():
     """Test API docs HTML page respects ?lang= query parameter."""
     response = client.get("/api/docs/html?lang=cs")
@@ -722,6 +765,35 @@ def test_stats_dashboard_returns_html():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     assert "Statistics" in response.text or "Statistiky" in response.text
+
+
+def test_stats_dashboard_renders_zero_state_when_database_fails():
+    """The DB failure fallback must satisfy the full template contract."""
+    with (
+        patch("app.routes.pages.Database", side_effect=RuntimeError("database unavailable")),
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        response = client.get("/stats")
+
+    assert response.status_code == 200
+    assert "Total Requests" in response.text
+
+
+def test_stats_dashboard_ignores_database_close_failure():
+    """Cleanup failures must not replace an otherwise valid dashboard response."""
+    database = Mock()
+    database.get_stats_for_range = AsyncMock(return_value=pages_routes._empty_stats())
+    database.get_perf_stats = AsyncMock(return_value={"sample_count": 0})
+    database.close = AsyncMock(side_effect=RuntimeError("close failed"))
+
+    with (
+        patch("app.routes.pages.Database", return_value=database),
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        response = client.get("/stats")
+
+    assert response.status_code == 200
+    database.close.assert_awaited_once()
 
 
 def test_stats_dashboard_accepts_range_parameter():
@@ -923,6 +995,13 @@ def test_operational_api_endpoints_require_token_when_configured():
         assert response.status_code == 200
 
 
+def test_operational_api_rejects_runtime_empty_token_misconfiguration():
+    with patch.object(api_routes.config, "ADMIN_API_TOKEN", SecretStr("")):
+        response = client.get("/api/stats", headers={"X-Admin-Token": ""})
+
+    assert response.status_code == 503
+
+
 def test_perf_metrics_post_remains_public_when_operational_token_is_configured():
     """POST /api/perf-metrics stays public for browser-side web-vitals ingestion."""
     payload = {
@@ -1016,6 +1095,66 @@ def test_homepage_screen_type_cards():
     assert "/configure/teams" in html
     assert "Calendar" in html or "Kalendář" in html
     assert "Teams" in html or "Týmy" in html
+    assert f"/preview/calendar.png?lang=en&amp;v={APP_VERSION}" in html
+    assert "this.src = '/calendar.bmp?lang=en&amp;weather=false'" in html
+
+
+def test_calendar_preview_renders_dynamically_before_pregeneration(tmp_path, monkeypatch):
+    """The homepage calendar card should not show a generic image during cold start."""
+    race_data = {
+        "race_name": "Next Test Grand Prix",
+        "round": "8",
+        "season": "2026",
+        "circuit": {
+            "circuitId": "test_circuit",
+            "name": "Test Circuit",
+            "location": "Test City",
+            "country": "Test Country",
+        },
+        "race_date": "19.07.2026",
+        "schedule": [
+            {"name": "FP1", "display_time": "Fri 13:30"},
+            {"name": "Qualifying", "display_time": "Sat 16:00"},
+            {"name": "Race", "display_time": "Sun 15:00"},
+        ],
+    }
+
+    class StubF1Service:
+        """Provide deterministic static race data to the dynamic preview renderer."""
+
+        @staticmethod
+        def get_next_race_from_static():
+            """Return the fixed next race used by this test."""
+            return race_data
+
+        @staticmethod
+        def get_historical_from_static(circuit_id):
+            """Return a new-track marker for the requested test circuit."""
+            assert circuit_id == "test_circuit"
+            return HistoricalData(is_new_track=True)
+
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(previews_routes.config, "IMAGES_PATH", str(tmp_path))
+    monkeypatch.setattr(previews_routes, "F1Service", StubF1Service)
+    try:
+        response = client.get("/preview/calendar.png?lang=en")
+    finally:
+        _reset_rate_limit_state_for_tests()
+
+    image = Image.open(BytesIO(response.content))
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.headers["cache-control"] == "public, max-age=300"
+    assert image.format == "PNG"
+    assert image.size == (400, 240)
+
+
+def test_common_js_sends_beacon_payload_as_json():
+    """Web-vitals beacons must use JSON media type accepted by FastAPI."""
+    response = client.get("/static/js/common.js")
+
+    assert response.status_code == 200
+    assert 'new Blob([jsonPayload], { type: "application/json" })' in response.text
 
 
 def test_homepage_mobile_menu_button():
@@ -1309,6 +1448,20 @@ def test_configure_teams_season_buttons_do_not_duplicate_current_year():
     assert '{ label: "2026", year: 2026, disabled: true }' not in html
 
 
+def test_configure_teams_seasons_are_supplied_by_backend():
+    with (
+        patch("app.routes.pages.get_current_f1_season", return_value=2027),
+        patch("app.routes.pages.get_available_teams_years", return_value=[2025, 2026]),
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        response = client.get("/configure/teams")
+
+    assert response.status_code == 200
+    assert "const currentTeamsSeason = 2027;" in response.text
+    assert "const availableTeamsSeasons = [2027, 2026, 2025];" in response.text
+    assert "season2026Start" not in response.text
+
+
 def test_configure_calendar_screen_type():
     """Test configure calendar page has correct screen type."""
     response = client.get("/configure/calendar")
@@ -1327,6 +1480,21 @@ def test_calendar_bmp_default():
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/bmp"
     assert response.content[:2] == b"BM"
+
+
+def test_calendar_bmp_executes_real_render_pipeline(monkeypatch):
+    clear_bmp_cache()
+    monkeypatch.setattr(images_routes, "_get_pregenerated_calendar_path", lambda **_kwargs: None)
+    render_calendar = Mock(wraps=images_routes._render_calendar_bytes)
+    monkeypatch.setattr(images_routes, "_render_calendar_bytes", render_calendar)
+
+    response = client.get("/calendar.bmp?weather=false")
+
+    image = Image.open(BytesIO(response.content))
+    assert response.status_code == 200
+    assert render_calendar.call_count == 1
+    assert image.size == (800, 480)
+    assert image.mode == "1"
 
 
 def test_calendar_bmp_with_lang():
@@ -1390,7 +1558,10 @@ def test_get_race_info_for_stats_matches_string_round_values():
 
 def test_get_driver_number_uses_shared_metadata_map():
     """Driver number helper should resolve known F1 codes from shared metadata."""
-    assert _get_driver_number("VER", 2026) == 1
+    assert _get_driver_number("VER", 2026) == 3
+    assert _get_driver_number("NOR", 2026) == 1
+    assert _get_driver_number("PER", 2026) == 11
+    assert _get_driver_number("LIN", 2026) == 41
     assert _get_driver_number("UNKNOWN", 2026) is None
 
 
@@ -1481,6 +1652,7 @@ def test_calendar_bmp_rate_limit_returns_429(monkeypatch):
     assert first.status_code == 200
     assert second.status_code == 429
     assert second.json()["detail"] == "Rate limit exceeded"
+    assert second.headers["Retry-After"] == "60"
 
 
 def test_calendar_bmp_error_response_is_not_cached(monkeypatch):
@@ -1492,6 +1664,7 @@ def test_calendar_bmp_error_response_is_not_cached(monkeypatch):
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/bmp"
+    assert response.headers["cache-control"] == "no-store"
     assert response.content[:2] == b"BM"
     assert get_bmp_cache() == {}
 
@@ -1528,7 +1701,7 @@ def test_teams_bmp_default():
 
 def test_teams_bmp_with_year():
     """Test /teams.bmp with year parameter."""
-    for year in [2024, 2025]:
+    for year in [2025, 2026]:
         response = client.get(f"/teams.bmp?year={year}")
         assert response.status_code == 200
         assert response.headers["content-type"] == "image/bmp"
@@ -1568,6 +1741,21 @@ def test_teams_bmp_with_spectra6_display():
     assert int.from_bytes(response.content[28:30], byteorder="little") == 8
 
 
+def test_teams_bmp_executes_real_render_pipeline(monkeypatch):
+    clear_bmp_cache()
+    monkeypatch.setattr(images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: None)
+    render_teams = Mock(wraps=images_routes._render_teams_bytes)
+    monkeypatch.setattr(images_routes, "_render_teams_bytes", render_teams)
+
+    response = client.get("/teams.bmp?year=2026")
+
+    image = Image.open(BytesIO(response.content))
+    assert response.status_code == 200
+    assert render_teams.call_count == 1
+    assert image.size == (800, 480)
+    assert image.mode == "1"
+
+
 def test_get_pregenerated_teams_path_uses_default_year_in_filename(tmp_path, monkeypatch):
     """Pregenerated teams lookup should select the current season-specific BMP."""
     monkeypatch.setattr(images_routes.config, "IMAGES_PATH", str(tmp_path))
@@ -1597,6 +1785,27 @@ def test_teams_bmp_caches_pregenerated_assets_with_shared_image_key(tmp_path, mo
     assert "teams:en:2026:bwr" not in get_bmp_cache()
 
 
+def test_teams_bmp_falls_back_when_pregenerated_read_races_with_cleanup(monkeypatch):
+    """A vanished prebuilt image should fall through to dynamic rendering."""
+    clear_bmp_cache()
+    disappearing_path = Mock()
+    disappearing_path.read_bytes.side_effect = OSError("removed")
+    monkeypatch.setattr(
+        images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: disappearing_path
+    )
+    monkeypatch.setattr(images_routes, "run_render", AsyncMock(return_value=b"BMdynamic"))
+    teams_service_cls = Mock()
+    teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(
+        return_value=TeamsData(season=2026, teams=[], standings_complete=False)
+    )
+    monkeypatch.setattr(images_routes, "TeamsService", teams_service_cls)
+
+    response = client.get("/teams.bmp?year=2026")
+
+    assert response.status_code == 200
+    assert response.content == b"BMdynamic"
+
+
 def test_teams_bmp_does_not_cache_degraded_standings(monkeypatch):
     """A transient standings outage should not pin a degraded teams BMP in memory."""
     clear_bmp_cache()
@@ -1617,6 +1826,30 @@ def test_teams_bmp_does_not_cache_degraded_standings(monkeypatch):
     assert response.status_code == 200
     assert response.content == b"BMdynamic"
     assert get_teams_image_key("en", 2026, display="1bit") not in get_bmp_cache()
+
+
+def test_teams_bmp_redacts_internal_error_details(monkeypatch):
+    captured: dict[str, str] = {}
+
+    def render_error(_display: str, _lang: str, message: str) -> bytes:
+        captured["message"] = message
+        return b"BM"
+
+    clear_bmp_cache()
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: None)
+    teams_service_cls = Mock()
+    teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(
+        side_effect=RuntimeError("/srv/private/data.json")
+    )
+    monkeypatch.setattr(images_routes, "TeamsService", teams_service_cls)
+    monkeypatch.setattr(images_routes, "_render_error_bytes", render_error)
+
+    response = client.get("/teams.bmp?year=2026")
+
+    assert response.status_code == 200
+    assert captured["message"] == "Temporary rendering error"
+    assert response.headers["cache-control"] == "no-store"
 
 
 # ============================================================================
@@ -1651,6 +1884,39 @@ def test_perf_metrics_rate_limit_returns_429(monkeypatch):
     assert second.json()["detail"] == "Rate limit exceeded"
 
 
+def test_stats_api_reads_share_rate_limit(monkeypatch):
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(api_routes.config, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(api_routes.config, "STATS_RATE_LIMIT_PER_MINUTE", 1)
+
+    try:
+        first = client.get("/api/stats")
+        second = client.get("/api/perf-metrics")
+    finally:
+        _reset_rate_limit_state_for_tests()
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert second.headers["Retry-After"] == "60"
+
+
+def test_stats_dashboard_rate_limit_skips_head(monkeypatch):
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(pages_routes.config, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(pages_routes.config, "STATS_RATE_LIMIT_PER_MINUTE", 1)
+
+    try:
+        assert client.head("/stats").status_code == 200
+        first = client.get("/stats")
+        second = client.get("/stats")
+    finally:
+        _reset_rate_limit_state_for_tests()
+
+    assert first.status_code == 200
+    assert second.status_code == 429
+    assert "Retry-After" in second.headers
+
+
 def test_api_races_endpoint():
     """Test /api/races/{year} returns race data."""
     response = client.get("/api/races/2025")
@@ -1659,10 +1925,37 @@ def test_api_races_endpoint():
     assert "races" in data or "year" in data or isinstance(data, list)
 
 
+def test_api_info_uses_package_version():
+    response = client.get("/api")
+
+    assert response.status_code == 200
+    assert response.json()["version"] == APP_VERSION
+
+
 def test_api_races_invalid_year():
     """Test /api/races with invalid year."""
     response = client.get("/api/races/1900")
-    assert response.status_code in [200, 404]
+    assert response.status_code == 422
+
+
+def test_live_data_endpoints_reject_unsupported_year_before_fetch():
+    for path in ("/api/teams/999999", "/api/standings/leader/999999"):
+        response = client.get(path)
+        assert response.status_code == 422
+
+
+def test_teams_api_uses_shared_data_rate_limit(monkeypatch):
+    async def fake_teams(_service, year):
+        return TeamsData(season=year, teams=[], standings_complete=False)
+
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(config, "DATA_API_RATE_LIMIT_PER_MINUTE", 1)
+    monkeypatch.setattr(TeamsService, "get_teams_and_drivers", fake_teams)
+    try:
+        assert client.get("/api/teams/2026").status_code == 200
+        assert client.get("/api/teams/2026").status_code == 429
+    finally:
+        _reset_rate_limit_state_for_tests()
 
 
 # ============================================================================
@@ -1675,6 +1968,43 @@ def test_changelog_returns_html():
     response = client.get("/changelog")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
+
+
+def test_missing_changelog_message_is_localized(tmp_path):
+    """The missing-file fallback should use the active locale and remain escaped."""
+    missing_path = tmp_path / "missing.md"
+    with (
+        patch.object(pages_routes, "CHANGELOG_PATH", missing_path),
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        response = client.get("/cs/changelog")
+
+    assert response.status_code == 200
+    assert "Historie změn nebyla nalezena." in response.text
+
+
+def test_service_worker_revalidates_unversioned_fonts():
+    """Font replacements must use the same stale-while-revalidate path as other assets."""
+    service_worker = (previews_routes.ASSETS_DIR / "js" / "sw.js").read_text(encoding="utf-8")
+
+    assert 'startsWith("/static/fonts/")' not in service_worker
+    assert "event.waitUntil(network)" in service_worker
+
+
+def test_changelog_render_is_cached_by_file_version():
+    pages_routes._render_changelog_file.cache_clear()
+    with (
+        patch.object(
+            pages_routes.markdown,
+            "markdown",
+            wraps=pages_routes.markdown.markdown,
+        ) as render_markdown,
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+    ):
+        assert client.get("/changelog").status_code == 200
+        assert client.get("/changelog").status_code == 200
+
+    assert render_markdown.call_count == 1
 
 
 def test_changelog_contains_version_history():
@@ -1697,6 +2027,45 @@ def test_changelog_has_no_collapsible_sections():
     html = response.text
     assert "<details" not in html
     assert "<summary>Backend</summary>" not in html
+
+
+def test_changelog_sanitizer_blocks_extended_uri_and_inline_style_vectors():
+    from app.routes.pages import _sanitize_rendered_html
+
+    sanitized = _sanitize_rendered_html(
+        '<form action="java\tscript:alert(1)">'
+        '<button formaction="data:text/html,x">x</button>'
+        '<video poster="vbscript:alert(1)"></video>'
+        '<a xlink:href="javascript:alert(1)" style="background:url(javascript:x)">x</a>'
+        "</form>"
+    )
+
+    assert "javascript:" not in sanitized.lower()
+    assert "vbscript:" not in sanitized.lower()
+    assert "data:text" not in sanitized.lower()
+    assert "style=" not in sanitized.lower()
+
+
+def test_redirect_helper_rejects_backslash_network_paths():
+    from starlette.requests import Request
+
+    from app.routes.pages import _redirect_path
+
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [],
+            "query_string": b"",
+            "scheme": "https",
+            "server": ("example.test", 443),
+            "client": ("127.0.0.1", 1234),
+        }
+    )
+
+    with pytest.raises(ValueError, match="stay on-site"):
+        _redirect_path(request, "/\\evil.example/path")
 
 
 def test_changelog_lang_parameter():
@@ -1824,6 +2193,50 @@ def test_perf_metrics_post_invalid_payload():
     """Test POST /api/perf-metrics handles invalid payload gracefully."""
     response = client.post("/api/perf-metrics", json={"invalid": "data"})
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "error"
+    assert response.status_code == 422
+
+
+def test_perf_metrics_database_failure_returns_503(monkeypatch):
+    db = Mock(save_perf_metric=AsyncMock(side_effect=RuntimeError("database offline")))
+    db.close = AsyncMock()
+    monkeypatch.setattr(api_routes, "Database", lambda: db)
+
+    response = client.post("/api/perf-metrics", json={"page_path": "/"})
+
+    assert response.status_code == 503
+    db.close.assert_awaited_once()
+
+
+def test_operational_query_bounds_return_422():
+    assert client.get("/api/perf-metrics?hours=-100000000").status_code == 422
+    assert client.get("/api/stats/history?limit=0").status_code == 422
+
+
+@pytest.mark.parametrize(
+    ("screen_type", "renderer_name"),
+    [
+        ("calendar", "_render_calendar_preview"),
+        ("teams", "_render_teams_preview"),
+    ],
+)
+def test_dynamic_preview_preserves_rate_limit_429(
+    tmp_path, monkeypatch, screen_type, renderer_name
+):
+    """Dynamic homepage previews must preserve rate-limit responses."""
+    from fastapi.responses import Response
+
+    async def fake_preview(*_args, **_kwargs):
+        return Response(content=b"png", media_type="image/png")
+
+    _reset_rate_limit_state_for_tests()
+    monkeypatch.setattr(previews_routes.config, "IMAGES_PATH", str(tmp_path))
+    monkeypatch.setattr(previews_routes.config, "IMAGE_RATE_LIMIT_PER_MINUTE", 1)
+    monkeypatch.setattr(previews_routes, renderer_name, fake_preview)
+    try:
+        assert client.get(f"/preview/{screen_type}.png").status_code == 200
+        limited = client.get(f"/preview/{screen_type}.png")
+    finally:
+        _reset_rate_limit_state_for_tests()
+
+    assert limited.status_code == 429
+    assert "Retry-After" in limited.headers

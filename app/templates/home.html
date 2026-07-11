@@ -98,7 +98,7 @@ block og_tags %}
           class="relative bg-gray-100 border-b-4 border-black overflow-hidden"
         >
           <img
-            src="/preview/{{ screen.id }}.png?lang={{ ui_lang }}"
+            src="/preview/{{ screen.id }}.png?lang={{ ui_lang }}&amp;v={{ preview_version }}"
             alt="{{ t.get(screen.name_key, screen.id) }}"
             width="800"
             height="480"
@@ -114,7 +114,7 @@ block og_tags %}
             endif
             %}
             decoding="async"
-            onerror="this.src = '/static/images/og-preview.png'"
+            onerror="this.onerror = null; this.src = '{{ screen.fallback_url }}'"
           />
           <div
             class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"

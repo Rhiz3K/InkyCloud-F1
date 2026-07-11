@@ -7,8 +7,15 @@ on:
     branches: [ main, dev ]
   workflow_dispatch:
 
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: test
     runs-on: [self-hosted, linux]
     # SECURITY: this job runs on a persistent self-hosted runner and executes checked-out
     # code (setup.py, conftest, tests, Dockerfile). Never run untrusted fork-PR code here —
@@ -20,24 +27,28 @@ jobs:
       id-token: write  # Required for OIDC authentication with DeepSource
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       with:
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Verify CHANGELOG update for main PRs
       if: >-
         github.event_name == 'pull_request' &&
         github.base_ref == 'main' &&
-        github.event.pull_request.user.login != 'dependabot[bot]'
+        github.event.pull_request.user.login != 'dependabot[bot]' &&
+        github.event.pull_request.user.login != 'github-actions[bot]'
+      env:
+        BASE_REF: ${{ github.base_ref }}
       run: |
-        if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx "CHANGELOG.md"; then
+        if ! git diff --name-only "origin/${BASE_REF}...HEAD" | grep -qx "CHANGELOG.md"; then
           echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
           exit 1
         fi
 
     - name: Set up Python 3.13
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
       with:
         python-version: "3.13"
         cache: "pip"
@@ -46,7 +57,8 @@ jobs:
       if: >-
         github.event_name == 'pull_request' &&
         github.base_ref == 'main' &&
-        github.event.pull_request.user.login != 'dependabot[bot]'
+        github.event.pull_request.user.login != 'dependabot[bot]' &&
+        github.event.pull_request.user.login != 'github-actions[bot]'
       run: |
         python -m app.utils.release_validation
     
@@ -58,11 +70,21 @@ jobs:
     - name: Lint with ruff
       run: |
         ruff check .
+
+    - name: Type-check application
+      run: |
+        mypy
+
+    - name: Verify documentation coverage
+      run: |
+        interrogate -c pyproject.toml app scripts
     
     - name: Run tests
       run: |
         pytest tests/ -v -m "not benchmark" \
           --cov=app \
+          --cov-branch \
+          --cov-fail-under=100 \
           --cov-report=term-missing \
           --cov-report=xml
     
@@ -73,29 +95,34 @@ jobs:
   # Fork PRs are excluded from the self-hosted job above for security; run the same
   # validation for them on an ephemeral GitHub-hosted runner so community PRs still get CI.
   test-fork:
+    name: test-fork
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
     permissions:
       contents: read
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       with:
         ref: ${{ github.event.pull_request.head.sha }}
         fetch-depth: 0
+        persist-credentials: false
 
     - name: Verify CHANGELOG update for main PRs
       if: >-
         github.base_ref == 'main' &&
-        github.event.pull_request.user.login != 'dependabot[bot]'
+        github.event.pull_request.user.login != 'dependabot[bot]' &&
+        github.event.pull_request.user.login != 'github-actions[bot]'
+      env:
+        BASE_REF: ${{ github.base_ref }}
       run: |
-        if ! git diff --name-only "origin/${{ github.base_ref }}...HEAD" | grep -qx "CHANGELOG.md"; then
+        if ! git diff --name-only "origin/${BASE_REF}...HEAD" | grep -qx "CHANGELOG.md"; then
           echo "::error file=CHANGELOG.md::Pull requests targeting main must update CHANGELOG.md."
           exit 1
         fi
 
     - name: Set up Python 3.13
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
       with:
         python-version: "3.13"
         cache: "pip"
@@ -103,7 +130,8 @@ jobs:
     - name: Validate release readiness for main PRs
       if: >-
         github.base_ref == 'main' &&
-        github.event.pull_request.user.login != 'dependabot[bot]'
+        github.event.pull_request.user.login != 'dependabot[bot]' &&
+        github.event.pull_request.user.login != 'github-actions[bot]'
       run: |
         python -m app.utils.release_validation
 
@@ -116,10 +144,20 @@ jobs:
       run: |
         ruff check .
 
+    - name: Type-check application
+      run: |
+        mypy
+
+    - name: Verify documentation coverage
+      run: |
+        interrogate -c pyproject.toml app scripts
+
     - name: Run tests
       run: |
         pytest tests/ -v -m "not benchmark" \
           --cov=app \
+          --cov-branch \
+          --cov-fail-under=100 \
           --cov-report=term-missing \
           --cov-report=xml
 

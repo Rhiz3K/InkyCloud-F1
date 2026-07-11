@@ -1,3 +1,5 @@
+"""Find longest Jolpica text values used to stress-test renderer layouts."""
+
 import asyncio
 import json
 from dataclasses import asdict, dataclass
@@ -10,6 +12,8 @@ LIMIT = 100  # Max limit per docs
 
 @dataclass
 class MaxValues:
+    """Longest observed values for renderer-relevant F1 text fields."""
+
     race_name: str = ""
     circuit_name: str = ""
     circuit_locality: str = ""
@@ -21,6 +25,7 @@ class MaxValues:
 
 
 async def fetch_all_pages(client, endpoint, key_path, processor_func, max_vals):
+    """Fetch every page of an endpoint and pass each item to a processor."""
     offset = 0
     total = None
 
@@ -55,6 +60,7 @@ async def fetch_all_pages(client, endpoint, key_path, processor_func, max_vals):
 
 
 def process_driver(driver, max_vals):
+    """Update longest driver name and code values from one payload."""
     if len(driver["givenName"]) > len(max_vals.driver_given_name):
         max_vals.driver_given_name = driver["givenName"]
     if len(driver["familyName"]) > len(max_vals.driver_family_name):
@@ -64,11 +70,13 @@ def process_driver(driver, max_vals):
 
 
 def process_constructor(constructor, max_vals):
+    """Update the longest constructor name from one payload."""
     if len(constructor["name"]) > len(max_vals.constructor_name):
         max_vals.constructor_name = constructor["name"]
 
 
 def process_circuit(circuit, max_vals):
+    """Update longest circuit, locality, and country values from one payload."""
     if len(circuit["circuitName"]) > len(max_vals.circuit_name):
         max_vals.circuit_name = circuit["circuitName"]
 
@@ -80,6 +88,7 @@ def process_circuit(circuit, max_vals):
 
 
 def process_race(race, max_vals):
+    """Update the longest post-1999 race name from one payload."""
     # Only care about >= 2000 for races as requested, or just check all (super set is fine)
     # User said "since 2000"
     season = int(race.get("season", 0))
@@ -89,6 +98,7 @@ def process_race(race, max_vals):
 
 
 async def main():
+    """Scan Jolpica entities and print longest values as JSON."""
     max_vals = MaxValues()
     async with httpx.AsyncClient(timeout=30.0) as client:
         # Drivers

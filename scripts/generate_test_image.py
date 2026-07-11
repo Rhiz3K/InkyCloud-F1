@@ -1,3 +1,5 @@
+"""Generate representative English and Czech calendar BMP fixtures."""
+
 import json
 import os
 import sys
@@ -17,6 +19,7 @@ from app.services.renderer import Renderer
 
 
 def generate_test_image():
+    """Render and write representative sprint-weekend calendar images."""
     # Mock Race Data - China 2026 (Sprint Weekend)
     race_data = {
         "race_name": "Chinese",

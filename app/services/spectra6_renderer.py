@@ -1,22 +1,17 @@
 """Spectra 6 Color E-Ink Renderer for 7.3" display (800x480, 6 colors)."""
 
 import io
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
-from PIL.ImageFont import FreeTypeFont
+from PIL import Image, ImageDraw
 
-from app.config import config
-from app.models import HistoricalData, TeamsData
+from app.models import HistoricalData
+from app.services.circuit_data import load_circuits_data
 from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
-from app.services.font_utils import (
-    CJK_LANG_CODES,
-    load_brand_font,
-    load_ui_font,
-)
+from app.services.font_utils import CJK_LANG_CODES
+from app.services.renderer_base import RendererBase
 from app.services.renderer_common import (
     ASSET_CACHE_LOCK,
     build_team_header_values,
@@ -39,7 +34,6 @@ from app.services.renderer_common import (
     draw_team_logo,
     draw_team_row,
     draw_team_stats_panel,
-    draw_teams_content,
     draw_teams_header,
     draw_track_placeholder,
     draw_track_section,
@@ -49,10 +43,7 @@ from app.services.renderer_common import (
     format_team_driver_display_name,
     get_team_logo_key,
     get_text_y,
-    load_racing_font,
-    load_symbol_icon_font,
     load_track_image_asset,
-    load_weather_icon_font,
     prepare_color_track_image,
     right_align_x,
 )
@@ -60,15 +51,7 @@ from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
 
-CIRCUITS_DATA_PATH = Path(__file__).parent.parent / "assets" / "circuits_data.json"
 TRACKS_SPECTRA6_DIR = Path(__file__).parent.parent / "assets" / "tracks_spectra6"
-
-try:
-    with open(CIRCUITS_DATA_PATH, "r", encoding="utf-8") as f:
-        CIRCUITS_DATA = json.load(f)
-except Exception as e:
-    logger.warning("Failed to load circuit data: %s", e)
-    CIRCUITS_DATA = {}
 
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
 TRACKS_DIR = ASSETS_DIR / "tracks"
@@ -104,7 +87,7 @@ class Spectra6Colors:
     IDX_GREEN = 5
 
 
-class Spectra6Renderer:
+class Spectra6Renderer(RendererBase):
     """Renderer for generating 6-color images for Spectra 6 E-Ink displays."""
 
     _cached_driver_photos: dict[str, Image.Image] | None = None
@@ -114,99 +97,19 @@ class Spectra6Renderer:
 
     def __init__(self, translator: dict, lang_code: str = "en"):
         """Initialize the Spectra 6 renderer, fonts, and layout constants."""
-        self.width = config.DISPLAY_WIDTH
-        self.height = config.DISPLAY_HEIGHT
-        self.translator = translator
-        self.lang_code = lang_code
         self.colors = Spectra6Colors
-        self._racing_fonts = {22: self._load_racing_font(22)}
+        self._initialize_renderer(
+            translator,
+            lang_code,
+            include_bold_circuit_location=True,
+        )
 
-        self.fonts = {
-            "header_title": self._load_font(36, bold=True),
-            "header_subtitle": self._load_font(36, bold=True),
-            "race_name": self._load_font(20, bold=True),
-            "circuit_name": self._load_font(18, bold=True),
-            "circuit_location": self._load_font(14),
-            "circuit_location_bold": self._load_font(14, bold=True),
-            "schedule_title": self._load_font(24, bold=True),
-            "schedule_row": self._load_font(20),
-            "schedule_row_bold": self._load_font(20, bold=True),
-            "results_title": self._load_font(18, bold=True),
-            "results_year": self._load_font(36, bold=True),
-            "results_row": self._load_font(16),
-            "footer": self._load_font(12),
-            "circuit_stats": self._load_font(18),
-            "circuit_stats_value": self._load_font(18, bold=True),
-            "icon": self._load_icon_font(22),
-            "icon_small": self._load_icon_font(22),
-            "weather": self._load_font(12, bold=True),
-            "weather_icon": self._load_icon_font(40),
-            "weather_icon_font": self._load_weather_icon_font(22),
-            "driver_number": self._racing_fonts[22],
-        }
+    def _new_canvas(self) -> Image.Image:
+        """Create an RGB canvas initialized to the active palette white."""
+        return Image.new("RGB", (self.width, self.height), self.colors.WHITE)
 
-        self._driver_photos: dict[str, Image.Image] | None = None
-        self._team_logos: dict[str, Image.Image] | None = None
-
-        self.layout = {
-            "header_height": 90,
-            "header_split_x": 230,
-            "header_padding_x": 15,
-            "content_y_start": 105,
-            "left_column_width": 500,
-            "right_column_x": 510,
-            "track_padding": 10,
-            "track_map_max_height": 160,
-            "track_title_y_offset": 5,
-            "schedule_title_y": 88,
-            "schedule_start_y": 127,
-            "schedule_row_height": 22,
-            "schedule_date_x": 510,
-            "schedule_day_x": 575,
-            "schedule_time_x": 620,
-            "schedule_name_x": 680,
-            "results_y_start": 385,
-            "results_col1_x": 109,
-            "results_col2_x": 455,
-            "results_time_offset": 260,
-            "results_row_height": 20,
-            "results_title_y_offset": 5,
-            "results_data_y_offset": 4,
-            "circuit_stats_y": 320,
-            "circuit_stats_row_height": 24,
-            "driver_name_padding": 4,
-            "padding": 15,
-            "separator_width": 2,
-        }
-
-    def render_calendar(
-        self,
-        race_data: dict,
-        historical_data: HistoricalData | None = None,
-        weather_data: WeatherData | None = None,
-        weather_type: str = "",
-    ) -> bytes:
-        """Render the main calendar screen as a Spectra 6 BMP."""
-        image = Image.new("RGB", (self.width, self.height), self.colors.WHITE)
-        draw = ImageDraw.Draw(image)
-
-        self._draw_header(draw, image, race_data)
-        self._draw_track_section(draw, image, race_data)
-        schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data, weather_type)
-        self._draw_circuit_stats(draw, race_data, schedule_bottom)
-        self._draw_results_section(draw, image, race_data, historical_data)
-
-        return self._to_indexed_bmp(image)
-
-    def render_teams_drivers(self, teams_data: TeamsData) -> bytes:
-        """Render the teams and drivers dashboard as a Spectra 6 BMP."""
-        self._ensure_teams_assets()
-        image = Image.new("RGB", (self.width, self.height), self.colors.WHITE)
-        draw = ImageDraw.Draw(image)
-
-        self._draw_teams_header(draw, image, teams_data.season)
-        self._draw_teams_content(image, draw, teams_data.teams)
-
+    def _encode_image(self, image: Image.Image) -> bytes:
+        """Encode an RGB canvas as a palette-indexed BMP payload."""
         return self._to_indexed_bmp(image)
 
     def render_error(self, error_message: str) -> bytes:
@@ -262,20 +165,6 @@ class Spectra6Renderer:
                     .convert("RGB")
                 ),
             ),
-        )
-
-    def _draw_teams_content(
-        self, image: Image.Image, draw: ImageDraw.ImageDraw, teams: list
-    ) -> None:
-        """Lay out the team cards into two balanced columns."""
-        draw_teams_content(
-            image,
-            draw,
-            teams,
-            canvas_width=self.width,
-            canvas_height=self.height,
-            header_height=self.layout["header_height"],
-            draw_team_row_fn=self._draw_team_row,
         )
 
     def _draw_driver_photo(
@@ -424,6 +313,7 @@ class Spectra6Renderer:
             header_height: int,
             _badge_pad_x: int,
         ) -> int:
+            """Render the color team standings summary for this row."""
             return self._draw_team_stats_panel_color(
                 draw,
                 y,
@@ -447,6 +337,7 @@ class Spectra6Renderer:
             driver_pos_x: int,
             badge_pad_x: int,
         ) -> None:
+            """Render one color driver entry for this team row."""
             self._draw_team_driver_row_color(
                 draw,
                 image,
@@ -469,6 +360,7 @@ class Spectra6Renderer:
             logo_container_left: int,
             logo_container_right: int,
         ) -> None:
+            """Render the alpha-aware team logo into this color row."""
             self._ensure_teams_assets()
             draw_team_logo(
                 image,
@@ -539,17 +431,6 @@ class Spectra6Renderer:
             ),
         )
 
-    def _ensure_teams_assets(self) -> None:
-        """Lazy-load cached driver and team assets used by the teams screen."""
-        if self._driver_photos is None:
-            self._driver_photos = self._get_cached_driver_photos()
-        if self._team_logos is None:
-            self._team_logos = self._get_cached_team_logos()
-
-    def ensure_teams_assets(self) -> None:
-        """Public warmup hook for teams assets used outside the renderer."""
-        self._ensure_teams_assets()
-
     def _draw_track_section(
         self,
         draw: ImageDraw.ImageDraw,
@@ -581,13 +462,16 @@ class Spectra6Renderer:
     @staticmethod
     def _load_track_image(race_data: dict) -> Image.Image | None:
         """Load the best available Spectra 6 track image for a race."""
-        return load_track_image_asset(
+        track_image = load_track_image_asset(
             build_track_stems(race_data),
             source_dir=TRACKS_DIR,
             variant_suffix="spectra6",
             fallback_dir=TRACKS_SPECTRA6_DIR,
             logger=logger,
         )
+        # Pillow resizes palette-mode images with nearest-neighbour semantics even when
+        # LANCZOS is requested. Normalize processed BMP fallbacks before layout resizing.
+        return track_image.convert("RGB") if track_image is not None else None
 
     def _session_palette_color(self, color_name: str) -> tuple[int, int, int]:
         """Return a session accent color, falling back to black when unsupported."""
@@ -694,6 +578,7 @@ class Spectra6Renderer:
             icon_small_font=self.fonts["icon_small"],
             weather_icon_font=self.fonts["weather_icon_font"],
             translator=self.translator,
+            lang_code=self.lang_code,
             datetime_cls=datetime,
             text_baseline_ref=TEXT_BASELINE_REF,
             rain_icon=RAINDROP_ICON,
@@ -713,7 +598,7 @@ class Spectra6Renderer:
         """Draw the right-column circuit facts between schedule and results."""
         circuit_id = race_data.get("circuit", {}).get("circuitId", "")
         mapped_id = CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
-        circuit_data = CIRCUITS_DATA.get(mapped_id, {})
+        circuit_data = load_circuits_data().get(mapped_id, {})
 
         draw_circuit_stats_block(
             draw,
@@ -819,34 +704,6 @@ class Spectra6Renderer:
             split_position_prefix=True,
         )
 
-    def _load_font(self, size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the main UI font for the active locale."""
-        return load_ui_font(self.lang_code, size, bold=bold)
-
-    @staticmethod
-    def _load_brand_font(size: int, bold: bool = False) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the default Latin UI font used for non-localized text."""
-        return load_brand_font(size, bold=bold)
-
-    @staticmethod
-    def _load_icon_font(size: int) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the fallback icon font used for symbols."""
-        return load_symbol_icon_font(size, logger)
-
-    def _load_weather_icon_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the weather icon font with a symbol fallback."""
-        return load_weather_icon_font(size, logger, self._load_icon_font)
-
-    def _load_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
-        """Load the stylized racing number font used for driver numbers."""
-        return load_racing_font(size, logger, self._load_font)
-
-    def _get_racing_font(self, size: int) -> FreeTypeFont | ImageFont.ImageFont:
-        """Return a cached racing-style font at the requested size."""
-        if size not in self._racing_fonts:
-            self._racing_fonts[size] = self._load_racing_font(size)
-        return self._racing_fonts[size]
-
     @staticmethod
     def _load_driver_photos() -> dict[str, Image.Image]:
         """Load driver portraits used by the teams screen."""
@@ -869,12 +726,18 @@ class Spectra6Renderer:
     def _get_cached_driver_photos(cls) -> dict[str, Image.Image]:
         """Return the process-wide cache of color driver portraits."""
         cache_key = str(IMAGES_DIR)
-        if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
+        if (
+            Spectra6Renderer._cached_driver_photos is None
+            or Spectra6Renderer._cached_driver_photos_key != cache_key
+        ):
             with _ASSET_CACHE_LOCK:
-                if cls._cached_driver_photos is None or cls._cached_driver_photos_key != cache_key:
-                    cls._cached_driver_photos = cls._load_driver_photos()
-                    cls._cached_driver_photos_key = cache_key
-        return cls._cached_driver_photos
+                if (
+                    Spectra6Renderer._cached_driver_photos is None
+                    or Spectra6Renderer._cached_driver_photos_key != cache_key
+                ):
+                    Spectra6Renderer._cached_driver_photos = cls._load_driver_photos()
+                    Spectra6Renderer._cached_driver_photos_key = cache_key
+        return Spectra6Renderer._cached_driver_photos
 
     @classmethod
     def _load_team_logos(cls) -> dict[str, Image.Image]:

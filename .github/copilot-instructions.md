@@ -88,8 +88,8 @@ DEBUG=true python -m app.main
 # Test suite (must pass before PR)
 pytest
 
-# Run tests with coverage
-pytest --cov=app tests/
+# Run the strict statement + branch coverage gate
+pytest tests/ -m "not benchmark" --cov=app --cov-branch --cov-fail-under=100 --cov-report=term-missing
 
 # Lint & format (CI enforced)
 ruff check .
