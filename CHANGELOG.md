@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Persistent F1 data** - Store mutable circuit history beside the SQLite database, reload atomic file versions without restarting, preserve maintained history during scraping, and mark daily refreshes complete only after a successful upstream run
 - **Upstream resilience** - Share the configured Jolpica base URL, coalesce standings fetches, cache bounded misses, honor `Retry-After` with jitter, and serve the latest completed race during an empty off-season calendar
 - **Rendering correctness and efficiency** - Select active team drivers by round, enforce the fixed 800x480 canvas, use a 64 MiB decoded-asset cache, accelerate BWR/BWRY palette mapping, reuse cached fallback tracks, and pluralize countdown units per locale including French and Brazilian Portuguese zero forms
-- **Storage durability** - Fsync atomic files and parent directories with unsupported-filesystem fallbacks, serialize cancellation-safe schema setup, close partially configured SQLite connections, cap statistics history and performance samples, report percentile sample sizes, and remove reset sidecars safely
+- **Storage durability** - Fsync atomic files and parent directories with unsupported-filesystem fallbacks, serialize cancellation-safe schema setup, close partially configured SQLite connections, retain 400 days of statistics by default so the 365-day dashboard remains complete, cap performance samples, report percentile sample sizes, and remove reset sidecars safely
 
 #### Changed
 

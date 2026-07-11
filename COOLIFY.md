@@ -106,9 +106,14 @@ SENTRY_ENVIRONMENT=production
 UMAMI_ENABLED=true
 UMAMI_WEBSITE_ID=your-website-id
 UMAMI_API_URL=https://your-analytics-domain.com/api/send
+STATS_RETENTION_DAYS=400
 ```
 
 `SITE_URL` must match the public apex domain of this deployment. It is used for canonical tags, `robots.txt`, `sitemap.xml`, Open Graph URLs, and the app-level `www` redirect. It is separate from `ANALYTICS_HOSTNAME`.
+
+Keep `STATS_RETENTION_DAYS` at `400` or set it to `0` (unlimited) for a complete `365D`
+statistics view. Existing deployments configured with `90` must update the Coolify environment
+variable and redeploy. Previously pruned rows cannot be reconstructed.
 
 ### Step 4: Deploy
 
@@ -163,6 +168,12 @@ Average build time: **2-3 minutes**
 | `APP_HOST` | `0.0.0.0` | Bind address (always 0.0.0.0 in containers) |
 | `APP_PORT` | `8000`    | Application port                            |
 | `DEBUG`    | `false`   | Debug mode (use `false` in production)      |
+
+### Optional - Statistics Retention
+
+| Variable               | Default | Description                                                       |
+| ---------------------- | ------- | ----------------------------------------------------------------- |
+| `STATS_RETENTION_DAYS` | `400`   | Days to retain statistics (`0` = unlimited; keep at least `365`) |
 
 ### Optional - Monitoring
 

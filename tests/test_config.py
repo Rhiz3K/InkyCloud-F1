@@ -39,6 +39,14 @@ def test_config_defaults():
     assert config.DISPLAY_HEIGHT == 480
     assert config.DEFAULT_LANG in config_module.LANGUAGE_CODES
     assert config.STATS_RATE_LIMIT_PER_MINUTE == 60
+    assert config.STATS_RETENTION_DAYS == 400
+
+
+def test_default_stats_retention_covers_longest_dashboard_range():
+    """The shipped retention must preserve every selectable dashboard range."""
+    config = config_module.Config(_env_file=None)
+
+    assert config.STATS_RETENTION_DAYS == 0 or config.STATS_RETENTION_DAYS >= 365
 
 
 @pytest.mark.parametrize("field_name", ["DATABASE_PATH", "IMAGES_PATH"])
@@ -60,6 +68,7 @@ def test_shipped_example_env_files_boot(env_file, monkeypatch):
     config = config_module.Config(_env_file=env_file)
 
     assert config.ADMIN_API_TOKEN is None
+    assert config.STATS_RETENTION_DAYS == 400
 
 
 @pytest.mark.parametrize(
@@ -106,7 +115,7 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert str(config.OPEN_METEO_ARCHIVE_URL) == "https://archive-api.open-meteo.com/v1/archive"
     assert config.SENTRY_TRACES_SAMPLE_RATE == 0.1
     assert config.DEFAULT_LANG == "en"
-    assert config.STATS_RETENTION_DAYS == 90
+    assert config.STATS_RETENTION_DAYS == 400
 
 
 def test_translator_english():

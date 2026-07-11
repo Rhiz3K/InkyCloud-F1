@@ -298,6 +298,7 @@ IMAGES_PATH=/app/data/images
 
 # Scheduler Configuration
 SCHEDULER_ENABLED=true
+STATS_RETENTION_DAYS=400
 ```
 
 `SITE_URL` is required for correct canonical tags, `robots.txt`, `sitemap.xml`, Open Graph URLs, and the app-level `www` to apex redirect. `ANALYTICS_HOSTNAME` only affects analytics reporting and does not replace `SITE_URL`.
@@ -318,6 +319,7 @@ SCHEDULER_ENABLED=true
 | `DATABASE_PATH`                                                 | `/app/data/f1.db`  | SQLite database location (absolute path for containers) |
 | `IMAGES_PATH`                                                   | `/app/data/images` | Generated preview images (absolute path for containers) |
 | `SCHEDULER_ENABLED`                                             | `true`             | Background data refresh                                 |
+| `STATS_RETENTION_DAYS`                                          | `400`              | Statistics history in days (`0` = unlimited; use at least `365` for the full dashboard range) |
 | `BACKUP_ENABLED`                                                | `false`            | Enable S3 database backup                               |
 | `BACKUP_CRON`                                                   | `0 3 * * *`        | Backup schedule (cron expression)                       |
 | `BACKUP_RETENTION_DAYS`                                         | `30`               | Days to keep old backups (0 = keep all)                 |
