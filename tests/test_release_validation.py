@@ -224,8 +224,11 @@ def test_release_validation_main_reports_success(latest_tag, monkeypatch, capsys
     assert f"latest tag {latest_tag or 'none'}" in output
 
 
-def test_release_validation_module_entrypoint():
+def test_release_validation_module_entrypoint(monkeypatch, capsys):
+    monkeypatch.setattr(release_validation.subprocess, "check_output", lambda *_a, **_k: "")
+
     with pytest.raises(SystemExit) as exc_info:
         runpy.run_path(str(release_validation.__file__), run_name="__main__")
 
     assert exc_info.value.code == 0
+    assert "latest tag none" in capsys.readouterr().out

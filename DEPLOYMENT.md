@@ -144,6 +144,9 @@ ANALYTICS_HOSTNAME=f1.yourdomain.com
 JOLPICA_API_URL=https://api.jolpi.ca/ergast/f1/current/next.json
 REQUEST_TIMEOUT=10
 
+# Statistics (400 preserves the full 365-day dashboard; 0 keeps all history)
+STATS_RETENTION_DAYS=400
+
 # Language
 DEFAULT_LANG=en
 ```
