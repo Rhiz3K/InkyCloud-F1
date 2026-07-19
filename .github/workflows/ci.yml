@@ -91,6 +91,8 @@ jobs:
     - name: Test Docker build
       run: |
         docker build -t f1-eink-cal:test .
+        docker run --rm --entrypoint python --workdir /tmp f1-eink-cal:test \
+          -c "from app.services import scheduler; assert scheduler.update_historical_results.__module__ == 'app.services.historical_refresh'"
 
   # Fork PRs are excluded from the self-hosted job above for security; run the same
   # validation for them on an ephemeral GitHub-hosted runner so community PRs still get CI.
@@ -164,3 +166,5 @@ jobs:
     - name: Test Docker build
       run: |
         docker build -t f1-eink-cal:test .
+        docker run --rm --entrypoint python --workdir /tmp f1-eink-cal:test \
+          -c "from app.services import scheduler; assert scheduler.update_historical_results.__module__ == 'app.services.historical_refresh'"

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.33] - 2026-07-19
+
+### Frontend
+
+#### Added
+
+- **Hungaroring track assets** - Add the source PSD and B/W, B/W/R, B/W/R/Y, and Spectra 6 rendered track images for Hungaroring display support
+
+### Development
+
+#### Fixed
+
+- **Production scheduler packaging check** - Import the historical refresh binding from the final Docker image outside the application working directory so CI catches dependencies on repository-only scripts
+
 ## [1.2.32] - 2026-07-11
 
 ### Backend
