@@ -189,21 +189,23 @@ def _load_cjk_font(lang_code: str, size: int) -> FreeTypeFont | ImageFont.ImageF
     return None
 
 
-def load_symbol_icon_font(size: int, logger) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+def load_symbol_icon_font(
+    size: int, target_logger: logging.Logger
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load the Symbola fallback icon font used for symbols and emoji-style glyphs."""
     symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
     font = load_optional_truetype(
         symbola_path,
         size,
         label="Symbola",
-        target_logger=logger,
+        target_logger=target_logger,
     )
     return font or ImageFont.load_default()
 
 
 def load_weather_icon_font(
     size: int,
-    logger,
+    target_logger: logging.Logger,
     load_icon_font,
 ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load the weather icon font with a Symbola fallback."""
@@ -212,14 +214,14 @@ def load_weather_icon_font(
         font_path,
         size,
         label="Weather Icons",
-        target_logger=logger,
+        target_logger=target_logger,
     )
     return font or load_icon_font(size)
 
 
 def load_racing_font(
     size: int,
-    logger,
+    target_logger: logging.Logger,
     load_ui_font_fallback,
 ) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Load the stylized racing number font with a UI-font fallback."""
@@ -228,7 +230,7 @@ def load_racing_font(
         font_path,
         size,
         label="Racing Sans One",
-        target_logger=logger,
+        target_logger=target_logger,
     )
     if font is not None:
         return font

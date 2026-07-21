@@ -363,7 +363,7 @@ async def test_empty_driver_standings_are_negative_cached(monkeypatch):
     fetch_driver_standings.assert_awaited_once_with(2026, 10)
 
 
-"""Extended cache and error coverage for championship standings."""
+# Extended cache and error coverage for championship standings.
 
 
 @pytest.fixture(autouse=True)

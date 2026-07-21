@@ -20,7 +20,6 @@ from pydantic import SecretStr
 from starlette.requests import Request
 
 from app import main
-from app import main as main_module
 from app.config import LANGUAGE_CODES, config
 from app.main import app
 from app.models import (
@@ -575,7 +574,7 @@ async def test_lifespan_cancels_initial_generation_before_closing_resources():
         patch("app.main.close_shared_http_clients", fake_close_shared_http_clients),
         patch("app.main.close_shared_database", fake_close_all_databases),
     ):
-        async with main_module.lifespan(app):
+        async with main.lifespan(app):
             await asyncio.sleep(0)
 
     assert events == [
@@ -2060,8 +2059,6 @@ def test_changelog_sanitizer_blocks_extended_uri_and_inline_style_vectors():
 
 
 def test_redirect_helper_rejects_backslash_network_paths():
-    from starlette.requests import Request
-
     from app.routes.pages import _redirect_path
 
     request = Request(
@@ -2255,7 +2252,7 @@ def test_dynamic_preview_preserves_rate_limit_429(
     assert "Retry-After" in limited.headers
 
 
-"""Extended startup, persistence, and ASGI middleware coverage."""
+# Extended startup, persistence, and ASGI middleware coverage.
 
 
 async def _receive():

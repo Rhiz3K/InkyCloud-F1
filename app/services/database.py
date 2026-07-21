@@ -5,6 +5,7 @@ import logging
 import threading
 import weakref
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import AsyncIterator, ClassVar, Optional
@@ -1282,7 +1283,14 @@ class Database:
             return cursor.rowcount
 
 
-_shared_database: Database | None = None
+@dataclass(slots=True)
+class _SharedDatabaseState:
+    """Own the mutable application-scoped database reference."""
+
+    database: Database | None = None
+
+
+_shared_database = _SharedDatabaseState()
 
 
 def get_database() -> Database:
@@ -1292,16 +1300,16 @@ def get_database() -> Database:
     embedded deployments that replace ``DATABASE_PATH`` isolated without making callers own
     connection lifetimes again.
     """
-    global _shared_database
-    if _shared_database is None or _shared_database.db_path != config.DATABASE_PATH:
-        _shared_database = Database(config.DATABASE_PATH)
-    return _shared_database
+    database = _shared_database.database
+    if database is None or database.db_path != config.DATABASE_PATH:
+        database = Database(config.DATABASE_PATH)
+        _shared_database.database = database
+    return database
 
 
 async def close_shared_database() -> None:
     """Close and clear the application-scoped database service."""
-    global _shared_database
-    database = _shared_database
-    _shared_database = None
+    database = _shared_database.database
+    _shared_database.database = None
     if database is not None:
         await database.close()

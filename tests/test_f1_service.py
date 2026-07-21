@@ -9,7 +9,6 @@ import pytest
 
 from app.models import Circuit, Location, Race, RaceSession
 from app.services import f1_service as f1
-from app.services import f1_service as f1_service_module
 from app.services.f1_service import F1Service
 from app.services.http_client import _reset_shared_http_clients_for_tests
 
@@ -157,7 +156,7 @@ def test_get_all_races_from_static_marks_cancelled_races(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(f1_service_module, "SEASONS_DIR", seasons_dir)
+    monkeypatch.setattr(f1, "SEASONS_DIR", seasons_dir)
 
     races = F1Service().get_all_races_from_static(2026)
 
@@ -175,7 +174,7 @@ def test_static_season_loader_rejects_symlinked_files(tmp_path, monkeypatch):
     outside_file = tmp_path / "2026.json"
     outside_file.write_text('{"races": []}', encoding="utf-8")
     (seasons_dir / "2026.json").symlink_to(outside_file)
-    monkeypatch.setattr(f1_service_module, "SEASONS_DIR", seasons_dir)
+    monkeypatch.setattr(f1, "SEASONS_DIR", seasons_dir)
 
     assert F1Service.get_season_from_static(2026) == []
 
@@ -239,7 +238,7 @@ async def test_get_season_races_merges_cancelled_races_from_static(tmp_path, mon
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(f1_service_module, "SEASONS_DIR", seasons_dir)
+    monkeypatch.setattr(f1, "SEASONS_DIR", seasons_dir)
 
     live_response = {
         "MRData": {
@@ -329,7 +328,7 @@ def test_next_race_static_uses_last_completed_race_for_empty_offseason(monkeypat
         time="13:00:00Z",
     )
 
-    monkeypatch.setattr(f1_service_module, "datetime", FrozenDateTime)
+    monkeypatch.setattr(f1, "datetime", FrozenDateTime)
     monkeypatch.setattr(
         F1Service,
         "get_season_from_static",
@@ -349,9 +348,9 @@ async def test_get_season_races_uses_configured_api_base_url(monkeypatch):
     service.api_base_url = "https://mirror.example.com/custom/f1"
     mock_fetch = AsyncMock(return_value=MockResponse({"MRData": {"RaceTable": {"Races": []}}}))
 
-    monkeypatch.setattr(f1_service_module, "fetch_with_retry", mock_fetch)
+    monkeypatch.setattr(f1, "fetch_with_retry", mock_fetch)
     monkeypatch.setattr(
-        f1_service_module,
+        f1,
         "get_shared_http_client",
         lambda *args, **kwargs: object(),
     )
@@ -387,12 +386,12 @@ async def test_get_season_races_handles_null_circuit_and_missing_time(monkeypatc
     )
 
     monkeypatch.setattr(
-        f1_service_module,
+        f1,
         "fetch_with_retry",
         AsyncMock(return_value=mock_response),
     )
     monkeypatch.setattr(
-        f1_service_module,
+        f1,
         "get_shared_http_client",
         lambda *args, **kwargs: object(),
     )
@@ -406,7 +405,7 @@ async def test_get_season_races_handles_null_circuit_and_missing_time(monkeypatc
     assert races[0]["datetime"] == "2026-03-08T12:00:00+00:00"
 
 
-"""Extended validation and fallback coverage for the F1 data service."""
+# Extended validation and fallback coverage for the F1 data service.
 
 
 def _race(

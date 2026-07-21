@@ -698,7 +698,7 @@ class TestCircuitWeatherCache:
         assert get_cached_circuit_weather("test_circuit") is None
 
 
-"""Extended edge-case coverage for weather fetching and cache restoration."""
+# Extended edge-case coverage for weather fetching and cache restoration.
 
 
 def _http_status_error(status_code: int) -> httpx.HTTPStatusError:

@@ -21,7 +21,6 @@ from app.models import (
 )
 from app.services import bwr_renderer as bwr_renderer_module
 from app.services import bwry_renderer as bwry_renderer_module
-from app.services import renderer, spectra6_renderer
 from app.services import renderer as renderer_module
 from app.services import renderer_base as renderer_base_module
 from app.services import spectra6_renderer as spectra6_renderer_module
@@ -2457,7 +2456,7 @@ def test_results_section_uses_renderer_results_header_hook(
     assert captured["visual_top"] == 0
 
 
-"""Narrow renderer edge cases that are not exercised by full-image snapshots."""
+# Narrow renderer edge cases that are not exercised by full-image snapshots.
 
 
 def _team_row_renderer_state(lang_code: str, theme):
@@ -2518,7 +2517,7 @@ def test_monochrome_driver_loader_handles_alpha_and_corrupt_files(tmp_path, monk
     portrait.putdata([(0, 0, 0, 255), (0, 0, 0, 0)])
     portrait.save(drivers / "driver.png")
     (drivers / "broken.png").write_bytes(b"not an image")
-    monkeypatch.setattr(renderer, "IMAGES_DIR", tmp_path)
+    monkeypatch.setattr(renderer_module, "IMAGES_DIR", tmp_path)
 
     photos = Renderer._load_driver_photos()
 
@@ -2531,8 +2530,8 @@ def test_monochrome_team_logo_loader_skips_missing_dir_and_corrupt_asset(tmp_pat
     teams = tmp_path / "teams"
     teams.mkdir()
     (teams / "broken.png").write_bytes(b"not an image")
-    monkeypatch.setattr(renderer, "TEAMS_COLOR_DIR", tmp_path / "missing-color")
-    monkeypatch.setattr(renderer, "IMAGES_DIR", tmp_path)
+    monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", tmp_path / "missing-color")
+    monkeypatch.setattr(renderer_module, "IMAGES_DIR", tmp_path)
 
     assert Renderer._load_team_logos() == {}
 
@@ -2543,7 +2542,7 @@ def test_sauber_normalizer_ignores_non_tuple_pixels(monkeypatch):
     source = MagicMock()
     source.convert.return_value = rgba
     normalized = MagicMock()
-    monkeypatch.setattr(renderer.Image, "new", MagicMock(return_value=normalized))
+    monkeypatch.setattr(renderer_module.Image, "new", MagicMock(return_value=normalized))
 
     assert Renderer.normalize_sauber_logo_for_non_spectra(source) is normalized
     normalized.putpixel.assert_not_called()
@@ -2609,7 +2608,7 @@ def test_spectra_driver_loader_handles_corrupt_asset(tmp_path, monkeypatch):
     drivers = tmp_path / "drivers"
     drivers.mkdir()
     (drivers / "broken.png").write_bytes(b"not an image")
-    monkeypatch.setattr(spectra6_renderer, "IMAGES_DIR", tmp_path)
+    monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", tmp_path)
 
     assert Spectra6Renderer._load_driver_photos() == {}
 
@@ -2618,8 +2617,8 @@ def test_spectra_team_logo_loader_skips_missing_dir_and_corrupt_asset(tmp_path, 
     teams = tmp_path / "teams"
     teams.mkdir()
     (teams / "broken.png").write_bytes(b"not an image")
-    monkeypatch.setattr(spectra6_renderer, "TEAMS_COLOR_DIR", tmp_path / "missing-color")
-    monkeypatch.setattr(spectra6_renderer, "IMAGES_DIR", tmp_path)
+    monkeypatch.setattr(spectra6_renderer_module, "TEAMS_COLOR_DIR", tmp_path / "missing-color")
+    monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", tmp_path)
 
     assert Spectra6Renderer._load_team_logos() == {}
 

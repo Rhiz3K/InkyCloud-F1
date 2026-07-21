@@ -47,7 +47,7 @@ def test_decoded_image_cache_evicts_by_bytes(tmp_path, monkeypatch):
     assert len(cache) == 1
 
 
-"""Focused edge-case coverage for shared renderer primitives."""
+# Focused edge-case coverage for shared renderer primitives.
 
 
 def test_decoded_image_larger_than_cache_budget_is_not_cached(tmp_path, monkeypatch):

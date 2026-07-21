@@ -36,7 +36,7 @@ def read_etag_sidecar(image_path: Path) -> str | None:
         etag = lines[1]
         if image_path.stat().st_mtime_ns != recorded_mtime_ns:
             return None
-    except OSError, UnicodeError, ValueError:
+    except OSError, ValueError:
         return None
     return etag if _STRONG_ETAG_RE.fullmatch(etag) else None
 

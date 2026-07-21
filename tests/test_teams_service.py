@@ -10,7 +10,6 @@ import pytest
 
 from app.models import TeamDriverEntry, TeamEntry, TeamsData
 from app.services import teams_service as teams
-from app.services import teams_service as teams_service_module
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.utils.f1_season import get_current_f1_season
 
@@ -43,7 +42,7 @@ def test_bundled_teams_loader_rejects_symlinked_files(tmp_path, monkeypatch):
     outside_file = tmp_path / "2026_teams.json"
     outside_file.write_text('{"year": 2026, "teams": []}', encoding="utf-8")
     (seasons_dir / "2026_teams.json").symlink_to(outside_file)
-    monkeypatch.setattr(teams_service_module, "SEASONS_DIR", seasons_dir)
+    monkeypatch.setattr(teams, "SEASONS_DIR", seasons_dir)
 
     assert TeamsService()._load_from_json(2026) is None
 
@@ -207,14 +206,14 @@ async def test_api_fallback_without_standings_is_not_cacheable(monkeypatch):
             )
         return Response({"MRData": {"StandingsTable": {"StandingsLists": []}}})
 
-    monkeypatch.setattr(teams_service_module, "fetch_with_retry", fake_fetch)
+    monkeypatch.setattr(teams, "fetch_with_retry", fake_fetch)
 
     data = await TeamsService()._fetch_from_api(2025)
 
     assert len(data.teams) == 1
     assert data.teams[0].drivers == []
     assert data.standings_complete is False
-    assert teams_service_module.is_teams_data_cacheable(data) is False
+    assert teams.is_teams_data_cacheable(data) is False
 
 
 @pytest.mark.asyncio
@@ -257,7 +256,7 @@ async def test_waiting_fetch_rechecks_negative_cache_inside_lock(monkeypatch):
     service._negative_cache.clear()
 
 
-"""Extended coverage for teams API normalization and cache behavior."""
+# Extended coverage for teams API normalization and cache behavior.
 
 
 @pytest.fixture(autouse=True)

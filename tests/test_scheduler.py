@@ -11,9 +11,6 @@ from PIL import Image
 
 from app.models import TeamEntry, TeamsData
 from app.services import scheduler, scheduler_generation, scheduler_maintenance
-from app.services import scheduler as scheduler_wiring
-from app.services import scheduler_generation as generation
-from app.services import scheduler_maintenance as maintenance
 from app.services import scheduler_weather as weather_jobs
 from app.services.historical_refresh import HistoricalRefreshResult
 from app.services.image_keys import get_teams_image_key
@@ -157,12 +154,12 @@ def test_start_scheduler_registers_daily_historical_refresh(monkeypatch):
         def start():
             return None
 
-    monkeypatch.setattr(scheduler_wiring, "scheduler", None)
-    monkeypatch.setattr(scheduler_wiring.config, "SCHEDULER_ENABLED", True)
-    monkeypatch.setattr(scheduler_wiring.config, "WEATHER_ENABLED", False)
-    monkeypatch.setattr(scheduler_wiring, "AsyncIOScheduler", lambda **_kwargs: FakeScheduler())
+    monkeypatch.setattr(scheduler, "scheduler", None)
+    monkeypatch.setattr(scheduler.config, "SCHEDULER_ENABLED", True)
+    monkeypatch.setattr(scheduler.config, "WEATHER_ENABLED", False)
+    monkeypatch.setattr(scheduler, "AsyncIOScheduler", lambda **_kwargs: FakeScheduler())
 
-    scheduler_wiring.start_scheduler()
+    scheduler.start_scheduler()
 
     historical_job = next(
         (job for job in added_jobs if job["id"] == "historical_results_refresh"),
@@ -415,21 +412,21 @@ async def test_generate_teams_bmp_variants_treats_incomplete_standings_as_failur
     db.save_generated_image.assert_not_awaited()
 
 
-"""Extended behavioral coverage for scheduler jobs and helpers."""
+# Extended behavioral coverage for scheduler jobs and helpers.
 
 
 @pytest.mark.asyncio
 async def test_scheduler_locks_are_reused_within_event_loop():
     from app.utils.async_locks import get_loop_lock
 
-    assert get_loop_lock(generation._generation_locks) is get_loop_lock(
-        generation._generation_locks
+    assert get_loop_lock(scheduler_generation._generation_locks) is get_loop_lock(
+        scheduler_generation._generation_locks
     )
     assert get_loop_lock(weather_jobs._weather_fetch_locks) is get_loop_lock(
         weather_jobs._weather_fetch_locks
     )
-    assert get_loop_lock(maintenance._historical_refresh_locks) is get_loop_lock(
-        maintenance._historical_refresh_locks
+    assert get_loop_lock(scheduler_maintenance._historical_refresh_locks) is get_loop_lock(
+        scheduler_maintenance._historical_refresh_locks
     )
 
 
@@ -445,12 +442,14 @@ def test_render_variant_helpers_construct_renderer_in_calling_thread():
         patch("app.services.scheduler_generation.create_renderer", return_value=renderer) as create,
     ):
         assert (
-            generation._render_calendar_variant_bytes(
+            scheduler_generation._render_calendar_variant_bytes(
                 "en", "1bit", {"race": 1}, {"history": 1}, None, "off"
             )
             == b"calendar"
         )
-        assert generation._render_teams_variant_bytes("cs", "bwr", {"teams": 1}) == b"teams"
+        assert (
+            scheduler_generation._render_teams_variant_bytes("cs", "bwr", {"teams": 1}) == b"teams"
+        )
 
     assert translator.call_args_list == [call("en"), call("cs")]
     assert create.call_args_list == [
@@ -473,7 +472,7 @@ async def test_preview_generation_isolates_conversion_failures(tmp_path, screen)
         ),
         patch("app.services.scheduler_generation._atomic_write_bytes", new=AsyncMock()) as write,
     ):
-        await generation.generate_preview_pngs(["off"], 2026)
+        await scheduler_generation.generate_preview_pngs(["off"], 2026)
 
     write.assert_not_awaited()
 
@@ -485,7 +484,7 @@ async def test_generate_variant_persists_success_and_returns_none_on_failure(tmp
         patch("app.services.scheduler_generation.run_render", new=AsyncMock(return_value=b"bmp")),
         patch("app.services.scheduler_generation._write_bmp_artifact", new=AsyncMock()) as write,
     ):
-        image_path = await generation._generate_variant(
+        image_path = await scheduler_generation._generate_variant(
             tmp_path,
             db,
             {"race": 1},
@@ -506,7 +505,7 @@ async def test_generate_variant_persists_success_and_returns_none_on_failure(tmp
         new=AsyncMock(side_effect=RuntimeError("render failed")),
     ):
         assert (
-            await generation._generate_variant(
+            await scheduler_generation._generate_variant(
                 tmp_path, db, {}, None, None, "en", None, "1bit", "off"
             )
             is None
@@ -524,7 +523,7 @@ def test_delete_stale_bmps_keeps_only_current_outputs(tmp_path):
     keep_sidecar.touch()
     orphan_sidecar.touch()
 
-    assert generation._delete_stale_bmps(tmp_path, keep={keep}) == 1
+    assert scheduler_generation._delete_stale_bmps(tmp_path, keep={keep}) == 1
     assert keep.exists()
     assert keep_sidecar.exists()
     assert not orphan_sidecar.exists()
@@ -544,7 +543,7 @@ def test_load_historical_data_handles_missing_values(race_data, historical, expe
         "app.services.scheduler_generation.F1Service.get_historical_from_static",
         return_value=historical,
     ):
-        assert generation._load_historical_data(race_data) is expected
+        assert scheduler_generation._load_historical_data(race_data) is expected
 
 
 @pytest.mark.parametrize("is_new_track", [True, False])
@@ -554,7 +553,10 @@ def test_load_historical_data_returns_available_result(is_new_track):
         "app.services.scheduler_generation.F1Service.get_historical_from_static",
         return_value=historical,
     ):
-        assert generation._load_historical_data({"circuit": {"circuitId": "monza"}}) is historical
+        assert (
+            scheduler_generation._load_historical_data({"circuit": {"circuitId": "monza"}})
+            is historical
+        )
 
 
 @pytest.mark.asyncio
@@ -565,14 +567,17 @@ async def test_load_weather_context_returns_service_result():
     with patch(
         "app.services.scheduler_generation.get_weather_context", new=AsyncMock(return_value=result)
     ):
-        assert await generation._load_weather_context({"circuit": {"circuitId": "monza"}}) == result
+        assert (
+            await scheduler_generation._load_weather_context({"circuit": {"circuitId": "monza"}})
+            == result
+        )
 
     empty_result = (None, None, {"off": None})
     with patch(
         "app.services.scheduler_generation.get_weather_context",
         new=AsyncMock(return_value=empty_result),
     ):
-        assert await generation._load_weather_context({"circuit": {}}) == empty_result
+        assert await scheduler_generation._load_weather_context({"circuit": {}}) == empty_result
 
 
 @pytest.mark.parametrize(
@@ -586,7 +591,7 @@ async def test_load_weather_context_returns_service_result():
     ],
 )
 def test_has_weather_coordinates_validates_bounds_and_alias(circuit, expected):
-    assert generation._has_weather_coordinates({"circuit": circuit}) is expected
+    assert scheduler_generation._has_weather_coordinates({"circuit": circuit}) is expected
 
 
 @pytest.mark.parametrize(
@@ -606,7 +611,7 @@ def test_has_weather_coordinates_validates_bounds_and_alias(circuit, expected):
     ],
 )
 def test_parse_race_datetime_utc(schedule, expected):
-    assert generation._parse_race_datetime_utc({"schedule": schedule}) == expected
+    assert scheduler_generation._parse_race_datetime_utc({"schedule": schedule}) == expected
 
 
 def test_race_weather_expected_for_past_near_and_far_dates():
@@ -615,10 +620,10 @@ def test_race_weather_expected_for_past_near_and_far_dates():
     def race_at(value):
         return {"schedule": [{"name": "Race", "datetime": value.isoformat()}]}
 
-    assert generation._race_weather_expected({}) is False
-    assert generation._race_weather_expected(race_at(now - timedelta(days=1))) is True
-    assert generation._race_weather_expected(race_at(now + timedelta(days=2))) is True
-    assert generation._race_weather_expected(race_at(now + timedelta(days=20))) is False
+    assert scheduler_generation._race_weather_expected({}) is False
+    assert scheduler_generation._race_weather_expected(race_at(now - timedelta(days=1))) is True
+    assert scheduler_generation._race_weather_expected(race_at(now + timedelta(days=2))) is True
+    assert scheduler_generation._race_weather_expected(race_at(now + timedelta(days=20))) is False
 
 
 def test_weather_context_degradation_requires_enabled_expected_weather():
@@ -634,12 +639,16 @@ def test_weather_context_degradation_requires_enabled_expected_weather():
     current = WeatherData(20.0, 1, 0)
     race = WeatherData(21.0, 2, 0)
     with patch("app.services.scheduler_generation.config.WEATHER_ENABLED", False):
-        assert generation._weather_context_degraded(race_data, {}) is False
+        assert scheduler_generation._weather_context_degraded(race_data, {}) is False
     with patch("app.services.scheduler_generation.config.WEATHER_ENABLED", True):
-        assert generation._weather_context_degraded({}, {}) is False
-        assert generation._weather_context_degraded(race_data, {"current": current}) is True
+        assert scheduler_generation._weather_context_degraded({}, {}) is False
         assert (
-            generation._weather_context_degraded(race_data, {"current": current, "race": race})
+            scheduler_generation._weather_context_degraded(race_data, {"current": current}) is True
+        )
+        assert (
+            scheduler_generation._weather_context_degraded(
+                race_data, {"current": current, "race": race}
+            )
             is False
         )
         far_race = {
@@ -651,7 +660,9 @@ def test_weather_context_degradation_requires_enabled_expected_weather():
                 }
             ],
         }
-        assert generation._weather_context_degraded(far_race, {"current": current}) is False
+        assert (
+            scheduler_generation._weather_context_degraded(far_race, {"current": current}) is False
+        )
 
 
 @pytest.mark.asyncio
@@ -664,7 +675,7 @@ async def test_generate_base_variants_counts_successes_and_failures(tmp_path):
             new=AsyncMock(side_effect=[success, None]),
         ) as generate,
     ):
-        paths, failures = await generation._generate_base_variants(
+        paths, failures = await scheduler_generation._generate_base_variants(
             images_dir=tmp_path,
             db=object(),
             race_data={},
@@ -706,7 +717,7 @@ async def test_generate_popular_timezone_variants_handles_all_input_classes(tmp_
             new=AsyncMock(side_effect=[success, None]),
         ),
     ):
-        paths, failures = await generation._generate_popular_tz_variants(
+        paths, failures = await scheduler_generation._generate_popular_tz_variants(
             images_dir=tmp_path,
             db=db,
             race_data={"race": 1},
@@ -723,7 +734,7 @@ async def test_generate_popular_timezone_variants_handles_all_input_classes(tmp_
 async def test_generate_popular_timezone_variants_returns_empty_without_demand(tmp_path):
     db = SimpleNamespace(get_popular_tz_variants=AsyncMock(return_value=[]))
 
-    assert await generation._generate_popular_tz_variants(
+    assert await scheduler_generation._generate_popular_tz_variants(
         images_dir=tmp_path,
         db=db,
         race_data={},
@@ -745,7 +756,9 @@ async def test_generate_teams_variants_handles_fetch_failure_and_empty_data(tmp_
         patch("app.services.teams_service.get_default_teams_year", return_value=2026),
         patch("app.services.teams_service.TeamsService", return_value=service),
     ):
-        assert await generation._generate_teams_bmp_variants(images_dir=tmp_path, db=object()) == (
+        assert await scheduler_generation._generate_teams_bmp_variants(
+            images_dir=tmp_path, db=object()
+        ) == (
             set(),
             1,
         )
@@ -772,7 +785,9 @@ async def test_generate_teams_variants_persists_success_and_counts_render_failur
         ),
         patch("app.services.scheduler_generation._write_bmp_artifact", new=write),
     ):
-        paths, failures = await generation._generate_teams_bmp_variants(images_dir=tmp_path, db=db)
+        paths, failures = await scheduler_generation._generate_teams_bmp_variants(
+            images_dir=tmp_path, db=db
+        )
 
     assert failures == 1
     assert len(paths) == 3
@@ -784,7 +799,7 @@ async def test_generate_teams_variants_persists_success_and_counts_render_failur
 async def test_write_bmp_artifact_writes_matching_etag_sidecar(tmp_path):
     image_path = tmp_path / "calendar_en.bmp"
 
-    etag = await generation._write_bmp_artifact(image_path, b"bmp")
+    etag = await scheduler_generation._write_bmp_artifact(image_path, b"bmp")
 
     assert image_path.read_bytes() == b"bmp"
     assert etag == strong_etag(b"bmp")
@@ -801,12 +816,12 @@ async def test_collect_and_generate_handles_no_race_and_database_failure(tmp_pat
         patch("app.services.scheduler_generation.F1Service", return_value=f1),
         patch("app.services.scheduler_generation.config.IMAGES_PATH", str(tmp_path)),
     ):
-        await generation._collect_and_generate_unlocked()
+        await scheduler_generation._collect_and_generate_unlocked()
 
     with patch(
         "app.services.scheduler_generation.get_database", side_effect=RuntimeError("db failed")
     ):
-        await generation._collect_and_generate_unlocked()
+        await scheduler_generation._collect_and_generate_unlocked()
 
 
 @pytest.mark.asyncio
@@ -846,7 +861,7 @@ async def test_collect_and_generate_prunes_after_fully_successful_run(tmp_path):
         patch("app.services.scheduler_generation.clear_bmp_cache"),
     ):
         f1_service.return_value.get_next_race_from_static.return_value = {"race_name": "Test"}
-        await generation._collect_and_generate_unlocked()
+        await scheduler_generation._collect_and_generate_unlocked()
 
     assert keep.exists()
     assert not stale.exists()
@@ -858,7 +873,7 @@ async def test_flush_api_calls_handles_empty_success_failure_and_cancellation():
     with patch(
         "app.services.scheduler_maintenance.get_and_clear_api_calls_buffer", return_value=[]
     ):
-        await maintenance.flush_api_calls_to_db()
+        await scheduler_maintenance.flush_api_calls_to_db()
 
     calls = [{"path": "/"}]
     db = SimpleNamespace(save_api_calls_batch=AsyncMock(return_value=1), close=AsyncMock())
@@ -868,7 +883,7 @@ async def test_flush_api_calls_handles_empty_success_failure_and_cancellation():
         ),
         patch("app.services.scheduler_maintenance.get_database", return_value=db),
     ):
-        await maintenance.flush_api_calls_to_db()
+        await scheduler_maintenance.flush_api_calls_to_db()
 
     requeue = Mock()
     db = SimpleNamespace(
@@ -882,7 +897,7 @@ async def test_flush_api_calls_handles_empty_success_failure_and_cancellation():
         patch("app.services.scheduler_maintenance.get_database", return_value=db),
         patch("app.services.scheduler_maintenance.requeue_api_calls", requeue),
     ):
-        await maintenance.flush_api_calls_to_db()
+        await scheduler_maintenance.flush_api_calls_to_db()
     requeue.assert_called_once_with(calls)
 
     with (
@@ -895,7 +910,7 @@ async def test_flush_api_calls_handles_empty_success_failure_and_cancellation():
         ),
         patch("app.services.scheduler_maintenance.requeue_api_calls", requeue),
     ):
-        await maintenance.flush_api_calls_to_db()
+        await scheduler_maintenance.flush_api_calls_to_db()
 
     db = SimpleNamespace(
         save_api_calls_batch=AsyncMock(side_effect=asyncio.CancelledError), close=AsyncMock()
@@ -908,7 +923,7 @@ async def test_flush_api_calls_handles_empty_success_failure_and_cancellation():
         patch("app.services.scheduler_maintenance.requeue_api_calls", requeue),
         pytest.raises(asyncio.CancelledError),
     ):
-        await maintenance.flush_api_calls_to_db()
+        await scheduler_maintenance.flush_api_calls_to_db()
 
 
 @pytest.mark.asyncio
@@ -1145,9 +1160,9 @@ def test_register_backup_job_handles_disabled_invalid_and_valid_configuration():
     with (
         patch("app.services.backup.is_backup_configured", return_value=True),
         patch("app.services.scheduler.config.BACKUP_CRON", "invalid"),
+        pytest.raises(ValueError, match="Invalid BACKUP_CRON"),
     ):
-        with pytest.raises(ValueError, match="Invalid BACKUP_CRON"):
-            scheduler._register_backup_job(sched)
+        scheduler._register_backup_job(sched)
     sched.add_job.assert_not_called()
 
     with (
@@ -1165,7 +1180,7 @@ async def test_refresh_historical_results_handles_lock_no_changes_update_and_per
     await lock.acquire()
     try:
         with patch("app.services.scheduler_maintenance.get_loop_lock", return_value=lock):
-            await maintenance.refresh_historical_results()
+            await scheduler_maintenance.refresh_historical_results()
     finally:
         lock.release()
 
@@ -1181,7 +1196,7 @@ async def test_refresh_historical_results_handles_lock_no_changes_update_and_per
         ),
         patch("app.services.scheduler_maintenance.get_database", return_value=db),
     ):
-        await maintenance.refresh_historical_results()
+        await scheduler_maintenance.refresh_historical_results()
 
     with (
         patch("app.services.scheduler_maintenance.get_loop_lock", return_value=lock),
@@ -1194,7 +1209,7 @@ async def test_refresh_historical_results_handles_lock_no_changes_update_and_per
             side_effect=RuntimeError("open failed"),
         ),
     ):
-        await maintenance.refresh_historical_results()
+        await scheduler_maintenance.refresh_historical_results()
 
     with (
         patch("app.services.scheduler_maintenance.get_loop_lock", return_value=lock),
@@ -1203,7 +1218,7 @@ async def test_refresh_historical_results_handles_lock_no_changes_update_and_per
             new=AsyncMock(side_effect=RuntimeError("upstream")),
         ),
     ):
-        await maintenance.refresh_historical_results()
+        await scheduler_maintenance.refresh_historical_results()
 
 
 @pytest.mark.asyncio
@@ -1211,12 +1226,12 @@ async def test_historical_refresh_age_handles_naive_old_and_database_error():
     old = (datetime.now() - timedelta(days=2)).isoformat()
     db = SimpleNamespace(get_cache_meta=AsyncMock(return_value=old), close=AsyncMock())
     with patch("app.services.scheduler_maintenance.get_database", return_value=db):
-        assert await maintenance._historical_refresh_is_due() is True
+        assert await scheduler_maintenance._historical_refresh_is_due() is True
 
     with patch(
         "app.services.scheduler_maintenance.get_database", side_effect=RuntimeError("db failed")
     ):
-        assert await maintenance._historical_refresh_is_due() is True
+        assert await scheduler_maintenance._historical_refresh_is_due() is True
 
 
 def test_start_and_stop_scheduler_cover_disabled_existing_and_weather_jobs():

@@ -859,7 +859,7 @@ class TestWeatherCacheDatabase:
             await db.close()
 
 
-"""Defensive-path coverage for the asynchronous database service."""
+# Defensive-path coverage for the asynchronous database service.
 
 
 class _EmptyCursor:
@@ -925,7 +925,7 @@ async def test_close_all_closes_every_live_instance(tmp_path, monkeypatch):
 def test_get_database_reuses_instance_and_tracks_configured_path(tmp_path, monkeypatch):
     first_path = str(tmp_path / "first.db")
     second_path = str(tmp_path / "second.db")
-    monkeypatch.setattr(database, "_shared_database", None)
+    monkeypatch.setattr(database._shared_database, "database", None)
     monkeypatch.setattr(database.config, "DATABASE_PATH", first_path)
 
     first = database.get_database()
@@ -940,12 +940,12 @@ def test_get_database_reuses_instance_and_tracks_configured_path(tmp_path, monke
 @pytest.mark.asyncio
 async def test_close_shared_database_closes_and_clears_instance(monkeypatch):
     shared = MagicMock(close=AsyncMock())
-    monkeypatch.setattr(database, "_shared_database", shared)
+    monkeypatch.setattr(database._shared_database, "database", shared)
 
     await database.close_shared_database()
 
     shared.close.assert_awaited_once()
-    assert database._shared_database is None
+    assert database._shared_database.database is None
 
     await database.close_shared_database()
 
