@@ -2,6 +2,11 @@ name: Update F1 Season Data
 
 on:
   workflow_dispatch:
+  schedule:
+    # Weekly while the championship is normally in season.
+    - cron: "17 6 * 3-11 1"
+    # Daily during the pre-season calendar announcement window.
+    - cron: "17 6 * 12,1,2 *"
 
 permissions: {}
 
@@ -29,13 +34,15 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: '3.13'
+          python-version: "3.14"
 
-      - name: Install dependencies
-        run: pip install httpx
+      - name: Set up uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          enable-cache: true
 
       - name: Update season calendars
-        run: python scripts/update_seasons.py
+        run: uv run --locked python scripts/update_seasons.py
 
       - name: Check for changes
         id: check_changes

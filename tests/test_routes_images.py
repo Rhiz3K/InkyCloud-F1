@@ -1,7 +1,9 @@
 """Extended behavioral coverage for calendar and teams image routes."""
 
+import asyncio
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,8 +13,10 @@ from starlette.requests import Request
 
 from app.models import TeamEntry, TeamsData
 from app.routes import images
+from app.services.image_keys import get_teams_image_key
 from app.services.weather_service import WeatherData
 from app.state import get_bmp_cache
+from app.utils.etag import encode_etag_sidecar, etag_sidecar_path, strong_etag
 
 
 def _request(headers: dict[str, str] | None = None) -> Request:
@@ -39,8 +43,10 @@ def _request(headers: dict[str, str] | None = None) -> Request:
 @pytest.fixture(autouse=True)
 def clear_image_cache():
     get_bmp_cache().clear()
+    images._singleflight_tasks.clear()
     yield
     get_bmp_cache().clear()
+    images._singleflight_tasks.clear()
 
 
 def test_timezone_validation_and_round_conversion_edge_cases():
@@ -301,7 +307,7 @@ async def test_calendar_endpoint_serves_pregenerated_file_and_error_fallback(tmp
             f1_service=f1,
         )
     assert response.headers["x-cache"] == "MISS"
-    assert b"pregenerated" in get_bmp_cache().values()
+    assert any(content == b"pregenerated" for content, _etag in get_bmp_cache().values())
 
     get_bmp_cache().clear()
     disappeared = MagicMock()
@@ -360,7 +366,7 @@ async def test_calendar_endpoint_serves_pregenerated_file_and_error_fallback(tmp
 async def test_teams_endpoint_serves_cache_and_caches_complete_render():
     request = _request()
     cache_key = "teams_2026_en"
-    get_bmp_cache()[cache_key] = b"cached"
+    get_bmp_cache()[cache_key] = (b"cached", strong_etag(b"cached"))
     with (
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images.get_default_teams_year", return_value=2026),
@@ -384,4 +390,255 @@ async def test_teams_endpoint_serves_cache_and_caches_complete_render():
         patch("app.routes.images.record_api_call"),
     ):
         await images.get_teams_bmp(request, lang="en", year=2026, display="1bit")
-    assert get_bmp_cache()[cache_key] == b"rendered"
+    assert get_bmp_cache()[cache_key] == (b"rendered", strong_etag(b"rendered"))
+
+
+@pytest.mark.asyncio
+async def test_calendar_cached_etag_returns_empty_304_without_analytics():
+    etag = strong_etag(b"cached")
+    cache_key = images._get_cache_key("en", None, None, None, None, True, "race_day", "1bit")
+    get_bmp_cache()[cache_key] = (b"cached", etag)
+    service = SimpleNamespace(
+        get_next_race_from_static=MagicMock(
+            return_value={"season": 2026, "round": 1, "race_name": "Test GP"}
+        ),
+        get_all_races_from_static=MagicMock(return_value=[]),
+    )
+
+    with (
+        patch("app.routes.images.enforce_rate_limit"),
+        patch("app.routes.images._record_calendar_api_call") as record_call,
+        patch("app.routes.images._schedule_calendar_analytics") as analytics,
+    ):
+        response = await images.get_calendar_bmp(
+            _request({"If-None-Match": etag}),
+            lang="en",
+            year=None,
+            race_round=None,
+            race_key=None,
+            tz=None,
+            weather=True,
+            weather_type="race_day",
+            display="1bit",
+            f1_service=service,
+        )
+
+    assert response.status_code == 304
+    assert response.body == b""
+    assert response.headers["etag"] == etag
+    assert response.headers["cache-control"] == images.CALENDAR_BMP_CACHE_CONTROL
+    record_call.assert_called_once()
+    assert record_call.call_args.kwargs["status_code"] == 304
+    assert record_call.call_args.kwargs["size_bytes"] == 0
+    analytics.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_pregenerated_matching_sidecar_skips_bmp_read(tmp_path):
+    image_path = tmp_path / "calendar.bmp"
+    image_path.write_bytes(b"pregenerated")
+    etag = strong_etag(b"pregenerated")
+    etag_sidecar_path(image_path).write_bytes(
+        encode_etag_sidecar(image_path.stat().st_mtime_ns, etag)
+    )
+
+    with patch.object(Path, "read_bytes", side_effect=AssertionError("BMP body was read")):
+        artifact, matching_etag = await images._read_pregenerated_artifact(image_path, etag)
+
+    assert artifact is None
+    assert matching_etag == etag
+
+
+@pytest.mark.asyncio
+async def test_calendar_endpoint_returns_304_from_pregenerated_sidecar(tmp_path):
+    image_path = tmp_path / "calendar.bmp"
+    image_path.write_bytes(b"pregenerated-calendar")
+    etag = strong_etag(b"pregenerated-calendar")
+    etag_sidecar_path(image_path).write_bytes(
+        encode_etag_sidecar(image_path.stat().st_mtime_ns, etag)
+    )
+    service = SimpleNamespace(
+        get_next_race_from_static=MagicMock(
+            return_value={"season": 2026, "round": 1, "race_name": "Test GP"}
+        ),
+        get_all_races_from_static=MagicMock(return_value=[]),
+    )
+
+    with (
+        patch("app.routes.images.enforce_rate_limit"),
+        patch("app.routes.images._get_pregenerated_calendar_path", return_value=image_path),
+        patch("app.routes.images._record_calendar_api_call"),
+        patch("app.routes.images._schedule_calendar_analytics"),
+    ):
+        response = await images.get_calendar_bmp(
+            _request({"If-None-Match": etag}),
+            lang="en",
+            year=None,
+            race_round=None,
+            race_key=None,
+            tz=None,
+            weather=True,
+            weather_type="race_day",
+            display="1bit",
+            f1_service=service,
+        )
+
+    assert response.status_code == 304
+    assert response.body == b""
+    assert response.headers["etag"] == etag
+
+
+@pytest.mark.asyncio
+async def test_teams_endpoint_handles_sidecar_304_and_empty_fallback(tmp_path):
+    image_path = tmp_path / "teams.bmp"
+    image_path.write_bytes(b"pregenerated-teams")
+    etag = strong_etag(b"pregenerated-teams")
+    etag_sidecar_path(image_path).write_bytes(
+        encode_etag_sidecar(image_path.stat().st_mtime_ns, etag)
+    )
+
+    with (
+        patch("app.routes.images.enforce_rate_limit"),
+        patch("app.routes.images._get_pregenerated_teams_path", return_value=image_path),
+        patch("app.routes.images._record_teams_api_call"),
+    ):
+        response = await images.get_teams_bmp(
+            _request({"If-None-Match": etag}), lang="en", year=2026, display="1bit"
+        )
+
+    assert response.status_code == 304
+    assert response.body == b""
+    assert response.headers["etag"] == etag
+
+    empty_data = TeamsData(season=2026, teams=[], standings_complete=False)
+    service = SimpleNamespace(get_teams_and_drivers=AsyncMock(return_value=empty_data))
+    with (
+        patch("app.routes.images.enforce_rate_limit"),
+        patch("app.routes.images._get_pregenerated_teams_path", return_value=image_path),
+        patch(
+            "app.routes.images._read_pregenerated_artifact",
+            new=AsyncMock(return_value=(None, None)),
+        ),
+        patch("app.routes.images.TeamsService", return_value=service),
+        patch("app.routes.images.run_render", new=AsyncMock(return_value=b"empty-teams")),
+        patch("app.routes.images._record_teams_api_call"),
+    ):
+        response = await images.get_teams_bmp(
+            _request(), lang="en", year=2026, display="1bit"
+        )
+
+    assert response.status_code == 200
+    assert response.body == b"empty-teams"
+    assert get_bmp_cache().get(get_teams_image_key("en", 2026, display="1bit")) is None
+
+
+@pytest.mark.asyncio
+async def test_changed_teams_content_returns_200_with_new_etag_and_no_cache():
+    old_etag = strong_etag(b"old")
+    new_etag = strong_etag(b"new")
+    cache_key = get_teams_image_key("en", 2026, display="1bit")
+    get_bmp_cache()[cache_key] = (b"new", new_etag)
+
+    with (
+        patch("app.routes.images.enforce_rate_limit"),
+        patch("app.routes.images._record_teams_api_call") as record_call,
+    ):
+        response = await images.get_teams_bmp(
+            _request({"If-None-Match": old_etag}),
+            lang="en",
+            year=2026,
+            display="1bit",
+        )
+
+    assert response.status_code == 200
+    assert response.body == b"new"
+    assert response.headers["etag"] == new_etag
+    assert response.headers["cache-control"] == "no-cache"
+    assert record_call.call_args.kwargs["status_code"] == 200
+    assert record_call.call_args.kwargs["size_bytes"] == 3
+
+
+@pytest.mark.asyncio
+async def test_concurrent_identical_calendar_misses_render_and_hash_once():
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def render_once(**_kwargs):
+        started.set()
+        await release.wait()
+        return b"rendered", None, True
+
+    service = SimpleNamespace(
+        get_next_race_from_static=MagicMock(return_value={"season": 2026, "round": 1}),
+        get_all_races_from_static=MagicMock(return_value=[]),
+    )
+    render = AsyncMock(side_effect=render_once)
+
+    async def request_calendar():
+        return await images.get_calendar_bmp(
+            _request(),
+            lang="en",
+            year=None,
+            race_round=None,
+            race_key=None,
+            tz=None,
+            weather=True,
+            weather_type="race_day",
+            display="1bit",
+            f1_service=service,
+        )
+
+    with (
+        patch("app.routes.images.enforce_rate_limit"),
+        patch("app.routes.images._get_pregenerated_calendar_path", return_value=None),
+        patch("app.routes.images._render_calendar", new=render),
+        patch("app.routes.images.strong_etag", wraps=strong_etag) as hash_content,
+        patch("app.routes.images._record_calendar_api_call"),
+        patch("app.routes.images._schedule_calendar_analytics"),
+    ):
+        first = asyncio.create_task(request_calendar())
+        await started.wait()
+        second = asyncio.create_task(request_calendar())
+        await asyncio.sleep(0)
+        release.set()
+        responses = await asyncio.gather(first, second)
+
+    assert render.await_count == 1
+    assert hash_content.call_count == 1
+    assert [response.body for response in responses] == [b"rendered", b"rendered"]
+    assert responses[0].headers["etag"] == responses[1].headers["etag"]
+    assert images._singleflight_tasks == {}
+
+
+@pytest.mark.asyncio
+async def test_singleflight_propagates_failure_and_cleans_up():
+    async def fail():
+        raise RuntimeError("render failed")
+
+    with pytest.raises(RuntimeError, match="render failed"):
+        await images._singleflight("failed", fail)
+
+    assert "failed" not in images._singleflight_tasks
+
+
+@pytest.mark.asyncio
+async def test_singleflight_shields_producer_from_cancelled_waiter():
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def produce():
+        started.set()
+        await release.wait()
+        return b"bmp", strong_etag(b"bmp")
+
+    waiter = asyncio.create_task(images._singleflight("cancelled-waiter", produce))
+    await started.wait()
+    producer_task = images._singleflight_tasks["cancelled-waiter"]
+    waiter.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await waiter
+
+    assert not producer_task.cancelled()
+    release.set()
+    assert await producer_task == (b"bmp", strong_etag(b"bmp"))
+    assert "cancelled-waiter" not in images._singleflight_tasks

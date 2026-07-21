@@ -12,7 +12,6 @@ from app.services.analytics import (
     get_umami_script_tag,
     track_event,
     track_pageview,
-    track_request,
 )
 from app.services.http_client import _reset_shared_http_clients_for_tests
 from app.utils import async_tasks
@@ -266,34 +265,6 @@ async def test_send_to_umami_handles_httpx_errors(mock_config, caplog):
             await _send_to_umami(url="/calendar.bmp", title="Test", lang="en")
 
     assert "Failed to send Umami analytics: offline" in caplog.text
-
-
-@pytest.mark.asyncio
-async def test_track_request_builds_full_and_minimal_urls():
-    """The legacy wrapper preserves optional query parameters and their omission."""
-    with patch("app.services.analytics.track_pageview", new_callable=AsyncMock) as pageview:
-        await track_request(
-            "/calendar.bmp",
-            "cs",
-            user_agent="TestAgent/1.0",
-            tz="Europe/Prague",
-            year=2026,
-            round_num=5,
-        )
-        await track_request("/calendar.bmp", "en")
-
-    assert pageview.await_args_list[0].kwargs == {
-        "url": "/calendar.bmp?lang=cs&tz=Europe%2FPrague&year=2026&round=5",
-        "title": "Calendar - cs",
-        "lang": "cs",
-        "user_agent": "TestAgent/1.0",
-    }
-    assert pageview.await_args_list[1].kwargs == {
-        "url": "/calendar.bmp?lang=en",
-        "title": "Calendar - en",
-        "lang": "en",
-        "user_agent": None,
-    }
 
 
 @pytest.mark.asyncio

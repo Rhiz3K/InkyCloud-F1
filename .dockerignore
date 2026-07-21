@@ -81,6 +81,10 @@ tests/
 test_*.py
 *_test.py
 
+# Editable source artwork is never needed at runtime. Only processed display
+# assets under app/assets are included in the image.
+artwork/
+
 # Local development
 quickstart.sh
 node_modules/

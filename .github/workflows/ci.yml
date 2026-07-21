@@ -47,52 +47,10 @@ jobs:
           exit 1
         fi
 
-    - name: Set up Python 3.13
-      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+    - name: Run project CI
+      uses: ./.github/actions/ci-test
       with:
-        python-version: "3.13"
-        cache: "pip"
-
-    - name: Validate release readiness for main PRs
-      if: >-
-        github.event_name == 'pull_request' &&
-        github.base_ref == 'main' &&
-        github.event.pull_request.user.login != 'dependabot[bot]' &&
-        github.event.pull_request.user.login != 'github-actions[bot]'
-      run: |
-        python -m app.utils.release_validation
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip setuptools
-        pip install -e .[dev]
-    
-    - name: Lint with ruff
-      run: |
-        ruff check .
-
-    - name: Type-check application
-      run: |
-        mypy
-
-    - name: Verify documentation coverage
-      run: |
-        interrogate -c pyproject.toml app scripts
-    
-    - name: Run tests
-      run: |
-        pytest tests/ -v -m "not benchmark" \
-          --cov=app \
-          --cov-branch \
-          --cov-fail-under=100 \
-          --cov-report=term-missing \
-          --cov-report=xml
-    
-    - name: Test Docker build
-      run: |
-        docker build -t f1-eink-cal:test .
-        docker run --rm --entrypoint python --workdir /tmp f1-eink-cal:test \
-          -c "from app.services import scheduler; assert scheduler.update_historical_results.__module__ == 'app.services.historical_refresh'"
+        validate-release: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' && github.event.pull_request.user.login != 'dependabot[bot]' && github.event.pull_request.user.login != 'github-actions[bot]' }}
 
   # Fork PRs are excluded from the self-hosted job above for security; run the same
   # validation for them on an ephemeral GitHub-hosted runner so community PRs still get CI.
@@ -123,48 +81,7 @@ jobs:
           exit 1
         fi
 
-    - name: Set up Python 3.13
-      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+    - name: Run project CI
+      uses: ./.github/actions/ci-test
       with:
-        python-version: "3.13"
-        cache: "pip"
-
-    - name: Validate release readiness for main PRs
-      if: >-
-        github.base_ref == 'main' &&
-        github.event.pull_request.user.login != 'dependabot[bot]' &&
-        github.event.pull_request.user.login != 'github-actions[bot]'
-      run: |
-        python -m app.utils.release_validation
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip setuptools
-        pip install -e .[dev]
-
-    - name: Lint with ruff
-      run: |
-        ruff check .
-
-    - name: Type-check application
-      run: |
-        mypy
-
-    - name: Verify documentation coverage
-      run: |
-        interrogate -c pyproject.toml app scripts
-
-    - name: Run tests
-      run: |
-        pytest tests/ -v -m "not benchmark" \
-          --cov=app \
-          --cov-branch \
-          --cov-fail-under=100 \
-          --cov-report=term-missing \
-          --cov-report=xml
-
-    - name: Test Docker build
-      run: |
-        docker build -t f1-eink-cal:test .
-        docker run --rm --entrypoint python --workdir /tmp f1-eink-cal:test \
-          -c "from app.services import scheduler; assert scheduler.update_historical_results.__module__ == 'app.services.historical_refresh'"
+        validate-release: ${{ github.base_ref == 'main' && github.event.pull_request.user.login != 'dependabot[bot]' && github.event.pull_request.user.login != 'github-actions[bot]' }}

@@ -187,3 +187,49 @@ def _load_cjk_font(lang_code: str, size: int) -> FreeTypeFont | ImageFont.ImageF
         except Exception as exc:
             logger.warning("Failed to load CJK font %s (index %s): %s", font_path, face_index, exc)
     return None
+
+
+def load_symbol_icon_font(size: int, logger) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load the Symbola fallback icon font used for symbols and emoji-style glyphs."""
+    symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
+    font = load_optional_truetype(
+        symbola_path,
+        size,
+        label="Symbola",
+        target_logger=logger,
+    )
+    return font or ImageFont.load_default()
+
+
+def load_weather_icon_font(
+    size: int,
+    logger,
+    load_icon_font,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load the weather icon font with a Symbola fallback."""
+    font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
+    font = load_optional_truetype(
+        font_path,
+        size,
+        label="Weather Icons",
+        target_logger=logger,
+    )
+    return font or load_icon_font(size)
+
+
+def load_racing_font(
+    size: int,
+    logger,
+    load_ui_font_fallback,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load the stylized racing number font with a UI-font fallback."""
+    font_path = FONTS_DIR / "RacingSansOne-Regular.ttf"
+    font = load_optional_truetype(
+        font_path,
+        size,
+        label="Racing Sans One",
+        target_logger=logger,
+    )
+    if font is not None:
+        return font
+    return load_ui_font_fallback(size, bold=True)

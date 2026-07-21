@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.34] - 2026-07-21
+
+### Backend
+
+#### Added
+
+- **Conditional BMP delivery** - Return strong SHA-256 ETags for calendar, teams, pregenerated, cached, fresh, and error BMPs; honor `If-None-Match` with an empty 304 response before reading pregenerated bodies; and retain status-specific request statistics without counting 304s as analytics downloads
+- **Dependency-aware readiness** - Add `/health/ready` checks for asynchronous SQLite access, writable persistent storage, the `/app/data` mount root, and the last fully successful generation using the same six-hour tolerance as pregenerated serving, with a five-minute Docker cold-start grace
+
+#### Changed
+
+- **Unified renderer architecture** - Introduce immutable render themes, central display enumerations, shared adapters and palette quantization, concern-specific renderer modules, and centralized font loading while preserving byte-identical calendar and teams output for all four displays
+- **Generation and persistence efficiency** - Run scheduled render batches through the bounded two-worker pool, coalesce identical cold BMP requests with cancellation-safe singleflight, share one application-scoped database connection, and split scheduler generation, weather, and maintenance concerns
+- **Runtime asset packaging** - Move editable track PNG/PSD sources to top-level `artwork/`, narrow wheel and Docker inputs to processed runtime assets, and reduce each artifact by more than 100 MB
+
+#### Fixed
+
+- **Backup cron correctness** - Normalize Sunday-first, wrapped, ranged, and stepped standard-cron day-of-week expressions correctly and fail startup for invalid enabled backup schedules instead of silently losing backups
+- **Generation health accuracy** - Stamp freshness only after a non-degraded, failure-free cycle that produced artifacts, keep previous files during partial runs, and derive all generated filenames from shared image-key helpers
+- **Season calendar automation** - Run the validated season updater weekly in-season and daily during December through February using the locked environment, with malformed or empty upstream data failing visibly
+
+### Security
+
+#### Added
+
+- **Continuous vulnerability scanning** - Audit the exported production lock with `pip-audit` and scan the built container with Trivy for high and critical vulnerabilities on pull requests and a weekly schedule
+- **Attested release containers** - Publish version, short-commit, and latest GHCR tags from release tags with least-privilege permissions, GHA layer caching, an SBOM, and provenance
+
+#### Fixed
+
+- **Patched image dependency** - Upgrade Pillow to 12.3.0 after the new audit identified known vulnerabilities in 12.2.0, with renderer golden hashes confirming unchanged output
+
+### Development
+
+#### Changed
+
+- **Python 3.14 everywhere** - Align package metadata, Ruff, mypy, CI, benchmarks, data maintenance, local setup, and both Docker stages on the production interpreter
+- **One dependency workflow** - Make the `uv` dependency group and `uv.lock` canonical, generate the hash-locked Docker requirements export, fail CI on export drift, and remove the duplicate optional-development list and ad-hoc installs
+- **Shared CI implementation** - Route trusted, fork, and CodSpeed jobs through reusable locked setup/composite actions while preserving the self-hosted fork boundary; replace the hard 100% global gate with 95% statement-and-branch coverage plus a 100% changed-line ratchet
+- **Behavior-oriented tests** - Merge or rename every coverage-oriented `_extended` module, add renderer and preprocessing byte-golden tests, and cover Sunday cron ranges, singleflight, ETag/304, shared database lifecycle, and readiness failure modes
+- **Unified asset CLI** - Replace eight duplicated palette preprocessors with `python -m scripts.manage preprocess`, keep thin compatibility wrappers, and parameterize the application-owned implementation from renderer palette constants
+
+### Documentation
+
+#### Changed
+
+- **Single-source deployment guidance** - Make `.env.example` the configuration reference, reduce duplicated deployment prose to focused Docker and Coolify guides, document immutable GHCR upgrades/rollback and readiness, and add dedicated scripts and BMP workflow references
+- **ESP32 revalidation** - Document persistent ETag handling so a 304 response skips both transfer and disruptive E-Ink redraw
+
 ## [1.2.33] - 2026-07-19
 
 ### Frontend

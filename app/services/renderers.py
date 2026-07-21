@@ -13,14 +13,19 @@ from app.services.renderer import Renderer
 from app.services.spectra6_renderer import Spectra6Renderer
 
 AnyRenderer = Renderer | Spectra6Renderer | BwrRenderer | BwryRenderer
+RendererType = type[Renderer] | type[Spectra6Renderer] | type[BwrRenderer] | type[BwryRenderer]
+DISPLAY_TYPES = ("1bit", "bwr", "bwry", "spectra6")
+COLOR_DISPLAYS = frozenset({"bwr", "bwry", "spectra6"})
+
+_RENDERER_TYPES: dict[str, RendererType] = {
+    "1bit": Renderer,
+    "bwr": BwrRenderer,
+    "bwry": BwryRenderer,
+    "spectra6": Spectra6Renderer,
+}
 
 
 def create_renderer(display: str, translator: dict, lang: str) -> AnyRenderer:
     """Instantiate the renderer for the requested display mode ("1bit" fallback)."""
-    if display == "spectra6":
-        return Spectra6Renderer(translator, lang)
-    if display == "bwr":
-        return BwrRenderer(translator, lang)
-    if display == "bwry":
-        return BwryRenderer(translator, lang)
-    return Renderer(translator, lang)
+    renderer_type = _RENDERER_TYPES.get(display, Renderer)
+    return renderer_type(translator, lang)

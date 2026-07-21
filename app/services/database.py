@@ -15,6 +15,7 @@ from app.config import config
 
 logger = logging.getLogger(__name__)
 PERF_STATS_SAMPLE_LIMIT = 10_000
+DATABASE_SCHEMA_VERSION = 2
 
 STATS_CLEANUP_QUERIES = {
     "request_stats": "DELETE FROM request_stats WHERE timestamp < ?",
@@ -103,6 +104,16 @@ class Database:
                 self._connection = None
                 self._connection_loop = None
 
+    async def ping(self) -> bool:
+        """Verify that the shared SQLite database can initialize and answer a query."""
+        await self._init_db_if_needed()
+        async with (
+            self._get_connection() as conn,
+            conn.execute("SELECT 1") as cursor,
+        ):
+            row = await cursor.fetchone()
+        return row is not None and row[0] == 1
+
     @classmethod
     async def close_all(cls) -> None:
         """Close all live Database instance connections."""
@@ -174,7 +185,8 @@ class Database:
                         round INTEGER,
                         display_type TEXT,
                         race_name TEXT,
-                        is_auto_selected INTEGER DEFAULT 0
+                        is_auto_selected INTEGER DEFAULT 0,
+                        status_code INTEGER NOT NULL DEFAULT 200
                     );
 
                     -- Performance metrics table (Real User Monitoring)
@@ -260,6 +272,7 @@ class Database:
             ("display_type", "TEXT"),
             ("race_name", "TEXT"),
             ("is_auto_selected", "INTEGER DEFAULT 0"),
+            ("status_code", "INTEGER NOT NULL DEFAULT 200"),
         ]
 
         for column_name, column_type in migrations:
@@ -267,6 +280,7 @@ class Database:
                 logger.info("Migration: Adding column '%s' to api_calls table", column_name)
                 await conn.execute(f"ALTER TABLE api_calls ADD COLUMN {column_name} {column_type}")
 
+        await conn.execute(f"PRAGMA user_version = {DATABASE_SCHEMA_VERSION}")
         await conn.commit()
 
     async def save_generated_image(
@@ -460,7 +474,7 @@ class Database:
         Args:
             calls: List of call dictionaries with keys:
                    timestamp, endpoint, response_time_ms, response_size_bytes, lang, tz,
-                   year, round, display_type, race_name, is_auto_selected
+                   year, round, display_type, race_name, is_auto_selected, status_code
 
         Returns:
             Number of inserted records
@@ -488,8 +502,8 @@ class Database:
                 """
                 INSERT INTO api_calls
                     (timestamp, endpoint, response_time_ms, response_size_bytes, lang, tz,
-                     year, round, display_type, race_name, is_auto_selected)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     year, round, display_type, race_name, is_auto_selected, status_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -504,6 +518,7 @@ class Database:
                         call.get("display_type"),
                         call.get("race_name"),
                         call.get("is_auto_selected", 0),
+                        call.get("status_code", 200),
                     )
                     for call in valid_calls
                 ],
@@ -521,13 +536,13 @@ class Database:
                 - count_24h: Number of calls in last 24 hours
                 - avg_response_ms: Average response time in ms (or None)
                 - total_bytes_24h: Total bytes transferred (or 0)
+                - status_codes: Request counts grouped by real HTTP status
         """
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
 
-        async with (
-            self._get_connection() as conn,
-            conn.execute(
+        async with self._get_connection() as conn:
+            async with conn.execute(
                 """
             SELECT
                 COUNT(*) as count,
@@ -537,21 +552,38 @@ class Database:
             WHERE timestamp > ?
             """,
                 (cutoff,),
-            ) as cursor,
-        ):
-            row = await cursor.fetchone()
-            if row:
+            ) as cursor:
+                row = await cursor.fetchone()
+
+            if row is not None:
                 avg_ms = round(row["avg_ms"], 1) if row["avg_ms"] is not None else None
-                return {
+                stats = {
                     "count_24h": row["count"] or 0,
                     "avg_response_ms": avg_ms,
                     "total_bytes_24h": row["total_bytes"] or 0,
                 }
-            return {
-                "count_24h": 0,
-                "avg_response_ms": None,
-                "total_bytes_24h": 0,
-            }
+            else:
+                stats = {
+                    "count_24h": 0,
+                    "avg_response_ms": None,
+                    "total_bytes_24h": 0,
+                }
+
+            async with conn.execute(
+                """
+                SELECT status_code, COUNT(*) AS count
+                FROM api_calls
+                WHERE timestamp > ?
+                GROUP BY status_code
+                ORDER BY status_code ASC
+                """,
+                (cutoff,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+            stats["status_codes"] = [
+                {"status_code": row["status_code"], "count": row["count"]} for row in rows
+            ]
+            return stats
 
     async def get_stats_for_range(self, hours: int) -> dict:
         """
@@ -616,6 +648,22 @@ class Database:
                 rows = await cursor.fetchall()
                 endpoint_stats = [
                     {"endpoint": row["endpoint"], "count": row["count"]} for row in rows
+                ]
+
+            # HTTP status breakdown keeps successful transfers distinct from ETag 304s.
+            async with conn.execute(
+                """
+                SELECT status_code, COUNT(*) as count
+                FROM api_calls
+                WHERE timestamp > ?
+                GROUP BY status_code
+                ORDER BY status_code ASC
+                """,
+                (cutoff,),
+            ) as cursor:
+                rows = await cursor.fetchall()
+                status_stats = [
+                    {"status_code": row["status_code"], "count": row["count"]} for row in rows
                 ]
 
             # Language breakdown
@@ -736,6 +784,7 @@ class Database:
             return {
                 **basic_stats,
                 "endpoints": endpoint_stats,
+                "status_codes": status_stats,
                 "languages": language_stats,
                 "display_types": display_stats,
                 "teams_display_types": teams_display_stats,
@@ -1231,3 +1280,28 @@ class Database:
             )
             await conn.commit()
             return cursor.rowcount
+
+
+_shared_database: Database | None = None
+
+
+def get_database() -> Database:
+    """Return the application-scoped database service.
+
+    Configuration is immutable in production. Rebuilding on a path change keeps tests and
+    embedded deployments that replace ``DATABASE_PATH`` isolated without making callers own
+    connection lifetimes again.
+    """
+    global _shared_database
+    if _shared_database is None or _shared_database.db_path != config.DATABASE_PATH:
+        _shared_database = Database(config.DATABASE_PATH)
+    return _shared_database
+
+
+async def close_shared_database() -> None:
+    """Close and clear the application-scoped database service."""
+    global _shared_database
+    database = _shared_database
+    _shared_database = None
+    if database is not None:
+        await database.close()

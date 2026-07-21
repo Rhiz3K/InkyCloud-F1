@@ -5,5 +5,22 @@ include EXAMPLES.md
 include CHANGELOG.md
 recursive-include translations *.json
 recursive-include app *.py
-recursive-include app/assets *
+include app/assets/circuits_data.json
+recursive-include app/assets/css *
+recursive-include app/assets/favicon *
+recursive-include app/assets/flags *
+recursive-include app/assets/flags_bwr *
+recursive-include app/assets/flags_bwry *
+recursive-include app/assets/flags_flat *
+recursive-include app/assets/flags_processed *
+recursive-include app/assets/flags_spectra6 *
+recursive-include app/assets/fonts *
+recursive-include app/assets/images *
+recursive-include app/assets/js *
+recursive-include app/assets/seasons *
+recursive-include app/assets/tracks_bwr *
+recursive-include app/assets/tracks_bwry *
+recursive-include app/assets/tracks_processed *
+recursive-include app/assets/tracks_spectra6 *
 recursive-include app/templates *.html
+prune artwork

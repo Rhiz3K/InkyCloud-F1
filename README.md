@@ -119,13 +119,28 @@ Compatible with [zivyobraz.eu](https://zivyobraz.eu) — a service for managing 
 
 HTTPClient http;
 http.begin("https://f1.inkycloud.click/calendar.bmp?lang=cs");
+const char* responseHeaders[] = {"ETag"};
+http.collectHeaders(responseHeaders, 1);
+
+String etag = loadEtagFromPreferences();  // Persist across deep-sleep cycles.
+if (!etag.isEmpty()) {
+  http.addHeader("If-None-Match", etag);
+}
 int httpCode = http.GET();
 
 if (httpCode == HTTP_CODE_OK) {
-  // Display on E-Ink
+  saveEtagToPreferences(http.header("ETag"));
   display.drawBitmap(http.getStream());
+} else if (httpCode == HTTP_CODE_NOT_MODIFIED) {
+  // The BMP is unchanged: skip both the download and disruptive panel redraw.
 }
 ```
+
+Calendar and teams responses use a strong SHA-256 `ETag`. Send it back in `If-None-Match`; an
+unchanged image returns `304 Not Modified` with an empty body. Persist the ETag in NVS/Preferences,
+because an ESP32 commonly sleeps between polls. A changed race, weather view, language, timezone,
+or renderer output returns `200` with a new ETag. Teams deliberately use `Cache-Control: no-cache`,
+which permits conditional revalidation without accepting a stale response.
 
 ---
 
@@ -152,14 +167,15 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 | `GET /api/teams/{year}`                  | Teams and drivers for a season (JSON)                   |
 | `GET /api/standings/leader`              | Current championship leader (JSON)                      |
 | `GET /api/standings/leader/{year}`       | Championship leader for a specific season (JSON)        |
-| `GET /api/stats`                         | Request statistics                                      |
+| `GET /api/stats`                         | Request statistics, including 200/304 status totals     |
 | `GET /api/stats/history`                 | Historical hourly request statistics                    |
 | `POST /api/perf-metrics`                 | Store frontend performance metrics (Core Web Vitals)    |
 | `GET /api/perf-metrics`                  | Read aggregated frontend performance metrics            |
 | `GET /robots.txt`                        | Crawler policy with canonical sitemap reference         |
 | `GET /sitemap.xml`                       | Localized sitemap with canonical URLs and hreflang alternates |
 | `GET /sw.js`                             | Service worker script                                   |
-| `GET /health`                            | Health check                                            |
+| `GET /health`                            | Process liveness                                        |
+| `GET /health/ready`                      | SQLite, persistent storage, and generation readiness    |
 
 When `ADMIN_API_TOKEN` is configured, read-only operational endpoints (`/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics`) require either `X-Admin-Token` or `Authorization: Bearer <token>`. Public image endpoints and `POST /api/perf-metrics` remain available, with rate limits applied.
 
@@ -167,38 +183,27 @@ When `ADMIN_API_TOKEN` is configured, read-only operational endpoints (`/api/sta
 
 ## Self-Hosting
 
-Want to run your own instance? We've got you covered!
-
-Local development requires **Python 3.13+**.
-
-**[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete guide for self-hosting including:
-
-- Quick start with Docker/Coolify
-- Project structure
-- Data updates & yearly maintenance
-- Configuration reference
-- Track images
-- Scheduler/startup generation behavior for localized calendar and teams assets
+Production, CI, and local development use **Python 3.14**. Released containers are published to
+GHCR with immutable version and commit tags, an SBOM, and provenance.
 
 ### Quick Docker Start
 
 ```bash
 git clone https://github.com/Rhiz3K/InkyCloud-F1.git
 cd InkyCloud-F1
-docker build -t f1-eink-cal .
-docker volume create f1_data
-docker run -p 8000:8000 \
-  -v f1_data:/app/data \
-  -e SITE_URL=http://localhost:8000 \
-  f1-eink-cal
+cp .env.example .env
+F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:vX.Y.Z docker compose pull
+F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:vX.Y.Z docker compose up -d --no-build
 ```
 
 ### Deployment Guides
 
-- **[SELF-HOSTING.md](./SELF-HOSTING.md)** — Complete self-hosting guide
-- **[COOLIFY.md](./COOLIFY.md)** — One-click Coolify deployment
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** — Docker, cloud platforms, manual setup
-- **[BMP_PROCESSING.md](./BMP_PROCESSING.md)** — Detailed image-to-BMP processing guide for `1bit`, `bwr`, `bwry`, and `spectra6` assets
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** — choose the correct deployment path
+- **[SELF-HOSTING.md](./SELF-HOSTING.md)** — Docker, operations, backups, and development
+- **[COOLIFY.md](./COOLIFY.md)** — image-based Coolify deployment and rollback
+- **[.env.example](./.env.example)** — canonical environment-variable reference
+- **[scripts/README.md](./scripts/README.md)** — maintenance and unified asset CLI
+- **[BMP_PROCESSING.md](./BMP_PROCESSING.md)** — source-art and runtime BMP pipeline
 
 ---
 

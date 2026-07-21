@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.config import VALID_LANGUAGES, config
 from app.paths import CHANGELOG_PATH
 from app.services.analytics import track_pageview
-from app.services.database import Database
+from app.services.database import get_database
 from app.services.teams_service import get_available_teams_years
 from app.services.version_service import get_cached_version, refresh_version_info
 from app.utils.f1_season import get_current_f1_season
@@ -654,9 +654,8 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
     hours_map = {"1h": 1, "24h": 24, "7d": 168, "30d": 720, "365d": 8760}
     hours = hours_map.get(time_range, 24)
 
-    db: Database | None = None
     try:
-        db = Database()
+        db = get_database()
         stats = await db.get_stats_for_range(hours)
         _enrich_display_type_stats(stats)
         perf_stats = await db.get_perf_stats(hours)
@@ -664,12 +663,6 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
         logger.error("Failed to load statistics dashboard data: %s", exc, exc_info=True)
         stats = _empty_stats()
         perf_stats = {"sample_count": 0}
-    finally:
-        if db is not None:
-            try:
-                await db.close()
-            except Exception as exc:
-                logger.warning("Failed to close statistics database: %s", exc, exc_info=True)
 
     base_url = lang_url("/stats", ui_lang)
     url = f"{base_url}?range={time_range}" if time_range != "24h" else base_url
