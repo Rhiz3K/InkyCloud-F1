@@ -523,9 +523,7 @@ async def test_teams_endpoint_handles_sidecar_304_and_empty_fallback(tmp_path):
         patch("app.routes.images.run_render", new=AsyncMock(return_value=b"empty-teams")),
         patch("app.routes.images._record_teams_api_call"),
     ):
-        response = await images.get_teams_bmp(
-            _request(), lang="en", year=2026, display="1bit"
-        )
+        response = await images.get_teams_bmp(_request(), lang="en", year=2026, display="1bit")
 
     assert response.status_code == 200
     assert response.body == b"empty-teams"

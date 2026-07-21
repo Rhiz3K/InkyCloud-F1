@@ -91,9 +91,7 @@ def make_monochrome_theme(
         team_position_fill=lambda _position: colors.BLACK,
         team_points_fill=colors.BLACK,
         driver_badge_colors=lambda position: (
-            (colors.BLACK, colors.WHITE)
-            if position in {2, 3}
-            else (colors.WHITE, colors.BLACK)
+            (colors.BLACK, colors.WHITE) if position in {2, 3} else (colors.WHITE, colors.BLACK)
         ),
         driver_number_fill=colors.BLACK,
         driver_resample=Image.Resampling.NEAREST,

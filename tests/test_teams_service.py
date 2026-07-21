@@ -1,6 +1,5 @@
 """Test teams service helpers and season data."""
 
-
 import asyncio
 import time
 from datetime import datetime, timezone
@@ -259,9 +258,6 @@ async def test_waiting_fetch_rechecks_negative_cache_inside_lock(monkeypatch):
 
 
 """Extended coverage for teams API normalization and cache behavior."""
-
-
-
 
 
 @pytest.fixture(autouse=True)

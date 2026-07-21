@@ -138,15 +138,11 @@ def test_image_normalization_crop_and_fit_defensive_paths(tmp_path):
     """Small, opaque, palette, grayscale, and blank inputs should normalize safely."""
     rgb = Image.new("RGB", (4, 3), "white")
     assert assets._flatten_color_source(rgb, (255, 255, 255), spectra=False) is rgb
-    grayscale = assets._flatten_color_source(
-        Image.new("L", (4, 3)), (255, 255, 255), spectra=False
-    )
+    grayscale = assets._flatten_color_source(Image.new("L", (4, 3)), (255, 255, 255), spectra=False)
     assert grayscale.mode == "RGB"
     palette = Image.new("P", (4, 3))
     assert assets._flatten_color_source(palette, (255, 255, 255), spectra=False).mode == "RGB"
-    alpha = assets._flatten_color_source(
-        Image.new("LA", (4, 3)), (255, 255, 255), spectra=True
-    )
+    alpha = assets._flatten_color_source(Image.new("LA", (4, 3)), (255, 255, 255), spectra=True)
     assert alpha.mode == "RGB"
     assert assets._crop_non_white(rgb) is rgb
     assert assets._crop_non_white(Image.new("L", (2, 2), 0)).size == (2, 2)
@@ -241,9 +237,7 @@ def test_manage_cli_routes_commands_and_reports_backend_errors(monkeypatch, caps
     monkeypatch.setattr(manage, "preprocess_flags", flags)
 
     assert (
-        manage.main(
-            ["preprocess", "tracks", "--palette", "bwr", "--circuits", "monaco,suzuka"]
-        )
+        manage.main(["preprocess", "tracks", "--palette", "bwr", "--circuits", "monaco,suzuka"])
         == 0
     )
     tracks.assert_called_once_with("bwr", ["monaco", "suzuka"])

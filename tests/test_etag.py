@@ -31,9 +31,7 @@ def test_sidecar_is_valid_only_for_matching_bmp_mtime(tmp_path):
     image_path.write_bytes(b"bmp")
     etag = strong_etag(b"bmp")
     original_mtime_ns = image_path.stat().st_mtime_ns
-    etag_sidecar_path(image_path).write_bytes(
-        encode_etag_sidecar(original_mtime_ns, etag)
-    )
+    etag_sidecar_path(image_path).write_bytes(encode_etag_sidecar(original_mtime_ns, etag))
 
     assert read_etag_sidecar(image_path) == etag
 

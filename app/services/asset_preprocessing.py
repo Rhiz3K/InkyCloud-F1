@@ -39,9 +39,7 @@ FLAG_WIDTH = 87
 FLAG_HEIGHT = 58
 FLAG_MAX_COLORS = 6
 
-PREPROCESS_PALETTES = tuple(
-    "mono" if display == "1bit" else display for display in DISPLAY_TYPES
-)
+PREPROCESS_PALETTES = tuple("mono" if display == "1bit" else display for display in DISPLAY_TYPES)
 
 
 class PreprocessingError(RuntimeError):
@@ -261,9 +259,7 @@ def quantize_colors(
     kmeans = KMeans(n_clusters=actual_colors, random_state=42, n_init=10)
     labels = kmeans.fit_predict(pixels).reshape(height, width)
     centroids = kmeans.cluster_centers_.astype(int)
-    return labels, [
-        (int(color[0]), int(color[1]), int(color[2])) for color in centroids
-    ]
+    return labels, [(int(color[0]), int(color[1]), int(color[2])) for color in centroids]
 
 
 def analyze_colors(labels: np.ndarray, centroids: list[tuple[int, int, int]]) -> list[dict]:

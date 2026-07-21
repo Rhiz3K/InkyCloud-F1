@@ -37,9 +37,7 @@ def _storage_is_ready(database_path: str, images_path: str) -> tuple[bool, str]:
         images_dir = Path(images_path).expanduser().resolve(strict=False)
         data_root = _CONTAINER_DATA_ROOT.resolve(strict=False)
         directories = (database_dir, images_dir)
-        uses_container_root = any(
-            directory.is_relative_to(data_root) for directory in directories
-        )
+        uses_container_root = any(directory.is_relative_to(data_root) for directory in directories)
         if uses_container_root and not os.path.ismount(data_root):
             return False, f"{data_root} is not a mounted volume"
 

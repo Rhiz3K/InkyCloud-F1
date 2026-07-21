@@ -1,6 +1,5 @@
 """Tests for scheduler helpers."""
 
-
 import asyncio
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
@@ -417,9 +416,6 @@ async def test_generate_teams_bmp_variants_treats_incomplete_standings_as_failur
 
 
 """Extended behavioral coverage for scheduler jobs and helpers."""
-
-
-
 
 
 @pytest.mark.asyncio

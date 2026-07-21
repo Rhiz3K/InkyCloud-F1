@@ -1,6 +1,5 @@
 """Tests for GitHub version metadata fetching."""
 
-
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -118,9 +117,6 @@ async def test_initial_failed_refresh_does_not_start_cache_ttl(monkeypatch):
 
 
 """Extended cache and partial-response coverage for GitHub version metadata."""
-
-
-
 
 
 @pytest.fixture(autouse=True)

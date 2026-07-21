@@ -1,6 +1,5 @@
 """Test weather service."""
 
-
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -700,9 +699,6 @@ class TestCircuitWeatherCache:
 
 
 """Extended edge-case coverage for weather fetching and cache restoration."""
-
-
-
 
 
 def _http_status_error(status_code: int) -> httpx.HTTPStatusError:

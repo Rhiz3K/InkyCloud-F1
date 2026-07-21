@@ -1,6 +1,5 @@
 """Tests for F1 service cancelled-race handling."""
 
-
 import json
 from datetime import datetime, timezone
 from types import SimpleNamespace
@@ -408,9 +407,6 @@ async def test_get_season_races_handles_null_circuit_and_missing_time(monkeypatc
 
 
 """Extended validation and fallback coverage for the F1 data service."""
-
-
-
 
 
 def _race(

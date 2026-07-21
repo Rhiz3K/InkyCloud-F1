@@ -1,6 +1,5 @@
 """Test renderer service."""
 
-
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from io import BytesIO
@@ -2459,9 +2458,6 @@ def test_results_section_uses_renderer_results_header_hook(
 
 
 """Narrow renderer edge cases that are not exercised by full-image snapshots."""
-
-
-
 
 
 def _team_row_renderer_state(lang_code: str, theme):

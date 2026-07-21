@@ -1,6 +1,5 @@
 """Focused tests for shared renderer helpers."""
 
-
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -49,10 +48,6 @@ def test_decoded_image_cache_evicts_by_bytes(tmp_path, monkeypatch):
 
 
 """Focused edge-case coverage for shared renderer primitives."""
-
-
-
-
 
 
 def test_decoded_image_larger_than_cache_budget_is_not_cached(tmp_path, monkeypatch):

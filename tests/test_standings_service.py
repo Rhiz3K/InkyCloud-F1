@@ -1,6 +1,5 @@
 """Test standings service."""
 
-
 import asyncio
 import time
 from types import SimpleNamespace
@@ -365,9 +364,6 @@ async def test_empty_driver_standings_are_negative_cached(monkeypatch):
 
 
 """Extended cache and error coverage for championship standings."""
-
-
-
 
 
 @pytest.fixture(autouse=True)

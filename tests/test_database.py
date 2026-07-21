@@ -1,6 +1,5 @@
 """Test database service."""
 
-
 import asyncio
 import weakref
 from contextlib import asynccontextmanager
@@ -861,10 +860,6 @@ class TestWeatherCacheDatabase:
 
 
 """Defensive-path coverage for the asynchronous database service."""
-
-
-
-
 
 
 class _EmptyCursor:

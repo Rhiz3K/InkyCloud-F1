@@ -1,6 +1,5 @@
 """Test main FastAPI application endpoints."""
 
-
 import asyncio
 import json
 import runpy
@@ -2257,9 +2256,6 @@ def test_dynamic_preview_preserves_rate_limit_429(
 
 
 """Extended startup, persistence, and ASGI middleware coverage."""
-
-
-
 
 
 async def _receive():
