@@ -163,10 +163,11 @@ class TestWeatherService:
 
     @staticmethod
     @pytest.mark.asyncio
-    async def test_get_current_weather_invalid_coordinates():
+    async def test_get_current_weather_invalid_coordinates(caplog):
         service = WeatherService()
         result = await service.get_current_weather(lat=100, lon=0)
         assert result is None
+        assert "100" not in caplog.text
 
     @staticmethod
     @pytest.mark.asyncio
@@ -720,7 +721,7 @@ async def test_current_weather_handles_generic_failure():
 
 
 @pytest.mark.asyncio
-async def test_fetch_current_weather_rejects_missing_temperature_and_matches_current_hour():
+async def test_fetch_current_weather_rejects_missing_temperature_and_matches_current_hour(caplog):
     service = weather.WeatherService()
     response = SimpleNamespace(json=lambda: {"current": {}, "hourly": {}})
     with (
@@ -730,6 +731,8 @@ async def test_fetch_current_weather_rejects_missing_temperature_and_matches_cur
         ),
     ):
         assert await service._fetch_current_weather(1.0, 2.0) is None
+    assert "1.0" not in caplog.text
+    assert "2.0" not in caplog.text
 
     response = SimpleNamespace(
         json=lambda: {

@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **Patched image dependency** - Upgrade Pillow to 12.3.0 after the new audit identified known vulnerabilities in 12.2.0, with renderer golden hashes confirming unchanged output
+- **Coordinate log minimization** - Keep weather-fetch diagnostics while omitting latitude and longitude values from application logs
 
 ### Development
 

@@ -927,13 +927,14 @@ async def test_flush_api_calls_handles_empty_success_failure_and_cancellation():
 
 
 @pytest.mark.asyncio
-async def test_fetch_single_circuit_weather_returns_data_or_none():
+async def test_fetch_single_circuit_weather_returns_data_or_none(caplog):
     weather_data = WeatherData(20.0, 1, 0)
     service = SimpleNamespace(get_current_weather=AsyncMock(return_value=weather_data))
     assert await weather_jobs._fetch_single_circuit_weather(service, 1.0, 2.0) is weather_data
 
     service.get_current_weather.side_effect = RuntimeError("weather failed")
     assert await weather_jobs._fetch_single_circuit_weather(service, 1.0, 2.0) is None
+    assert "(1.0, 2.0)" not in caplog.text
 
 
 @pytest.mark.asyncio

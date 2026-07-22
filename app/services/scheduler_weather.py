@@ -212,7 +212,7 @@ async def _fetch_single_circuit_weather(
     try:
         return await weather_service.get_current_weather(lat, lon)
     except Exception as e:
-        logger.debug("Weather fetch failed for (%s, %s): %s", lat, lon, e)
+        logger.debug("Weather fetch failed: %s", e)
         return None
 
 
