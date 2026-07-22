@@ -5,11 +5,11 @@ import os
 import shutil
 import tempfile
 
-# Set up test environment variables BEFORE any app imports
-# This must run at module import time, not in a fixture
+# Set up isolated test paths BEFORE any app imports. Always replace inherited values:
+# self-hosted runners may carry production storage settings in their process environment.
 _test_data_dir = tempfile.mkdtemp(prefix="f1_test_")
-os.environ.setdefault("DATABASE_PATH", os.path.join(_test_data_dir, "test_f1.db"))
-os.environ.setdefault("IMAGES_PATH", os.path.join(_test_data_dir, "images"))
+os.environ["DATABASE_PATH"] = os.path.join(_test_data_dir, "test_f1.db")
+os.environ["IMAGES_PATH"] = os.path.join(_test_data_dir, "images")
 
 
 def _cleanup_test_dir():

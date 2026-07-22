@@ -2,6 +2,8 @@
 
 import importlib
 import json
+import os
+import runpy
 from pathlib import Path
 from unittest.mock import patch
 
@@ -53,6 +55,20 @@ def test_default_stats_retention_covers_longest_dashboard_range():
 def test_config_rejects_empty_storage_paths(field_name):
     with pytest.raises(ValidationError):
         config_module.Config(_env_file=None, **{field_name: "   "})
+
+
+def test_conftest_overrides_inherited_storage_paths(monkeypatch):
+    """The test harness must never reuse storage inherited from a self-hosted runner."""
+    monkeypatch.setenv("DATABASE_PATH", "/inherited/live/f1.db")
+    monkeypatch.setenv("IMAGES_PATH", "/inherited/live/images")
+
+    test_harness = runpy.run_path(Path(__file__).with_name("conftest.py"))
+    test_data_dir = Path(test_harness["_test_data_dir"])
+    try:
+        assert os.environ["DATABASE_PATH"] == str(test_data_dir / "test_f1.db")
+        assert os.environ["IMAGES_PATH"] == str(test_data_dir / "images")
+    finally:
+        test_harness["_cleanup_test_dir"]()
 
 
 def test_config_treats_explicitly_empty_admin_token_as_unset():
