@@ -175,6 +175,29 @@ def mock_ranked_teams_data():
     )
 
 
+def _calendar_stage_hashes(renderer, race_data, historical_data):
+    """Return encoded hashes after each calendar stage for golden-test diagnostics."""
+    image = renderer._new_canvas()
+    draw = ImageDraw.Draw(image)
+    stage_hashes = {}
+
+    def record(stage):
+        stage_hashes[stage] = sha256(renderer._encode_image(image.copy())).hexdigest()
+
+    record("canvas")
+    renderer._draw_header(draw, image, race_data)
+    record("header")
+    renderer._draw_track_section(draw, image, race_data)
+    record("track")
+    schedule_bottom = renderer._draw_schedule_section(draw, race_data)
+    record("schedule")
+    renderer._draw_circuit_stats(draw, race_data, schedule_bottom)
+    record("stats")
+    renderer._draw_results_section(draw, image, race_data, historical_data)
+    record("results")
+    return stage_hashes
+
+
 @pytest.mark.parametrize(
     ("display", "calendar_hash", "teams_hash"),
     [
@@ -211,9 +234,16 @@ def test_refactored_renderers_remain_byte_identical(
     """Lock every display mode to the pre-refactor calendar and teams BMP bytes."""
     renderer = create_renderer(display, get_translator("en"), "en")
 
-    assert sha256(renderer.render_calendar(mock_race_data, mock_historical_data)).hexdigest() == (
-        calendar_hash
-    )
+    calendar_digest = sha256(
+        renderer.render_calendar(mock_race_data, mock_historical_data)
+    ).hexdigest()
+    if calendar_digest != calendar_hash:
+        font_paths = {name: str(getattr(font, "path", "")) for name, font in renderer.fonts.items()}
+        pytest.fail(
+            f"calendar digest {calendar_digest} != {calendar_hash}; "
+            f"stages={_calendar_stage_hashes(renderer, mock_race_data, mock_historical_data)}; "
+            f"fonts={font_paths}"
+        )
     assert sha256(renderer.render_teams_drivers(mock_ranked_teams_data)).hexdigest() == teams_hash
 
 
