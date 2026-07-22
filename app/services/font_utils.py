@@ -39,7 +39,15 @@ def _cached_truetype(path: str, size: int, *, index: int = 0) -> FreeTypeFont:
     if font is None:
         if len(cache) >= _FONT_CACHE_MAXSIZE:
             cache.clear()
-        font = ImageFont.truetype(path, size, index=index)
+        # The slim production image has no optional libraqm runtime. Pin Pillow's
+        # universally available engine so developer hosts cannot silently produce
+        # different BMP pixels merely because RAQM happens to be installed.
+        font = ImageFont.truetype(
+            path,
+            size,
+            index=index,
+            layout_engine=ImageFont.Layout.BASIC,
+        )
         cache[key] = font
     return font
 

@@ -175,51 +175,28 @@ def mock_ranked_teams_data():
     )
 
 
-def _calendar_stage_hashes(renderer, race_data, historical_data):
-    """Return encoded hashes after each calendar stage for golden-test diagnostics."""
-    image = renderer._new_canvas()
-    draw = ImageDraw.Draw(image)
-    stage_hashes = {}
-
-    def record(stage):
-        stage_hashes[stage] = sha256(renderer._encode_image(image.copy())).hexdigest()
-
-    record("canvas")
-    renderer._draw_header(draw, image, race_data)
-    record("header")
-    renderer._draw_track_section(draw, image, race_data)
-    record("track")
-    schedule_bottom = renderer._draw_schedule_section(draw, race_data)
-    record("schedule")
-    renderer._draw_circuit_stats(draw, race_data, schedule_bottom)
-    record("stats")
-    renderer._draw_results_section(draw, image, race_data, historical_data)
-    record("results")
-    return stage_hashes
-
-
 @pytest.mark.parametrize(
     ("display", "calendar_hash", "teams_hash"),
     [
         (
             "1bit",
-            "7201383867b745af5995de215f6f96973cc2417c4dbe73d059466f0397f3c84f",
-            "ad4470447c01cdac3c73d2763e971c00d5d2c07529e4c32cf7d2415dc8b4f2aa",
+            "2650ed2bca8e79d91f4f03b59a472fbc702e60e070ba6151f9c4feda8140b1b6",
+            "b0ec1a3d41b48ada3963a2a24dbe937d8d7eb14c51182ecd78855adfbcffa570",
         ),
         (
             "bwr",
-            "3a98cbe5b7e89c1d284bdc17af289c0f82508fbb3bdccffd53ac46cf72c27fa3",
-            "accefc073c85b16b982985098664edfada9bc948a588b37b41a4313da84a588d",
+            "a5f9605c0a102654267c01680348ccfd4e5dac10902d5c7872fa4b66418ed392",
+            "b3580bbcda260d58572949d1fd0f328c8eaf0531294ab42394e8960ef061cfa8",
         ),
         (
             "bwry",
-            "442247d7656b6adb3f4c2ad1807d69da90a8876c3607b62727b668fcacd7138f",
-            "1616f462e06a752802e1496c41ec2d3244f42a011ff5991974e5f1352d2f0f55",
+            "8a2ad75ab60dc36e94d8055128c42352237b201a71b7b04199fa63f7373d635f",
+            "d249ab66d019454df6b92859841a086b4786e94d6e0a0bb5d2f15926068cd578",
         ),
         (
             "spectra6",
-            "475e0521d96358234e8eabaae6e36650c67032fb8aef50816f297991ae0fe0ea",
-            "60f178857e43f40a6384add57e891c3aa8dae3e315ccc1a79780b8bd0ae20f04",
+            "c6f06ed40cd9f4190fa78960b031720f37723a203ac81ca4749b187df8ad91cf",
+            "4d504a91a75965799d7e05c9041447aa1be5f21349e781dd7a7073b6b8c74547",
         ),
     ],
 )
@@ -234,16 +211,9 @@ def test_refactored_renderers_remain_byte_identical(
     """Lock every display mode to the pre-refactor calendar and teams BMP bytes."""
     renderer = create_renderer(display, get_translator("en"), "en")
 
-    calendar_digest = sha256(
-        renderer.render_calendar(mock_race_data, mock_historical_data)
-    ).hexdigest()
-    if calendar_digest != calendar_hash:
-        font_paths = {name: str(getattr(font, "path", "")) for name, font in renderer.fonts.items()}
-        pytest.fail(
-            f"calendar digest {calendar_digest} != {calendar_hash}; "
-            f"stages={_calendar_stage_hashes(renderer, mock_race_data, mock_historical_data)}; "
-            f"fonts={font_paths}"
-        )
+    assert sha256(renderer.render_calendar(mock_race_data, mock_historical_data)).hexdigest() == (
+        calendar_hash
+    )
     assert sha256(renderer.render_teams_drivers(mock_ranked_teams_data)).hexdigest() == teams_hash
 
 

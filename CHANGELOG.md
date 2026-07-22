@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **Backup cron correctness** - Normalize Sunday-first, wrapped, ranged, and stepped standard-cron day-of-week expressions correctly and fail startup for invalid enabled backup schedules instead of silently losing backups
+- **Deterministic font layout** - Pin Pillow to its universally available BASIC layout engine so optional host RAQM libraries cannot change calendar or teams BMP pixels from the slim production-image baseline
 - **Generation health accuracy** - Stamp freshness only after a non-degraded, failure-free cycle that produced artifacts, keep previous files during partial runs, and derive all generated filenames from shared image-key helpers
 - **Season calendar automation** - Run the validated season updater weekly in-season and daily during December through February using the locked environment, with malformed or empty upstream data failing visibly
 
