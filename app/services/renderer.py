@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import logging
 from pathlib import Path
+from typing import ClassVar
 
 from PIL import Image, ImageOps
 
@@ -31,7 +32,7 @@ class MonoColors:
 
     BLACK = 0
     WHITE = 1
-    PALETTE = [BLACK, WHITE]
+    PALETTE: ClassVar[list[int]] = [BLACK, WHITE]
 
 
 MONO_THEME = make_monochrome_theme(

@@ -149,7 +149,8 @@ migrations run automatically when the shared database is opened.
 ## Data updates
 
 The running scheduler refreshes completed-race historical results daily and regenerates BMPs
-hourly. Season calendar source files are maintained by `.github/workflows/update-f1-data.yml`:
+hourly. Season calendar source files are maintained by the GitHub Actions workflow at
+`.github/workflows/update-f1-data.yml`:
 
 - weekly from March through November
 - daily from December through February

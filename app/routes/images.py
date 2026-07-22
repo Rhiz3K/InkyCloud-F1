@@ -440,24 +440,48 @@ def _fresh_pregenerated_path(image_path: Path) -> Path | None:
     return Path(resolved)
 
 
+def _read_pregenerated_artifact_snapshot(
+    image_path: Path,
+    if_none_match: str | None,
+) -> tuple[BmpArtifact | None, str | None]:
+    """Read one pregenerated generation without mixing its sidecar and BMP body.
+
+    A matching sidecar is read twice before taking the body-free 304 path. When a body is
+    needed, the sidecar is checked again after the read and trusted only if it did not change.
+    Atomic scheduler replacements can therefore linearize before or after this snapshot, but
+    cannot pair bytes from one generation with the ETag from another.
+    """
+    sidecar_etag = read_etag_sidecar(image_path)
+    if sidecar_etag is not None and if_none_match_matches(if_none_match, sidecar_etag):
+        confirmed_etag = read_etag_sidecar(image_path)
+        if confirmed_etag == sidecar_etag:
+            return None, sidecar_etag
+        sidecar_etag = confirmed_etag
+
+    try:
+        bmp_data = image_path.read_bytes()
+    except OSError:
+        return None, None
+
+    confirmed_etag = read_etag_sidecar(image_path)
+    etag = (
+        sidecar_etag
+        if sidecar_etag is not None and confirmed_etag == sidecar_etag
+        else strong_etag(bmp_data)
+    )
+    return (bmp_data, etag), None
+
+
 async def _read_pregenerated_artifact(
     image_path: Path,
     if_none_match: str | None,
 ) -> tuple[BmpArtifact | None, str | None]:
-    """Read a pregenerated artifact, returning an ETag-only hit before BMP I/O.
-
-    The first tuple item is ``None`` only when the request already matches the valid sidecar
-    ETag. The second item carries that ETag so the caller can emit an empty 304 response.
-    """
-    sidecar_etag = await asyncio.to_thread(read_etag_sidecar, image_path)
-    if sidecar_etag is not None and if_none_match_matches(if_none_match, sidecar_etag):
-        return None, sidecar_etag
-
-    try:
-        bmp_data = await asyncio.to_thread(image_path.read_bytes)
-    except OSError:
-        return None, None
-    return (bmp_data, sidecar_etag or strong_etag(bmp_data)), None
+    """Read and revalidate a pregenerated artifact outside the event-loop thread."""
+    return await asyncio.to_thread(
+        _read_pregenerated_artifact_snapshot,
+        image_path,
+        if_none_match,
+    )
 
 
 def _get_valid_teams_filenames(year: int) -> dict[tuple[str, str], str]:

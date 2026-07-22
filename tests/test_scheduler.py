@@ -964,6 +964,8 @@ async def test_fetch_all_circuit_weather_retries_and_persists_results():
     races = [
         {"circuit": {}},
         {"circuit": {"circuitId": "missing", "name": "Missing"}},
+        {"circuit": {"circuitId": "bad-lat", "lat": "north", "long": "2"}},
+        {"circuit": {"circuitId": "bad-lon", "lat": "1", "long": object()}},
         {"circuit": {"circuitId": "a", "name": "A", "lat": "1", "long": "2"}},
         {"circuit": {"circuitId": "a", "name": "Duplicate", "lat": "1", "long": "2"}},
         {"circuit": {"circuitId": "b", "name": "B", "lat": "3", "long": "4"}},

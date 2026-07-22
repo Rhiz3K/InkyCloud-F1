@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import logging
 from pathlib import Path
+from typing import ClassVar
 
 from PIL import Image
 
@@ -35,7 +36,14 @@ class Spectra6Colors:
     YELLOW = (0xFF, 0xD8, 0x00)
     GREEN = (0x00, 0xD8, 0x00)
     BLUE = (0x00, 0xA8, 0xFF)
-    PALETTE = [BLACK, WHITE, RED, YELLOW, BLUE, GREEN]
+    PALETTE: ClassVar[list[tuple[int, int, int]]] = [
+        BLACK,
+        WHITE,
+        RED,
+        YELLOW,
+        BLUE,
+        GREEN,
+    ]
     IDX_BLACK = 0
     IDX_WHITE = 1
     IDX_RED = 2

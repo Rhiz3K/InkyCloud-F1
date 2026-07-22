@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-- **Conditional BMP delivery** - Return strong SHA-256 ETags for calendar, teams, pregenerated, cached, fresh, and error BMPs; honor `If-None-Match` with an empty 304 response before reading pregenerated bodies; and retain status-specific request statistics without counting 304s as analytics downloads
+- **Conditional BMP delivery** - Return strong SHA-256 ETags for calendar, teams, pregenerated, cached, fresh, and error BMPs; honor `If-None-Match` with an empty 304 response after revalidating the pregenerated sidecar without reading its BMP body; and retain status-specific request statistics without counting 304s as analytics downloads
 - **Dependency-aware readiness** - Add `/health/ready` checks for asynchronous SQLite access, writable persistent storage, the `/app/data` mount root, and the last fully successful generation using the same six-hour tolerance as pregenerated serving, with a five-minute Docker cold-start grace
 
 #### Changed
@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **One dependency workflow** - Make the `uv` dependency group and `uv.lock` canonical, generate the hash-locked Docker requirements export, fail CI on export drift, and remove the duplicate optional-development list and ad-hoc installs
 - **Shared CI implementation** - Route trusted, fork, and CodSpeed jobs through reusable locked setup/composite actions while preserving the self-hosted fork boundary; replace the hard 100% global gate with 95% statement-and-branch coverage plus a 100% changed-line ratchet
 - **Behavior-oriented tests** - Merge or rename every coverage-oriented `_extended` module, add renderer and preprocessing byte-golden tests, and cover Sunday cron ranges, singleflight, ETag/304, shared database lifecycle, and readiness failure modes
-- **Unified asset CLI** - Replace eight duplicated palette preprocessors with `python -m scripts.manage preprocess`, keep thin compatibility wrappers, and parameterize the application-owned implementation from renderer palette constants
+- **Unified asset CLI** - Replace eight duplicated palette preprocessors with `python -m scripts.manage preprocess`, keep thin compatibility wrappers directly executable by filename, and parameterize the application-owned implementation from renderer palette constants
 
 ### Documentation
 

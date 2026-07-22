@@ -79,13 +79,20 @@ async def _fetch_all_circuits_weather_unlocked() -> None:
                 logger.debug("Circuit %s missing coordinates, skipping", circuit_id)
                 continue
 
+            try:
+                latitude = float(lat_str)
+                longitude = float(lon_str)
+            except TypeError, ValueError:
+                logger.debug("Circuit %s has invalid coordinates, skipping", circuit_id)
+                continue
+
             seen_circuits.add(circuit_id)
             circuits_to_fetch.append(
                 {
                     "id": circuit_id,
                     "name": circuit.get("name", circuit_id),
-                    "lat": float(lat_str),
-                    "lon": float(lon_str),
+                    "lat": latitude,
+                    "lon": longitude,
                 }
             )
 

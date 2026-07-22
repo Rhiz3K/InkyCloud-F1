@@ -442,11 +442,87 @@ async def test_pregenerated_matching_sidecar_skips_bmp_read(tmp_path):
         encode_etag_sidecar(image_path.stat().st_mtime_ns, etag)
     )
 
+    artifact, matching_etag = await images._read_pregenerated_artifact(
+        image_path, strong_etag(b"different")
+    )
+    assert artifact == (b"pregenerated", etag)
+    assert matching_etag is None
+
     with patch.object(Path, "read_bytes", side_effect=AssertionError("BMP body was read")):
         artifact, matching_etag = await images._read_pregenerated_artifact(image_path, etag)
 
     assert artifact is None
     assert matching_etag == etag
+
+
+@pytest.mark.asyncio
+async def test_pregenerated_matching_sidecar_revalidates_before_304(tmp_path):
+    image_path = tmp_path / "calendar.bmp"
+    old_body = b"old-pregenerated"
+    new_body = b"new-pregenerated"
+    image_path.write_bytes(old_body)
+    os.utime(image_path, ns=(1_000_000_000, 1_000_000_000))
+    old_etag = strong_etag(old_body)
+    new_etag = strong_etag(new_body)
+    etag_sidecar_path(image_path).write_bytes(
+        encode_etag_sidecar(image_path.stat().st_mtime_ns, old_etag)
+    )
+    original_read_sidecar = images.read_etag_sidecar
+    sidecar_reads = 0
+
+    def replace_after_first_sidecar_read(path: Path) -> str | None:
+        nonlocal sidecar_reads
+        etag = original_read_sidecar(path)
+        sidecar_reads += 1
+        if sidecar_reads == 1:
+            path.write_bytes(new_body)
+            etag_sidecar_path(path).write_bytes(
+                encode_etag_sidecar(path.stat().st_mtime_ns, new_etag)
+            )
+        return etag
+
+    with patch(
+        "app.routes.images.read_etag_sidecar",
+        side_effect=replace_after_first_sidecar_read,
+    ):
+        artifact, matching_etag = await images._read_pregenerated_artifact(image_path, old_etag)
+
+    assert artifact == (new_body, new_etag)
+    assert matching_etag is None
+    assert sidecar_reads == 3
+
+
+@pytest.mark.asyncio
+async def test_pregenerated_hashes_replaced_body_when_sidecar_turns_stale(tmp_path):
+    image_path = tmp_path / "calendar.bmp"
+    old_body = b"old-pregenerated"
+    new_body = b"new-pregenerated"
+    image_path.write_bytes(old_body)
+    os.utime(image_path, ns=(1_000_000_000, 1_000_000_000))
+    old_etag = strong_etag(old_body)
+    etag_sidecar_path(image_path).write_bytes(
+        encode_etag_sidecar(image_path.stat().st_mtime_ns, old_etag)
+    )
+    original_read_sidecar = images.read_etag_sidecar
+    sidecar_reads = 0
+
+    def replace_body_after_sidecar_read(path: Path) -> str | None:
+        nonlocal sidecar_reads
+        etag = original_read_sidecar(path)
+        sidecar_reads += 1
+        if sidecar_reads == 1:
+            path.write_bytes(new_body)
+        return etag
+
+    with patch(
+        "app.routes.images.read_etag_sidecar",
+        side_effect=replace_body_after_sidecar_read,
+    ):
+        artifact, matching_etag = await images._read_pregenerated_artifact(image_path, None)
+
+    assert artifact == (new_body, strong_etag(new_body))
+    assert matching_etag is None
+    assert sidecar_reads == 2
 
 
 @pytest.mark.asyncio

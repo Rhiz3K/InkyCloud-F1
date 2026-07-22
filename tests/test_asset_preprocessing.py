@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
@@ -261,3 +263,31 @@ def test_legacy_cli_wrapper_forwards_existing_arguments(monkeypatch):
     main.assert_called_once_with(
         ["preprocess", "tracks", "--palette", "bwr", "--circuits", "monaco"]
     )
+
+
+@pytest.mark.parametrize(
+    "script_name",
+    [
+        "preprocess_flags.py",
+        "preprocess_flags_bwr.py",
+        "preprocess_flags_bwry.py",
+        "preprocess_flags_spectra6.py",
+        "preprocess_tracks.py",
+        "preprocess_tracks_bwr.py",
+        "preprocess_tracks_bwry.py",
+        "preprocess_tracks_spectra6.py",
+    ],
+)
+def test_legacy_cli_wrappers_run_directly_by_filename(script_name, tmp_path):
+    """Every compatibility filename should bootstrap imports outside the repository."""
+    repository_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, "-I", str(repository_root / "scripts" / script_name), "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "usage:" in result.stdout
