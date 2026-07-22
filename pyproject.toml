@@ -19,7 +19,7 @@ dependencies = [
     # >=0.30 for CIDR support in --forwarded-allow-ips (the .env ships 10.0.0.0/8-style ranges,
     # which older uvicorn treats as literal strings that never match the proxy IP).
     "uvicorn[standard]>=0.30.0",
-    "pillow>=12.2.0",
+    "pillow>=12.3.0",
     "httpx>=0.25.0",
     "sentry-sdk[fastapi]>=1.38.0",
     "python-dotenv>=1.2.2",
