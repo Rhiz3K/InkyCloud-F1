@@ -195,6 +195,33 @@ def test_track_batch_filters_sources_and_normalizes_runtime_key(tmp_path):
     assert assets._track_output_stem(Path("monaco_bwry.png")) == "monaco"
 
 
+@pytest.mark.parametrize("palette", assets.PREPROCESS_PALETTES)
+def test_shipped_track_assets_match_source_preprocessing(tmp_path, palette):
+    """Shipped runtime BMPs must stay synchronized with their preferred source art."""
+    generated = tmp_path / palette
+
+    result = assets.preprocess_tracks(palette, output_dir=generated)
+
+    spec = assets.get_palette_spec(palette)
+    shipped = assets.PROJECT_ROOT / "app" / "assets" / spec.track_output
+    generated_paths = sorted(generated.glob("*.bmp"))
+    mismatches = []
+    for generated_path in generated_paths:
+        shipped_path = shipped / generated_path.name
+        if not shipped_path.is_file():
+            mismatches.append(f"{generated_path.name}: missing")
+        elif generated_path.read_bytes() != shipped_path.read_bytes():
+            mismatches.append(f"{generated_path.name}: differs")
+
+    assert result.processed == len(generated_paths)
+    assert result.failures == 0
+    assert not mismatches, (
+        f"{palette} runtime track assets are stale; regenerate them with "
+        f"`uv run python -m scripts.manage preprocess tracks --palette {palette}`: "
+        + ", ".join(mismatches)
+    )
+
+
 def test_flag_batch_and_empty_input_errors(tmp_path):
     """Flag batches should write all sources and fail loudly for missing inputs."""
     source = tmp_path / "flags"

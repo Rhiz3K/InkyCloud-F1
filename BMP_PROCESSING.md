@@ -108,6 +108,11 @@ transition period. New automation must use `python -m scripts.manage`.
 5. Review binary changes and run the renderer regression suite.
 6. Commit source artwork and processed runtime BMPs together when artwork itself is the task.
 
+CI regenerates every discoverable track into a temporary directory and compares it byte-for-byte
+with the shipped runtime BMP. Commit the regenerated `app/assets/tracks_*` outputs together with
+every source-art change; otherwise `tests/test_asset_preprocessing.py` fails with the exact stale
+palette and filenames.
+
 This workflow is intentionally separate from ordinary application releases. Source artwork is
 not copied into the wheel or Docker build context.
 
