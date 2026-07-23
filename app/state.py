@@ -10,9 +10,13 @@ logger = logging.getLogger(__name__)
 
 BMP_CACHE_MAXSIZE = 512
 BMP_CACHE_TTL_SECONDS = 3600
+BmpArtifact = tuple[bytes, str]
 
 # Cover all localized display/weather variants without immediate LRU churn.
-_bmp_cache: TTLCache = TTLCache(maxsize=BMP_CACHE_MAXSIZE, ttl=BMP_CACHE_TTL_SECONDS)
+_bmp_cache: TTLCache[str, BmpArtifact] = TTLCache(
+    maxsize=BMP_CACHE_MAXSIZE,
+    ttl=BMP_CACHE_TTL_SECONDS,
+)
 
 # Bound the buffer so a serving instance whose flush job never runs (e.g. SCHEDULER_ENABLED
 # is false) cannot grow it without limit. deque(maxlen) enforces the cap structurally:
@@ -27,7 +31,7 @@ def clear_bmp_cache() -> None:
     logger.info("BMP cache cleared")
 
 
-def get_bmp_cache() -> TTLCache:
+def get_bmp_cache() -> TTLCache[str, BmpArtifact]:
     """Return the shared generated-BMP cache instance."""
     return _bmp_cache
 
@@ -43,6 +47,7 @@ def record_api_call(
     race_name: str | None = None,
     is_auto_selected: bool = False,
     display_type: str | None = None,
+    status_code: int = 200,
 ) -> None:
     """Append one normalized API-call record to the bounded flush buffer."""
     call = {
@@ -57,6 +62,7 @@ def record_api_call(
         "race_name": race_name,
         "is_auto_selected": 1 if is_auto_selected else 0,
         "display_type": display_type,
+        "status_code": status_code,
     }
     _api_calls_buffer.append(call)
 

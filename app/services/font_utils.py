@@ -39,7 +39,15 @@ def _cached_truetype(path: str, size: int, *, index: int = 0) -> FreeTypeFont:
     if font is None:
         if len(cache) >= _FONT_CACHE_MAXSIZE:
             cache.clear()
-        font = ImageFont.truetype(path, size, index=index)
+        # The slim production image has no optional libraqm runtime. Pin Pillow's
+        # universally available engine so developer hosts cannot silently produce
+        # different BMP pixels merely because RAQM happens to be installed.
+        font = ImageFont.truetype(
+            path,
+            size,
+            index=index,
+            layout_engine=ImageFont.Layout.BASIC,
+        )
         cache[key] = font
     return font
 
@@ -187,3 +195,51 @@ def _load_cjk_font(lang_code: str, size: int) -> FreeTypeFont | ImageFont.ImageF
         except Exception as exc:
             logger.warning("Failed to load CJK font %s (index %s): %s", font_path, face_index, exc)
     return None
+
+
+def load_symbol_icon_font(
+    size: int, target_logger: logging.Logger
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load the Symbola fallback icon font used for symbols and emoji-style glyphs."""
+    symbola_path = "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf"
+    font = load_optional_truetype(
+        symbola_path,
+        size,
+        label="Symbola",
+        target_logger=target_logger,
+    )
+    return font or ImageFont.load_default()
+
+
+def load_weather_icon_font(
+    size: int,
+    target_logger: logging.Logger,
+    load_icon_font,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load the weather icon font with a Symbola fallback."""
+    font_path = FONTS_DIR / "weathericons-regular-webfont.ttf"
+    font = load_optional_truetype(
+        font_path,
+        size,
+        label="Weather Icons",
+        target_logger=target_logger,
+    )
+    return font or load_icon_font(size)
+
+
+def load_racing_font(
+    size: int,
+    target_logger: logging.Logger,
+    load_ui_font_fallback,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load the stylized racing number font with a UI-font fallback."""
+    font_path = FONTS_DIR / "RacingSansOne-Regular.ttf"
+    font = load_optional_truetype(
+        font_path,
+        size,
+        label="Racing Sans One",
+        target_logger=target_logger,
+    )
+    if font is not None:
+        return font
+    return load_ui_font_fallback(size, bold=True)

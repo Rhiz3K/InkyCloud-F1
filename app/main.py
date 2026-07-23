@@ -29,14 +29,14 @@ from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
 from app.services.circuit_data import ensure_runtime_circuits_data
-from app.services.database import Database
+from app.services.database import close_shared_database
 from app.services.http_client import close_shared_http_clients
 from app.services.scheduler import (
-    flush_api_calls_to_db,
     run_initial_generation,
     start_scheduler,
     stop_scheduler,
 )
+from app.services.scheduler_maintenance import flush_api_calls_to_db
 from app.services.warmup import warm_teams_renderer_assets
 from app.utils.async_tasks import (
     RENDER_WORKER_COUNT,
@@ -164,7 +164,7 @@ async def lifespan(_app: FastAPI):
     except Exception as exc:
         logger.error("HTTP-client shutdown failed: %s", exc, exc_info=True)
     try:
-        await Database.close_all()
+        await close_shared_database()
     except Exception as exc:
         logger.error("Database shutdown failed: %s", exc, exc_info=True)
     logger.info("Shutting down F1 E-Ink calendar service")

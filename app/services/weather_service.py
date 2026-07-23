@@ -138,7 +138,7 @@ class WeatherService:
             return cached
 
         if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
-            logger.warning("Invalid coordinates: lat=%s, lon=%s", lat, lon)
+            logger.warning("Invalid weather coordinates")
             return None
 
         try:
@@ -188,7 +188,7 @@ class WeatherService:
         # Don't fabricate weather: a 200 response with a missing/partial current block must not
         # be cached and displayed as 20C/sunny. Return None so the caller falls back gracefully.
         if "temperature_2m" not in current:
-            logger.warning("open-meteo returned no current temperature for %s,%s", lat, lon)
+            logger.warning("open-meteo returned no current temperature")
             return None
 
         # Precipitation probability lives only in the hourly array; pick the slot matching the
@@ -499,7 +499,7 @@ def _parse_coordinate(value: str | int | float | None) -> Optional[float]:
 
     try:
         return float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 
@@ -736,7 +736,7 @@ def _get_next_race_details() -> Optional[tuple[float, float, datetime]]:
     try:
         lat_f = float(lat)
         lon_f = float(lon)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         logger.warning("Invalid coordinates: lat=%s, lon=%s", lat, lon)
         return None
 
@@ -847,7 +847,7 @@ async def load_prefetched_weather_from_db(db: "Database") -> int:
         # stamping "now" would serve up-to-2h-old data as fresh for another full window.
         try:
             cached_at = datetime.fromisoformat(cached_at_str)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             cached_at = now
         if cached_at.tzinfo is None:
             cached_at = cached_at.replace(tzinfo=timezone.utc)

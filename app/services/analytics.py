@@ -2,7 +2,6 @@
 
 import logging
 from typing import Any, Optional
-from urllib.parse import urlencode
 
 import httpx
 
@@ -170,40 +169,6 @@ async def track_event(
             event_data=event_data,
         ),
         name="analytics_event",
-    )
-
-
-# Legacy function for backwards compatibility
-async def track_request(
-    endpoint: str,
-    lang: str,
-    user_agent: Optional[str] = None,
-    tz: Optional[str] = None,
-    year: Optional[int] = None,
-    round_num: Optional[int] = None,
-):
-    """
-    Legacy function - Track request to Umami analytics.
-
-    DEPRECATED: Use track_pageview() or track_event() instead.
-    This function is kept for backwards compatibility.
-    """
-    # Build URL with query parameters
-    query_params = {"lang": lang}
-    if tz:
-        query_params["tz"] = tz
-    if year is not None:
-        query_params["year"] = str(year)
-    if round_num is not None:
-        query_params["round"] = str(round_num)
-
-    url = f"{endpoint}?{urlencode(query_params)}"
-
-    await track_pageview(
-        url=url,
-        title=f"Calendar - {lang}",
-        lang=lang,
-        user_agent=user_agent,
     )
 
 

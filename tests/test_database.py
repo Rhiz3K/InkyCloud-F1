@@ -1,13 +1,17 @@
 """Test database service."""
 
 import asyncio
+import weakref
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock
 
+import aiosqlite
 import pytest
 import pytest_asyncio
 
-from app.services.database import Database
+from app.services import database
+from app.services.database import DATABASE_SCHEMA_VERSION, Database
 
 
 class TestCircuitWeatherDatabase:
@@ -853,3 +857,235 @@ class TestWeatherCacheDatabase:
             assert await db.get_weather_cache("stale") is None
         finally:
             await db.close()
+
+
+# Defensive-path coverage for the asynchronous database service.
+
+
+class _EmptyCursor:
+    def __init__(self):
+        self.exited = False
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_args):
+        self.exited = True
+        return None
+
+    @staticmethod
+    async def fetchone():
+        return None
+
+    @staticmethod
+    async def fetchall():
+        return []
+
+
+class _EmptyConnection:
+    @staticmethod
+    def execute(*_args, **_kwargs):
+        return _EmptyCursor()
+
+
+def _empty_connection_context():
+    @asynccontextmanager
+    async def context():
+        yield _EmptyConnection()
+
+    return context
+
+
+@pytest.mark.asyncio
+async def test_stale_connection_close_failure_does_not_block_reconnect(tmp_path, monkeypatch):
+    db = Database(str(tmp_path / "reconnect.db"))
+    stale = MagicMock(close=AsyncMock(side_effect=RuntimeError("already closed")))
+    replacement = MagicMock(close=AsyncMock())
+    db._connection = stale
+    db._connection_loop = None
+    monkeypatch.setattr(database.aiosqlite, "connect", AsyncMock(return_value=replacement))
+    monkeypatch.setattr(db, "_configure_connection", AsyncMock())
+
+    assert await db._ensure_connection() is replacement
+    stale.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_close_all_closes_every_live_instance(tmp_path, monkeypatch):
+    db = Database(str(tmp_path / "close-all.db"))
+    close = AsyncMock()
+    monkeypatch.setattr(db, "close", close)
+    monkeypatch.setattr(Database, "_instances", weakref.WeakSet([db]))
+
+    await Database.close_all()
+
+    close.assert_awaited_once()
+
+
+def test_get_database_reuses_instance_and_tracks_configured_path(tmp_path, monkeypatch):
+    first_path = str(tmp_path / "first.db")
+    second_path = str(tmp_path / "second.db")
+    monkeypatch.setattr(database._shared_database, "database", None)
+    monkeypatch.setattr(database.config, "DATABASE_PATH", first_path)
+
+    first = database.get_database()
+    assert database.get_database() is first
+    first.close = AsyncMock()
+
+    monkeypatch.setattr(database.config, "DATABASE_PATH", second_path)
+    second = database.get_database()
+    assert second is not first
+    assert second.db_path == second_path
+    first.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_database_supervises_replaced_instance_close_in_running_loop(
+    tmp_path, monkeypatch
+):
+    first = Database(str(tmp_path / "first.db"))
+    first.close = AsyncMock()
+    monkeypatch.setattr(database._shared_database, "database", first)
+    monkeypatch.setattr(database.config, "DATABASE_PATH", str(tmp_path / "second.db"))
+
+    replacement = database.get_database()
+    await asyncio.sleep(0)
+
+    assert replacement is database._shared_database.database
+    first.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_close_shared_database_closes_and_clears_instance(monkeypatch):
+    shared = MagicMock(close=AsyncMock())
+    monkeypatch.setattr(database._shared_database, "database", shared)
+
+    await database.close_shared_database()
+
+    shared.close.assert_awaited_once()
+    assert database._shared_database.database is None
+
+    await database.close_shared_database()
+
+
+@pytest.mark.asyncio
+async def test_schema_initialization_observes_path_initialized_inside_lock(tmp_path, monkeypatch):
+    class AppearingPathSet:
+        def __init__(self):
+            self.calls = 0
+
+        def __contains__(self, _path):
+            self.calls += 1
+            return self.calls == 2
+
+    db = Database(str(tmp_path / "already-initialized.db"))
+    paths = AppearingPathSet()
+    monkeypatch.setattr(Database, "initialized_paths", paths)
+
+    await db._init_db_if_needed()
+
+    assert paths.calls == 2
+
+
+@pytest.mark.asyncio
+async def test_run_migrations_adds_every_missing_api_call_column():
+    conn = await aiosqlite.connect(":memory:")
+    try:
+        await conn.execute("CREATE TABLE api_calls (id INTEGER PRIMARY KEY)")
+
+        await Database._run_migrations(conn)
+
+        async with conn.execute("PRAGMA table_info(api_calls)") as cursor:
+            columns = {row[1] for row in await cursor.fetchall()}
+        assert {
+            "year",
+            "round",
+            "display_type",
+            "race_name",
+            "is_auto_selected",
+            "status_code",
+        } <= columns
+        async with conn.execute("PRAGMA user_version") as cursor:
+            row = await cursor.fetchone()
+        assert row[0] == DATABASE_SCHEMA_VERSION
+    finally:
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_old_stats_handles_empty_database_and_rolls_back_failures(
+    tmp_path, monkeypatch
+):
+    db = Database(str(tmp_path / "cleanup-edges.db"))
+    try:
+        assert await db.cleanup_old_stats() == 0
+
+        monkeypatch.setattr(
+            database,
+            "STATS_CLEANUP_QUERIES",
+            {"missing": "DELETE FROM missing_table WHERE timestamp < ?"},
+        )
+        with pytest.raises(aiosqlite.OperationalError):
+            await db.cleanup_old_stats()
+    finally:
+        await db.close()
+
+
+@pytest.mark.asyncio
+async def test_save_api_calls_batch_accepts_empty_input(tmp_path):
+    db = Database(str(tmp_path / "empty-batch.db"))
+
+    assert await db.save_api_calls_batch([]) == 0
+
+
+@pytest.mark.asyncio
+async def test_stats_24h_handles_missing_aggregate_row(tmp_path, monkeypatch):
+    db = Database(str(tmp_path / "missing-aggregate.db"))
+    monkeypatch.setattr(db, "_init_db_if_needed", AsyncMock())
+    monkeypatch.setattr(db, "_get_connection", _empty_connection_context())
+
+    assert await db.get_api_calls_stats_24h() == {
+        "count_24h": 0,
+        "avg_response_ms": None,
+        "total_bytes_24h": 0,
+        "status_codes": [],
+    }
+
+
+@pytest.mark.asyncio
+async def test_stats_range_handles_missing_aggregate_row(tmp_path, monkeypatch):
+    db = Database(str(tmp_path / "missing-range-aggregate.db"))
+    monkeypatch.setattr(db, "_init_db_if_needed", AsyncMock())
+    monkeypatch.setattr(db, "_get_connection", _empty_connection_context())
+
+    result = await db.get_stats_for_range(24)
+
+    assert result == {
+        "total_requests": 0,
+        "min_response_ms": 0,
+        "avg_response_ms": 0,
+        "max_response_ms": 0,
+        "total_bytes": 0,
+        "endpoints": [],
+        "status_codes": [],
+        "languages": [],
+        "display_types": [],
+        "teams_display_types": [],
+        "timezones": [],
+        "hourly": [],
+        "races": [],
+    }
+
+
+def test_percentile_helpers_accept_empty_samples():
+    assert Database._calculate_percentile([], 75) is None
+    assert Database._calculate_percentile_fine([], 75) is None
+
+
+@pytest.mark.asyncio
+async def test_database_ping_initializes_and_queries_sqlite(tmp_path):
+    db = Database(str(tmp_path / "ping.db"))
+    try:
+        assert await db.ping() is True
+    finally:
+        await db.close()

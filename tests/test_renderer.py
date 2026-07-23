@@ -1,7 +1,10 @@
 """Test renderer service."""
 
 from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 from io import BytesIO
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PIL import Image, ImageDraw, ImageOps
@@ -19,17 +22,18 @@ from app.models import (
 from app.services import bwr_renderer as bwr_renderer_module
 from app.services import bwry_renderer as bwry_renderer_module
 from app.services import renderer as renderer_module
+from app.services import renderer_base as renderer_base_module
 from app.services import spectra6_renderer as spectra6_renderer_module
 from app.services.bwr_renderer import BwrColors, BwrRenderer
 from app.services.bwry_renderer import BwryColors, BwryRenderer
 from app.services.font_utils import fit_brand_font_box
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
-from app.services.renderer_common import (
+from app.services.renderer_assets import crop_to_content
+from app.services.renderer_teams import draw_team_logo
+from app.services.renderer_text import (
     build_sprint_qualifying_label,
     build_team_header_values,
-    crop_to_content,
-    draw_team_logo,
     format_schedule_session_name,
     format_team_driver_display_name,
     get_team_logo_key,
@@ -37,6 +41,7 @@ from app.services.renderer_common import (
     split_teams_for_columns,
     translate_session_name,
 )
+from app.services.renderers import create_renderer
 from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 from app.services.teams_service import TeamsService
 from app.services.weather_service import WeatherData
@@ -170,6 +175,48 @@ def mock_ranked_teams_data():
     )
 
 
+@pytest.mark.parametrize(
+    ("display", "calendar_hash", "teams_hash"),
+    [
+        (
+            "1bit",
+            "2650ed2bca8e79d91f4f03b59a472fbc702e60e070ba6151f9c4feda8140b1b6",
+            "b0ec1a3d41b48ada3963a2a24dbe937d8d7eb14c51182ecd78855adfbcffa570",
+        ),
+        (
+            "bwr",
+            "a5f9605c0a102654267c01680348ccfd4e5dac10902d5c7872fa4b66418ed392",
+            "b3580bbcda260d58572949d1fd0f328c8eaf0531294ab42394e8960ef061cfa8",
+        ),
+        (
+            "bwry",
+            "8a2ad75ab60dc36e94d8055128c42352237b201a71b7b04199fa63f7373d635f",
+            "d249ab66d019454df6b92859841a086b4786e94d6e0a0bb5d2f15926068cd578",
+        ),
+        (
+            "spectra6",
+            "c6f06ed40cd9f4190fa78960b031720f37723a203ac81ca4749b187df8ad91cf",
+            "4d504a91a75965799d7e05c9041447aa1be5f21349e781dd7a7073b6b8c74547",
+        ),
+    ],
+)
+def test_refactored_renderers_remain_byte_identical(
+    display,
+    calendar_hash,
+    teams_hash,
+    mock_race_data,
+    mock_historical_data,
+    mock_ranked_teams_data,
+):
+    """Lock every display mode to the pre-refactor calendar and teams BMP bytes."""
+    renderer = create_renderer(display, get_translator("en"), "en")
+
+    assert sha256(renderer.render_calendar(mock_race_data, mock_historical_data)).hexdigest() == (
+        calendar_hash
+    )
+    assert sha256(renderer.render_teams_drivers(mock_ranked_teams_data)).hexdigest() == teams_hash
+
+
 def test_render_calendar_english(mock_race_data):
     """Test rendering calendar in English."""
     translator = get_translator("en")
@@ -275,13 +322,13 @@ def test_countdown_uses_locale_plural_forms(monkeypatch, lang, delta, expected):
     assert expected in captured_text
 
 
-def test_monochrome_canvas_ignores_mutated_instance_dimensions():
-    """The display contract stays 800x480 even if instance state is corrupted."""
+def test_monochrome_canvas_uses_instance_dimensions():
+    """Canvas construction uses the configured renderer dimensions."""
     renderer = Renderer(get_translator("en"), "en")
-    renderer.width = 1
-    renderer.height = 1
+    renderer.width = 123
+    renderer.height = 45
 
-    assert renderer._new_canvas().size == (800, 480)
+    assert renderer._new_canvas().size == (123, 45)
 
 
 @pytest.mark.parametrize("lang", ["cs", "sk", "pl", "en", "de", "ja", "zh-CN", "pt-BR"])
@@ -393,7 +440,7 @@ def test_renderer_draws_ongoing_label_for_recently_started_race(monkeypatch):
         return original_text(xy, text, *args, **kwargs)
 
     monkeypatch.setattr(draw, "text", spy_text)
-    monkeypatch.setattr(renderer_module, "datetime", FixedDatetime)
+    monkeypatch.setattr(renderer_base_module, "datetime", FixedDatetime)
 
     bottom = renderer._draw_countdown_box(
         draw,
@@ -428,7 +475,7 @@ def test_spectra6_renderer_draws_completed_label_for_finished_race(monkeypatch):
         return original_text(xy, text, *args, **kwargs)
 
     monkeypatch.setattr(draw, "text", spy_text)
-    monkeypatch.setattr(spectra6_renderer_module, "datetime", FixedDatetime)
+    monkeypatch.setattr(renderer_base_module, "datetime", FixedDatetime)
 
     bottom = renderer._draw_countdown_box(
         draw,
@@ -1153,19 +1200,14 @@ def test_render_calendar_with_non_preprocessed_track_image(mock_race_data, tmp_p
 
 
 def test_render_calendar_with_rgb_track_image(mock_race_data, tmp_path, monkeypatch):
-    """Test ImageOps inversion and cropping pipeline for RGB track images."""
+    """Test ImageOps inversion and cropping for an RGB processed BMP."""
     fake_track = Image.new("RGB", (200, 150), color=(200, 200, 200))
     draw = ImageDraw.Draw(fake_track)
     draw.ellipse([30, 30, 170, 120], fill=(0, 0, 0))
 
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    track_path = tracks_dir / "test_circuit.png"
-    fake_track.save(track_path, "PNG")
-
-    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
     processed_dir = tmp_path / "tracks_processed"
     processed_dir.mkdir()
+    fake_track.save(processed_dir / "test_circuit.bmp", "BMP")
     monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
 
     translator = get_translator("en")
@@ -1181,51 +1223,12 @@ def test_render_calendar_with_rgb_track_image(mock_race_data, tmp_path, monkeypa
     assert img.mode == "1"
 
 
-def test_renderer_load_track_image_prefers_bw_variant(mock_race_data, tmp_path, monkeypatch):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(12, 34, 56)).save(tracks_dir / "test_circuit.png", "PNG")
-    Image.new("RGB", (4, 4), color=(200, 210, 220)).save(tracks_dir / "test_circuit_bw.png", "PNG")
-
-    processed_dir = tmp_path / "tracks_processed"
-    processed_dir.mkdir()
-    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
-
-    track_image = Renderer._load_track_image(mock_race_data)
-
-    assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (200, 210, 220)
-
-
-def test_renderer_load_track_image_falls_back_to_generic_source(
-    mock_race_data, tmp_path, monkeypatch
-):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(12, 34, 56)).save(tracks_dir / "test_circuit.png", "PNG")
-    Image.new("RGB", (4, 4), color=(220, 20, 20)).save(tracks_dir / "test_circuit_bwr.png", "PNG")
-
-    processed_dir = tmp_path / "tracks_processed"
-    processed_dir.mkdir()
-    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
-
-    track_image = Renderer._load_track_image(mock_race_data)
-
-    assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (12, 34, 56)
-
-
 def test_renderer_load_track_image_uses_circuit_id_mapping(tmp_path, monkeypatch):
     processed_dir = tmp_path / "tracks_processed"
     processed_dir.mkdir()
     Image.new("1", (4, 4), color=1).save(processed_dir / "las_vegas.bmp", "BMP")
 
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
     monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
-    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
 
     race_data = {
         "circuit": {
@@ -1240,219 +1243,71 @@ def test_renderer_load_track_image_uses_circuit_id_mapping(tmp_path, monkeypatch
     assert track_image.size == (4, 4)
 
 
-def test_renderer_load_track_image_prefers_source_over_preprocessed(
-    mock_race_data, tmp_path, monkeypatch
+@pytest.mark.parametrize(
+    ("renderer_cls", "renderer_module", "directory_attr", "directory_name", "pixel"),
+    [
+        (Renderer, renderer_module, "TRACKS_PROCESSED_DIR", "tracks_processed", (21, 31, 41)),
+        (BwrRenderer, bwr_renderer_module, "TRACKS_BWR_DIR", "tracks_bwr", (220, 10, 20)),
+        (BwryRenderer, bwry_renderer_module, "TRACKS_BWRY_DIR", "tracks_bwry", (220, 180, 20)),
+        (
+            Spectra6Renderer,
+            spectra6_renderer_module,
+            "TRACKS_SPECTRA6_DIR",
+            "tracks_spectra6",
+            (20, 120, 210),
+        ),
+    ],
+)
+def test_runtime_track_loader_uses_each_display_processed_art(
+    mock_race_data,
+    tmp_path,
+    monkeypatch,
+    renderer_cls,
+    renderer_module,
+    directory_attr,
+    directory_name,
+    pixel,
 ):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(200, 210, 220)).save(tracks_dir / "test_circuit_bw.png", "PNG")
-
-    processed_dir = tmp_path / "tracks_processed"
+    """Every display loads its own processed BMP, never editable source art."""
+    processed_dir = tmp_path / directory_name
     processed_dir.mkdir()
-    Image.new("1", (4, 4), color=0).save(processed_dir / "test_circuit.bmp", "BMP")
-    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
+    Image.new("RGB", (4, 4), color=pixel).save(processed_dir / "test_circuit.bmp", "BMP")
+    monkeypatch.setattr(renderer_module, directory_attr, processed_dir)
 
-    track_image = Renderer._load_track_image(mock_race_data)
+    track_image = renderer_cls._load_track_image(mock_race_data)
 
     assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (200, 210, 220)
+    assert track_image.getpixel((0, 0)) == pixel
 
 
-def test_render_calendar_english_uses_track_source_variant(mock_race_data, tmp_path, monkeypatch):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (32, 32), color=(0, 0, 0)).save(tracks_dir / "test_circuit_bw.png", "PNG")
-
-    processed_dir = tmp_path / "tracks_processed"
+@pytest.mark.parametrize(
+    ("renderer_cls", "renderer_module", "directory_attr"),
+    [
+        (Renderer, renderer_module, "TRACKS_PROCESSED_DIR"),
+        (BwrRenderer, bwr_renderer_module, "TRACKS_BWR_DIR"),
+        (BwryRenderer, bwry_renderer_module, "TRACKS_BWRY_DIR"),
+        (Spectra6Renderer, spectra6_renderer_module, "TRACKS_SPECTRA6_DIR"),
+    ],
+)
+def test_runtime_track_loader_uses_generic_location_fallback(
+    mock_race_data,
+    tmp_path,
+    monkeypatch,
+    renderer_cls,
+    renderer_module,
+    directory_attr,
+):
+    """All display loaders share the generic location-stem fallback."""
+    processed_dir = tmp_path / directory_attr.lower()
     processed_dir.mkdir()
-    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
-
-    renderer = Renderer(get_translator("en"))
-    bmp_data = renderer.render_calendar(mock_race_data)
-
-    image = Image.open(BytesIO(bmp_data))
-    assert image.format == "BMP"
-    assert image.size == (800, 480)
-    assert image.mode == "1"
-
-
-def test_render_calendar_czech_uses_track_source_variant(mock_race_data, tmp_path, monkeypatch):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (32, 32), color=(0, 0, 0)).save(tracks_dir / "test_circuit_bw.png", "PNG")
-
-    processed_dir = tmp_path / "tracks_processed"
-    processed_dir.mkdir()
-    monkeypatch.setattr(renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(renderer_module, "TRACKS_PROCESSED_DIR", processed_dir)
-
-    renderer = Renderer(get_translator("cs"))
-    bmp_data = renderer.render_calendar(mock_race_data)
-
-    image = Image.open(BytesIO(bmp_data))
-    assert image.format == "BMP"
-    assert image.size == (800, 480)
-    assert image.mode == "1"
-
-
-def test_bwr_renderer_load_track_image_prefers_bwr_variant(mock_race_data, tmp_path, monkeypatch):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(30, 40, 50)).save(tracks_dir / "test_circuit.png", "PNG")
-    Image.new("RGB", (4, 4), color=(255, 0, 0)).save(tracks_dir / "test_circuit_bwr.png", "PNG")
-
-    bwr_dir = tmp_path / "tracks_bwr"
-    bwr_dir.mkdir()
-    monkeypatch.setattr(bwr_renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(bwr_renderer_module, "TRACKS_BWR_DIR", bwr_dir)
-
-    track_image = BwrRenderer._load_track_image(mock_race_data)
-
-    assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (255, 0, 0)
-
-
-def test_bwr_renderer_load_track_image_prefers_source_over_preprocessed(
-    mock_race_data, tmp_path, monkeypatch
-):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(255, 0, 0)).save(tracks_dir / "test_circuit_bwr.png", "PNG")
-
-    bwr_dir = tmp_path / "tracks_bwr"
-    bwr_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(123, 45, 67)).save(bwr_dir / "test_circuit.bmp", "BMP")
-
-    monkeypatch.setattr(bwr_renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(bwr_renderer_module, "TRACKS_BWR_DIR", bwr_dir)
-
-    track_image = BwrRenderer._load_track_image(mock_race_data)
-
-    assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (255, 0, 0)
-
-
-def test_bwr_renderer_load_track_image_falls_back_to_generic_source(
-    mock_race_data, tmp_path, monkeypatch
-):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(30, 40, 50)).save(tracks_dir / "test_circuit.png", "PNG")
-
-    bwr_dir = tmp_path / "tracks_bwr"
-    bwr_dir.mkdir()
-    monkeypatch.setattr(bwr_renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(bwr_renderer_module, "TRACKS_BWR_DIR", bwr_dir)
-
-    track_image = BwrRenderer._load_track_image(mock_race_data)
-
-    assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (30, 40, 50)
-
-
-def test_bwry_renderer_load_track_image_prefers_bwry_variant(mock_race_data, tmp_path, monkeypatch):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(30, 40, 50)).save(tracks_dir / "test_circuit.png", "PNG")
-    Image.new("RGB", (4, 4), color=(244, 208, 42)).save(tracks_dir / "test_circuit_bwry.png", "PNG")
-
-    bwry_dir = tmp_path / "tracks_bwry"
-    bwry_dir.mkdir()
-    monkeypatch.setattr(bwry_renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(bwry_renderer_module, "TRACKS_BWRY_DIR", bwry_dir)
-
-    track_image = BwryRenderer._load_track_image(mock_race_data)
-
-    assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (244, 208, 42)
-
-
-def test_bwry_renderer_load_track_image_prefers_source_over_preprocessed(
-    mock_race_data, tmp_path, monkeypatch
-):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(244, 208, 42)).save(tracks_dir / "test_circuit_bwry.png", "PNG")
-
-    bwry_dir = tmp_path / "tracks_bwry"
-    bwry_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(12, 34, 56)).save(bwry_dir / "test_circuit.bmp", "BMP")
-
-    monkeypatch.setattr(bwry_renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(bwry_renderer_module, "TRACKS_BWRY_DIR", bwry_dir)
-
-    track_image = BwryRenderer._load_track_image(mock_race_data)
-
-    assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (244, 208, 42)
-
-
-def test_spectra6_renderer_load_track_image_prefers_spectra6_variant(
-    mock_race_data, tmp_path, monkeypatch
-):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(10, 10, 10)).save(tracks_dir / "test_circuit.png", "PNG")
-    Image.new("RGB", (4, 4), color=(80, 128, 184)).save(
-        tracks_dir / "test_circuit_spectra6.png", "PNG"
-    )
-
-    spectra6_dir = tmp_path / "tracks_spectra6"
-    spectra6_dir.mkdir()
-    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_SPECTRA6_DIR", spectra6_dir)
-
-    track_image = Spectra6Renderer._load_track_image(mock_race_data)
-
-    assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (80, 128, 184)
-
-
-def test_spectra6_renderer_load_track_image_prefers_source_over_preprocessed(
-    mock_race_data, tmp_path, monkeypatch
-):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(80, 128, 184)).save(
-        tracks_dir / "test_circuit_spectra6.png", "PNG"
-    )
-
-    spectra6_dir = tmp_path / "tracks_spectra6"
-    spectra6_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(12, 34, 56)).save(spectra6_dir / "test_circuit.bmp", "BMP")
-    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_SPECTRA6_DIR", spectra6_dir)
-
-    track_image = Spectra6Renderer._load_track_image(mock_race_data)
-
-    assert track_image is not None
-    assert track_image.getpixel((0, 0)) == (80, 128, 184)
-
-
-def test_spectra6_renderer_load_track_image_can_fallback_to_location(
-    mock_race_data, tmp_path, monkeypatch
-):
-    tracks_dir = tmp_path / "tracks"
-    tracks_dir.mkdir()
-    Image.new("RGB", (4, 4), color=(45, 55, 65)).save(tracks_dir / "test_city_spectra6.png", "PNG")
-
-    spectra6_dir = tmp_path / "tracks_spectra6"
-    spectra6_dir.mkdir()
-    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_DIR", tracks_dir)
-    monkeypatch.setattr(spectra6_renderer_module, "TRACKS_SPECTRA6_DIR", spectra6_dir)
-
+    Image.new("RGB", (4, 4), color=(45, 55, 65)).save(processed_dir / "test_city.bmp", "BMP")
+    monkeypatch.setattr(renderer_module, directory_attr, processed_dir)
     race_data = {
         **mock_race_data,
-        "circuit": {
-            **mock_race_data["circuit"],
-            "circuitId": "",
-            "location": "Test City",
-        },
+        "circuit": {**mock_race_data["circuit"], "circuitId": "", "location": "Test City"},
     }
 
-    track_image = Spectra6Renderer._load_track_image(race_data)
+    track_image = renderer_cls._load_track_image(race_data)
 
     assert track_image is not None
     assert track_image.getpixel((0, 0)) == (45, 55, 65)
@@ -2104,13 +1959,13 @@ def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch, 
     monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", images_dir)
 
     captured: dict[str, object] = {}
-    original_draw_f1_logo = spectra6_renderer_module.draw_f1_logo
+    original_draw_f1_logo = renderer_base_module.draw_f1_logo
 
     def spy_draw_f1_logo(*args, **kwargs):
         captured["logo_path"] = kwargs["logo_path"]
         return original_draw_f1_logo(*args, **kwargs)
 
-    monkeypatch.setattr(spectra6_renderer_module, "draw_f1_logo", spy_draw_f1_logo)
+    monkeypatch.setattr(renderer_base_module, "draw_f1_logo", spy_draw_f1_logo)
 
     renderer = Spectra6Renderer(get_translator("en"))
     bmp_data = renderer.render_calendar(mock_race_data)
@@ -2550,9 +2405,7 @@ def test_spectra6_renderer_load_track_image_does_not_use_wildcard_fallback(
     def fake_load_track_image_asset(*args, **kwargs):
         captured.update(kwargs)
 
-    monkeypatch.setattr(
-        spectra6_renderer_module, "load_track_image_asset", fake_load_track_image_asset
-    )
+    monkeypatch.setattr(renderer_base_module, "load_track_image_asset", fake_load_track_image_asset)
 
     Spectra6Renderer._load_track_image(mock_race_data)
 
@@ -2560,10 +2413,10 @@ def test_spectra6_renderer_load_track_image_does_not_use_wildcard_fallback(
 
 
 @pytest.mark.parametrize(
-    ("renderer_cls", "renderer_module", "expected_country_map"),
+    ("renderer_cls", "expected_country_map"),
     [
-        (BwrRenderer, bwr_renderer_module, bwr_renderer_module.COUNTRY_MAP),
-        (BwryRenderer, bwry_renderer_module, bwry_renderer_module.COUNTRY_MAP),
+        (BwrRenderer, bwr_renderer_module.COUNTRY_MAP),
+        (BwryRenderer, bwry_renderer_module.COUNTRY_MAP),
     ],
 )
 def test_results_section_uses_renderer_results_header_hook(
@@ -2571,7 +2424,6 @@ def test_results_section_uses_renderer_results_header_hook(
     mock_race_data,
     mock_historical_data,
     renderer_cls,
-    renderer_module,
     expected_country_map,
 ):
     renderer = renderer_cls(get_translator("en"))
@@ -2594,11 +2446,189 @@ def test_results_section_uses_renderer_results_header_hook(
         captured["country_map"] = kwargs["country_map"]
         return 0
 
-    monkeypatch.setattr(spectra6_renderer_module, "draw_results_section", fake_draw_results_section)
-    monkeypatch.setattr(renderer_module, "draw_results_header", fake_draw_results_header)
+    monkeypatch.setattr(renderer_base_module, "draw_results_section", fake_draw_results_section)
+    monkeypatch.setattr(renderer_base_module, "draw_results_header", fake_draw_results_header)
 
     renderer._draw_results_section(draw, image, mock_race_data, mock_historical_data)
 
     assert captured["is_bound_method"] is True
     assert captured["country_map"] == expected_country_map
     assert captured["visual_top"] == 0
+
+
+# Narrow renderer edge cases that are not exercised by full-image snapshots.
+
+
+def _team_row_renderer_state(lang_code: str, theme):
+    return SimpleNamespace(
+        lang_code=lang_code,
+        theme=theme,
+        _load_brand_font=MagicMock(return_value=object()),
+        layout={"driver_name_padding": 2},
+        colors=SimpleNamespace(BLACK=(0, 0, 0), WHITE=(255, 255, 255), PALETTE=[]),
+        fonts={},
+    )
+
+
+def test_bwr_track_loader_returns_none_without_identifiers():
+    assert BwrRenderer._load_track_image({"circuit": {}}) is None
+
+
+def test_bwr_weather_font_falls_back_to_generic_icon_font(monkeypatch):
+    fallback = object()
+    instance = BwrRenderer.__new__(BwrRenderer)
+    monkeypatch.setattr(BwrRenderer, "_load_icon_font", MagicMock(return_value=fallback))
+    monkeypatch.setattr(
+        "app.services.font_utils.load_optional_truetype",
+        MagicMock(return_value=None),
+    )
+
+    assert instance._load_weather_icon_font(16) is fallback
+
+
+def test_monochrome_team_row_uses_brand_fonts_for_cjk():
+    state = _team_row_renderer_state("ja", Renderer.THEME)
+    with (
+        patch(
+            "app.services.renderer_base.build_team_header_values",
+            return_value=("Team", "", "", ""),
+        ),
+        patch("app.services.renderer_base.draw_team_row") as shared_draw,
+    ):
+        Renderer._draw_team_row(
+            state,
+            Image.new("1", (20, 20)),
+            MagicMock(),
+            0,
+            0,
+            20,
+            SimpleNamespace(position=1),
+            20,
+        )
+
+    assert state._load_brand_font.call_count == 6
+    shared_draw.assert_called_once()
+
+
+def test_monochrome_driver_loader_handles_alpha_and_corrupt_files(tmp_path, monkeypatch):
+    drivers = tmp_path / "drivers"
+    drivers.mkdir()
+    portrait = Image.new("RGBA", (2, 1))
+    portrait.putdata([(0, 0, 0, 255), (0, 0, 0, 0)])
+    portrait.save(drivers / "driver.png")
+    (drivers / "broken.png").write_bytes(b"not an image")
+    monkeypatch.setattr(renderer_module, "IMAGES_DIR", tmp_path)
+
+    photos = Renderer._load_driver_photos()
+
+    assert photos["driver"].mode == "1"
+    assert photos["driver"].getpixel((0, 0)) == 0
+    assert photos["driver"].getpixel((1, 0)) == 1
+
+
+def test_monochrome_team_logo_loader_skips_missing_dir_and_corrupt_asset(tmp_path, monkeypatch):
+    teams = tmp_path / "teams"
+    teams.mkdir()
+    (teams / "broken.png").write_bytes(b"not an image")
+    monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", tmp_path / "missing-color")
+    monkeypatch.setattr(renderer_module, "IMAGES_DIR", tmp_path)
+
+    assert Renderer._load_team_logos() == {}
+
+
+def test_sauber_normalizer_ignores_non_tuple_pixels(monkeypatch):
+    rgba = MagicMock(size=(1, 1), width=1, height=1)
+    rgba.getpixel.return_value = 5
+    source = MagicMock()
+    source.convert.return_value = rgba
+    normalized = MagicMock()
+    monkeypatch.setattr(renderer_module.Image, "new", MagicMock(return_value=normalized))
+
+    assert Renderer.normalize_sauber_logo_for_non_spectra(source) is normalized
+    normalized.putpixel.assert_not_called()
+
+
+def test_spectra_team_row_uses_brand_fonts_for_cjk():
+    state = _team_row_renderer_state("ja", Spectra6Renderer.THEME)
+    with (
+        patch(
+            "app.services.renderer_base.build_team_header_values",
+            return_value=("Team", "", "", ""),
+        ),
+        patch("app.services.renderer_base.draw_team_row") as shared_draw,
+    ):
+        Spectra6Renderer._draw_team_row(
+            state,
+            Image.new("RGB", (20, 20)),
+            MagicMock(),
+            0,
+            0,
+            20,
+            SimpleNamespace(position=1),
+            20,
+        )
+
+    assert state._load_brand_font.call_count == 6
+    shared_draw.assert_called_once()
+
+
+def test_spectra_session_color_defaults_to_black():
+    state = SimpleNamespace(
+        theme=Spectra6Renderer.THEME,
+        _session_kind=Spectra6Renderer._session_kind,
+    )
+
+    assert Spectra6Renderer._get_session_color(state, "unknown") == (0, 0, 0)
+
+
+def test_spectra_schedule_row_normalizes_sprint_alias():
+    state = SimpleNamespace(
+        width=800,
+        layout={
+            "schedule_date_x": 1,
+            "schedule_day_x": 2,
+            "schedule_time_x": 3,
+            "schedule_name_x": 4,
+        },
+        translator={},
+        lang_code="en",
+        fonts={"schedule_row": object()},
+        colors=SimpleNamespace(BLACK=(0, 0, 0)),
+        theme=Spectra6Renderer.THEME,
+        _get_session_color=MagicMock(return_value=(1, 2, 3)),
+    )
+    with patch("app.services.renderer_base.draw_schedule_row") as shared_draw:
+        Spectra6Renderer._draw_schedule_row(state, MagicMock(), 10, {"name": "Sprint Shootout"})
+
+    state._get_session_color.assert_called_once_with("Sprint Qualifying")
+    shared_draw.assert_called_once()
+
+
+def test_spectra_driver_loader_handles_corrupt_asset(tmp_path, monkeypatch):
+    drivers = tmp_path / "drivers"
+    drivers.mkdir()
+    (drivers / "broken.png").write_bytes(b"not an image")
+    monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", tmp_path)
+
+    assert Spectra6Renderer._load_driver_photos() == {}
+
+
+def test_spectra_team_logo_loader_skips_missing_dir_and_corrupt_asset(tmp_path, monkeypatch):
+    teams = tmp_path / "teams"
+    teams.mkdir()
+    (teams / "broken.png").write_bytes(b"not an image")
+    monkeypatch.setattr(spectra6_renderer_module, "TEAMS_COLOR_DIR", tmp_path / "missing-color")
+    monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", tmp_path)
+
+    assert Spectra6Renderer._load_team_logos() == {}
+
+
+def test_driver_photo_paste_adapters_apply_monochrome_and_alpha_images():
+    monochrome_canvas = Image.new("1", (2, 2), 1)
+    Renderer._paste_driver_photo(monochrome_canvas, Image.new("1", (1, 1), 0), 0, 0)
+    assert monochrome_canvas.getpixel((0, 0)) == 0
+
+    color_canvas = Image.new("RGB", (2, 2), "white")
+    color_photo = Image.new("RGBA", (1, 1), (255, 0, 0, 255))
+    Spectra6Renderer._paste_driver_photo(color_canvas, color_photo, 1, 1)
+    assert color_canvas.getpixel((1, 1)) == (255, 0, 0)

@@ -7,6 +7,7 @@ from app.state import (
     get_bmp_cache,
     record_api_call,
 )
+from app.utils.etag import strong_etag
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +30,7 @@ class TestBmpCache:
     @staticmethod
     def test_clear_bmp_cache():
         cache = get_bmp_cache()
-        cache["test_key"] = b"test_data"
+        cache["test_key"] = (b"test_data", strong_etag(b"test_data"))
         assert len(cache) == 1
 
         clear_bmp_cache()
@@ -38,8 +39,9 @@ class TestBmpCache:
     @staticmethod
     def test_bmp_cache_set_and_get():
         cache = get_bmp_cache()
-        cache["calendar_en"] = b"bmp_data"
-        assert cache["calendar_en"] == b"bmp_data"
+        artifact = (b"bmp_data", strong_etag(b"bmp_data"))
+        cache["calendar_en"] = artifact
+        assert cache["calendar_en"] == artifact
 
     @staticmethod
     def test_bmp_cache_capacity_covers_localized_variants():
@@ -84,6 +86,14 @@ class TestApiCallsBuffer:
         assert call["race_name"] == "Monaco Grand Prix"
         assert call["is_auto_selected"] == 1
         assert call["display_type"] == display_type
+        assert call["status_code"] == 200
+
+    @staticmethod
+    def test_record_api_call_status_code():
+        record_api_call("/calendar.bmp", 1.0, 0, status_code=304)
+
+        calls = get_and_clear_api_calls_buffer()
+        assert calls[0]["status_code"] == 304
 
     @staticmethod
     def test_record_api_call_is_auto_selected_false():

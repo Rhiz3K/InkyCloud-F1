@@ -1,0 +1,62 @@
+name: Run project CI
+description: Run the complete locked lint, type, docs, test, and Docker validation pipeline.
+
+inputs:
+  validate-release:
+    description: Run main-branch release-readiness validation.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-python
+
+    - name: Verify exported production lock
+      shell: bash
+      run: |
+        exported_lock="$(mktemp)"
+        trap 'rm -f "$exported_lock"' EXIT
+        uv export --locked --no-dev --no-emit-project --no-header --format requirements.txt \
+          --output-file "$exported_lock"
+        diff -u requirements.lock "$exported_lock"
+
+    - name: Validate release readiness
+      if: inputs.validate-release == 'true'
+      shell: bash
+      run: uv run --locked python -m app.utils.release_validation
+
+    - name: Lint with ruff
+      shell: bash
+      run: uv run --locked ruff check .
+
+    - name: Type-check application
+      shell: bash
+      run: uv run --locked mypy
+
+    - name: Verify documentation coverage
+      shell: bash
+      run: uv run --locked interrogate -c pyproject.toml app scripts
+
+    - name: Run tests
+      shell: bash
+      run: |
+        uv run --locked pytest tests/ -v -m "not benchmark" \
+          --cov=app \
+          --cov-branch \
+          --cov-report=term-missing \
+          --cov-report=xml
+
+    - name: Enforce changed-line coverage ratchet
+      if: github.event_name == 'pull_request'
+      shell: bash
+      env:
+        BASE_REF: ${{ github.base_ref }}
+      run: uv run --locked diff-cover coverage.xml --compare-branch="origin/${BASE_REF}" --fail-under=100
+
+    - name: Test Docker build
+      shell: bash
+      run: |
+        docker build -t f1-eink-cal:test .
+        docker run --rm --entrypoint python --workdir /tmp f1-eink-cal:test \
+          -c "from app.services import asset_preprocessing, scheduler_maintenance; assert 'mono' in asset_preprocessing.PREPROCESS_PALETTES; assert scheduler_maintenance.refresh_historical_results.__module__ == 'app.services.scheduler_maintenance'"

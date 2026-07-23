@@ -6,9 +6,9 @@ from unittest.mock import Mock
 import pytest
 from PIL import Image
 
+from app.services.asset_preprocessing import assign_patterns
 from app.utils.image_assets import atomic_save_image, decode_image_bytes
 from scripts import download_flags
-from scripts.preprocess_flags import assign_patterns
 
 
 def _png_bytes() -> bytes:

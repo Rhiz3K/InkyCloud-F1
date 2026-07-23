@@ -1,5 +1,6 @@
 services:
   f1-eink-cal:
+    image: ${F1_IMAGE:-f1-eink-cal:local}
     build:
       context: .
       dockerfile: Dockerfile
@@ -22,11 +23,11 @@ services:
       - f1_data:/app/data
     # Healthcheck is built into Dockerfile, but can override if needed
     healthcheck:
-      test: ["CMD", "python", "-c", "import os, urllib.request; urllib.request.urlopen(f'http://localhost:{os.getenv(\"APP_PORT\", \"8000\")}/health').read()"]
+      test: ["CMD", "python", "-c", "import os, urllib.request; urllib.request.urlopen(f'http://localhost:{os.getenv(\"APP_PORT\", \"8000\")}/health/ready').read()"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 5m
     labels:
       # Coolify labels for auto-discovery and management
       - "coolify.managed=true"

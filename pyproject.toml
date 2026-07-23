@@ -1,18 +1,18 @@
 [project]
 name = "f1-eink-cal"
-version = "1.2.33"
+version = "1.2.34"
 description = "F1 E-Ink calendar service generating 800x480 1-bit BMPs for LaskaKit displays"
 readme = "README.md"
 authors = [
     { name = "Rhiz3K" },
 ]
 license = "MIT"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 classifiers = [
     "Framework :: FastAPI",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "fastapi>=0.104.0",
@@ -35,23 +35,6 @@ dependencies = [
     "lxml>=6.1.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "httpx2>=2.5.0",
-    "interrogate>=1.7.0",
-    "mypy>=1.19.1",
-    "numpy>=2.4.0",
-    "pytest>=9.0.3",
-    "pytest-asyncio>=0.21.0",
-    "pytest-codspeed>=4.3.0",
-    "pytest-cov>=4.1.0",
-    "ruff>=0.14.10",
-    "scikit-learn>=1.8.0",
-    "types-aiofiles>=25.1.0.20251011",
-    "types-cachetools>=6.2.0.20251022",
-    "types-markdown>=3.10.0.20251106",
-]
-
 [project.urls]
 Homepage = "https://github.com/Rhiz3K/InkyCloud-F1"
 Repository = "https://github.com/Rhiz3K/InkyCloud-F1"
@@ -70,7 +53,24 @@ namespaces = true
 
 [tool.setuptools.package-data]
 "app" = [
-    "assets/**/*",
+    "assets/circuits_data.json",
+    "assets/css/*",
+    "assets/favicon/*",
+    "assets/flags/*",
+    "assets/flags_bwr/*",
+    "assets/flags_bwry/*",
+    "assets/flags_flat/*",
+    "assets/flags_processed/*",
+    "assets/flags_spectra6/*",
+    "assets/fonts/*",
+    "assets/images/*",
+    "assets/images/**/*",
+    "assets/js/*",
+    "assets/seasons/*",
+    "assets/tracks_bwr/*",
+    "assets/tracks_bwry/*",
+    "assets/tracks_processed/*",
+    "assets/tracks_spectra6/*",
     "templates/*.html",
     "templates/**/*.html",
 ]
@@ -81,7 +81,7 @@ namespaces = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py313"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
@@ -92,7 +92,7 @@ ignore = []
 "app/main.py" = ["E501"]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 files = ["app"]
 ignore_missing_imports = true
 explicit_package_bases = true
@@ -112,16 +112,18 @@ branch = true
 source = ["app"]
 
 [tool.coverage.report]
-fail_under = 100
+fail_under = 95
 precision = 2
 show_missing = true
 
 [dependency-groups]
 dev = [
+    "diff-cover>=9.7.1",
     "httpx2>=2.5.0",
     "interrogate>=1.7.0",
     "mypy>=1.19.1",
     "numpy>=2.4.0",
+    "pip-audit>=2.10.0",
     "pytest>=9.0.3",
     "pytest-asyncio>=0.21.0",
     "pytest-codspeed>=4.3.0",

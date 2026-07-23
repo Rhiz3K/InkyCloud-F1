@@ -2,32 +2,35 @@
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import logging
 import os
 import time
-from io import BytesIO
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from urllib.parse import urlencode
 
 import sentry_sdk
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.services.analytics import track_event, track_pageview
 from app.services.f1_service import F1Service
+from app.services.generation_freshness import PREGENERATED_MAX_AGE_SECONDS
 from app.services.i18n import get_translator
 from app.services.image_keys import get_calendar_image_key, get_teams_image_key
-from app.services.renderers import create_renderer
+from app.services.renderers import DISPLAY_TYPES, create_renderer
 from app.services.teams_service import (
     TeamsService,
     get_default_teams_year,
     is_teams_data_cacheable,
 )
 from app.services.weather_service import get_weather_context
-from app.state import get_bmp_cache, record_api_call
+from app.state import BmpArtifact, get_bmp_cache, record_api_call
 from app.utils.async_tasks import create_supervised_task, run_render
+from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
 from app.utils.race_times import convert_race_times_to_timezone
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.timezones import is_valid_timezone, normalize_timezone
@@ -38,7 +41,35 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-TEAMS_BMP_CACHE_CONTROL = "no-store, max-age=0"
+TEAMS_BMP_CACHE_CONTROL = "no-cache"
+CALENDAR_BMP_CACHE_CONTROL = "public, max-age=3600"
+_singleflight_tasks: dict[str, asyncio.Task[BmpArtifact]] = {}
+
+
+async def _singleflight(
+    key: str,
+    producer: Callable[[], Awaitable[BmpArtifact]],
+) -> BmpArtifact:
+    """Share one in-flight render per key on the application's event loop.
+
+    The mapping is intentionally lock-free: routes and task cleanup access it only from the
+    same asyncio event loop. Shielding keeps the producer alive when one waiter disconnects.
+    """
+    existing = _singleflight_tasks.get(key)
+    if existing is not None:
+        return await asyncio.shield(existing)
+
+    async def execute() -> BmpArtifact:
+        """Run the producer and release this key only when its own task completes."""
+        try:
+            return await producer()
+        finally:
+            if _singleflight_tasks.get(key) is asyncio.current_task():
+                _singleflight_tasks.pop(key, None)
+
+    task = asyncio.create_task(execute(), name=f"bmp-singleflight:{key}")
+    _singleflight_tasks[key] = task
+    return await asyncio.shield(task)
 
 
 def _normalize_lang(lang: str) -> str:
@@ -48,7 +79,7 @@ def _normalize_lang(lang: str) -> str:
 
 def _normalize_display(display: str) -> str:
     """Normalize display input to a supported renderer key."""
-    return display if display in ("1bit", "spectra6", "bwr", "bwry") else "1bit"
+    return display if display in DISPLAY_TYPES else "1bit"
 
 
 def _validate_timezone_param(tz: str | None) -> None:
@@ -88,7 +119,7 @@ def _to_round_number(round_value: str | int | None) -> int | None:
 
     try:
         round_number = int(round_value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
     return round_number if round_number > 0 else None
@@ -211,6 +242,7 @@ def _record_calendar_api_call(
     actual_round: int | None,
     actual_race_name: str | None,
     is_auto_selected: bool,
+    status_code: int,
 ) -> None:
     """Persist a calendar API call with render metadata."""
     record_api_call(
@@ -224,6 +256,156 @@ def _record_calendar_api_call(
         actual_race_name,
         is_auto_selected,
         display_type=display,
+        status_code=status_code,
+    )
+
+
+def _record_teams_api_call(
+    *,
+    start_time: float,
+    size_bytes: int,
+    lang: str,
+    display: str,
+    year: int | None,
+    status_code: int,
+) -> None:
+    """Persist a teams API call with the same metadata shape as calendar calls."""
+    record_api_call(
+        "/teams.bmp",
+        (time.time() - start_time) * 1000,
+        size_bytes,
+        lang,
+        None,
+        year,
+        None,
+        None,
+        False,
+        display_type=display,
+        status_code=status_code,
+    )
+
+
+def _bmp_response(
+    request: Request,
+    *,
+    content: bytes | None,
+    etag: str,
+    filename: str,
+    cache_control: str,
+    record_call: Callable[[int, int], None],
+    schedule_analytics: Callable[[], None] | None = None,
+    cache_status: str | None = None,
+) -> Response:
+    """Build a 200/304 BMP response and apply telemetry exactly once."""
+    not_modified = if_none_match_matches(request.headers.get("If-None-Match"), etag)
+    status_code = 304 if not_modified else 200
+    body = b"" if not_modified else (content or b"")
+    headers = {
+        "Content-Disposition": f'inline; filename="{filename}"',
+        "Cache-Control": cache_control,
+        "ETag": etag,
+    }
+    if cache_status is not None:
+        headers["X-Cache"] = cache_status
+
+    record_call(status_code, len(body))
+    if status_code == 200 and schedule_analytics is not None:
+        schedule_analytics()
+
+    return Response(
+        content=body,
+        status_code=status_code,
+        media_type="image/bmp" if status_code == 200 else None,
+        headers=headers,
+    )
+
+
+def _calendar_response(
+    request: Request,
+    *,
+    content: bytes | None,
+    etag: str,
+    start_time: float,
+    lang: str,
+    display: str,
+    tz: str | None,
+    actual_year: int | None,
+    actual_round: int | None,
+    actual_race_name: str | None,
+    is_auto_selected: bool,
+    year: int | None,
+    race_round: int | None,
+    race_key: str | None,
+    user_agent: str | None,
+    referrer: str,
+    cache_control: str,
+    cache_status: str | None,
+    analytics: bool = True,
+) -> Response:
+    """Apply the shared calendar response, call-record, and analytics epilogue."""
+    return _bmp_response(
+        request,
+        content=content,
+        etag=etag,
+        filename="calendar.bmp",
+        cache_control=cache_control,
+        cache_status=cache_status,
+        record_call=lambda status, size: _record_calendar_api_call(
+            start_time=start_time,
+            size_bytes=size,
+            lang=lang,
+            display=display,
+            tz=tz,
+            actual_year=actual_year,
+            actual_round=actual_round,
+            actual_race_name=actual_race_name,
+            is_auto_selected=is_auto_selected,
+            status_code=status,
+        ),
+        schedule_analytics=(
+            lambda: _schedule_calendar_analytics(
+                lang=lang,
+                tz=tz,
+                year=year,
+                race_round=race_round,
+                race_key=race_key,
+                user_agent=user_agent,
+                referrer=referrer,
+            )
+        )
+        if analytics
+        else None,
+    )
+
+
+def _teams_response(
+    request: Request,
+    *,
+    content: bytes | None,
+    etag: str,
+    start_time: float,
+    lang: str,
+    display: str,
+    year: int | None,
+    cache_control: str = TEAMS_BMP_CACHE_CONTROL,
+    cache_status: str | None = None,
+) -> Response:
+    """Apply the shared teams response and call-record epilogue."""
+    return _bmp_response(
+        request,
+        content=content,
+        etag=etag,
+        filename="teams.bmp",
+        cache_control=cache_control,
+        cache_status=cache_status,
+        record_call=lambda status, size: _record_teams_api_call(
+            start_time=start_time,
+            size_bytes=size,
+            lang=lang,
+            display=display,
+            year=year,
+            status_code=status,
+        ),
     )
 
 
@@ -233,22 +415,11 @@ def _normalize_weather_type(weather_type: str) -> str:
     return weather_type if weather_type in allowed else "race_day"
 
 
-_DISPLAY_FILE_SUFFIXES: dict[str, str] = {
-    "1bit": "",
-    "spectra6": "_spectra6",
-    "bwr": "_bwr",
-    "bwry": "_bwry",
-}
-
-
 # Pre-defined whitelist of valid generated filenames (no user input in paths)
 # Serve a pregenerated file only while it is plausibly current. Generation runs hourly, so a
 # healthy file is at most ~1h old; 6h tolerates a few failed runs while bounding how long a
 # stale file (e.g. a timezone that dropped out of the popular set, or a variant whose render
 # keeps failing) can keep showing the previous race before falling back to on-demand rendering.
-_PREGEN_MAX_AGE_SECONDS = 6 * 3600
-
-
 def _fresh_pregenerated_path(image_path: Path) -> Path | None:
     """Return the path only when it stays inside IMAGES_PATH and is recent enough to trust.
 
@@ -264,18 +435,77 @@ def _fresh_pregenerated_path(image_path: Path) -> Path | None:
         mtime = os.stat(resolved).st_mtime
     except OSError:
         return None
-    if time.time() - mtime > _PREGEN_MAX_AGE_SECONDS:
+    if time.time() - mtime > PREGENERATED_MAX_AGE_SECONDS:
         return None
     return Path(resolved)
+
+
+def _read_pregenerated_artifact_snapshot(
+    image_path: Path,
+    if_none_match: str | None,
+) -> tuple[BmpArtifact | None, str | None]:
+    """Read one pregenerated generation without mixing its sidecar and BMP body.
+
+    A matching sidecar is read twice before taking the body-free 304 path. When a body is
+    needed, the sidecar is checked again after the read and trusted only if it did not change.
+    Atomic scheduler replacements can therefore linearize before or after this snapshot, but
+    cannot pair bytes from one generation with the ETag from another.
+    """
+    sidecar_etag = read_etag_sidecar(image_path)
+    if sidecar_etag is not None and if_none_match_matches(if_none_match, sidecar_etag):
+        confirmed_etag = read_etag_sidecar(image_path)
+        if confirmed_etag == sidecar_etag:
+            return None, sidecar_etag
+        sidecar_etag = confirmed_etag
+
+    try:
+        bmp_data = image_path.read_bytes()
+    except OSError:
+        return None, None
+
+    confirmed_etag = read_etag_sidecar(image_path)
+    etag = (
+        sidecar_etag
+        if sidecar_etag is not None and confirmed_etag == sidecar_etag
+        else strong_etag(bmp_data)
+    )
+    return (bmp_data, etag), None
+
+
+async def _read_pregenerated_artifact(
+    image_path: Path,
+    if_none_match: str | None,
+) -> tuple[BmpArtifact | None, str | None]:
+    """Read and revalidate a pregenerated artifact outside the event-loop thread."""
+    return await asyncio.to_thread(
+        _read_pregenerated_artifact_snapshot,
+        image_path,
+        if_none_match,
+    )
 
 
 def _get_valid_teams_filenames(year: int) -> dict[tuple[str, str], str]:
     """Return the whitelist of valid teams BMP filenames for a specific season."""
     return {
-        (lang, display): f"teams_{year}_{lang}{_DISPLAY_FILE_SUFFIXES[display]}.bmp"
+        (lang, display): f"{get_teams_image_key(lang, year, display=display)}.bmp"
         for lang in LANGUAGE_CODES
-        for display in _DISPLAY_FILE_SUFFIXES
+        for display in DISPLAY_TYPES
     }
+
+
+def _is_pregenerated_selection(
+    *,
+    requested_year: int | None,
+    pregenerated_year: int | None = None,
+    race_round: int | None = None,
+    race_key: str | None = None,
+) -> bool:
+    """Return whether a request can use the deterministic pregenerated selection."""
+    if race_round is not None or race_key is not None:
+        return False
+    return requested_year is None or (
+        pregenerated_year is not None and requested_year == pregenerated_year
+    )
 
 
 def _get_pregenerated_calendar_path(
@@ -290,13 +520,17 @@ def _get_pregenerated_calendar_path(
     weather_type: str,
 ) -> Path | None:
     """Return a pregenerated calendar BMP path when the request matches one."""
-    if year is not None or race_round is not None or race_key is not None:
+    if not _is_pregenerated_selection(
+        requested_year=year,
+        race_round=race_round,
+        race_key=race_key,
+    ):
         return None
 
     # Normalize inputs to allowed values; the filename is then derived solely from these
     # enum-like values plus a validated IANA timezone, so no raw user input reaches the path.
     safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
-    safe_display = display if display in {"spectra6", "bwr", "bwry"} else "1bit"
+    safe_display = _normalize_display(display)
     safe_weather = "off" if not weather else _normalize_weather_type(weather_type)
     # Scheduler filenames use the "race" form for both race/race_day.
     key_weather = "race" if safe_weather == "race_day" else safe_weather
@@ -320,11 +554,14 @@ def _get_pregenerated_calendar_path(
 def _get_pregenerated_teams_path(*, lang: str, year: int | None, display: str) -> Path | None:
     """Return a pregenerated teams BMP path when the request matches one."""
     default_year = get_default_teams_year()
-    if year is not None and year != default_year:
+    if not _is_pregenerated_selection(
+        requested_year=year,
+        pregenerated_year=default_year,
+    ):
         return None
 
     safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
-    safe_display = display if display in {"spectra6", "bwr", "bwry"} else "1bit"
+    safe_display = _normalize_display(display)
     filename = _get_valid_teams_filenames(default_year).get((safe_lang, safe_display))
     if not filename:
         return None
@@ -437,6 +674,53 @@ async def _render_calendar(
     return (bmp_data, race_data, True)
 
 
+async def _render_calendar_artifact(
+    *,
+    cache_key: str,
+    f1_service: F1Service,
+    lang: str,
+    year: int | None,
+    race_round: int | None,
+    race_key: str | None,
+    target_tz: str,
+    weather: bool,
+    weather_type: str,
+    display: str,
+) -> BmpArtifact:
+    """Render/hash one calendar miss and cache the pair only when complete."""
+    bmp_data, _race_data, is_cacheable = await _render_calendar(
+        f1_service=f1_service,
+        lang=lang,
+        year=year,
+        race_round=race_round,
+        race_key=race_key,
+        target_tz=target_tz,
+        weather=weather,
+        weather_type=weather_type,
+        display=display,
+    )
+    artifact = (bmp_data, strong_etag(bmp_data))
+    if is_cacheable:
+        get_bmp_cache()[cache_key] = artifact
+    return artifact
+
+
+async def _render_teams_artifact(
+    *, cache_key: str, lang: str, year: int, display: str
+) -> BmpArtifact:
+    """Fetch, render, and hash one teams miss, caching only a complete dashboard."""
+    teams_data = await TeamsService().get_teams_and_drivers(year)
+    bmp_data = await run_render(functools.partial(_render_teams_bytes, display, lang, teams_data))
+    artifact = (bmp_data, strong_etag(bmp_data))
+    if is_teams_data_cacheable(teams_data):
+        get_bmp_cache()[cache_key] = artifact
+    elif teams_data.teams:
+        logger.warning("Teams standings incomplete for %s; serving but not caching", year)
+    else:
+        logger.warning("Teams data empty for %s; serving but not caching", year)
+    return artifact
+
+
 @router.get("/calendar.bmp")
 async def get_calendar_bmp(
     request: Request,
@@ -477,13 +761,20 @@ async def get_calendar_bmp(
         f1_service, year, race_round, race_key
     )
 
-    cache_key = _get_cache_key(lang, year, race_round, race_key, tz, weather, weather_type, display)
-    cached_bmp = get_bmp_cache().get(cache_key)
-    if cached_bmp is not None:
-        logger.debug("Cache hit for %s", cache_key)
-        _record_calendar_api_call(
+    def respond(
+        content: bytes | None,
+        etag: str,
+        *,
+        cache_control: str,
+        cache_status: str | None,
+        analytics: bool = True,
+    ) -> Response:
+        """Build the calendar response with the request's normalized analytics context."""
+        return _calendar_response(
+            request,
+            content=content,
+            etag=etag,
             start_time=start_time,
-            size_bytes=len(cached_bmp),
             lang=lang,
             display=display,
             tz=tz,
@@ -491,24 +782,24 @@ async def get_calendar_bmp(
             actual_round=actual_round,
             actual_race_name=actual_race_name,
             is_auto_selected=is_auto_selected,
-        )
-        _schedule_calendar_analytics(
-            lang=lang,
-            tz=tz,
             year=year,
             race_round=race_round,
             race_key=race_key,
             user_agent=user_agent,
             referrer=referrer,
+            cache_control=cache_control,
+            cache_status=cache_status,
+            analytics=analytics,
         )
-        return StreamingResponse(
-            BytesIO(cached_bmp),
-            media_type="image/bmp",
-            headers={
-                "Content-Disposition": 'inline; filename="calendar.bmp"',
-                "Cache-Control": "public, max-age=3600",
-                "X-Cache": "HIT",
-            },
+
+    cache_key = _get_cache_key(lang, year, race_round, race_key, tz, weather, weather_type, display)
+    cached_artifact = get_bmp_cache().get(cache_key)
+    if cached_artifact is not None:
+        logger.debug("Cache hit for %s", cache_key)
+        return respond(
+            *cached_artifact,
+            cache_control=CALENDAR_BMP_CACHE_CONTROL,
+            cache_status="HIT",
         )
 
     image_path = _get_pregenerated_calendar_path(
@@ -523,123 +814,61 @@ async def get_calendar_bmp(
     )
     if image_path is not None:
         logger.info("Serving pre-generated image: %s", image_path)
-        try:
-            bmp_data = image_path.read_bytes()
-        except OSError as exc:
-            logger.info("Pre-generated image disappeared before read; rendering: %s", exc)
-        else:
-            get_bmp_cache()[cache_key] = bmp_data
-            _record_calendar_api_call(
-                start_time=start_time,
-                size_bytes=len(bmp_data),
-                lang=lang,
-                display=display,
-                tz=tz,
-                actual_year=actual_year,
-                actual_round=actual_round,
-                actual_race_name=actual_race_name,
-                is_auto_selected=is_auto_selected,
+        artifact, matching_etag = await _read_pregenerated_artifact(
+            image_path,
+            request.headers.get("If-None-Match"),
+        )
+        if matching_etag is not None:
+            return respond(
+                None,
+                matching_etag,
+                cache_control=CALENDAR_BMP_CACHE_CONTROL,
+                cache_status="REVALIDATED",
             )
-            _schedule_calendar_analytics(
+        if artifact is not None:
+            get_bmp_cache()[cache_key] = artifact
+            return respond(
+                *artifact,
+                cache_control=CALENDAR_BMP_CACHE_CONTROL,
+                cache_status="MISS",
+            )
+        logger.info("Pre-generated image disappeared before read; rendering")
+
+    try:
+        artifact = await _singleflight(
+            f"calendar:{cache_key}",
+            functools.partial(
+                _render_calendar_artifact,
+                cache_key=cache_key,
+                f1_service=f1_service,
                 lang=lang,
-                tz=tz,
                 year=year,
                 race_round=race_round,
                 race_key=race_key,
-                user_agent=user_agent,
-                referrer=referrer,
-            )
-            return StreamingResponse(
-                BytesIO(bmp_data),
-                media_type="image/bmp",
-                headers={
-                    "Content-Disposition": 'inline; filename="calendar.bmp"',
-                    "Cache-Control": "public, max-age=3600",
-                    "X-Cache": "MISS",
-                },
-            )
-
-    try:
-        target_tz = tz or config.DEFAULT_TIMEZONE
-        bmp_data, race_data, is_cacheable = await _render_calendar(
-            f1_service=f1_service,
-            lang=lang,
-            year=year,
-            race_round=race_round,
-            race_key=race_key,
-            target_tz=target_tz,
-            weather=weather,
-            weather_type=weather_type,
-            display=display,
+                target_tz=tz or config.DEFAULT_TIMEZONE,
+                weather=weather,
+                weather_type=weather_type,
+                display=display,
+            ),
         )
-        if is_cacheable:
-            get_bmp_cache()[cache_key] = bmp_data
-
-        if race_data:
-            actual_year = int(race_data.get("season", 0)) or actual_year
-            actual_round = _to_round_number(race_data.get("round")) or actual_round
-            actual_race_name = race_data.get("race_name", actual_race_name)
-
-        _record_calendar_api_call(
-            start_time=start_time,
-            size_bytes=len(bmp_data),
-            lang=lang,
-            display=display,
-            tz=tz,
-            actual_year=actual_year,
-            actual_round=actual_round,
-            actual_race_name=actual_race_name,
-            is_auto_selected=is_auto_selected,
+        is_cacheable = get_bmp_cache().get(cache_key) is artifact
+        return respond(
+            *artifact,
+            cache_control=CALENDAR_BMP_CACHE_CONTROL if is_cacheable else "no-store",
+            cache_status="MISS",
         )
-        _schedule_calendar_analytics(
-            lang=lang,
-            tz=tz,
-            year=year,
-            race_round=race_round,
-            race_key=race_key,
-            user_agent=user_agent,
-            referrer=referrer,
-        )
-
-        return StreamingResponse(
-            BytesIO(bmp_data),
-            media_type="image/bmp",
-            headers={
-                "Content-Disposition": 'inline; filename="calendar.bmp"',
-                "Cache-Control": "public, max-age=3600" if is_cacheable else "no-store",
-                "X-Cache": "MISS",
-            },
-        )
-
     except Exception as exc:
         logger.error("Error generating calendar: %s", exc, exc_info=True)
         sentry_sdk.capture_exception(exc)
-
         bmp_data = await run_render(
             functools.partial(_render_error_bytes, display, lang, "Temporary rendering error")
         )
-
-        auto_selected = year is None and race_round is None and race_key is None
-        record_api_call(
-            "/calendar.bmp",
-            (time.time() - start_time) * 1000,
-            len(bmp_data),
-            lang,
-            tz,
-            year,
-            race_round,
-            None,
-            auto_selected,
-            display_type=display,
-        )
-
-        return StreamingResponse(
-            BytesIO(bmp_data),
-            media_type="image/bmp",
-            headers={
-                "Content-Disposition": 'inline; filename="calendar.bmp"',
-                "Cache-Control": "no-store",
-            },
+        return respond(
+            bmp_data,
+            strong_etag(bmp_data),
+            cache_control="no-store",
+            cache_status=None,
+            analytics=False,
         )
 
 
@@ -661,133 +890,76 @@ async def get_teams_bmp(
     """Render the teams and drivers dashboard as a BMP image."""
     start_time = time.time()
     enforce_rate_limit(request, bucket="teams_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
+    lang = _normalize_lang(lang)
+    display = _normalize_display(display)
 
     try:
-        lang = _normalize_lang(lang)
-        display = _normalize_display(display)
-
         if year is None:
             year = get_default_teams_year()
 
+        def respond(
+            content: bytes | None,
+            etag: str,
+            *,
+            cache_control: str = TEAMS_BMP_CACHE_CONTROL,
+            cache_status: str | None = None,
+        ) -> Response:
+            """Build the teams response with the request's normalized context."""
+            return _teams_response(
+                request,
+                content=content,
+                etag=etag,
+                start_time=start_time,
+                lang=lang,
+                display=display,
+                year=year,
+                cache_control=cache_control,
+                cache_status=cache_status,
+            )
+
         cache_key = get_teams_image_key(lang, year, display=display)
-        cached_bmp = get_bmp_cache().get(cache_key)
-        if cached_bmp:
-            record_api_call(
-                "/teams.bmp",
-                (time.time() - start_time) * 1000,
-                len(cached_bmp),
-                lang,
-                None,
-                year,
-                None,
-                None,
-                False,
-                display_type=display,
-            )
-            return StreamingResponse(
-                BytesIO(cached_bmp),
-                media_type="image/bmp",
-                headers={
-                    "Content-Disposition": 'inline; filename="teams.bmp"',
-                    "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
-                },
-            )
+        cached_artifact = get_bmp_cache().get(cache_key)
+        if cached_artifact is not None:
+            return respond(*cached_artifact, cache_status="HIT")
 
         image_path = _get_pregenerated_teams_path(lang=lang, year=year, display=display)
         if image_path is not None:
-            try:
-                bmp_data = image_path.read_bytes()
-            except OSError as exc:
-                logger.info("Pre-generated teams image disappeared before read; rendering: %s", exc)
-            else:
-                get_bmp_cache()[cache_key] = bmp_data
+            artifact, matching_etag = await _read_pregenerated_artifact(
+                image_path,
+                request.headers.get("If-None-Match"),
+            )
+            if matching_etag is not None:
+                return respond(None, matching_etag, cache_status="REVALIDATED")
+            if artifact is not None:
+                get_bmp_cache()[cache_key] = artifact
+                return respond(*artifact, cache_status="MISS")
+            logger.info("Pre-generated teams image disappeared before read; rendering")
 
-                record_api_call(
-                    "/teams.bmp",
-                    (time.time() - start_time) * 1000,
-                    len(bmp_data),
-                    lang,
-                    None,
-                    year,
-                    None,
-                    None,
-                    False,
-                    display_type=display,
-                )
-
-                return StreamingResponse(
-                    BytesIO(bmp_data),
-                    media_type="image/bmp",
-                    headers={
-                        "Content-Disposition": 'inline; filename="teams.bmp"',
-                        "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
-                    },
-                )
-
-        teams_service = TeamsService()
-        teams_data = await teams_service.get_teams_and_drivers(year)
-
-        bmp_data = await run_render(
-            functools.partial(_render_teams_bytes, display, lang, teams_data)
+        artifact = await _singleflight(
+            f"teams:{cache_key}",
+            functools.partial(
+                _render_teams_artifact,
+                cache_key=cache_key,
+                lang=lang,
+                year=year,
+                display=display,
+            ),
         )
-        # Don't cache incomplete dashboards: a transient upstream outage would otherwise pin a
-        # blank or standings-less teams screen on every device for the full cache TTL.
-        if is_teams_data_cacheable(teams_data):
-            get_bmp_cache()[cache_key] = bmp_data
-        elif teams_data.teams:
-            logger.warning("Teams standings incomplete for %s; serving but not caching", year)
-        else:
-            logger.warning("Teams data empty for %s; serving but not caching", year)
-
-        record_api_call(
-            "/teams.bmp",
-            (time.time() - start_time) * 1000,
-            len(bmp_data),
-            lang,
-            None,
-            year,
-            None,
-            None,
-            False,
-            display_type=display,
-        )
-
-        return StreamingResponse(
-            BytesIO(bmp_data),
-            media_type="image/bmp",
-            headers={
-                "Content-Disposition": 'inline; filename="teams.bmp"',
-                "Cache-Control": TEAMS_BMP_CACHE_CONTROL,
-            },
-        )
+        return respond(*artifact, cache_status="MISS")
 
     except Exception as exc:
         logger.error("Error generating teams: %s", exc, exc_info=True)
         sentry_sdk.capture_exception(exc)
-
-        display = _normalize_display(display)
         bmp_data = await run_render(
             functools.partial(_render_error_bytes, display, lang, "Temporary rendering error")
         )
-
-        record_api_call(
-            "/teams.bmp",
-            (time.time() - start_time) * 1000,
-            len(bmp_data),
-            lang,
-            None,
-            year,
-            None,
-            None,
-            False,
-            display_type=display,
-        )
-
-        return StreamingResponse(
-            BytesIO(bmp_data),
-            media_type="image/bmp",
-            headers={
-                "Content-Disposition": 'inline; filename="teams.bmp"',
-                "Cache-Control": "no-store",
-            },
+        return _teams_response(
+            request,
+            content=bmp_data,
+            etag=strong_etag(bmp_data),
+            start_time=start_time,
+            lang=lang,
+            display=display,
+            year=year,
+            cache_control="no-store",
         )

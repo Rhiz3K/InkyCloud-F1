@@ -2,20 +2,24 @@
 
 import asyncio
 import json
+import runpy
 import xml.etree.ElementTree as ET
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from PIL import Image
 from pydantic import SecretStr
+from starlette.requests import Request
 
-from app import main as main_module
+from app import main
 from app.config import LANGUAGE_CODES, config
 from app.main import app
 from app.models import (
@@ -42,6 +46,7 @@ from app.services.f1_service import F1Service
 from app.services.image_keys import get_teams_image_key
 from app.services.teams_service import TeamsService
 from app.state import clear_bmp_cache, get_bmp_cache
+from app.utils.etag import strong_etag
 from app.utils.rate_limit import _reset_rate_limit_state_for_tests
 from app.version import APP_VERSION
 
@@ -191,7 +196,7 @@ def test_public_html_pages_head_does_not_track_pageview(path: str):
 def test_stats_head_does_not_query_database():
     """HEAD requests to stats should avoid expensive database queries."""
     with patch(
-        "app.routes.pages.Database.get_stats_for_range", new_callable=AsyncMock
+        "app.services.database.Database.get_stats_for_range", new_callable=AsyncMock
     ) as mock_stats:
         response = client.request("HEAD", "/stats")
 
@@ -216,6 +221,7 @@ def test_api_endpoint():
     assert "/calendar.bmp" in data["endpoints"]
     assert "/api" in data["endpoints"]
     assert "/health" in data["endpoints"]
+    assert "/health/ready" in data["endpoints"]
     # Test /api/docs alias works the same
     response_docs = client.get("/api/docs")
     assert response_docs.status_code == 200
@@ -566,9 +572,9 @@ async def test_lifespan_cancels_initial_generation_before_closing_resources():
         patch("app.main.shutdown_render_executor", fake_shutdown_render_executor),
         patch("app.main.run_initial_generation", fake_initial_generation),
         patch("app.main.close_shared_http_clients", fake_close_shared_http_clients),
-        patch.object(main_module.Database, "close_all", fake_close_all_databases),
+        patch("app.main.close_shared_database", fake_close_all_databases),
     ):
-        async with main_module.lifespan(app):
+        async with main.lifespan(app):
             await asyncio.sleep(0)
 
     assert events == [
@@ -770,7 +776,7 @@ def test_stats_dashboard_returns_html():
 def test_stats_dashboard_renders_zero_state_when_database_fails():
     """The DB failure fallback must satisfy the full template contract."""
     with (
-        patch("app.routes.pages.Database", side_effect=RuntimeError("database unavailable")),
+        patch("app.routes.pages.get_database", side_effect=RuntimeError("database unavailable")),
         patch("app.routes.pages.track_pageview", new=AsyncMock()),
     ):
         response = client.get("/stats")
@@ -779,21 +785,21 @@ def test_stats_dashboard_renders_zero_state_when_database_fails():
     assert "Total Requests" in response.text
 
 
-def test_stats_dashboard_ignores_database_close_failure():
-    """Cleanup failures must not replace an otherwise valid dashboard response."""
+def test_stats_dashboard_reuses_database_without_closing_it():
+    """Request handlers must leave the application-scoped database open."""
     database = Mock()
     database.get_stats_for_range = AsyncMock(return_value=pages_routes._empty_stats())
     database.get_perf_stats = AsyncMock(return_value={"sample_count": 0})
     database.close = AsyncMock(side_effect=RuntimeError("close failed"))
 
     with (
-        patch("app.routes.pages.Database", return_value=database),
+        patch("app.routes.pages.get_database", return_value=database),
         patch("app.routes.pages.track_pageview", new=AsyncMock()),
     ):
         response = client.get("/stats")
 
     assert response.status_code == 200
-    database.close.assert_awaited_once()
+    database.close.assert_not_awaited()
 
 
 def test_stats_dashboard_accepts_range_parameter():
@@ -874,10 +880,11 @@ def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
 
     with (
         patch(
-            "app.routes.pages.Database.get_stats_for_range", new=AsyncMock(return_value=mock_stats)
+            "app.services.database.Database.get_stats_for_range",
+            new=AsyncMock(return_value=mock_stats),
         ),
         patch(
-            "app.routes.pages.Database.get_perf_stats",
+            "app.services.database.Database.get_perf_stats",
             new=AsyncMock(return_value={"sample_count": 0}),
         ),
         patch("app.routes.pages.track_pageview", new=AsyncMock()),
@@ -953,10 +960,11 @@ def test_stats_dashboard_localizes_range_and_fallback_labels():
 
     with (
         patch(
-            "app.routes.pages.Database.get_stats_for_range", new=AsyncMock(return_value=mock_stats)
+            "app.services.database.Database.get_stats_for_range",
+            new=AsyncMock(return_value=mock_stats),
         ),
         patch(
-            "app.routes.pages.Database.get_perf_stats",
+            "app.services.database.Database.get_perf_stats",
             new=AsyncMock(return_value={"sample_count": 0}),
         ),
         patch("app.routes.pages.track_pageview", new=AsyncMock()),
@@ -1038,6 +1046,7 @@ def test_api_stats_endpoint_returns_correct_structure():
     assert "last_24h" in requests
     assert "avg_response_ms" in requests
     assert "total_bytes_24h" in requests
+    assert "by_status" in requests
 
     # Values should be integers/floats or None
     assert isinstance(requests["last_24h"], int)
@@ -1063,7 +1072,7 @@ def test_api_stats_history_endpoint_returns_hourly_history():
     ]
 
     with patch(
-        "app.routes.api.Database.get_request_stats_history",
+        "app.services.database.Database.get_request_stats_history",
         new=AsyncMock(return_value=mock_history),
     ):
         response = client.get("/api/stats/history?limit=24")
@@ -1781,7 +1790,10 @@ def test_teams_bmp_caches_pregenerated_assets_with_shared_image_key(tmp_path, mo
 
     assert response.status_code == 200
     expected_key = get_teams_image_key("en", 2026, display="bwr")
-    assert get_bmp_cache()[expected_key] == b"BMpregenerated"
+    assert get_bmp_cache()[expected_key] == (
+        b"BMpregenerated",
+        strong_etag(b"BMpregenerated"),
+    )
     assert "teams:en:2026:bwr" not in get_bmp_cache()
 
 
@@ -2047,8 +2059,6 @@ def test_changelog_sanitizer_blocks_extended_uri_and_inline_style_vectors():
 
 
 def test_redirect_helper_rejects_backslash_network_paths():
-    from starlette.requests import Request
-
     from app.routes.pages import _redirect_path
 
     request = Request(
@@ -2199,12 +2209,12 @@ def test_perf_metrics_post_invalid_payload():
 def test_perf_metrics_database_failure_returns_503(monkeypatch):
     db = Mock(save_perf_metric=AsyncMock(side_effect=RuntimeError("database offline")))
     db.close = AsyncMock()
-    monkeypatch.setattr(api_routes, "Database", lambda: db)
+    monkeypatch.setattr(api_routes, "get_database", lambda: db)
 
     response = client.post("/api/perf-metrics", json={"page_path": "/"})
 
     assert response.status_code == 503
-    db.close.assert_awaited_once()
+    db.close.assert_not_awaited()
 
 
 def test_operational_query_bounds_return_422():
@@ -2240,3 +2250,194 @@ def test_dynamic_preview_preserves_rate_limit_429(
 
     assert limited.status_code == 429
     assert "Retry-After" in limited.headers
+
+
+# Extended startup, persistence, and ASGI middleware coverage.
+
+
+async def _receive():
+    return {"type": "http.request", "body": b"", "more_body": False}
+
+
+def _http_scope(path: str, *, scheme: str = "https", host: str = "test") -> dict:
+    return {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": scheme,
+        "path": path,
+        "raw_path": path.encode(),
+        "query_string": b"",
+        "headers": [(b"host", host.encode())],
+        "client": ("127.0.0.1", 1234),
+        "server": ("test", 443),
+    }
+
+
+def test_persistence_check_covers_skip_existing_write_failure_warning_and_first_deploy(tmp_path):
+    with patch("app.main.config.SKIP_PERSISTENCE_CHECK", True):
+        assert main._check_persistent_storage() is True
+
+    marker = MagicMock()
+    marker.exists.return_value = True
+    with (
+        patch("app.main.config.SKIP_PERSISTENCE_CHECK", False),
+        patch("app.main._PERSISTENCE_MARKER", marker),
+    ):
+        assert main._check_persistent_storage() is True
+
+    marker.exists.return_value = False
+    marker.write_text.side_effect = OSError("read only")
+    with (
+        patch("app.main.config.SKIP_PERSISTENCE_CHECK", False),
+        patch("app.main._PERSISTENCE_MARKER", marker),
+    ):
+        assert main._check_persistent_storage() is False
+
+    database = tmp_path / "f1.db"
+    database.touch()
+    persistence_marker = tmp_path / ".marker"
+    with (
+        patch("app.main.config.SKIP_PERSISTENCE_CHECK", False),
+        patch("app.main.config.DATABASE_PATH", str(database)),
+        patch("app.main._PERSISTENCE_MARKER", persistence_marker),
+    ):
+        assert main._check_persistent_storage() is False
+
+    persistence_marker.unlink()
+    database.unlink()
+    with (
+        patch("app.main.config.SKIP_PERSISTENCE_CHECK", False),
+        patch("app.main.config.DATABASE_PATH", str(database)),
+        patch("app.main._PERSISTENCE_MARKER", persistence_marker),
+    ):
+        assert main._check_persistent_storage() is True
+
+
+@pytest.mark.asyncio
+async def test_lifespan_isolates_startup_and_shutdown_failures():
+    def completed_task(coroutine, *, name):
+        coroutine.close()
+        return SimpleNamespace(done=lambda: True)
+
+    with (
+        patch("app.main._check_persistent_storage"),
+        patch("app.main.ensure_runtime_circuits_data", side_effect=RuntimeError("seed")),
+        patch("app.main.RENDER_WORKER_COUNT", 1),
+        patch("app.main.run_render", new=AsyncMock(side_effect=RuntimeError("warm"))),
+        patch("app.main.start_scheduler"),
+        patch("app.main.create_supervised_task", side_effect=completed_task),
+        patch("app.main.stop_scheduler"),
+        patch("app.main.asyncio.sleep", new=AsyncMock()),
+        patch(
+            "app.main.flush_api_calls_to_db",
+            new=AsyncMock(side_effect=RuntimeError("flush")),
+        ),
+        patch("app.main.drain_background_tasks", new=AsyncMock()),
+        patch("app.main.shutdown_render_executor", side_effect=RuntimeError("executor")),
+        patch(
+            "app.main.close_shared_http_clients",
+            new=AsyncMock(side_effect=RuntimeError("http")),
+        ),
+        patch(
+            "app.main.close_shared_database",
+            new=AsyncMock(side_effect=RuntimeError("database")),
+        ),
+        patch("app.main.sentry_sdk.capture_exception") as capture,
+    ):
+        async with main.lifespan(FastAPI()):
+            pass
+
+    assert capture.call_count == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("path", "status", "expected_cache"),
+    [
+        ("/static/fonts/font.ttf", 200, "public, max-age=31536000, immutable"),
+        ("/static/image.png", 200, "public, max-age=86400"),
+        ("/static/app.css", 200, "public, max-age=3600"),
+        ("/static/data.txt", 200, None),
+        ("/static/app.css", 404, None),
+        ("/page", 200, None),
+    ],
+)
+async def test_static_cache_middleware_policies(path, status, expected_cache):
+    messages = []
+
+    async def app(scope, receive, send):
+        await send({"type": "http.response.start", "status": status, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    async def send(message):
+        messages.append(message)
+
+    await main.StaticCacheMiddleware(app)(_http_scope(path), _receive, send)
+    headers = dict(messages[0]["headers"])
+    assert headers.get(b"cache-control") == (
+        expected_cache.encode() if expected_cache is not None else None
+    )
+
+
+@pytest.mark.asyncio
+async def test_static_and_security_middleware_forward_non_http_scopes():
+    calls = []
+
+    async def app(scope, receive, send):
+        calls.append(scope["type"])
+
+    scope = {"type": "websocket"}
+    await main.StaticCacheMiddleware(app)(scope, _receive, AsyncMock())
+    await main.SecurityHeadersMiddleware(app)(scope, _receive, AsyncMock())
+    assert calls == ["websocket", "websocket"]
+
+
+@pytest.mark.asyncio
+async def test_security_middleware_redirects_www_with_query_and_sets_https_headers():
+    messages = []
+
+    async def app(scope, receive, send):
+        await send({"type": "http.response.start", "status": 200, "headers": []})
+        await send({"type": "http.response.body", "body": b"ok"})
+
+    async def send(message):
+        messages.append(message)
+
+    scope = _http_scope("/path", host="www.example.test")
+    scope["query_string"] = b"a=1"
+    with patch("app.main.config.SITE_URL", "https://example.test"):
+        await main.SecurityHeadersMiddleware(app)(scope, _receive, send)
+
+    headers = dict(messages[0]["headers"])
+    assert headers[b"location"] == b"https://example.test/path?a=1"
+    assert headers[b"strict-transport-security"] == b"max-age=31536000"
+
+    messages.clear()
+    scope = _http_scope("/path", scheme="http", host="example.test")
+    with patch("app.main.config.SITE_URL", "https://example.test"):
+        await main.SecurityHeadersMiddleware(app)(scope, _receive, send)
+    headers = dict(messages[0]["headers"])
+    assert b"strict-transport-security" not in headers
+    assert headers[b"x-frame-options"] == b"DENY"
+
+
+def test_html_404_predicate_rejects_non_get_requests():
+    scope = _http_scope("/unknown")
+    scope["method"] = "POST"
+    scope["headers"].append((b"accept", b"text/html"))
+
+    assert main._should_render_html_404(Request(scope)) is False
+
+
+@pytest.mark.filterwarnings("ignore:.*app.main.*found in sys.modules.*:RuntimeWarning")
+def test_main_entrypoint_initializes_sentry_and_invokes_uvicorn_without_starting_server():
+    with (
+        patch("app.config.config.SENTRY_DSN", "https://sentry.example/1"),
+        patch("sentry_sdk.init") as sentry_init,
+        patch("uvicorn.run") as uvicorn_run,
+    ):
+        runpy.run_module("app.main", run_name="__main__")
+
+    sentry_init.assert_called_once()
+    uvicorn_run.assert_called_once()

@@ -10,8 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from app.config import LANGUAGE_CODES, config
 from app.models import PerfMetricsPayload
 from app.services.analytics import track_event
-from app.services.database import Database
+from app.services.database import get_database
 from app.services.f1_service import F1Service
+from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_service import TeamsService
 from app.state import get_bmp_cache
 from app.utils.async_tasks import create_supervised_task
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 _LANGUAGE_VALUES = list(LANGUAGE_CODES)
+_DISPLAY_VALUES = list(DISPLAY_TYPES)
 _MAX_USER_AGENT_LENGTH = 500
 
 
@@ -36,7 +38,7 @@ def _matches_round(race: dict, round_num: int) -> bool:
         return False
     try:
         return int(round_value) == round_num
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return False
 
 
@@ -124,7 +126,7 @@ async def api_info() -> dict:
                     "display": {
                         "type": "string",
                         "description": "Display output mode",
-                        "values": ["1bit", "spectra6", "bwr", "bwry"],
+                        "values": _DISPLAY_VALUES,
                         "default": "1bit",
                         "example": "?display=bwry",
                         "optional": True,
@@ -190,7 +192,7 @@ async def api_info() -> dict:
                     "display": {
                         "type": "string",
                         "description": "Display output mode",
-                        "values": ["1bit", "spectra6", "bwr", "bwry"],
+                        "values": _DISPLAY_VALUES,
                         "default": "1bit",
                         "example": "?display=bwr",
                         "optional": True,
@@ -237,7 +239,11 @@ async def api_info() -> dict:
                     "round_num": {"type": "integer", "description": "Round number", "in": "path"},
                 },
             },
-            "/health": {"method": "GET", "description": "Health check endpoint"},
+            "/health": {"method": "GET", "description": "Process liveness check"},
+            "/health/ready": {
+                "method": "GET",
+                "description": "SQLite, persistent storage, and generation readiness check",
+            },
         },
         "e_ink_usage": {
             "description": "For E-Ink displays, fetch /calendar.bmp and display directly",
@@ -253,20 +259,17 @@ async def get_stats(request: Request) -> dict:
     _require_operational_api_auth(request)
     enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
 
-    db = Database()
-    try:
-        stats = await db.get_api_calls_stats_24h()
-        return {
-            "requests": {
-                "last_24h": stats["count_24h"],
-                "avg_response_ms": stats["avg_response_ms"],
-                "total_bytes_24h": stats["total_bytes_24h"],
-            },
-            "cache_size": len(get_bmp_cache()),
-            "cache_max_size": get_bmp_cache().maxsize,
-        }
-    finally:
-        await db.close()
+    stats = await get_database().get_api_calls_stats_24h()
+    return {
+        "requests": {
+            "last_24h": stats["count_24h"],
+            "avg_response_ms": stats["avg_response_ms"],
+            "total_bytes_24h": stats["total_bytes_24h"],
+            "by_status": stats["status_codes"],
+        },
+        "cache_size": len(get_bmp_cache()),
+        "cache_max_size": get_bmp_cache().maxsize,
+    }
 
 
 @router.post("/api/perf-metrics")
@@ -279,25 +282,22 @@ async def post_perf_metrics(payload: PerfMetricsPayload, request: Request) -> di
     )
 
     user_agent = (request.headers.get("User-Agent") or "")[:_MAX_USER_AGENT_LENGTH] or None
-    db = Database()
+    db = get_database()
     try:
-        try:
-            await db.save_perf_metric(
-                page_path=payload.page_path,
-                lcp_ms=payload.lcp_ms,
-                cls=payload.cls,
-                fcp_ms=payload.fcp_ms,
-                ttfb_ms=payload.ttfb_ms,
-                inp_ms=payload.inp_ms,
-                user_agent=user_agent,
-                connection_type=payload.connection_type,
-                device_memory=payload.device_memory,
-            )
-        except Exception as exc:
-            logger.warning("Failed to save perf metrics: %s", exc)
-            raise HTTPException(status_code=503, detail="Failed to save metrics") from exc
-    finally:
-        await db.close()
+        await db.save_perf_metric(
+            page_path=payload.page_path,
+            lcp_ms=payload.lcp_ms,
+            cls=payload.cls,
+            fcp_ms=payload.fcp_ms,
+            ttfb_ms=payload.ttfb_ms,
+            inp_ms=payload.inp_ms,
+            user_agent=user_agent,
+            connection_type=payload.connection_type,
+            device_memory=payload.device_memory,
+        )
+    except Exception as exc:
+        logger.warning("Failed to save perf metrics: %s", exc)
+        raise HTTPException(status_code=503, detail="Failed to save metrics") from exc
 
     create_supervised_task(
         track_event(
@@ -324,13 +324,10 @@ async def get_perf_metrics(request: Request, hours: int = Query(default=24, ge=1
     _require_operational_api_auth(request)
     enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
 
-    db = Database()
-    try:
-        stats = await db.get_perf_stats(hours)
-        by_page = await db.get_perf_stats_by_page(hours)
-        return {"overall": stats, "by_page": by_page}
-    finally:
-        await db.close()
+    db = get_database()
+    stats = await db.get_perf_stats(hours)
+    by_page = await db.get_perf_stats_by_page(hours)
+    return {"overall": stats, "by_page": by_page}
 
 
 @router.get("/api/stats/history")
@@ -341,12 +338,8 @@ async def get_stats_history(
     _require_operational_api_auth(request)
     enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
 
-    db = Database()
-    try:
-        history = await db.get_request_stats_history(limit=limit)
-        return {"history": history, "count": len(history)}
-    finally:
-        await db.close()
+    history = await get_database().get_request_stats_history(limit=limit)
+    return {"history": history, "count": len(history)}
 
 
 @router.get("/api/races/{year}")

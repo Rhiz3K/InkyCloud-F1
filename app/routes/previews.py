@@ -15,7 +15,7 @@ from app.paths import ASSETS_DIR
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.image_keys import get_configure_preview_filename, get_preview_filename
-from app.services.renderers import create_renderer
+from app.services.renderers import COLOR_DISPLAYS, create_renderer
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.utils.async_tasks import run_render
 from app.utils.image_conversion import bmp_to_png
@@ -38,7 +38,7 @@ def _build_calendar_preview_png(
         bmp_data,
         width=400,
         full_size=full_size,
-        preserve_color=display in {"spectra6", "bwr", "bwry"},
+        preserve_color=display in COLOR_DISPLAYS,
     )
 
 
@@ -79,7 +79,7 @@ def _build_teams_preview_png(lang: str, display: str, teams_data, full_size: boo
         bmp_data,
         width=400,
         full_size=full_size,
-        preserve_color=display in {"spectra6", "bwr", "bwry"},
+        preserve_color=display in COLOR_DISPLAYS,
     )
 
 

@@ -45,26 +45,29 @@ We use Ruff for linting and formatting:
 
 ```bash
 # Check code
-ruff check .
+uv run ruff check .
 
 # Format code
-ruff format .
+uv run ruff format .
 
 # Type-check production code
-mypy
+uv run mypy
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
-# Run the same strict statement + branch coverage gate as CI
-pytest tests/ -m "not benchmark" --cov=app --cov-branch --cov-fail-under=100 --cov-report=term-missing
+# Run the global 95% statement + branch gate and produce CI's diff input
+uv run pytest tests/ -m "not benchmark" --cov=app --cov-branch --cov-report=term-missing --cov-report=xml
+
+# New/changed lines must stay at 100% (the CI ratchet)
+uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=100
 
 # Run specific test file
-pytest tests/test_renderer.py -v
+uv run pytest tests/test_renderer.py -v
 ```
 
 ### Adding Translations

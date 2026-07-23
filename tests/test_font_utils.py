@@ -26,6 +26,12 @@ def test_cached_truetype_clears_full_thread_cache(monkeypatch):
 
     assert font_utils._cached_truetype("new.ttf", 12) is loaded
     assert list(font_utils._thread_local.fonts) == [("new.ttf", 12, 0)]
+    font_utils.ImageFont.truetype.assert_called_once_with(
+        "new.ttf",
+        12,
+        index=0,
+        layout_engine=font_utils.ImageFont.Layout.BASIC,
+    )
 
 
 def test_optional_truetype_skips_known_missing_font():

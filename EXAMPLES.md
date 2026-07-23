@@ -252,10 +252,10 @@ python -c "from PIL import Image; Image.open('calendar.bmp').save('calendar.png'
 
 ### Preprocess flag assets
 
-The flag preprocessing utility depends on optional packages (NumPy, scikit-learn). Install the
-development extras before running it:
+The monochrome flag preprocessor depends on the locked development group (NumPy and
+scikit-learn):
 
 ```bash
-pip install -e .[dev]
-python scripts/preprocess_flags.py
+uv sync --locked --group dev
+uv run python -m scripts.manage preprocess flags --palette mono
 ```

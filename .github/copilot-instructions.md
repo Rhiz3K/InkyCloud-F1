@@ -75,25 +75,24 @@ except Exception as e:
 
 ```bash
 # Setup environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -e ".[dev]"
+uv sync --locked --group dev
 
 # Local dev (auto-reload)
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 
 # Run with debug logging
-DEBUG=true python -m app.main
+DEBUG=true uv run python -m app.main
 
 # Test suite (must pass before PR)
-pytest
+uv run pytest
 
-# Run the strict statement + branch coverage gate
-pytest tests/ -m "not benchmark" --cov=app --cov-branch --cov-fail-under=100 --cov-report=term-missing
+# Global 95% statement + branch gate, plus 100% changed-line ratchet
+uv run pytest tests/ -m "not benchmark" --cov=app --cov-branch --cov-report=term-missing --cov-report=xml
+uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=100
 
 # Lint & format (CI enforced)
-ruff check .
-ruff format .
+uv run ruff check .
+uv run ruff format .
 ```
 
 ## Testing Requirements
@@ -156,12 +155,13 @@ Future-proof for Sprint Qualifying when F1 adds it - follow the same `session_*`
 
 ## Docker & Deployment
 
-Production runs in Docker with Python 3.13-slim. The Dockerfile installs system deps for Pillow (`libjpeg-dev`, `zlib1g-dev`). Service is stateless and scales horizontally.
+Production runs in Docker with Python 3.14-slim. The Dockerfile installs system deps for Pillow (`libjpeg-dev`, `zlib1g-dev`). The service is stateful and runs as one replica because SQLite, the scheduler, and in-memory coordination are single-instance.
 
-Health check: `GET /health` returns `{"status": "healthy"}`
+`GET /health` is liveness. Container orchestration must use `GET /health/ready`, which checks SQLite, the `/app/data` mount/write probe, and freshness of the latest core calendar generation. Optional weather or secondary-variant failures return HTTP 200 with status `degraded`; cold start, stale core output, or dependency failures return 503.
 
 **Caching Best Practices:**
 - `/calendar.bmp` sets `Cache-Control: public, max-age=3600` (1 hour)
+- BMP endpoints return strong ETags and honor `If-None-Match` with an empty 304 response
 - Race data rarely changes, so 1-hour HTTP cache is appropriate
 - For Redis/external caching: Cache F1Service responses with race ID as key
 - Translation cache lives in-memory (`_translations_cache` in `i18n.py`)
@@ -213,7 +213,8 @@ The service provides multiple endpoints for different use cases:
 - `GET /api/stats` - Request statistics
 
 **Health & Monitoring:**
-- `GET /health` - Health check endpoint
+- `GET /health` - Process liveness
+- `GET /health/ready` - Dependency and generation readiness
 - `GET /api` - API documentation
 
 ## Project Structure
