@@ -5,6 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 GENERATION_SUCCESS_META_KEY = "last_generation_success"
+GENERATION_STATUS_META_KEY = "last_generation_status"
+GENERATION_STATUS_READY = "ready"
+GENERATION_STATUS_DEGRADED = "degraded"
 
 # Generation runs hourly. Six hours tolerates several transient failures while ensuring
 # devices do not keep receiving an obsolete race indefinitely.

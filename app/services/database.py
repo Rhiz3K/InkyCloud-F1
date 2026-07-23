@@ -13,6 +13,7 @@ from typing import AsyncIterator, ClassVar, Optional
 import aiosqlite
 
 from app.config import config
+from app.utils.async_tasks import create_supervised_task
 
 logger = logging.getLogger(__name__)
 PERF_STATS_SAMPLE_LIMIT = 10_000
@@ -1293,6 +1294,16 @@ class _SharedDatabaseState:
 _shared_database = _SharedDatabaseState()
 
 
+def _close_replaced_database(database: Database) -> None:
+    """Close a replaced singleton synchronously or supervise it on the active loop."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        asyncio.run(database.close())
+    else:
+        create_supervised_task(database.close(), name="close-replaced-database")
+
+
 def get_database() -> Database:
     """Return the application-scoped database service.
 
@@ -1301,7 +1312,11 @@ def get_database() -> Database:
     connection lifetimes again.
     """
     database = _shared_database.database
-    if database is None or database.db_path != config.DATABASE_PATH:
+    if database is None:
+        database = Database(config.DATABASE_PATH)
+        _shared_database.database = database
+    elif database.db_path != config.DATABASE_PATH:
+        _close_replaced_database(database)
         database = Database(config.DATABASE_PATH)
         _shared_database.database = database
     return database

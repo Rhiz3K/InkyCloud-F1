@@ -426,6 +426,7 @@ async def test_calendar_cached_etag_returns_empty_304_without_analytics():
     assert response.status_code == 304
     assert response.body == b""
     assert response.headers["etag"] == etag
+    assert response.headers["x-cache"] == "HIT"
     assert response.headers["cache-control"] == images.CALENDAR_BMP_CACHE_CONTROL
     record_call.assert_called_once()
     assert record_call.call_args.kwargs["status_code"] == 304
@@ -562,6 +563,7 @@ async def test_calendar_endpoint_returns_304_from_pregenerated_sidecar(tmp_path)
     assert response.status_code == 304
     assert response.body == b""
     assert response.headers["etag"] == etag
+    assert response.headers["x-cache"] == "REVALIDATED"
 
 
 @pytest.mark.asyncio
@@ -585,6 +587,7 @@ async def test_teams_endpoint_handles_sidecar_304_and_empty_fallback(tmp_path):
     assert response.status_code == 304
     assert response.body == b""
     assert response.headers["etag"] == etag
+    assert response.headers["x-cache"] == "REVALIDATED"
 
     empty_data = TeamsData(season=2026, teams=[], standings_complete=False)
     service = SimpleNamespace(get_teams_and_drivers=AsyncMock(return_value=empty_data))

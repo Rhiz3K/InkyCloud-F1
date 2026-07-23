@@ -14,6 +14,8 @@ from fastapi.responses import JSONResponse
 from app.config import config
 from app.services.database import get_database
 from app.services.generation_freshness import (
+    GENERATION_STATUS_DEGRADED,
+    GENERATION_STATUS_META_KEY,
     GENERATION_SUCCESS_META_KEY,
     generation_age_seconds,
     generation_is_fresh,
@@ -75,19 +77,42 @@ async def readiness() -> JSONResponse:
     checks["storage"] = {"ok": storage_ok, "detail": storage_detail}
 
     generated_at: str | None = None
+    last_generation_status: str | None = None
     if database_ok and database is not None:
         try:
             generated_at = await database.get_cache_meta(GENERATION_SUCCESS_META_KEY)
         except Exception as exc:
             logger.warning("Readiness generation timestamp check failed: %s", exc)
+        if generated_at is not None:
+            try:
+                last_generation_status = await database.get_cache_meta(GENERATION_STATUS_META_KEY)
+            except Exception as exc:
+                logger.warning("Readiness generation status check failed: %s", exc)
+
+    generation_age = generation_age_seconds(generated_at)
     generation_ok = generation_is_fresh(generated_at)
+    if generated_at is None:
+        generation_status = "starting"
+    elif generation_age is None:
+        generation_status = "invalid"
+    elif not generation_ok:
+        generation_status = "stale"
+    elif last_generation_status == GENERATION_STATUS_DEGRADED:
+        generation_status = "degraded"
+    else:
+        # A fresh marker written by a version predating status metadata remains valid.
+        generation_status = "ready"
     checks["generation"] = {
         "ok": generation_ok,
-        "age_seconds": generation_age_seconds(generated_at),
+        "status": generation_status,
+        "age_seconds": generation_age,
     }
 
     ready = database_ok and storage_ok and generation_ok
+    service_status = (
+        "not_ready" if not ready else "degraded" if generation_status == "degraded" else "ready"
+    )
     return JSONResponse(
         status_code=200 if ready else 503,
-        content={"status": "ready" if ready else "not_ready", "checks": checks},
+        content={"status": service_status, "checks": checks},
     )

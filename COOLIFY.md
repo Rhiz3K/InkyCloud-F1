@@ -50,8 +50,9 @@ Do not set `FORWARDED_ALLOW_IPS=*` on an Internet-facing deployment.
 ## Health check
 
 Configure the resource health path as `/health/ready` on port 8000. The endpoint becomes ready
-only after SQLite, persistent storage, and a recent complete BMP generation all pass. `/health`
-is liveness and must not be used for deployment readiness.
+after SQLite, persistent storage, and a recent core calendar generation all pass. Optional weather
+or secondary-variant failures return HTTP 200 with top-level status `degraded`; `/health` is
+liveness and must not be used for deployment readiness.
 
 The first deployment also refreshes upstream data before generating every localized variant.
 Retain the image's five-minute start period and three retries so this valid cold start remains in
@@ -123,8 +124,9 @@ GitHub token used for a private package needs `read:packages`.
 ### Readiness remains unhealthy
 
 Open `/health/ready` or inspect it from the container. Its `checks` object distinguishes SQLite,
-storage, and generation failures. Confirm `/app/data` is a storage mount rather than a directory
-created on the ephemeral container layer.
+storage, and generation failures, including `starting`, `stale`, and still-servable `degraded`
+generation states. Confirm `/app/data` is a storage mount rather than a directory created on the
+ephemeral container layer.
 
 ### Data resets after a deployment
 
@@ -134,7 +136,8 @@ the mount before redeploying. Environment variables alone do not create persiste
 ### Images stop updating
 
 Review scheduler and upstream API errors in logs. Readiness intentionally remains green while a
-previous successful generation is still within the six-hour serving tolerance, then turns 503.
+core calendar generation is within the six-hour serving tolerance. Optional failures are reported
+as `degraded`; readiness turns 503 only when no usable core generation remains fresh.
 
 ### Source changes are not visible
 

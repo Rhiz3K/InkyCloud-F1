@@ -168,6 +168,7 @@ def test_start_scheduler_registers_daily_historical_refresh(monkeypatch):
     assert historical_job is not None
     assert historical_job["func"] is scheduler_maintenance.refresh_historical_results
     assert historical_job["replace_existing"] is True
+    assert all(job["trigger"].timezone == timezone.utc for job in added_jobs)
 
 
 @pytest.mark.asyncio
@@ -351,6 +352,7 @@ async def test_collect_and_generate_skips_stale_prune_when_race_weather_missing(
         "schedule": [{"name": "Race", "datetime": race_dt.isoformat()}],
     }
     prune = Mock(return_value=0)
+    core_path = tmp_path / "images" / "calendar_en.bmp"
 
     with (
         patch("app.services.scheduler_generation.get_database", return_value=db),
@@ -363,7 +365,7 @@ async def test_collect_and_generate_skips_stale_prune_when_race_weather_missing(
         ),
         patch(
             "app.services.scheduler_generation._generate_base_variants",
-            new=AsyncMock(return_value=(set(), 0)),
+            new=AsyncMock(return_value=({core_path}, 0)),
         ),
         patch(
             "app.services.scheduler_generation._generate_popular_tz_variants",
@@ -383,7 +385,14 @@ async def test_collect_and_generate_skips_stale_prune_when_race_weather_missing(
         await collect_and_generate()
 
     prune.assert_not_called()
-    db.set_cache_meta.assert_not_awaited()
+    assert db.set_cache_meta.await_count == 2
+    assert db.set_cache_meta.await_args_list[0] == call(
+        scheduler_generation.GENERATION_STATUS_META_KEY,
+        scheduler_generation.GENERATION_STATUS_DEGRADED,
+    )
+    assert db.set_cache_meta.await_args_list[1].args[0] == (
+        scheduler_generation.GENERATION_SUCCESS_META_KEY
+    )
 
 
 @pytest.mark.asyncio
@@ -428,6 +437,22 @@ async def test_scheduler_locks_are_reused_within_event_loop():
     assert get_loop_lock(scheduler_maintenance._historical_refresh_locks) is get_loop_lock(
         scheduler_maintenance._historical_refresh_locks
     )
+
+
+@pytest.mark.asyncio
+async def test_collect_and_generate_skips_overlapping_trigger():
+    lock = asyncio.Lock()
+    await lock.acquire()
+    generate = AsyncMock()
+
+    with (
+        patch("app.services.scheduler_generation.get_loop_lock", return_value=lock),
+        patch("app.services.scheduler_generation._collect_and_generate_unlocked", generate),
+    ):
+        await collect_and_generate()
+
+    generate.assert_not_awaited()
+    lock.release()
 
 
 def test_render_variant_helpers_construct_renderer_in_calling_thread():
@@ -529,6 +554,21 @@ def test_delete_stale_bmps_keeps_only_current_outputs(tmp_path):
     assert not orphan_sidecar.exists()
     assert not stale.exists()
     assert other.exists()
+
+
+def test_delete_stale_bmps_tolerates_cleanup_race(tmp_path, monkeypatch):
+    stale = tmp_path / "stale.bmp"
+    stale.touch()
+    original_unlink = type(stale).unlink
+
+    def disappear_before_unlink(path, *, missing_ok=False):
+        if path == stale and path.exists():
+            original_unlink(path)
+        return original_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(type(stale), "unlink", disappear_before_unlink)
+
+    assert scheduler_generation._delete_stale_bmps(tmp_path, keep=set()) == 1
 
 
 @pytest.mark.parametrize(
@@ -865,7 +905,14 @@ async def test_collect_and_generate_prunes_after_fully_successful_run(tmp_path):
 
     assert keep.exists()
     assert not stale.exists()
-    db.set_cache_meta.assert_awaited_once()
+    assert db.set_cache_meta.await_count == 2
+    assert db.set_cache_meta.await_args_list[0] == call(
+        scheduler_generation.GENERATION_STATUS_META_KEY,
+        scheduler_generation.GENERATION_STATUS_READY,
+    )
+    assert db.set_cache_meta.await_args_list[1].args[0] == (
+        scheduler_generation.GENERATION_SUCCESS_META_KEY
+    )
 
 
 @pytest.mark.asyncio
@@ -1175,6 +1222,7 @@ def test_register_backup_job_handles_disabled_invalid_and_valid_configuration():
         scheduler._register_backup_job(sched)
     sched.add_job.assert_called_once()
     assert sched.add_job.call_args.kwargs["id"] == "s3_backup"
+    assert sched.add_job.call_args.kwargs["trigger"].timezone == timezone.utc
 
 
 @pytest.mark.asyncio

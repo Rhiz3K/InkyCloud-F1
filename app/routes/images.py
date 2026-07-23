@@ -823,7 +823,7 @@ async def get_calendar_bmp(
                 None,
                 matching_etag,
                 cache_control=CALENDAR_BMP_CACHE_CONTROL,
-                cache_status="MISS",
+                cache_status="REVALIDATED",
             )
         if artifact is not None:
             get_bmp_cache()[cache_key] = artifact
@@ -929,7 +929,7 @@ async def get_teams_bmp(
                 request.headers.get("If-None-Match"),
             )
             if matching_etag is not None:
-                return respond(None, matching_etag, cache_status="MISS")
+                return respond(None, matching_etag, cache_status="REVALIDATED")
             if artifact is not None:
                 get_bmp_cache()[cache_key] = artifact
                 return respond(*artifact, cache_status="MISS")

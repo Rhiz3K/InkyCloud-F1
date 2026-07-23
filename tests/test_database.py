@@ -930,11 +930,29 @@ def test_get_database_reuses_instance_and_tracks_configured_path(tmp_path, monke
 
     first = database.get_database()
     assert database.get_database() is first
+    first.close = AsyncMock()
 
     monkeypatch.setattr(database.config, "DATABASE_PATH", second_path)
     second = database.get_database()
     assert second is not first
     assert second.db_path == second_path
+    first.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_get_database_supervises_replaced_instance_close_in_running_loop(
+    tmp_path, monkeypatch
+):
+    first = Database(str(tmp_path / "first.db"))
+    first.close = AsyncMock()
+    monkeypatch.setattr(database._shared_database, "database", first)
+    monkeypatch.setattr(database.config, "DATABASE_PATH", str(tmp_path / "second.db"))
+
+    replacement = database.get_database()
+    await asyncio.sleep(0)
+
+    assert replacement is database._shared_database.database
+    first.close.assert_awaited_once()
 
 
 @pytest.mark.asyncio

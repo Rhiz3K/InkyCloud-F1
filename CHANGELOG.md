@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 - **Conditional BMP delivery** - Return strong SHA-256 ETags for calendar, teams, pregenerated, cached, fresh, and error BMPs; honor `If-None-Match` with an empty 304 response after revalidating the pregenerated sidecar without reading its BMP body; and retain status-specific request statistics without counting 304s as analytics downloads
-- **Dependency-aware readiness** - Add `/health/ready` checks for asynchronous SQLite access, writable persistent storage, the `/app/data` mount root, and the last fully successful generation using the same six-hour tolerance as pregenerated serving, with a five-minute Docker cold-start grace
+- **Dependency-aware readiness** - Add `/health/ready` checks for asynchronous SQLite access, writable persistent storage, the `/app/data` mount root, and recent core calendar output using the same six-hour tolerance as pregenerated serving; expose optional generation failures as a healthy `degraded` state and retain a five-minute Docker cold-start grace
 
 #### Changed
 
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Backup cron correctness** - Normalize Sunday-first, wrapped, ranged, and stepped standard-cron day-of-week expressions correctly and fail startup for invalid enabled backup schedules instead of silently losing backups
 - **Deterministic font layout** - Pin Pillow to its universally available BASIC layout engine so optional host RAQM libraries cannot change calendar or teams BMP pixels from the slim production-image baseline
-- **Generation health accuracy** - Stamp freshness only after a non-degraded, failure-free cycle that produced artifacts, keep previous files during partial runs, and derive all generated filenames from shared image-key helpers
+- **Generation health accuracy** - Stamp freshness after any run that publishes core calendar artifacts, report weather or secondary-variant failures as degraded without causing restart loops, keep previous files during partial runs, and derive all generated filenames from shared image-key helpers
 - **Season calendar automation** - Run the validated season updater weekly in-season and daily during December through February using the locked environment, with malformed or empty upstream data failing visibly
 - **Track artwork preservation** - Regenerate all four shipped runtime palettes from the maintained source artwork, restore normalized Las Vegas filenames, and fail tests when processed BMPs drift from their sources
 

@@ -175,7 +175,7 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 | `GET /sitemap.xml`                       | Localized sitemap with canonical URLs and hreflang alternates |
 | `GET /sw.js`                             | Service worker script                                   |
 | `GET /health`                            | Process liveness                                        |
-| `GET /health/ready`                      | SQLite, persistent storage, and generation readiness    |
+| `GET /health/ready`                      | SQLite, storage, and core-generation readiness/degradation |
 
 When `ADMIN_API_TOKEN` is configured, read-only operational endpoints (`/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics`) require either `X-Admin-Token` or `Authorization: Bearer <token>`. Public image endpoints and `POST /api/perf-metrics` remain available, with rate limits applied.
 

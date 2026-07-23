@@ -70,7 +70,7 @@ def _parse_cron_expression(cron_expr: str) -> dict:
         "month": parts[3],
         "day_of_week": _normalize_cron_day_of_week(parts[4]),
     }
-    CronTrigger(**cron_kwargs)
+    CronTrigger(**cron_kwargs, timezone=timezone.utc)
     return cron_kwargs
 
 
@@ -165,7 +165,7 @@ def _register_backup_job(sched: AsyncIOScheduler) -> None:
 
     try:
         cron_kwargs = _parse_cron_expression(config.BACKUP_CRON)
-        trigger = CronTrigger(**cron_kwargs)
+        trigger = CronTrigger(**cron_kwargs, timezone=timezone.utc)
     except ValueError as exc:
         logger.critical("Invalid BACKUP_CRON=%r; refusing to start: %s", config.BACKUP_CRON, exc)
         raise ValueError(f"Invalid BACKUP_CRON={config.BACKUP_CRON!r}") from exc
@@ -215,7 +215,7 @@ def start_scheduler() -> None:
     if config.WEATHER_ENABLED:
         scheduler.add_job(
             _prefetch_weather,
-            trigger=CronTrigger(minute=55),
+            trigger=CronTrigger(minute=55, timezone=timezone.utc),
             id="weather_prefetch",
             name="Weather data prefetch for next race",
             replace_existing=True,
@@ -224,7 +224,7 @@ def start_scheduler() -> None:
     # Hourly: Regenerate images from static data
     scheduler.add_job(
         _collect_and_generate,
-        trigger=CronTrigger(minute=0),
+        trigger=CronTrigger(minute=0, timezone=timezone.utc),
         id="hourly_generation",
         name="Hourly image generation from static data",
         replace_existing=True,
@@ -242,7 +242,7 @@ def start_scheduler() -> None:
     # Every minute: Flush API calls buffer to database
     scheduler.add_job(
         _flush_api_calls_to_db,
-        trigger=CronTrigger(second=0),
+        trigger=CronTrigger(second=0, timezone=timezone.utc),
         id="flush_api_calls",
         name="Flush API calls to database",
         replace_existing=True,
@@ -252,7 +252,7 @@ def start_scheduler() -> None:
     if config.WEATHER_ENABLED:
         scheduler.add_job(
             _fetch_all_circuits_weather,
-            trigger=CronTrigger(minute=55),
+            trigger=CronTrigger(minute=55, timezone=timezone.utc),
             id="fetch_circuit_weather",
             name="Fetch weather for all circuits",
             replace_existing=True,
@@ -264,7 +264,7 @@ def start_scheduler() -> None:
     # Hourly at :05: Refresh version info from GitHub API
     scheduler.add_job(
         refresh_version_info,
-        trigger=CronTrigger(minute=5),
+        trigger=CronTrigger(minute=5, timezone=timezone.utc),
         id="refresh_version_info",
         name="Refresh version info from GitHub (hourly)",
         replace_existing=True,

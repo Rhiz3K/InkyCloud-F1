@@ -157,7 +157,7 @@ Future-proof for Sprint Qualifying when F1 adds it - follow the same `session_*`
 
 Production runs in Docker with Python 3.14-slim. The Dockerfile installs system deps for Pillow (`libjpeg-dev`, `zlib1g-dev`). The service is stateful and runs as one replica because SQLite, the scheduler, and in-memory coordination are single-instance.
 
-`GET /health` is liveness. Container orchestration must use `GET /health/ready`, which checks SQLite, the `/app/data` mount/write probe, and freshness of the last fully successful generation.
+`GET /health` is liveness. Container orchestration must use `GET /health/ready`, which checks SQLite, the `/app/data` mount/write probe, and freshness of the latest core calendar generation. Optional weather or secondary-variant failures return HTTP 200 with status `degraded`; cold start, stale core output, or dependency failures return 503.
 
 **Caching Best Practices:**
 - `/calendar.bmp` sets `Cache-Control: public, max-age=3600` (1 hour)

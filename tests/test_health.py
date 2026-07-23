@@ -11,6 +11,7 @@ import pytest
 
 from app.routes import health
 from app.services.generation_freshness import (
+    GENERATION_STATUS_DEGRADED,
     PREGENERATED_MAX_AGE_SECONDS,
     generation_age_seconds,
     generation_is_fresh,
@@ -108,7 +109,33 @@ async def test_readiness_accepts_successful_generation_between_three_and_six_hou
     response = await health.readiness()
 
     assert response.status_code == 200
-    assert _response_json(response)["status"] == "ready"
+    payload = _response_json(response)
+    assert payload["status"] == "ready"
+    assert payload["checks"]["generation"]["status"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_readiness_reports_fresh_degraded_generation_as_servable(tmp_path, monkeypatch):
+    """Optional generation failures stay healthy while remaining operationally visible."""
+    images_dir = tmp_path / "images"
+    images_dir.mkdir()
+    generated_at = datetime.now(timezone.utc).isoformat()
+    database = SimpleNamespace(
+        ping=AsyncMock(return_value=True),
+        get_cache_meta=AsyncMock(side_effect=[generated_at, GENERATION_STATUS_DEGRADED]),
+    )
+    monkeypatch.setattr(health, "get_database", lambda: database)
+    monkeypatch.setattr(health, "_CONTAINER_DATA_ROOT", tmp_path / "unrelated-root")
+    monkeypatch.setattr(health.config, "DATABASE_PATH", str(tmp_path / "f1.db"))
+    monkeypatch.setattr(health.config, "IMAGES_PATH", str(images_dir))
+
+    response = await health.readiness()
+    payload = _response_json(response)
+
+    assert response.status_code == 200
+    assert payload["status"] == "degraded"
+    assert payload["checks"]["generation"]["ok"] is True
+    assert payload["checks"]["generation"]["status"] == "degraded"
 
 
 @pytest.mark.asyncio
@@ -132,6 +159,7 @@ async def test_readiness_rejects_generation_older_than_serving_tolerance(tmp_pat
 
     assert response.status_code == 503
     assert payload["checks"]["generation"]["ok"] is False
+    assert payload["checks"]["generation"]["status"] == "stale"
     assert payload["checks"]["generation"]["age_seconds"] > PREGENERATED_MAX_AGE_SECONDS
 
 
@@ -180,7 +208,11 @@ async def test_readiness_rejects_database_service_construction_failure(tmp_path,
 
     assert response.status_code == 503
     assert payload["checks"]["database"] == {"ok": False}
-    assert payload["checks"]["generation"] == {"ok": False, "age_seconds": None}
+    assert payload["checks"]["generation"] == {
+        "ok": False,
+        "status": "starting",
+        "age_seconds": None,
+    }
 
 
 @pytest.mark.asyncio
@@ -202,5 +234,36 @@ async def test_readiness_rejects_generation_metadata_query_failure(tmp_path, mon
     assert response.status_code == 503
     assert _response_json(response)["checks"]["generation"] == {
         "ok": False,
+        "status": "starting",
         "age_seconds": None,
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("metadata", "expected_status"),
+    [
+        ("not-a-timestamp", "invalid"),
+        (datetime.now(timezone.utc).isoformat(), "ready"),
+    ],
+)
+async def test_readiness_handles_invalid_or_unreadable_optional_status(
+    tmp_path, monkeypatch, metadata, expected_status
+):
+    """Bad core metadata is unready; missing optional status metadata is backward compatible."""
+    images_dir = tmp_path / "images"
+    images_dir.mkdir()
+    database = SimpleNamespace(
+        ping=AsyncMock(return_value=True),
+        get_cache_meta=AsyncMock(side_effect=[metadata, RuntimeError("status unavailable")]),
+    )
+    monkeypatch.setattr(health, "get_database", lambda: database)
+    monkeypatch.setattr(health, "_CONTAINER_DATA_ROOT", tmp_path / "unrelated-root")
+    monkeypatch.setattr(health.config, "DATABASE_PATH", str(tmp_path / "f1.db"))
+    monkeypatch.setattr(health.config, "IMAGES_PATH", str(images_dir))
+
+    response = await health.readiness()
+    payload = _response_json(response)
+
+    assert response.status_code == (200 if expected_status == "ready" else 503)
+    assert payload["checks"]["generation"]["status"] == expected_status

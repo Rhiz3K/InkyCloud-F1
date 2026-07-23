@@ -14,7 +14,12 @@ from typing import TypeVar
 from app.config import LANGUAGE_CODES, config
 from app.services.database import Database, get_database
 from app.services.f1_service import F1Service
-from app.services.generation_freshness import GENERATION_SUCCESS_META_KEY
+from app.services.generation_freshness import (
+    GENERATION_STATUS_DEGRADED,
+    GENERATION_STATUS_META_KEY,
+    GENERATION_STATUS_READY,
+    GENERATION_SUCCESS_META_KEY,
+)
 from app.services.i18n import get_translator
 from app.services.image_keys import (
     get_calendar_image_key,
@@ -282,12 +287,12 @@ def _delete_stale_bmps(images_dir: Path, *, keep: set[Path]) -> int:
     removed = 0
     for bmp_file in images_dir.glob("*.bmp"):
         if bmp_file.name not in keep_names:
-            bmp_file.unlink()
+            bmp_file.unlink(missing_ok=True)
             etag_sidecar_path(bmp_file).unlink(missing_ok=True)
             removed += 1
     for sidecar in images_dir.glob("*.bmp.etag"):
         if not sidecar.with_suffix("").exists():
-            sidecar.unlink()
+            sidecar.unlink(missing_ok=True)
     return removed
 
 
@@ -581,8 +586,12 @@ async def _generate_teams_bmp_variants(
 
 
 async def collect_and_generate() -> None:
-    """Generate pregenerated calendar and teams BMP variants from static data."""
-    async with get_loop_lock(_generation_locks):
+    """Generate BMP variants, skipping a trigger when another run is active."""
+    lock = get_loop_lock(_generation_locks)
+    if lock.locked():
+        logger.info("Image generation already running; skipping overlapping trigger")
+        return
+    async with lock:
         await _collect_and_generate_unlocked()
 
 
@@ -671,9 +680,22 @@ async def _collect_and_generate_unlocked() -> None:
                 weather_degraded,
             )
 
-        if generated_paths and total_failures == 0 and not weather_degraded:
+        # Readiness means that at least one core calendar artifact was published recently.
+        # Optional weather, timezone, teams, and preview failures remain observable as a
+        # degraded run but must not restart a process that can still serve calendars.
+        if base_paths:
+            generation_status = (
+                GENERATION_STATUS_DEGRADED
+                if total_failures or weather_degraded
+                else GENERATION_STATUS_READY
+            )
+            await db.set_cache_meta(GENERATION_STATUS_META_KEY, generation_status)
             await db.set_cache_meta(
                 GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat()
+            )
+        else:
+            logger.error(
+                "Generation produced no core calendar artifacts; readiness marker unchanged"
             )
         clear_bmp_cache()
 

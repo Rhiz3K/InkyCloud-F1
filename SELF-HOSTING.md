@@ -73,13 +73,15 @@ against the same SQLite database.
 
 - `GET /health` reports process liveness and has no dependency checks.
 - `GET /health/ready` returns 200 only when SQLite responds, storage is mounted and writable, and
-  the last completely successful BMP generation is no more than six hours old.
+  at least one core calendar BMP was generated within the last six hours. Its top-level status is
+  `ready` after a complete run or `degraded` when optional weather or secondary variants failed.
 - `/api/stats` reports request totals including separate 200 and 304 status counts.
 
 The Dockerfile and Compose health checks use `/health/ready`. Initial startup remains unready
-until the first complete generation finishes. A partial or totally failed generation does not
-refresh the success marker. The built-in five-minute start period accommodates the first upstream
-refresh and full localized render cycle without marking a healthy cold deployment as failed.
+until the first core calendar artifact is published. A partial run refreshes the marker and reports
+`degraded` when the service can still serve calendars; a run with no core output leaves the marker
+unchanged. The built-in five-minute start period accommodates the first upstream refresh and
+localized render cycle without marking a healthy cold deployment as failed.
 
 ## Reverse proxy
 
@@ -124,8 +126,8 @@ docker compose exec f1-eink-cal backup test
 docker compose exec f1-eink-cal backup now
 ```
 
-`BACKUP_CRON` uses standard five-field cron syntax. Sunday may be `0` or `7`; wrapped ranges and
-steps are normalized for APScheduler. An invalid enabled backup schedule fails startup rather
+`BACKUP_CRON` uses standard five-field cron syntax in UTC. Sunday may be `0` or `7`; wrapped ranges
+and steps are normalized for APScheduler. An invalid enabled backup schedule fails startup rather
 than silently disabling backups.
 
 To restore, stop the service, preserve the current `/app/data` directory, restore the selected
@@ -190,8 +192,9 @@ scikit-learn. See [`scripts/README.md`](./scripts/README.md) for the unified CLI
 ### Readiness is 503
 
 Inspect the JSON body of `/health/ready` and container logs. The response identifies database,
-storage, and generation checks separately. Common causes are a missing `/app/data` mount,
-read-only ownership, or upstream/render failures lasting beyond six hours.
+storage, and generation checks separately. Generation status distinguishes `starting`, `stale`,
+and a still-servable `degraded` state. Common 503 causes are a missing `/app/data` mount,
+read-only ownership, or failure to publish any core calendar for more than six hours.
 
 ### Statistics disappear after redeploy
 
