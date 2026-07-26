@@ -1,6 +1,6 @@
 [project]
 name = "f1-eink-cal"
-version = "1.2.34"
+version = "1.2.35"
 description = "F1 E-Ink calendar service generating 800x480 1-bit BMPs for LaskaKit displays"
 readme = "README.md"
 authors = [
