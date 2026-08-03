@@ -194,14 +194,12 @@ async def test_main_handles_filter_updates_regressions_unchanged_and_failures(tm
         historical.CircuitFetchOutcome(None, False, transient_only=True),
     ]
     write = MagicMock()
+    fetch = AsyncMock(side_effect=outcomes)
     with (
         patch("app.services.historical_refresh.ensure_runtime_circuits_data", return_value=path),
         patch("app.services.historical_refresh._current_year", return_value=2027),
         patch("app.services.historical_refresh.get_shared_http_client", return_value=object()),
-        patch(
-            "app.services.historical_refresh._fetch_results_with_status",
-            new=AsyncMock(side_effect=outcomes),
-        ),
+        patch("app.services.historical_refresh._fetch_results_with_status", new=fetch),
         patch("app.services.historical_refresh.atomic_write_json", write),
     ):
         result = await historical.main()
@@ -213,6 +211,10 @@ async def test_main_handles_filter_updates_regressions_unchanged_and_failures(tm
         transient_failed_circuits=("missing",),
     )
     write.assert_called_once()
+    pacers = [call.kwargs["pacer"] for call in fetch.await_args_list]
+    assert len(pacers) == len(outcomes)
+    assert all(isinstance(pacer, historical.AsyncPacer) for pacer in pacers)
+    assert len({id(pacer) for pacer in pacers}) == 1, "every circuit must share one pacer"
 
     with patch("app.services.historical_refresh.ensure_runtime_circuits_data", return_value=path):
         result = await historical.main("unknown")
@@ -235,5 +237,32 @@ async def test_main_does_not_write_when_filtered_result_is_unchanged(tmp_path):
         result = await historical.main("monza")
 
     assert result == historical.HistoricalRefreshResult((), (), 1)
-    fetch.assert_not_awaited()
+    fetch.assert_awaited_once()
     write.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_main_skips_current_season_circuits_but_never_a_named_one(tmp_path):
+    path = tmp_path / "circuits.json"
+    current = {"season": 2026, "value": "final"}
+    path.write_text(
+        json.dumps({"monza": {"historical": current}, "imola": {"historical": current}}),
+        encoding="utf-8",
+    )
+    fetch = AsyncMock(return_value=historical.CircuitFetchOutcome(current, True))
+    with (
+        patch("app.services.historical_refresh.ensure_runtime_circuits_data", return_value=path),
+        patch("app.services.historical_refresh._current_year", return_value=2026),
+        patch("app.services.historical_refresh.get_shared_http_client", return_value=object()),
+        patch("app.services.historical_refresh._fetch_results_with_status", new=fetch),
+        patch("app.services.historical_refresh.atomic_write_json"),
+    ):
+        skipped = await historical.main()
+        fetch.assert_not_awaited()
+
+        forced = await historical.main("monza")
+
+    assert skipped == historical.HistoricalRefreshResult((), (), 2)
+    assert skipped.completed is True
+    assert forced == historical.HistoricalRefreshResult((), (), 1)
+    assert [call.args[1] for call in fetch.await_args_list] == ["monza"]

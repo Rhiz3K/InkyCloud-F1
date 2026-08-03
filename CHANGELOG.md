@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **Rate-limit-safe historical refreshes** - Pace every Jolpica request and retry, honor a patient configurable retry budget, skip immutable current-season circuit results, stop season fallbacks after transient upstream failures, advance freshness after transient-only runs, and keep incomplete-run warnings grouped with structured circuit context
+- **Escalating alerts for persistently incomplete refreshes** - Track consecutive incomplete runs so a recurring problem raises one grouped error after three runs instead of disappearing behind per-run warnings, and log failed circuit names to stdout where the log format cannot render structured fields
+- **Forced single-circuit refreshes** - `--circuit <id>` now always fetches instead of silently skipping a circuit that already holds current-season results
+- **Deterministic CLI shutdown** - `scripts/update_historical.py` releases the shared outbound HTTP client it borrows rather than leaving the connection pool open when the loop closes
+
+#### Changed
+
+- **Wider transient-failure retries** - `fetch_with_retry` now treats every `5xx` as retryable instead of only `502/503/504`, which also affects the F1, weather, standings, and teams services
 
 ## [1.2.35] - 2026-07-26
 

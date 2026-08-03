@@ -36,23 +36,23 @@ class CircuitFetchOutcome:
 
 @dataclass(frozen=True)
 class HistoricalRefreshResult:
-    """Aggregate changed, failed, and attempted circuits from a refresh run."""
+    """Aggregate changed, failed, and considered circuits from a refresh run."""
 
     updated_circuits: tuple[str, ...]
     failed_circuits: tuple[str, ...]
-    attempted_circuits: int
+    considered_circuits: int
     transient_failed_circuits: tuple[str, ...] = ()
 
     @property
     def completed(self) -> bool:
-        """Return whether at least one circuit ran and none failed."""
-        return self.attempted_circuits > 0 and not self.failed_circuits
+        """Return whether circuits were considered and none of the fetched ones failed."""
+        return self.considered_circuits > 0 and not self.failed_circuits
 
     @property
     def can_advance_freshness(self) -> bool:
         """Return whether the run completed or failed only for transient upstream reasons."""
         transient_failures = set(self.transient_failed_circuits)
-        return self.attempted_circuits > 0 and all(
+        return self.considered_circuits > 0 and all(
             circuit_id in transient_failures for circuit_id in self.failed_circuits
         )
 
@@ -251,11 +251,15 @@ async def main(circuit_filter: str | None = None) -> HistoricalRefreshResult:
     failed_circuits: list[str] = []
     transient_failed_circuits: list[str] = []
     current_season = _current_year()
-    refresh_ids = [
-        circuit_id
-        for circuit_id in circuit_ids
-        if _needs_refresh(circuits[circuit_id], current_season)
-    ]
+    refresh_ids = (
+        list(circuit_ids)
+        if circuit_filter
+        else [
+            circuit_id
+            for circuit_id in circuit_ids
+            if _needs_refresh(circuits[circuit_id], current_season)
+        ]
+    )
     skipped_count = len(circuit_ids) - len(refresh_ids)
     if skipped_count:
         logger.info(
@@ -297,14 +301,17 @@ async def main(circuit_filter: str | None = None) -> HistoricalRefreshResult:
         logger.info("Saved historical results to %s", circuits_path)
 
     logger.info(
-        "Historical refresh updated %s/%s circuits; %s failed",
+        "Historical refresh updated %s/%s attempted circuits (%s skipped); %s failed",
         len(updated_circuits),
-        len(circuit_ids),
+        len(refresh_ids),
+        skipped_count,
         len(failed_circuits),
     )
+    if failed_circuits:
+        logger.info("Historical refresh failed for: %s", ", ".join(failed_circuits))
     return HistoricalRefreshResult(
         updated_circuits=tuple(updated_circuits),
         failed_circuits=tuple(failed_circuits),
-        attempted_circuits=len(circuit_ids),
+        considered_circuits=len(circuit_ids),
         transient_failed_circuits=tuple(transient_failed_circuits),
     )
