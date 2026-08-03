@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from collections.abc import Mapping
@@ -12,9 +11,12 @@ from typing import Any
 
 import httpx
 
+from app.config import config
 from app.services.circuit_data import ensure_runtime_circuits_data
+from app.services.http_client import get_shared_http_client
 from app.utils.atomic_io import atomic_write_json
-from app.utils.http import fetch_with_retry
+from app.utils.f1_season import get_current_f1_season
+from app.utils.http import AsyncPacer, fetch_with_retry, is_transient_http_status
 from app.utils.jolpica import get_jolpica_base_url
 from app.utils.material_diff import has_material_change
 from app.utils.result_entries import ResultEntry, get_result_mapping, sort_entries_by_position
@@ -29,6 +31,7 @@ class CircuitFetchOutcome:
 
     results: dict | None
     completed: bool
+    transient_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -38,16 +41,36 @@ class HistoricalRefreshResult:
     updated_circuits: tuple[str, ...]
     failed_circuits: tuple[str, ...]
     attempted_circuits: int
+    transient_failed_circuits: tuple[str, ...] = ()
 
     @property
     def completed(self) -> bool:
         """Return whether at least one circuit ran and none failed."""
         return self.attempted_circuits > 0 and not self.failed_circuits
 
+    @property
+    def can_advance_freshness(self) -> bool:
+        """Return whether the run completed or failed only for transient upstream reasons."""
+        transient_failures = set(self.transient_failed_circuits)
+        return self.attempted_circuits > 0 and all(
+            circuit_id in transient_failures for circuit_id in self.failed_circuits
+        )
+
 
 def _current_year() -> int:
-    """Return the current UTC year at execution time."""
-    return datetime.now(timezone.utc).year
+    """Return the current F1 season at execution time."""
+    return get_current_f1_season()
+
+
+def _needs_refresh(circuit: Mapping[str, Any], current_season: int) -> bool:
+    """Return whether a circuit lacks immutable final results for the current season."""
+    historical = circuit.get("historical")
+    if not isinstance(historical, dict):
+        return True
+    try:
+        return int(historical.get("season", 0)) < current_season
+    except (TypeError, ValueError):
+        return True
 
 
 def has_material_historical_change(results: dict, existing_historical: dict | None) -> bool:
@@ -100,7 +123,10 @@ def _format_race_result(position: int, entry: ResultEntry) -> dict[str, object]:
 
 
 async def _fetch_results_with_status(
-    client: httpx.AsyncClient, circuit_id: str
+    client: httpx.AsyncClient,
+    circuit_id: str,
+    *,
+    pacer: AsyncPacer | None = None,
 ) -> CircuitFetchOutcome:
     """Fetch a podium and retain whether every upstream attempt completed cleanly."""
     current_year = _current_year()
@@ -112,6 +138,9 @@ async def _fetch_results_with_status(
             qualifying_response = await fetch_with_retry(
                 client,
                 f"{api_base}/{year}/circuits/{circuit_id}/qualifying.json?limit=100",
+                max_retries=config.JOLPICA_MAX_RETRIES,
+                retry_base_delay=2.0,
+                pacer=pacer,
                 logger=logger,
             )
             had_valid_response = True
@@ -124,6 +153,9 @@ async def _fetch_results_with_status(
             race_response = await fetch_with_retry(
                 client,
                 f"{api_base}/{year}/circuits/{circuit_id}/results.json?limit=100",
+                max_retries=config.JOLPICA_MAX_RETRIES,
+                retry_base_delay=2.0,
+                pacer=pacer,
                 logger=logger,
             )
             had_valid_response = True
@@ -152,12 +184,27 @@ async def _fetch_results_with_status(
                 completed=not had_failure,
             )
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 404:
+            status_code = exc.response.status_code
+            if status_code == 404:
                 had_valid_response = True
+            elif is_transient_http_status(status_code):
+                logger.warning("Historical request failed for %s/%s: %s", circuit_id, year, exc)
+                return CircuitFetchOutcome(
+                    results=None,
+                    completed=False,
+                    transient_only=not had_failure,
+                )
             else:
                 had_failure = True
                 logger.warning("Historical request failed for %s/%s: %s", circuit_id, year, exc)
             continue
+        except httpx.TransportError as exc:
+            logger.warning("Historical request failed for %s/%s: %s", circuit_id, year, exc)
+            return CircuitFetchOutcome(
+                results=None,
+                completed=False,
+                transient_only=not had_failure,
+            )
         except (httpx.HTTPError, AttributeError, KeyError, TypeError, ValueError) as exc:
             had_failure = True
             logger.warning("Historical request failed for %s/%s: %s", circuit_id, year, exc)
@@ -202,31 +249,48 @@ async def main(circuit_filter: str | None = None) -> HistoricalRefreshResult:
     logger.info("Updating historical results for %s circuits", len(circuit_ids))
     updated_circuits: list[str] = []
     failed_circuits: list[str] = []
-    async with httpx.AsyncClient(timeout=30) as client:
-        for circuit_id in circuit_ids:
-            outcome = await _fetch_results_with_status(client, circuit_id)
-            results = outcome.results
-            if not outcome.completed:
-                failed_circuits.append(circuit_id)
-            if results:
-                existing_historical = circuits[circuit_id].get("historical")
-                if _would_regress_season(results, existing_historical):
-                    logger.info(
-                        "Kept newer stored season %s for %s",
-                        existing_historical.get("season"),
-                        circuit_id,
-                    )
-                elif has_material_historical_change(results, existing_historical):
-                    circuits[circuit_id]["historical"] = results
-                    updated_circuits.append(circuit_id)
-                    logger.info(
-                        "Updated %s historical results from %s", circuit_id, results["season"]
-                    )
-                else:
-                    logger.debug("Historical results unchanged for %s", circuit_id)
+    transient_failed_circuits: list[str] = []
+    current_season = _current_year()
+    refresh_ids = [
+        circuit_id
+        for circuit_id in circuit_ids
+        if _needs_refresh(circuits[circuit_id], current_season)
+    ]
+    skipped_count = len(circuit_ids) - len(refresh_ids)
+    if skipped_count:
+        logger.info(
+            "Skipping %s circuits with final results for season %s",
+            skipped_count,
+            current_season,
+        )
+
+    client = get_shared_http_client(httpx.AsyncClient, timeout=30)
+    pacer = AsyncPacer(config.JOLPICA_MIN_REQUEST_INTERVAL)
+    for circuit_id in refresh_ids:
+        outcome = await _fetch_results_with_status(client, circuit_id, pacer=pacer)
+        results = outcome.results
+        if not outcome.completed:
+            failed_circuits.append(circuit_id)
+            if outcome.transient_only:
+                transient_failed_circuits.append(circuit_id)
+        if results:
+            existing_historical = circuits[circuit_id].get("historical")
+            if _would_regress_season(results, existing_historical):
+                logger.info(
+                    "Kept newer stored season %s for %s",
+                    existing_historical.get("season"),
+                    circuit_id,
+                )
+            elif has_material_historical_change(results, existing_historical):
+                circuits[circuit_id]["historical"] = results
+                updated_circuits.append(circuit_id)
+                logger.info(
+                    "Updated %s historical results from %s", circuit_id, results["season"]
+                )
             else:
-                logger.info("No complete historical data for %s", circuit_id)
-            await asyncio.sleep(2.5)
+                logger.debug("Historical results unchanged for %s", circuit_id)
+        else:
+            logger.info("No complete historical data for %s", circuit_id)
 
     if updated_circuits:
         atomic_write_json(circuits_path, circuits)
@@ -239,5 +303,8 @@ async def main(circuit_filter: str | None = None) -> HistoricalRefreshResult:
         len(failed_circuits),
     )
     return HistoricalRefreshResult(
-        tuple(updated_circuits), tuple(failed_circuits), len(circuit_ids)
+        updated_circuits=tuple(updated_circuits),
+        failed_circuits=tuple(failed_circuits),
+        attempted_circuits=len(circuit_ids),
+        transient_failed_circuits=tuple(transient_failed_circuits),
     )

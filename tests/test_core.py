@@ -24,6 +24,8 @@ def test_config_validators_cover_contextless_and_unparseable_inputs():
     assert config.validate_port(object(), _info("APP_PORT")) == 8000
     assert config.validate_positive_int("bad", _info(None)) == 10
     assert config.validate_positive_int(object(), _info("REQUEST_TIMEOUT")) == 10
+    assert config.validate_positive_float("bad", _info(None)) == 2.0
+    assert config.validate_positive_float(object(), _info("JOLPICA_MIN_REQUEST_INTERVAL")) == 2.0
     assert config.validate_sample_rate("bad", _info(None)) == 0.1
     assert config.validate_sample_rate(object(), _info("SENTRY_TRACES_SAMPLE_RATE")) == 0.1
     assert config.validate_timezone("UTC", _info(None)) == "Europe/Prague"

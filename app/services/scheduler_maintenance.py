@@ -61,11 +61,21 @@ async def refresh_historical_results() -> None:
             else:
                 logger.info("Historical results refresh completed with no material changes")
             if not result.completed:
-                logger.error(
-                    "Historical refresh incomplete; not updating freshness timestamp (failed: %s)",
-                    ", ".join(result.failed_circuits) or "no circuits attempted",
+                log_context = {
+                    "failed_circuits": list(result.failed_circuits),
+                    "transient_failed_circuits": list(result.transient_failed_circuits),
+                }
+                if not result.can_advance_freshness:
+                    logger.warning(
+                        "Historical refresh incomplete; not updating freshness timestamp",
+                        extra=log_context,
+                    )
+                    return
+                logger.warning(
+                    "Historical refresh incomplete due to transient upstream failures; "
+                    "updating freshness timestamp",
+                    extra=log_context,
                 )
-                return
         except Exception as e:
             logger.error("Error refreshing historical results: %s", e, exc_info=True)
             return

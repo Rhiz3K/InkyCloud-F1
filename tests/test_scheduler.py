@@ -224,7 +224,7 @@ async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeyp
 
 
 @pytest.mark.asyncio
-async def test_refresh_historical_results_does_not_stamp_incomplete_run(monkeypatch):
+async def test_refresh_historical_results_does_not_stamp_incomplete_run(monkeypatch, caplog):
     db = SimpleNamespace(set_cache_meta=AsyncMock(), close=AsyncMock())
 
     async def fake_update_historical():
@@ -233,9 +233,47 @@ async def test_refresh_historical_results_does_not_stamp_incomplete_run(monkeypa
     monkeypatch.setattr(scheduler_maintenance, "update_historical_results", fake_update_historical)
     monkeypatch.setattr(scheduler_maintenance, "get_database", lambda: db)
 
-    await scheduler_maintenance.refresh_historical_results()
+    with caplog.at_level("WARNING", logger="app.services.scheduler_maintenance"):
+        await scheduler_maintenance.refresh_historical_results()
 
     db.set_cache_meta.assert_not_awaited()
+    warning = next(
+        record
+        for record in caplog.records
+        if record.message == "Historical refresh incomplete; not updating freshness timestamp"
+    )
+    assert warning.failed_circuits == ["monza"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_historical_results_stamps_transient_only_run(monkeypatch, caplog):
+    db = SimpleNamespace(set_cache_meta=AsyncMock(), close=AsyncMock())
+
+    async def fake_update_historical():
+        return HistoricalRefreshResult(
+            (),
+            ("monza",),
+            1,
+            transient_failed_circuits=("monza",),
+        )
+
+    monkeypatch.setattr(scheduler_maintenance, "update_historical_results", fake_update_historical)
+    monkeypatch.setattr(scheduler_maintenance, "get_database", lambda: db)
+
+    with caplog.at_level("WARNING", logger="app.services.scheduler_maintenance"):
+        await scheduler_maintenance.refresh_historical_results()
+
+    db.set_cache_meta.assert_awaited_once()
+    warning = next(
+        record
+        for record in caplog.records
+        if record.message
+        == (
+            "Historical refresh incomplete due to transient upstream failures; "
+            "updating freshness timestamp"
+        )
+    )
+    assert warning.transient_failed_circuits == ["monza"]
 
 
 @pytest.mark.asyncio

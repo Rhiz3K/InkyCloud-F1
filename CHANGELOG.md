@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.36] - 2026-08-03
+
+### Backend
+
+#### Fixed
+
+- **Rate-limit-safe historical refreshes** - Pace every Jolpica request and retry, honor a patient configurable retry budget, skip immutable current-season circuit results, stop season fallbacks after transient upstream failures, advance freshness after transient-only runs, and keep incomplete-run warnings grouped with structured circuit context
+
 ## [1.2.35] - 2026-07-26
 
 ### Frontend
