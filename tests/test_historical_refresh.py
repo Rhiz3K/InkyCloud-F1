@@ -185,6 +185,7 @@ async def test_main_handles_filter_updates_regressions_unchanged_and_failures(tm
         "changed": {"historical": {"season": 2025, "value": "old"}},
         "same": {"historical": {"season": 2026, "value": "same"}},
         "missing": {},
+        "permanent": {},
     }
     path.write_text(json.dumps(circuits), encoding="utf-8")
     outcomes = [
@@ -192,6 +193,7 @@ async def test_main_handles_filter_updates_regressions_unchanged_and_failures(tm
         historical.CircuitFetchOutcome({"season": 2026, "value": "new"}, True),
         historical.CircuitFetchOutcome({"season": 2026, "value": "same"}, True),
         historical.CircuitFetchOutcome(None, False, transient_only=True),
+        historical.CircuitFetchOutcome(None, False),
     ]
     write = MagicMock()
     fetch = AsyncMock(side_effect=outcomes)
@@ -206,8 +208,8 @@ async def test_main_handles_filter_updates_regressions_unchanged_and_failures(tm
 
     assert result == historical.HistoricalRefreshResult(
         ("changed",),
-        ("missing",),
-        4,
+        ("missing", "permanent"),
+        5,
         transient_failed_circuits=("missing",),
     )
     write.assert_called_once()
