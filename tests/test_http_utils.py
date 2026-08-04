@@ -25,9 +25,13 @@ class MockResponse:
             )
 
 
-def test_async_pacer_rejects_nonpositive_interval():
-    with pytest.raises(ValueError, match="positive"):
-        AsyncPacer(0)
+@pytest.mark.parametrize(
+    "min_interval",
+    [0, -1, float("inf"), float("-inf"), float("nan")],
+)
+def test_async_pacer_rejects_invalid_interval(min_interval):
+    with pytest.raises(ValueError, match="finite and positive"):
+        AsyncPacer(min_interval)
 
 
 @pytest.mark.asyncio

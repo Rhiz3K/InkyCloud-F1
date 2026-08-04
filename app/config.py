@@ -1,6 +1,7 @@
 """Configuration management for F1 E-Ink calendar service."""
 
 import logging
+import math
 from functools import lru_cache
 from typing import Optional, TypeVar
 
@@ -231,7 +232,7 @@ class Config(BaseSettings):
             port = int(value)  # type: ignore[call-overload]
             if 0 < port < 65536:
                 return port
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer < 65536")
 
@@ -267,7 +268,7 @@ class Config(BaseSettings):
             parsed = int(value)  # type: ignore[call-overload]
             if parsed > 0:
                 return parsed
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer")
 
@@ -280,9 +281,9 @@ class Config(BaseSettings):
         default: float = cls.model_fields[info.field_name].default
         try:
             parsed = float(value)  # type: ignore[arg-type]
-            if parsed > 0:
+            if math.isfinite(parsed) and parsed > 0:
                 return parsed
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive number")
 
@@ -297,7 +298,7 @@ class Config(BaseSettings):
             rate = float(value)  # type: ignore[arg-type]
             if 0.0 <= rate <= 1.0:
                 return rate
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be between 0.0 and 1.0")
 
@@ -367,7 +368,7 @@ class Config(BaseSettings):
             days = int(value)  # type: ignore[call-overload]
             if days >= 0:
                 return days
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be a non-negative integer")
 

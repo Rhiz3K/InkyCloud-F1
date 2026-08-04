@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import random
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -21,8 +22,8 @@ class AsyncPacer:
 
     def __init__(self, min_interval: float) -> None:
         """Initialize a pacer with a strictly positive interval in seconds."""
-        if min_interval <= 0:
-            raise ValueError("min_interval must be positive")
+        if not math.isfinite(min_interval) or min_interval <= 0:
+            raise ValueError("min_interval must be finite and positive")
         self._min_interval = min_interval
         self._lock = asyncio.Lock()
         self._next_allowed = 0.0
@@ -52,7 +53,7 @@ def _retry_after_seconds(response: httpx.Response) -> float | None:
     except ValueError:
         try:
             retry_at = parsedate_to_datetime(value)
-        except (TypeError, ValueError, OverflowError):
+        except TypeError, ValueError, OverflowError:
             return None
         if retry_at.tzinfo is None:
             retry_at = retry_at.replace(tzinfo=timezone.utc)
