@@ -68,9 +68,7 @@ async def test_fetch_with_retry_retries_http_429_until_success():
         patch("app.utils.http.asyncio.sleep", new=AsyncMock()) as mock_sleep,
         patch("app.utils.http.random.uniform", return_value=0.0),
     ):
-        result = await fetch_with_retry(
-            client, "https://example.com", logger=logger, pacer=pacer
-        )
+        result = await fetch_with_retry(client, "https://example.com", logger=logger, pacer=pacer)
 
     assert result.status_code == 200
     assert client.get.await_count == 2

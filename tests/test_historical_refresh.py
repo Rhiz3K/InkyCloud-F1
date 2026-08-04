@@ -149,9 +149,7 @@ async def test_fetch_status_stops_fallbacks_after_exhausted_rate_limit():
         patch("app.services.historical_refresh.fetch_with_retry", new=fetch),
         patch("app.services.historical_refresh.config.JOLPICA_MAX_RETRIES", 6),
     ):
-        outcome = await historical._fetch_results_with_status(
-            object(), "monza", pacer=pacer
-        )
+        outcome = await historical._fetch_results_with_status(object(), "monza", pacer=pacer)
 
     assert outcome == historical.CircuitFetchOutcome(None, False, transient_only=True)
     fetch.assert_awaited_once()

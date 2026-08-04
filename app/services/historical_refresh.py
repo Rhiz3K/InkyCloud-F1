@@ -288,9 +288,7 @@ async def main(circuit_filter: str | None = None) -> HistoricalRefreshResult:
             elif has_material_historical_change(results, existing_historical):
                 circuits[circuit_id]["historical"] = results
                 updated_circuits.append(circuit_id)
-                logger.info(
-                    "Updated %s historical results from %s", circuit_id, results["season"]
-                )
+                logger.info("Updated %s historical results from %s", circuit_id, results["season"])
             else:
                 logger.debug("Historical results unchanged for %s", circuit_id)
         else:
