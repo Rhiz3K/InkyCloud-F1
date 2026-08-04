@@ -219,6 +219,13 @@ def _meta_writes(db: SimpleNamespace) -> dict[str, str]:
     return {call.args[0]: call.args[1] for call in db.set_cache_meta.await_args_list}
 
 
+def _single_log_record(caplog, message: str):
+    """Return the sole matching log record with an assertion-friendly failure."""
+    matches = [record for record in caplog.records if record.getMessage() == message]
+    assert len(matches) == 1
+    return matches[0]
+
+
 @pytest.mark.asyncio
 async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeypatch):
     calls = []
@@ -255,9 +262,7 @@ async def test_refresh_historical_results_does_not_stamp_incomplete_run(monkeypa
     writes = _meta_writes(db)
     assert scheduler_maintenance._HISTORICAL_REFRESH_META_KEY not in writes
     assert writes[scheduler_maintenance._HISTORICAL_REFRESH_STREAK_META_KEY] == "1"
-    warning = next(
-        record for record in caplog.records if record.message == "Historical refresh incomplete"
-    )
+    warning = _single_log_record(caplog, "Historical refresh incomplete")
     assert warning.levelname == "WARNING"
     assert warning.failed_circuits == ["monza"]
     assert warning.consecutive_incomplete_runs == 1
@@ -283,9 +288,7 @@ async def test_refresh_historical_results_stamps_transient_only_run(monkeypatch,
         await scheduler_maintenance.refresh_historical_results()
 
     assert scheduler_maintenance._HISTORICAL_REFRESH_META_KEY in _meta_writes(db)
-    warning = next(
-        record for record in caplog.records if record.message == "Historical refresh incomplete"
-    )
+    warning = _single_log_record(caplog, "Historical refresh incomplete")
     assert warning.transient_failed_circuits == ["monza"]
     assert warning.advanced_freshness is True
 
@@ -308,10 +311,9 @@ async def test_refresh_historical_results_escalates_repeated_incomplete_runs(mon
     with caplog.at_level("WARNING", logger="app.services.scheduler_maintenance"):
         await scheduler_maintenance.refresh_historical_results()
 
-    error = next(
-        record
-        for record in caplog.records
-        if record.message == "Historical refresh has not completed for several consecutive runs"
+    error = _single_log_record(
+        caplog,
+        "Historical refresh has not completed for several consecutive runs",
     )
     assert error.levelname == "ERROR"
     assert error.consecutive_incomplete_runs == (
