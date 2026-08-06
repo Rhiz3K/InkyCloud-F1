@@ -6,7 +6,9 @@ import asyncio
 import logging
 import weakref
 from datetime import datetime, timedelta, timezone
+from time import monotonic
 
+from app.config import config
 from app.services.database import get_database
 from app.services.historical_refresh import HistoricalRefreshResult
 from app.services.historical_refresh import main as update_historical_results
@@ -64,7 +66,12 @@ async def _store_incomplete_streak(streak: int) -> None:
         logger.warning("Could not persist historical refresh failure streak: %s", e)
 
 
-async def _report_incomplete_run(result: HistoricalRefreshResult) -> None:
+async def _report_incomplete_run(
+    result: HistoricalRefreshResult,
+    *,
+    failure_reason: str | None = None,
+    timeout_seconds: float | None = None,
+) -> None:
     """Log an incomplete run, escalating to error once it recurs across runs.
 
     The messages stay static so the error tracker groups every recurrence into one
@@ -72,12 +79,15 @@ async def _report_incomplete_run(result: HistoricalRefreshResult) -> None:
     """
     streak = await _read_incomplete_streak() + 1
     await _store_incomplete_streak(streak)
-    log_context = {
+    log_context: dict[str, object] = {
         "failed_circuits": list(result.failed_circuits),
         "transient_failed_circuits": list(result.transient_failed_circuits),
         "consecutive_incomplete_runs": streak,
         "advanced_freshness": result.can_advance_freshness,
+        "failure_reason": failure_reason,
     }
+    if timeout_seconds is not None:
+        log_context["timeout_seconds"] = timeout_seconds
     if streak >= _HISTORICAL_REFRESH_ALERT_AFTER_RUNS:
         logger.error(
             "Historical refresh has not completed for several consecutive runs",
@@ -87,41 +97,63 @@ async def _report_incomplete_run(result: HistoricalRefreshResult) -> None:
         logger.warning("Historical refresh incomplete", extra=log_context)
 
 
+async def _run_historical_refresh() -> None:
+    """Bound upstream refresh work, then persist its completion metadata."""
+    try:
+        async with asyncio.timeout(config.HISTORICAL_REFRESH_TIMEOUT_SECONDS):
+            result = await update_historical_results()
+        if result.updated_circuits:
+            logger.info(
+                "Historical results refreshed for %s circuits (%s); "
+                "hourly generation will publish relevant changes",
+                len(result.updated_circuits),
+                ", ".join(result.updated_circuits),
+            )
+        else:
+            logger.info("Historical results refresh completed with no material changes")
+        if result.completed:
+            await _store_incomplete_streak(0)
+        else:
+            await _report_incomplete_run(result)
+            if not result.can_advance_freshness:
+                return
+    except TimeoutError:
+        await _report_incomplete_run(
+            HistoricalRefreshResult((), (), 0),
+            failure_reason="timeout",
+            timeout_seconds=config.HISTORICAL_REFRESH_TIMEOUT_SECONDS,
+        )
+        return
+    except Exception as e:
+        logger.error("Error refreshing historical results: %s", e, exc_info=True)
+        return
+
+    try:
+        await get_database().set_cache_meta(
+            _HISTORICAL_REFRESH_META_KEY, datetime.now(timezone.utc).isoformat()
+        )
+    except Exception as e:  # noqa: BLE001 - timestamp persistence is best effort
+        logger.warning("Could not persist historical refresh timestamp: %s", e)
+
+
 async def refresh_historical_results() -> None:
-    """Refresh static historical results; hourly generation publishes any relevant change."""
+    """Run the static historical refresh once with overlap and runtime protection."""
     lock = get_loop_lock(_historical_refresh_locks)
     if lock.locked():
         logger.info("Historical results refresh already running; skipping overlapping trigger")
         return
 
     async with lock:
+        started_at = monotonic()
         try:
-            result = await update_historical_results()
-            if result.updated_circuits:
-                logger.info(
-                    "Historical results refreshed for %s circuits (%s); "
-                    "hourly generation will publish relevant changes",
-                    len(result.updated_circuits),
-                    ", ".join(result.updated_circuits),
-                )
-            else:
-                logger.info("Historical results refresh completed with no material changes")
-            if result.completed:
-                await _store_incomplete_streak(0)
-            else:
-                await _report_incomplete_run(result)
-                if not result.can_advance_freshness:
-                    return
-        except Exception as e:
-            logger.error("Error refreshing historical results: %s", e, exc_info=True)
-            return
-
-        try:
-            await get_database().set_cache_meta(
-                _HISTORICAL_REFRESH_META_KEY, datetime.now(timezone.utc).isoformat()
+            await _run_historical_refresh()
+        finally:
+            duration_seconds = monotonic() - started_at
+            logger.info(
+                "Historical refresh finished in %.2f seconds",
+                duration_seconds,
+                extra={"duration_seconds": duration_seconds},
             )
-        except Exception as e:
-            logger.warning("Could not persist historical refresh timestamp: %s", e)
 
 
 async def _historical_refresh_is_due() -> bool:

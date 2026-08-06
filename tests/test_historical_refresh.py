@@ -1,5 +1,6 @@
 """Extended completeness and persistence coverage for historical refreshes."""
 
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -239,6 +240,82 @@ async def test_main_does_not_write_when_filtered_result_is_unchanged(tmp_path):
     assert result == historical.HistoricalRefreshResult((), (), 1)
     fetch.assert_awaited_once()
     write.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_main_persists_completed_circuits_before_cancellation(tmp_path):
+    path = tmp_path / "circuits.json"
+    circuits = {"monza": {}, "imola": {}}
+    path.write_text(json.dumps(circuits), encoding="utf-8")
+
+    async def fetch(_client, circuit_id, **_kwargs):
+        if circuit_id == "imola":
+            raise asyncio.CancelledError
+        return historical.CircuitFetchOutcome({"season": 2026, "value": "complete"}, True)
+
+    write = MagicMock()
+    with (
+        patch("app.services.historical_refresh.ensure_runtime_circuits_data", return_value=path),
+        patch("app.services.historical_refresh._current_year", return_value=2026),
+        patch("app.services.historical_refresh.get_shared_http_client", return_value=object()),
+        patch("app.services.historical_refresh._fetch_results_with_status", new=fetch),
+        patch("app.services.historical_refresh.atomic_write_json", write),
+        pytest.raises(asyncio.CancelledError),
+    ):
+        await historical.main()
+
+    persisted = write.call_args.args[1]
+    assert persisted["monza"]["historical"] == {"season": 2026, "value": "complete"}
+    assert "historical" not in persisted["imola"]
+
+
+@pytest.mark.asyncio
+async def test_main_skips_persistence_when_cancelled_before_any_updates(tmp_path):
+    path = tmp_path / "circuits.json"
+    path.write_text(json.dumps({"monza": {}}), encoding="utf-8")
+
+    async def cancel(*_args, **_kwargs):
+        raise asyncio.CancelledError
+
+    write = MagicMock()
+    with (
+        patch("app.services.historical_refresh.ensure_runtime_circuits_data", return_value=path),
+        patch("app.services.historical_refresh._current_year", return_value=2026),
+        patch("app.services.historical_refresh.get_shared_http_client", return_value=object()),
+        patch("app.services.historical_refresh._fetch_results_with_status", new=cancel),
+        patch("app.services.historical_refresh.atomic_write_json", write),
+        pytest.raises(asyncio.CancelledError),
+    ):
+        await historical.main()
+
+    write.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_main_preserves_cancellation_when_partial_persistence_fails(tmp_path, caplog):
+    path = tmp_path / "circuits.json"
+    path.write_text(json.dumps({"monza": {}, "imola": {}}), encoding="utf-8")
+
+    async def fetch(_client, circuit_id, **_kwargs):
+        if circuit_id == "imola":
+            raise asyncio.CancelledError
+        return historical.CircuitFetchOutcome({"season": 2026, "value": "complete"}, True)
+
+    with (
+        patch("app.services.historical_refresh.ensure_runtime_circuits_data", return_value=path),
+        patch("app.services.historical_refresh._current_year", return_value=2026),
+        patch("app.services.historical_refresh.get_shared_http_client", return_value=object()),
+        patch("app.services.historical_refresh._fetch_results_with_status", new=fetch),
+        patch(
+            "app.services.historical_refresh.atomic_write_json",
+            side_effect=OSError("disk full"),
+        ),
+        caplog.at_level("ERROR", logger="app.services.historical_refresh"),
+        pytest.raises(asyncio.CancelledError),
+    ):
+        await historical.main()
+
+    assert "Could not persist partial historical results after cancellation" in caplog.text
 
 
 @pytest.mark.asyncio

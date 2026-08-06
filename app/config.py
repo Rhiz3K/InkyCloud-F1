@@ -123,7 +123,14 @@ class Config(BaseSettings):
     JOLPICA_MIN_REQUEST_INTERVAL: float = Field(
         2.0,
         gt=0,
-        description="Minimum gap between Jolpica requests in seconds",
+        description="Jolpica pacing-token refill interval in seconds",
+    )
+    JOLPICA_BURST_CAPACITY: int = Field(
+        6,
+        gt=0,
+        description=(
+            "Jolpica burst tokens; six covers one teams cache miss without overlap reserve"
+        ),
     )
     JOLPICA_MAX_RETRIES: int = Field(
         6,
@@ -169,6 +176,11 @@ class Config(BaseSettings):
 
     # Scheduler settings
     SCHEDULER_ENABLED: bool = Field(True, description="Toggle background scheduler")
+    HISTORICAL_REFRESH_TIMEOUT_SECONDS: int = Field(
+        5400,
+        gt=0,
+        description="Maximum wall-clock runtime for one historical refresh",
+    )
     STATS_RETENTION_DAYS: int = Field(
         400,
         ge=0,
@@ -238,7 +250,9 @@ class Config(BaseSettings):
 
     @field_validator(
         "REQUEST_TIMEOUT",
+        "JOLPICA_BURST_CAPACITY",
         "JOLPICA_MAX_RETRIES",
+        "HISTORICAL_REFRESH_TIMEOUT_SECONDS",
         "IMAGE_RATE_LIMIT_PER_MINUTE",
         "PERF_METRICS_RATE_LIMIT_PER_MINUTE",
         "DATA_API_RATE_LIMIT_PER_MINUTE",

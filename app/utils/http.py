@@ -18,24 +18,29 @@ MAX_RETRY_DELAY = 300.0
 
 
 class AsyncPacer:
-    """Keep a minimum gap between outbound requests that share an upstream API."""
+    """Limit sustained request rate while allowing a bounded initial burst."""
 
-    def __init__(self, min_interval: float) -> None:
-        """Initialize a pacer with a strictly positive interval in seconds."""
+    def __init__(self, min_interval: float, *, burst_capacity: int = 1) -> None:
+        """Initialize a pacer with a refill interval and positive burst capacity."""
         if not math.isfinite(min_interval) or min_interval <= 0:
             raise ValueError("min_interval must be finite and positive")
+        if burst_capacity <= 0:
+            raise ValueError("burst_capacity must be positive")
         self._min_interval = min_interval
+        self._burst_window = min_interval * (burst_capacity - 1)
         self._lock = asyncio.Lock()
         self._next_allowed = 0.0
 
     async def wait(self) -> None:
-        """Wait until the next request slot and reserve the following slot."""
+        """Reserve one request token, sleeping only when the burst budget is empty."""
         async with self._lock:
             loop = asyncio.get_running_loop()
-            delay = self._next_allowed - loop.time()
+            now = loop.time()
+            delay = self._next_allowed - self._burst_window - now
             if delay > 0:
                 await asyncio.sleep(delay)
-            self._next_allowed = loop.time() + self._min_interval
+                now = loop.time()
+            self._next_allowed = max(self._next_allowed, now) + self._min_interval
 
 
 def is_transient_http_status(status_code: int) -> bool:

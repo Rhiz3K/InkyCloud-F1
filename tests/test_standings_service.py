@@ -231,6 +231,8 @@ async def test_standings_use_configured_jolpica_api_base_url():
         "https://mirror.example.test/ergast/f1/2024/driverStandings.json",
         "https://mirror.example.test/ergast/f1/2024/constructorStandings.json",
     ]
+    pacers = [call.kwargs["pacer"] for call in mock_fetch.await_args_list]
+    assert pacers[0] is pacers[1]
 
 
 @pytest.mark.asyncio

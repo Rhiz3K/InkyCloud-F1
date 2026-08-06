@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -12,7 +13,7 @@ from fastapi import Request
 from PIL import Image
 
 from app.services import http_client
-from app.utils import async_tasks, atomic_io, rate_limit
+from app.utils import async_tasks, atomic_io, jolpica, rate_limit
 from app.utils import http as http_utils
 from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
 from app.utils.f1_season import SEASON_START_DATES, get_current_f1_season
@@ -114,6 +115,44 @@ def test_current_f1_season_before_first_known_start():
     before_first = datetime(earliest.year - 1, 1, 1, tzinfo=timezone.utc)
 
     assert get_current_f1_season(before_first) == min(SEASON_START_DATES) - 1
+
+
+def test_season_start_dates_cover_current_calendar_year():
+    current_year = datetime.now(timezone.utc).year
+
+    assert max(SEASON_START_DATES) >= current_year, (
+        f"SEASON_START_DATES must include the {current_year} first-race date"
+    )
+
+
+@pytest.mark.asyncio
+async def test_jolpica_pacer_is_shared_by_host_within_an_event_loop():
+    jolpica._reset_jolpica_pacers_for_tests()
+    try:
+        first = jolpica.get_jolpica_pacer("https://api.jolpi.ca/ergast/f1/current.json")
+        same_host = jolpica.get_jolpica_pacer(
+            "https://api.jolpi.ca/ergast/f1/2026/driverStandings.json"
+        )
+        other_host = jolpica.get_jolpica_pacer("https://mirror.example/ergast/f1")
+
+        assert first is same_host
+        assert first is not other_host
+    finally:
+        jolpica._reset_jolpica_pacers_for_tests()
+
+
+@pytest.mark.asyncio
+async def test_jolpica_pacer_keeps_full_teams_cache_miss_concurrent():
+    jolpica._reset_jolpica_pacers_for_tests()
+    try:
+        pacer = jolpica.get_jolpica_pacer()
+        with patch("app.utils.http.asyncio.sleep", new=AsyncMock()) as sleep:
+            await asyncio.gather(*(pacer.wait() for _ in range(4)))
+            await asyncio.gather(*(pacer.wait() for _ in range(2)))
+
+        sleep.assert_not_awaited()
+    finally:
+        jolpica._reset_jolpica_pacers_for_tests()
 
 
 def test_retry_after_rejects_invalid_http_date():

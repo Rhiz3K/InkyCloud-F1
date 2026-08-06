@@ -1,5 +1,6 @@
 """Tests for shared HTTP retry helpers."""
 
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -34,9 +35,14 @@ def test_async_pacer_rejects_invalid_interval(min_interval):
         AsyncPacer(min_interval)
 
 
+def test_async_pacer_rejects_nonpositive_burst_capacity():
+    with pytest.raises(ValueError, match="burst_capacity"):
+        AsyncPacer(1.0, burst_capacity=0)
+
+
 @pytest.mark.asyncio
 async def test_async_pacer_waits_for_the_next_request_slot():
-    loop = SimpleNamespace(time=MagicMock(side_effect=[10.0, 10.0, 10.5, 12.0]))
+    loop = SimpleNamespace(time=MagicMock(side_effect=[10.0, 10.5, 12.0]))
     pacer = AsyncPacer(2.0)
 
     with (
@@ -47,6 +53,31 @@ async def test_async_pacer_waits_for_the_next_request_slot():
         await pacer.wait()
 
     sleep.assert_awaited_once_with(1.5)
+
+
+@pytest.mark.asyncio
+async def test_async_pacer_allows_a_burst_then_resumes_sustained_pacing():
+    now = 10.0
+
+    def monotonic_time():
+        return now
+
+    async def advance_time(delay):
+        nonlocal now
+        now += delay
+
+    loop = SimpleNamespace(time=monotonic_time)
+    pacer = AsyncPacer(2.0, burst_capacity=4)
+
+    with (
+        patch("app.utils.http.asyncio.get_running_loop", return_value=loop),
+        patch("app.utils.http.asyncio.sleep", new=AsyncMock(side_effect=advance_time)) as sleep,
+    ):
+        await asyncio.gather(*(pacer.wait() for _ in range(4)))
+        sleep.assert_not_awaited()
+        await pacer.wait()
+
+    sleep.assert_awaited_once_with(2.0)
 
 
 @pytest.mark.asyncio

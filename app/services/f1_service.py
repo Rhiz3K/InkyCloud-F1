@@ -24,6 +24,7 @@ from app.services.circuit_data import get_circuits_data_path, load_circuits_data
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.http_client import get_shared_http_client
 from app.utils.http import fetch_with_retry
+from app.utils.jolpica import get_jolpica_pacer
 from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone, normalize_timezone
 
 logger = logging.getLogger(__name__)
@@ -310,7 +311,12 @@ class F1Service:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             url = f"{self.api_base_url}/{year}.json"
             logger.info("Fetching season races from %s", url)
-            response = await fetch_with_retry(client, url, logger=logger)
+            response = await fetch_with_retry(
+                client,
+                url,
+                pacer=get_jolpica_pacer(self.api_base_url),
+                logger=logger,
+            )
 
             data = response.json()
             races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
@@ -381,7 +387,12 @@ class F1Service:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             url = f"{self.api_base_url}/{year}/{round_num}.json"
             logger.info("Fetching race from %s", url)
-            response = await fetch_with_retry(client, url, logger=logger)
+            response = await fetch_with_retry(
+                client,
+                url,
+                pacer=get_jolpica_pacer(self.api_base_url),
+                logger=logger,
+            )
 
             data = response.json()
             races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.37] - 2026-08-04
+
+### Backend
+
+#### Added
+
+- **Season rollover guard** - Fail the test suite once `SEASON_START_DATES` no longer covers the current UTC year so a missing first-race date cannot silently reintroduce empty-season Jolpica probes
+
+#### Changed
+
+- **Cross-service Jolpica pacing** - Share one event-loop-safe token bucket per upstream hostname, allowing a six-request teams cache-miss burst while keeping sustained historical, F1 fallback, standings, teams, and retry traffic paced
+- **Bounded historical refreshes** - Cap the nightly refresh at a configurable 90-minute wall-clock budget, persist completed circuit updates before cancellation, count timeouts as one incomplete run, and log elapsed duration for every execution
+
 ## [1.2.36] - 2026-08-03
 
 ### Backend
