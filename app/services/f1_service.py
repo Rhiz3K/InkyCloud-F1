@@ -65,7 +65,7 @@ def _find_static_season_path(year: int) -> Path | None:
             and candidate.is_file()
             and candidate.name == expected_name
         )
-    except (OSError, StopIteration):
+    except OSError, StopIteration:
         return None
 
 
@@ -111,7 +111,7 @@ class F1Service:
 
         try:
             return int(round_value) > 0
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
 
     @classmethod
@@ -159,7 +159,7 @@ class F1Service:
 
         try:
             round_num = int(str(round_value))
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
         return round_num if round_num > 0 else None

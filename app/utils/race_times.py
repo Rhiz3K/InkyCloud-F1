@@ -46,7 +46,7 @@ def convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
                 try:
                     dt = datetime.fromisoformat(iso_str)
                     result["race_date"] = dt.strftime("%d.%m.%Y")
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     pass
             break
 

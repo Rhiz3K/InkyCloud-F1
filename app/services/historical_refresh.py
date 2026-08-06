@@ -69,7 +69,7 @@ def _needs_refresh(circuit: Mapping[str, Any], current_season: int) -> bool:
         return True
     try:
         return int(historical.get("season", 0)) < current_season
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return True
 
 
@@ -228,7 +228,7 @@ def _would_regress_season(results: dict, existing_historical: object) -> bool:
         return False
     try:
         return int(result_season) < int(existing_season)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return False
 
 

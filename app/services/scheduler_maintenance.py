@@ -49,7 +49,7 @@ async def _read_incomplete_streak() -> int:
     try:
         raw_streak = await get_database().get_cache_meta(_HISTORICAL_REFRESH_STREAK_META_KEY)
         return max(int(raw_streak or 0), 0)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return 0
     except Exception as e:
         logger.warning("Could not read historical refresh failure streak: %s", e)

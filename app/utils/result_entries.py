@@ -25,7 +25,7 @@ def parse_result_position(entry: object) -> int | None:
 
     try:
         return int(position)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
 
 
