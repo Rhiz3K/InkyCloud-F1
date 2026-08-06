@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import random
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
@@ -16,6 +17,32 @@ RETRY_BASE_DELAY = 1.0
 MAX_RETRY_DELAY = 300.0
 
 
+class AsyncPacer:
+    """Keep a minimum gap between outbound requests that share an upstream API."""
+
+    def __init__(self, min_interval: float) -> None:
+        """Initialize a pacer with a strictly positive interval in seconds."""
+        if not math.isfinite(min_interval) or min_interval <= 0:
+            raise ValueError("min_interval must be finite and positive")
+        self._min_interval = min_interval
+        self._lock = asyncio.Lock()
+        self._next_allowed = 0.0
+
+    async def wait(self) -> None:
+        """Wait until the next request slot and reserve the following slot."""
+        async with self._lock:
+            loop = asyncio.get_running_loop()
+            delay = self._next_allowed - loop.time()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            self._next_allowed = loop.time() + self._min_interval
+
+
+def is_transient_http_status(status_code: int) -> bool:
+    """Return whether an HTTP response is safe to retry as a transient failure."""
+    return status_code == 429 or 500 <= status_code < 600
+
+
 def _retry_after_seconds(response: httpx.Response) -> float | None:
     """Parse and clamp an HTTP Retry-After header to seconds."""
     value = response.headers.get("Retry-After")
@@ -26,7 +53,7 @@ def _retry_after_seconds(response: httpx.Response) -> float | None:
     except ValueError:
         try:
             retry_at = parsedate_to_datetime(value)
-        except (TypeError, ValueError, OverflowError):
+        except TypeError, ValueError, OverflowError:
             return None
         if retry_at.tzinfo is None:
             retry_at = retry_at.replace(tzinfo=timezone.utc)
@@ -48,6 +75,7 @@ async def fetch_with_retry(
     *,
     max_retries: int = MAX_RETRIES,
     retry_base_delay: float = RETRY_BASE_DELAY,
+    pacer: AsyncPacer | None = None,
     logger: logging.Logger | None = None,
     **request_kwargs: Any,
 ) -> httpx.Response:
@@ -56,11 +84,13 @@ async def fetch_with_retry(
 
     for attempt in range(max_retries + 1):
         try:
+            if pacer is not None:
+                await pacer.wait()
             response = await client.get(url, **request_kwargs)
             response.raise_for_status()
             return response
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code in {429, 502, 503, 504}:
+            if is_transient_http_status(exc.response.status_code):
                 last_exception = exc
                 if attempt < max_retries:
                     delay = _retry_delay(exc.response, attempt, retry_base_delay)

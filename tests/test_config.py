@@ -42,6 +42,8 @@ def test_config_defaults():
     assert config.DEFAULT_LANG in config_module.LANGUAGE_CODES
     assert config.STATS_RATE_LIMIT_PER_MINUTE == 60
     assert config.STATS_RETENTION_DAYS == 400
+    assert config.JOLPICA_MIN_REQUEST_INTERVAL == 2.0
+    assert config.JOLPICA_MAX_RETRIES == 6
 
 
 def test_default_stats_retention_covers_longest_dashboard_range():
@@ -108,6 +110,8 @@ def test_config_invalid_env_falls_back(monkeypatch):
 
     monkeypatch.setenv("APP_PORT", "-1")
     monkeypatch.setenv("REQUEST_TIMEOUT", "0")
+    monkeypatch.setenv("JOLPICA_MIN_REQUEST_INTERVAL", "0")
+    monkeypatch.setenv("JOLPICA_MAX_RETRIES", "0")
     monkeypatch.setenv("DEFAULT_TIMEZONE", "Not/AZone")
     monkeypatch.setenv("SITE_URL", "not-a-url")
     monkeypatch.setenv("UMAMI_API_URL", "not-a-url")
@@ -124,6 +128,8 @@ def test_config_invalid_env_falls_back(monkeypatch):
 
     assert config.APP_PORT == 8000
     assert config.REQUEST_TIMEOUT == 10
+    assert config.JOLPICA_MIN_REQUEST_INTERVAL == 2.0
+    assert config.JOLPICA_MAX_RETRIES == 6
     assert config.DEFAULT_TIMEZONE == "Europe/Prague"
     assert str(config.SITE_URL) == "http://localhost:8000"
     assert str(config.UMAMI_API_URL) == "https://analytics.example.com/api/send"

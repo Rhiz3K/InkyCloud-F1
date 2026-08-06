@@ -271,3 +271,4 @@ async def test_fetch_status_marks_systemic_upstream_failure_incomplete(monkeypat
 
     assert outcome.results is None
     assert outcome.completed is False
+    assert outcome.transient_only is True

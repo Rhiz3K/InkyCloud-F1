@@ -210,7 +210,7 @@ def _find_bundled_teams_path(year: int) -> Path | None:
             and candidate.is_file()
             and candidate.name == expected_name
         )
-    except (OSError, StopIteration):
+    except OSError, StopIteration:
         return None
 
 

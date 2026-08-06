@@ -205,10 +205,31 @@ def test_directory_fsync_failure_is_tolerated(monkeypatch, tmp_path):
     assert closed == [17]
 
 
+def _meta_db(streak: str | None = None) -> SimpleNamespace:
+    """Build a fake database exposing the cache-meta calls the refresh job makes."""
+    return SimpleNamespace(
+        set_cache_meta=AsyncMock(),
+        get_cache_meta=AsyncMock(return_value=streak),
+        close=AsyncMock(),
+    )
+
+
+def _meta_writes(db: SimpleNamespace) -> dict[str, str]:
+    """Return the cache-meta keys and values a refresh run persisted."""
+    return {call.args[0]: call.args[1] for call in db.set_cache_meta.await_args_list}
+
+
+def _single_log_record(caplog, message: str):
+    """Return the sole matching log record with an assertion-friendly failure."""
+    matches = [record for record in caplog.records if record.getMessage() == message]
+    assert len(matches) == 1
+    return matches[0]
+
+
 @pytest.mark.asyncio
 async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeypatch):
     calls = []
-    db = SimpleNamespace(set_cache_meta=AsyncMock(), close=AsyncMock())
+    db = _meta_db("4")
 
     async def fake_update_historical():
         calls.append("update")
@@ -220,12 +241,14 @@ async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeyp
     await scheduler_maintenance.refresh_historical_results()
 
     assert calls == ["update"]
-    db.set_cache_meta.assert_awaited_once()
+    writes = _meta_writes(db)
+    assert scheduler_maintenance._HISTORICAL_REFRESH_META_KEY in writes
+    assert writes[scheduler_maintenance._HISTORICAL_REFRESH_STREAK_META_KEY] == "0"
 
 
 @pytest.mark.asyncio
-async def test_refresh_historical_results_does_not_stamp_incomplete_run(monkeypatch):
-    db = SimpleNamespace(set_cache_meta=AsyncMock(), close=AsyncMock())
+async def test_refresh_historical_results_does_not_stamp_incomplete_run(monkeypatch, caplog):
+    db = _meta_db()
 
     async def fake_update_historical():
         return HistoricalRefreshResult((), ("monza",), 1)
@@ -233,9 +256,95 @@ async def test_refresh_historical_results_does_not_stamp_incomplete_run(monkeypa
     monkeypatch.setattr(scheduler_maintenance, "update_historical_results", fake_update_historical)
     monkeypatch.setattr(scheduler_maintenance, "get_database", lambda: db)
 
-    await scheduler_maintenance.refresh_historical_results()
+    with caplog.at_level("WARNING", logger="app.services.scheduler_maintenance"):
+        await scheduler_maintenance.refresh_historical_results()
 
-    db.set_cache_meta.assert_not_awaited()
+    writes = _meta_writes(db)
+    assert scheduler_maintenance._HISTORICAL_REFRESH_META_KEY not in writes
+    assert writes[scheduler_maintenance._HISTORICAL_REFRESH_STREAK_META_KEY] == "1"
+    warning = _single_log_record(caplog, "Historical refresh incomplete")
+    assert warning.levelname == "WARNING"
+    assert warning.failed_circuits == ["monza"]
+    assert warning.consecutive_incomplete_runs == 1
+    assert warning.advanced_freshness is False
+
+
+@pytest.mark.asyncio
+async def test_refresh_historical_results_stamps_transient_only_run(monkeypatch, caplog):
+    db = _meta_db()
+
+    async def fake_update_historical():
+        return HistoricalRefreshResult(
+            (),
+            ("monza",),
+            1,
+            transient_failed_circuits=("monza",),
+        )
+
+    monkeypatch.setattr(scheduler_maintenance, "update_historical_results", fake_update_historical)
+    monkeypatch.setattr(scheduler_maintenance, "get_database", lambda: db)
+
+    with caplog.at_level("WARNING", logger="app.services.scheduler_maintenance"):
+        await scheduler_maintenance.refresh_historical_results()
+
+    assert scheduler_maintenance._HISTORICAL_REFRESH_META_KEY in _meta_writes(db)
+    warning = _single_log_record(caplog, "Historical refresh incomplete")
+    assert warning.transient_failed_circuits == ["monza"]
+    assert warning.advanced_freshness is True
+
+
+@pytest.mark.asyncio
+async def test_refresh_historical_results_escalates_repeated_incomplete_runs(monkeypatch, caplog):
+    db = _meta_db(str(scheduler_maintenance._HISTORICAL_REFRESH_ALERT_AFTER_RUNS - 1))
+
+    async def fake_update_historical():
+        return HistoricalRefreshResult(
+            (),
+            ("monza",),
+            1,
+            transient_failed_circuits=("monza",),
+        )
+
+    monkeypatch.setattr(scheduler_maintenance, "update_historical_results", fake_update_historical)
+    monkeypatch.setattr(scheduler_maintenance, "get_database", lambda: db)
+
+    with caplog.at_level("WARNING", logger="app.services.scheduler_maintenance"):
+        await scheduler_maintenance.refresh_historical_results()
+
+    error = _single_log_record(
+        caplog,
+        "Historical refresh has not completed for several consecutive runs",
+    )
+    assert error.levelname == "ERROR"
+    assert error.consecutive_incomplete_runs == (
+        scheduler_maintenance._HISTORICAL_REFRESH_ALERT_AFTER_RUNS
+    )
+    assert error.failed_circuits == ["monza"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("stored", [None, "", "not-a-number", "-4"])
+async def test_incomplete_streak_reader_tolerates_unusable_values(monkeypatch, stored):
+    db = SimpleNamespace(get_cache_meta=AsyncMock(return_value=stored), close=AsyncMock())
+    monkeypatch.setattr(scheduler_maintenance, "get_database", lambda: db)
+
+    assert await scheduler_maintenance._read_incomplete_streak() == 0
+
+
+@pytest.mark.asyncio
+async def test_incomplete_streak_helpers_survive_database_errors(monkeypatch, caplog):
+    db = SimpleNamespace(
+        get_cache_meta=AsyncMock(side_effect=RuntimeError("read")),
+        set_cache_meta=AsyncMock(side_effect=RuntimeError("write")),
+        close=AsyncMock(),
+    )
+    monkeypatch.setattr(scheduler_maintenance, "get_database", lambda: db)
+
+    with caplog.at_level("WARNING", logger="app.services.scheduler_maintenance"):
+        assert await scheduler_maintenance._read_incomplete_streak() == 0
+        await scheduler_maintenance._store_incomplete_streak(3)
+
+    assert len(caplog.records) == 2
 
 
 @pytest.mark.asyncio

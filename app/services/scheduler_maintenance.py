@@ -8,6 +8,7 @@ import weakref
 from datetime import datetime, timedelta, timezone
 
 from app.services.database import get_database
+from app.services.historical_refresh import HistoricalRefreshResult
 from app.services.historical_refresh import main as update_historical_results
 from app.state import get_and_clear_api_calls_buffer, requeue_api_calls
 from app.utils.async_locks import LoopLockRegistry, get_loop_lock
@@ -16,7 +17,9 @@ logger = logging.getLogger(__name__)
 
 _historical_refresh_locks: LoopLockRegistry = weakref.WeakKeyDictionary()
 _HISTORICAL_REFRESH_META_KEY = "last_historical_refresh"
+_HISTORICAL_REFRESH_STREAK_META_KEY = "historical_refresh_incomplete_streak"
 _HISTORICAL_REFRESH_MAX_AGE = timedelta(days=1)
+_HISTORICAL_REFRESH_ALERT_AFTER_RUNS = 3
 
 
 async def flush_api_calls_to_db() -> None:
@@ -41,6 +44,49 @@ async def flush_api_calls_to_db() -> None:
         logger.debug("Flushed %d API calls to database", count)
 
 
+async def _read_incomplete_streak() -> int:
+    """Return how many consecutive refresh runs ended without completing."""
+    try:
+        raw_streak = await get_database().get_cache_meta(_HISTORICAL_REFRESH_STREAK_META_KEY)
+        return max(int(raw_streak or 0), 0)
+    except TypeError, ValueError:
+        return 0
+    except Exception as e:
+        logger.warning("Could not read historical refresh failure streak: %s", e)
+        return 0
+
+
+async def _store_incomplete_streak(streak: int) -> None:
+    """Persist the consecutive incomplete-run counter without failing the job."""
+    try:
+        await get_database().set_cache_meta(_HISTORICAL_REFRESH_STREAK_META_KEY, str(streak))
+    except Exception as e:
+        logger.warning("Could not persist historical refresh failure streak: %s", e)
+
+
+async def _report_incomplete_run(result: HistoricalRefreshResult) -> None:
+    """Log an incomplete run, escalating to error once it recurs across runs.
+
+    The messages stay static so the error tracker groups every recurrence into one
+    issue; the varying circuit lists travel as structured record attributes instead.
+    """
+    streak = await _read_incomplete_streak() + 1
+    await _store_incomplete_streak(streak)
+    log_context = {
+        "failed_circuits": list(result.failed_circuits),
+        "transient_failed_circuits": list(result.transient_failed_circuits),
+        "consecutive_incomplete_runs": streak,
+        "advanced_freshness": result.can_advance_freshness,
+    }
+    if streak >= _HISTORICAL_REFRESH_ALERT_AFTER_RUNS:
+        logger.error(
+            "Historical refresh has not completed for several consecutive runs",
+            extra=log_context,
+        )
+    else:
+        logger.warning("Historical refresh incomplete", extra=log_context)
+
+
 async def refresh_historical_results() -> None:
     """Refresh static historical results; hourly generation publishes any relevant change."""
     lock = get_loop_lock(_historical_refresh_locks)
@@ -60,12 +106,12 @@ async def refresh_historical_results() -> None:
                 )
             else:
                 logger.info("Historical results refresh completed with no material changes")
-            if not result.completed:
-                logger.error(
-                    "Historical refresh incomplete; not updating freshness timestamp (failed: %s)",
-                    ", ".join(result.failed_circuits) or "no circuits attempted",
-                )
-                return
+            if result.completed:
+                await _store_incomplete_streak(0)
+            else:
+                await _report_incomplete_run(result)
+                if not result.can_advance_freshness:
+                    return
         except Exception as e:
             logger.error("Error refreshing historical results: %s", e, exc_info=True)
             return

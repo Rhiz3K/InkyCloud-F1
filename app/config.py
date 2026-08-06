@@ -1,6 +1,7 @@
 """Configuration management for F1 E-Ink calendar service."""
 
 import logging
+import math
 from functools import lru_cache
 from typing import Optional, TypeVar
 
@@ -119,6 +120,16 @@ class Config(BaseSettings):
         "https://api.jolpi.ca/ergast/f1/current/next.json",
         description="Jolpica F1 API endpoint",
     )
+    JOLPICA_MIN_REQUEST_INTERVAL: float = Field(
+        2.0,
+        gt=0,
+        description="Minimum gap between Jolpica requests in seconds",
+    )
+    JOLPICA_MAX_RETRIES: int = Field(
+        6,
+        gt=0,
+        description="Retry attempts for transient Jolpica failures",
+    )
     REQUEST_TIMEOUT: int = Field(10, gt=0, description="HTTP request timeout in seconds")
 
     RATE_LIMIT_ENABLED: bool = Field(True, description="Enable lightweight in-memory rate limiting")
@@ -221,12 +232,13 @@ class Config(BaseSettings):
             port = int(value)  # type: ignore[call-overload]
             if 0 < port < 65536:
                 return port
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer < 65536")
 
     @field_validator(
         "REQUEST_TIMEOUT",
+        "JOLPICA_MAX_RETRIES",
         "IMAGE_RATE_LIMIT_PER_MINUTE",
         "PERF_METRICS_RATE_LIMIT_PER_MINUTE",
         "DATA_API_RATE_LIMIT_PER_MINUTE",
@@ -256,9 +268,24 @@ class Config(BaseSettings):
             parsed = int(value)  # type: ignore[call-overload]
             if parsed > 0:
                 return parsed
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer")
+
+    @field_validator("JOLPICA_MIN_REQUEST_INTERVAL", mode="before")
+    @classmethod
+    def validate_positive_float(cls, value: object, info: ValidationInfo) -> float:
+        """Validate and coerce a configured request interval into a positive float."""
+        if info.field_name is None:
+            return 2.0
+        default: float = cls.model_fields[info.field_name].default
+        try:
+            parsed = float(value)  # type: ignore[arg-type]
+            if math.isfinite(parsed) and parsed > 0:
+                return parsed
+        except TypeError, ValueError:
+            pass
+        return _warn_invalid(info.field_name, value, default, "must be a positive number")
 
     @field_validator("SENTRY_TRACES_SAMPLE_RATE", mode="before")
     @classmethod
@@ -271,7 +298,7 @@ class Config(BaseSettings):
             rate = float(value)  # type: ignore[arg-type]
             if 0.0 <= rate <= 1.0:
                 return rate
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be between 0.0 and 1.0")
 
@@ -341,7 +368,7 @@ class Config(BaseSettings):
             days = int(value)  # type: ignore[call-overload]
             if days >= 0:
                 return days
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be a non-negative integer")
 
