@@ -14,7 +14,7 @@ from app.models import ConstructorStanding, DriverStanding, StandingsData
 from app.services.http_client import get_shared_http_client
 from app.utils.f1_season import is_supported_f1_season
 from app.utils.http import fetch_with_retry
-from app.utils.jolpica import get_jolpica_base_url
+from app.utils.jolpica import get_jolpica_base_url, get_jolpica_pacer
 
 logger = logging.getLogger(__name__)
 
@@ -132,9 +132,10 @@ class StandingsService:
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             base_url = self._derive_standings_base_url(str(config.JOLPICA_API_URL))
+            pacer = get_jolpica_pacer(base_url)
             url = f"{base_url}/{year}/driverStandings.json"
             logger.info("Fetching driver standings from %s", url)
-            response = await fetch_with_retry(client, url, logger=logger)
+            response = await fetch_with_retry(client, url, pacer=pacer, logger=logger)
 
             data = response.json()
             standings_list = (
@@ -225,9 +226,10 @@ class StandingsService:
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             base_url = self._derive_standings_base_url(str(config.JOLPICA_API_URL))
+            pacer = get_jolpica_pacer(base_url)
             url = f"{base_url}/{year}/constructorStandings.json"
             logger.info("Fetching constructor standings from %s", url)
-            response = await fetch_with_retry(client, url, logger=logger)
+            response = await fetch_with_retry(client, url, pacer=pacer, logger=logger)
 
             data = response.json()
             standings_list = (

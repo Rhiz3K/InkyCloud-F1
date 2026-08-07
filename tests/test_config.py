@@ -43,7 +43,9 @@ def test_config_defaults():
     assert config.STATS_RATE_LIMIT_PER_MINUTE == 60
     assert config.STATS_RETENTION_DAYS == 400
     assert config.JOLPICA_MIN_REQUEST_INTERVAL == 2.0
+    assert config.JOLPICA_BURST_CAPACITY == 6
     assert config.JOLPICA_MAX_RETRIES == 6
+    assert config.HISTORICAL_REFRESH_TIMEOUT_SECONDS == 5400
 
 
 def test_default_stats_retention_covers_longest_dashboard_range():
@@ -83,11 +85,13 @@ def test_config_treats_explicitly_empty_admin_token_as_unset():
 def test_shipped_example_env_files_boot(env_file, monkeypatch):
     monkeypatch.delenv("ADMIN_API_TOKEN", raising=False)
     monkeypatch.delenv("STATS_RETENTION_DAYS", raising=False)
+    monkeypatch.delenv("HISTORICAL_REFRESH_TIMEOUT_SECONDS", raising=False)
 
     config = config_module.Config(_env_file=env_file)
 
     assert config.ADMIN_API_TOKEN is None
     assert config.STATS_RETENTION_DAYS == 400
+    assert config.HISTORICAL_REFRESH_TIMEOUT_SECONDS == 5400
 
 
 @pytest.mark.parametrize(
@@ -111,7 +115,9 @@ def test_config_invalid_env_falls_back(monkeypatch):
     monkeypatch.setenv("APP_PORT", "-1")
     monkeypatch.setenv("REQUEST_TIMEOUT", "0")
     monkeypatch.setenv("JOLPICA_MIN_REQUEST_INTERVAL", "0")
+    monkeypatch.setenv("JOLPICA_BURST_CAPACITY", "0")
     monkeypatch.setenv("JOLPICA_MAX_RETRIES", "0")
+    monkeypatch.setenv("HISTORICAL_REFRESH_TIMEOUT_SECONDS", "0")
     monkeypatch.setenv("DEFAULT_TIMEZONE", "Not/AZone")
     monkeypatch.setenv("SITE_URL", "not-a-url")
     monkeypatch.setenv("UMAMI_API_URL", "not-a-url")
@@ -129,7 +135,9 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert config.APP_PORT == 8000
     assert config.REQUEST_TIMEOUT == 10
     assert config.JOLPICA_MIN_REQUEST_INTERVAL == 2.0
+    assert config.JOLPICA_BURST_CAPACITY == 6
     assert config.JOLPICA_MAX_RETRIES == 6
+    assert config.HISTORICAL_REFRESH_TIMEOUT_SECONDS == 5400
     assert config.DEFAULT_TIMEZONE == "Europe/Prague"
     assert str(config.SITE_URL) == "http://localhost:8000"
     assert str(config.UMAMI_API_URL) == "https://analytics.example.com/api/send"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from collections.abc import Mapping
@@ -17,7 +18,7 @@ from app.services.http_client import get_shared_http_client
 from app.utils.atomic_io import atomic_write_json
 from app.utils.f1_season import get_current_f1_season
 from app.utils.http import AsyncPacer, fetch_with_retry, is_transient_http_status
-from app.utils.jolpica import get_jolpica_base_url
+from app.utils.jolpica import get_jolpica_base_url, get_jolpica_pacer
 from app.utils.material_diff import has_material_change
 from app.utils.result_entries import ResultEntry, get_result_mapping, sort_entries_by_position
 
@@ -133,6 +134,7 @@ async def _fetch_results_with_status(
     had_valid_response = False
     had_failure = False
     api_base = get_jolpica_base_url()
+    pacer = pacer or get_jolpica_pacer(api_base)
     for year in (current_year, current_year - 1, current_year - 2):
         try:
             qualifying_response = await fetch_with_retry(
@@ -269,30 +271,48 @@ async def main(circuit_filter: str | None = None) -> HistoricalRefreshResult:
         )
 
     client = get_shared_http_client(httpx.AsyncClient, timeout=30)
-    pacer = AsyncPacer(config.JOLPICA_MIN_REQUEST_INTERVAL)
-    for circuit_id in refresh_ids:
-        outcome = await _fetch_results_with_status(client, circuit_id, pacer=pacer)
-        results = outcome.results
-        if not outcome.completed:
-            failed_circuits.append(circuit_id)
-            if outcome.transient_only:
-                transient_failed_circuits.append(circuit_id)
-        if results:
-            existing_historical = circuits[circuit_id].get("historical")
-            if _would_regress_season(results, existing_historical):
-                logger.info(
-                    "Kept newer stored season %s for %s",
-                    existing_historical.get("season"),
-                    circuit_id,
-                )
-            elif has_material_historical_change(results, existing_historical):
-                circuits[circuit_id]["historical"] = results
-                updated_circuits.append(circuit_id)
-                logger.info("Updated %s historical results from %s", circuit_id, results["season"])
+    pacer = get_jolpica_pacer()
+    try:
+        for circuit_id in refresh_ids:
+            outcome = await _fetch_results_with_status(client, circuit_id, pacer=pacer)
+            results = outcome.results
+            if not outcome.completed:
+                failed_circuits.append(circuit_id)
+                if outcome.transient_only:
+                    transient_failed_circuits.append(circuit_id)
+            if results:
+                existing_historical = circuits[circuit_id].get("historical")
+                if _would_regress_season(results, existing_historical):
+                    logger.info(
+                        "Kept newer stored season %s for %s",
+                        existing_historical.get("season"),
+                        circuit_id,
+                    )
+                elif has_material_historical_change(results, existing_historical):
+                    circuits[circuit_id]["historical"] = results
+                    updated_circuits.append(circuit_id)
+                    logger.info(
+                        "Updated %s historical results from %s",
+                        circuit_id,
+                        results["season"],
+                    )
+                else:
+                    logger.debug("Historical results unchanged for %s", circuit_id)
             else:
-                logger.debug("Historical results unchanged for %s", circuit_id)
-        else:
-            logger.info("No complete historical data for %s", circuit_id)
+                logger.info("No complete historical data for %s", circuit_id)
+    except asyncio.CancelledError:
+        if updated_circuits:
+            try:
+                atomic_write_json(circuits_path, circuits)
+            except Exception:
+                logger.exception("Could not persist partial historical results after cancellation")
+            else:
+                logger.info(
+                    "Saved partial historical results to %s before cancellation (%s updated)",
+                    circuits_path,
+                    len(updated_circuits),
+                )
+        raise
 
     if updated_circuits:
         atomic_write_json(circuits_path, circuits)

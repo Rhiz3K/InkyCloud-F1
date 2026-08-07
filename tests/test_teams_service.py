@@ -322,6 +322,8 @@ async def test_fetch_api_standings_rows_fetches_both_tables():
         "https://api.example/2026/driverStandings.json",
         "https://api.example/2026/constructorStandings.json",
     ]
+    pacers = [item.kwargs["pacer"] for item in fetch.await_args_list]
+    assert pacers[0] is pacers[1]
 
 
 def test_api_builders_normalize_driver_constructor_and_standings_data():
@@ -492,6 +494,8 @@ async def test_fetch_standings_normalizes_driver_and_constructor_tables():
         {"Test Driver": {"position": 1, "points": 25.0, "wins": 1}},
         {"Team": {"position": 1, "points": 40.0}},
     )
+    pacers = [item.kwargs["pacer"] for item in fetch.await_args_list]
+    assert pacers[0] is pacers[1]
 
 
 @pytest.mark.asyncio

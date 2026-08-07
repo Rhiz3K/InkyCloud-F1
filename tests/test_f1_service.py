@@ -346,9 +346,16 @@ def test_next_race_static_uses_last_completed_race_for_empty_offseason(monkeypat
 async def test_get_season_races_uses_configured_api_base_url(monkeypatch):
     service = F1Service()
     service.api_base_url = "https://mirror.example.com/custom/f1"
+    pacer = object()
+    pacer_urls: list[str] = []
     mock_fetch = AsyncMock(return_value=MockResponse({"MRData": {"RaceTable": {"Races": []}}}))
 
+    def mock_get_jolpica_pacer(api_url: str) -> object:
+        pacer_urls.append(api_url)
+        return pacer
+
     monkeypatch.setattr(f1, "fetch_with_retry", mock_fetch)
+    monkeypatch.setattr(f1, "get_jolpica_pacer", mock_get_jolpica_pacer)
     monkeypatch.setattr(
         f1,
         "get_shared_http_client",
@@ -357,11 +364,17 @@ async def test_get_season_races_uses_configured_api_base_url(monkeypatch):
 
     await service.get_season_races(2026)
     assert mock_fetch.await_args.args[1] == "https://mirror.example.com/custom/f1/2026.json"
+    assert mock_fetch.await_args.kwargs["pacer"] is pacer
 
     await service.get_race_by_round(2026, 3)
     assert (
         mock_fetch.await_args_list[1].args[1] == "https://mirror.example.com/custom/f1/2026/3.json"
     )
+    assert mock_fetch.await_args_list[1].kwargs["pacer"] is pacer
+    assert pacer_urls == [
+        "https://mirror.example.com/custom/f1",
+        "https://mirror.example.com/custom/f1",
+    ]
 
 
 @pytest.mark.asyncio

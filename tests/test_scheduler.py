@@ -227,7 +227,7 @@ def _single_log_record(caplog, message: str):
 
 
 @pytest.mark.asyncio
-async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeypatch):
+async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeypatch, caplog):
     calls = []
     db = _meta_db("4")
 
@@ -237,13 +237,96 @@ async def test_refresh_historical_results_defers_rendering_to_hourly_job(monkeyp
 
     monkeypatch.setattr(scheduler_maintenance, "update_historical_results", fake_update_historical)
     monkeypatch.setattr(scheduler_maintenance, "get_database", lambda: db)
+    monkeypatch.setattr(scheduler_maintenance, "monotonic", MagicMock(side_effect=[10.0, 10.75]))
 
-    await scheduler_maintenance.refresh_historical_results()
+    with caplog.at_level("INFO", logger="app.services.scheduler_maintenance"):
+        await scheduler_maintenance.refresh_historical_results()
 
     assert calls == ["update"]
     writes = _meta_writes(db)
     assert scheduler_maintenance._HISTORICAL_REFRESH_META_KEY in writes
     assert writes[scheduler_maintenance._HISTORICAL_REFRESH_STREAK_META_KEY] == "0"
+    duration = _single_log_record(caplog, "Historical refresh finished in 0.75 seconds")
+    assert duration.duration_seconds == 0.75
+
+
+@pytest.mark.asyncio
+async def test_refresh_historical_results_times_out_as_an_incomplete_run(monkeypatch, caplog):
+    db = _meta_db()
+    cancelled = False
+
+    async def never_finishes():
+        nonlocal cancelled
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+
+    monkeypatch.setattr(scheduler_maintenance, "update_historical_results", never_finishes)
+    monkeypatch.setattr(scheduler_maintenance, "get_database", lambda: db)
+    monkeypatch.setattr(scheduler_maintenance.config, "HISTORICAL_REFRESH_TIMEOUT_SECONDS", 0.001)
+    monkeypatch.setattr(scheduler_maintenance, "monotonic", MagicMock(side_effect=[20.0, 20.5]))
+
+    with caplog.at_level("INFO", logger="app.services.scheduler_maintenance"):
+        await scheduler_maintenance.refresh_historical_results()
+
+    assert cancelled is True
+    writes = _meta_writes(db)
+    assert scheduler_maintenance._HISTORICAL_REFRESH_META_KEY not in writes
+    assert writes[scheduler_maintenance._HISTORICAL_REFRESH_STREAK_META_KEY] == "1"
+    incomplete = _single_log_record(caplog, "Historical refresh incomplete")
+    assert incomplete.failure_reason == "timeout"
+    assert incomplete.timeout_seconds == 0.001
+    assert not any(
+        record.getMessage() == "Historical refresh exceeded its wall-clock budget"
+        for record in caplog.records
+    )
+    duration = _single_log_record(caplog, "Historical refresh finished in 0.50 seconds")
+    assert duration.duration_seconds == 0.5
+
+
+@pytest.mark.asyncio
+async def test_timeout_does_not_double_count_committed_incomplete_run(monkeypatch):
+    persisted = asyncio.Event()
+    release_persistence = asyncio.Event()
+    stored_streak: str | None = None
+    streak_writes = 0
+
+    async def fake_update_historical():
+        return HistoricalRefreshResult((), ("monza",), 1)
+
+    async def get_cache_meta(key):
+        if key == scheduler_maintenance._HISTORICAL_REFRESH_STREAK_META_KEY:
+            return stored_streak
+        return None
+
+    async def set_cache_meta(key, value):
+        nonlocal stored_streak, streak_writes
+        if key != scheduler_maintenance._HISTORICAL_REFRESH_STREAK_META_KEY:
+            return
+        stored_streak = value
+        streak_writes += 1
+        if streak_writes == 1:
+            persisted.set()
+            await release_persistence.wait()
+
+    db = SimpleNamespace(
+        get_cache_meta=AsyncMock(side_effect=get_cache_meta),
+        set_cache_meta=AsyncMock(side_effect=set_cache_meta),
+    )
+    monkeypatch.setattr(scheduler_maintenance, "update_historical_results", fake_update_historical)
+    monkeypatch.setattr(scheduler_maintenance, "get_database", lambda: db)
+    monkeypatch.setattr(scheduler_maintenance.config, "HISTORICAL_REFRESH_TIMEOUT_SECONDS", 0.01)
+
+    refresh_task = asyncio.create_task(scheduler_maintenance.refresh_historical_results())
+    await asyncio.wait_for(persisted.wait(), timeout=1)
+    await asyncio.sleep(0.05)
+    release_persistence.set()
+    await refresh_task
+
+    assert stored_streak == "1"
+    assert streak_writes == 1
 
 
 @pytest.mark.asyncio

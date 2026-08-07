@@ -15,8 +15,8 @@ from app.config import config
 from app.models import TeamDriverEntry, TeamEntry, TeamsData
 from app.services.http_client import get_shared_http_client
 from app.utils.f1_season import get_current_f1_season, is_supported_f1_season
-from app.utils.http import fetch_with_retry
-from app.utils.jolpica import get_jolpica_base_url
+from app.utils.http import AsyncPacer, fetch_with_retry
+from app.utils.jolpica import get_jolpica_base_url, get_jolpica_pacer
 from app.utils.standings_metadata import get_season_driver_number_by_id
 
 logger = logging.getLogger(__name__)
@@ -61,12 +61,27 @@ def _extract_standings_rows(payload: dict, rows_name: str) -> list[dict]:
 
 
 async def _fetch_api_standings_rows(
-    client: httpx.AsyncClient, api_base: str, year: int
+    client: httpx.AsyncClient,
+    api_base: str,
+    year: int,
+    *,
+    pacer: AsyncPacer | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """Fetch and extract driver and constructor standings for one season."""
+    pacer = pacer or get_jolpica_pacer(api_base)
     driver_response, constructor_response = await asyncio.gather(
-        fetch_with_retry(client, f"{api_base}/{year}/driverStandings.json", logger=logger),
-        fetch_with_retry(client, f"{api_base}/{year}/constructorStandings.json", logger=logger),
+        fetch_with_retry(
+            client,
+            f"{api_base}/{year}/driverStandings.json",
+            pacer=pacer,
+            logger=logger,
+        ),
+        fetch_with_retry(
+            client,
+            f"{api_base}/{year}/constructorStandings.json",
+            pacer=pacer,
+            logger=logger,
+        ),
     )
     return (
         _extract_standings_rows(driver_response.json(), "DriverStandings"),
@@ -376,14 +391,15 @@ class TeamsService:
         """Fetch driver and constructor standings from API."""
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
         api_base = get_jolpica_base_url()
+        pacer = get_jolpica_pacer(api_base)
         driver_standings_url = f"{api_base}/{year}/driverStandings.json"
         constructor_standings_url = f"{api_base}/{year}/constructorStandings.json"
 
         logger.info("Fetching standings for %d", year)
 
         driver_resp, constructor_resp = await asyncio.gather(
-            fetch_with_retry(client, driver_standings_url, logger=logger),
-            fetch_with_retry(client, constructor_standings_url, logger=logger),
+            fetch_with_retry(client, driver_standings_url, pacer=pacer, logger=logger),
+            fetch_with_retry(client, constructor_standings_url, pacer=pacer, logger=logger),
         )
 
         driver_standings: dict[str, dict] = {}
@@ -506,6 +522,7 @@ class TeamsService:
         """Build teams data entirely from Jolpica when no bundled roster exists."""
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
         api_base = get_jolpica_base_url()
+        pacer = get_jolpica_pacer(api_base)
         drivers_url = f"{api_base}/{year}/drivers.json?limit=50"
         constructors_url = f"{api_base}/{year}/constructors.json"
         driver_standings_url = f"{api_base}/{year}/driverStandings.json"
@@ -519,10 +536,10 @@ class TeamsService:
             driver_standings_resp,
             constructor_standings_resp,
         ) = await asyncio.gather(
-            fetch_with_retry(client, drivers_url, logger=logger),
-            fetch_with_retry(client, constructors_url, logger=logger),
-            fetch_with_retry(client, driver_standings_url, logger=logger),
-            fetch_with_retry(client, constructor_standings_url, logger=logger),
+            fetch_with_retry(client, drivers_url, pacer=pacer, logger=logger),
+            fetch_with_retry(client, constructors_url, pacer=pacer, logger=logger),
+            fetch_with_retry(client, driver_standings_url, pacer=pacer, logger=logger),
+            fetch_with_retry(client, constructor_standings_url, pacer=pacer, logger=logger),
         )
 
         drivers_data = drivers_resp.json()
@@ -545,7 +562,7 @@ class TeamsService:
             (
                 driver_standings_entries,
                 constructor_standings_entries,
-            ) = await _fetch_api_standings_rows(client, api_base, year - 1)
+            ) = await _fetch_api_standings_rows(client, api_base, year - 1, pacer=pacer)
         driver_to_constructor, drivers_by_id = _build_driver_api_maps(
             driver_standings_entries, drivers_list
         )
