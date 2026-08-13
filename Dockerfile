@@ -43,6 +43,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy installed packages from builder stage
 COPY --from=builder /install /usr/local
 
+# Package installation is builder-only; remove pip and its vendored libraries.
+RUN PIP_ROOT_USER_ACTION=ignore python -m pip uninstall --yes pip
+
 # Copy and install reset-db script
 COPY scripts/reset_db.sh /usr/local/bin/reset-db
 RUN chmod +x /usr/local/bin/reset-db
