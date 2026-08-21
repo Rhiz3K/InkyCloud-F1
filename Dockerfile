@@ -33,6 +33,8 @@ FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9
 WORKDIR /app
 
 # Apply available Debian security updates and install runtime dependencies only.
+# Package versions intentionally follow the current Debian security repository.
+# hadolint ignore=DL3008
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
