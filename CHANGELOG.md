@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.38] - 2026-08-21
+
+### Security
+
+#### Fixed
+
+- **Fresh container security updates** - Upgrade Debian runtime packages during image builds and bypass the runtime-stage cache in security and release workflows so available OS fixes are applied before scanning or publishing
+
 ## [1.2.37] - 2026-08-04
 
 ### Backend

@@ -28,12 +28,16 @@ RUN pip install --no-cache-dir --no-deps --prefix=/install --no-warn-script-loca
 # ============================================
 # Stage 2: Runtime
 # ============================================
-FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4
+FROM python:3.14-slim@sha256:ce40764625a4ff50df3548277632e7f96c4e77fe75fa848aae9885476e7df5a4 AS runtime
 
 WORKDIR /app
 
-# Install runtime dependencies only (no build tools)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Apply available Debian security updates and install runtime dependencies only.
+# Package versions intentionally follow the current Debian security repository.
+# hadolint ignore=DL3008
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
     libjpeg62-turbo \
     zlib1g \
     fonts-symbola \
