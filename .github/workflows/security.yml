@@ -51,6 +51,7 @@ jobs:
           context: .
           load: true
           tags: f1-eink-cal:security-scan
+          no-cache-filters: runtime
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
