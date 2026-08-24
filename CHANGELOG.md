@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.39] - 2026-08-24
+
+### Frontend
+
+#### Added
+
+- **Monza track assets** - Add the source PSD and B/W, B/W/R, B/W/R/Y, and Spectra 6 rendered track images for Monza display support
+
 ## [1.2.38] - 2026-08-21
 
 ### Security
