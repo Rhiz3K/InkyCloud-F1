@@ -261,7 +261,7 @@ async def test_fetch_season_rejects_empty_calendar():
     client = AsyncMock()
     client.get.return_value = response
 
-    with pytest.raises(ValueError, match="no races"):
+    with pytest.raises(update_seasons.SeasonNotPublishedError, match="no races"):
         await update_seasons.fetch_season(client, 2027)
 
 
@@ -308,3 +308,47 @@ async def test_main_returns_true_when_all_years_succeed(tmp_path, monkeypatch):
     monkeypatch.setattr(update_seasons.asyncio, "sleep", AsyncMock())
 
     assert await update_seasons.main([2027]) is True
+
+
+@pytest.mark.asyncio
+async def test_main_skips_unpublished_next_season_without_failing(tmp_path, monkeypatch, capsys):
+    async def fake_fetch(_client, year):
+        if year == 2027:
+            raise update_seasons.SeasonNotPublishedError("Jolpica returned no races for 2027")
+        return {
+            "season": str(year),
+            "generated_at": "now",
+            "total_races": 1,
+            "races": [{"date": "2026-03-01", "Circuit": {"circuitId": "test"}}],
+        }
+
+    (tmp_path / "2027.json").write_text(
+        json.dumps({"season": "2027", "total_races": 0, "races": []}), encoding="utf-8"
+    )
+    monkeypatch.setattr(update_seasons, "SEASONS_DIR", tmp_path)
+    monkeypatch.setattr(update_seasons, "fetch_season", fake_fetch)
+    monkeypatch.setattr(update_seasons.asyncio, "sleep", AsyncMock())
+
+    assert await update_seasons.main([2026, 2027]) is True
+    assert (tmp_path / "2026.json").exists()
+    assert "Season 2027 is not published yet" in capsys.readouterr().out
+
+
+@pytest.mark.asyncio
+async def test_main_fails_when_a_published_season_returns_no_races(tmp_path, monkeypatch):
+    existing = {
+        "season": "2026",
+        "total_races": 1,
+        "races": [{"round": "1", "date": "2026-03-01", "Circuit": {"circuitId": "test"}}],
+    }
+    (tmp_path / "2026.json").write_text(json.dumps(existing), encoding="utf-8")
+
+    async def fake_fetch(_client, year):
+        raise update_seasons.SeasonNotPublishedError(f"Jolpica returned no races for {year}")
+
+    monkeypatch.setattr(update_seasons, "SEASONS_DIR", tmp_path)
+    monkeypatch.setattr(update_seasons, "fetch_season", fake_fetch)
+    monkeypatch.setattr(update_seasons.asyncio, "sleep", AsyncMock())
+
+    assert await update_seasons.main([2026]) is False
+    assert json.loads((tmp_path / "2026.json").read_text(encoding="utf-8")) == existing
