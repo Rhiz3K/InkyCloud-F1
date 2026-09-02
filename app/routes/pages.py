@@ -18,7 +18,11 @@ from app.paths import CHANGELOG_PATH
 from app.services.analytics import track_pageview
 from app.services.database import get_database
 from app.services.teams_service import get_available_teams_years
-from app.services.version_service import get_cached_version, refresh_version_info
+from app.services.version_service import (
+    get_cached_version,
+    refresh_version_info,
+    version_fetch_recently_failed,
+)
 from app.utils.f1_season import get_current_f1_season
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.timezones import TIMEZONE_ALIASES
@@ -506,7 +510,7 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
     changelog_html = await asyncio.to_thread(_load_changelog_html, CHANGELOG_PATH)
 
     version_info = get_cached_version()
-    if version_info is None:
+    if version_info is None and not version_fetch_recently_failed():
         try:
             version_info = await refresh_version_info()
         except Exception as exc:

@@ -122,9 +122,49 @@ async def test_initial_failed_refresh_does_not_start_cache_ttl(monkeypatch):
 def reset_version_cache():
     version_service._version_cache = None
     version_service._version_cache_fetched_at = None
+    version_service._version_fetch_failed_at = None
     yield
     version_service._version_cache = None
     version_service._version_cache_fetched_at = None
+    version_service._version_fetch_failed_at = None
+
+
+@pytest.mark.asyncio
+async def test_initial_failed_refresh_opens_negative_cache_window(monkeypatch):
+    client = AsyncMock()
+    client.get.side_effect = [AsyncMock(status_code=503), AsyncMock(status_code=503)]
+    monkeypatch.setattr(version_service, "get_shared_http_client", lambda *_args, **_kwargs: client)
+    monkeypatch.setattr(version_service.time, "time", lambda: 1000.0)
+
+    await fetch_version_info()
+
+    assert version_service._version_fetch_failed_at == 1000.0
+    assert version_service.version_fetch_recently_failed() is True
+
+    later = 1000.0 + version_service.VERSION_NEGATIVE_CACHE_TTL_SECONDS + 1
+    monkeypatch.setattr(version_service.time, "time", lambda: later)
+    assert version_service.version_fetch_recently_failed() is False
+
+
+@pytest.mark.asyncio
+async def test_successful_refresh_clears_negative_cache_window(monkeypatch):
+    version_service._version_fetch_failed_at = 5.0
+    release = AsyncMock(status_code=200)
+    release.json = lambda: {"tag_name": "v1.0.0", "name": "Release", "published_at": "2026"}
+    commit = AsyncMock(status_code=200)
+    commit.json = lambda: {
+        "sha": "abc1234567",
+        "commit": {"committer": {"date": "2026"}, "message": "feat: x\nbody"},
+    }
+    client = AsyncMock()
+    client.get.side_effect = [release, commit]
+    monkeypatch.setattr(version_service, "get_shared_http_client", lambda *_args, **_kwargs: client)
+
+    result = await fetch_version_info()
+
+    assert result.version_string == "v1.0.0 (abc1234)"
+    assert version_service._version_fetch_failed_at is None
+    assert version_service.version_fetch_recently_failed() is False
 
 
 def _info(release: str | None = None, commit: str | None = None) -> version_service.VersionInfo:
