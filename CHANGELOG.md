@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.40] - 2026-09-02
+
+### Backend
+
+#### Fixed
+
+- **Season calendar automation** - Treat an unpublished next season as "nothing to update" instead of a failure, so the weekly Jolpica sync no longer aborts before its pull request step; the workflow now still opens a PR for seasons that did update and only then reports a failed year
+- **Startup readiness order** - Generate calendar images before the historical catch-up and the all-circuit weather fetch, so a slow or rate-limited Jolpica no longer keeps `/health/ready` in `starting` past the container health-check window
+- **Operational API hardening** - Apply the per-IP rate limit before token validation on `/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics`, and compare tokens as bytes so a non-ASCII header returns 401 instead of 500
+- **Bounded upstream fan-out** - Cache raw Jolpica season and round payloads (one hour, one minute for failures) with per-key coalescing, and keep degraded team rosters for five minutes, so request bursts for uncached seasons cannot queue hundreds of paced upstream calls behind the scheduler
+- **Changelog page resilience** - Remember a failed uncached GitHub version lookup for five minutes instead of repeating two blocking API calls on every `/changelog` view
+- **Perf metrics input** - Validate `page_path` as a site-relative path, collapse unknown pages into `/other`, and lower the default per-IP beacon quota to 30 per minute so unauthenticated clients cannot inflate the dashboard or the database
+- **Static season reads** - Parse each bundled season file once per on-disk version and log per-request lookups at debug level instead of re-reading JSON and logging at info on every calendar request
+
+#### Changed
+
+- **reset-db safety** - The maintenance script now runs with strict shell mode, uses the application's SQLite busy timeout, refuses `all` while WAL/SHM sidecars show an open connection unless `--force` is passed, and documents running it against a stopped service
+
+### Frontend
+
+#### Fixed
+
+- **Translation strings in configure markup** - Escape localized labels before they are injected via `innerHTML`, closing a stored-XSS path through translation files
+- **Stylesheet loading** - Load the primary stylesheets as render-blocking links with versioned URLs, removing the unstyled first paint and layout shift caused by the preload swap and the stale one-hour static cache after deploys
+- **Accessibility** - Name the icon-only sidebar close button and associate the timezone, race, and season controls with their labels
+- **Track maps on 1-bit displays** - Resample preprocessed monochrome maps in grayscale and re-threshold, because Pillow silently uses nearest-neighbour for 1-bit images and broke thin track lines into dashes
+- **Render performance** - Count logo activity rows in Pillow's C loops and pack 4-bit BMP nibbles without a per-pixel Python loop, cutting the startup warmup from about nine seconds to well under one and each B/W/R render by roughly a hundred milliseconds
+
+### Security
+
+#### Changed
+
+- **Container hardening** - Drop all Linux capabilities and disallow privilege escalation in Compose, run uvicorn as PID 1 via `exec`, tag Sentry events with the release, and HTML-escape the Umami website id in the tracking tag
+- **CI maintenance** - Let Dependabot update the composite actions, align the `setup-uv` pin, remove an unused OIDC permission, and document the uv-based development setup
+
 ## [1.2.39] - 2026-08-24
 
 ### Frontend
