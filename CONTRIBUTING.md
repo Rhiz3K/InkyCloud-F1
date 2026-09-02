@@ -14,12 +14,9 @@ Thank you for your interest in contributing to the F1 E-Ink Calendar project! ðŸ
 2. **Set up development environment**
 
    ```bash
-   # Create virtual environment
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-   # Install dependencies
-   pip install -e ".[dev]"
+   # Install uv (https://docs.astral.sh/uv/) and the exact locked dependency set,
+   # including the "dev" dependency group used by CI
+   uv sync --locked --group dev
    ```
 
 3. **Create a branch**
@@ -77,7 +74,8 @@ To add a new language:
 1. Create a new JSON file in `translations/` (e.g., `de.json` for German)
 2. Copy the structure from `en.json`
 3. Translate all strings
-4. Update `app/main.py` to accept the new language code
+4. Add the code to `LANGUAGE_CODES` in `app/config.py` and to `LANGUAGE_LABELS` /
+   `OG_LOCALES` in `app/web/templates.py`
 
 Example `translations/de.json`:
 

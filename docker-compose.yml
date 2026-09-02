@@ -13,6 +13,11 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    # The app runs as an unprivileged user and needs no Linux capabilities.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     environment:
       - APP_HOST=0.0.0.0
       - APP_PORT=8000

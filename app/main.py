@@ -68,6 +68,7 @@ if config.SENTRY_DSN:
     sentry_sdk.init(
         dsn=config.SENTRY_DSN,
         environment=config.SENTRY_ENVIRONMENT,
+        release=f"f1-eink-cal@{APP_VERSION}",
         traces_sample_rate=config.SENTRY_TRACES_SAMPLE_RATE,
         profiles_sample_rate=config.SENTRY_TRACES_SAMPLE_RATE,
     )
