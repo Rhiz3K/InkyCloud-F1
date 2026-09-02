@@ -1518,6 +1518,34 @@ def test_start_and_stop_scheduler_cover_disabled_existing_and_weather_jobs():
 
 
 @pytest.mark.asyncio
+async def test_run_initial_generation_publishes_calendar_before_upstream_refreshes():
+    order: list[str] = []
+
+    def step(name: str, result=None):
+        async def run(*_args, **_kwargs):
+            order.append(name)
+            return result
+
+        return run
+
+    with (
+        patch("app.services.scheduler.config.SCHEDULER_ENABLED", True),
+        patch("app.services.scheduler.config.WEATHER_ENABLED", True),
+        patch("app.services.scheduler._load_weather_from_db", new=step("load")),
+        patch("app.services.scheduler._collect_and_generate", new=step("generate")),
+        patch("app.services.scheduler._historical_refresh_is_due", new=step("due", True)),
+        patch("app.services.scheduler._refresh_historical_results", new=step("historical")),
+        patch("app.services.scheduler._fetch_all_circuits_weather", new=step("weather")),
+        patch("app.services.scheduler.refresh_version_info", new=step("version")),
+    ):
+        await scheduler.run_initial_generation()
+
+    # Readiness depends on the generation marker, so calendars are published before the
+    # potentially minutes-long historical catch-up and all-circuit weather fetch.
+    assert order == ["load", "generate", "due", "historical", "weather", "version"]
+
+
+@pytest.mark.asyncio
 async def test_run_initial_generation_runs_enabled_steps_and_isolates_failures():
     due = AsyncMock(return_value=True)
     historical = AsyncMock()
