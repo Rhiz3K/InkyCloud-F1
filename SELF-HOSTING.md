@@ -142,11 +142,22 @@ The bundled reset tool provides explicit scopes:
 docker compose exec f1-eink-cal reset-db info
 docker compose exec f1-eink-cal reset-db stats
 docker compose exec f1-eink-cal reset-db cache
-docker compose exec f1-eink-cal reset-db all
 ```
 
-The last three commands delete data. Take a backup first. Schema versioning and additive
-migrations run automatically when the shared database is opened.
+`reset-db all` deletes the database file, so the application must not be running: the live
+process keeps its connection to the unlinked file and cannot recreate the schema until it
+restarts. Stop the service and run the reset in a one-off container:
+
+```bash
+docker compose stop f1-eink-cal
+docker compose run --rm --no-deps f1-eink-cal reset-db all
+docker compose start f1-eink-cal
+```
+
+The tool refuses `all` while WAL/SHM sidecar files indicate an open connection; pass `--force`
+only after a crash left stale sidecars behind. The delete scopes destroy data, so take a backup
+first. Schema versioning and additive migrations run automatically when the shared database is
+opened.
 
 ## Data updates
 
