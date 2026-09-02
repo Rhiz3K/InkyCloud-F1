@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import random
+import weakref
 from datetime import datetime, timezone
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -13,7 +15,7 @@ from fastapi import Request
 from PIL import Image
 
 from app.services import http_client
-from app.utils import async_tasks, atomic_io, jolpica, rate_limit
+from app.utils import async_locks, async_tasks, atomic_io, jolpica, rate_limit
 from app.utils import http as http_utils
 from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
 from app.utils.f1_season import SEASON_START_DATES, get_current_f1_season
@@ -82,25 +84,66 @@ def test_encode_indexed_bmp_rejects_oversized_palette():
 
 def test_encode_indexed_bmp_rejects_missing_pixel_access():
     indexed = MagicMock(mode="P", size=(1, 1))
-    indexed.load.return_value = None
+    indexed.tobytes.return_value = b""
 
     with pytest.raises(ValueError, match="Failed to access"):
         encode_indexed_bmp_4bit(indexed, [(0, 0, 0)])
 
 
 @pytest.mark.parametrize(
-    ("size", "pixels", "message"),
+    ("size", "bad_pixel", "message"),
     [
-        ((1, 1), {(0, 0): 16}, r"\(0, 0\): 16"),
-        ((2, 1), {(0, 0): (1,), (1, 0): (16,)}, r"\(1, 0\): 16"),
+        ((1, 1), (0, 0), r"\(0, 0\): 16"),
+        ((3, 2), (1, 1), r"\(1, 1\): 16"),
     ],
 )
-def test_encode_indexed_bmp_rejects_out_of_range_pixels(size, pixels, message):
-    indexed = MagicMock(mode="P", size=size)
-    indexed.load.return_value = pixels
+def test_encode_indexed_bmp_rejects_out_of_range_pixels(size, bad_pixel, message):
+    indexed = Image.new("P", size, 0)
+    indexed.putpixel(bad_pixel, 16)
 
     with pytest.raises(ValueError, match=message):
         encode_indexed_bmp_4bit(indexed, [(0, 0, 0)])
+
+
+def _reference_encode_rows(indexed: Image.Image) -> bytes:
+    width, height = indexed.size
+    row_stride = ((((width + 1) // 2) + 3) // 4) * 4
+    rows = []
+    for y in range(height - 1, -1, -1):
+        row = bytearray()
+        for x in range(0, width, 2):
+            left = indexed.getpixel((x, y))
+            right = indexed.getpixel((x + 1, y)) if x + 1 < width else 0
+            row.append((left << 4) | right)
+        row.extend(b"\x00" * (row_stride - len(row)))
+        rows.append(bytes(row))
+    return b"".join(rows)
+
+
+@pytest.mark.parametrize("size", [(1, 1), (5, 3), (8, 2), (13, 7)])
+def test_encode_indexed_bmp_packs_pixels_like_the_per_pixel_reference(size):
+    rng = random.Random(size[0] * 100 + size[1])
+    indexed = Image.new("P", size)
+    indexed.putdata([rng.randrange(16) for _ in range(size[0] * size[1])])
+    palette = [(0, 0, 0), (255, 255, 255), (255, 0, 0), (255, 255, 0)]
+
+    encoded = encode_indexed_bmp_4bit(indexed, palette)
+
+    pixel_offset = 14 + 40 + 16 * 4
+    assert encoded[pixel_offset:] == _reference_encode_rows(indexed)
+    with Image.open(BytesIO(encoded)) as decoded:
+        assert decoded.size == size
+        assert decoded.tobytes() == indexed.tobytes()
+
+
+@pytest.mark.asyncio
+async def test_get_keyed_loop_lock_reuses_locks_per_key():
+    registry: async_locks.KeyedLoopLockRegistry = weakref.WeakKeyDictionary()
+
+    first = async_locks.get_keyed_loop_lock(registry, ("season", 2026))
+
+    assert async_locks.get_keyed_loop_lock(registry, ("season", 2026)) is first
+    assert async_locks.get_keyed_loop_lock(registry, ("season", 2027)) is not first
 
 
 def test_encode_indexed_bmp_supports_odd_width_and_empty_palette():

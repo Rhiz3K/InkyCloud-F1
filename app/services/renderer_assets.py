@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import functools
+import math
 import threading
 from collections.abc import Sequence
 from pathlib import Path
 
 from cachetools import LRUCache
-from PIL import Image, ImageOps
+from PIL import Image, ImageChops, ImageOps
 
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.track_assets import build_track_stem_candidates
@@ -80,25 +82,20 @@ def _has_transparent_alpha(alpha: Image.Image | None) -> bool:
     return not isinstance(alpha_min, tuple) and alpha_min is not None and alpha_min < 255
 
 
-def _pixel_activity_value(pixel: object) -> float:
-    """Reduce a scalar or tuple pixel to a comparable activity value."""
-    if isinstance(pixel, tuple):
-        return float(max(pixel)) if pixel else 0.0
-    if isinstance(pixel, int | float):
-        return float(pixel)
-    return 0.0
-
-
 def _active_pixel_counts(mask: Image.Image, *, threshold: float = 16) -> list[int]:
-    """Count pixels above an activity threshold for every mask row."""
-    rows = []
-    for y in range(mask.height):
-        active = 0
-        for x in range(mask.width):
-            if _pixel_activity_value(mask.getpixel((x, y))) > threshold:
-                active += 1
-        rows.append(active)
-    return rows
+    """Count pixels whose brightest band exceeds ``threshold`` for every mask row.
+
+    Runs entirely in Pillow's C loops: a per-pixel ``getpixel`` walk over a 2048x1536 logo
+    took seconds per renderer class during startup warmup.
+    """
+    activity = functools.reduce(ImageChops.lighter, mask.split())
+    if activity.mode != "L":
+        activity = activity.convert("L")
+
+    cutoff = math.floor(threshold)
+    active = activity.point(lambda value: 255 if value > cutoff else 0).tobytes()
+    width = mask.width
+    return [active[row * width : (row + 1) * width].count(0xFF) for row in range(mask.height)]
 
 
 def _find_horizontal_segments(
@@ -275,7 +272,13 @@ def prepare_mono_track_image(
     new_size = (int(img_w * ratio), int(img_h * ratio))
 
     if new_size != (img_w, img_h):
-        track_image = track_image.resize(new_size, Image.Resampling.LANCZOS)
+        if is_preprocessed:
+            # Pillow silently resamples mode "1" with NEAREST, which breaks thin track lines
+            # into dashes. Resample in grayscale and re-threshold to keep them continuous.
+            resampled = track_image.convert("L").resize(new_size, Image.Resampling.LANCZOS)
+            track_image = resampled.point(lambda p: 255 if p >= 128 else 0).convert("1")
+        else:
+            track_image = track_image.resize(new_size, Image.Resampling.LANCZOS)
 
     if not is_preprocessed:
         track_image = track_image.point(lambda p: 255 if p > 200 else 0)

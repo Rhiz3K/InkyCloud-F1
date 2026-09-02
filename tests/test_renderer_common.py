@@ -1,5 +1,6 @@
 """Focused tests for shared renderer helpers."""
 
+import random
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -148,12 +149,37 @@ def test_transparent_alpha_helper_accepts_missing_channel():
     assert renderer_assets._has_transparent_alpha(None) is False
 
 
-@pytest.mark.parametrize(
-    ("pixel", "expected"),
-    [((1, 3), 3.0), ((), 0.0), (2, 2.0), (object(), 0.0)],
-)
-def test_pixel_activity_supports_tuple_scalar_and_unknown_values(pixel, expected):
-    assert renderer_assets._pixel_activity_value(pixel) == expected
+def _reference_active_counts(image: Image.Image, threshold: int = 16) -> list[int]:
+    rows = []
+    for y in range(image.height):
+        active = 0
+        for x in range(image.width):
+            pixel = image.getpixel((x, y))
+            value = max(pixel) if isinstance(pixel, tuple) else pixel
+            if value > threshold:
+                active += 1
+        rows.append(active)
+    return rows
+
+
+@pytest.mark.parametrize("mode", ["L", "RGB", "RGBA", "1"])
+def test_active_pixel_counts_match_per_pixel_reference(mode):
+    rng = random.Random(7)
+    image = Image.new(mode, (37, 11))
+    band_count = len(image.getbands())
+    if mode == "1":
+        image.putdata([rng.choice((0, 255)) for _ in range(37 * 11)])
+    elif band_count == 1:
+        image.putdata([rng.randrange(256) for _ in range(37 * 11)])
+    else:
+        image.putdata(
+            [tuple(rng.randrange(256) for _ in range(band_count)) for _ in range(37 * 11)]
+        )
+
+    assert renderer_assets._active_pixel_counts(image) == _reference_active_counts(image)
+    assert renderer_assets._active_pixel_counts(image, threshold=200.5) == (
+        _reference_active_counts(image, threshold=200)
+    )
 
 
 def test_crop_primary_horizontal_band_returns_dominant_band(monkeypatch):
@@ -562,6 +588,18 @@ def test_prepare_mono_track_handles_blank_and_preprocessed_images():
 
     assert renderer_assets.prepare_mono_track_image(blank, 2, 2, MagicMock()).mode == "1"
     assert renderer_assets.prepare_mono_track_image(preprocessed, 2, 2, MagicMock()) is preprocessed
+
+
+def test_prepare_mono_track_resamples_preprocessed_maps_in_grayscale():
+    track = Image.new("1", (40, 40), 1)
+    ImageDraw.Draw(track).rectangle((0, 18, 39, 21), fill=0)
+
+    resized = renderer_assets.prepare_mono_track_image(track, 20, 20, MagicMock())
+
+    assert resized.mode == "1"
+    assert resized.size == (20, 20)
+    # NEAREST would leave a dashed or missing line; grayscale resampling keeps a solid row.
+    assert any(all(resized.getpixel((x, y)) == 0 for x in range(20)) for y in range(20))
 
 
 def test_prepare_mono_track_logs_crop_failure():
