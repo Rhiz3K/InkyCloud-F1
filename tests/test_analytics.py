@@ -351,3 +351,15 @@ def test_get_umami_script_tag_returns_empty_when_website_id_missing():
         script_tag = get_umami_script_tag()
 
         assert script_tag == ""
+
+
+def test_get_umami_script_tag_escapes_attribute_values():
+    with patch("app.services.analytics.config") as mock_cfg:
+        mock_cfg.UMAMI_ENABLED = True
+        mock_cfg.UMAMI_WEBSITE_ID = 'id"><script>alert(1)</script>'
+        mock_cfg.UMAMI_API_URL = "https://analytics.example.com/api/send"
+
+        script_tag = get_umami_script_tag()
+
+    assert "<script>alert" not in script_tag
+    assert 'data-website-id="id&quot;&gt;&lt;script&gt;' in script_tag

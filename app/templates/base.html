@@ -127,29 +127,8 @@
         background: #fff;
       }
     </style>
-    <link
-      rel="preload"
-      href="/static/css/tailwind.min.css"
-      as="style"
-      onload="
-        this.onload = null;
-        this.rel = 'stylesheet';
-      "
-    />
-    <link
-      rel="preload"
-      href="/static/css/styles.css"
-      as="style"
-      onload="
-        this.onload = null;
-        this.rel = 'stylesheet';
-      "
-    />
-    <noscript
-      ><link rel="stylesheet" href="/static/css/tailwind.min.css" /><link
-        rel="stylesheet"
-        href="/static/css/styles.css"
-    /></noscript>
+    <link rel="stylesheet" href="/static/css/tailwind.min.css?v={{ app_version }}" />
+    <link rel="stylesheet" href="/static/css/styles.css?v={{ app_version }}" />
     <link
       rel="preload"
       href="/static/fonts/SpaceMono-Regular.ttf"
@@ -364,7 +343,7 @@
     <script>
       window.SERVER_LANGUAGE_CODES = {{ supported_language_codes | tojson }};
     </script>
-    <script src="/static/js/common.js" defer></script>
+    <script src="/static/js/common.js?v={{ app_version }}" defer></script>
     {% block scripts %}{% endblock %}
   </body>
 </html>

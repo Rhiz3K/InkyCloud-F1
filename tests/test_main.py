@@ -124,7 +124,8 @@ def test_root_endpoint_returns_html():
 def test_root_page_contains_tailwind():
     """Test root page uses Tailwind CSS."""
     response = client.get("/")
-    assert "tailwind.min.css" in response.text
+    assert "tailwind.min.css?v=" in response.text
+    assert "common.js?v=" in response.text
 
 
 def test_root_page_contains_required_elements():
