@@ -660,6 +660,24 @@ async def test_get_season_races_remembers_upstream_failure_briefly():
 
 
 @pytest.mark.asyncio
+async def test_get_season_races_merges_static_cancellations_for_empty_upstream_calendar():
+    service = f1.F1Service()
+    cancelled = {"race_key": "2026-cancelled-jeddah", "is_cancelled": True, "round": None}
+    fetch = AsyncMock(
+        return_value=SimpleNamespace(json=lambda: {"MRData": {"RaceTable": {"Races": []}}})
+    )
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=fetch),
+        patch.object(service, "get_all_races_from_static", return_value=[cancelled]),
+    ):
+        assert await service.get_season_races(2026) == [cancelled]
+        assert await service.get_season_races(2026) == [cancelled]
+
+    assert fetch.await_count == 1
+
+
+@pytest.mark.asyncio
 async def test_get_season_races_tolerates_non_list_and_non_dict_payloads():
     service = f1.F1Service()
     non_list = SimpleNamespace(json=lambda: {"MRData": {"RaceTable": {"Races": "nope"}}})

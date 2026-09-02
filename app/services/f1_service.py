@@ -56,23 +56,23 @@ class _RemotePayloadCache:
     def __init__(self, *, maxsize: int, ttl: float, negative_ttl: float) -> None:
         """Create bounded positive and negative caches with the given lifetimes."""
         self._positive: TTLCache[tuple, object] = TTLCache(maxsize=maxsize, ttl=ttl)
-        self._negative: TTLCache[tuple, bool] = TTLCache(maxsize=maxsize, ttl=negative_ttl)
+        self._negative: TTLCache[tuple, object | None] = TTLCache(maxsize=maxsize, ttl=negative_ttl)
 
     def lookup(self, key: tuple) -> tuple[bool, object | None]:
-        """Return ``(hit, payload)``; a remembered failure or empty answer hits with ``None``."""
+        """Return ``(hit, payload)``; a remembered empty answer or failure hits too."""
         if key in self._positive:
             return True, self._positive[key]
         if key in self._negative:
-            return True, None
+            return True, self._negative[key]
         return False, None
 
     def store(self, key: tuple, payload: object | None) -> None:
-        """Remember a non-empty payload positively and anything else negatively."""
+        """Remember a non-empty payload positively; keep failures and empty answers briefly."""
         if payload:
             self._positive[key] = payload
             self._negative.pop(key, None)
         else:
-            self._negative[key] = True
+            self._negative[key] = payload
 
     def clear(self) -> None:
         """Drop every cached payload."""
@@ -385,7 +385,8 @@ class F1Service:
     async def _get_remote_season_payload(self, year: int) -> list[dict] | None:
         """Return cached raw season races, coalescing concurrent misses per season.
 
-        ``None`` means the upstream call failed or answered with no races recently.
+        ``None`` means the upstream call failed recently; an empty list is a real (cached)
+        empty calendar, which callers still merge with static cancellations.
         """
         cache_key = (self.api_base_url, year)
         hit, cached = _remote_season_cache.lookup(cache_key)
@@ -395,7 +396,9 @@ class F1Service:
                 if not hit:
                     cached = await self._fetch_season_payload(year)
                     _remote_season_cache.store(cache_key, cached)
-        return list(cached) if isinstance(cached, list) and cached else None
+        if cached is None:
+            return None
+        return list(cached) if isinstance(cached, list) else []
 
     async def get_season_races(self, year: int) -> list[dict]:
         """

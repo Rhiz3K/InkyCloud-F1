@@ -145,9 +145,9 @@ async def main(target_years: list[int]) -> bool:
 
     async with httpx.AsyncClient(timeout=30) as client:
         for year in target_years:
+            output_path = SEASONS_DIR / f"{year}.json"
             existing_data = None
             try:
-                output_path = SEASONS_DIR / f"{year}.json"
                 existing_data = _load_existing_season(output_path)
                 data = preserve_cancelled_races(await fetch_season(client, year), existing_data)
 
@@ -176,6 +176,10 @@ async def main(target_years: list[int]) -> bool:
                 if (existing_data or {}).get("races"):
                     # A season that already had races must never silently become empty.
                     print(f"  Error fetching {year}: {e}")
+                    succeeded = False
+                elif existing_data is None and output_path.exists():
+                    # The file is there but unreadable; do not hide that behind "unpublished".
+                    print(f"  Error fetching {year}: existing season file could not be read")
                     succeeded = False
                 else:
                     # The next season is requested all year; it only exists once the FIA

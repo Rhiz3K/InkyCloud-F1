@@ -335,6 +335,22 @@ async def test_main_skips_unpublished_next_season_without_failing(tmp_path, monk
 
 
 @pytest.mark.asyncio
+async def test_main_fails_when_existing_season_file_is_unreadable(tmp_path, monkeypatch, capsys):
+    (tmp_path / "2027.json").write_text("{not json", encoding="utf-8")
+
+    async def fake_fetch(_client, year):
+        raise update_seasons.SeasonNotPublishedError(f"Jolpica returned no races for {year}")
+
+    monkeypatch.setattr(update_seasons, "SEASONS_DIR", tmp_path)
+    monkeypatch.setattr(update_seasons, "fetch_season", fake_fetch)
+    monkeypatch.setattr(update_seasons.asyncio, "sleep", AsyncMock())
+
+    assert await update_seasons.main([2027]) is False
+    assert "could not be read" in capsys.readouterr().out
+    assert (tmp_path / "2027.json").read_text(encoding="utf-8") == "{not json"
+
+
+@pytest.mark.asyncio
 async def test_main_fails_when_a_published_season_returns_no_races(tmp_path, monkeypatch):
     existing = {
         "season": "2026",

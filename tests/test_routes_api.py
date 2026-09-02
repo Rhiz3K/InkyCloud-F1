@@ -1,5 +1,6 @@
 """Edge-case coverage for JSON API route handlers."""
 
+import functools
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -82,9 +83,9 @@ def test_operational_auth_rejects_non_ascii_token_with_401():
 @pytest.mark.parametrize(
     "call",
     [
-        lambda request: api.get_stats(request),
-        lambda request: api.get_perf_metrics(request, hours=24),
-        lambda request: api.get_stats_history(request, limit=1),
+        api.get_stats,
+        functools.partial(api.get_perf_metrics, hours=24),
+        functools.partial(api.get_stats_history, limit=1),
     ],
 )
 async def test_operational_reads_apply_rate_limit_before_authentication(call):

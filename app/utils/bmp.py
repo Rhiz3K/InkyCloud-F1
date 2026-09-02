@@ -185,11 +185,13 @@ def encode_indexed_bmp_4bit(indexed: Image.Image, palette: list[RgbColor]) -> by
     if len(raw) != width * height:
         raise ValueError("Failed to access indexed image pixel data")
     if raw and max(raw) > 15:
-        offset = next(index for index, value in enumerate(raw) if value > 15)
-        raise ValueError(
-            f"Pixel index out of 4-bit range at ({offset % width}, {offset // width}): "
-            f"{raw[offset]}"
-        )
+        # Only reached on invalid input, so the Python walk to locate the pixel is fine.
+        for offset, value in enumerate(raw):
+            if value > 15:
+                raise ValueError(
+                    f"Pixel index out of 4-bit range at ({offset % width}, {offset // width}): "
+                    f"{value}"
+                )
 
     # Every index fits a nibble, so the low hex digit of each byte is the pixel value;
     # joining those digits pairwise packs two pixels per byte in C instead of per-pixel Python.

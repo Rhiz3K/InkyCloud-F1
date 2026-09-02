@@ -222,7 +222,7 @@ InkyCloud-F1/
 │   ├── templates/           # Jinja2 HTML templates
 │   └── assets/              # Static assets (fonts, images)
 ├── tests/                   # Test suite (pytest)
-├── translations/            # i18n JSON files (cs, en)
+├── translations/            # i18n JSON files (13 locales, see LANGUAGE_CODES)
 ├── scripts/                 # Data preprocessing utilities
 └── .github/
     ├── copilot-instructions.md  # This file
