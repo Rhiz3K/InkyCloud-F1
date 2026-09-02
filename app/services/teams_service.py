@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 SEASONS_DIR = Path(__file__).parent.parent / "assets" / "seasons"
 
 CACHE_TTL_SECONDS = 3600
+# Rosters whose standings are missing or partial stay cached only briefly: long enough that a
+# burst of requests cannot amplify into repeated paced upstream fetches, short enough that the
+# hourly scheduler and later requests retry soon after an upstream hiccup.
+DEGRADED_CACHE_TTL_SECONDS = 300
 NEGATIVE_CACHE_TTL_SECONDS = 60
 _fetch_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, dict[int, asyncio.Lock]] = (
     weakref.WeakKeyDictionary()
@@ -285,11 +289,11 @@ class TeamsService:
             return entry.data
         return None
 
-    def _set_cache(self, year: int, data: TeamsData) -> None:
-        """Store a complete teams response in the shared cache."""
+    def _set_cache(self, year: int, data: TeamsData, *, ttl: int = CACHE_TTL_SECONDS) -> None:
+        """Store a teams response in the shared cache for ``ttl`` seconds."""
         key = self._get_cache_key(year)
-        self._cache[key] = CacheEntry(data)
-        logger.debug("Cached %s", key)
+        self._cache[key] = CacheEntry(data, ttl=ttl)
+        logger.debug("Cached %s for %ss", key, ttl)
 
     @staticmethod
     def _validate_year(year: int) -> bool:
@@ -600,6 +604,8 @@ class TeamsService:
             data = await self._load_teams_and_drivers(resolved_year)
             if data.teams:
                 self._negative_cache.pop(resolved_year, None)
+                if not is_teams_data_cacheable(data):
+                    self._set_cache(resolved_year, data, ttl=DEGRADED_CACHE_TTL_SECONDS)
             else:
                 self._negative_cache[resolved_year] = time.time() + NEGATIVE_CACHE_TTL_SECONDS
             return data

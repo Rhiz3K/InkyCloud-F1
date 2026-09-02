@@ -149,7 +149,10 @@ async def test_get_teams_and_drivers_marks_standings_failure_as_incomplete(monke
     assert first.teams
     assert first.standings_complete is False
     assert second.standings_complete is False
-    assert calls == 2
+    # The degraded roster is served from a short-lived cache instead of refetching upstream.
+    assert calls == 1
+    entry = service._cache[service._get_cache_key(2026)]
+    assert entry.expires_at - time.time() <= teams.DEGRADED_CACHE_TTL_SECONDS
 
 
 def test_get_current_f1_season_falls_back_to_current_year_for_future_seasons(caplog):

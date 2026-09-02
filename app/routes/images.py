@@ -813,7 +813,7 @@ async def get_calendar_bmp(
         weather_type=weather_type,
     )
     if image_path is not None:
-        logger.info("Serving pre-generated image: %s", image_path)
+        logger.debug("Serving pre-generated image: %s", image_path)
         artifact, matching_etag = await _read_pregenerated_artifact(
             image_path,
             request.headers.get("If-None-Match"),
