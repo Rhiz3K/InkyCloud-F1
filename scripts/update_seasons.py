@@ -120,7 +120,9 @@ async def fetch_season(client: httpx.AsyncClient, year: int) -> dict:
 
     data = response.json()
     races = data["MRData"]["RaceTable"]["Races"]
-    if not isinstance(races, list) or not races:
+    if not isinstance(races, list):
+        raise ValueError(f"Jolpica returned malformed races payload for {year}")
+    if not races:
         raise SeasonNotPublishedError(f"Jolpica returned no races for {year}")
     if any(
         not isinstance(race, dict)
@@ -173,7 +175,13 @@ async def main(target_years: list[int]) -> bool:
                 print(f"  Error fetching {year}: HTTP {e.response.status_code}")
                 succeeded = False
             except SeasonNotPublishedError as e:
-                if (existing_data or {}).get("races"):
+                expected_unpublished_year = datetime.now(timezone.utc).year + 1
+                if year != expected_unpublished_year:
+                    # Empty calendars are only expected for the next season. Current
+                    # and historical seasons must fail even when no local file exists.
+                    print(f"  Error fetching {year}: {e}")
+                    succeeded = False
+                elif (existing_data or {}).get("races"):
                     # A season that already had races must never silently become empty.
                     print(f"  Error fetching {year}: {e}")
                     succeeded = False
