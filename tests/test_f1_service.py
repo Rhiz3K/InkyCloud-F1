@@ -699,6 +699,28 @@ async def test_get_season_races_tolerates_non_list_and_non_dict_payloads():
 
 
 @pytest.mark.asyncio
+async def test_get_season_races_refetches_after_malformed_non_empty_payload():
+    service = f1.F1Service()
+    malformed_race = MOCK_SEASON_RESPONSE["MRData"]["RaceTable"]["Races"][0] | {
+        "date": "not-a-date"
+    }
+    malformed = SimpleNamespace(json=lambda: {"MRData": {"RaceTable": {"Races": [malformed_race]}}})
+    valid = SimpleNamespace(json=lambda: MOCK_SEASON_RESPONSE)
+    fetch = AsyncMock(side_effect=[malformed, valid])
+
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=fetch),
+        patch.object(service, "get_all_races_from_static", return_value=[]),
+    ):
+        assert await service.get_season_races(2026) == []
+        recovered = await service.get_season_races(2026)
+
+    assert recovered[0]["race_name"] == "Australian Grand Prix"
+    assert fetch.await_count == 2
+
+
+@pytest.mark.asyncio
 async def test_get_race_by_round_caches_payloads_and_missing_rounds():
     service = f1.F1Service()
     responses = [
@@ -724,11 +746,19 @@ async def test_get_race_by_round_returns_none_for_invalid_upstream_race():
     broken = SimpleNamespace(
         json=lambda: {"MRData": {"RaceTable": {"Races": [{"raceName": "Broken"}]}}}
     )
+    valid = SimpleNamespace(
+        json=lambda: {"MRData": {"RaceTable": {"Races": [_race().model_dump()]}}}
+    )
+    fetch = AsyncMock(side_effect=[broken, valid])
     with (
         patch("app.services.f1_service.get_shared_http_client", return_value=object()),
-        patch("app.services.f1_service.fetch_with_retry", new=AsyncMock(return_value=broken)),
+        patch("app.services.f1_service.fetch_with_retry", new=fetch),
     ):
         assert await service.get_race_by_round(2026, 3) is None
+        recovered = await service.get_race_by_round(2026, 3)
+
+    assert recovered["race_name"] == "Test Grand Prix"
+    assert fetch.await_count == 2
 
 
 def test_static_season_loader_reads_each_file_version_once(tmp_path, monkeypatch):

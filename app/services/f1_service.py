@@ -12,6 +12,7 @@ from typing import Optional
 
 import httpx
 from cachetools import TTLCache
+from pydantic import ValidationError
 
 from app.config import config
 from app.models import (
@@ -66,12 +67,12 @@ class _RemotePayloadCache:
             return True, self._negative[key]
         return False, None
 
-    def store(self, key: tuple, payload: object | None) -> None:
-        """Remember a non-empty payload positively; keep failures and empty answers briefly."""
-        if payload:
+    def store(self, key: tuple, payload: object | None, *, valid: bool) -> None:
+        """Cache valid data positively, empty answers negatively, and ignore malformed data."""
+        if payload and valid:
             self._positive[key] = payload
             self._negative.pop(key, None)
-        else:
+        elif not payload:
             self._negative[key] = payload
 
     def clear(self) -> None:
@@ -94,6 +95,33 @@ def _reset_remote_caches_for_tests() -> None:
     _remote_season_cache.clear()
     _remote_race_cache.clear()
     _remote_fetch_locks.clear()
+
+
+def _is_valid_remote_season_payload(payload: object | None) -> bool:
+    """Return whether every season row is complete and usable by the list converter."""
+    if not isinstance(payload, list):
+        return False
+    try:
+        for race in payload:
+            Race.model_validate(race)
+            race_date = race.get("date", "")
+            if race_date:
+                race_time = race.get("time", DEFAULT_SESSION_TIME_UTC)
+                datetime.fromisoformat(f"{race_date}T{race_time}".replace("Z", "+00:00"))
+    except AttributeError, TypeError, ValueError, ValidationError:
+        return False
+    return True
+
+
+def _is_valid_remote_race_payload(payload: object | None) -> bool:
+    """Return whether a round payload can be parsed as a complete race."""
+    if not isinstance(payload, dict):
+        return False
+    try:
+        Race.model_validate(payload)
+    except ValidationError:
+        return False
+    return True
 
 
 @lru_cache(maxsize=32)
@@ -395,7 +423,11 @@ class F1Service:
                 hit, cached = _remote_season_cache.lookup(cache_key)
                 if not hit:
                     cached = await self._fetch_season_payload(year)
-                    _remote_season_cache.store(cache_key, cached)
+                    _remote_season_cache.store(
+                        cache_key,
+                        cached,
+                        valid=_is_valid_remote_season_payload(cached),
+                    )
         if cached is None:
             return None
         return list(cached) if isinstance(cached, list) else []
@@ -496,7 +528,11 @@ class F1Service:
                 hit, cached = _remote_race_cache.lookup(cache_key)
                 if not hit:
                     cached = await self._fetch_race_payload(year, round_num)
-                    _remote_race_cache.store(cache_key, cached)
+                    _remote_race_cache.store(
+                        cache_key,
+                        cached,
+                        valid=_is_valid_remote_race_payload(cached),
+                    )
 
         if not isinstance(cached, dict):
             return None
