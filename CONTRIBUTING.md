@@ -30,10 +30,10 @@ Thank you for your interest in contributing to the F1 E-Ink Calendar project! ðŸ
 
 ```bash
 # Development mode with auto-reload
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 
 # Or with debug logging
-DEBUG=true python -m app.main
+DEBUG=true uv run python -m app.main
 ```
 
 ### Code Style
@@ -122,7 +122,7 @@ docs: update Docker deployment instructions
 2. **Update documentation** - Document any new features
 3. **Prepare a release section** - Add a new semantic-version heading above the previous release,
    keep `## [Unreleased]` empty, and describe the change in that new release section
-4. **Validate release metadata** - Run `python -m app.utils.release_validation`
+4. **Validate release metadata** - Run `uv run python -m app.utils.release_validation`
 5. **Create PR** - Provide clear description of changes
 6. **Address feedback** - Respond to review comments
 
