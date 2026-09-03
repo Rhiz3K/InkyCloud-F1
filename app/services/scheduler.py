@@ -291,13 +291,14 @@ def stop_scheduler() -> None:
 
 async def run_initial_generation() -> None:
     """
-    Perform startup: warm weather from SQLite, generate images, then refresh upstream data.
+    Warm cached weather, generate images, and refresh enabled upstream data.
 
-    Image generation runs before the historical catch-up and the all-circuit weather fetch:
-    both can take minutes (or the full 90-minute refresh budget while Jolpica rate-limits),
-    and readiness depends only on a fresh core calendar generation. The hourly job publishes
-    whatever those later refreshes change. Failures in individual steps are logged but don't
-    stop subsequent steps.
+    With the scheduler enabled, image generation runs before the historical catch-up and the
+    all-circuit weather fetch: both can take minutes (or the full 90-minute refresh budget while
+    Jolpica rate-limits), and the hourly job publishes whatever those later refreshes change.
+    Without the scheduler, weather is fetched before the only generation so fresh conditions are
+    included; the SQLite warm-up remains the fallback if that fetch fails. Failures in individual
+    steps are logged but don't stop subsequent steps.
     """
     logger.info("Running initial generation from static data")
 
@@ -306,6 +307,12 @@ async def run_initial_generation() -> None:
             await _load_weather_from_db()
         except Exception as e:
             logger.warning("Error loading weather from database: %s", e)
+
+        if not config.SCHEDULER_ENABLED:
+            try:
+                await _fetch_all_circuits_weather()
+            except Exception as e:
+                logger.error("Error fetching initial weather: %s", e, exc_info=True)
 
     try:
         await _collect_and_generate()
@@ -320,7 +327,7 @@ async def run_initial_generation() -> None:
         except Exception as e:
             logger.error("Error in startup historical refresh: %s", e, exc_info=True)
 
-    if config.WEATHER_ENABLED:
+    if config.WEATHER_ENABLED and config.SCHEDULER_ENABLED:
         try:
             await _fetch_all_circuits_weather()
         except Exception as e:

@@ -1546,6 +1546,39 @@ async def test_run_initial_generation_publishes_calendar_before_upstream_refresh
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "weather_error",
+    [None, RuntimeError("weather")],
+    ids=["fresh", "cached-fallback"],
+)
+async def test_run_initial_generation_fetches_weather_before_only_generation(weather_error):
+    order: list[str] = []
+
+    def step(name: str, error: Exception | None = None):
+        async def run(*_args, **_kwargs):
+            order.append(name)
+            if error is not None:
+                raise error
+
+        return run
+
+    with (
+        patch("app.services.scheduler.config.SCHEDULER_ENABLED", False),
+        patch("app.services.scheduler.config.WEATHER_ENABLED", True),
+        patch("app.services.scheduler._load_weather_from_db", new=step("load")),
+        patch(
+            "app.services.scheduler._fetch_all_circuits_weather",
+            new=step("weather", weather_error),
+        ),
+        patch("app.services.scheduler._collect_and_generate", new=step("generate")),
+        patch("app.services.scheduler.refresh_version_info", new=step("version")),
+    ):
+        await scheduler.run_initial_generation()
+
+    assert order == ["load", "weather", "generate", "version"]
+
+
+@pytest.mark.asyncio
 async def test_run_initial_generation_runs_enabled_steps_and_isolates_failures():
     due = AsyncMock(return_value=True)
     historical = AsyncMock()
