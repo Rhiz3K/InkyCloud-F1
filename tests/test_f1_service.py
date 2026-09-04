@@ -699,7 +699,7 @@ async def test_get_season_races_tolerates_non_list_and_non_dict_payloads():
 
 
 @pytest.mark.asyncio
-async def test_get_season_races_refetches_after_malformed_non_empty_payload():
+async def test_get_season_races_negative_caches_malformed_non_empty_payload():
     service = f1.F1Service()
     malformed_race = MOCK_SEASON_RESPONSE["MRData"]["RaceTable"]["Races"][0] | {
         "date": "not-a-date"
@@ -714,6 +714,10 @@ async def test_get_season_races_refetches_after_malformed_non_empty_payload():
         patch.object(service, "get_all_races_from_static", return_value=[]),
     ):
         assert await service.get_season_races(2026) == []
+        assert await service.get_season_races(2026) == []
+        assert fetch.await_count == 1
+
+        f1._reset_remote_caches_for_tests()
         recovered = await service.get_season_races(2026)
 
     assert recovered[0]["race_name"] == "Australian Grand Prix"
@@ -741,7 +745,7 @@ async def test_get_race_by_round_caches_payloads_and_missing_rounds():
 
 
 @pytest.mark.asyncio
-async def test_get_race_by_round_returns_none_for_invalid_upstream_race():
+async def test_get_race_by_round_negative_caches_invalid_upstream_race():
     service = f1.F1Service()
     broken = SimpleNamespace(
         json=lambda: {"MRData": {"RaceTable": {"Races": [{"raceName": "Broken"}]}}}
@@ -755,6 +759,10 @@ async def test_get_race_by_round_returns_none_for_invalid_upstream_race():
         patch("app.services.f1_service.fetch_with_retry", new=fetch),
     ):
         assert await service.get_race_by_round(2026, 3) is None
+        assert await service.get_race_by_round(2026, 3) is None
+        assert fetch.await_count == 1
+
+        f1._reset_remote_caches_for_tests()
         recovered = await service.get_race_by_round(2026, 3)
 
     assert recovered["race_name"] == "Test Grand Prix"

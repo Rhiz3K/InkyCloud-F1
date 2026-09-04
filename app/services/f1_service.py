@@ -45,8 +45,8 @@ DEFAULT_SESSION_TIME_UTC = "12:00:00Z"
 NEXT_RACE_GRACE = timedelta(hours=4)
 
 # Raw Jolpica payloads for seasons and rounds without a static file. Positive entries follow
-# the hourly generation cadence; failures and empty answers are remembered briefly so a burst
-# of requests for an uncached season cannot queue hundreds of paced upstream calls.
+# the hourly generation cadence; failures, malformed payloads, and empty answers are remembered
+# briefly so a burst of requests cannot queue hundreds of paced upstream calls.
 REMOTE_CACHE_TTL_SECONDS = 3600
 REMOTE_NEGATIVE_CACHE_TTL_SECONDS = 60
 
@@ -68,12 +68,13 @@ class _RemotePayloadCache:
         return False, None
 
     def store(self, key: tuple, payload: object | None, *, valid: bool) -> None:
-        """Cache valid data positively, empty answers negatively, and ignore malformed data."""
+        """Cache valid data positively and every degraded outcome negatively."""
         if payload and valid:
             self._positive[key] = payload
             self._negative.pop(key, None)
-        elif not payload:
+        else:
             self._negative[key] = payload
+            self._positive.pop(key, None)
 
     def clear(self) -> None:
         """Drop every cached payload."""
