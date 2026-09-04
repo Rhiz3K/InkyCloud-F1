@@ -422,6 +422,25 @@ async def test_get_season_races_handles_null_circuit_and_missing_time(monkeypatc
     assert races[0]["datetime"] == "2026-03-08T12:00:00+00:00"
 
 
+@pytest.mark.asyncio
+async def test_get_season_races_uses_default_time_for_explicit_null(monkeypatch):
+    service = F1Service(timezone_name="UTC")
+    race_payload = MOCK_SEASON_RESPONSE["MRData"]["RaceTable"]["Races"][0] | {"time": None}
+    mock_fetch = AsyncMock(
+        return_value=MockResponse({"MRData": {"RaceTable": {"Races": [race_payload]}}})
+    )
+
+    monkeypatch.setattr(f1, "fetch_with_retry", mock_fetch)
+    monkeypatch.setattr(f1, "get_shared_http_client", lambda *args, **kwargs: object())
+    monkeypatch.setattr(F1Service, "get_all_races_from_static", lambda self, year: [])
+
+    assert f1._is_valid_remote_season_payload([race_payload]) is True
+    races = await service.get_season_races(2026)
+
+    assert len(races) == 1
+    assert races[0]["datetime"] == "2026-03-08T12:00:00+00:00"
+
+
 # Extended validation and fallback coverage for the F1 data service.
 
 

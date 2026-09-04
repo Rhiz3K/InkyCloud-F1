@@ -107,7 +107,7 @@ def _is_valid_remote_season_payload(payload: object | None) -> bool:
             Race.model_validate(race)
             race_date = race.get("date", "")
             if race_date:
-                race_time = race.get("time", DEFAULT_SESSION_TIME_UTC)
+                race_time = race.get("time") or DEFAULT_SESSION_TIME_UTC
                 datetime.fromisoformat(f"{race_date}T{race_time}".replace("Z", "+00:00"))
     except AttributeError, TypeError, ValueError, ValidationError:
         return False
@@ -452,7 +452,7 @@ class F1Service:
         for race in races:
             try:
                 race_date_str = race.get("date", "")
-                race_time_str = race.get("time", DEFAULT_SESSION_TIME_UTC)
+                race_time_str = race.get("time") or DEFAULT_SESSION_TIME_UTC
                 round_num = self._extract_round_number(race)
                 circuit = race.get("Circuit") or {}
                 location = circuit.get("Location") or {}
