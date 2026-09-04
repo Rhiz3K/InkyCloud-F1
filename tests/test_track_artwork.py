@@ -14,6 +14,9 @@ from app.services import track_artwork as artwork
 from app.services.track_assets import (
     TRACK_BUNDLE_VARIANTS,
     TrackBundleError,
+    encode_track_bundle_marker,
+    track_bundle_marker_path,
+    track_bundle_paths,
     validate_track_bundle,
 )
 from scripts import manage
@@ -71,6 +74,23 @@ def _write_manifest(
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _write_valid_bundle(
+    output: Path,
+    *,
+    circuit_id: str = "test_track",
+    source_sha256: str = "a" * 64,
+) -> tuple[dict[str, Path], Path]:
+    """Write a minimal hash-consistent bundle for strict marker validation tests."""
+    png_bytes = {variant: f"synthetic {variant} PNG".encode() for variant in TRACK_BUNDLE_VARIANTS}
+    paths = track_bundle_paths(output, circuit_id)
+    output.mkdir()
+    for variant, path in paths.items():
+        path.write_bytes(png_bytes[variant])
+    marker_path = track_bundle_marker_path(output, circuit_id)
+    marker_path.write_bytes(encode_track_bundle_marker(circuit_id, source_sha256, png_bytes))
+    return paths, marker_path
+
+
 @pytest.mark.parametrize("profile", ["modern", "legacy"])
 def test_import_track_builds_all_variants_for_both_source_profiles(tmp_path, profile):
     """Both official color generations should map to the same display semantics."""
@@ -101,9 +121,9 @@ def test_import_track_builds_all_variants_for_both_source_profiles(tmp_path, pro
     marker = json.loads((output / "test_track.bundle.json").read_text(encoding="utf-8"))
     assert marker["source_sha256"] == digest
     assert tuple(marker["files"]) == TRACK_BUNDLE_VARIANTS
-    assert validate_track_bundle(output, "test_track", digest) == {
-        variant: path for variant, path in zip(TRACK_BUNDLE_VARIANTS, result.output_paths)
-    }
+    assert validate_track_bundle(output, "test_track", digest) == dict(
+        zip(TRACK_BUNDLE_VARIANTS, result.output_paths, strict=True)
+    )
     images = {path.stem: Image.open(path).convert("RGB") for path in result.output_paths}
     samples = ((20, 40), (60, 40), (100, 40))
     assert (
@@ -209,6 +229,18 @@ def test_all_pngs_are_encoded_before_bundle_publication(tmp_path, monkeypatch):
     assert not output.exists()
 
 
+@pytest.mark.parametrize("error", [OSError("disk full"), ValueError("invalid image")])
+def test_encode_png_wraps_pillow_failures(error):
+    """PNG staging should expose Pillow failures as actionable artwork errors."""
+    image = Mock(spec=Image.Image)
+    image.save.side_effect = error
+
+    with pytest.raises(artwork.TrackArtworkError, match=str(error)):
+        artwork._encode_png(image)
+
+    image.save.assert_called_once()
+
+
 def test_interrupted_bundle_publication_leaves_consumers_failed_closed(tmp_path, monkeypatch):
     """A failed PNG write must not leave a marker that legitimizes a partial bundle."""
     source = tmp_path / "download.png"
@@ -241,6 +273,84 @@ def test_interrupted_bundle_publication_leaves_consumers_failed_closed(tmp_path,
     assert not (output / "test_track.bundle.json").exists()
     with pytest.raises(TrackBundleError, match="marker not found"):
         validate_track_bundle(output, "test_track", digest)
+
+
+@pytest.mark.parametrize("path_factory", [track_bundle_paths, track_bundle_marker_path])
+def test_bundle_path_builders_reject_unsafe_circuit_ids(tmp_path, path_factory):
+    """Bundle paths must not allow circuit IDs to escape the tracks directory."""
+    with pytest.raises(TrackBundleError, match="Invalid track bundle circuit id"):
+        path_factory(tmp_path, "../unsafe")
+
+
+def test_bundle_marker_encoder_requires_all_variants():
+    """A marker must never legitimize an incomplete set of palette variants."""
+    with pytest.raises(TrackBundleError, match="must contain exactly"):
+        encode_track_bundle_marker("test_track", "a" * 64, {"generic": b"png"})
+
+
+def test_bundle_validator_reports_malformed_json(tmp_path):
+    """A corrupt marker should fail with a domain-specific read error."""
+    output = tmp_path / "artwork"
+    output.mkdir()
+    track_bundle_marker_path(output, "test_track").write_text("{", encoding="utf-8")
+
+    with pytest.raises(TrackBundleError, match="Cannot read track bundle marker"):
+        validate_track_bundle(output, "test_track", "a" * 64)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda marker: [], "must be a JSON object"),
+        (lambda marker: {**marker, "extra": True}, "unexpected fields"),
+        (lambda marker: {**marker, "schema_version": True}, "schema_version must be"),
+        (lambda marker: {**marker, "schema_version": 2}, "schema_version must be"),
+        (lambda marker: {**marker, "circuit_id": "other"}, "circuit_id does not match"),
+        (lambda marker: {**marker, "source_sha256": "b" * 64}, "source SHA-256 mismatch"),
+        (lambda marker: {**marker, "source_sha256": "INVALID"}, "lower-case hexadecimal"),
+        (lambda marker: {**marker, "files": []}, "files must contain exactly"),
+        (
+            lambda marker: {**marker, "files": {"generic": "0" * 64}},
+            "files must contain exactly",
+        ),
+        (
+            lambda marker: {
+                **marker,
+                "files": {**marker["files"], "bw": "INVALID"},
+            },
+            "track bundle bw SHA-256",
+        ),
+    ],
+)
+def test_bundle_validator_rejects_inconsistent_marker_metadata(tmp_path, mutation, message):
+    """Every marker field is part of the fail-closed bundle contract."""
+    output = tmp_path / "artwork"
+    _, marker_path = _write_valid_bundle(output)
+    marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    marker_path.write_text(json.dumps(mutation(marker)), encoding="utf-8")
+
+    with pytest.raises(TrackBundleError, match=message):
+        validate_track_bundle(output, "test_track", "a" * 64)
+
+
+def test_bundle_validator_reports_missing_variant_file(tmp_path):
+    """A valid marker cannot authorize a bundle whose referenced PNG disappeared."""
+    output = tmp_path / "artwork"
+    paths, _ = _write_valid_bundle(output)
+    paths["bwry"].unlink()
+
+    with pytest.raises(TrackBundleError, match=r"Cannot read track bundle file .*_bwry\.png"):
+        validate_track_bundle(output, "test_track", "a" * 64)
+
+
+def test_bundle_validator_rejects_variant_hash_mismatch(tmp_path):
+    """A replaced PNG must not be accepted under a marker containing its prior digest."""
+    output = tmp_path / "artwork"
+    paths, _ = _write_valid_bundle(output)
+    paths["spectra6"].write_bytes(b"tampered PNG")
+
+    with pytest.raises(TrackBundleError, match=r"hash mismatch for .*_spectra6\.png"):
+        validate_track_bundle(output, "test_track", "a" * 64)
 
 
 def test_explicit_hash_must_agree_with_manifest_before_reading_source(tmp_path):
