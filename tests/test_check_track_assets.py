@@ -82,15 +82,13 @@ def test_missing_requirements_report_source_fallback_and_exact_runtime_path(tmp_
 
     assert len(missing) == 4
     assert any(
-        "mono artwork source" in item and "new_track_bw,new_track" in item
-        for item in formatted
+        "mono artwork source" in item and "new_track_bw,new_track" in item for item in formatted
     )
     assert not any("bwr artwork source" in item for item in formatted)
     assert any("bwry artwork source" in item for item in formatted)
     assert any("spectra6 artwork source" in item for item in formatted)
     assert any(
-        "bwry runtime BMP" in item
-        and "app/assets/tracks_bwry/new_track.bmp" in item
+        "bwry runtime BMP" in item and "app/assets/tracks_bwry/new_track.bmp" in item
         for item in formatted
     )
     assert all("season 2026, round 4" in item for item in formatted)

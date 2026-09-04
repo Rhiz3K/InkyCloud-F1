@@ -52,11 +52,7 @@ class ActiveCircuit:
     @property
     def label(self) -> str:
         """Return a concise human-readable identifier for diagnostics."""
-        mapping = (
-            f" -> runtime {self.runtime_id!r}"
-            if self.runtime_id != self.source_id
-            else ""
-        )
+        mapping = f" -> runtime {self.runtime_id!r}" if self.runtime_id != self.source_id else ""
         return (
             f"season {self.season}, round {self.round}, {self.race_name!r}, "
             f"circuit {self.source_id!r}{mapping}"
@@ -184,8 +180,7 @@ def find_missing_assets(
                     MissingAsset(
                         circuit=circuit,
                         requirement=(
-                            f"{palette} artwork source "
-                            f"({variant!r} variant or generic fallback)"
+                            f"{palette} artwork source ({variant!r} variant or generic fallback)"
                         ),
                         expected=_source_expectation(source_stems, variant),
                     )
@@ -208,9 +203,7 @@ def find_missing_assets(
 def check_track_assets(project_root: Path, season_paths: Sequence[Path]) -> list[MissingAsset]:
     """Check all active races in the supplied season files and return missing requirements."""
     circuits = [
-        circuit
-        for season_path in season_paths
-        for circuit in load_active_circuits(season_path)
+        circuit for season_path in season_paths for circuit in load_active_circuits(season_path)
     ]
     return find_missing_assets(project_root, circuits)
 
