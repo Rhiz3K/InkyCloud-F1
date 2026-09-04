@@ -51,8 +51,8 @@ async def test_fetch_version_info_uses_configured_github_api_base_url():
 @pytest.mark.asyncio
 async def test_failed_refresh_extends_last_good_cache_freshness(monkeypatch):
     cached = VersionInfo(None, None, None, "abc", "abc", None, None, None)
-    monkeypatch.setattr(version_service, "_version_cache", cached)
-    monkeypatch.setattr(version_service, "_version_cache_fetched_at", 1.0)
+    monkeypatch.setattr(version_service._version_state, "info", cached)
+    monkeypatch.setattr(version_service._version_state, "fetched_at", 1.0)
     monkeypatch.setattr(version_service.time, "time", lambda: 42.0)
 
     client = AsyncMock()
@@ -62,7 +62,7 @@ async def test_failed_refresh_extends_last_good_cache_freshness(monkeypatch):
     result = await fetch_version_info()
 
     assert result is cached
-    assert version_service._version_cache_fetched_at == 42.0
+    assert version_service._version_state.fetched_at == 42.0
 
 
 @pytest.mark.asyncio
@@ -77,7 +77,7 @@ async def test_partial_refresh_keeps_release_from_last_good_cache(monkeypatch):
         None,
         None,
     )
-    monkeypatch.setattr(version_service, "_version_cache", cached)
+    monkeypatch.setattr(version_service._version_state, "info", cached)
     client = AsyncMock()
     client.get.side_effect = [
         AsyncMock(status_code=403),
@@ -102,8 +102,8 @@ async def test_partial_refresh_keeps_release_from_last_good_cache(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_initial_failed_refresh_does_not_start_cache_ttl(monkeypatch):
-    monkeypatch.setattr(version_service, "_version_cache", None)
-    monkeypatch.setattr(version_service, "_version_cache_fetched_at", None)
+    monkeypatch.setattr(version_service._version_state, "info", None)
+    monkeypatch.setattr(version_service._version_state, "fetched_at", None)
     client = AsyncMock()
     client.get.side_effect = [AsyncMock(status_code=503), AsyncMock(status_code=503)]
     monkeypatch.setattr(version_service, "get_shared_http_client", lambda *_args, **_kwargs: client)
@@ -111,8 +111,8 @@ async def test_initial_failed_refresh_does_not_start_cache_ttl(monkeypatch):
     result = await fetch_version_info()
 
     assert result.version_string == "unknown"
-    assert version_service._version_cache is None
-    assert version_service._version_cache_fetched_at is None
+    assert version_service._version_state.info is None
+    assert version_service._version_state.fetched_at is None
 
 
 # Extended cache and partial-response coverage for GitHub version metadata.
@@ -120,13 +120,13 @@ async def test_initial_failed_refresh_does_not_start_cache_ttl(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def reset_version_cache():
-    version_service._version_cache = None
-    version_service._version_cache_fetched_at = None
-    version_service._version_fetch_failed_at = None
+    version_service._version_state.info = None
+    version_service._version_state.fetched_at = None
+    version_service._version_state.failed_at = None
     yield
-    version_service._version_cache = None
-    version_service._version_cache_fetched_at = None
-    version_service._version_fetch_failed_at = None
+    version_service._version_state.info = None
+    version_service._version_state.fetched_at = None
+    version_service._version_state.failed_at = None
 
 
 @pytest.mark.asyncio
@@ -138,7 +138,7 @@ async def test_initial_failed_refresh_opens_negative_cache_window(monkeypatch):
 
     await fetch_version_info()
 
-    assert version_service._version_fetch_failed_at == 1000.0
+    assert version_service._version_state.failed_at == 1000.0
     assert version_service.version_fetch_recently_failed() is True
 
     later = 1000.0 + version_service.VERSION_NEGATIVE_CACHE_TTL_SECONDS + 1
@@ -148,7 +148,7 @@ async def test_initial_failed_refresh_opens_negative_cache_window(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_successful_refresh_clears_negative_cache_window(monkeypatch):
-    version_service._version_fetch_failed_at = 5.0
+    version_service._version_state.failed_at = 5.0
     release = AsyncMock(status_code=200)
     release.json = lambda: {"tag_name": "v1.0.0", "name": "Release", "published_at": "2026"}
     commit = AsyncMock(status_code=200)
@@ -163,7 +163,7 @@ async def test_successful_refresh_clears_negative_cache_window(monkeypatch):
     result = await fetch_version_info()
 
     assert result.version_string == "v1.0.0 (abc1234)"
-    assert version_service._version_fetch_failed_at is None
+    assert version_service._version_state.failed_at is None
     assert version_service.version_fetch_recently_failed() is False
 
 
@@ -187,8 +187,8 @@ def test_version_string_and_cache_freshness_variants():
     assert version_service.get_cached_version() is None
 
     cached = _info("v1.0.0", "abcdefghi")
-    version_service._version_cache = cached
-    version_service._version_cache_fetched_at = 100.0
+    version_service._version_state.info = cached
+    version_service._version_state.fetched_at = 100.0
     with patch("app.services.version_service.time.time", return_value=200.0):
         assert version_service.get_cached_version() is cached
     with patch(
@@ -209,7 +209,7 @@ async def test_fetch_version_info_handles_untagged_release_and_commit_without_sh
         result = await version_service.fetch_version_info()
 
     assert result.version_string == "unknown"
-    assert version_service._version_cache is None
+    assert version_service._version_state.info is None
 
 
 @pytest.mark.asyncio
@@ -248,7 +248,7 @@ async def test_fetch_version_info_handles_no_release_and_release_request_excepti
 @pytest.mark.asyncio
 async def test_fetch_version_info_handles_commit_exception_and_preserves_empty_previous():
     previous = _info()
-    version_service._version_cache = previous
+    version_service._version_state.info = previous
     client = AsyncMock()
     client.get.side_effect = [
         SimpleNamespace(status_code=404),
@@ -271,5 +271,5 @@ async def test_refresh_version_info_returns_result_or_none(monkeypatch):
     ):
         assert await version_service.refresh_version_info() is None
 
-    assert version_service._version_fetch_failed_at == 1234.0
+    assert version_service._version_state.failed_at == 1234.0
     assert version_service.version_fetch_recently_failed() is True
