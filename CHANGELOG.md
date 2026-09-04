@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 - **Season calendar automation** - Treat an unpublished next season as "nothing to update" instead of a failure, so the weekly Jolpica sync no longer aborts before its pull request step; the workflow now still opens a PR for seasons that did update and only then reports a failed year, while a separate monitor opens one assigned issue for failures and closes it after recovery
+- **Track asset coverage** - Check every active current- and next-season circuit after calendar updates and fail through the persistent workflow issue when source artwork or any display BMP is missing
 - **Startup readiness order** - Generate calendar images before the historical catch-up and the all-circuit weather fetch, so a slow or rate-limited Jolpica no longer keeps `/health/ready` in `starting` past the container health-check window; scheduler-disabled deployments fetch weather before their only generation instead
 - **Operational API hardening** - Apply the per-IP rate limit before token validation on `/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics`, and compare tokens as bytes so a non-ASCII header returns 401 instead of 500
 - **Bounded upstream fan-out** - Cache validated Jolpica season and round payloads for one hour, remember empty, failed, or malformed responses for one minute with per-key coalescing, and keep degraded team rosters for five minutes, so request bursts cannot queue hundreds of paced upstream calls behind the scheduler without poisoning the long-lived cache
@@ -34,7 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stylesheet loading** - Load the primary stylesheets as render-blocking links with versioned URLs, removing the unstyled first paint and layout shift caused by the preload swap and the stale one-hour static cache after deploys
 - **Accessibility** - Name the icon-only sidebar close button and associate the timezone, race, and season controls with their labels
 - **Track maps on 1-bit displays** - Resample preprocessed monochrome maps in grayscale and re-threshold, because Pillow silently uses nearest-neighbour for 1-bit images and broke thin track lines into dashes
+- **Sepang calendar rendering** - Add reviewed track artwork for all four display palettes and shrink only overflowing race subtitles so the full replacement-race name remains visible
 - **Render performance** - Count logo activity rows in Pillow's C loops and pack 4-bit BMP nibbles without a per-pixel Python loop, cutting the startup warmup from about nine seconds to well under one and each B/W/R render by roughly a hundred milliseconds
+
+### Development
+
+#### Added
+
+- **Validated track artwork imports** - Verify local official-source PNGs against a provenance manifest, recognize both F1 sector-color generations, generate semantic palette variants and separators, and optionally rebuild every runtime BMP through one command
 
 ### Security
 

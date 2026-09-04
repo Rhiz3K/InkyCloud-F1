@@ -9,12 +9,19 @@ uv run python -m scripts.manage --help
 
 ## Asset preprocessing CLI
 
-There is one supported preprocessing entry point:
+There is one supported asset-workflow entry point:
 
 ```text
+python -m scripts.manage import track --source PATH --circuit ID [--expected-sha256 HASH] [--preprocess]
 python -m scripts.manage preprocess tracks --palette {mono,bwr,bwry,spectra6}
 python -m scripts.manage preprocess flags  --palette {mono,bwr,bwry,spectra6}
 ```
+
+`import track` validates a manually acquired local F1 PNG against
+`artwork/tracks/sources.json`, generates the generic and four semantic palette source variants,
+and optionally rebuilds all runtime BMPs with `--preprocess`. It does not download artwork. See
+[`BMP_PROCESSING.md`](../BMP_PROCESSING.md) for provenance, color mapping, separator metadata,
+rights review, and visual QA.
 
 Track commands accept `--circuits monaco,suzuka`. Without it, all source stems under
 `artwork/tracks/` are processed. See [`BMP_PROCESSING.md`](../BMP_PROCESSING.md) for source naming,
@@ -40,7 +47,9 @@ Do not add new palette-specific scripts.
 | `uv run python scripts/scrape_wiki_teams.py` | Maintain team metadata from its source |
 
 Season updates normally run through `.github/workflows/update-f1-data.yml`, weekly in-season and
-daily during December–February. The workflow opens a pull request when tracked data changes.
+daily during December–February. The workflow opens a pull request when tracked data changes and
+runs `scripts/check_track_assets.py`, so a newly active circuit without complete artwork and all
+four runtime BMPs fails visibly through the existing workflow-failure issue monitor.
 
 ## Asset acquisition
 

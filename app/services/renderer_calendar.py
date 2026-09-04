@@ -52,11 +52,25 @@ def draw_race_header(
     line2 = race_name.upper()
 
     text_x = split_x + 15
+    text_right_padding = 15
     total_text_height = 80
     start_y = (header_height - total_text_height) // 2 - 5
 
+    subtitle_font = header_subtitle_font
+    subtitle_bbox = draw.textbbox((0, 0), line2, font=subtitle_font)
+    if subtitle_bbox[2] - subtitle_bbox[0] > canvas_width - text_x - text_right_padding:
+        subtitle_font = fit_ui_font(
+            draw,
+            "en",
+            line2,
+            max_width=canvas_width - text_x - text_right_padding,
+            base_size=36,
+            min_size=20,
+            bold=True,
+        )
+
     draw.text((text_x, start_y), line1, fill=title_fill, font=header_title_font)
-    draw.text((text_x, start_y + 40), line2, fill=title_fill, font=header_subtitle_font)
+    draw.text((text_x, start_y + 40), line2, fill=title_fill, font=subtitle_font)
 
 
 def draw_f1_logo(

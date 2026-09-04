@@ -401,6 +401,48 @@ def test_draw_driver_photo_scales_and_pastes_portrait():
     assert paste.call_args.args[1].size == (5, 10)
 
 
+@pytest.mark.parametrize(
+    ("race_name", "should_shrink"),
+    [
+        ("Monaco Grand Prix", False),
+        ("Bahrain Grand Prix in Malaysia", True),
+    ],
+)
+def test_draw_race_header_fits_long_race_name_without_changing_short_names(
+    race_name, should_shrink
+):
+    image = Image.new("RGB", (800, 90), "white")
+    real_draw = ImageDraw.Draw(image)
+    draw = MagicMock(wraps=real_draw)
+    title_font = font_utils.load_ui_font("en", 36, bold=True)
+    subtitle_font = font_utils.load_ui_font("en", 36, bold=True)
+
+    renderer_calendar.draw_race_header(
+        draw,
+        image,
+        {"race_name": race_name, "season": 2026},
+        canvas_width=800,
+        header_height=90,
+        split_x=230,
+        left_fill="white",
+        divider_fill="black",
+        right_fill="white",
+        title_fill="black",
+        header_title_font=title_font,
+        header_subtitle_font=subtitle_font,
+        draw_f1_logo_fn=MagicMock(),
+    )
+
+    subtitle_call = draw.text.call_args_list[-1]
+    rendered_font = subtitle_call.kwargs["font"]
+    rendered_bbox = real_draw.textbbox(
+        subtitle_call.args[0], subtitle_call.args[1], font=rendered_font
+    )
+
+    assert rendered_bbox[2] <= 800 - 15
+    assert (rendered_font is not subtitle_font) is should_shrink
+
+
 def test_draw_f1_logo_logs_missing_file(tmp_path):
     logger = MagicMock()
 

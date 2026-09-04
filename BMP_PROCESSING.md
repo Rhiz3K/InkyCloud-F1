@@ -21,6 +21,29 @@ rendering, scheduling, documentation, and preprocessing cannot silently drift ap
 
 ## Track sources
 
+Official F1 artwork is acquired as an explicit maintainer step. The importer never makes a
+network request: download the original PNG only after confirming that its use is permitted, then
+record its official page, versioned source URL, SHA-256, dimensions, palette profile, and
+sector-boundary metadata in `artwork/tracks/sources.json`. Formula 1's
+[legal notices](https://www.formula1.com/en/information/legal-notices.7egvZU48hzrypubGBNcQKt)
+and [brand guidelines](https://www.formula1.com/en/information/guidelines.4EOKE9RRqevL4niTK9kWyt)
+remain the source of truth for usage rights.
+
+Import a locally reviewed original and regenerate all runtime variants in one command:
+
+```bash
+uv run python -m scripts.manage import track \
+  --source /path/to/original.png \
+  --circuit sepang \
+  --preprocess
+```
+
+`--expected-sha256` is an optional second check against the required manifest hash. Validation
+and every image transformation complete before any source artwork is written. A bad hash,
+non-PNG payload, unexpected dimensions, unknown palette profile, or missing sector color fails
+closed and leaves the reviewed files untouched. The provenance record documents the human rights
+review; it does not itself grant permission to reuse the source.
+
 Generic source art uses:
 
 ```text
@@ -45,6 +68,22 @@ dedicated processed directory. Missing art produces the normal track placeholder
 source-file lookup inside production.
 
 ## Track algorithms
+
+The local importer recognizes both official F1 source generations: legacy
+magenta/yellow/cyan sector strokes and modern magenta/yellow/blue strokes. It composites
+transparency onto white, preserves the neutral artwork, and applies semantic sector mappings
+rather than globally quantizing colors:
+
+| Source sector | `mono` | `bwr` | `bwry` | `spectra6` |
+| --- | --- | --- | --- | --- |
+| S1 (magenta) | white | white | red | red |
+| S2 (yellow) | white | white | white | blue |
+| S3 (blue/cyan) | white | white | yellow | yellow |
+
+When all sector strokes collapse to one color, the two normalized boundaries from the manifest
+become perpendicular separators: white for `mono`, red for `bwr`. The source variants remain
+reviewable PNGs; the existing preprocessing stage then converts them into the strict device
+palettes below.
 
 All palettes use the single `process_track_image(..., palette)` implementation in
 `app/services/asset_preprocessing.py`.
@@ -101,17 +140,27 @@ transition period. New automation must use `python -m scripts.manage`.
 
 ## Weekly track workflow
 
-1. Add or edit the source PNG under `artwork/tracks/`; keep PSD working files there too.
-2. Run all four track commands for the affected circuit.
-3. Start the app and inspect `/configure/calendar` in all four display modes.
-4. Test a circuit with specific source variants and a circuit using the generic source fallback.
-5. Review binary changes and run the renderer regression suite.
-6. Commit source artwork and processed runtime BMPs together when artwork itself is the task.
+1. Download the original PNG manually from the reviewed official race page and compute its
+   SHA-256; do not treat a Cloudinary version segment as a permanent archive.
+2. Add or update its entry in `artwork/tracks/sources.json`, including two normalized separator
+   points and their normal angles.
+3. Run `scripts.manage import track ... --preprocess`; keep any PSD working files under
+   `artwork/tracks/` too.
+4. Start the app and inspect `/configure/calendar` in all four display modes. Pay particular
+   attention to antialiasing, sector labels, callouts, and separator placement.
+5. Run `uv run python scripts/check_track_assets.py` and the renderer regression suite.
+6. Commit the manifest, source variants, and processed runtime BMPs together after visual review.
 
 CI regenerates every discoverable track into a temporary directory and compares it byte-for-byte
 with the shipped runtime BMP. Commit the regenerated `app/assets/tracks_*` outputs together with
 every source-art change; otherwise `tests/test_asset_preprocessing.py` fails with the exact stale
 palette and filenames.
+
+The season-update workflow also checks every active current/next-season circuit for rebuildable
+source artwork and all four runtime BMPs. A missing circuit keeps the update PR available for
+review but fails the workflow, which activates the repository's persistent workflow-failure
+issue. Upstream artwork changes are never accepted or merged automatically; update the manifest
+hash and rerun the local import only after reviewing the new original.
 
 This workflow is intentionally separate from ordinary application releases. Source artwork is
 not copied into the wheel or Docker build context.
