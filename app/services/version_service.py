@@ -20,8 +20,8 @@ GITHUB_REPO = "InkyCloud-F1"
 # of doing a blocking inline GitHub fetch for ~55 minutes of every hour.
 _version_cache: "VersionInfo | None" = None
 _version_cache_fetched_at: float | None = None
-# When a fetch fails with nothing cached, remember it briefly so a changelog page view does
-# not repeat two blocking GitHub calls per request while the API is down or rate-limited.
+# Remember failed refreshes briefly so a changelog page view does not repeat blocking GitHub
+# work per request while the API or the local HTTP client is unavailable.
 _version_fetch_failed_at: float | None = None
 VERSION_CACHE_TTL_SECONDS = 3600
 VERSION_NEGATIVE_CACHE_TTL_SECONDS = 300
@@ -63,7 +63,7 @@ def get_cached_version() -> VersionInfo | None:
 
 
 def version_fetch_recently_failed() -> bool:
-    """Return whether an uncached fetch failed inside the negative-cache window."""
+    """Return whether a refresh failed inside the negative-cache window."""
     if _version_fetch_failed_at is None:
         return False
     return time.time() - _version_fetch_failed_at <= VERSION_NEGATIVE_CACHE_TTL_SECONDS
@@ -200,9 +200,12 @@ async def refresh_version_info() -> VersionInfo | None:
     Returns:
         VersionInfo if fetch succeeded, None otherwise.
     """
+    global _version_fetch_failed_at
+
     logger.info("Refreshing version info from GitHub")
     try:
         return await fetch_version_info()
     except Exception as e:
+        _version_fetch_failed_at = time.time()
         logger.error("Error refreshing version info: %s", e, exc_info=True)
         return None

@@ -259,13 +259,17 @@ async def test_fetch_version_info_handles_commit_exception_and_preserves_empty_p
 
 
 @pytest.mark.asyncio
-async def test_refresh_version_info_returns_result_or_none():
+async def test_refresh_version_info_returns_result_or_none(monkeypatch):
     info = _info("v1.0.0")
     with patch("app.services.version_service.fetch_version_info", new=AsyncMock(return_value=info)):
         assert await version_service.refresh_version_info() is info
 
+    monkeypatch.setattr(version_service.time, "time", lambda: 1234.0)
     with patch(
         "app.services.version_service.fetch_version_info",
         new=AsyncMock(side_effect=RuntimeError("failed")),
     ):
         assert await version_service.refresh_version_info() is None
+
+    assert version_service._version_fetch_failed_at == 1234.0
+    assert version_service.version_fetch_recently_failed() is True
