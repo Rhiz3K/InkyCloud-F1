@@ -35,14 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stylesheet loading** - Load the primary stylesheets as render-blocking links with versioned URLs, removing the unstyled first paint and layout shift caused by the preload swap and the stale one-hour static cache after deploys
 - **Accessibility** - Name the icon-only sidebar close button and associate the timezone, race, and season controls with their labels
 - **Track maps on 1-bit displays** - Resample preprocessed monochrome maps in grayscale and re-threshold, because Pillow silently uses nearest-neighbour for 1-bit images and broke thin track lines into dashes
-- **Sepang calendar rendering** - Add reviewed track artwork for all four display palettes and shrink only overflowing race subtitles so the full replacement-race name remains visible
+- **Sepang calendar rendering** - Add reviewed track artwork for all four display palettes and shrink or ellipsize overflowing race subtitles so replacement-race names remain inside the header
 - **Render performance** - Count logo activity rows in Pillow's C loops and pack 4-bit BMP nibbles without a per-pixel Python loop, cutting the startup warmup from about nine seconds to well under one and each B/W/R render by roughly a hundred milliseconds
 
 ### Development
 
 #### Added
 
-- **Validated track artwork imports** - Verify local official-source PNGs against a provenance manifest, recognize both F1 sector-color generations, generate semantic palette variants and separators, and optionally rebuild every runtime BMP through one command
+- **Validated track artwork imports** - Verify local official-source PNGs against a provenance manifest, recognize both F1 sector-color generations, generate semantic palette variants and separators behind a final hash marker, and optionally rebuild every runtime BMP through one command
 
 ### Security
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from hashlib import sha256
@@ -14,6 +15,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 from app.services import asset_preprocessing as assets
+from app.services import track_assets
 from scripts import manage
 
 
@@ -30,6 +32,49 @@ def source_art(tmp_path) -> Path:
     draw.rectangle((300, 145, 420, 200), fill=(0, 168, 255, 255))
     image.save(source)
     return source
+
+
+def _write_managed_bundle(root: Path, *, write_marker: bool = True) -> Path:
+    """Create a small manifest-managed source set with an optional valid marker."""
+    source_dir = root / "tracks"
+    source_dir.mkdir()
+    paths = track_assets.track_bundle_paths(source_dir, "managed")
+    colors = {
+        "generic": "black",
+        "bw": "white",
+        "bwr": "red",
+        "bwry": "yellow",
+        "spectra6": "blue",
+    }
+    for variant, path in paths.items():
+        Image.new("RGB", (20, 10), colors[variant]).save(path, format="PNG")
+
+    source_sha = "a" * 64
+    manifest = {
+        "schema_version": 1,
+        "tracks": {
+            "managed": {
+                "season": 2026,
+                "race_slug": "managed-race",
+                "source_page": "https://www.formula1.com/en/racing/2026/managed-race",
+                "source_url": "https://media.formula1.com/image/upload/managed.png",
+                "source_sha256": source_sha,
+                "source_dimensions": [20, 10],
+                "source_profile": "modern",
+                "sector_boundaries": [
+                    {"at": [0.3, 0.5], "normal_degrees": 90},
+                    {"at": [0.6, 0.5], "normal_degrees": 90},
+                ],
+                "rights_review_required": True,
+            }
+        },
+    }
+    (source_dir / "sources.json").write_text(json.dumps(manifest), encoding="utf-8")
+    if write_marker:
+        png_bytes = {variant: path.read_bytes() for variant, path in paths.items()}
+        marker = track_assets.encode_track_bundle_marker("managed", source_sha, png_bytes)
+        (source_dir / "managed.bundle.json").write_bytes(marker)
+    return source_dir
 
 
 @pytest.mark.parametrize(
@@ -172,7 +217,7 @@ def test_color_encoding_requires_a_color_palette(tmp_path):
 
 
 def test_track_batch_filters_sources_and_normalizes_runtime_key(tmp_path):
-    """Track batches should prefer variants and derive the runtime circuit filename."""
+    """Legacy sources without a manifest remain compatible with palette preprocessing."""
     source = tmp_path / "tracks"
     output = tmp_path / "output"
     source.mkdir()
@@ -193,6 +238,43 @@ def test_track_batch_filters_sources_and_normalizes_runtime_key(tmp_path):
     assert result.output_bytes > 0
     assert [path.name for path in output.iterdir()] == ["las_vegas.bmp"]
     assert assets._track_output_stem(Path("monaco_bwry.png")) == "monaco"
+    assert not (source / "sources.json").exists()
+
+
+def test_managed_track_bundle_is_validated_before_preprocessing(tmp_path):
+    """A valid marker permits the selected managed palette source to be consumed."""
+    source = _write_managed_bundle(tmp_path)
+    output = tmp_path / "output"
+
+    result = assets.preprocess_tracks(
+        "bwr",
+        ["managed"],
+        source_dir=source,
+        output_dir=output,
+    )
+
+    assert result.processed == 1
+    assert (output / "managed.bmp").is_file()
+
+
+@pytest.mark.parametrize("corruption", ["missing-marker", "tampered-png"])
+def test_managed_track_bundle_fails_closed_before_preprocessing(tmp_path, corruption):
+    """Missing commit state or changed PNG bytes must prevent any runtime output."""
+    source = _write_managed_bundle(tmp_path, write_marker=corruption != "missing-marker")
+    output = tmp_path / "output"
+    if corruption == "tampered-png":
+        with (source / "managed_bwr.png").open("ab") as handle:
+            handle.write(b"tampered")
+
+    with pytest.raises(assets.PreprocessingError, match="managed track artwork"):
+        assets.preprocess_tracks(
+            "bwr",
+            ["managed"],
+            source_dir=source,
+            output_dir=output,
+        )
+
+    assert not output.exists()
 
 
 @pytest.mark.parametrize("palette", assets.PREPROCESS_PALETTES)

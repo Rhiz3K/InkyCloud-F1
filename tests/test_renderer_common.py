@@ -402,14 +402,15 @@ def test_draw_driver_photo_scales_and_pastes_portrait():
 
 
 @pytest.mark.parametrize(
-    ("race_name", "should_shrink"),
+    ("race_name", "should_shrink", "should_clamp"),
     [
-        ("Monaco Grand Prix", False),
-        ("Bahrain Grand Prix in Malaysia", True),
+        ("Monaco Grand Prix", False, False),
+        ("Bahrain Grand Prix in Malaysia", True, False),
+        ("An exceptionally long replacement Grand Prix name " * 4, True, True),
     ],
 )
 def test_draw_race_header_fits_long_race_name_without_changing_short_names(
-    race_name, should_shrink
+    race_name, should_shrink, should_clamp
 ):
     image = Image.new("RGB", (800, 90), "white")
     real_draw = ImageDraw.Draw(image)
@@ -434,13 +435,14 @@ def test_draw_race_header_fits_long_race_name_without_changing_short_names(
     )
 
     subtitle_call = draw.text.call_args_list[-1]
+    rendered_text = subtitle_call.args[1]
     rendered_font = subtitle_call.kwargs["font"]
-    rendered_bbox = real_draw.textbbox(
-        subtitle_call.args[0], subtitle_call.args[1], font=rendered_font
-    )
+    rendered_bbox = real_draw.textbbox(subtitle_call.args[0], rendered_text, font=rendered_font)
 
     assert rendered_bbox[2] <= 800 - 15
     assert (rendered_font is not subtitle_font) is should_shrink
+    assert rendered_text.endswith("...") is should_clamp
+    assert (rendered_text != race_name.upper()) is should_clamp
 
 
 def test_draw_f1_logo_logs_missing_file(tmp_path):

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from app.services import track_assets
 from scripts import check_track_assets
 
 
@@ -42,6 +43,40 @@ def _write_runtime_assets(root: Path, runtime_id: str, *, omit: str | None = Non
         path.write_bytes(b"BMP")
 
 
+def _write_managed_bundle(root: Path, circuit_id: str = "managed") -> Path:
+    """Write a complete managed source bundle and its provenance manifest."""
+    source_dir = root / "artwork" / "tracks"
+    source_dir.mkdir(parents=True, exist_ok=True)
+    paths = track_assets.track_bundle_paths(source_dir, circuit_id)
+    for variant, path in paths.items():
+        path.write_bytes(f"PNG:{variant}".encode())
+    source_sha = "a" * 64
+    manifest = {
+        "schema_version": 1,
+        "tracks": {
+            circuit_id: {
+                "season": 2026,
+                "race_slug": "managed-race",
+                "source_page": "https://www.formula1.com/en/racing/2026/managed-race",
+                "source_url": "https://media.formula1.com/image/upload/managed.png",
+                "source_sha256": source_sha,
+                "source_dimensions": [3840, 2160],
+                "source_profile": "modern",
+                "sector_boundaries": [
+                    {"at": [0.3, 0.5], "normal_degrees": 90},
+                    {"at": [0.6, 0.5], "normal_degrees": 90},
+                ],
+                "rights_review_required": True,
+            }
+        },
+    }
+    (source_dir / "sources.json").write_text(json.dumps(manifest), encoding="utf-8")
+    png_bytes = {variant: path.read_bytes() for variant, path in paths.items()}
+    marker = track_assets.encode_track_bundle_marker(circuit_id, source_sha, png_bytes)
+    (source_dir / f"{circuit_id}.bundle.json").write_bytes(marker)
+    return source_dir
+
+
 def test_generic_source_and_mapped_runtime_id_cover_all_palettes(tmp_path):
     """A generic API-ID source may build mapped Las Vegas runtime assets."""
     season = _write_season(
@@ -67,6 +102,36 @@ def test_palette_variants_are_valid_without_generic_source(tmp_path):
     _write_runtime_assets(tmp_path, "test_ring")
 
     assert check_track_assets.check_track_assets(tmp_path, [season]) == []
+
+
+def test_valid_managed_bundle_passes_coverage(tmp_path):
+    """Coverage accepts a manifest-managed track only after every bundle hash matches."""
+    season = _write_season(tmp_path, 2026, [_race("managed")])
+    _write_managed_bundle(tmp_path)
+    _write_runtime_assets(tmp_path, "managed")
+
+    assert check_track_assets.check_track_assets(tmp_path, [season]) == []
+
+
+@pytest.mark.parametrize("corruption", ["missing-marker", "tampered-marker"])
+def test_invalid_managed_bundle_fails_coverage(tmp_path, corruption):
+    """A missing marker or altered recorded digest must produce an actionable failure."""
+    season = _write_season(tmp_path, 2026, [_race("managed")])
+    source_dir = _write_managed_bundle(tmp_path)
+    marker_path = source_dir / "managed.bundle.json"
+    if corruption == "missing-marker":
+        marker_path.unlink()
+    else:
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+        marker["files"]["bwr"] = "0" * 64
+        marker_path.write_text(json.dumps(marker), encoding="utf-8")
+    _write_runtime_assets(tmp_path, "managed")
+
+    missing = check_track_assets.check_track_assets(tmp_path, [season])
+
+    assert len(missing) == 1
+    assert "valid managed artwork bundle" in missing[0].requirement
+    assert missing[0].expected == "artwork/tracks/managed.bundle.json"
 
 
 def test_missing_requirements_report_source_fallback_and_exact_runtime_path(tmp_path):

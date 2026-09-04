@@ -12,12 +12,18 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from PIL import Image, ImageChops, ImageDraw, UnidentifiedImageError
+from PIL import Image, ImageChops, ImageDraw
 
 from app.services.bwr_renderer import BwrColors
 from app.services.bwry_renderer import BwryColors
 from app.services.spectra6_renderer import Spectra6Colors
-from app.utils.atomic_io import atomic_save_image
+from app.services.track_assets import (
+    TRACK_BUNDLE_VARIANTS,
+    encode_track_bundle_marker,
+    track_bundle_marker_path,
+    track_bundle_paths,
+)
+from app.utils.atomic_io import atomic_write_bytes_sync
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TRACK_MANIFEST = PROJECT_ROOT / "artwork" / "tracks" / "sources.json"
@@ -135,7 +141,7 @@ def import_track_artwork(
     output_dir: Path = DEFAULT_TRACK_OUTPUT_DIR,
     expected_sha256: str | None = None,
 ) -> TrackImportResult:
-    """Validate one local PNG and atomically write its normalized palette sources."""
+    """Validate one local PNG and publish a hash-committed palette bundle."""
     entries = load_track_source_manifest(manifest_path)
     normalized_id = circuit_id.strip().lower()
     if normalized_id not in entries:
@@ -163,21 +169,28 @@ def import_track_artwork(
     sector_masks = _detect_sector_masks(source, entry.source_profile)
     normalized = _fit_source_height(source)
 
-    images: dict[str, Image.Image] = {"": normalized}
+    images: dict[str, Image.Image] = {"generic": normalized}
     for suffix, colors in _VARIANT_SECTOR_COLORS.items():
-        variant = _recolor_sectors(source, sector_masks, colors)
+        variant_image = _recolor_sectors(source, sector_masks, colors)
         if suffix in {"bw", "bwr"}:
             separator_color = BwrColors.WHITE if suffix == "bw" else BwrColors.RED
-            _draw_sector_separators(variant, entry.sector_boundaries, separator_color)
-        images[f"_{suffix}"] = _fit_source_height(variant)
+            _draw_sector_separators(variant_image, entry.sector_boundaries, separator_color)
+        images[suffix] = _fit_source_height(variant_image)
 
-    # All source validation and transformations finish before the output directory is touched.
+    # Stage every byte and its final marker before publishing any part of the bundle.
+    png_bytes = {variant: _encode_png(images[variant]) for variant in TRACK_BUNDLE_VARIANTS}
+    marker_bytes = encode_track_bundle_marker(normalized_id, actual_sha, png_bytes)
+    output_paths_by_variant = track_bundle_paths(output_dir, normalized_id)
+    marker_path = track_bundle_marker_path(output_dir, normalized_id)
+
     output_dir.mkdir(parents=True, exist_ok=True)
-    output_paths: list[Path] = []
-    for suffix, image in images.items():
-        output_path = output_dir / f"{normalized_id}{suffix}.png"
-        atomic_save_image(output_path, image, image_format="PNG")
-        output_paths.append(output_path)
+    # A missing marker makes interrupted publication fail closed for every consumer.
+    marker_path.unlink(missing_ok=True)
+    for variant in TRACK_BUNDLE_VARIANTS:
+        atomic_write_bytes_sync(output_paths_by_variant[variant], png_bytes[variant])
+    atomic_write_bytes_sync(marker_path, marker_bytes)
+
+    output_paths = tuple(output_paths_by_variant[variant] for variant in TRACK_BUNDLE_VARIANTS)
     sector_pixels = (
         _mask_pixel_count(sector_masks[0]),
         _mask_pixel_count(sector_masks[1]),
@@ -189,7 +202,7 @@ def import_track_artwork(
         source_sha256=actual_sha,
         source_dimensions=entry.source_dimensions,
         output_dimensions=normalized.size,
-        output_paths=tuple(output_paths),
+        output_paths=output_paths,
         sector_pixels=sector_pixels,
     )
 
@@ -307,25 +320,36 @@ def _decode_source_png(
     """Decode a verified PNG, flattening any transparency onto white."""
     try:
         with Image.open(BytesIO(source_bytes)) as opened:
-            if opened.format != "PNG":
-                raise TrackArtworkError(f"Track source must be a PNG file: {source_path}")
+            detected_format = opened.format
             opened.verify()
         with Image.open(BytesIO(source_bytes)) as opened:
             opened.load()
-            if opened.size != expected_dimensions:
-                raise TrackArtworkError(
-                    f"PNG dimensions mismatch for {source_path}: expected "
-                    f"{expected_dimensions[0]}x{expected_dimensions[1]}, got "
-                    f"{opened.width}x{opened.height}"
-                )
+            actual_dimensions = opened.size
             rgba = opened.convert("RGBA")
-    except TrackArtworkError:
-        raise
-    except (OSError, ValueError, UnidentifiedImageError) as exc:
+    except (OSError, ValueError) as exc:
         raise TrackArtworkError(f"Invalid PNG source {source_path}: {exc}") from exc
+
+    if detected_format != "PNG":
+        raise TrackArtworkError(f"Track source must be a PNG file: {source_path}")
+    if actual_dimensions != expected_dimensions:
+        raise TrackArtworkError(
+            f"PNG dimensions mismatch for {source_path}: expected "
+            f"{expected_dimensions[0]}x{expected_dimensions[1]}, got "
+            f"{actual_dimensions[0]}x{actual_dimensions[1]}"
+        )
 
     white = Image.new("RGBA", rgba.size, (*BwrColors.WHITE, 255))
     return Image.alpha_composite(white, rgba).convert("RGB")
+
+
+def _encode_png(image: Image.Image) -> bytes:
+    """Encode one derived image fully before bundle publication starts."""
+    buffer = BytesIO()
+    try:
+        image.save(buffer, format="PNG")
+    except (OSError, ValueError) as exc:
+        raise TrackArtworkError(f"Cannot encode track artwork PNG: {exc}") from exc
+    return buffer.getvalue()
 
 
 def _detect_sector_masks(image: Image.Image, profile: str) -> tuple[Image.Image, ...]:

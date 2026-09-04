@@ -11,6 +11,11 @@ import pytest
 from PIL import Image, ImageDraw
 
 from app.services import track_artwork as artwork
+from app.services.track_assets import (
+    TRACK_BUNDLE_VARIANTS,
+    TrackBundleError,
+    validate_track_bundle,
+)
 from scripts import manage
 
 PROFILE_COLORS = {
@@ -93,6 +98,12 @@ def test_import_track_builds_all_variants_for_both_source_profiles(tmp_path, pro
         "test_track_bwry.png",
         "test_track_spectra6.png",
     ]
+    marker = json.loads((output / "test_track.bundle.json").read_text(encoding="utf-8"))
+    assert marker["source_sha256"] == digest
+    assert tuple(marker["files"]) == TRACK_BUNDLE_VARIANTS
+    assert validate_track_bundle(output, "test_track", digest) == {
+        variant: path for variant, path in zip(TRACK_BUNDLE_VARIANTS, result.output_paths)
+    }
     images = {path.stem: Image.open(path).convert("RGB") for path in result.output_paths}
     samples = ((20, 40), (60, 40), (100, 40))
     assert (
@@ -151,7 +162,7 @@ def test_hash_mismatch_is_rejected_before_any_output_write(tmp_path, monkeypatch
     sentinel = output / "test_track.png"
     sentinel.write_bytes(b"keep me")
     writer = Mock()
-    monkeypatch.setattr(artwork, "atomic_save_image", writer)
+    monkeypatch.setattr(artwork, "atomic_write_bytes_sync", writer)
 
     with pytest.raises(artwork.TrackArtworkError, match="SHA-256 mismatch"):
         artwork.import_track_artwork(
@@ -165,6 +176,71 @@ def test_hash_mismatch_is_rejected_before_any_output_write(tmp_path, monkeypatch
     assert sentinel.read_bytes() == b"keep me"
     assert list(output.iterdir()) == [sentinel]
     writer.assert_not_called()
+
+
+def test_all_pngs_are_encoded_before_bundle_publication(tmp_path, monkeypatch):
+    """An encoding failure must happen before the output directory or any PNG is published."""
+    source = tmp_path / "download.png"
+    manifest = tmp_path / "sources.json"
+    digest = _make_source(source)
+    _write_manifest(manifest, digest)
+    output = tmp_path / "artwork"
+    real_encoder = artwork._encode_png
+    calls = 0
+
+    def fail_last_encode(image):
+        nonlocal calls
+        calls += 1
+        if calls == len(TRACK_BUNDLE_VARIANTS):
+            raise artwork.TrackArtworkError("injected encoding failure")
+        return real_encoder(image)
+
+    monkeypatch.setattr(artwork, "_encode_png", fail_last_encode)
+
+    with pytest.raises(artwork.TrackArtworkError, match="injected encoding failure"):
+        artwork.import_track_artwork(
+            source,
+            "test_track",
+            manifest_path=manifest,
+            output_dir=output,
+        )
+
+    assert calls == len(TRACK_BUNDLE_VARIANTS)
+    assert not output.exists()
+
+
+def test_interrupted_bundle_publication_leaves_consumers_failed_closed(tmp_path, monkeypatch):
+    """A failed PNG write must not leave a marker that legitimizes a partial bundle."""
+    source = tmp_path / "download.png"
+    manifest = tmp_path / "sources.json"
+    digest = _make_source(source)
+    _write_manifest(manifest, digest)
+    output = tmp_path / "artwork"
+    real_writer = artwork.atomic_write_bytes_sync
+    calls = 0
+
+    def fail_third_write(path, data):
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise OSError("injected publication failure")
+        real_writer(path, data)
+
+    monkeypatch.setattr(artwork, "atomic_write_bytes_sync", fail_third_write)
+
+    with pytest.raises(OSError, match="injected publication failure"):
+        artwork.import_track_artwork(
+            source,
+            "test_track",
+            manifest_path=manifest,
+            output_dir=output,
+        )
+
+    assert (output / "test_track.png").is_file()
+    assert (output / "test_track_bw.png").is_file()
+    assert not (output / "test_track.bundle.json").exists()
+    with pytest.raises(TrackBundleError, match="marker not found"):
+        validate_track_bundle(output, "test_track", digest)
 
 
 def test_explicit_hash_must_agree_with_manifest_before_reading_source(tmp_path):

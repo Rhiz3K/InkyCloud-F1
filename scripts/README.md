@@ -19,7 +19,9 @@ python -m scripts.manage preprocess flags  --palette {mono,bwr,bwry,spectra6}
 
 `import track` validates a manually acquired local F1 PNG against
 `artwork/tracks/sources.json`, generates the generic and four semantic palette source variants,
-and optionally rebuilds all runtime BMPs with `--preprocess`. It does not download artwork. See
+publishes their hash bundle marker last, and optionally rebuilds all runtime BMPs with
+`--preprocess`. Manifest-managed sources are preprocessed only while that marker proves the five
+files form one complete import. The command does not download artwork. See
 [`BMP_PROCESSING.md`](../BMP_PROCESSING.md) for provenance, color mapping, separator metadata,
 rights review, and visual QA.
 

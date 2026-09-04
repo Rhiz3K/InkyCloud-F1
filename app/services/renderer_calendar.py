@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw
 
 from app.services.font_utils import fit_ui_font
 from app.services.renderer_assets import _load_image_copy
+from app.services.renderer_text import clamp_text
 
 
 def _countdown_plural_category(value: int, lang_code: str) -> str:
@@ -68,6 +69,12 @@ def draw_race_header(
             min_size=20,
             bold=True,
         )
+    line2 = clamp_text(
+        draw,
+        line2,
+        subtitle_font,
+        canvas_width - text_x - text_right_padding,
+    )
 
     draw.text((text_x, start_y), line1, fill=title_fill, font=header_title_font)
     draw.text((text_x, start_y + 40), line2, fill=title_fill, font=subtitle_font)

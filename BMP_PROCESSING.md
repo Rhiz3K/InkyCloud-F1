@@ -38,11 +38,14 @@ uv run python -m scripts.manage import track \
   --preprocess
 ```
 
-`--expected-sha256` is an optional second check against the required manifest hash. Validation
-and every image transformation complete before any source artwork is written. A bad hash,
-non-PNG payload, unexpected dimensions, unknown palette profile, or missing sector color fails
-closed and leaves the reviewed files untouched. The provenance record documents the human rights
-review; it does not itself grant permission to reuse the source.
+`--expected-sha256` is an optional second check against the required manifest hash. Validation,
+transformation, and PNG encoding complete before publication. The importer invalidates the old
+bundle marker first, atomically replaces the five PNGs, and publishes
+`<circuit-id>.bundle.json` last. That marker binds the source hash to the exact hashes of all five
+files. A validation or encoding error leaves the reviewed files untouched; an interrupted
+publication cannot leave a valid marker, so preprocessing and CI reject the partial bundle. The
+provenance record documents the human rights review; it does not itself grant permission to reuse
+the source.
 
 Generic source art uses:
 
@@ -149,12 +152,13 @@ transition period. New automation must use `python -m scripts.manage`.
 4. Start the app and inspect `/configure/calendar` in all four display modes. Pay particular
    attention to antialiasing, sector labels, callouts, and separator placement.
 5. Run `uv run python scripts/check_track_assets.py` and the renderer regression suite.
-6. Commit the manifest, source variants, and processed runtime BMPs together after visual review.
+6. Commit the provenance manifest, generated bundle marker, source variants, and processed
+   runtime BMPs together after visual review.
 
-CI regenerates every discoverable track into a temporary directory and compares it byte-for-byte
-with the shipped runtime BMP. Commit the regenerated `app/assets/tracks_*` outputs together with
-every source-art change; otherwise `tests/test_asset_preprocessing.py` fails with the exact stale
-palette and filenames.
+CI first verifies each manifest-managed source bundle against its final marker, then regenerates
+every discoverable track into a temporary directory and compares it byte-for-byte with the shipped
+runtime BMP. Commit the marker and regenerated `app/assets/tracks_*` outputs together with every
+source-art change; otherwise the asset tests fail with the exact invalid or stale filenames.
 
 The season-update workflow also checks every active current/next-season circuit for rebuildable
 source artwork and all four runtime BMPs. A missing circuit keeps the update PR available for

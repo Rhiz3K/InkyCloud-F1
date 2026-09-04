@@ -15,7 +15,6 @@ from app.services.asset_preprocessing import (
 )
 from app.services.track_artwork import (
     DEFAULT_TRACK_MANIFEST,
-    TrackArtworkError,
     import_track_artwork,
 )
 
@@ -80,7 +79,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             preprocess_tracks(args.palette, circuits)
         else:
             preprocess_flags(args.palette)
-    except (PreprocessingError, TrackArtworkError, ValueError) as exc:
+    except (PreprocessingError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     return 0

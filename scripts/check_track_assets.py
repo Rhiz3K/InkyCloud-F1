@@ -15,7 +15,14 @@ from typing import Any, Sequence
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
-from app.services.track_assets import TRACK_SOURCE_EXTENSIONS, resolve_track_source_path
+from app.services.track_artwork import TrackArtworkError, load_track_source_manifest
+from app.services.track_assets import (
+    TRACK_SOURCE_EXTENSIONS,
+    TrackBundleError,
+    resolve_track_source_path,
+    track_bundle_marker_path,
+    validate_track_bundle,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -80,7 +87,7 @@ def has_active_round(race: dict[str, Any]) -> bool:
 
     try:
         return int(str(round_value)) > 0
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return False
 
 
@@ -165,10 +172,35 @@ def find_missing_assets(
 ) -> list[MissingAsset]:
     """Return all missing rebuild sources and runtime BMPs for active circuits."""
     artwork_dir = project_root / "artwork" / "tracks"
+    manifest_path = artwork_dir / "sources.json"
+    if manifest_path.is_file():
+        try:
+            managed_tracks = load_track_source_manifest(manifest_path)
+        except TrackArtworkError as exc:
+            raise SeasonDataError(f"Cannot validate managed track sources: {exc}") from exc
+    else:
+        managed_tracks = {}
     missing: list[MissingAsset] = []
 
     for circuit in circuits:
         source_stems = list(dict.fromkeys((circuit.source_id, circuit.runtime_id)))
+        for managed_id in (stem for stem in source_stems if stem in managed_tracks):
+            try:
+                validate_track_bundle(
+                    artwork_dir,
+                    managed_id,
+                    managed_tracks[managed_id].source_sha256,
+                )
+            except TrackBundleError as exc:
+                marker_path = track_bundle_marker_path(artwork_dir, managed_id)
+                missing.append(
+                    MissingAsset(
+                        circuit=circuit,
+                        requirement=f"valid managed artwork bundle ({exc})",
+                        expected=str(marker_path.relative_to(project_root)),
+                    )
+                )
+
         for palette, variant in SOURCE_VARIANTS:
             source_path = resolve_track_source_path(
                 artwork_dir,
