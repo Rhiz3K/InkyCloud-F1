@@ -12,6 +12,7 @@ from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.paths import TEMPLATES_DIR
 from app.services.analytics import get_umami_script_tag
 from app.services.i18n import get_translator
+from app.version import APP_VERSION
 
 # Register font MIME types (Python's mimetypes doesn't know TTF by default)
 mimetypes.add_type("font/ttf", ".ttf")
@@ -77,6 +78,7 @@ def _build_configure_ui_text(translations: dict[str, Any]) -> dict[str, Any]:
         "raceLabel": configure.get("raceLabel", "Race"),
         "yearLabel": configure.get("yearLabel", "Season"),
         "settingsBtn": configure.get("settingsBtn", "Settings"),
+        "closeSettings": configure.get("closeSettings", "Close settings"),
         "errorText": configure.get("errorText", "FAILED TO LOAD"),
         "retryBtn": configure.get("retryBtn", "RETRY"),
         "refreshBtn": configure.get("refreshBtn", "REFRESH"),
@@ -184,6 +186,7 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "t": t,
         "nav": nav,
         "site_url": str(config.SITE_URL).rstrip("/"),
+        "app_version": APP_VERSION,
         "format_bytes": format_bytes,
         "calc_percent": calc_percent,
         "lang_url": lambda path: lang_url(path, ui_lang),

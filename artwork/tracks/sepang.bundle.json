@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "circuit_id": "sepang",
+  "source_sha256": "71136d86c8c4f8f9b0b6666bb89b25c9ee76abe6cea07de399af3dcad9c66b3f",
+  "files": {
+    "generic": "daee5f2f269909703fb1ee58f7dda9da8dbc206a01be020727f676dca9c66214",
+    "bw": "86e432857bace6243251964dea70baccbe77f1a735fb9fab083002fe81721333",
+    "bwr": "787ff01eaffaba3f882a0ee8cbfb96533d69b347126e87fc7b7a0db0ef0cc4cf",
+    "bwry": "c6611eaa88d75582d264fb912636332a225846528f35e904eff4b530006443b7",
+    "spectra6": "0e4cc9a149a775705d589fbcf335958cf9c8cfda2d78415573db50cd06cbfbed"
+  }
+}

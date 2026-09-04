@@ -153,6 +153,7 @@ async def test_changelog_handler_uses_localized_fallback_when_version_refresh_fa
         patch("app.routes.pages.track_pageview", new=AsyncMock()),
         patch("app.routes.pages.asyncio.to_thread", new=AsyncMock(return_value=None)),
         patch("app.routes.pages.get_cached_version", return_value=None),
+        patch("app.routes.pages.version_fetch_recently_failed", return_value=False),
         patch(
             "app.routes.pages.refresh_version_info",
             new=AsyncMock(side_effect=RuntimeError("offline")),
@@ -182,6 +183,29 @@ async def test_changelog_handler_uses_localized_fallback_when_version_refresh_fa
         await pages._changelog_handler(_request(), "en")
     assert captured["version_info"] is cached_version
     refresh.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_changelog_handler_skips_version_refresh_inside_negative_cache_window():
+    captured = {}
+
+    def template_response(_request, template, context):
+        captured.update(context)
+        return SimpleNamespace(template=template)
+
+    with (
+        patch("app.routes.pages.track_pageview", new=AsyncMock()),
+        patch("app.routes.pages.asyncio.to_thread", new=AsyncMock(return_value="<p>changes</p>")),
+        patch("app.routes.pages.get_cached_version", return_value=None),
+        patch("app.routes.pages.version_fetch_recently_failed", return_value=True),
+        patch("app.routes.pages.refresh_version_info", new=AsyncMock()) as refresh,
+        patch("app.routes.pages.get_template_context", return_value={"t": {}}),
+        patch("app.routes.pages.templates.TemplateResponse", side_effect=template_response),
+    ):
+        await pages._changelog_handler(_request(), "en")
+
+    refresh.assert_not_awaited()
+    assert captured["version_info"] is None
 
 
 @pytest.mark.asyncio

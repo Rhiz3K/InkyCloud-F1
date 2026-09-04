@@ -11,7 +11,8 @@ from app.models import TeamEntry, TeamsData
 from app.routes import previews
 
 
-def _request() -> Request:
+def _request(if_none_match: str | None = None) -> Request:
+    headers = [] if if_none_match is None else [(b"if-none-match", if_none_match.encode())]
     return Request(
         {
             "type": "http",
@@ -21,7 +22,7 @@ def _request() -> Request:
             "path": "/preview/test.png",
             "raw_path": b"/preview/test.png",
             "query_string": b"",
-            "headers": [],
+            "headers": headers,
             "client": ("127.0.0.1", 1234),
             "server": ("test", 443),
         }
@@ -194,6 +195,31 @@ async def test_configure_preview_route_covers_files_fallback_and_dynamic_teams(t
     ):
         await previews.get_configure_preview_png("calendar", request)
     assert error.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_configure_preview_file_honors_if_none_match(tmp_path):
+    preview_path = tmp_path / "configure_calendar_en.png"
+    preview_path.write_bytes(b"png")
+
+    with patch("app.routes.previews.config.IMAGES_PATH", str(tmp_path)):
+        initial = await previews.get_configure_preview_png("calendar", _request())
+
+    assert initial.status_code == 200
+    assert initial.headers["cache-control"] == "public, max-age=300"
+    assert initial.headers["etag"]
+    assert initial.headers["last-modified"]
+
+    with patch("app.routes.previews.config.IMAGES_PATH", str(tmp_path)):
+        not_modified = await previews.get_configure_preview_png(
+            "calendar", _request(initial.headers["etag"])
+        )
+
+    assert not_modified.status_code == 304
+    assert not_modified.body == b""
+    assert not_modified.headers["cache-control"] == initial.headers["cache-control"]
+    assert not_modified.headers["etag"] == initial.headers["etag"]
+    assert not_modified.headers["last-modified"] == initial.headers["last-modified"]
 
 
 @pytest.mark.asyncio

@@ -1,7 +1,9 @@
 """Tests for F1 service cancelled-race handling."""
 
+import asyncio
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -16,8 +18,10 @@ from app.services.http_client import _reset_shared_http_clients_for_tests
 @pytest.fixture(autouse=True)
 def reset_shared_http_clients():
     _reset_shared_http_clients_for_tests()
+    f1._reset_remote_caches_for_tests()
     yield
     _reset_shared_http_clients_for_tests()
+    f1._reset_remote_caches_for_tests()
 
 
 MOCK_SEASON_RESPONSE = {
@@ -418,6 +422,25 @@ async def test_get_season_races_handles_null_circuit_and_missing_time(monkeypatc
     assert races[0]["datetime"] == "2026-03-08T12:00:00+00:00"
 
 
+@pytest.mark.asyncio
+async def test_get_season_races_uses_default_time_for_explicit_null(monkeypatch):
+    service = F1Service(timezone_name="UTC")
+    race_payload = MOCK_SEASON_RESPONSE["MRData"]["RaceTable"]["Races"][0] | {"time": None}
+    mock_fetch = AsyncMock(
+        return_value=MockResponse({"MRData": {"RaceTable": {"Races": [race_payload]}}})
+    )
+
+    monkeypatch.setattr(f1, "fetch_with_retry", mock_fetch)
+    monkeypatch.setattr(f1, "get_shared_http_client", lambda *args, **kwargs: object())
+    monkeypatch.setattr(F1Service, "get_all_races_from_static", lambda self, year: [])
+
+    assert f1._is_valid_remote_season_payload([race_payload]) is True
+    races = await service.get_season_races(2026)
+
+    assert len(races) == 1
+    assert races[0]["datetime"] == "2026-03-08T12:00:00+00:00"
+
+
 # Extended validation and fallback coverage for the F1 data service.
 
 
@@ -568,11 +591,13 @@ async def test_get_season_races_skips_malformed_rows_and_handles_fetch_failure()
     ):
         assert await service.get_season_races(2026) == []
 
+    f1._reset_remote_caches_for_tests()
     with (
         patch("app.services.f1_service.get_shared_http_client", side_effect=RuntimeError("failed")),
     ):
         assert await service.get_season_races(2026) == []
 
+    f1._reset_remote_caches_for_tests()
     undated = SimpleNamespace(
         json=lambda: {
             "MRData": {
@@ -612,10 +637,179 @@ async def test_get_race_by_round_handles_success_empty_and_failure():
         assert (await service.get_race_by_round(2026, 1))["race_name"] == "Test Grand Prix"
         assert await service.get_race_by_round(2026, 2) is None
 
+    f1._reset_remote_caches_for_tests()
     with patch(
         "app.services.f1_service.get_shared_http_client", side_effect=RuntimeError("failed")
     ):
         assert await service.get_race_by_round(2026, 1) is None
+
+
+@pytest.mark.asyncio
+async def test_get_season_races_caches_remote_payload_and_coalesces_misses():
+    service = f1.F1Service()
+    fetch = AsyncMock(return_value=SimpleNamespace(json=lambda: MOCK_SEASON_RESPONSE))
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=fetch),
+        patch.object(service, "get_all_races_from_static", return_value=[]),
+    ):
+        first, second = await asyncio.gather(
+            service.get_season_races(2026), service.get_season_races(2026)
+        )
+        third = await service.get_season_races(2026)
+
+    assert first == second == third
+    assert first[0]["race_name"] == "Australian Grand Prix"
+    assert fetch.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_get_season_races_remembers_upstream_failure_briefly():
+    service = f1.F1Service()
+    fetch = AsyncMock(side_effect=RuntimeError("down"))
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=fetch),
+        patch.object(service, "get_all_races_from_static", return_value=[]),
+    ):
+        assert await service.get_season_races(2026) == []
+        assert await service.get_season_races(2026) == []
+
+    assert fetch.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_get_season_races_merges_static_cancellations_for_empty_upstream_calendar():
+    service = f1.F1Service()
+    cancelled = {"race_key": "2026-cancelled-jeddah", "is_cancelled": True, "round": None}
+    fetch = AsyncMock(
+        return_value=SimpleNamespace(json=lambda: {"MRData": {"RaceTable": {"Races": []}}})
+    )
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=fetch),
+        patch.object(service, "get_all_races_from_static", return_value=[cancelled]),
+    ):
+        assert await service.get_season_races(2026) == [cancelled]
+        assert await service.get_season_races(2026) == [cancelled]
+
+    assert fetch.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_get_season_races_tolerates_non_list_and_non_dict_payloads():
+    service = f1.F1Service()
+    non_list = SimpleNamespace(json=lambda: {"MRData": {"RaceTable": {"Races": "nope"}}})
+    non_dict = SimpleNamespace(json=lambda: {"MRData": {"RaceTable": {"Races": ["oops"]}}})
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=AsyncMock(return_value=non_list)),
+        patch.object(service, "get_all_races_from_static", return_value=[]),
+    ):
+        assert await service.get_season_races(2026) == []
+
+    f1._reset_remote_caches_for_tests()
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=AsyncMock(return_value=non_dict)),
+        patch.object(service, "get_all_races_from_static", return_value=[]),
+    ):
+        assert await service.get_season_races(2026) == []
+
+
+@pytest.mark.asyncio
+async def test_get_season_races_negative_caches_malformed_non_empty_payload():
+    service = f1.F1Service()
+    malformed_race = MOCK_SEASON_RESPONSE["MRData"]["RaceTable"]["Races"][0] | {
+        "date": "not-a-date"
+    }
+    malformed = SimpleNamespace(json=lambda: {"MRData": {"RaceTable": {"Races": [malformed_race]}}})
+    valid = SimpleNamespace(json=lambda: MOCK_SEASON_RESPONSE)
+    fetch = AsyncMock(side_effect=[malformed, valid])
+
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=fetch),
+        patch.object(service, "get_all_races_from_static", return_value=[]),
+    ):
+        assert await service.get_season_races(2026) == []
+        assert await service.get_season_races(2026) == []
+        assert fetch.await_count == 1
+
+        f1._reset_remote_caches_for_tests()
+        recovered = await service.get_season_races(2026)
+
+    assert recovered[0]["race_name"] == "Australian Grand Prix"
+    assert fetch.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_get_race_by_round_caches_payloads_and_missing_rounds():
+    service = f1.F1Service()
+    responses = [
+        SimpleNamespace(json=lambda: {"MRData": {"RaceTable": {"Races": [_race().model_dump()]}}}),
+        SimpleNamespace(json=lambda: {"MRData": {"RaceTable": {"Races": []}}}),
+    ]
+    fetch = AsyncMock(side_effect=responses)
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=fetch),
+    ):
+        assert (await service.get_race_by_round(2026, 1))["race_name"] == "Test Grand Prix"
+        assert (await service.get_race_by_round(2026, 1))["race_name"] == "Test Grand Prix"
+        assert await service.get_race_by_round(2026, 2) is None
+        assert await service.get_race_by_round(2026, 2) is None
+
+    assert fetch.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_get_race_by_round_negative_caches_invalid_upstream_race():
+    service = f1.F1Service()
+    broken = SimpleNamespace(
+        json=lambda: {"MRData": {"RaceTable": {"Races": [{"raceName": "Broken"}]}}}
+    )
+    valid = SimpleNamespace(
+        json=lambda: {"MRData": {"RaceTable": {"Races": [_race().model_dump()]}}}
+    )
+    fetch = AsyncMock(side_effect=[broken, valid])
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=fetch),
+    ):
+        assert await service.get_race_by_round(2026, 3) is None
+        assert await service.get_race_by_round(2026, 3) is None
+        assert fetch.await_count == 1
+
+        f1._reset_remote_caches_for_tests()
+        recovered = await service.get_race_by_round(2026, 3)
+
+    assert recovered["race_name"] == "Test Grand Prix"
+    assert fetch.await_count == 2
+
+
+def test_static_season_loader_reads_each_file_version_once(tmp_path, monkeypatch):
+    path = tmp_path / "2026.json"
+    path.write_text(json.dumps({"races": []}), encoding="utf-8")
+    monkeypatch.setattr(f1, "SEASONS_DIR", tmp_path)
+    reads = 0
+    original_read_text = Path.read_text
+
+    def counting_read_text(self, *args, **kwargs):
+        nonlocal reads
+        reads += 1
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", counting_read_text)
+    f1._load_static_season_file.cache_clear()
+
+    assert F1Service.get_season_from_static(2026) == []
+    assert F1Service.get_season_from_static(2026) == []
+    assert reads == 1
+
+    path.write_text(json.dumps({"races": [], "generated_at": "later"}), encoding="utf-8")
+    assert F1Service.get_season_from_static(2026) == []
+    assert reads == 2
 
 
 def test_get_season_from_static_rejects_invalid_year_and_read_failure(tmp_path):

@@ -181,28 +181,28 @@ def encode_indexed_bmp_4bit(indexed: Image.Image, palette: list[RgbColor]) -> by
     width, height = indexed.size
     row_stride = ((((width + 1) // 2) + 3) // 4) * 4
 
-    rows: list[bytes] = []
-    px = indexed.load()
-    if px is None:
+    raw = indexed.tobytes()
+    if len(raw) != width * height:
         raise ValueError("Failed to access indexed image pixel data")
-    for y in range(height - 1, -1, -1):
-        row = bytearray()
-        for x in range(0, width, 2):
-            left_pixel = px[x, y]  # type: ignore[index]
-            left = int(left_pixel[0]) if isinstance(left_pixel, tuple) else int(left_pixel)
-            if not 0 <= left <= 15:
-                raise ValueError(f"Pixel index out of 4-bit range at ({x}, {y}): {left}")
+    if raw and max(raw) > 15:
+        # Only reached on invalid input, so the Python walk to locate the pixel is fine.
+        for offset, value in enumerate(raw):
+            if value > 15:
+                raise ValueError(
+                    f"Pixel index out of 4-bit range at ({offset % width}, {offset // width}): "
+                    f"{value}"
+                )
 
-            if x + 1 < width:
-                right_pixel = px[x + 1, y]  # type: ignore[index]
-                right = int(right_pixel[0]) if isinstance(right_pixel, tuple) else int(right_pixel)
-                if not 0 <= right <= 15:
-                    raise ValueError(f"Pixel index out of 4-bit range at ({x + 1}, {y}): {right}")
-            else:
-                right = 0
-            row.append((left << 4) | right)
-        row.extend(b"\x00" * (row_stride - len(row)))
-        rows.append(bytes(row))
+    # Every index fits a nibble, so the low hex digit of each byte is the pixel value;
+    # joining those digits pairwise packs two pixels per byte in C instead of per-pixel Python.
+    odd_width = width % 2 == 1
+    padding = b"\x00" * (row_stride - (width + 1) // 2)
+    rows: list[bytes] = []
+    for y in range(height - 1, -1, -1):
+        row = raw[y * width : (y + 1) * width]
+        if odd_width:
+            row += b"\x00"
+        rows.append(bytes.fromhex(row.hex()[1::2]) + padding)
 
     pixel_data = b"".join(rows)
 

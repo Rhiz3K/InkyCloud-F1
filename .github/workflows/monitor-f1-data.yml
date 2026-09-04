@@ -1,0 +1,102 @@
+name: Monitor F1 Season Data Update
+
+run-name: Monitor F1 season update run ${{ github.event.workflow_run.run_number }}
+
+on:
+  workflow_run:
+    workflows: [Update F1 Season Data]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: monitor-f1-data
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: report
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      REPOSITORY_OWNER: ${{ github.repository_owner }}
+      ISSUE_TITLE: "[automation] F1 season data update failed"
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+      RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+      RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+      RUN_EVENT: ${{ github.event.workflow_run.event }}
+      RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Open or update failure issue
+        if: github.event.workflow_run.conclusion != 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          issue_number="$(
+            gh issue list \
+              --repo "$REPOSITORY" \
+              --state open \
+              --search '"[automation] F1 season data update failed" in:title' \
+              --limit 10 \
+              --json number,title \
+              --jq 'map(select(.title == "[automation] F1 season data update failed")) | first | .number // empty'
+          )"
+
+          body="$(printf '%s\n\n%s\n%s\n%s\n%s\n%s\n\n%s' \
+            'The F1 season data update did not complete successfully.' \
+            "- Conclusion: \`$RUN_CONCLUSION\`" \
+            "- Trigger: \`$RUN_EVENT\`" \
+            "- Branch: \`$RUN_BRANCH\`" \
+            "- Commit: \`$RUN_SHA\`" \
+            "- Run: [#$RUN_NUMBER (attempt $RUN_ATTEMPT)]($RUN_URL)" \
+            'This issue stays open and receives a comment for every failed run. A successful run closes it automatically.')"
+
+          if [[ -n "$issue_number" ]]; then
+            gh issue comment "$issue_number" --repo "$REPOSITORY" --body "$body"
+          else
+            issue_url="$(gh issue create \
+              --repo "$REPOSITORY" \
+              --title "$ISSUE_TITLE" \
+              --body "$body")"
+            if ! gh issue edit \
+              "$issue_url" \
+              --repo "$REPOSITORY" \
+              --add-assignee "$REPOSITORY_OWNER"; then
+              echo "::warning::Created $issue_url, but could not assign it to $REPOSITORY_OWNER"
+            fi
+          fi
+
+      - name: Close recovered failure issue
+        if: github.event.workflow_run.conclusion == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          issue_number="$(
+            gh issue list \
+              --repo "$REPOSITORY" \
+              --state open \
+              --search '"[automation] F1 season data update failed" in:title' \
+              --limit 10 \
+              --json number,title \
+              --jq 'map(select(.title == "[automation] F1 season data update failed")) | first | .number // empty'
+          )"
+
+          if [[ -z "$issue_number" ]]; then
+            exit 0
+          fi
+
+          gh issue comment \
+            "$issue_number" \
+            --repo "$REPOSITORY" \
+            --body "Recovered in [successful run #$RUN_NUMBER (attempt $RUN_ATTEMPT)]($RUN_URL)."
+          gh issue close "$issue_number" --repo "$REPOSITORY"

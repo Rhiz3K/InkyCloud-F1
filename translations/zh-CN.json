@@ -183,6 +183,7 @@
     "raceLabel": "比赛",
     "yearLabel": "赛季",
     "settingsBtn": "设置",
+    "closeSettings": "关闭设置",
     "errorText": "加载失败",
     "retryBtn": "重试",
     "refreshBtn": "刷新",

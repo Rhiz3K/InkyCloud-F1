@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "tracks": {
+    "sepang": {
+      "season": 2026,
+      "race_slug": "bahrain",
+      "source_page": "https://www.formula1.com/en/racing/2026/bahrain",
+      "source_url": "https://media.formula1.com/image/upload/v1785158493/common/f1/2026/track/2026trackkualalumpurdetailed.png",
+      "source_sha256": "71136d86c8c4f8f9b0b6666bb89b25c9ee76abe6cea07de399af3dcad9c66b3f",
+      "source_dimensions": [3840, 2160],
+      "source_profile": "modern",
+      "sector_boundaries": [
+        {
+          "at": [0.393359, 0.113241],
+          "normal_degrees": 73.9
+        },
+        {
+          "at": [0.565469, 0.749537],
+          "normal_degrees": 152.4
+        }
+      ],
+      "rights_review_required": true
+    }
+  }
+}

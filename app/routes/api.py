@@ -7,7 +7,7 @@ import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from app.config import LANGUAGE_CODES, config
+from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.models import PerfMetricsPayload
 from app.services.analytics import track_event
 from app.services.database import get_database
@@ -29,6 +29,20 @@ router = APIRouter()
 _LANGUAGE_VALUES = list(LANGUAGE_CODES)
 _DISPLAY_VALUES = list(DISPLAY_TYPES)
 _MAX_USER_AGENT_LENGTH = 500
+# Pages the browser bundle reports Web Vitals for; anything else collapses into one bucket so
+# unauthenticated clients cannot grow the perf dashboard's page cardinality without bound.
+_PERF_METRIC_PAGES = frozenset(
+    {
+        "/",
+        "/configure/calendar",
+        "/configure/teams",
+        "/stats",
+        "/privacy",
+        "/changelog",
+        "/api/docs/html",
+    }
+)
+PERF_METRIC_OTHER_PAGE = "/other"
 
 
 def _matches_round(race: dict, round_num: int) -> bool:
@@ -48,13 +62,30 @@ def _require_supported_f1_season(year: int) -> None:
         raise HTTPException(status_code=422, detail="Unsupported F1 season")
 
 
+def normalize_perf_page_path(page_path: str) -> str:
+    """Map a reported page path onto a known localized page or the shared ``/other`` bucket."""
+    path = page_path.rstrip("/") or "/"
+    lang_prefix = ""
+    first_segment, _, remainder = path[1:].partition("/")
+    if first_segment in VALID_LANGUAGES:
+        lang_prefix = f"/{first_segment}"
+        path = f"/{remainder}" if remainder else "/"
+
+    if path not in _PERF_METRIC_PAGES:
+        return PERF_METRIC_OTHER_PAGE
+    if lang_prefix and path == "/":
+        return f"{lang_prefix}/"
+    return f"{lang_prefix}{path}"
+
+
 def _require_operational_api_auth(request: Request) -> None:
     """Gate operational read APIs (stats / perf-metrics) behind a token when one is configured.
 
     These endpoints mirror data already shown on the public ``/stats`` dashboard, so they are
     intentionally public by default. Set ``ADMIN_API_TOKEN`` to require ``X-Admin-Token`` /
     ``Authorization: Bearer`` and lock them down — until then access is open by design, not by
-    oversight.
+    oversight. Callers enforce their rate limit before this check so token guessing is bounded
+    by the same per-IP quota as legitimate reads.
     """
     configured_token = config.ADMIN_API_TOKEN
     if configured_token is None:
@@ -70,7 +101,11 @@ def _require_operational_api_auth(request: Request) -> None:
     if authorization.startswith("Bearer "):
         provided = authorization.removeprefix("Bearer ")
 
-    if provided is None or not secrets.compare_digest(provided, expected):
+    # Compare bytes: ``compare_digest`` rejects non-ASCII ``str`` input with a TypeError, which
+    # would turn a bad header into an HTTP 500 instead of a 401.
+    if provided is None or not secrets.compare_digest(
+        provided.encode("utf-8"), expected.encode("utf-8")
+    ):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -256,8 +291,8 @@ async def api_info() -> dict:
 @router.get("/api/stats")
 async def get_stats(request: Request) -> dict:
     """Get API request statistics from database."""
-    _require_operational_api_auth(request)
     enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
+    _require_operational_api_auth(request)
 
     stats = await get_database().get_api_calls_stats_24h()
     return {
@@ -282,10 +317,11 @@ async def post_perf_metrics(payload: PerfMetricsPayload, request: Request) -> di
     )
 
     user_agent = (request.headers.get("User-Agent") or "")[:_MAX_USER_AGENT_LENGTH] or None
+    page_path = normalize_perf_page_path(payload.page_path)
     db = get_database()
     try:
         await db.save_perf_metric(
-            page_path=payload.page_path,
+            page_path=page_path,
             lcp_ms=payload.lcp_ms,
             cls=payload.cls,
             fcp_ms=payload.fcp_ms,
@@ -301,7 +337,7 @@ async def post_perf_metrics(payload: PerfMetricsPayload, request: Request) -> di
 
     create_supervised_task(
         track_event(
-            url=payload.page_path,
+            url=page_path,
             event_name="web_vitals",
             lang="en",
             user_agent=user_agent,
@@ -321,8 +357,8 @@ async def post_perf_metrics(payload: PerfMetricsPayload, request: Request) -> di
 @router.get("/api/perf-metrics")
 async def get_perf_metrics(request: Request, hours: int = Query(default=24, ge=1, le=720)) -> dict:
     """Return aggregated performance metrics for the requested lookback window."""
-    _require_operational_api_auth(request)
     enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
+    _require_operational_api_auth(request)
 
     db = get_database()
     stats = await db.get_perf_stats(hours)
@@ -335,8 +371,8 @@ async def get_stats_history(
     request: Request, limit: int = Query(default=168, ge=1, le=720)
 ) -> dict:
     """Return recent hourly request history for the stats dashboard."""
-    _require_operational_api_auth(request)
     enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
+    _require_operational_api_auth(request)
 
     history = await get_database().get_request_stats_history(limit=limit)
     return {"history": history, "count": len(history)}

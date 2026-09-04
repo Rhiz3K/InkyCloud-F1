@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+import weakref
 from datetime import datetime, timedelta
 from datetime import timezone as dt_timezone
 from functools import lru_cache
@@ -10,6 +11,8 @@ from pathlib import Path
 from typing import Optional
 
 import httpx
+from cachetools import TTLCache
+from pydantic import ValidationError
 
 from app.config import config
 from app.models import (
@@ -23,6 +26,7 @@ from app.models import (
 from app.services.circuit_data import get_circuits_data_path, load_circuits_data
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.http_client import get_shared_http_client
+from app.utils.async_locks import KeyedLoopLockRegistry, get_keyed_loop_lock
 from app.utils.http import fetch_with_retry
 from app.utils.jolpica import get_jolpica_pacer
 from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone, normalize_timezone
@@ -40,6 +44,86 @@ DEFAULT_SESSION_TIME_UTC = "12:00:00Z"
 # advance to the following Grand Prix the instant the current race starts.
 NEXT_RACE_GRACE = timedelta(hours=4)
 
+# Raw Jolpica payloads for seasons and rounds without a static file. Positive entries follow
+# the hourly generation cadence; failures, malformed payloads, and empty answers are remembered
+# briefly so a burst of requests cannot queue hundreds of paced upstream calls.
+REMOTE_CACHE_TTL_SECONDS = 3600
+REMOTE_NEGATIVE_CACHE_TTL_SECONDS = 60
+
+
+class _RemotePayloadCache:
+    """Cache raw upstream payloads with separate positive and negative TTLs."""
+
+    def __init__(self, *, maxsize: int, ttl: float, negative_ttl: float) -> None:
+        """Create bounded positive and negative caches with the given lifetimes."""
+        self._positive: TTLCache[tuple, object] = TTLCache(maxsize=maxsize, ttl=ttl)
+        self._negative: TTLCache[tuple, object | None] = TTLCache(maxsize=maxsize, ttl=negative_ttl)
+
+    def lookup(self, key: tuple) -> tuple[bool, object | None]:
+        """Return ``(hit, payload)``; a remembered empty answer or failure hits too."""
+        if key in self._positive:
+            return True, self._positive[key]
+        if key in self._negative:
+            return True, self._negative[key]
+        return False, None
+
+    def store(self, key: tuple, payload: object | None, *, valid: bool) -> None:
+        """Cache valid data positively and every degraded outcome negatively."""
+        if payload and valid:
+            self._positive[key] = payload
+            self._negative.pop(key, None)
+        else:
+            self._negative[key] = payload
+            self._positive.pop(key, None)
+
+    def clear(self) -> None:
+        """Drop every cached payload."""
+        self._positive.clear()
+        self._negative.clear()
+
+
+_remote_season_cache = _RemotePayloadCache(
+    maxsize=64, ttl=REMOTE_CACHE_TTL_SECONDS, negative_ttl=REMOTE_NEGATIVE_CACHE_TTL_SECONDS
+)
+_remote_race_cache = _RemotePayloadCache(
+    maxsize=256, ttl=REMOTE_CACHE_TTL_SECONDS, negative_ttl=REMOTE_NEGATIVE_CACHE_TTL_SECONDS
+)
+_remote_fetch_locks: KeyedLoopLockRegistry = weakref.WeakKeyDictionary()
+
+
+def _reset_remote_caches_for_tests() -> None:
+    """Clear remote payload caches and fetch locks between tests."""
+    _remote_season_cache.clear()
+    _remote_race_cache.clear()
+    _remote_fetch_locks.clear()
+
+
+def _is_valid_remote_season_payload(payload: object | None) -> bool:
+    """Return whether every season row is complete and usable by the list converter."""
+    if not isinstance(payload, list):
+        return False
+    try:
+        for race in payload:
+            Race.model_validate(race)
+            race_date = race.get("date", "")
+            if race_date:
+                race_time = race.get("time") or DEFAULT_SESSION_TIME_UTC
+                datetime.fromisoformat(f"{race_date}T{race_time}".replace("Z", "+00:00"))
+    except AttributeError, TypeError, ValueError, ValidationError:
+        return False
+    return True
+
+
+def _is_valid_remote_race_payload(payload: object | None) -> bool:
+    """Return whether a round payload can be parsed as a complete race."""
+    if not isinstance(payload, dict):
+        return False
+    try:
+        Race.model_validate(payload)
+    except ValidationError:
+        return False
+    return True
+
 
 @lru_cache(maxsize=32)
 def _parse_static_season(payload: str) -> tuple[Race, ...]:
@@ -53,6 +137,18 @@ def _parse_static_season(payload: str) -> tuple[Race, ...]:
         except Exception as exc:
             logger.warning("Failed to parse race: %s: %s", race_data.get("raceName"), exc)
     return tuple(races)
+
+
+@lru_cache(maxsize=32)
+def _load_static_season_file(path_value: str, _mtime_ns: int, _size: int) -> tuple[Race, ...]:
+    """Parse a season file once per on-disk version instead of re-reading it per request."""
+    return _parse_static_season(Path(path_value).read_text(encoding="utf-8"))
+
+
+def _load_static_season(path: Path) -> tuple[Race, ...]:
+    """Load a season file through the mtime- and size-keyed parse cache."""
+    stat = path.stat()
+    return _load_static_season_file(str(path), stat.st_mtime_ns, stat.st_size)
 
 
 def _find_static_season_path(year: int) -> Path | None:
@@ -297,16 +393,8 @@ class F1Service:
             "timezone": self.timezone_str,
         }
 
-    async def get_season_races(self, year: int) -> list[dict]:
-        """
-        Fetch all races for a given season.
-
-        Args:
-            year: The season year (e.g., 2025)
-
-        Returns:
-            List of race dictionaries with basic info
-        """
+    async def _fetch_season_payload(self, year: int) -> list[dict] | None:
+        """Fetch raw season races from Jolpica, returning ``None`` when the call fails."""
         try:
             client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
             url = f"{self.api_base_url}/{year}.json"
@@ -317,60 +405,111 @@ class F1Service:
                 pacer=get_jolpica_pacer(self.api_base_url),
                 logger=logger,
             )
-
-            data = response.json()
-            races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
-
-            result = []
-            now = datetime.now(self.target_tz)
-
-            for race in races:
-                try:
-                    race_date_str = race.get("date", "")
-                    race_time_str = race.get("time", DEFAULT_SESSION_TIME_UTC)
-                    round_num = self._extract_round_number(race)
-                    circuit = race.get("Circuit") or {}
-                    location = circuit.get("Location") or {}
-
-                    # Parse race datetime - if parsing fails, use None
-                    dt_local = None
-                    is_past = False
-                    if race_date_str:
-                        dt_str = f"{race_date_str}T{race_time_str}"
-                        dt_utc = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-                        dt_local = dt_utc.astimezone(self.target_tz)
-                        is_past = dt_local < now
-
-                    result.append(
-                        {
-                            "round": round_num,
-                            "race_key": self._build_race_key(
-                                season=race.get("season"),
-                                round_value=race.get("round"),
-                                race_name=race.get("raceName", ""),
-                                circuit_id=circuit.get("circuitId", ""),
-                                race_date=race_date_str,
-                            ),
-                            "race_name": race.get("raceName", ""),
-                            "circuit_id": circuit.get("circuitId", ""),
-                            "circuit_name": circuit.get("circuitName", ""),
-                            "country": location.get("country", ""),
-                            "date": race_date_str,
-                            "datetime": dt_local.isoformat() if dt_local else None,
-                            "is_past": is_past,
-                            "is_cancelled": self._is_cancelled_race(race),
-                        }
-                    )
-                except (KeyError, ValueError, TypeError) as e:
-                    race_name = race.get("raceName", "N/A")
-                    logger.warning("Skipping malformed race: %s. Error: %s", race_name, e)
-                    continue
-
-            return self._merge_static_cancelled_races(year, result)
-
+            races = response.json().get("MRData", {}).get("RaceTable", {}).get("Races", [])
+            return races if isinstance(races, list) else []
         except Exception as e:
             logger.error("Error fetching season races: %s", e, exc_info=True)
+            return None
+
+    async def _get_remote_season_payload(self, year: int) -> list[dict] | None:
+        """Return cached raw season races, coalescing concurrent misses per season.
+
+        ``None`` means the upstream call failed recently; an empty list is a real (cached)
+        empty calendar, which callers still merge with static cancellations.
+        """
+        cache_key = (self.api_base_url, year)
+        hit, cached = _remote_season_cache.lookup(cache_key)
+        if not hit:
+            async with get_keyed_loop_lock(_remote_fetch_locks, ("season", *cache_key)):
+                hit, cached = _remote_season_cache.lookup(cache_key)
+                if not hit:
+                    cached = await self._fetch_season_payload(year)
+                    _remote_season_cache.store(
+                        cache_key,
+                        cached,
+                        valid=_is_valid_remote_season_payload(cached),
+                    )
+        if cached is None:
+            return None
+        return list(cached) if isinstance(cached, list) else []
+
+    async def get_season_races(self, year: int) -> list[dict]:
+        """
+        Fetch all races for a given season.
+
+        Args:
+            year: The season year (e.g., 2025)
+
+        Returns:
+            List of race dictionaries with basic info
+        """
+        races = await self._get_remote_season_payload(year)
+        if races is None:
             return []
+        result = []
+        now = datetime.now(self.target_tz)
+
+        for race in races:
+            try:
+                race_date_str = race.get("date", "")
+                race_time_str = race.get("time") or DEFAULT_SESSION_TIME_UTC
+                round_num = self._extract_round_number(race)
+                circuit = race.get("Circuit") or {}
+                location = circuit.get("Location") or {}
+
+                # Parse race datetime - if parsing fails, use None
+                dt_local = None
+                is_past = False
+                if race_date_str:
+                    dt_str = f"{race_date_str}T{race_time_str}"
+                    dt_utc = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+                    dt_local = dt_utc.astimezone(self.target_tz)
+                    is_past = dt_local < now
+
+                result.append(
+                    {
+                        "round": round_num,
+                        "race_key": self._build_race_key(
+                            season=race.get("season"),
+                            round_value=race.get("round"),
+                            race_name=race.get("raceName", ""),
+                            circuit_id=circuit.get("circuitId", ""),
+                            race_date=race_date_str,
+                        ),
+                        "race_name": race.get("raceName", ""),
+                        "circuit_id": circuit.get("circuitId", ""),
+                        "circuit_name": circuit.get("circuitName", ""),
+                        "country": location.get("country", ""),
+                        "date": race_date_str,
+                        "datetime": dt_local.isoformat() if dt_local else None,
+                        "is_past": is_past,
+                        "is_cancelled": self._is_cancelled_race(race),
+                    }
+                )
+            except (AttributeError, KeyError, ValueError, TypeError) as e:
+                race_name = race.get("raceName", "N/A") if isinstance(race, dict) else "N/A"
+                logger.warning("Skipping malformed race: %s. Error: %s", race_name, e)
+                continue
+
+        return self._merge_static_cancelled_races(year, result)
+
+    async def _fetch_race_payload(self, year: int, round_num: int) -> dict | None:
+        """Fetch one raw race from Jolpica; ``None`` covers both failure and an unknown round."""
+        try:
+            client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
+            url = f"{self.api_base_url}/{year}/{round_num}.json"
+            logger.info("Fetching race from %s", url)
+            response = await fetch_with_retry(
+                client,
+                url,
+                pacer=get_jolpica_pacer(self.api_base_url),
+                logger=logger,
+            )
+            races = response.json().get("MRData", {}).get("RaceTable", {}).get("Races", [])
+            return races[0] if isinstance(races, list) and races else None
+        except Exception as e:
+            logger.error("Error fetching race by round: %s", e, exc_info=True)
+            return None
 
     async def get_race_by_round(self, year: int, round_num: int) -> Optional[dict]:
         """
@@ -383,31 +522,26 @@ class F1Service:
         Returns:
             Dictionary with race data including converted times, or None if failed
         """
+        cache_key = (self.api_base_url, year, round_num)
+        hit, cached = _remote_race_cache.lookup(cache_key)
+        if not hit:
+            async with get_keyed_loop_lock(_remote_fetch_locks, ("race", *cache_key)):
+                hit, cached = _remote_race_cache.lookup(cache_key)
+                if not hit:
+                    cached = await self._fetch_race_payload(year, round_num)
+                    _remote_race_cache.store(
+                        cache_key,
+                        cached,
+                        valid=_is_valid_remote_race_payload(cached),
+                    )
+
+        if not isinstance(cached, dict):
+            return None
         try:
-            client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-            url = f"{self.api_base_url}/{year}/{round_num}.json"
-            logger.info("Fetching race from %s", url)
-            response = await fetch_with_retry(
-                client,
-                url,
-                pacer=get_jolpica_pacer(self.api_base_url),
-                logger=logger,
-            )
-
-            data = response.json()
-            races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
-
-            if not races:
-                return None
-
-            race_data = races[0]
             # Convert to Race model using Pydantic validation
-            race = Race(**race_data)
-
-            return self._convert_race_times(race)
-
+            return self._convert_race_times(Race(**cached))
         except Exception as e:
-            logger.error("Error fetching race by round: %s", e, exc_info=True)
+            logger.error("Error converting race by round: %s", e, exc_info=True)
             return None
 
     # =========================================================================
@@ -434,8 +568,8 @@ class F1Service:
             if season_path is None:
                 logger.warning("Static season file not found for year: %s", year)
                 return []
-            races = list(_parse_static_season(season_path.read_text(encoding="utf-8")))
-            logger.info("Loaded %s races from static file for %s", len(races), year)
+            races = list(_load_static_season(season_path))
+            logger.debug("Loaded %s races from static file for %s", len(races), year)
             return races
 
         except Exception as e:
@@ -472,7 +606,7 @@ class F1Service:
                     # Keep the current race selected until NEXT_RACE_GRACE after lights-out, so
                     # the display doesn't flip to the next GP mid-race.
                     if race_dt + NEXT_RACE_GRACE > now:
-                        logger.info(
+                        logger.debug(
                             "Found next race from static: %s (%s)", race.raceName, race.date
                         )
                         return self._convert_race_times(race)
@@ -507,7 +641,7 @@ class F1Service:
 
         if latest_completed is not None:
             race = latest_completed[1]
-            logger.info("Using last completed race during off-season: %s", race.raceName)
+            logger.debug("Using last completed race during off-season: %s", race.raceName)
             return self._convert_race_times(race)
 
         logger.warning("No future races found in static data")

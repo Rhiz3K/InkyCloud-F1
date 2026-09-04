@@ -81,4 +81,4 @@ ENV PYTHONUNBUFFERED=1 \
     FORWARDED_ALLOW_IPS=127.0.0.1
 
 # Run application
-CMD ["sh", "-c", "uvicorn app.main:app --host \"${APP_HOST}\" --port \"${APP_PORT}\" --proxy-headers --forwarded-allow-ips=\"${FORWARDED_ALLOW_IPS}\""]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host \"${APP_HOST}\" --port \"${APP_PORT}\" --proxy-headers --forwarded-allow-ips=\"${FORWARDED_ALLOW_IPS}\""]

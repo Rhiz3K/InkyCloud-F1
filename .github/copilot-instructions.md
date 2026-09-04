@@ -2,10 +2,10 @@
 
 ## Architecture Overview
 
-This is a FastAPI service that generates **800x480 1-bit BMP images** for E-Ink displays (specifically LaskaKit ESP32 devices). The service fetches F1 race data from Jolpica API, converts times from UTC to Europe/Prague timezone, and renders server-side calendar images using Pillow.
+This is a FastAPI service that generates **800x480 BMP images** (1-bit, B/W/R, B/W/R/Y, and Spectra 6 palettes) for E-Ink displays such as LaskaKit ESP32 devices. The service serves F1 race data from bundled static JSON refreshed from the Jolpica API, converts times from UTC to the requested IANA timezone (default `Europe/Prague`), and renders calendar and teams images server-side with Pillow.
 
 **Key components:**
-- `app/main.py` - FastAPI endpoints with async/await pattern
+- `app/main.py` - FastAPI app, middleware, and lifespan; HTTP handlers live in `app/routes/`
 - `app/config.py` - Configuration management from environment variables
 - `app/models.py` - Pydantic data models
 - `app/state.py` - Application state management
@@ -21,13 +21,13 @@ This is a FastAPI service that generates **800x480 1-bit BMP images** for E-Ink 
 - `app/services/i18n.py` - Translation loader with caching
 - `app/services/analytics.py` - Fire-and-forget Umami tracking
 - `app/services/version_service.py` - Version management
-- `translations/*.json` - i18n strings for cs/en
+- `translations/*.json` - i18n strings for the 13 locales listed in `LANGUAGE_CODES` (`app/config.py`)
 
 ## Critical Patterns
 
 ### 1-Bit Rendering (Must Follow Exactly)
 
-All images MUST be 1-bit mode (`Image.new("1", ...)`) for E-Ink compatibility. Never use "L" or "RGB" modes.
+The default renderer produces 1-bit mode images (`Image.new("1", ...)`); never use "L" or "RGB" modes for its output. Color renderers (`bwr`, `bwry`, `spectra6`) map RGB canvases onto fixed palettes through `app/utils/bmp.py` and must keep the same layout.
 
 ```python
 # ✓ Correct
@@ -39,16 +39,16 @@ image = Image.new("RGB", (800, 480), (255, 255, 255))
 
 When drawing, use `fill=0` for black and `fill=1` for white. The renderer uses pixel-precise layout constants in `self.layout` dict - **never hardcode coordinates**.
 
-### Timezone Handling (Prague-Specific)
+### Timezone Handling
 
-ALL race times are stored in UTC in Jolpica API and MUST be converted to `Europe/Prague` timezone. See `F1Service._convert_race_times()` for the canonical pattern:
+ALL race times are stored in UTC in the Jolpica data and MUST be converted to the caller's validated IANA timezone (`tz` query parameter, default `config.DEFAULT_TIMEZONE`). See `F1Service._convert_race_times()` and `app/utils/race_times.py` for the canonical pattern:
 
 ```python
 dt_utc = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-dt_prague = dt_utc.astimezone(self.prague_tz)
+dt_local = dt_utc.astimezone(self.target_tz)
 ```
 
-Display format: `dt_prague.strftime("%a %H:%M")` (e.g., "Sun 17:00")
+Display format: `dt_local.strftime("%a %H:%M")` (e.g., "Sun 17:00"). Validate timezones with `app.utils.timezones.is_valid_timezone`.
 
 ### Translation Keys
 
@@ -56,19 +56,13 @@ Always use `translator.get(key, fallback)` pattern. Session names use prefix `se
 
 ### Error Handling
 
-Endpoints NEVER raise - always return a rendered error BMP via `renderer.render_error()`. Exceptions are logged and sent to Sentry/GlitchTip:
-
-```python
-except Exception as e:
-    logger.error(f"Error: {e}", exc_info=True)
-    sentry_sdk.capture_exception(e)
-    return StreamingResponse(BytesIO(renderer.render_error(str(e))), ...)
-```
+BMP endpoints (`/calendar.bmp`, `/teams.bmp`) never fail with a JSON error once input is validated: rendering problems return an error BMP via `renderer.render_error()` with `Cache-Control: no-store`, logged and sent to Sentry/GlitchTip. Invalid input (unknown timezone, `race_key` without `year`) raises `HTTPException` before rendering, and JSON API routes raise `HTTPException` normally.
 
 ### Async Patterns
 
-- HTTP calls use `httpx.AsyncClient` (never `requests`)
-- Analytics tracking is fire-and-forget: `asyncio.create_task(_send_analytics(...))`
+- HTTP calls use `httpx.AsyncClient` via `get_shared_http_client` (never `requests`)
+- Background work uses `create_supervised_task(...)` from `app/utils/async_tasks.py` so failures are logged, never bare `asyncio.create_task`
+- CPU-bound rendering runs through `run_render(...)`; construct the renderer inside the callable because font caches are per thread
 - FastAPI endpoints are `async def` with proper context managers
 
 ## Development Commands
@@ -126,22 +120,18 @@ Feature flags like `UMAMI_ENABLED` control optional services - code must handle 
 ## Adding Translations
 
 1. Add key to `translations/en.json` (source of truth)
-2. Add same key to `translations/cs.json`
+2. Add the same key to every other `translations/*.json` file
 3. Use in code: `translator.get("your_key", "Fallback Text")`
-4. Update `app/main.py` language validation if adding new locale
 
-**Adding a New Language (e.g., German):**
-1. Create `translations/de.json` with all keys from `en.json`
-2. Update language validation in `app/main.py`:
-   ```python
-   if lang not in ["cs", "en", "de"]:
-   ```
-3. Test both translations render correctly:
+**Adding a New Language:**
+1. Create `translations/<code>.json` with all keys from `en.json`
+2. Add the code to `LANGUAGE_CODES` in `app/config.py` and to `LANGUAGE_LABELS` / `OG_LOCALES` in `app/web/templates.py`
+3. Test the rendering:
    ```bash
-   curl http://localhost:8000/calendar.bmp?lang=de > test_de.bmp
+   curl "http://localhost:8000/calendar.bmp?lang=<code>" > test.bmp
    ```
-4. Add test case in `tests/test_renderer.py` following the `test_render_calendar_czech` pattern
-5. Update README.md and CONTRIBUTING.md with new language support
+4. Add test coverage in `tests/test_renderer.py`
+5. Update README.md and CONTRIBUTING.md with the new language
 
 ## Session Types
 
@@ -173,17 +163,7 @@ The `/calendar.bmp` endpoint returns standard BMP files fetchable by ESP32 HTTPC
 
 ## Track Map Rendering
 
-The `_draw_track_map()` method creates **stylized placeholder graphics**, not real circuit maps. The design uses:
-- Rounded rectangles with checkered accent stripes
-- Circuit name and location text
-- Geometric track outline (rounded box + arc) for visual interest
-
-When modifying track map layout:
-- All dimensions come from `self.layout["track_map_*"]` constants
-- Use `_draw_stripes()` for checkered F1 aesthetic
-- Circuit data may be incomplete - handle missing location/country gracefully via `_get_circuit_details()`
-
-This stylized approach keeps rendering fast and avoids storing 20+ SVG/raster track maps.
+Track maps are real circuit outlines. Source artwork lives in `artwork/tracks/`, and the display-specific BMPs under `app/assets/tracks_*` are produced by `python -m scripts.manage` (see `BMP_PROCESSING.md`). At render time `app/services/renderer_assets.py` picks the per-display asset, crops, and fits it into the left column; keep preprocessed heights within the runtime box so no resampling is needed.
 
 ## Common Gotchas
 
@@ -242,7 +222,7 @@ InkyCloud-F1/
 │   ├── templates/           # Jinja2 HTML templates
 │   └── assets/              # Static assets (fonts, images)
 ├── tests/                   # Test suite (pytest)
-├── translations/            # i18n JSON files (cs, en)
+├── translations/            # i18n JSON files (13 locales, see LANGUAGE_CODES)
 ├── scripts/                 # Data preprocessing utilities
 └── .github/
     ├── copilot-instructions.md  # This file

@@ -71,7 +71,10 @@ block content %}
   >
     <!-- Close button (mobile only) -->
     <button
+      id="settingsSidebarClose"
+      type="button"
       onclick="toggleSidebar()"
+      aria-label="{{ configure_ui_text.closeSettings }}"
       class="lg:hidden absolute top-3 right-3 p-2 border-2 border-black bg-white hover:bg-black hover:text-white z-50"
     >
       <svg
@@ -79,6 +82,7 @@ block content %}
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
+        aria-hidden="true"
       >
         <path
           stroke-linecap="square"
@@ -589,7 +593,7 @@ block content %}
       html += `<button ${clickHandler} data-year="${actualYear}" class="${baseClass} ${stateClass}">`;
 
       const seasonLabel = s.isCurrent ? `${uiText.currentSeason} ${currentSeason}` : s.label;
-      html += `<span class="w-16 text-xs font-bold uppercase flex-shrink-0">${seasonLabel}</span>`;
+      html += `<span class="w-16 text-xs font-bold uppercase flex-shrink-0">${escapeHtml(seasonLabel)}</span>`;
 
       if (s.disabled || !data.has_data) {
         html += `<span class="flex-1 text-xs">—</span>`;
@@ -757,6 +761,11 @@ block content %}
     if (rankingsTitle) rankingsTitle.textContent = t.seasonLeaders;
     const settingsBtnText = document.getElementById("settingsBtnText");
     if (settingsBtnText) settingsBtnText.textContent = t.settingsBtn;
+    const settingsSidebarClose = document.getElementById(
+      "settingsSidebarClose",
+    );
+    if (settingsSidebarClose)
+      settingsSidebarClose.setAttribute("aria-label", t.closeSettings);
     document.getElementById("einkBadge").textContent = t.einkBadge;
     document.getElementById("errorText").textContent = t.errorText;
     const loadingText = document.getElementById("loadingText");
@@ -1071,7 +1080,7 @@ block content %}
       if (futureRaces.length === 0) {
         // Update loading text to indicate switching years
         raceList.innerHTML =
-          `<div class="p-4 text-center text-gray-400 text-xs font-mono">${uiText.loadingSeason.replace("{year}", currentYear + 1)}</div>`;
+          `<div class="p-4 text-center text-gray-400 text-xs font-mono">${escapeHtml(uiText.loadingSeason.replace("{year}", currentYear + 1))}</div>`;
 
         try {
           const controller = new AbortController();
@@ -1104,8 +1113,8 @@ block content %}
 
       // Build race list (desktop) - compact layout
       let html = `<button class="race-item w-full px-2 py-0.5 text-left text-xs border-2 border-transparent hover:border-black flex items-center justify-between group selected" data-round="" data-race-key="" onclick="selectRaceFromList(null, null, null)">
-                <span class="font-bold uppercase flex items-center gap-1.5"><span class="text-racing-red">⚡</span> ${t.nextRace}</span>
-                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-gray-500 uppercase">${t.autoLabel}</span>
+                <span class="font-bold uppercase flex items-center gap-1.5"><span class="text-racing-red">⚡</span> ${escapeHtml(t.nextRace)}</span>
+                <span class="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-gray-500 uppercase">${escapeHtml(t.autoLabel)}</span>
             </button>`;
 
       racesData.forEach((race) => {
@@ -1136,7 +1145,7 @@ block content %}
         const dateClass = isCancelled ? "text-racing-red" : "text-gray-400 group-hover:text-black";
         const nameClass = isCancelled ? "text-racing-red" : "";
         const statusBadge = isCancelled
-          ? `<span class="text-[9px] font-black uppercase tracking-wide text-racing-red">${t.cancelled}</span>`
+          ? `<span class="text-[9px] font-black uppercase tracking-wide text-racing-red">${escapeHtml(t.cancelled)}</span>`
           : "";
 
         html += `<button class="race-item group w-full px-2 py-0.5 text-left text-[11px] border-2 border-transparent hover:border-black flex items-center gap-2 ${stateClass}" 
@@ -1151,7 +1160,7 @@ block content %}
       raceList.innerHTML = html;
 
       // Build mobile select (use ISO codes for text, no images in select options)
-      let mobileHtml = `<option value="">${t.nextRace}</option>`;
+      let mobileHtml = `<option value="">${escapeHtml(t.nextRace)}</option>`;
       racesData.forEach((race) => {
         const date = race.date ? new Date(race.date) : null;
         const dateStr = date
@@ -1164,14 +1173,14 @@ block content %}
         const iso = COUNTRY_ISO[country] || "";
         const isoDisplay = iso ? iso.toUpperCase() : "🏁";
         const name = race.race_name.replace(" Grand Prix", " GP");
-        const cancelledLabel = race.is_cancelled ? ` [${t.cancelled}]` : "";
+        const cancelledLabel = race.is_cancelled ? ` [${escapeHtml(t.cancelled)}]` : "";
         mobileHtml += `<option value="${escapeHtml(race.race_key)}">${dateStr} ${isoDisplay} ${escapeHtml(name)}${cancelledLabel}</option>`;
       });
       mobileSelect.innerHTML = mobileHtml;
     } catch (e) {
       console.error("Failed to load races:", e);
       raceList.innerHTML =
-        `<div class="p-3 text-center text-racing-red font-bold text-sm border-2 border-racing-red bg-red-50">${uiText.failedToLoadRaces}</div>`;
+        `<div class="p-3 text-center text-racing-red font-bold text-sm border-2 border-racing-red bg-red-50">${escapeHtml(uiText.failedToLoadRaces)}</div>`;
     }
   }
 
@@ -1474,7 +1483,7 @@ block content %}
 
       if (results.length === 0) {
         container.innerHTML =
-          `<div class="px-2 py-2 text-gray-400 text-center font-mono uppercase">${uiText.noResults}</div>`;
+          `<div class="px-2 py-2 text-gray-400 text-center font-mono uppercase">${escapeHtml(uiText.noResults)}</div>`;
         return;
       }
 
@@ -1495,7 +1504,7 @@ block content %}
     if (browserTz) {
       const browserDiv = document.createElement("div");
       browserDiv.className = `tz-item px-2 py-1 cursor-pointer hover:bg-black hover:text-white flex items-center border-b-4 border-black mb-0.5 ${browserTz === selectedTz ? "bg-racing-red text-white" : "bg-white"}`;
-      browserDiv.innerHTML = `<span class="mr-1">📍</span><span class="opacity-70 w-12 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(browserTz))}</span> <span class="font-bold">${uiText.detectedLabel}</span>`;
+      browserDiv.innerHTML = `<span class="mr-1">📍</span><span class="opacity-70 w-12 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(browserTz))}</span> <span class="font-bold">${escapeHtml(uiText.detectedLabel)}</span>`;
       browserDiv.onclick = () => selectTimezone(browserTz);
       container.appendChild(browserDiv);
     }

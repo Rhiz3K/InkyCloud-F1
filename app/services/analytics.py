@@ -1,5 +1,6 @@
 """Analytics service for tracking requests with Umami."""
 
+import html
 import logging
 from typing import Any, Optional
 
@@ -186,6 +187,6 @@ def get_umami_script_tag() -> str:
     base_url = api_url.removesuffix("/api/send")
 
     return (
-        f'<script defer src="{base_url}/script.js" '
-        f'data-website-id="{config.UMAMI_WEBSITE_ID}"></script>'
+        f'<script defer src="{html.escape(base_url, quote=True)}/script.js" '
+        f'data-website-id="{html.escape(str(config.UMAMI_WEBSITE_ID), quote=True)}"></script>'
     )

@@ -144,7 +144,12 @@ class Config(BaseSettings):
         120, gt=0, description="Per-IP BMP requests allowed per minute"
     )
     PERF_METRICS_RATE_LIMIT_PER_MINUTE: int = Field(
-        240, gt=0, description="Per-IP perf metrics posts allowed per minute"
+        30,
+        gt=0,
+        description=(
+            "Per-IP perf metrics posts allowed per minute; a browser sends one beacon per "
+            "page view, so a low quota bounds unauthenticated database growth"
+        ),
     )
     DATA_API_RATE_LIMIT_PER_MINUTE: int = Field(
         120, gt=0, description="Per-IP live F1 data API requests allowed per minute"

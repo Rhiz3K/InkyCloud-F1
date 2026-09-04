@@ -2,28 +2,18 @@
 # This file automates the development environment setup for Copilot coding agent
 
 steps:
-  - name: Create Python virtual environment
-    command: python3 -m venv venv
-    description: Creates an isolated Python environment for the project
-
-  - name: Activate virtual environment (Unix)
-    command: source venv/bin/activate
-    description: Activates the virtual environment on Unix-like systems
-    platform: unix
-
-  - name: Activate virtual environment (Windows)
-    command: venv\Scripts\activate
-    description: Activates the virtual environment on Windows
-    platform: windows
+  - name: Install uv
+    command: pip install uv
+    description: Installs the uv package manager used by CI and the locked dependency set
 
   - name: Install project dependencies
-    command: pip install -e ".[dev]"
-    description: Installs the project in editable mode with development dependencies
+    command: uv sync --locked --group dev
+    description: Creates .venv and installs the exact locked runtime and dev dependencies
 
   - name: Verify installation
-    command: pytest --version && ruff --version && uvicorn --version
+    command: uv run pytest --version && uv run ruff --version && uv run uvicorn --version
     description: Verifies that key development tools are installed correctly
 
   - name: Run initial tests
-    command: pytest -v
+    command: uv run pytest -m "not benchmark"
     description: Runs the test suite to ensure the environment is properly configured

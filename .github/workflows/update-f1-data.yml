@@ -42,7 +42,18 @@ jobs:
           enable-cache: true
 
       - name: Update season calendars
+        id: update
+        # Keep going so a calendar that did update still becomes a pull request even when
+        # another requested season failed; the final step still marks the run as failed.
+        continue-on-error: true
         run: uv run --locked python scripts/update_seasons.py
+
+      - name: Verify active circuits have track assets
+        id: track_assets
+        # Keep the partial-update PR path alive, then fail the completed workflow below so the
+        # workflow_run monitor opens or updates its persistent failure issue.
+        continue-on-error: true
+        run: uv run --locked python scripts/check_track_assets.py
 
       - name: Check for changes
         id: check_changes
@@ -63,3 +74,14 @@ jobs:
           gh auth setup-git
           git push -u origin "$BRANCH"
           gh pr create --title "chore: update F1 season data" --body "Manual F1 season calendar update from Jolpica API. Historical race results are refreshed daily by the running app." --base main --head "$BRANCH"
+
+      - name: Fail the run when an update or asset check failed
+        if: steps.update.outcome == 'failure' || steps.track_assets.outcome == 'failure'
+        run: |
+          if [[ "${{ steps.update.outcome }}" == "failure" ]]; then
+            echo "::error::scripts/update_seasons.py reported a failure; see the update step log"
+          fi
+          if [[ "${{ steps.track_assets.outcome }}" == "failure" ]]; then
+            echo "::error::Active circuit track assets are incomplete; see the asset check log"
+          fi
+          exit 1

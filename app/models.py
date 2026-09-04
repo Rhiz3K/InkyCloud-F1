@@ -1,12 +1,16 @@
 """Data models for F1 E-Ink calendar service."""
 
 import logging
+import re
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 logger = logging.getLogger(__name__)
+
+# Site-relative page path without query, fragment, scheme, or control characters.
+_PAGE_PATH_RE = re.compile(r"/[A-Za-z0-9._~/-]*")
 
 
 # ============================================================================
@@ -230,3 +234,11 @@ class PerfMetricsPayload(BaseModel):
     inp_ms: Optional[float] = Field(default=None, ge=0, le=60000)
     connection_type: Optional[str] = Field(default=None, max_length=50)
     device_memory: Optional[float] = Field(default=None, ge=0, le=512)
+
+    @field_validator("page_path")
+    @classmethod
+    def validate_page_path(cls, value: str) -> str:
+        """Accept only a site-relative path; the browser reports ``location.pathname``."""
+        if value.startswith("//") or not _PAGE_PATH_RE.fullmatch(value):
+            raise ValueError("page_path must be a site-relative path")
+        return value

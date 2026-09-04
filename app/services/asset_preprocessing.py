@@ -16,10 +16,13 @@ from app.services.bwry_renderer import BwryColors
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.renderers import DISPLAY_TYPES
 from app.services.spectra6_renderer import Spectra6Colors
+from app.services.track_artwork import TrackArtworkError, load_track_source_manifest
 from app.services.track_assets import (
+    TrackBundleError,
     discover_track_source_stems,
     resolve_track_source_path,
     strip_track_variant_suffix,
+    validate_track_bundle,
 )
 from app.utils.atomic_io import atomic_save_image, atomic_write_bytes_sync
 from app.utils.bmp import (
@@ -375,11 +378,11 @@ def preprocess_tracks(
     destination = output_dir or PROJECT_ROOT / "app" / "assets" / spec.track_output
     if not source.is_dir():
         raise PreprocessingError(f"Input directory not found: {source}")
-    destination.mkdir(parents=True, exist_ok=True)
     stems = discover_track_source_stems(source)
     if circuits:
         wanted = {circuit.strip().lower() for circuit in circuits if circuit.strip()}
         stems = [stem for stem in stems if stem in wanted]
+    _validate_managed_track_bundles(source, stems)
     files = [
         path
         for stem in stems
@@ -388,6 +391,7 @@ def preprocess_tracks(
     ]
     if not files:
         raise PreprocessingError(f"No track images found in {source}")
+    destination.mkdir(parents=True, exist_ok=True)
     return _run_batch(
         files,
         destination,
@@ -395,6 +399,20 @@ def preprocess_tracks(
         _track_output_stem,
         process_track_image,
     )
+
+
+def _validate_managed_track_bundles(source_dir: Path, stems: list[str]) -> None:
+    """Fail before preprocessing if a selected manifest-managed bundle is inconsistent."""
+    manifest_path = source_dir / "sources.json"
+    if not manifest_path.is_file():
+        return
+    try:
+        entries = load_track_source_manifest(manifest_path)
+        for stem in stems:
+            if entry := entries.get(stem):
+                validate_track_bundle(source_dir, stem, entry.source_sha256)
+    except (TrackArtworkError, TrackBundleError) as exc:
+        raise PreprocessingError(f"Invalid managed track artwork: {exc}") from exc
 
 
 def _track_output_stem(path: Path) -> str:

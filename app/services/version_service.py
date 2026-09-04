@@ -15,12 +15,8 @@ logger = logging.getLogger(__name__)
 GITHUB_OWNER = "Rhiz3K"
 GITHUB_REPO = "InkyCloud-F1"
 
-# Cache for version info (refreshed hourly by the scheduler and on deployment).
-# TTL matches the hourly refresh cadence so the changelog page serves the cached value instead
-# of doing a blocking inline GitHub fetch for ~55 minutes of every hour.
-_version_cache: "VersionInfo | None" = None
-_version_cache_fetched_at: float | None = None
 VERSION_CACHE_TTL_SECONDS = 3600
+VERSION_NEGATIVE_CACHE_TTL_SECONDS = 300
 
 
 @dataclass
@@ -47,15 +43,36 @@ class VersionInfo:
         return " ".join(parts) if parts else "unknown"
 
 
+@dataclass
+class _VersionCacheState:
+    """Mutable process-local version cache and retry-suppression state."""
+
+    info: VersionInfo | None = None
+    fetched_at: float | None = None
+    failed_at: float | None = None
+
+
+# Refreshed hourly by the scheduler and on deployment. The positive TTL matches that cadence;
+# failures are remembered briefly so changelog views do not repeat blocking GitHub work.
+_version_state = _VersionCacheState()
+
+
 def get_cached_version() -> VersionInfo | None:
     """Get cached version info unless the cache is stale."""
-    if _version_cache is None or _version_cache_fetched_at is None:
+    if _version_state.info is None or _version_state.fetched_at is None:
         return None
 
-    if time.time() - _version_cache_fetched_at > VERSION_CACHE_TTL_SECONDS:
+    if time.time() - _version_state.fetched_at > VERSION_CACHE_TTL_SECONDS:
         return None
 
-    return _version_cache
+    return _version_state.info
+
+
+def version_fetch_recently_failed() -> bool:
+    """Return whether a refresh failed inside the negative-cache window."""
+    if _version_state.failed_at is None:
+        return False
+    return time.time() - _version_state.failed_at <= VERSION_NEGATIVE_CACHE_TTL_SECONDS
 
 
 async def fetch_version_info() -> VersionInfo:
@@ -65,8 +82,6 @@ async def fetch_version_info() -> VersionInfo:
     Returns:
         VersionInfo with release and commit details
     """
-    global _version_cache, _version_cache_fetched_at
-
     release_tag = None
     release_name = None
     release_date = None
@@ -76,7 +91,7 @@ async def fetch_version_info() -> VersionInfo:
     commit_message = None
     release_resolved = False
     commit_resolved = False
-    previous = _version_cache
+    previous = _version_state.info
 
     client = get_shared_http_client(httpx.AsyncClient, timeout=config.REQUEST_TIMEOUT)
     # Fetch latest release
@@ -146,7 +161,7 @@ async def fetch_version_info() -> VersionInfo:
 
     if previous is not None and not release_resolved and not commit_resolved:
         logger.warning("Version fetch failed completely; keeping previous cached version info")
-        _version_cache_fetched_at = time.time()
+        _version_state.fetched_at = time.time()
         return previous
 
     info = VersionInfo(
@@ -165,17 +180,19 @@ async def fetch_version_info() -> VersionInfo:
     # changelog page for the whole hour instead of keeping the last known version.
     if release_tag is None and commit_sha is None and previous is not None:
         logger.warning("Version fetch returned no data; keeping previous cached version info")
-        _version_cache_fetched_at = time.time()
+        _version_state.fetched_at = time.time()
         return previous
 
     if release_tag is None and commit_sha is None:
         logger.warning("Version fetch returned no data; leaving cache empty for the next retry")
+        _version_state.failed_at = time.time()
         return info
 
-    _version_cache = info
-    _version_cache_fetched_at = time.time()
+    _version_state.info = info
+    _version_state.fetched_at = time.time()
+    _version_state.failed_at = None
 
-    return _version_cache
+    return info
 
 
 async def refresh_version_info() -> VersionInfo | None:
@@ -191,5 +208,6 @@ async def refresh_version_info() -> VersionInfo | None:
     try:
         return await fetch_version_info()
     except Exception as e:
+        _version_state.failed_at = time.time()
         logger.error("Error refreshing version info: %s", e, exc_info=True)
         return None

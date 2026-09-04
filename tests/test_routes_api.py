@@ -1,14 +1,15 @@
 """Edge-case coverage for JSON API route handlers."""
 
+import functools
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
 from pydantic import SecretStr
 from starlette.requests import Request
 
-from app.models import TeamEntry, TeamsData
+from app.models import PerfMetricsPayload, TeamEntry, TeamsData
 from app.routes import api
 
 
@@ -66,6 +67,71 @@ def test_operational_auth_covers_public_empty_header_bearer_and_rejection():
         assert error.value.status_code == 401
         with pytest.raises(HTTPException):
             api._require_operational_api_auth(_request({"X-Admin-Token": "wrong"}))
+
+
+def test_operational_auth_rejects_non_ascii_token_with_401():
+    # ``secrets.compare_digest`` raises TypeError for non-ASCII ``str``; that must not become a 500.
+    with (
+        patch("app.routes.api.config.ADMIN_API_TOKEN", SecretStr("secret")),
+        pytest.raises(HTTPException) as error,
+    ):
+        api._require_operational_api_auth(_request({"X-Admin-Token": "s\xe9cret"}))
+    assert error.value.status_code == 401
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "call",
+    [
+        api.get_stats,
+        functools.partial(api.get_perf_metrics, hours=24),
+        functools.partial(api.get_stats_history, limit=1),
+    ],
+)
+async def test_operational_reads_apply_rate_limit_before_authentication(call):
+    limited = HTTPException(status_code=429, detail="Rate limit exceeded")
+    with (
+        patch("app.routes.api.config.ADMIN_API_TOKEN", SecretStr("secret")),
+        patch("app.routes.api.enforce_rate_limit", side_effect=limited),
+        pytest.raises(HTTPException) as error,
+    ):
+        await call(_request())
+    assert error.value.status_code == 429
+
+
+@pytest.mark.parametrize(
+    ("page_path", "expected"),
+    [
+        ("/", "/"),
+        ("/cs/", "/cs/"),
+        ("/cs", "/cs/"),
+        ("/configure/calendar", "/configure/calendar"),
+        ("/pt-BR/configure/teams/", "/pt-BR/configure/teams"),
+        ("/api/docs/html", "/api/docs/html"),
+        ("/calendar.bmp", "/other"),
+        ("/cs/unknown", "/other"),
+        ("/xx/stats", "/other"),
+    ],
+)
+def test_normalize_perf_page_path_collapses_unknown_pages(page_path, expected):
+    assert api.normalize_perf_page_path(page_path) == expected
+
+
+@pytest.mark.asyncio
+async def test_post_perf_metrics_stores_normalized_page_path():
+    db = SimpleNamespace(save_perf_metric=AsyncMock())
+    payload = PerfMetricsPayload(page_path="/cs/whatever", lcp_ms=100)
+    with (
+        patch("app.routes.api.enforce_rate_limit"),
+        patch("app.routes.api.get_database", return_value=db),
+        patch("app.routes.api.create_supervised_task"),
+        patch("app.routes.api.track_event", new=MagicMock()) as track_event,
+    ):
+        result = await api.post_perf_metrics(payload, _request({"User-Agent": "ua"}))
+
+    assert result == {"status": "ok"}
+    assert db.save_perf_metric.await_args.kwargs["page_path"] == api.PERF_METRIC_OTHER_PAGE
+    assert track_event.call_args.kwargs["url"] == api.PERF_METRIC_OTHER_PAGE
 
 
 @pytest.mark.asyncio

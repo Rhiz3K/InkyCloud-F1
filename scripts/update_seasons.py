@@ -30,6 +30,10 @@ API_BASE = "https://api.jolpi.ca/ergast/f1"
 SEASONS_DIR = Path(__file__).parent.parent / "app" / "assets" / "seasons"
 
 
+class SeasonNotPublishedError(ValueError):
+    """Raised when Jolpica has no races yet for a season that is still unpublished."""
+
+
 def _has_scheduled_round(race: dict[str, Any]) -> bool:
     """Return True when the race still has an active calendar round."""
     round_value = race.get("round")
@@ -116,8 +120,10 @@ async def fetch_season(client: httpx.AsyncClient, year: int) -> dict:
 
     data = response.json()
     races = data["MRData"]["RaceTable"]["Races"]
-    if not isinstance(races, list) or not races:
-        raise ValueError(f"Jolpica returned no races for {year}")
+    if not isinstance(races, list):
+        raise ValueError(f"Jolpica returned malformed races payload for {year}")
+    if not races:
+        raise SeasonNotPublishedError(f"Jolpica returned no races for {year}")
     if any(
         not isinstance(race, dict)
         or not race.get("date")
@@ -141,8 +147,9 @@ async def main(target_years: list[int]) -> bool:
 
     async with httpx.AsyncClient(timeout=30) as client:
         for year in target_years:
+            output_path = SEASONS_DIR / f"{year}.json"
+            existing_data = None
             try:
-                output_path = SEASONS_DIR / f"{year}.json"
                 existing_data = _load_existing_season(output_path)
                 data = preserve_cancelled_races(await fetch_season(client, year), existing_data)
 
@@ -167,6 +174,25 @@ async def main(target_years: list[int]) -> bool:
             except httpx.HTTPStatusError as e:
                 print(f"  Error fetching {year}: HTTP {e.response.status_code}")
                 succeeded = False
+            except SeasonNotPublishedError as e:
+                expected_unpublished_year = datetime.now(timezone.utc).year + 1
+                if year != expected_unpublished_year:
+                    # Empty calendars are only expected for the next season. Current
+                    # and historical seasons must fail even when no local file exists.
+                    print(f"  Error fetching {year}: {e}")
+                    succeeded = False
+                elif (existing_data or {}).get("races"):
+                    # A season that already had races must never silently become empty.
+                    print(f"  Error fetching {year}: {e}")
+                    succeeded = False
+                elif existing_data is None and output_path.exists():
+                    # The file is there but unreadable; do not hide that behind "unpublished".
+                    print(f"  Error fetching {year}: existing season file could not be read")
+                    succeeded = False
+                else:
+                    # The next season is requested all year; it only exists once the FIA
+                    # publishes it, and an unpublished calendar must not fail the run.
+                    print(f"  Season {year} is not published yet; nothing to update")
             except Exception as e:
                 print(f"  Error fetching {year}: {e}")
                 succeeded = False

@@ -51,9 +51,12 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
 
-  # GitHub Actions
+  # GitHub Actions (workflows plus the composite actions, which "/" alone does not scan)
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/.github/actions/ci-test"
+      - "/.github/actions/setup-python"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
