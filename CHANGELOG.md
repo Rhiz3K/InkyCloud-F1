@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Translation strings in configure markup** - Escape localized labels before they are injected via `innerHTML`, closing a stored-XSS path through translation files
 - **Stylesheet loading** - Load the primary stylesheets as render-blocking links with versioned URLs, removing the unstyled first paint and layout shift caused by the preload swap and the stale one-hour static cache after deploys
+- **Configure preview cache revalidation** - Honor `If-None-Match` for pre-generated PNG previews with an empty 304 response while preserving their ETag, Last-Modified, and five-minute cache policy
 - **Accessibility** - Name the icon-only sidebar close button and associate the timezone, race, and season controls with their labels
 - **Track maps on 1-bit displays** - Resample preprocessed monochrome maps in grayscale and re-threshold, because Pillow silently uses nearest-neighbour for 1-bit images and broke thin track lines into dashes
 - **Sepang calendar rendering** - Add reviewed track artwork for all four display palettes and shrink or ellipsize overflowing race subtitles so replacement-race names remain inside the header

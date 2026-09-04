@@ -18,6 +18,7 @@ from app.services.image_keys import get_configure_preview_filename, get_preview_
 from app.services.renderers import COLOR_DISPLAYS, create_renderer
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.utils.async_tasks import run_render
+from app.utils.etag import if_none_match_matches
 from app.utils.image_conversion import bmp_to_png
 from app.utils.rate_limit import enforce_rate_limit
 
@@ -25,6 +26,30 @@ router = APIRouter()
 _ALLOWED_LANGS = {lang: lang for lang in LANGUAGE_CODES}
 logger = logging.getLogger(__name__)
 _PREVIEW_CACHE_CONTROL = "public, max-age=300"
+
+
+def _configure_preview_file_response(path: Path, request: Request) -> Response:
+    """Serve a configure preview, honoring validators without reading the PNG."""
+    stat_result = path.stat()
+    file_response = FileResponse(
+        path,
+        media_type="image/png",
+        headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
+        stat_result=stat_result,
+    )
+    if not if_none_match_matches(
+        request.headers.get("If-None-Match"), file_response.headers["etag"]
+    ):
+        return file_response
+
+    return Response(
+        status_code=304,
+        headers={
+            "Cache-Control": file_response.headers["cache-control"],
+            "ETag": file_response.headers["etag"],
+            "Last-Modified": file_response.headers["last-modified"],
+        },
+    )
 
 
 def _build_calendar_preview_png(
@@ -177,21 +202,13 @@ async def get_configure_preview_png(
     )
     configure_path = Path(config.IMAGES_PATH) / filename
     if configure_path.exists():
-        return FileResponse(
-            configure_path,
-            media_type="image/png",
-            headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
-        )
+        return _configure_preview_file_response(configure_path, request)
 
     # Fallback to default variant if specific one not found
     fallback_filename = get_configure_preview_filename(safe_screen, safe_lang)
     fallback_path = Path(config.IMAGES_PATH) / fallback_filename
     if fallback_path.exists():
-        return FileResponse(
-            fallback_path,
-            media_type="image/png",
-            headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
-        )
+        return _configure_preview_file_response(fallback_path, request)
 
     if safe_screen == "teams":
         enforce_rate_limit(
