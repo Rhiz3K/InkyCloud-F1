@@ -71,9 +71,10 @@ block content %}
   >
     <!-- Close button (mobile only) -->
     <button
+      id="settingsSidebarClose"
       type="button"
       onclick="toggleSidebar()"
-      aria-label="{{ configure_ui_text.settingsBtn }}"
+      aria-label="{{ configure_ui_text.closeSettings }}"
       class="lg:hidden absolute top-3 right-3 p-2 border-2 border-black bg-white hover:bg-black hover:text-white z-50"
     >
       <svg
@@ -760,6 +761,11 @@ block content %}
     if (rankingsTitle) rankingsTitle.textContent = t.seasonLeaders;
     const settingsBtnText = document.getElementById("settingsBtnText");
     if (settingsBtnText) settingsBtnText.textContent = t.settingsBtn;
+    const settingsSidebarClose = document.getElementById(
+      "settingsSidebarClose",
+    );
+    if (settingsSidebarClose)
+      settingsSidebarClose.setAttribute("aria-label", t.closeSettings);
     document.getElementById("einkBadge").textContent = t.einkBadge;
     document.getElementById("errorText").textContent = t.errorText;
     const loadingText = document.getElementById("loadingText");

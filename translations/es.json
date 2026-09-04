@@ -183,6 +183,7 @@
     "raceLabel": "Carrera",
     "yearLabel": "Temporada",
     "settingsBtn": "Ajustes",
+    "closeSettings": "Cerrar ajustes",
     "errorText": "ERROR AL CARGAR",
     "retryBtn": "REINTENTAR",
     "refreshBtn": "ACTUALIZAR",

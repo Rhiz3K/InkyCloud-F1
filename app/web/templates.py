@@ -78,6 +78,7 @@ def _build_configure_ui_text(translations: dict[str, Any]) -> dict[str, Any]:
         "raceLabel": configure.get("raceLabel", "Race"),
         "yearLabel": configure.get("yearLabel", "Season"),
         "settingsBtn": configure.get("settingsBtn", "Settings"),
+        "closeSettings": configure.get("closeSettings", "Close settings"),
         "errorText": configure.get("errorText", "FAILED TO LOAD"),
         "retryBtn": configure.get("retryBtn", "RETRY"),
         "refreshBtn": configure.get("refreshBtn", "REFRESH"),

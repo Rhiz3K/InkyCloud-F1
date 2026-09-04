@@ -183,6 +183,7 @@
     "raceLabel": "レース",
     "yearLabel": "シーズン",
     "settingsBtn": "設定",
+    "closeSettings": "設定を閉じる",
     "errorText": "読み込み失敗",
     "retryBtn": "再試行",
     "refreshBtn": "更新",

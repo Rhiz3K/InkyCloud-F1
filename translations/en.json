@@ -183,6 +183,7 @@
     "raceLabel": "Race",
     "yearLabel": "Season",
     "settingsBtn": "Settings",
+    "closeSettings": "Close settings",
     "errorText": "FAILED TO LOAD",
     "retryBtn": "RETRY",
     "refreshBtn": "REFRESH",

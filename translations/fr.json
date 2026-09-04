@@ -183,6 +183,7 @@
     "raceLabel": "Course",
     "yearLabel": "Saison",
     "settingsBtn": "Paramètres",
+    "closeSettings": "Fermer les paramètres",
     "errorText": "ÉCHEC DU CHARGEMENT",
     "retryBtn": "RÉESSAYER",
     "refreshBtn": "ACTUALISER",

@@ -183,6 +183,7 @@
     "raceLabel": "Corrida",
     "yearLabel": "Temporada",
     "settingsBtn": "Configurações",
+    "closeSettings": "Fechar configurações",
     "errorText": "FALHA AO CARREGAR",
     "retryBtn": "TENTAR DE NOVO",
     "refreshBtn": "ATUALIZAR",

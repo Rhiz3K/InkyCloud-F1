@@ -629,7 +629,12 @@ def test_configure_page_has_sidebar():
     response = client.get("/configure/calendar")
     html = response.text
     assert 'id="settingsSidebar"' in html
+    assert 'id="settingsSidebarClose"' in html
+    assert 'aria-label="Close settings"' in html
     assert "GitHub" in html
+
+    localized_html = client.get("/cs/configure/calendar").text
+    assert 'aria-label="Zavřít nastavení"' in localized_html
 
 
 def test_privacy_page_header_nav():
