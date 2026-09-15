@@ -1,7 +1,6 @@
 """Test renderer service."""
 
 from datetime import datetime, timedelta, timezone
-from hashlib import sha256
 from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -175,46 +174,37 @@ def mock_ranked_teams_data():
     )
 
 
-@pytest.mark.parametrize(
-    ("display", "calendar_hash", "teams_hash"),
-    [
-        (
-            "1bit",
-            "2650ed2bca8e79d91f4f03b59a472fbc702e60e070ba6151f9c4feda8140b1b6",
-            "b0ec1a3d41b48ada3963a2a24dbe937d8d7eb14c51182ecd78855adfbcffa570",
-        ),
-        (
-            "bwr",
-            "a5f9605c0a102654267c01680348ccfd4e5dac10902d5c7872fa4b66418ed392",
-            "b3580bbcda260d58572949d1fd0f328c8eaf0531294ab42394e8960ef061cfa8",
-        ),
-        (
-            "bwry",
-            "8a2ad75ab60dc36e94d8055128c42352237b201a71b7b04199fa63f7373d635f",
-            "d249ab66d019454df6b92859841a086b4786e94d6e0a0bb5d2f15926068cd578",
-        ),
-        (
-            "spectra6",
-            "c6f06ed40cd9f4190fa78960b031720f37723a203ac81ca4749b187df8ad91cf",
-            "4d504a91a75965799d7e05c9041447aa1be5f21349e781dd7a7073b6b8c74547",
-        ),
-    ],
-)
-def test_refactored_renderers_remain_byte_identical(
-    display,
-    calendar_hash,
-    teams_hash,
-    mock_race_data,
-    mock_historical_data,
-    mock_ranked_teams_data,
+@pytest.mark.parametrize("display", ["1bit", "bwr", "bwry", "spectra6"])
+def test_restored_artwork_preserves_display_contract(
+    display, mock_race_data, mock_historical_data, mock_ranked_teams_data
 ):
-    """Lock every display mode to the pre-refactor calendar and teams BMP bytes."""
     renderer = create_renderer(display, get_translator("en"), "en")
-
-    assert sha256(renderer.render_calendar(mock_race_data, mock_historical_data)).hexdigest() == (
-        calendar_hash
-    )
-    assert sha256(renderer.render_teams_drivers(mock_ranked_teams_data)).hexdigest() == teams_hash
+    for data in [
+        renderer.render_calendar(mock_race_data, mock_historical_data),
+        renderer.render_teams_drivers(mock_ranked_teams_data),
+    ]:
+        with Image.open(BytesIO(data)) as image:
+            assert image.size == (800, 480)
+            assert image.format == "BMP"
+            assert (
+                len(image.convert("RGB").getcolors(256))
+                <= {"1bit": 2, "bwr": 3, "bwry": 4, "spectra6": 6}[display]
+            )
+    assert set(renderer._team_logos) == {
+        "alpine",
+        "aston_martin",
+        "audi",
+        "cadillac",
+        "ferrari",
+        "haas",
+        "mclaren",
+        "mercedes",
+        "racing_bulls",
+        "red_bull",
+        "sauber",
+        "williams",
+    }
+    assert renderer._driver_photos == {}
 
 
 def test_render_calendar_english(mock_race_data):
@@ -1941,6 +1931,7 @@ def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch)
     renderer._ensure_teams_assets()
 
     assert renderer._team_logos["mclaren"].getpixel((0, 0))[:3] == (255, 135, 0)
+    assert renderer._driver_photos == {}
 
 
 def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch, mock_race_data):
@@ -1999,6 +1990,7 @@ def test_renderer_prefers_color_team_logo_assets_for_1bit_sizing(tmp_path, monke
     renderer._ensure_teams_assets()
 
     assert renderer._team_logos["mclaren"].size == (8, 4)
+    assert renderer._driver_photos == {}
 
 
 def test_spectra6_renderer_crops_audi_wordmark_to_primary_band():
@@ -2141,6 +2133,7 @@ def test_renderer_uses_monochrome_override_for_ferrari_in_1bit(tmp_path, monkeyp
     renderer._ensure_teams_assets()
 
     assert renderer._team_logos["ferrari"].getpixel((0, 0))[:3] == (0, 0, 0)
+    assert renderer._driver_photos == {}
 
 
 def test_renderer_uses_monochrome_override_for_red_bull_in_1bit(tmp_path, monkeypatch):
@@ -2163,6 +2156,7 @@ def test_renderer_uses_monochrome_override_for_red_bull_in_1bit(tmp_path, monkey
     renderer._ensure_teams_assets()
 
     assert renderer._team_logos["red_bull"].getpixel((0, 0))[:3] == (0, 0, 0)
+    assert renderer._driver_photos == {}
 
 
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])

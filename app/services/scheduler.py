@@ -12,6 +12,7 @@ from app.config import config
 from app.services.scheduler_generation import collect_and_generate as _collect_and_generate
 from app.services.scheduler_maintenance import (
     _historical_refresh_is_due,
+    cleanup_retained_stats,
 )
 from app.services.scheduler_maintenance import (
     flush_api_calls_to_db as _flush_api_calls_to_db,
@@ -239,14 +240,23 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
 
-    # Every minute: Flush API calls buffer to database
-    scheduler.add_job(
-        _flush_api_calls_to_db,
-        trigger=CronTrigger(second=0, timezone=timezone.utc),
-        id="flush_api_calls",
-        name="Flush API calls to database",
-        replace_existing=True,
-    )
+    if not config.MINIMAL_DATA_MODE:
+        # Every minute: Flush API calls buffer to database
+        scheduler.add_job(
+            _flush_api_calls_to_db,
+            trigger=CronTrigger(second=0, timezone=timezone.utc),
+            id="flush_api_calls",
+            name="Flush API calls to database",
+            replace_existing=True,
+        )
+
+        scheduler.add_job(
+            cleanup_retained_stats,
+            trigger=CronTrigger(minute=15, timezone=timezone.utc),
+            id="cleanup_retained_stats",
+            name="Enforce statistics retention",
+            replace_existing=True,
+        )
 
     # Hourly at :55: Fetch weather for all circuits (before image generation at :00)
     if config.WEATHER_ENABLED:
@@ -296,8 +306,9 @@ async def run_initial_generation() -> None:
     With the scheduler enabled, image generation runs before the historical catch-up and the
     all-circuit weather fetch: both can take minutes (or the full 90-minute refresh budget while
     Jolpica rate-limits), and the hourly job publishes whatever those later refreshes change.
-    Without the scheduler, weather is fetched before the only generation so fresh conditions are
-    included; the SQLite warm-up remains the fallback if that fetch fails. Failures in individual
+    Core images are published before optional weather and teams enrichment. Even without the
+    scheduler, next-race weather is fetched within the generation's total weather budget;
+    the SQLite warm-up remains the fallback if that fetch fails. Failures in individual
     steps are logged but don't stop subsequent steps.
     """
     logger.info("Running initial generation from static data")
@@ -307,12 +318,6 @@ async def run_initial_generation() -> None:
             await _load_weather_from_db()
         except Exception as e:
             logger.warning("Error loading weather from database: %s", e)
-
-        if not config.SCHEDULER_ENABLED:
-            try:
-                await _fetch_all_circuits_weather()
-            except Exception as e:
-                logger.error("Error fetching initial weather: %s", e, exc_info=True)
 
     try:
         await _collect_and_generate()

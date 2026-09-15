@@ -1,3 +1,4 @@
+{% include "configure/_track_options.html" %}
 <!-- Timezone - Mobile -->
 <div class="lg:hidden p-3 border-b-2 border-black" id="mobileTzContainer">
   <label class="block text-xs font-bold uppercase mb-2" id="tzLabelMobile" for="tzSelectMobile"
@@ -11,7 +12,7 @@
 </div>
 
 <!-- Timezone - Desktop (hidden on mobile via 'hidden', shown on lg+ via 'lg:flex') -->
-<div id="desktopTzContainer" class="hidden lg:flex flex-1 flex-col min-h-0">
+<div id="desktopTzContainer" class="hidden lg:flex flex-1 flex-col min-h-[280px] shrink-0">
   <div
     class="px-3 py-2 border-b-2 border-black bg-gray-50 flex-shrink-0 flex items-center justify-between gap-2"
   >

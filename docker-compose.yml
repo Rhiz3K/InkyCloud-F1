@@ -13,6 +13,9 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    # Do not persist stdout/stderr, including diagnostics from outside Python logging.
+    logging:
+      driver: "none"
     # The app runs as an unprivileged user and needs no Linux capabilities.
     security_opt:
       - no-new-privileges:true

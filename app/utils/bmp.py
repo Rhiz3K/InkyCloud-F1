@@ -5,9 +5,22 @@ from __future__ import annotations
 import struct
 from typing import TypeAlias
 
-from PIL import Image, ImageMath
+from PIL import Image, ImageChops, ImageMath
 
 RgbColor: TypeAlias = tuple[int, int, int]
+
+
+def preserve_neutral_colors(image: Image.Image, threshold: int = 200) -> Image.Image:
+    """Keep neutral track antialiasing black/white instead of nearest-palette blue."""
+    rgb = image.convert("RGB")
+    red, green, blue = rgb.split()
+    darkest = ImageChops.darker(ImageChops.darker(red, green), blue)
+    lightest = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+    neutral = ImageChops.subtract(lightest, darkest).point(lambda delta: 255 if delta <= 20 else 0)
+    white = rgb.convert("L").point(lambda value: 255 if value > threshold else 0)
+    rgb.paste((0, 0, 0), mask=neutral)
+    rgb.paste((255, 255, 255), mask=ImageChops.multiply(neutral, white))
+    return rgb
 
 
 def _build_palette_image(palette: list[RgbColor]) -> Image.Image:

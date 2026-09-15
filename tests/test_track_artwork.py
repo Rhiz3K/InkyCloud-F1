@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from hashlib import sha256
 from pathlib import Path
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
 import pytest
 from PIL import Image, ImageDraw
@@ -233,6 +233,7 @@ def test_all_pngs_are_encoded_before_bundle_publication(tmp_path, monkeypatch):
 def test_encode_png_wraps_pillow_failures(error):
     """PNG staging should expose Pillow failures as actionable artwork errors."""
     image = Mock(spec=Image.Image)
+    image.info = {}
     image.save.side_effect = error
 
     with pytest.raises(artwork.TrackArtworkError, match=str(error)):
@@ -520,7 +521,7 @@ def test_manifest_and_png_decoders_reject_non_objects_and_corruption(tmp_path):
     source = tmp_path / "corrupt.png"
     source.write_bytes(b"\x89PNG\r\n\x1a\ncorrupt")
     _write_manifest(manifest, sha256(source.read_bytes()).hexdigest())
-    with pytest.raises(artwork.TrackArtworkError, match="Invalid PNG source"):
+    with pytest.raises(artwork.TrackArtworkError, match="Invalid PNG/WebP source"):
         artwork.import_track_artwork(
             source,
             "test_track",
@@ -529,48 +530,7 @@ def test_manifest_and_png_decoders_reject_non_objects_and_corruption(tmp_path):
         )
 
 
-def test_manage_import_routes_local_source_and_optionally_preprocesses(monkeypatch, tmp_path):
-    """The CLI should import once and regenerate all four existing runtime palettes on request."""
-    source = tmp_path / "download.png"
-    manifest = tmp_path / "sources.json"
-    result = artwork.TrackImportResult(
-        circuit_id="test_track",
-        source_sha256="a" * 64,
-        source_dimensions=(3840, 2160),
-        output_dimensions=(1252, 704),
-        output_paths=(),
-        sector_pixels=(10, 20, 30),
-    )
-    importer = Mock(return_value=result)
-    preprocessor = Mock()
-    monkeypatch.setattr(manage, "import_track_artwork", importer)
-    monkeypatch.setattr(manage, "preprocess_tracks", preprocessor)
-
-    assert (
-        manage.main(
-            [
-                "import",
-                "track",
-                "--source",
-                str(source),
-                "--circuit",
-                "test_track",
-                "--manifest",
-                str(manifest),
-                "--expected-sha256",
-                "A" * 64,
-                "--preprocess",
-            ]
-        )
-        == 0
-    )
-
-    importer.assert_called_once_with(
-        source,
-        "test_track",
-        manifest_path=manifest,
-        expected_sha256="A" * 64,
-    )
-    assert preprocessor.call_args_list == [
-        call(palette, ["test_track"]) for palette in manage.PREPROCESS_PALETTES
-    ]
+def test_public_cli_rejects_retired_import():
+    with pytest.raises(SystemExit) as error:
+        manage.main(["import", "track", "--source", "old.png", "--circuit", "monza"])
+    assert error.value.code == 2

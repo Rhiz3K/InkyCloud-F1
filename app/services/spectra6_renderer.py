@@ -16,7 +16,7 @@ from app.services.renderer_assets import (
 )
 from app.services.renderer_base import RendererBase
 from app.services.renderer_theme import make_color_theme
-from app.utils.bmp import quantize_to_palette
+from app.utils.bmp import preserve_neutral_colors, quantize_to_palette
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +57,8 @@ SPECTRA6_THEME = make_color_theme(
     track_directory=lambda: TRACKS_SPECTRA6_DIR,
     flags_directories=lambda: FLAGS_DIR,
     images_directory=lambda: IMAGES_DIR,
-    prepare_track_image=lambda image, width, height, _logger: prepare_color_track_image(
-        image, width, height
+    prepare_track_image=lambda image, width, height, _logger: preserve_neutral_colors(
+        prepare_color_track_image(image, width, height)
     ),
 )
 

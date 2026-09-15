@@ -12,7 +12,7 @@ from app.config import config
 
 RATE_LIMIT_WINDOW_SECONDS = 60
 _RATE_LIMIT_BUCKETS: TTLCache[str, tuple[float, int]] = TTLCache(
-    maxsize=10_000, ttl=RATE_LIMIT_WINDOW_SECONDS * 2
+    maxsize=10_000, ttl=RATE_LIMIT_WINDOW_SECONDS
 )
 
 
@@ -28,11 +28,15 @@ def _get_client_identifier(request: Request) -> str:
 
 
 def enforce_rate_limit(request: Request, *, bucket: str, limit: int) -> None:
-    """Raise HTTP 429 when a client exceeds the configured per-minute quota."""
+    """Limit load globally in minimal mode, otherwise per proxy-validated client."""
     if not config.RATE_LIMIT_ENABLED or limit <= 0:
         return
 
-    client_id = _get_client_identifier(request)
+    client_id = (
+        "shared"
+        if config.MINIMAL_DATA_MODE or config.AGGREGATE_STATS_ONLY
+        else _get_client_identifier(request)
+    )
     cache_key = f"{bucket}:{client_id}"
     now = time.monotonic()
     window_started_at, current_count = _RATE_LIMIT_BUCKETS.get(cache_key, (now, 0))

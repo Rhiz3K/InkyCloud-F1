@@ -44,7 +44,7 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
       {{ t.get("privacy_title", "Privacy Policy") }}
     </h1>
     <p class="text-xs text-gray-500 mb-6 font-mono">
-      {{ t.get("privacy_last_updated", "Last updated") }}: 2026-01-01
+      {{ t.get("privacy_last_updated", "Last updated") }}: 2026-09-11
     </p>
 
     <!-- Introduction -->
@@ -68,19 +68,17 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
         {{ t.get("privacy_data_title", "Data We Collect") }}
       </h2>
       <p class="text-sm mb-3">
-        {{ t.get("privacy_data_text", "We collect minimal data necessary for
-        operation:") }}
+        {{ t.privacy_off if minimal_data_mode else t.privacy_data_text }}
       </p>
       <ul class="text-sm space-y-2 ml-4">
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
-          t.get("privacy_data_usage", "Usage Data: Privacy-friendly analytics.")
+          t.privacy_data_usage.format(retention=legal_config.STATS_RETENTION_DAYS)
           }}
         </li>
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
-          t.get("privacy_data_webvitals", "Performance Metrics: Anonymous Core
-          Web Vitals.") }}
+          t.privacy_data_webvitals.format(sample=(perf_sample_rate * 100) | round(1), perf_retention=[legal_config.RAW_STATS_RETENTION_DAYS, legal_config.STATS_RETENTION_DAYS] | min) }}
         </li>
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{

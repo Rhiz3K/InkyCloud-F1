@@ -30,6 +30,14 @@ runs:
       shell: bash
       run: uv run --locked ruff check .
 
+    - name: Verify reviewed open track catalogue
+      shell: bash
+      run: uv run --locked python scripts/build_track_catalog.py --check
+
+    - name: Verify active calendars have both track sources
+      shell: bash
+      run: uv run --locked python scripts/check_track_assets.py
+
     - name: Type-check application
       shell: bash
       run: uv run --locked mypy
@@ -37,6 +45,26 @@ runs:
     - name: Verify documentation coverage
       shell: bash
       run: uv run --locked interrogate -c pyproject.toml app scripts
+
+    - name: Set up Node.js for browser checks
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: "24"
+        cache: npm
+
+    - name: Verify browser assets and behavior
+      shell: bash
+      run: |
+        npm ci
+        npm run check:js
+        npm run test:js
+
+    - name: Verify release asset inventory and provenance
+      shell: bash
+      run: |
+        uv run --locked python scripts/check_legal_assets.py
+        uv build --out-dir dist/legal-check
+        uv run --locked python scripts/check_legal_assets.py dist/legal-check/*
 
     - name: Run tests
       shell: bash
@@ -58,5 +86,30 @@ runs:
       shell: bash
       run: |
         docker build -t f1-eink-cal:test .
-        docker run --rm --entrypoint python --workdir /tmp f1-eink-cal:test \
-          -c "from app.services import asset_preprocessing, scheduler_maintenance; assert 'mono' in asset_preprocessing.PREPROCESS_PALETTES; assert scheduler_maintenance.refresh_historical_results.__module__ == 'app.services.scheduler_maintenance'"
+        docker run --rm -i --entrypoint python --workdir /tmp f1-eink-cal:test - <<'PY'
+        import hashlib, json
+        from io import BytesIO
+        from PIL import Image
+        from app.paths import ASSETS_DIR
+        from app.services import asset_preprocessing, scheduler_maintenance
+        from app.services.track_catalog import load_track_catalog, TrackOptions, TrackSource
+        from app.services.track_renderer import render_track_png
+        register = json.loads((ASSETS_DIR / 'asset-register.json').read_text())['assets']
+        files = {str(p.relative_to(ASSETS_DIR)): p for p in ASSETS_DIR.rglob('*')
+                 if p.is_file() and p.name != 'asset-register.json'}
+        assert files.keys() == register.keys()
+        for name, path in files.items():
+            assert hashlib.sha256(path.read_bytes()).hexdigest() == register[name]['sha256'], name
+        assert not list(ASSETS_DIR.glob('tracks_*'))
+        assert (ASSETS_DIR / 'licenses' / 'THIRD_PARTY_NOTICES.txt').is_file()
+        assert 'mono' in asset_preprocessing.PREPROCESS_PALETTES
+        assert scheduler_maintenance.refresh_historical_results.__module__ == 'app.services.scheduler_maintenance'
+        assert len(load_track_catalog()['geometries']) == 52
+        assert (ASSETS_DIR / 'track_art' / 'JULES-LICENSE.txt').is_file()
+        for source in TrackSource:
+            data = render_track_png('albert_park', TrackOptions(source=source), 'spectra6',
+                                    494, 271, 'https://example.org/credits')
+            with Image.open(BytesIO(data)) as image:
+                assert image.width <= 494 and image.height <= 271
+                assert 'Attribution' in image.info
+        PY

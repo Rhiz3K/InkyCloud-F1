@@ -6,6 +6,12 @@ CIRCUIT_ID_MAP: dict[str, str] = {
     "vegas": "las_vegas",  # API uses 'vegas', we use 'las_vegas'
 }
 
+
+def canonical_circuit_id(circuit_id: str) -> str:
+    """Resolve provider aliases to the circuit IDs used by bundled data and artwork."""
+    return CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
+
+
 COUNTRY_MAP: dict[str, str] = {
     "Australia": "au",
     "Austria": "at",

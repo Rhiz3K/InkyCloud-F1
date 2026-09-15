@@ -85,7 +85,7 @@ class Config(BaseSettings):
     )
     DEBUG: bool = Field(False, description="Enable debug logging")
     SITE_URL: str = Field(
-        "https://f1.inkycloud.click",
+        "http://localhost:8000",
         description="Base URL for the site (used in SEO meta tags, sitemap, etc.)",
     )
     FORWARDED_ALLOW_IPS: str = Field(
@@ -97,10 +97,33 @@ class Config(BaseSettings):
         description="Skip the persistent volume safety check on startup",
     )
 
+    MINIMAL_DATA_MODE: bool = Field(
+        False, description="Explicit opt-out from all usage statistics and optional telemetry"
+    )
+    AGGREGATE_STATS_ONLY: bool = Field(
+        True,
+        description="Keep hourly usage totals and performance histograms, never visitor records",
+    )
+    PERF_METRICS_SAMPLE_RATE: float = Field(0.1, ge=0, le=1)
+
+    # Public operator details must be supplied before public deployment.
+    OPERATOR_NAME: str = Field("", description="Public name of the data controller")
+    PRIVACY_CONTACT_EMAIL: str = Field("", description="Public contact for privacy and corrections")
+    HOSTING_DETAILS: str = Field("Hetzner, Germany", description="Hosting provider and country")
+    MONITORING_DETAILS: str = Field("", description="Monitoring provider, country and retention")
+    BACKUP_DETAILS: str = Field("", description="Backup provider and country")
+    HETZNER_DPA_CONFIRMED: bool = Field(
+        False, description="Operator has verified the processor agreement"
+    )
+    RAW_STATS_RETENTION_DAYS: int = Field(30, gt=0, le=400)
+
     # Sentry/GlitchTip settings
+    SENTRY_ENABLED: bool = Field(
+        True, description="Enable scrubbed error monitoring when a DSN is configured"
+    )
     SENTRY_DSN: Optional[str] = Field(default=None, description="Sentry DSN")
     SENTRY_ENVIRONMENT: str = Field("production", description="Sentry environment name")
-    SENTRY_TRACES_SAMPLE_RATE: float = Field(0.1, ge=0.0, le=1.0, description="Tracing sample rate")
+    SENTRY_TRACES_SAMPLE_RATE: float = Field(0.0, ge=0.0, le=1.0, description="Tracing sample rate")
 
     # Umami Analytics settings
     UMAMI_WEBSITE_ID: Optional[str] = Field(default=None, description="Umami website identifier")
@@ -186,13 +209,14 @@ class Config(BaseSettings):
         gt=0,
         description="Maximum wall-clock runtime for one historical refresh",
     )
+    WEATHER_ENRICHMENT_TIMEOUT_SECONDS: int = Field(15, gt=0)
+    TEAMS_ENRICHMENT_TIMEOUT_SECONDS: int = Field(30, gt=0)
     STATS_RETENTION_DAYS: int = Field(
         400,
-        ge=0,
+        gt=0,
         description=(
             "Days to retain API/request/performance statistics. Default 400 preserves the full "
-            "365-day dashboard while bounding database and backup growth; set 0 to retain "
-            "history forever"
+            "365-day dashboard while bounding database and backup growth"
         ),
     )
 
@@ -213,7 +237,9 @@ class Config(BaseSettings):
     # Backup settings
     BACKUP_ENABLED: bool = Field(False, description="Toggle S3 database backup")
     BACKUP_CRON: str = Field("0 3 * * *", description="Cron expression for backup schedule")
-    BACKUP_RETENTION_DAYS: int = Field(30, ge=0, description="Days to retain backups (0=disabled)")
+    BACKUP_RETENTION_DAYS: int = Field(
+        30, gt=0, description="Days to retain backups; must be positive"
+    )
 
     # S3 settings (for backup)
     S3_ENDPOINT_URL: Optional[str] = Field(default=None, description="S3-compatible endpoint URL")
@@ -258,6 +284,8 @@ class Config(BaseSettings):
         "JOLPICA_BURST_CAPACITY",
         "JOLPICA_MAX_RETRIES",
         "HISTORICAL_REFRESH_TIMEOUT_SECONDS",
+        "WEATHER_ENRICHMENT_TIMEOUT_SECONDS",
+        "TEAMS_ENRICHMENT_TIMEOUT_SECONDS",
         "IMAGE_RATE_LIMIT_PER_MINUTE",
         "PERF_METRICS_RATE_LIMIT_PER_MINUTE",
         "DATA_API_RATE_LIMIT_PER_MINUTE",
@@ -367,29 +395,31 @@ class Config(BaseSettings):
                 default = "http://localhost:8000"
             return _warn_invalid(info.field_name, value, default, "must be a valid URL")
 
-    @field_validator("BACKUP_RETENTION_DAYS", "STATS_RETENTION_DAYS", mode="before")
+    @field_validator(
+        "BACKUP_RETENTION_DAYS", "STATS_RETENTION_DAYS", "RAW_STATS_RETENTION_DAYS", mode="before"
+    )
     @classmethod
     def validate_retention_days(cls, value: object, info: ValidationInfo) -> int:
         """
-        Validate and coerce a retention-days setting to a non-negative integer.
+        Validate a bounded retention period; zero must never mean keep forever.
 
         Parameters:
             value: Raw input to validate and convert to an integer.
             info: Validator context for field name and default. Falls back to 30.
 
         Returns:
-            int: Parsed integer >= 0, or field default after logging a warning.
+            int: An integer from 1 to 400, or the field default after a warning.
         """
         if info.field_name is None:
             return 30
         default: int = cls.model_fields[info.field_name].default
         try:
             days = int(value)  # type: ignore[call-overload]
-            if days >= 0:
+            if 0 < days <= 400:
                 return days
         except TypeError, ValueError:
             pass
-        return _warn_invalid(info.field_name, value, default, "must be a non-negative integer")
+        return _warn_invalid(info.field_name, value, default, "must be an integer from 1 to 400")
 
     @field_validator("S3_ENDPOINT_URL", mode="before")
     @classmethod

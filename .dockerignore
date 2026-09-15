@@ -25,7 +25,7 @@ MANIFEST
 
 # Virtual environments
 .env
-.env.local
+.env.*
 .venv
 env/
 venv/
@@ -89,9 +89,28 @@ artwork/
 quickstart.sh
 node_modules/
 data/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
 
 # Build artifacts
 *.pyc
 *.pyo
 *.pyd
 f1_eink_cal.egg-info/
+
+# Non-distributed working material and retired assets
+tmp/
+output/
+docs/
+.playwright-cli/
+app/assets/tracks*/
+app/assets/images/drivers/
+
+!DATA_LICENSES.md
+!THIRD_PARTY_NOTICES.md
+!TRACK_ARTWORK.md
+assets/

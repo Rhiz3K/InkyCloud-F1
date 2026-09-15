@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir --require-hashes --prefix=/install \
 COPY pyproject.toml setup.py MANIFEST.in README.md ./
 COPY app/ ./app/
 COPY translations/ ./translations/
-COPY CHANGELOG.md LICENSE ./
+COPY CHANGELOG.md LICENSE DATA_LICENSES.md THIRD_PARTY_NOTICES.md TRACK_ARTWORK.md ./
 RUN pip install --no-cache-dir --no-deps --prefix=/install --no-warn-script-location .
 
 # ============================================
@@ -81,4 +81,4 @@ ENV PYTHONUNBUFFERED=1 \
     FORWARDED_ALLOW_IPS=127.0.0.1
 
 # Run application
-CMD ["sh", "-c", "exec uvicorn app.main:app --host \"${APP_HOST}\" --port \"${APP_PORT}\" --proxy-headers --forwarded-allow-ips=\"${FORWARDED_ALLOW_IPS}\""]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host \"${APP_HOST}\" --port \"${APP_PORT}\" --no-access-log --proxy-headers --forwarded-allow-ips=\"${FORWARDED_ALLOW_IPS}\""]

@@ -243,5 +243,14 @@
         }
       ]
     }
-  ]
+  ],
+  "_provenance": {
+    "source": "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship",
+    "authors": "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship?action=history",
+    "license": "CC-BY-SA-4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "changes": "Selected team table fields; normalized names and JSON structure; manual driver corrections",
+    "original_revision": "not recorded by legacy importer; do not invent a revision",
+    "reviewed_on": "2026-09-09"
+  }
 }

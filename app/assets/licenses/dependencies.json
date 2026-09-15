@@ -1,0 +1,415 @@
+[
+  {
+    "name": "uvicorn",
+    "version": "0.49.0",
+    "license": "BSD-3-Clause",
+    "source": "Changelog, https://uvicorn.dev/release-notes",
+    "files": [
+      "licenses/dependencies/uvicorn--licenses--LICENSE.md"
+    ]
+  },
+  {
+    "name": "resvg_py",
+    "version": "0.5.0",
+    "license": "See bundled distribution notices",
+    "source": "Documentation, https://resvg-py.readthedocs.io/",
+    "files": [
+      "licenses/dependencies/resvg-py--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "httpcore",
+    "version": "1.0.9",
+    "license": "BSD-3-Clause",
+    "source": "Documentation, https://www.encode.io/httpcore",
+    "files": [
+      "licenses/dependencies/httpcore--licenses--LICENSE.md"
+    ]
+  },
+  {
+    "name": "cachetools",
+    "version": "7.1.4",
+    "license": "MIT",
+    "source": "Homepage, https://github.com/tkem/cachetools/",
+    "files": [
+      "licenses/dependencies/cachetools--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "botocore",
+    "version": "1.43.26",
+    "license": "Apache-2.0",
+    "source": "https://github.com/boto/botocore",
+    "files": [
+      "licenses/dependencies/botocore--LICENSE.txt",
+      "licenses/dependencies/botocore--NOTICE"
+    ]
+  },
+  {
+    "name": "watchfiles",
+    "version": "1.2.0",
+    "license": "MIT",
+    "source": "https://github.com/samuelcolvin/watchfiles",
+    "files": [
+      "licenses/dependencies/watchfiles--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "idna",
+    "version": "3.18",
+    "license": "BSD-3-Clause",
+    "source": "Changelog, https://github.com/kjd/idna/blob/master/HISTORY.md",
+    "files": [
+      "licenses/dependencies/idna--licenses--LICENSE.md"
+    ]
+  },
+  {
+    "name": "anyio",
+    "version": "4.13.0",
+    "license": "MIT",
+    "source": "Documentation, https://anyio.readthedocs.io/en/latest/",
+    "files": [
+      "licenses/dependencies/anyio--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "Markdown",
+    "version": "3.10.2",
+    "license": "BSD-3-Clause",
+    "source": "Homepage, https://Python-Markdown.github.io/",
+    "files": [
+      "licenses/dependencies/markdown--licenses--LICENSE.md"
+    ]
+  },
+  {
+    "name": "s3transfer",
+    "version": "0.18.0",
+    "license": "Apache License 2.0",
+    "source": "https://github.com/boto/s3transfer",
+    "files": [
+      "licenses/dependencies/s3transfer--LICENSE.txt",
+      "licenses/dependencies/s3transfer--NOTICE.txt"
+    ]
+  },
+  {
+    "name": "starlette",
+    "version": "1.3.1",
+    "license": "BSD-3-Clause",
+    "source": "Homepage, https://github.com/Kludex/starlette",
+    "files": [
+      "licenses/dependencies/starlette--licenses--LICENSE.md"
+    ]
+  },
+  {
+    "name": "httptools",
+    "version": "0.8.0",
+    "license": "MIT",
+    "source": "Homepage, https://github.com/MagicStack/httptools",
+    "files": [
+      "licenses/dependencies/httptools--licenses--LICENSE",
+      "licenses/dependencies/httptools--licenses--vendor--http-parser--LICENSE-MIT",
+      "licenses/dependencies/httptools--licenses--vendor--llhttp--LICENSE"
+    ]
+  },
+  {
+    "name": "boto3",
+    "version": "1.43.26",
+    "license": "Apache-2.0",
+    "source": "https://github.com/boto/boto3",
+    "files": [
+      "licenses/dependencies/boto3--LICENSE",
+      "licenses/dependencies/boto3--NOTICE"
+    ]
+  },
+  {
+    "name": "beautifulsoup4",
+    "version": "4.15.0",
+    "license": "MIT License",
+    "source": "Download, https://www.crummy.com/software/BeautifulSoup/bs4/download/",
+    "files": [
+      "licenses/dependencies/beautifulsoup4--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "pydantic",
+    "version": "2.13.4",
+    "license": "MIT",
+    "source": "Homepage, https://github.com/pydantic/pydantic",
+    "files": [
+      "licenses/dependencies/pydantic--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "pydantic-settings",
+    "version": "2.14.2",
+    "license": "MIT",
+    "source": "Homepage, https://github.com/pydantic/pydantic-settings",
+    "files": [
+      "licenses/dependencies/pydantic-settings--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "uvloop",
+    "version": "0.22.1",
+    "license": "MIT License",
+    "source": "github, https://github.com/MagicStack/uvloop",
+    "files": [
+      "licenses/dependencies/uvloop--licenses--LICENSE-APACHE",
+      "licenses/dependencies/uvloop--licenses--LICENSE-MIT"
+    ]
+  },
+  {
+    "name": "PyYAML",
+    "version": "6.0.3",
+    "license": "MIT",
+    "source": "https://pyyaml.org/",
+    "files": [
+      "licenses/dependencies/pyyaml--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "pydantic_core",
+    "version": "2.46.4",
+    "license": "MIT",
+    "source": "https://github.com/pydantic/pydantic",
+    "files": [
+      "licenses/dependencies/pydantic-core--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "soupsieve",
+    "version": "2.8.4",
+    "license": "MIT",
+    "source": "Homepage, https://github.com/facelessuser/soupsieve",
+    "files": [
+      "licenses/dependencies/soupsieve--licenses--LICENSE.md"
+    ]
+  },
+  {
+    "name": "colorama",
+    "version": "0.4.6",
+    "license": "See bundled distribution notices",
+    "source": "Homepage, https://github.com/tartley/colorama",
+    "files": [
+      "licenses/dependencies/colorama--licenses--LICENSE.txt"
+    ]
+  },
+  {
+    "name": "six",
+    "version": "1.17.0",
+    "license": "MIT",
+    "source": "https://github.com/benjaminp/six",
+    "files": [
+      "licenses/dependencies/six--LICENSE"
+    ]
+  },
+  {
+    "name": "aiofiles",
+    "version": "25.1.0",
+    "license": "Apache-2.0",
+    "source": "Changelog, https://github.com/Tinche/aiofiles#history",
+    "files": [
+      "licenses/dependencies/aiofiles--licenses--LICENSE",
+      "licenses/dependencies/aiofiles--licenses--NOTICE"
+    ]
+  },
+  {
+    "name": "python-dateutil",
+    "version": "2.9.0.post0",
+    "license": "Dual License",
+    "source": "https://github.com/dateutil/dateutil",
+    "files": [
+      "licenses/dependencies/python-dateutil--LICENSE"
+    ]
+  },
+  {
+    "name": "lxml",
+    "version": "6.1.1",
+    "license": "BSD-3-Clause",
+    "source": "https://lxml.de/",
+    "files": [
+      "licenses/dependencies/lxml--licenses--LICENSE.txt",
+      "licenses/dependencies/lxml--licenses--LICENSES.txt"
+    ]
+  },
+  {
+    "name": "typing_extensions",
+    "version": "4.15.0",
+    "license": "PSF-2.0",
+    "source": "Bug Tracker, https://github.com/python/typing_extensions/issues",
+    "files": [
+      "licenses/dependencies/typing-extensions--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "certifi",
+    "version": "2026.5.20",
+    "license": "MPL-2.0",
+    "source": "https://github.com/certifi/python-certifi",
+    "files": [
+      "licenses/dependencies/certifi--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "typing-inspection",
+    "version": "0.4.2",
+    "license": "MIT",
+    "source": "Homepage, https://github.com/pydantic/typing-inspection",
+    "files": [
+      "licenses/dependencies/typing-inspection--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "sentry-sdk",
+    "version": "2.62.0",
+    "license": "MIT",
+    "source": "https://github.com/getsentry/sentry-python",
+    "files": [
+      "licenses/dependencies/sentry-sdk--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "aiosqlite",
+    "version": "0.22.1",
+    "license": "See bundled distribution notices",
+    "source": "Documentation, https://aiosqlite.omnilib.dev",
+    "files": [
+      "licenses/dependencies/aiosqlite--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "annotated-doc",
+    "version": "0.0.4",
+    "license": "MIT",
+    "source": "Homepage, https://github.com/fastapi/annotated-doc",
+    "files": [
+      "licenses/dependencies/annotated-doc--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "h11",
+    "version": "0.16.0",
+    "license": "MIT",
+    "source": "https://github.com/python-hyper/h11",
+    "files": [
+      "licenses/dependencies/h11--licenses--LICENSE.txt"
+    ]
+  },
+  {
+    "name": "urllib3",
+    "version": "2.7.0",
+    "license": "MIT",
+    "source": "Changelog, https://github.com/urllib3/urllib3/blob/main/CHANGES.rst",
+    "files": [
+      "licenses/dependencies/urllib3--licenses--LICENSE.txt"
+    ]
+  },
+  {
+    "name": "fastapi",
+    "version": "0.136.3",
+    "license": "MIT",
+    "source": "Homepage, https://github.com/fastapi/fastapi",
+    "files": [
+      "licenses/dependencies/fastapi--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "httpx",
+    "version": "0.28.1",
+    "license": "BSD-3-Clause",
+    "source": "Changelog, https://github.com/encode/httpx/blob/master/CHANGELOG.md",
+    "files": [
+      "licenses/dependencies/httpx--licenses--LICENSE.md"
+    ]
+  },
+  {
+    "name": "jmespath",
+    "version": "1.1.0",
+    "license": "MIT",
+    "source": "https://github.com/jmespath/jmespath.py",
+    "files": [
+      "licenses/dependencies/jmespath--LICENSE"
+    ]
+  },
+  {
+    "name": "Jinja2",
+    "version": "3.1.6",
+    "license": "See bundled distribution notices",
+    "source": "Changes, https://jinja.palletsprojects.com/changes/",
+    "files": [
+      "licenses/dependencies/jinja2--licenses--LICENSE.txt"
+    ]
+  },
+  {
+    "name": "websockets",
+    "version": "16.0",
+    "license": "BSD-3-Clause",
+    "source": "Homepage, https://github.com/python-websockets/websockets",
+    "files": [
+      "licenses/dependencies/websockets--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "pillow",
+    "version": "12.3.0",
+    "license": "MIT-CMU",
+    "source": "Release notes, https://pillow.readthedocs.io/en/stable/releasenotes/index.html",
+    "files": [
+      "licenses/dependencies/pillow--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "tzlocal",
+    "version": "5.3.1",
+    "license": "MIT",
+    "source": "Source code, https://github.com/regebro/tzlocal",
+    "files": [
+      "licenses/dependencies/tzlocal--LICENSE.txt"
+    ]
+  },
+  {
+    "name": "python-dotenv",
+    "version": "1.2.2",
+    "license": "BSD-3-Clause",
+    "source": "Source, https://github.com/theskumar/python-dotenv",
+    "files": [
+      "licenses/dependencies/python-dotenv--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "annotated-types",
+    "version": "0.7.0",
+    "license": "See bundled distribution notices",
+    "source": "Homepage, https://github.com/annotated-types/annotated-types",
+    "files": [
+      "licenses/dependencies/annotated-types--licenses--LICENSE"
+    ]
+  },
+  {
+    "name": "MarkupSafe",
+    "version": "3.0.3",
+    "license": "BSD-3-Clause",
+    "source": "Donate, https://palletsprojects.com/donate",
+    "files": [
+      "licenses/dependencies/markupsafe--licenses--LICENSE.txt"
+    ]
+  },
+  {
+    "name": "click",
+    "version": "8.4.1",
+    "license": "BSD-3-Clause",
+    "source": "Changes, https://click.palletsprojects.com/page/changes/",
+    "files": [
+      "licenses/dependencies/click--licenses--LICENSE.txt"
+    ]
+  },
+  {
+    "name": "APScheduler",
+    "version": "3.11.2",
+    "license": "MIT",
+    "source": "Documentation, https://apscheduler.readthedocs.io/en/3.x/",
+    "files": [
+      "licenses/dependencies/apscheduler--licenses--LICENSE.txt"
+    ]
+  }
+]

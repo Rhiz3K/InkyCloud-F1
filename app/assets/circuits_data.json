@@ -58,6 +58,20 @@
           "time": "+15.519"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "shanghai": {
@@ -119,6 +133,20 @@
           "time": "+25.267"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "suzuka": {
@@ -180,6 +208,20 @@
           "time": "+15.270"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "bahrain": {
@@ -241,6 +283,20 @@
           "time": "+16.273"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "jeddah": {
@@ -302,6 +358,20 @@
           "time": "+8.104"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "miami": {
@@ -363,6 +433,20 @@
           "time": "+27.092"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "villeneuve": {
@@ -424,6 +508,20 @@
           "time": "+11.276"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "monaco": {
@@ -485,6 +583,20 @@
           "time": "+20.369"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "catalunya": {
@@ -546,6 +658,20 @@
           "time": "+23.719"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "red_bull_ring": {
@@ -607,6 +733,20 @@
           "time": "+1.986"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "silverstone": {
@@ -668,6 +808,20 @@
           "time": "+0.772"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "spa": {
@@ -729,6 +883,20 @@
           "time": "+20.185"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "hungaroring": {
@@ -790,6 +958,20 @@
           "time": "+21.916"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "zandvoort": {
@@ -851,6 +1033,20 @@
           "time": "+3.233"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "monza": {
@@ -912,18 +1108,58 @@
           "time": "+21.351"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "madring": {
     "race_name": "Spanish Grand Prix",
     "url_slug": "spain",
-    "circuit_length": "5.474km",
+    "circuit_length": "5.414km",
     "first_grand_prix": "2026",
-    "number_of_laps": null,
-    "race_distance": null,
+    "number_of_laps": 57,
+    "race_distance": "308.399km",
     "fastest_lap_time": null,
     "fastest_lap_driver": null,
-    "fastest_lap_year": null
+    "fastest_lap_year": null,
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/",
+        "verification": {
+          "source": "https://www.formula1.com/en/racing/2026/spain",
+          "fields": [
+            "circuit_length",
+            "first_grand_prix",
+            "number_of_laps",
+            "race_distance",
+            "fastest_lap_time"
+          ],
+          "checked_on": "2026-09-11",
+          "changes": "Manually checked current event facts; replaces the obsolete 5.474km plan. No race lap record is published before the inaugural Grand Prix."
+        }
+      }
+    }
   },
   "baku": {
     "race_name": "Azerbaijan Grand Prix",
@@ -984,6 +1220,20 @@
           "time": "+19.199"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "marina_bay": {
@@ -1045,6 +1295,20 @@
           "time": "+6.066"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "americas": {
@@ -1106,6 +1370,20 @@
           "time": "+15.373"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "rodriguez": {
@@ -1167,6 +1445,20 @@
           "time": "+31.049"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "interlagos": {
@@ -1228,6 +1520,20 @@
           "time": "+10.750"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "las_vegas": {
@@ -1289,6 +1595,20 @@
           "time": "+30.488"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "losail": {
@@ -1350,6 +1670,20 @@
           "time": "+22.665"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "yas_marina": {
@@ -1411,6 +1745,20 @@
           "time": "+16.572"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
     }
   },
   "imola": {
@@ -1472,6 +1820,39 @@
           "time": "+12.956"
         }
       ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical",
+      "supplementary": {
+        "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/circuits_data.json",
+        "license": "LicenseRef-Legacy-Circuit-Facts-Unverified",
+        "changes": "Legacy factual values retained from the recorded project snapshot; no new scraping or open-licence claim",
+        "reviewed_on": "2026-09-11",
+        "upstream_source": "https://www.formula1.com/"
+      }
+    }
+  },
+  "sepang": {
+    "race_name": "Bahrain Grand Prix in Malaysia",
+    "url_slug": null,
+    "circuit_length": null,
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "race_distance": null,
+    "fastest_lap_time": null,
+    "fastest_lap_driver": null,
+    "fastest_lap_year": null,
+    "historical": null,
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "changes": "Historical result tables retained from the Jolpica refresher; supplementary facts have separate provenance when available",
+      "scope": "historical"
     }
   }
 }

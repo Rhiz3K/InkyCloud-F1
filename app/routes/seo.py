@@ -73,6 +73,8 @@ async def sitemap_xml() -> Response:
     urls: list[str] = []
 
     for page in SITEMAP_PAGES:
+        if config.MINIMAL_DATA_MODE and page.path == "/stats":
+            continue
         for lang in LANGUAGE_CODES:
             path = _localized_path(page.path, lang)
             url_loc = _absolute_url(site_url, path)

@@ -12,13 +12,16 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from PIL import Image, ImageChops, ImageDraw
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
+from PIL.PngImagePlugin import PngInfo
 
 from app.services.bwr_renderer import BwrColors
 from app.services.bwry_renderer import BwryColors
 from app.services.spectra6_renderer import Spectra6Colors
 from app.services.track_assets import (
     TRACK_BUNDLE_VARIANTS,
+    TRACK_PROCESSING_PROFILE,
+    TRACK_PROCESSING_PROFILE_KEY,
     encode_track_bundle_marker,
     track_bundle_marker_path,
     track_bundle_paths,
@@ -45,7 +48,15 @@ class SectorBoundary:
     """Normalized location and orientation for a sector separator."""
 
     at: tuple[float, float]
-    normal_degrees: float
+    normal_degrees: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TrackCallout:
+    """Reviewed overlay rectangle and text, following the editable PSD callout layers."""
+
+    box: tuple[float, float, float, float]
+    text: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +73,7 @@ class TrackSourceEntry:
     source_profile: str
     sector_boundaries: tuple[SectorBoundary, ...]
     rights_review_required: bool
+    callouts: tuple[TrackCallout, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +131,7 @@ def load_track_source_manifest(path: Path = DEFAULT_TRACK_MANIFEST) -> dict[str,
         raise TrackArtworkError(f"Cannot read track source manifest {path}: {exc}") from exc
 
     root = _require_mapping(payload, "manifest")
-    if root.get("schema_version") != 1:
+    if isinstance(root.get("schema_version"), bool) or root.get("schema_version") != 1:
         raise TrackArtworkError("Track source manifest schema_version must be 1")
     tracks = _require_mapping(root.get("tracks"), "manifest.tracks")
     if not tracks:
@@ -141,7 +153,11 @@ def import_track_artwork(
     output_dir: Path = DEFAULT_TRACK_OUTPUT_DIR,
     expected_sha256: str | None = None,
 ) -> TrackImportResult:
-    """Validate one local PNG and publish a hash-committed palette bundle."""
+    """Validate one local PNG/WebP and publish a hash-committed palette bundle."""
+    if manifest_path == DEFAULT_TRACK_MANIFEST or output_dir == DEFAULT_TRACK_OUTPUT_DIR:
+        raise TrackArtworkError(
+            "Legacy F1 artwork import is retired; use the reviewed open vector catalogue"
+        )
     entries = load_track_source_manifest(manifest_path)
     normalized_id = circuit_id.strip().lower()
     if normalized_id not in entries:
@@ -165,17 +181,24 @@ def import_track_artwork(
             f"SHA-256 mismatch for {source_path}: expected {entry.source_sha256}, got {actual_sha}"
         )
 
-    source = _decode_source_png(source_bytes, source_path, entry.source_dimensions)
-    sector_masks = _detect_sector_masks(source, entry.source_profile)
-    normalized = _fit_source_height(source)
+    source = _fit_source_height(_decode_source(source_bytes, source_path, entry.source_dimensions))
+    road_mask = _detect_road_mask(source)
+    sector_masks = _detect_sector_masks(source, entry.source_profile, road_mask=road_mask)
+    boundaries = _resolve_sector_boundaries(sector_masks, entry.sector_boundaries)
+    track_mask = road_mask
+    for mask in sector_masks:
+        track_mask = ImageChops.lighter(track_mask, mask)
 
-    images: dict[str, Image.Image] = {"generic": normalized}
+    images: dict[str, Image.Image] = {"generic": source}
     for suffix, colors in _VARIANT_SECTOR_COLORS.items():
         variant_image = _recolor_sectors(source, sector_masks, colors)
         if suffix in {"bw", "bwr"}:
             separator_color = BwrColors.WHITE if suffix == "bw" else BwrColors.RED
-            _draw_sector_separators(variant_image, entry.sector_boundaries, separator_color)
-        images[suffix] = _fit_source_height(variant_image)
+            _draw_sector_separators(variant_image, boundaries, separator_color, track_mask)
+        if entry.callouts:
+            _draw_callouts(variant_image, source, entry.callouts, suffix)
+        variant_image.info[TRACK_PROCESSING_PROFILE_KEY] = TRACK_PROCESSING_PROFILE
+        images[suffix] = variant_image
 
     # Stage every byte and its final marker before publishing any part of the bundle.
     png_bytes = {variant: _encode_png(images[variant]) for variant in TRACK_BUNDLE_VARIANTS}
@@ -201,7 +224,7 @@ def import_track_artwork(
         circuit_id=normalized_id,
         source_sha256=actual_sha,
         source_dimensions=entry.source_dimensions,
-        output_dimensions=normalized.size,
+        output_dimensions=source.size,
         output_paths=output_paths,
         sector_pixels=sector_pixels,
     )
@@ -241,6 +264,7 @@ def _parse_manifest_entry(circuit_id: str, raw_entry: Any) -> TrackSourceEntry:
         source_profile=profile,
         sector_boundaries=boundaries,
         rights_review_required=rights_review,
+        callouts=_parse_callouts(entry.get("callouts", []), circuit_id),
     )
 
 
@@ -304,39 +328,88 @@ def _parse_boundaries(value: Any, circuit_id: str) -> tuple[SectorBoundary, ...]
         ):
             raise TrackArtworkError(f"{label}.at coordinates must be finite values from 0 to 1")
         angle = boundary.get("normal_degrees")
-        if (
+        if angle is not None and (
             isinstance(angle, bool)
             or not isinstance(angle, (int, float))
             or not math.isfinite(angle)
         ):
             raise TrackArtworkError(f"{label}.normal_degrees must be finite")
-        boundaries.append(SectorBoundary((float(at[0]), float(at[1])), float(angle) % 180.0))
+        boundaries.append(
+            SectorBoundary(
+                (float(at[0]), float(at[1])), None if angle is None else float(angle) % 180.0
+            )
+        )
     return tuple(boundaries)
 
 
-def _decode_source_png(
+def _parse_callouts(value: Any, circuit_id: str) -> tuple[TrackCallout, ...]:
+    """Validate optional normalized callout overlays before any artwork is changed."""
+    label = f"tracks.{circuit_id}.callouts"
+    if not isinstance(value, list):
+        raise TrackArtworkError(f"{label} must be a list")
+    result: list[TrackCallout] = []
+    for raw in value:
+        entry = _require_mapping(raw, label)
+        box = entry.get("box")
+        if (
+            not isinstance(box, list)
+            or len(box) != 4
+            or any(
+                isinstance(item, bool)
+                or not isinstance(item, (int, float))
+                or not math.isfinite(item)
+                or not 0 <= item <= 1
+                for item in box
+            )
+            or box[0] >= box[2]
+            or box[1] >= box[3]
+        ):
+            raise TrackArtworkError(
+                f"{label}.box must be an ordered normalized [left, top, right, bottom]"
+            )
+        lines = entry.get("text")
+        if (
+            not isinstance(lines, list)
+            or not 1 <= len(lines) <= 3
+            or any(
+                not isinstance(line, str)
+                or not line.strip()
+                or not line.isascii()
+                or not line.isprintable()
+                or len(line) > 40
+                for line in lines
+            )
+        ):
+            raise TrackArtworkError(
+                f"{label}.text must contain one to three short ASCII text lines"
+            )
+        left, top, right, bottom = (float(item) for item in box)
+        result.append(TrackCallout((left, top, right, bottom), tuple(lines)))
+    return tuple(result)
+
+
+def _decode_source(
     source_bytes: bytes, source_path: Path, expected_dimensions: tuple[int, int]
 ) -> Image.Image:
-    """Decode a verified PNG, flattening any transparency onto white."""
+    """Decode a static PNG or WebP, checking format and size before allocating pixels."""
     try:
         with Image.open(BytesIO(source_bytes)) as opened:
             detected_format = opened.format
+            if detected_format not in {"PNG", "WEBP"}:
+                raise TrackArtworkError(f"Track source must be a PNG or WebP file: {source_path}")
+            if getattr(opened, "is_animated", False):
+                raise TrackArtworkError(f"Track source must be a static image: {source_path}")
+            if opened.size != expected_dimensions:
+                raise TrackArtworkError(
+                    f"Source dimensions mismatch for {source_path}: expected "
+                    f"{expected_dimensions}, got {opened.size}"
+                )
             opened.verify()
         with Image.open(BytesIO(source_bytes)) as opened:
             opened.load()
-            actual_dimensions = opened.size
             rgba = opened.convert("RGBA")
-    except (OSError, ValueError) as exc:
-        raise TrackArtworkError(f"Invalid PNG source {source_path}: {exc}") from exc
-
-    if detected_format != "PNG":
-        raise TrackArtworkError(f"Track source must be a PNG file: {source_path}")
-    if actual_dimensions != expected_dimensions:
-        raise TrackArtworkError(
-            f"PNG dimensions mismatch for {source_path}: expected "
-            f"{expected_dimensions[0]}x{expected_dimensions[1]}, got "
-            f"{actual_dimensions[0]}x{actual_dimensions[1]}"
-        )
+    except (OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise TrackArtworkError(f"Invalid PNG/WebP source {source_path}: {exc}") from exc
 
     white = Image.new("RGBA", rgba.size, (*BwrColors.WHITE, 255))
     return Image.alpha_composite(white, rgba).convert("RGB")
@@ -345,15 +418,58 @@ def _decode_source_png(
 def _encode_png(image: Image.Image) -> bytes:
     """Encode one derived image fully before bundle publication starts."""
     buffer = BytesIO()
+    metadata = PngInfo()
+    if profile := image.info.get(TRACK_PROCESSING_PROFILE_KEY):
+        metadata.add_text(TRACK_PROCESSING_PROFILE_KEY, profile)
     try:
-        image.save(buffer, format="PNG")
+        image.save(buffer, format="PNG", pnginfo=metadata)
     except (OSError, ValueError) as exc:
         raise TrackArtworkError(f"Cannot encode track artwork PNG: {exc}") from exc
     return buffer.getvalue()
 
 
-def _detect_sector_masks(image: Image.Image, profile: str) -> tuple[Image.Image, ...]:
-    """Detect all three antialiased sector colors for an official source profile."""
+def _detect_road_mask(image: Image.Image) -> Image.Image:
+    """Keep the connected road including its colored centerline, excluding detached text."""
+    dark = image.convert("L").point(lambda sample: 255 if sample < 70 else 0)
+    colored = image.convert("HSV").getchannel("S").point(lambda s: 255 if s >= 60 else 0)
+    mask = ImageChops.lighter(dark, colored)
+    remaining = bytearray(mask.tobytes())
+    width, height = mask.size
+    largest: list[int] = []
+    for start, enabled in enumerate(remaining):
+        if not enabled:
+            continue
+        remaining[start] = 0
+        component = [start]
+        for index in component:
+            x, y = index % width, index // width
+            neighbors = []
+            if x:
+                neighbors.append(index - 1)
+            if x + 1 < width:
+                neighbors.append(index + 1)
+            if y:
+                neighbors.append(index - width)
+            if y + 1 < height:
+                neighbors.append(index + width)
+            for neighbor in neighbors:
+                if remaining[neighbor]:
+                    remaining[neighbor] = 0
+                    component.append(neighbor)
+        if len(component) > len(largest):
+            largest = component
+    selected = bytearray(width * height)
+    for index in largest:
+        selected[index] = 255
+    return Image.frombytes("L", mask.size, bytes(selected))
+
+
+def _detect_sector_masks(
+    image: Image.Image, profile: str, *, road_mask: Image.Image | None = None
+) -> tuple[Image.Image, ...]:
+    """Recognize sector hues near the road without recoloring detached callout text."""
+    road = road_mask if road_mask is not None else _detect_road_mask(image)
+    support = road.filter(ImageFilter.MaxFilter(2 * max(2, round(min(image.size) * 0.01)) + 1))
     hsv = image.convert("HSV")
     hue, saturation, value = hsv.split()
     masks: list[Image.Image] = []
@@ -371,6 +487,7 @@ def _detect_sector_masks(image: Image.Image, profile: str) -> tuple[Image.Image,
             lambda sample, minimum=rule.minimum_value: 255 if sample >= minimum else 0
         )
         mask = ImageChops.multiply(ImageChops.multiply(hue_mask, saturation_mask), value_mask)
+        mask = ImageChops.multiply(mask, support)
         pixel_count = _mask_pixel_count(mask)
         if pixel_count < minimum_pixels:
             raise TrackArtworkError(
@@ -403,23 +520,126 @@ def _draw_sector_separators(
     image: Image.Image,
     boundaries: tuple[SectorBoundary, ...],
     color: tuple[int, int, int],
+    track_mask: Image.Image,
 ) -> None:
     """Draw short normal lines that keep same-color sector joins visible."""
     scale = min(image.size)
-    half_length = max(8, round(scale * 0.022))
+    half_length = max(8, round(scale * 0.04))
     line_width = max(3, round(scale * 0.007))
-    draw = ImageDraw.Draw(image)
+    overlay = Image.new("L", image.size)
+    draw = ImageDraw.Draw(overlay)
     for boundary in boundaries:
         center_x = boundary.at[0] * (image.width - 1)
         center_y = boundary.at[1] * (image.height - 1)
-        radians = math.radians(boundary.normal_degrees)
+        radians = math.radians(boundary.normal_degrees or 0.0)
         offset_x = math.cos(radians) * half_length
         offset_y = math.sin(radians) * half_length
         draw.line(
             (center_x - offset_x, center_y - offset_y, center_x + offset_x, center_y + offset_y),
-            fill=color,
+            fill=255,
             width=line_width,
         )
+    image.paste(color, mask=ImageChops.multiply(overlay, track_mask))
+
+
+def _resolve_sector_boundaries(
+    masks: tuple[Image.Image, ...], boundaries: tuple[SectorBoundary, ...]
+) -> tuple[SectorBoundary, ...]:
+    """Snap reviewed S1/S2 and S2/S3 points to a real join and infer missing normals."""
+    width, height = masks[0].size
+    radius = max(4, round(min(width, height) * 0.03))
+    dilation = ImageFilter.MaxFilter(2 * max(1, round(min(width, height) / 352)) + 1)
+    resolved = []
+    for index, boundary in enumerate(boundaries):
+        x, y = boundary.at[0] * (width - 1), boundary.at[1] * (height - 1)
+        box = (
+            max(0, round(x) - radius),
+            max(0, round(y) - radius),
+            min(width, round(x) + radius + 1),
+            min(height, round(y) + radius + 1),
+        )
+        first, second = (mask.crop(box) for mask in masks[index : index + 2])
+        join = ImageChops.lighter(
+            ImageChops.multiply(first, second.filter(dilation)),
+            ImageChops.multiply(second, first.filter(dilation)),
+        )
+        points = [
+            (i % join.width, i // join.width) for i, value in enumerate(join.tobytes()) if value
+        ]
+        if not points:
+            raise TrackArtworkError(
+                f"Sector boundary {index + 1} is not near the S{index + 1}/S{index + 2} join"
+            )
+        cx = sum(point[0] for point in points) / len(points)
+        cy = sum(point[1] for point in points) / len(points)
+        angle = boundary.normal_degrees
+        if angle is None:
+            stroke = ImageChops.lighter(first, second)
+            offsets = [
+                (i % stroke.width - cx, i // stroke.width - cy)
+                for i, value in enumerate(stroke.tobytes())
+                if value
+            ]
+            xx = sum(px * px for px, py in offsets)
+            yy = sum(py * py for px, py in offsets)
+            xy = sum(px * py for px, py in offsets)
+            angle = (math.degrees(0.5 * math.atan2(2 * xy, xx - yy)) + 90) % 180
+        resolved.append(
+            SectorBoundary(((box[0] + cx) / (width - 1), (box[1] + cy) / (height - 1)), angle)
+        )
+    return tuple(resolved)
+
+
+def _draw_callouts(
+    image: Image.Image, source: Image.Image, callouts: tuple[TrackCallout, ...], variant: str
+) -> None:
+    """Rebuild reviewed callouts and their colored markers with PSD-style contrast."""
+    accent = {
+        "bw": BwrColors.BLACK,
+        "bwr": BwrColors.RED,
+        "bwry": BwryColors.RED,
+        "spectra6": Spectra6Colors.GREEN,
+    }[variant]
+    foreground = BwrColors.BLACK if variant == "spectra6" else BwrColors.WHITE
+    hue, saturation, value = source.convert("HSV").split()
+    markers = ImageChops.multiply(
+        hue.point(lambda h: 255 if 45 <= h <= 115 else 0),
+        ImageChops.multiply(
+            saturation.point(lambda s: 255 if s >= 70 else 0),
+            value.point(lambda v: 255 if v >= 70 else 0),
+        ),
+    )
+    image.paste(accent, mask=markers)
+    draw = ImageDraw.Draw(image)
+    for callout in callouts:
+        left, top, right, bottom = (
+            round(value * extent)
+            for value, extent in zip(callout.box, (image.width, image.height) * 2, strict=True)
+        )
+        text = "\n".join(callout.text)
+        padding = max(2, round(min(image.size) / 140))
+        for size in range(max(8, round(min(image.size) * 0.027)), 5, -1):
+            font = ImageFont.truetype(
+                str(PROJECT_ROOT / "app/assets/fonts/SpaceMono-Bold.ttf"), size
+            )
+            bbox = draw.multiline_textbbox((0, 0), text, font=font, spacing=2)
+            if (
+                bbox[2] - bbox[0] <= right - left - 2 * padding
+                and bbox[3] - bbox[1] <= bottom - top - 2 * padding
+            ):
+                break
+        else:
+            raise TrackArtworkError(f"Callout box is too small for {text!r}")
+        draw.rectangle((left, top, right - 1, bottom - 1), fill=accent)
+        position = ((left + right - bbox[2] - bbox[0]) / 2, (top + bottom - bbox[3] - bbox[1]) / 2)
+        lettering = Image.new("L", image.size)
+        ImageDraw.Draw(lettering).multiline_text(
+            position, text, font=font, fill=255, spacing=2, align="center"
+        )
+        if foreground == BwrColors.WHITE:
+            # White strokes need enough coverage to survive the device's 200/255 threshold.
+            lettering = lettering.filter(ImageFilter.MaxFilter(3))
+        image.paste(foreground, mask=lettering)
 
 
 def _fit_source_height(image: Image.Image) -> Image.Image:

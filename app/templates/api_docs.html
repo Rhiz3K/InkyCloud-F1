@@ -2,18 +2,18 @@
 Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
 %}<meta
   name="description"
-  content="{{ t.get('meta_description_api', 'REST API documentation for F1 E-Ink Calendar') }}"
+  content="{{ t.get('meta_description_api', 'REST API documentation for F1.InkyCloud.click') }}"
 />{% endblock %} {% block canonical %}<link
   rel="canonical"
   href="{{ site_url }}{{ lang_url('/api/docs/html') }}"
 />{% endblock %} {% block og_tags %}
 <meta
   property="og:title"
-  content="{{ t.get('api_docs_title', 'API Documentation') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+  content="{{ t.get('api_docs_title', 'API Documentation') }} - {{ t.get('site_name', 'F1.InkyCloud.click') }}"
 />
 <meta
   property="og:description"
-  content="{{ t.get('meta_description_api', 'REST API documentation for F1 E-Ink Calendar') }}"
+  content="{{ t.get('meta_description_api', 'REST API documentation for F1.InkyCloud.click') }}"
 />
 <meta
   property="og:url"
@@ -26,19 +26,35 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
 {% endblock %} {% block twitter_tags %}
 <meta
   name="twitter:title"
-  content="{{ t.get('api_docs_title', 'API Documentation') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+  content="{{ t.get('api_docs_title', 'API Documentation') }} - {{ t.get('site_name', 'F1.InkyCloud.click') }}"
 />
 <meta
   name="twitter:description"
-  content="{{ t.get('meta_description_api', 'REST API documentation for F1 E-Ink Calendar') }}"
+  content="{{ t.get('meta_description_api', 'REST API documentation for F1.InkyCloud.click') }}"
 />
 <meta
   name="twitter:image"
   content="{{ site_url }}/static/images/og-preview.png"
 />
+{% endblock %} {% block head %}
+<style>
+  .api-docs-content {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .api-docs-content pre {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-wrap: normal;
+  }
+  .api-docs-content table {
+    min-width: 30rem;
+    overflow-wrap: normal;
+  }
+</style>
 {% endblock %} {% block content %}
 <!-- Main Content -->
-<main class="flex-1 py-8 px-4">
+<main class="api-docs-content flex-1 py-8 px-4">
   <div class="max-w-4xl mx-auto">
     <!-- Title & Intro -->
     <div class="bg-white border-2 border-black shadow-neo p-6 md:p-8 mb-6">
@@ -67,6 +83,13 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         <code class="text-lg font-mono">/calendar.bmp</code>
       </div>
       <p class="text-sm mb-4">{{ calendar_desc }}</p>
+      <div class="border-2 border-black p-3 mb-4 text-sm space-y-2">
+        <p>{{ track_ui.styleLabel }}: <code>track_style=relief</code> · {{ track_ui.sourceLabel }}: <code>track_source=jules</code> · {{ track_ui.accentLabel }}: <code>track_accent=all</code>.</p>
+        <p>{{ track_ui.hint }} {{ t.credits_page.allAccents }} <code>display=spectra6</code>.</p>
+        <p><a class="underline" href="/api/tracks">GET /api/tracks</a> — {{ t.credits_page.catalogue }}. <a class="underline" href="/api/tracks/madring">GET /api/tracks/{circuit_id}</a> — {{ t.credits_page.apiAuthors }}.</p>
+        <p><code>GET /api/tracks/{circuit_id}.{svg|png|bmp}</code> · <code>GET /preview/configure/calendar.png</code> — {{ t.credits_page.apiParameters }}.</p>
+        <p><a class="underline" href="/api/tracks/madring.svg?track_style=relief&amp;track_source=jules&amp;track_accent=all&amp;display=spectra6">Madring · SVG</a> · <a class="underline" href="{{ lang_url('/credits') }}">Credits</a></p>
+      </div>
 
       <!-- Parameters -->
       <h3
@@ -74,7 +97,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
       >
         {{ t.get("api_docs_parameters", "Parameters") }}
       </h3>
-      <div class="overflow-x-auto mb-6">
+      <div class="overflow-x-auto mb-6" tabindex="0" role="region" aria-label="{{ t.get('api_docs_parameters', 'Parameters') }}">
         <table class="w-full text-sm border-2 border-black">
           <thead class="bg-black text-white">
             <tr>
@@ -417,7 +440,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
       >
         {{ t.get("api_docs_parameters", "Parameters") }}
       </h3>
-      <div class="overflow-x-auto mb-6">
+      <div class="overflow-x-auto mb-6" tabindex="0" role="region" aria-label="{{ t.get('api_docs_parameters', 'Parameters') }}">
         <table class="w-full text-sm border-2 border-black">
           <thead class="bg-black text-white">
             <tr>
@@ -687,7 +710,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             >
             <code class="font-mono">/api/stats</code>
           </div>
-          <p class="text-sm mb-3">{{ stats_desc }}</p>
+          <p class="text-sm mb-3">{{ t.stats_disabled if minimal_data_mode else stats_desc }}</p>
           <div class="flex gap-2">
             <button
               onclick="tryEndpoint('/api/stats', 'result-stats')"

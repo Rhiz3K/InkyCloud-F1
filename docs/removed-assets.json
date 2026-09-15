@@ -1,0 +1,1187 @@
+[
+  {
+    "path": "artwork/tracks/albert_park.png",
+    "sha256": "f0e65825937433285c819ff989201b03a193004a31235d89fdc9404a78aa9d2a",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/albert_park.psd",
+    "sha256": "d51cd4eb7a13cfa69bf74785c62d59eff2ab67267eb495e8bd2bf36c2c817d3f",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/albert_park_bw.png",
+    "sha256": "113c00968499645a020cd54434952faca34a5ad26f3bc6a695dbaa9bdc854799",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/albert_park_bwr.png",
+    "sha256": "d608c4686d43a23ea2471e95ff58973e21552913df6e9e9ce73ae59f99c2f6f7",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/albert_park_bwry.png",
+    "sha256": "6cf8e3ddeb7e5b640d7ab0a51ba052178401d5a09f309b3a9361625cc1e44e4e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/albert_park_spectra6.png",
+    "sha256": "1d82f27f997d27bb5981a2702d972e0a2df2217f54c0a4996877c5460763e331",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/americas.png",
+    "sha256": "0692a96e7016b8ac0f74ad2a73dda40aa048754f595ff32001ae5b0237e20d17",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/bahrain.png",
+    "sha256": "b1ca9b0cf5757f3a05580d5a8a2428c37af1127434a1cf60df5db160e22f3ffd",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/baku.png",
+    "sha256": "68e227a12860c0b1c6f907b52b99cbc4adc28d45b889e35dc0d88b5e04038c63",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/catalunya.png",
+    "sha256": "1dff991eef2f2979ce521dda02b181f849a99161fff477cacda4bfb267cc9303",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/catalunya.psd",
+    "sha256": "d6372a05e751a09226072de53d939d2a8c56c362d035165f1454b400c8d4b730",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/catalunya_bw.png",
+    "sha256": "6400201236ccfa5013d5765658f43a604c2673142184e9e37e1a80abbbc74815",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/catalunya_bwr.png",
+    "sha256": "f0bbd94598c5ae3e814ac27c89b5ec4b3587d4ae1cd5478317fedec03262f82e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/catalunya_bwry.png",
+    "sha256": "495fff80209c14743184f6180dd796b5437545581897e1891937278d66009897",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/catalunya_spectra6.png",
+    "sha256": "1e910d2352a922fc24a03cf950c3f7d0de6faf74c2f9f6c5e9b211348eda94a1",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/hungaroring.png",
+    "sha256": "20bc8246f401befe10513a200de9945b00154634efb1b38363c19945bd7ff409",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/hungaroring.psd",
+    "sha256": "61bcd7e51a1e5199bee489e6177c353db1ad85365157d789f9978673a16db343",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/hungaroring_bw.png",
+    "sha256": "a4277b369c9fefbd5a255d6bc5d55a850c18edcad8197a8340211bab771d6626",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/hungaroring_bwr.png",
+    "sha256": "fb67e82cb196de5c75057897a3fca9804739604d71278ec5dde79774812b7032",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/hungaroring_bwry.png",
+    "sha256": "6a0be675c2e693a57b0d8fa2324f8756329649abb6597116dc9a428198d89835",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/hungaroring_spectra6.png",
+    "sha256": "d227f98d27e8e2383abd6734123c0c9a9f562bb9a0c74bc08d5b6ce1b610b8e4",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/interlagos.png",
+    "sha256": "96ef577bfd77045e67580986f596ba397c86287e609fda0eb7f938a477fc0150",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/jeddah.png",
+    "sha256": "f98416991b061050df6e01f654a2f5432ee02988884b6d7eb9a6e6d71997dc97",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/losail.png",
+    "sha256": "09d75233b39e8f43b47722ce3f4c6002f98b99fe8e58d44e9a9cda0ccd846af6",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/madring.bundle.json",
+    "sha256": "df83b986b7ebdcbada352115b71e4463175c804b35dfa2894ab83859b05a4076",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/madring.png",
+    "sha256": "0c9ba861c076cde085804b4143f21183307da0dab1cbffe52c630d16b4b16a7e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/madring_bw.png",
+    "sha256": "09c84a681e2d89040473a1967ca21692d52cc609039c8bb8b8a9ac5927671bd0",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/madring_bwr.png",
+    "sha256": "2137f66614cb6bdf3c2f244e9ee6f4f983c49a382a48cb4ab72c927f959094df",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/madring_bwry.png",
+    "sha256": "626a914fbc5ada55cd4f4a773be49792d339018b5584382db37357db012ef60a",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/madring_spectra6.png",
+    "sha256": "d5bfb6d4fa0b9ee5c53a81507010120bcd96ac75e614df4a22d73d240888e7e5",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/marina_bay.png",
+    "sha256": "c6db322919a8b1ef9c8c4dfea20426a9f6ba4a6b3544b676954b637b6cfeb26b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/miami.png",
+    "sha256": "4472e002bb4ebc354ae6b028e52a1854d60f73ecbe3d080a18ce4431fe734b43",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/miami.psd",
+    "sha256": "9659d50c8bf2d9fac456498b53481e1bb8c875ae90b5d00b9a1b3c36c0b53f4e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/miami_bw.png",
+    "sha256": "9b2a56dcc1b6786e005f5351e75cfdd9bfc7baeb5d5581403c6acfa23fcbc4eb",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/miami_bwr.png",
+    "sha256": "6cb5b25a69a2d001d8fd42dbdf09d845b9cc322748a7536f330f77475752da57",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/miami_bwry.png",
+    "sha256": "7d8eb65eeec8b8b448c9f7dec3a623c89e70fa239c2ed211e4cda31b06e94acf",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/miami_spectra6.png",
+    "sha256": "7b61c454f675507426253902d0aad2b6dab5f7f1604dcec6f3258b3411ce5d83",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monaco.png",
+    "sha256": "59b6bb6e04bcd1e6a701cd17faf6583d0aab631e9d218d4d22f8147db0c64080",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monaco.psd",
+    "sha256": "2c29a2563ca154aed90b8e5a4ebb88dbedc58c4cdb0075c52cd958fe240c675e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monaco_bw.png",
+    "sha256": "b346d360393576639261f31594bfb6df275a85fb0d0fc2fc405d3ffae6436375",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monaco_bwr.png",
+    "sha256": "afeade252078c14410e49f2cef8df2f0d94b97962df673b390d7353d29b1344d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monaco_bwry.png",
+    "sha256": "9648fae861fb203291a3bc78f774d93b2b2b0a6b1db6557c99fb08e2ddb866cf",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monaco_spectra6.png",
+    "sha256": "04975ecfd10823e38320d68ff74cefa24340014c9d21a64dd4ffb75441ca1353",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monza.bundle.json",
+    "sha256": "9274e0647178881095aa1a2ea4628b452ebd6f4f7fbaa87b80b56fa4773abf69",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monza.png",
+    "sha256": "d6a00378ee867d62a34b46c03e82c52b8fb5f52a9e3be214e8a92e395bd99a25",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monza.psd",
+    "sha256": "8ebf22be7921f5673e8529fd9c4a2b981674d271df6dd8d761b03a0559e0e345",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monza_bw.png",
+    "sha256": "26806187a85304f5c82b7048d5c8b47acef7f464a3dfd9b25a4d2dbcbe27d9db",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monza_bwr.png",
+    "sha256": "0c61252733986c8dd3a478626fe4df48493b64e5f7d9bcc50424c16bcd4693c1",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monza_bwry.png",
+    "sha256": "81b5fb6e19ea7f161e17de381deb7a7f759320abf74f4fabd1c8d3cb5e87c66e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/monza_spectra6.png",
+    "sha256": "6a737cb59cdd9e552ab362a93b6618aae6a6b081ce858653eab2e45bb114dee9",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/originals/madring.webp",
+    "sha256": "907ad12a0bdf837ea7e295f70461e66368f475dcd47426f1efa46ada33fbff91",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/originals/monza.webp",
+    "sha256": "79fb55d89aefc1c930c67c22272383c26bd426ec37d140b4752ab7fb7cb5e3c8",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/red_bull_ring.png",
+    "sha256": "d87688bb00133ff490d5069fc165cb688913bf5ca989e884722e198785ee32d4",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/red_bull_ring.psd",
+    "sha256": "1ef101de011ef1424c935a14217ee07bd53f6f0957195bf7b7b3cb2019dbe1e7",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/red_bull_ring_bw.png",
+    "sha256": "c1a0edaaaeea19fa07483acc3123d644da71a093069f1f1a066f5cca7459ccd5",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/red_bull_ring_bwr.png",
+    "sha256": "b34208abecc01e06e812ade2850a67e92994fa8c9212b93ba7b295eb41214fe4",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/red_bull_ring_bwry.png",
+    "sha256": "0120e18341d3406f2f212652cd1e612bd12c4de16cb8ee324abbc0147649128f",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/red_bull_ring_spectra6.png",
+    "sha256": "ad980707217efac56e5f67424c55496a52065aaff67bfd7c0f5a9a9cb2781a15",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/rodriguez.png",
+    "sha256": "24b793da93f7f98d2cb0f970191e165dea14eb7eeacc137c2eb572409f3c7a1d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/sepang.bundle.json",
+    "sha256": "acdd7bbfaf8acee99b39db891c187c7eb5d6b17b6a4919f4d80320b77a1741f3",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/sepang.png",
+    "sha256": "daee5f2f269909703fb1ee58f7dda9da8dbc206a01be020727f676dca9c66214",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/sepang_bw.png",
+    "sha256": "86e432857bace6243251964dea70baccbe77f1a735fb9fab083002fe81721333",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/sepang_bwr.png",
+    "sha256": "787ff01eaffaba3f882a0ee8cbfb96533d69b347126e87fc7b7a0db0ef0cc4cf",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/sepang_bwry.png",
+    "sha256": "c6611eaa88d75582d264fb912636332a225846528f35e904eff4b530006443b7",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/sepang_spectra6.png",
+    "sha256": "0e4cc9a149a775705d589fbcf335958cf9c8cfda2d78415573db50cd06cbfbed",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/shanghai.png",
+    "sha256": "fd9a8ff0365cd91fd7ad776de7f61199f5b3e5ce3b73fc3ee662e0fd2253a9ff",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/shanghai.psd",
+    "sha256": "553232c479f94e550556749433ebce5663a675c0e0b5782ff803f3b3bfda9405",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/shanghai_bw.png",
+    "sha256": "51f0499cdbe411fdeacc58e6ae58930bb0d243bb6eca6683f8519baabae36edf",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/shanghai_bwr.png",
+    "sha256": "6ddccc80ae1f155e78158217b9eb5af1fa13bd02b58527b93f3a72c22806a7b1",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/shanghai_bwry.png",
+    "sha256": "cdd2ebd5eaba0f839d85757e2083f7e81f472c5f4e724dd0d2d0fb431e824c5f",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/shanghai_spectra6.png",
+    "sha256": "0b3287047dfd991a141355e4ae1916b3dad86f5c40752eaf06d8226d4bda7a15",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/silverstone.png",
+    "sha256": "6d97514b84ef304bb7ab8e0d85c9de434bef7fd02dffa0dd105ec03226348a8f",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/silverstone.psd",
+    "sha256": "4cbdb4206ea1aadf0c415b348fcd6669a4857fc4d84bcced29ca477c260522d8",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/silverstone_bw.png",
+    "sha256": "cf53d48f0486c9592b4f9bc963a1ff1cc0d9539a33faab538896c44c817935d5",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/silverstone_bwr.png",
+    "sha256": "583b490a2beb1433c5b44a78cf36e90e236ab2398381811197d51127068ce09a",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/silverstone_bwry.png",
+    "sha256": "20d3b4b2e46a11a577ca6bbabc9664ce3b34a54dedb79ba6dbda526e29be5f3d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/silverstone_spectra6.png",
+    "sha256": "4cd0dffea8ade7c9c2951e2bff1dbeaf33c093397f1930f9142aef2739b06b0b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/sources.json",
+    "sha256": "7100ffd8f2dfeefce06ed01b2067d54d45cf68243e206297bdcbd9170c10e8d1",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/spa.png",
+    "sha256": "6289f33b8621e44d7723d6d17fbd6a01f159c3bb4bf6ef9333fd8ac101ad77ef",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/spa.psd",
+    "sha256": "e5d1a0a71bb1ab5e54e930032a27bd7c4b3710de324caac60811d9af33c9ecae",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/spa_bw.png",
+    "sha256": "aa567869d0a6d8fcfb1cf90fe01ce85503e7c97c2c548cd903acf942002d49a7",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/spa_bwr.png",
+    "sha256": "8148694efcf2472cdd75bd16050702e57e4696be65cd4c157030b759a790b4c5",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/spa_bwry.png",
+    "sha256": "9bac4b24277534c4da7741cb42b8d2a75bbf4a66cb5d18a01b7fa193fda20bb5",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/spa_spectra6.png",
+    "sha256": "516e62d4015a63832b26f74c901c3ab7006682f1d3c4c3e1a5cdfa90b5f6b621",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/suzuka.png",
+    "sha256": "d09d1646d5864415b718632e77c2d9c5bba3adb430dd5e4ef5f3615462ceeb8e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/suzuka_bw.png",
+    "sha256": "a44164b64f003b7a6156b2df46b5a48bf2736d19d2c017b3a101f6b402ddf4b3",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/suzuka_bwr.png",
+    "sha256": "34fa8ad01b5a3e5554918f542589d032eda40c93e41b34c8f8ef859682055d02",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/suzuka_bwry.png",
+    "sha256": "c730c0101a758216f1bfb449e1a7aa5f6bed23cc4bc934fd20cdb1e1ccff7dcc",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/suzuka_spectra6.png",
+    "sha256": "20bf123f8e7b92c3358aa31518ed132a7e351e35397c3f531d2055e872d33f74",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/vegas.png",
+    "sha256": "3a094304f7d9eb473e9c0c937e1948a6184c5f06108124a23e92e8308bfc460e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/villeneuve.png",
+    "sha256": "a277b0bf3f94a122611e99061175320396d38de63211ef8cb15f7d95ef78740e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/villeneuve.psd",
+    "sha256": "32960f2da04ffd5dbc6b174805358172eb89e201f0b506abde7a6dc6692aa4f9",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/villeneuve_bw.png",
+    "sha256": "0713e133ffaa84c257fa96395226059f3bb40ced0006cbe75329a8cdd2975cfe",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/villeneuve_bwr.png",
+    "sha256": "e2f9658fb05ce4349c24742561976df4394541c04c44cf1ce3f07dfca768c08d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/villeneuve_bwry.png",
+    "sha256": "abde334df152cb663fa30c9c11fb612ed410ca9c8cdd1935d523e84516a808bd",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/villeneuve_spectra6.png",
+    "sha256": "9a38d4f4d5dd7abc0c284f18e104b9dda6cc082cab78157a104556793abeba64",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/yas_marina.png",
+    "sha256": "67c29217d785117eefcd90163ce2d5d7110555e2308f6a1b7c9f5b7cb1bf81f8",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/zandvoort.png",
+    "sha256": "847aab001d8dc13e256e90b4918d5978239221e5b5619530680c45d479065c0d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/zandvoort.psd",
+    "sha256": "596bc0cced917aedb93c5ad782fe5a27c2904b135b2a677288fbe2b00ed84895",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/zandvoort_bw.png",
+    "sha256": "da2f40ac38e3a8fd8e1626fb7655f944dbe98914fcf94ba4208afac83d041d37",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/zandvoort_bwr.png",
+    "sha256": "759bec122dbc6fc098cb0e99d4c16db82185d6308151ed4cc6ff55b1ae96e928",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/zandvoort_bwry.png",
+    "sha256": "f3295734b55fa68c16ab9fa6a40204f71a9e73d56099e11fce7a1fc279ba5860",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "artwork/tracks/zandvoort_spectra6.png",
+    "sha256": "9adac9161710fcc0508bf5961478c43f58931942f4f2162732699001f363956c",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/albert_park.bmp",
+    "sha256": "d172dbc76d47983017126592fb75fa0fb933bd012cff9d880fea87b7a2824d5f",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/americas.bmp",
+    "sha256": "4e3e13bde86b2caa2c39cfa0483e3736ceb421614a1b26367ba6ec565a69e318",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/bahrain.bmp",
+    "sha256": "3856a3f741b78590f2c2b4aea64753572fa62986feade78883952f92b402463b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/baku.bmp",
+    "sha256": "93c50710e327375759fb24deab75e14c8f57ad78da3bfe076fc7266c7fcccc64",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/catalunya.bmp",
+    "sha256": "37388c5aef4affc2aa3556df69bfce0279801673f079afea20114869e5bc40ac",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/hungaroring.bmp",
+    "sha256": "97831b9528b7df87989f8fde01a0d5411eb9bc3e460bf7d14892a4dc7d12d1ef",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/imola.bmp",
+    "sha256": "3da61ea80f3b073e7f37912fb1af46101e80c671006f258f987f590b819dd262",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/interlagos.bmp",
+    "sha256": "ffd0d9764b0196a6749f91f020a6ed7e414febf1fb1995d594c4a0cef3f61c7e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/jeddah.bmp",
+    "sha256": "dce0be158cfc197f721f5bc08acc910bfe0c7a9ed7cbbea791fd86837ce8ccb1",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/las_vegas.bmp",
+    "sha256": "afb063fe73339c70a4171b0856c2d88847967b683d972ceb33bcfd5763242827",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/losail.bmp",
+    "sha256": "e69c23038a766aefdf4a54536f31df2def0d90e0c563c1fce2c8412a7e9be84d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/madring.bmp",
+    "sha256": "6c05fc6735d36c8242fc789f76d4fb5c6f38f564e739e14e4c2a74c0c396323b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/marina_bay.bmp",
+    "sha256": "96a86ddda6b6a5fe73b2bd89132799fe4789ec67b2eb5c911c51486ab15646d1",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/miami.bmp",
+    "sha256": "4cf8575719b82a40fb89cea0f3f6c1fd605566757d43448467b7b5e2bc9397a3",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/monaco.bmp",
+    "sha256": "a67910e3a996a8ea7d8d348394bb426951bea42c6ee63dfc4f6b9f082dc27858",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/monza.bmp",
+    "sha256": "a225d991cce00b52606cdbd2fb2829abbbcd94674d3c852977297d29221114b8",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/red_bull_ring.bmp",
+    "sha256": "421b0c860b0266eee217922affd9f4386598f2494b3065d62736e85ef4258fc5",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/rodriguez.bmp",
+    "sha256": "3a99f2213692965f0bea78a6cd5b1ae90bc1e1b1f151ef07a3774f83f883d10b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/sepang.bmp",
+    "sha256": "8a3568ebc6933d712854e156f5798846c9f121a4005e03832a48c8156052042c",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/shanghai.bmp",
+    "sha256": "b65f043c7b401c9aefbb4df28499dffed3d35a5fe046553fe946e4357498df4d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/silverstone.bmp",
+    "sha256": "99ce876b768208589a81dbd062ef34a309851f86342108b8e7ab2bf8a24c9c7c",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/spa.bmp",
+    "sha256": "84f2466e7812879fdc899e9f1c8d3fbc4a23101c804af4d9b8c851e1ca7b7c15",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/suzuka.bmp",
+    "sha256": "fb5837ed4543debc9559a6b40e43bb9abf61a3d4f9b0aaaae4d5f2ae03cd11b5",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/vegas.bmp",
+    "sha256": "883ae6aadbf7b82c6ae1364631bad0a978318ac986779c317c3fb0143fbe7aa2",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/villeneuve.bmp",
+    "sha256": "675ac5bc8db0dd7f9afde6e0d9275a1d32678cd809e0f726d763548784a1a05a",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/yas_marina.bmp",
+    "sha256": "29df591e7518ff484d087eb405ef9fdb77d55bc18ed275192be5290bc9ff1719",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_spectra6/zandvoort.bmp",
+    "sha256": "a0dcf592dd51b066d6dbec90661d2fc248fbca30c02f8a1c73b97c21bf29ed74",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/albert_park.bmp",
+    "sha256": "19979238a407dd1d0dfde492eee1238ef5919809e206efade97878ab0099ce1f",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/americas.bmp",
+    "sha256": "5525915e4de05ade6fb62674941e601dad37a8384b562b48775d75a37052532a",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/bahrain.bmp",
+    "sha256": "2d24f50e9304b14b7f7c2940504afc1b16cfcc49bf6808731d65093e5193c23b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/baku.bmp",
+    "sha256": "122da8ec5ad2087b0f7078ec5f8b3c1825aaa68ff1316487b903fc5de850182b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/catalunya.bmp",
+    "sha256": "df697197d94e0831981bcacde9d1c5044c4d46d7d8903d0dd54361c417cbeb4c",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/hungaroring.bmp",
+    "sha256": "8b63572fd6478702f439dae32068c17c6fe659d147a587ea73201d65913a8948",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/interlagos.bmp",
+    "sha256": "05383d5717ade9dbf248aef0f3b0035f40a535dc099b3b80f5f2574590728893",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/jeddah.bmp",
+    "sha256": "2691f32bce42afc5e29b2a64c74e76dfaf1363305f68d6d8783fcfde8b31bdab",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/las_vegas.bmp",
+    "sha256": "30b0ffd6de1634cca11f651f5172bf61b0d2a3fecaa6ee2361a28facf6a1640d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/losail.bmp",
+    "sha256": "9ccb6331c18e42f331be9f8365688c9be064b16bd91a02c38fab04ac1a37b474",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/madring.bmp",
+    "sha256": "4985483d0669aae3cd9a6953900948b8645368dd26cc3c2be68a4f13f34c8715",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/marina_bay.bmp",
+    "sha256": "a981dcab20a92cfd81bb37288cabafa0c0e29b6c8a7368cfaa27e1cc8bc610c0",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/miami.bmp",
+    "sha256": "39265fc20f0053be9b37c25f3dd9217432a099fce085139f4befd740e405b8e7",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/monaco.bmp",
+    "sha256": "5da71f61585909f934568443b329aa509572ab56deb535b69a34e02f9f1c31a0",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/monza.bmp",
+    "sha256": "ce1bc3b437bd0a0412eb36cd1951b297da74218cec8b1d198f818a47faef87d3",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/red_bull_ring.bmp",
+    "sha256": "bfe82a3cb833df7818b999b425d00641156cd955da6aed1b4976dfb23857d4c4",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/rodriguez.bmp",
+    "sha256": "d5cd32ff5347e3499abf7cc2ba18c21c1d635388f4c96eacb2e7475b1d0091a6",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/sepang.bmp",
+    "sha256": "89a1bd7fd24e3ee0fb1b85276c8246bd644cc6c630e670c0c9c28bf7fac119fa",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/shanghai.bmp",
+    "sha256": "830da3b5db7b399b02c532a7fbb1da2d6a2c01fa8cadb3bb034cd95a95040a26",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/silverstone.bmp",
+    "sha256": "943c855bd4a7a7d599bf1436d7867fdcf7938a4a429449399faea21d45f404b1",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/spa.bmp",
+    "sha256": "5e631f133469307244870b5cd72c00eb1dd11a78fc64ad36a899778a663b15a4",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/suzuka.bmp",
+    "sha256": "1ca218f66a748e8a4f4ec37bb048742d0200673e33e01a20d6fe5820423217c0",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/vegas.bmp",
+    "sha256": "30b0ffd6de1634cca11f651f5172bf61b0d2a3fecaa6ee2361a28facf6a1640d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/villeneuve.bmp",
+    "sha256": "53d41f0ef0d33457e2af8e23ef513448e118ad5ff84603ee1b1a62a9d7a7988c",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/yas_marina.bmp",
+    "sha256": "a3a252a804beb0fca867502b65db06ae138f9725398a94c775002292f13ec0f3",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_processed/zandvoort.bmp",
+    "sha256": "8cc7a30b30fae896a50045dd5a5ee887fc7374a1c1d18dccafbf80bc4de9b0b2",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/albert_park.bmp",
+    "sha256": "a36f7462e7e7571b2bfff19ac295cf0108e37765124eb090be58694fc59a3f43",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/americas.bmp",
+    "sha256": "eaeac122815514737a4946bc8105147389276d300ecf2996c56a0c287c81d401",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/bahrain.bmp",
+    "sha256": "8dc04d56412fa54995574fa86ae9294188f137552c8c9d02a20f8c1506aed9dc",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/baku.bmp",
+    "sha256": "03cfd28211bc425917fd091857c96f7691c2f2f3e15dce4b76cb9c2ba8a0bc5d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/catalunya.bmp",
+    "sha256": "1ca6f261c257bb3539c6beacd67eac51550411ce362e7ec1d1d0680b9809330a",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/hungaroring.bmp",
+    "sha256": "2d7e674060fd9ae837a21addd79eb9cf1dc85d7989235429fa4023f0bfa4e928",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/interlagos.bmp",
+    "sha256": "279678eaf0fe3fa70695435869256973e3f4676481d247a3c14af8862c50f25a",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/jeddah.bmp",
+    "sha256": "116b62ba48f8548e8ce7e2cdc6dc9a80d3f80236f37b7ae66940354c86d920cd",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/las_vegas.bmp",
+    "sha256": "6306f3831d21e8d4a1ec04dc968a53b494661c311909ab75fbd5ff9ce111c7ef",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/losail.bmp",
+    "sha256": "611d7896bf791e4afe078aa437add3645655911adaf99ebcb18f7913a49d3e45",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/madring.bmp",
+    "sha256": "e7550c846b1803c3543bd868fff1785948fcee7eedf8b36a67d00c6c22e47f99",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/marina_bay.bmp",
+    "sha256": "368338ad38f45b487f7d9982e25ed16b098dfd52cdfd295e6930a81e414222bc",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/miami.bmp",
+    "sha256": "dbc3d2157804ad2b144568b002eb329eb87baa462b132d97f600a2da585d15d0",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/monaco.bmp",
+    "sha256": "77c624bef5f1dcd13a9db1e9525a9ceb840f4a82096291eb4ad8708e42184b5d",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/monza.bmp",
+    "sha256": "36a7334062744ac46e13e77bff81e5e6cdb5e93dbc1211d4c2e7159c4f5c4e8f",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/red_bull_ring.bmp",
+    "sha256": "fee8a41bcd3c8ecae7894fcbfe9fb13b3c2088554c6a64a85ae44a19d8c338bf",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/rodriguez.bmp",
+    "sha256": "ddfdee5a80a85bf7d9afbc1ffb8eaac5bda4b29deba313cb5cc38dcc5ea6babf",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/sepang.bmp",
+    "sha256": "c1663e39e247719df72d416edf64d65253cd090ec16c376db0d2b82288b7835c",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/shanghai.bmp",
+    "sha256": "5844260a074046bc94ddea6abbaefdcdf971b23d6e99d7e15a119f0922b083a9",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/silverstone.bmp",
+    "sha256": "3d9c25ae1e4e97900c26153311e68b443efd2ed0cd978d8e6da33530c29884ca",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/spa.bmp",
+    "sha256": "0033f985c2570ae4cd62ac3d776984b3745ebe9a932b797733e3b6ad2e0c1094",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/suzuka.bmp",
+    "sha256": "7e6f8258ade45a7493a1a23f85bde16ee1da721c26e438ad509c008f5783a87b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/villeneuve.bmp",
+    "sha256": "094312108d80042a456ab960ed396b23d77a3c2fb5a9badd2dc8135c144fc8f3",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/yas_marina.bmp",
+    "sha256": "9995898725d16faf37396db1588c5a8f32b3c6eb1a80c9b83cba59c0586f6ef0",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwr/zandvoort.bmp",
+    "sha256": "56b85bde52627b302695a7f5cbf37b5b19eaed4dad7148bcdf8c6074888571f9",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/albert_park.bmp",
+    "sha256": "d993fa66fe6147204af05c5b2b4b68f135b7a382837173fd94962ccf4d9fffb1",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/americas.bmp",
+    "sha256": "02ba5b9c710b489c928b4dfe0e91a5645989e92de57ffc6d679c275dbac93d6e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/bahrain.bmp",
+    "sha256": "ff0493fd70d5ad8ffef9bde73d4f165e04e8863f6acaa472bac608b464e531fb",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/baku.bmp",
+    "sha256": "198357eed3664d19376ffdb17964a264dd6615182a5ee4d8cc781e7758c06966",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/catalunya.bmp",
+    "sha256": "fd9c6f10aa5dcbf5ff1ead64b647db88af49807224addd3d39fded9ea964425e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/hungaroring.bmp",
+    "sha256": "e0507c56e9095c7cf97539446c0c0a9e49ae697de4c582ed69346b85cfffe99b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/interlagos.bmp",
+    "sha256": "3c03b8eee489d8a0a222cb6685b8de546a22e8370aaba015f83df20ecb5f7747",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/jeddah.bmp",
+    "sha256": "73602d8d4e09e191a5466f2a0c8ed036e92777c3a7e4868a1196fb10d73d982e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/las_vegas.bmp",
+    "sha256": "97d7b831f36ca3d963cc9f76e5e7da98a800aa9cc5ca992ae6c9d955ec15f30c",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/losail.bmp",
+    "sha256": "9420f2db3009df44fb49ffbb43fea4b39f7bb390629591468871bda7bfb23ed2",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/madring.bmp",
+    "sha256": "72d7e93a6d9182b1332d6d68eede8d99d581d4d89ed2744394d69bc3636269f8",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/marina_bay.bmp",
+    "sha256": "3e9fc11e4310d5ecd4e133126fa8544910a582f1bbe693a4aac7fea8f993386a",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/miami.bmp",
+    "sha256": "3ca6edd4b3533725edab039de750085c257c832523c8ecdd4b869b9b7b0e4e82",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/monaco.bmp",
+    "sha256": "50259c6941cb0c3f23f48e52dec5b4bd5d7357bd1e652383687a46809e1f4009",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/monza.bmp",
+    "sha256": "f3fba56bce59af51d9e9283c4da1b23e75247c07788527012d5b1ce7962135c0",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/red_bull_ring.bmp",
+    "sha256": "bd841fb610f2ebc106daafa12555d9e5f2947420853ba75fe7643a3281612996",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/rodriguez.bmp",
+    "sha256": "c6c3b2f720d5590b3109e7953eb17a9a5642def74497f4776398010e5a32d131",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/sepang.bmp",
+    "sha256": "711c6e2e5b9c7d08df68c09f41a8aa94dfe351bb1a295cbb6678c3edbaedaa2b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/shanghai.bmp",
+    "sha256": "3a3ebcffd08040f129ddc3e95a1f7f07b6237b060fc4a8a4702fc75a4e23c2e7",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/silverstone.bmp",
+    "sha256": "0e5b2117963e089aed52277f4ca7fb6bff4813a4fac8fc0c981597e967a23e17",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/spa.bmp",
+    "sha256": "c440a3b7be5f220c78dde89a51b96a9f4adae4e178afa59b4db2929093a5e67c",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/suzuka.bmp",
+    "sha256": "67c20c37bf6c0c33b65c255ae868c32755692e9c67e246bb4a3023b443831836",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/villeneuve.bmp",
+    "sha256": "2474f609462620e613909eaa02cbb2fec73aa9654a31ce4926919fb4cbd9c579",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/yas_marina.bmp",
+    "sha256": "cb496224520ee07b61a808dc64fc55d2a92a73a199865f2988ce6db1fdb2c690",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/tracks_bwry/zandvoort.bmp",
+    "sha256": "d49fbc29aa38ee04bf3cf22616d0b885763396e7abdbf6c9cad82248c91257b1",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/2025_helm.png",
+    "sha256": "12b49639934ed699c8eb75cd0efc2b913f43e858a756cd00d15c2f9e33c77e32",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/albon.png",
+    "sha256": "46fe73477b552a97efeeb2a34b5edaf138bf22ecf7d446835ecb4273e24cb7d3",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/alonso.png",
+    "sha256": "a980b3a4789cda29471d080f617854dfe44f9ca7c4f638603cac17a0603c23d8",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/antonelli.png",
+    "sha256": "ddd4024689dfa9d5399f6335f808f18d6ed29b3fea2061ed4d5f0750b68a2e52",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/bearman.png",
+    "sha256": "120df6c879a27251f794c1795c6dbc63d4d3c5451ee21d9ac714cd805a9ae2ca",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/bortoleto.png",
+    "sha256": "7751c94b79ec05a0b7f5c3430358f0d078b7b7087309886e133a36aab56f59d2",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/colapinto.png",
+    "sha256": "f96c302f6baf2d3246f8b466923df7f52a2e9a7acc9c7186623132f70cea4aba",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/doohan.png",
+    "sha256": "96e185fa9d013d1f97624d19887068b47ed669f54cd34ffb5f9176b091d30021",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/gasly.png",
+    "sha256": "5c779336a1a1365b447b2a58689c1b1810ecdf905879f8c7bc2b0e48908d7637",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/hadjar.png",
+    "sha256": "f3005828ec0a4910eaa1e423d843308477fcafa13da4563ce78e227b15b4ca1a",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/hamilton.png",
+    "sha256": "8a298faeb5d92556a47b71372d655150edbe09699cb4018bc2fa0bf846a07463",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/hulkenberg.png",
+    "sha256": "c86a418387533723dcf9a1470a23d9268ce5fe1b8c38ff545795e68e79d70e7a",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/lawson.png",
+    "sha256": "505ee38bd1b990723d525dd95adfdfba15efcb59c72e1513d68fd0eeaaef2f6c",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/leclerc.png",
+    "sha256": "9dc2d29ffd73047064c500125be38da6bb55fffdba66ec1f5733ea4f5526fee7",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/norris.png",
+    "sha256": "514163416f5bda5eb709382a0da136346d3751fbc5ea489d878bb0f2963333b0",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/ocon.png",
+    "sha256": "5126d99b128ecd3d372cd295fa2df4149617607861f5a23f707569c5b5d6f56c",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/piastri.png",
+    "sha256": "e6d2d78e29d353610f6588d35a35f5cce4762b601e813a487bbf0fed74e06d7b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/russell.png",
+    "sha256": "a9989ae9d56799ad7af1b2f5cfa192d095425e2c7dd5b417a0fcdd82c0b25f0b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/sainz.png",
+    "sha256": "4f6380c1af8e202215146195d97ae7574eb3d43641cb82a292994193c3fce252",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/stroll.png",
+    "sha256": "886ebdb6fecc1d0061ddba13b1b8235b7a7c5183d6542167750dc32db30b97dd",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/tsunoda.png",
+    "sha256": "c3cda3b5bcbf4b66e9e9ff19257ff362b81788575b18a031e3b409f2649da409",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/drivers/verstappen.png",
+    "sha256": "0d754576ff509969a76841743fc5f196079a0ed4a55cb5610e204fb49b8c5fb6",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/f1_homepage_logo.png",
+    "sha256": "2e71a18f618b0ab79e3474fc348cce53af29091c34b3eb40711e659c24187c85",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/f1_homepage_logo_2x.webp",
+    "sha256": "bb1137d45a676865774ba6c34950f327ed0ea4015499aec42bd85fe65cc55a47",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/f1_spectra_6.bmp",
+    "sha256": "0cab492b2f0d703f1afe13eed97e52525c53aacf319abcc305c2ce94c0b0ef3e",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/foxeelab_f1.png",
+    "sha256": "1a8fde2f2b55aace3a1b665bc8107e37843b3aa76719a6d483fe21f24d7bf87b",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "app/assets/images/trophy.png",
+    "sha256": "4da4084b928e41fd62d4be70430b29409118459b123225116b51b9eae8045fba",
+    "reason": "Legacy F1 artwork, team/driver graphic or illustration without a recorded redistribution licence"
+  },
+  {
+    "path": "assets/device_sverio_bwry_placeholder.svg",
+    "sha256": "652c546e1bc40ba8f955fec275d6d63b0dfeb3bdcd6c92bdcda8cf30bb06a0f4",
+    "reason": "Legacy documentation image without a complete redistribution record"
+  },
+  {
+    "path": "assets/device.jpg",
+    "sha256": "61cf4b62275227f4fc6bb787932d2517b557591bc0669022ef7583b03cca6a7f",
+    "reason": "Legacy documentation image without a complete redistribution record"
+  },
+  {
+    "path": "assets/device_sverio_bwry.png",
+    "sha256": "897f627abccf0b8d6b2c1f2865f37d29dfd60bcf18b4a69f9fa48ec8561646f7",
+    "reason": "Legacy documentation image without a complete redistribution record"
+  },
+  {
+    "path": "assets/preview.bmp",
+    "sha256": "a01984eb1c16e04045dfa72cacbb14a0d17af5b1a4092afeb058954e9b2447e3",
+    "reason": "Legacy documentation image without a complete redistribution record"
+  }
+]

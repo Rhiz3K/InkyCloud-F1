@@ -1,85 +1,34 @@
-# Maintenance Scripts
+# Maintenance scripts
 
-Run Python maintenance commands from the repository root through the locked environment:
-
-```bash
-uv sync --locked --group dev
-uv run python -m scripts.manage --help
-```
-
-## Asset preprocessing CLI
-
-There is one supported asset-workflow entry point:
-
-```text
-python -m scripts.manage import track --source PATH --circuit ID [--expected-sha256 HASH] [--preprocess]
-python -m scripts.manage preprocess tracks --palette {mono,bwr,bwry,spectra6}
-python -m scripts.manage preprocess flags  --palette {mono,bwr,bwry,spectra6}
-```
-
-`import track` validates a manually acquired local F1 PNG against
-`artwork/tracks/sources.json`, generates the generic and four semantic palette source variants,
-publishes their hash bundle marker last, and optionally rebuilds all runtime BMPs with
-`--preprocess`. Manifest-managed sources are preprocessed only while that marker proves the five
-files form one complete import. The command does not download artwork. See
-[`BMP_PROCESSING.md`](../BMP_PROCESSING.md) for provenance, color mapping, separator metadata,
-rights review, and visual QA.
-
-Track commands accept `--circuits monaco,suzuka`. Without it, all source stems under
-`artwork/tracks/` are processed. See [`BMP_PROCESSING.md`](../BMP_PROCESSING.md) for source naming,
-algorithms, output directories, and the weekly visual-review checklist.
-
-The implementation lives in `app/services/asset_preprocessing.py`; palette variants are data,
-not separate algorithms. These legacy names only forward arguments to the CLI during migration:
-
-- `preprocess_tracks.py`, `preprocess_tracks_bwr.py`, `preprocess_tracks_bwry.py`,
-  `preprocess_tracks_spectra6.py`
-- `preprocess_flags.py`, `preprocess_flags_bwr.py`, `preprocess_flags_bwry.py`,
-  `preprocess_flags_spectra6.py`
-
-Do not add new palette-specific scripts.
-
-## Data maintenance
+Run commands from the repository root using `uv sync --locked --group dev` and `uv run`.
 
 | Command | Purpose |
 | --- | --- |
-| `uv run python scripts/update_seasons.py` | Fetch and validate season calendars; exits non-zero for malformed/empty upstream data |
-| `uv run python scripts/update_historical.py` | Thin wrapper for historical-result refresh logic shipped in `app/` |
-| `uv run python scripts/scrape_circuits.py` | Refresh circuit metadata without discarding maintained history |
-| `uv run python scripts/scrape_wiki_teams.py` | Maintain team metadata from its source |
+| `uv run scripts/build_track_catalog.py` | Compile reviewed, archived open SVGs offline |
+| `uv run scripts/build_track_catalog.py --check` | Verify the compiled catalogue and notices |
+| `uv run scripts/check_track_assets.py` | Require Jules and Commons outlines for active circuits |
+| `uv run scripts/generate_og_image.py` | Rebuild the project text-based social preview; preserves the original AI car and favicons |
+| `uv run python -m scripts.manage preprocess flags --palette mono` | Rebuild flags; also supports `bwr`, `bwry`, `spectra6` |
+| `uv run scripts/check_legal_assets.py` | Check every public file against its reviewed licence/hash record |
+| `uv build --out-dir dist/legal-check` | Build actual release artifacts |
+| `uv run scripts/check_legal_assets.py dist/legal-check/*` | Inspect wheel and source archive contents |
+| `uv run scripts/check_public_deployment.py` | Report unresolved operator configuration before publication |
+| `uv run scripts/update_seasons.py` | Refresh licensed Jolpica calendars and record provenance |
+| `uv run scripts/update_historical.py` | Refresh sporting results through the app service |
+| `uv run scripts/download_flags.py` | Acquire Flagcdn flags for subsequent source/licence review |
 
-Season updates normally run through `.github/workflows/update-f1-data.yml`, weekly in-season and
-daily during December–February. The workflow opens a pull request when tracked data changes and
-runs `scripts/check_track_assets.py`, so a newly active circuit without complete artwork and all
-four runtime BMPs fails visibly through the existing workflow-failure issue monitor.
+The register is a review record, not generated approval. Dataset updates intentionally fail
+the asset check until the new bytes, provenance and licence have been reviewed. The seasonal
+update workflow may prepare a PR; it must not silently accept new map sources or data hashes.
 
-## Asset acquisition
+The F1 circuit scraper, wiki team scraper, team-logo and driver-photo downloaders have been
+removed. Old track import/preprocessing commands are retired. Flag compatibility wrappers
+still work. See [BMP_PROCESSING.md](../BMP_PROCESSING.md) and [TRACK_ARTWORK.md](../TRACK_ARTWORK.md).
 
-| Script | Output |
-| --- | --- |
-| `download_flags.py` | validated flat flag PNG sources |
-| `download_driver_photos.py` | driver image sources |
-| `download_team_logos.py` | team logo sources |
-| `generate_og_image.py` | social preview image |
+`generate_og_image.py` directly renders the text-based Open Graph image with Pillow. Renderer benchmarks,
+`material_diff.py`, alignment checks and panel test-image scripts remain local diagnostics.
+Do not publish an old diagnostic image without reviewing the depicted assets.
 
-Downloaders validate payloads before atomically replacing an existing asset. Review licensing and
-source provenance before committing downloaded files.
-
-## Diagnostics and visual review
-
-| Script | Purpose |
-| --- | --- |
-| `material_diff.py` | compare rendered output bytes/pixels across changes |
-| `benchmark_renderer.py` | measure renderer and optional HTTP performance |
-| `measure_alignment.py` | inspect layout alignment |
-| `generate_test_image.py` | create a representative panel test image |
-| `generate_stress_test_image.py` | exercise difficult panel patterns |
-| `find_longest_values.py` | find layout-stressing source values |
-
-Diagnostics may create local output files; inspect `git status` before committing.
-
-## Container operations
-
-`backup_cli.py` and `reset_db.sh` are copied into the production image as `backup` and `reset-db`.
-Use the documented container commands in [`SELF-HOSTING.md`](../SELF-HOSTING.md) rather than
-invoking their repository paths in production.
+`backup_cli.py` and `reset_db.sh` are installed as `backup` and `reset-db` in the container.
+Follow [SELF-HOSTING.md](../SELF-HOSTING.md) and the
+[upgrade guidance](../docs/data-collection.md#upgrading-to-130) for storage operations.

@@ -10,8 +10,10 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.paths import TEMPLATES_DIR
-from app.services.analytics import get_umami_script_tag
+from app.services.analytics import analytics_enabled, get_umami_script_tag
 from app.services.i18n import get_translator
+from app.services.legal import CONTENT_POLICY_VERSION
+from app.services.track_catalog import track_ui_options
 from app.version import APP_VERSION
 
 # Register font MIME types (Python's mimetypes doesn't know TTF by default)
@@ -132,7 +134,7 @@ def calc_percent(value: int, total: int) -> float:
 
 
 def detect_ui_language(request: Request) -> str:
-    """Get UI language from cookie or default to English."""
+    """Use the functional language preference independently of telemetry settings."""
     preferred = request.cookies.get("preferredLang")
     if preferred in VALID_LANGUAGES:
         return preferred
@@ -187,6 +189,7 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "nav": nav,
         "site_url": str(config.SITE_URL).rstrip("/"),
         "app_version": APP_VERSION,
+        "asset_version": f"{APP_VERSION}-{CONTENT_POLICY_VERSION}",
         "format_bytes": format_bytes,
         "calc_percent": calc_percent,
         "lang_url": lambda path: lang_url(path, ui_lang),
@@ -195,4 +198,12 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "supported_languages": supported_languages,
         "supported_language_codes": list(LANGUAGE_CODES),
         "configure_ui_text": _build_configure_ui_text(t),
+        "track_ui": track_ui_options(ui_lang),
+        "legal_config": config,
+        "minimal_data_mode": config.MINIMAL_DATA_MODE,
+        "analytics_enabled": analytics_enabled(),
+        "errors_enabled": not config.MINIMAL_DATA_MODE
+        and config.SENTRY_ENABLED
+        and bool(config.SENTRY_DSN),
+        "perf_sample_rate": 0 if config.MINIMAL_DATA_MODE else config.PERF_METRICS_SAMPLE_RATE,
     }

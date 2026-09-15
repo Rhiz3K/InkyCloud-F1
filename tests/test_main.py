@@ -42,11 +42,11 @@ from app.routes.images import (
     _get_race_info_for_stats,
     _schedule_calendar_analytics,
 )
+from app.services.artifact_metadata import calendar_identity, write_artifact_metadata
 from app.services.f1_service import F1Service
 from app.services.image_keys import get_teams_image_key
 from app.services.teams_service import TeamsService
 from app.state import clear_bmp_cache, get_bmp_cache
-from app.utils.etag import strong_etag
 from app.utils.rate_limit import _reset_rate_limit_state_for_tests
 from app.version import APP_VERSION
 
@@ -118,7 +118,7 @@ def test_root_endpoint_returns_html():
     response = client.get("/", follow_redirects=False)
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "/static/images/f1_homepage_logo_optimized.png" in response.text
+    assert "/static/images/f1_homepage_logo_1x.webp" in response.text
 
 
 def test_root_page_contains_tailwind():
@@ -614,6 +614,8 @@ def test_homepage_contains_credits_links():
     html = response.text
     assert "Credits" in html
     assert "FoxeeLab" in html
+    assert 'href="https://umami.is"' in html
+    assert 'href="https://glitchtip.com"' in html
     assert 'href="https://coolify.io"' in html
     assert 'href="https://hetzner.com"' in html
     assert 'href="https://www.laskakit.cz/' in html
@@ -660,30 +662,39 @@ def test_privacy_endpoint_returns_html():
     response = client.get("/privacy")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
-    assert "Privacy Policy" in response.text or "Ochrana soukromí" in response.text
+    assert "Privacy" in response.text or "Soukromí" in response.text
 
 
-def test_privacy_page_contains_required_sections():
-    """Test privacy page has all required sections."""
-    response = client.get("/privacy?lang=en")
-    html = response.text
-    assert "Introduction" in html
-    assert "Data We Collect" in html
-    assert "Third-Party" in html
-    assert "GDPR" in html
-    assert "Open Source" in html
-    assert "Contact" in html
+def test_privacy_page_describes_actual_data_flows_without_inventing_identity(monkeypatch):
+    monkeypatch.setattr(api_routes.config, "OPERATOR_NAME", "")
+    monkeypatch.setattr(api_routes.config, "PRIVACY_CONTACT_EMAIL", "")
+    html = client.get("/privacy?lang=en").text
+    for notice in [
+        "IP address",
+        "hourly",
+        "histograms",
+        "50 ms",
+        "localStorage",
+        "Hetzner",
+        "GlitchTip",
+        "disabled",
+        "ÚOOÚ",
+    ]:
+        assert notice in html
+    assert "mailto:" not in html
+    assert "Data controller and contact" not in html
+    assert "Not configured" not in html
 
 
 def test_privacy_page_lang_parameter():
     """Test privacy page respects ?lang= query parameter."""
     response = client.get("/privacy?lang=cs")
     html = response.text
-    assert "Zásady ochrany osobních údajů" in html or "Ochrana soukromí" in html
+    assert "Zásady ochrany osobních údajů" in html or "Soukromí" in html
 
     response = client.get("/privacy?lang=en")
     html = response.text
-    assert "Privacy Policy" in html
+    assert "Privacy" in html
 
 
 def test_privacy_page_i18n_czech():
@@ -1016,26 +1027,6 @@ def test_operational_api_rejects_runtime_empty_token_misconfiguration():
     assert response.status_code == 503
 
 
-def test_perf_metrics_post_remains_public_when_operational_token_is_configured():
-    """POST /api/perf-metrics stays public for browser-side web-vitals ingestion."""
-    payload = {
-        "page_path": "/calendar.bmp",
-        "lcp_ms": 1200.5,
-        "cls": 0.05,
-        "fcp_ms": 800.0,
-        "ttfb_ms": 150.0,
-        "inp_ms": 50.0,
-        "connection_type": "4g",
-        "device_memory": 8.0,
-    }
-
-    with patch.object(api_routes.config, "ADMIN_API_TOKEN", SecretStr("secret-token")):
-        response = client.post("/api/perf-metrics", json=payload)
-
-    assert response.status_code == 200
-    assert response.json()["status"] == "ok"
-
-
 def test_api_stats_endpoint_returns_correct_structure():
     """Test /api/stats endpoint returns new structure with 24h stats."""
     response = client.get("/api/stats")
@@ -1164,12 +1155,26 @@ def test_calendar_preview_renders_dynamically_before_pregeneration(tmp_path, mon
     assert image.size == (400, 240)
 
 
-def test_common_js_sends_beacon_payload_as_json():
-    """Web-vitals beacons must use JSON media type accepted by FastAPI."""
-    response = client.get("/static/js/common.js")
-
+def test_numeric_collector_and_local_library_are_distributed():
+    response = client.get("/static/js/perf-metrics.js")
     assert response.status_code == 200
-    assert 'new Blob([jsonPayload], { type: "application/json" })' in response.text
+    assert "sendBeacon" in response.text
+    assert client.get("/static/js/web-vitals.js").status_code == 200
+    html = client.get("/configure/calendar").text
+    assert "/static/js/web-vitals.js" in html
+    assert "/static/js/perf-metrics.js" in html
+    assert "window.PERF_SAMPLE_RATE = 0.1" in html
+
+
+@pytest.mark.parametrize("token", [None, SecretStr("secret-token")])
+def test_empty_perf_payload_never_persists(monkeypatch, token):
+    db = Mock(save_perf_metric=AsyncMock(side_effect=AssertionError("Must not store")))
+    monkeypatch.setattr(api_routes, "get_database", lambda: db)
+    monkeypatch.setattr(api_routes.config, "ADMIN_API_TOKEN", token)
+    response = client.post("/api/perf-metrics", json={"page_path": "/", "device_memory": 8})
+    assert response.status_code == 200
+    assert response.json() == {"status": "ignored"}
+    db.save_perf_metric.assert_not_awaited()
 
 
 def test_homepage_mobile_menu_button():
@@ -1382,6 +1387,11 @@ def test_teams_configure_preview_route_supports_display_variants(
     monkeypatch.setattr("app.routes.previews.config.IMAGES_PATH", str(tmp_path))
     preview_path = tmp_path / "configure_teams_en_bwr.png"
     Image.new("RGB", (2, 2), color=(255, 0, 0)).save(preview_path, format="PNG")
+    asyncio.run(
+        write_artifact_metadata(
+            preview_path, preview_path.read_bytes(), previews_routes._preview_identity("teams")
+        )
+    )
 
     response = client.get("/preview/configure/teams.png?display=bwr")
 
@@ -1690,6 +1700,11 @@ def test_pregenerated_calendar_path_uses_off_variant_when_weather_disabled(tmp_p
     off_path = tmp_path / "calendar_en.bmp"
     weather_path = tmp_path / "calendar_en_weather_race.bmp"
     off_path.write_bytes(b"off")
+    asyncio.run(
+        write_artifact_metadata(
+            off_path, b"off", calendar_identity(F1Service().get_next_race_from_static())
+        )
+    )
     weather_path.write_bytes(b"weather")
 
     image_path = _get_pregenerated_calendar_path(
@@ -1779,27 +1794,29 @@ def test_get_pregenerated_teams_path_uses_default_year_in_filename(tmp_path, mon
     current_path = tmp_path / "teams_2026_en.bmp"
     old_path.write_bytes(b"old")
     current_path.write_bytes(b"current")
+    asyncio.run(write_artifact_metadata(current_path, b"current", "teams:2026"))
 
     image_path = _get_pregenerated_teams_path(lang="en", year=None, display="1bit")
 
     assert image_path == current_path
 
 
-def test_teams_bmp_caches_pregenerated_assets_with_shared_image_key(tmp_path, monkeypatch):
-    """Teams endpoint should cache pregenerated BMPs under the shared image-key helper."""
+def test_teams_bmp_revalidates_pregenerated_assets_without_extending_their_age(
+    tmp_path, monkeypatch
+):
+    """Disk freshness must be checked on each request instead of extending it by a RAM TTL."""
     clear_bmp_cache()
     monkeypatch.setattr(images_routes.config, "IMAGES_PATH", str(tmp_path))
     image_path = tmp_path / "teams_2026_en_bwr.bmp"
     image_path.write_bytes(b"BMpregenerated")
+    asyncio.run(write_artifact_metadata(image_path, b"BMpregenerated", "teams:2026"))
 
     response = client.get("/teams.bmp?year=2026&display=bwr")
 
     assert response.status_code == 200
     expected_key = get_teams_image_key("en", 2026, display="bwr")
-    assert get_bmp_cache()[expected_key] == (
-        b"BMpregenerated",
-        strong_etag(b"BMpregenerated"),
-    )
+    assert response.content == b"BMpregenerated"
+    assert expected_key not in get_bmp_cache()
     assert "teams:en:2026:bwr" not in get_bmp_cache()
 
 
@@ -1873,33 +1890,6 @@ def test_teams_bmp_redacts_internal_error_details(monkeypatch):
 # ============================================================================
 # API Endpoint Tests
 # ============================================================================
-
-
-def test_perf_metrics_rate_limit_returns_429(monkeypatch):
-    _reset_rate_limit_state_for_tests()
-    monkeypatch.setattr(api_routes.config, "RATE_LIMIT_ENABLED", True)
-    monkeypatch.setattr(api_routes.config, "PERF_METRICS_RATE_LIMIT_PER_MINUTE", 1)
-
-    payload = {
-        "page_path": "/calendar.bmp",
-        "lcp_ms": 1000.0,
-        "cls": 0.01,
-        "fcp_ms": 500.0,
-        "ttfb_ms": 200.0,
-        "inp_ms": 100.0,
-        "connection_type": "4g",
-        "device_memory": 8.0,
-    }
-
-    try:
-        first = client.post("/api/perf-metrics", json=payload)
-        second = client.post("/api/perf-metrics", json=payload)
-    finally:
-        _reset_rate_limit_state_for_tests()
-
-    assert first.status_code == 200
-    assert second.status_code == 429
-    assert second.json()["detail"] == "Rate limit exceeded"
 
 
 def test_stats_api_reads_share_rate_limit(monkeypatch):
@@ -2185,42 +2175,11 @@ def test_convert_race_times_to_timezone_updates_race_date():
     assert result["timezone"] == "Europe/Prague"
 
 
-def test_perf_metrics_post_endpoint():
-    """Test POST /api/perf-metrics endpoint accepts valid payload."""
-    payload = {
-        "page_path": "/calendar.bmp",
-        "lcp_ms": 1200.5,
-        "cls": 0.05,
-        "fcp_ms": 800.0,
-        "ttfb_ms": 150.0,
-        "inp_ms": 50.0,
-        "connection_type": "4g",
-        "device_memory": 8.0,
-    }
-
-    response = client.post("/api/perf-metrics", json=payload)
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["status"] == "ok"
-
-
 def test_perf_metrics_post_invalid_payload():
     """Test POST /api/perf-metrics handles invalid payload gracefully."""
     response = client.post("/api/perf-metrics", json={"invalid": "data"})
 
     assert response.status_code == 422
-
-
-def test_perf_metrics_database_failure_returns_503(monkeypatch):
-    db = Mock(save_perf_metric=AsyncMock(side_effect=RuntimeError("database offline")))
-    db.close = AsyncMock()
-    monkeypatch.setattr(api_routes, "get_database", lambda: db)
-
-    response = client.post("/api/perf-metrics", json={"page_path": "/"})
-
-    assert response.status_code == 503
-    db.close.assert_not_awaited()
 
 
 def test_operational_query_bounds_return_422():
@@ -2440,6 +2399,7 @@ def test_html_404_predicate_rejects_non_get_requests():
 def test_main_entrypoint_initializes_sentry_and_invokes_uvicorn_without_starting_server():
     with (
         patch("app.config.config.SENTRY_DSN", "https://sentry.example/1"),
+        patch("app.config.config.SENTRY_ENABLED", True),
         patch("sentry_sdk.init") as sentry_init,
         patch("uvicorn.run") as uvicorn_run,
     ):

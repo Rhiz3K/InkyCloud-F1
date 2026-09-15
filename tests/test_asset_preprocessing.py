@@ -7,7 +7,6 @@ import subprocess
 import sys
 from hashlib import sha256
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import Mock
 
 import numpy as np
@@ -201,10 +200,6 @@ def test_image_normalization_crop_and_fit_defensive_paths(tmp_path):
     output = tmp_path / "blank.bmp"
     assert assets.process_track_image(blank, output, "mono")["final_dimensions"] == (20, 10)
 
-    no_pixels = SimpleNamespace(load=lambda: None, width=1, height=1)
-    with pytest.raises(ValueError, match="access track pixels"):
-        assets._crop_non_white(no_pixels)  # type: ignore[arg-type]
-
 
 def test_color_encoding_requires_a_color_palette(tmp_path):
     """Internal color encoders should reject the monochrome spec explicitly."""
@@ -278,30 +273,11 @@ def test_managed_track_bundle_fails_closed_before_preprocessing(tmp_path, corrup
 
 
 @pytest.mark.parametrize("palette", assets.PREPROCESS_PALETTES)
-def test_shipped_track_assets_match_source_preprocessing(tmp_path, palette):
-    """Shipped runtime BMPs must stay synchronized with their preferred source art."""
-    generated = tmp_path / palette
-
-    result = assets.preprocess_tracks(palette, output_dir=generated)
-
-    spec = assets.get_palette_spec(palette)
-    shipped = assets.PROJECT_ROOT / "app" / "assets" / spec.track_output
-    generated_paths = sorted(generated.glob("*.bmp"))
-    mismatches = []
-    for generated_path in generated_paths:
-        shipped_path = shipped / generated_path.name
-        if not shipped_path.is_file():
-            mismatches.append(f"{generated_path.name}: missing")
-        elif generated_path.read_bytes() != shipped_path.read_bytes():
-            mismatches.append(f"{generated_path.name}: differs")
-
-    assert result.processed == len(generated_paths)
-    assert result.failures == 0
-    assert not mismatches, (
-        f"{palette} runtime track assets are stale; regenerate them with "
-        f"`uv run python -m scripts.manage preprocess tracks --palette {palette}`: "
-        + ", ".join(mismatches)
-    )
+def test_default_legacy_track_source_is_retired(tmp_path, palette):
+    with pytest.raises(assets.PreprocessingError, match="retired"):
+        assets.preprocess_tracks(palette, output_dir=tmp_path)
+    with pytest.raises(assets.PreprocessingError, match="retired"):
+        assets.preprocess_tracks(palette, source_dir=tmp_path)
 
 
 def test_flag_batch_and_empty_input_errors(tmp_path):
@@ -340,24 +316,17 @@ def test_batch_reports_partial_failure_and_continues(tmp_path):
     assert processor.call_count == 2
 
 
-def test_manage_cli_routes_commands_and_reports_backend_errors(monkeypatch, capsys):
-    """The public command hierarchy should route tracks, flags, and failures."""
-    tracks = Mock()
+def test_manage_cli_routes_flags_and_rejects_retired_tracks(monkeypatch, capsys):
     flags = Mock()
-    monkeypatch.setattr(manage, "preprocess_tracks", tracks)
     monkeypatch.setattr(manage, "preprocess_flags", flags)
-
-    assert (
-        manage.main(["preprocess", "tracks", "--palette", "bwr", "--circuits", "monaco,suzuka"])
-        == 0
-    )
-    tracks.assert_called_once_with("bwr", ["monaco", "suzuka"])
     assert manage.main(["preprocess", "flags", "--palette", "spectra6"]) == 0
     flags.assert_called_once_with("spectra6")
-
-    tracks.side_effect = assets.PreprocessingError("broken")
-    assert manage.main(["preprocess", "tracks", "--palette", "mono"]) == 1
+    flags.side_effect = assets.PreprocessingError("broken")
+    assert manage.main(["preprocess", "flags", "--palette", "mono"]) == 1
     assert "error: broken" in capsys.readouterr().err
+    with pytest.raises(SystemExit) as error:
+        manage.main(["preprocess", "tracks", "--palette", "mono"])
+    assert error.value.code == 2
 
 
 def test_legacy_cli_wrapper_forwards_existing_arguments(monkeypatch):
@@ -398,5 +367,5 @@ def test_legacy_cli_wrappers_run_directly_by_filename(script_name, tmp_path):
         check=False,
     )
 
-    assert result.returncode == 0, result.stderr
-    assert "usage:" in result.stdout
+    assert result.returncode == (2 if "tracks" in script_name else 0), result.stderr
+    assert "usage:" in (result.stdout + result.stderr)

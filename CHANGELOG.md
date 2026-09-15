@@ -7,6 +7,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-15
+
+### Added
+
+- Circuit artwork for all 26 tracks from pinned Jules Roy and reviewed Wikimedia Commons
+  outlines, with 18 styles, all 16 accent subsets and all four e-paper palettes.
+- Automatic rotation and cropping based on the complete drawing bounds, including shadows,
+  relief and outline echoes, to maximize the track inside the actual display area.
+- Configure controls and attributed SVG/PNG/BMP track APIs. Defaults use isometric relief,
+  all four color accents and Jules Roy; new configurations select Spectra 6.
+- Calendar map style, source and requested accent usage in the statistics dashboard and
+  `/api/stats`, including cached responses and HTTP 304s. Preserve historic counts as
+  `legacy` instead of assigning current defaults, with labels in all 13 languages.
+- Per-file Credits, data provenance, full dependency/font/artwork notices and a register of
+  430 runtime assets, including explicit provenance/rights notes for retained project art
+  and team logos. Verify the source catalogue, wheel, sdist and Docker contents.
+- A read-only runtime audit command for collection-profile checks and outgoing weather
+  request counts. Inspect active SQLite/WAL without printing individual records or secrets.
+
+### Changed
+
+- Show an independent-project notice below homepage Credits, including on mobile.
+  Add track-map attribution on a separate row spanning both Credits columns, preserving
+  the existing items and layout. Document separate rights for project art and team logos.
+- Replace individual statistics with hourly usage totals and coarse performance histograms
+  (`MINIMAL_DATA_MODE=false`, `AGGREGATE_STATS_ONLY=true`). No visitor identifiers, IPs,
+  User-Agents, referrers or device attributes are stored in this profile.
+- Sample 10% of page loads for one numeric Web Vitals report using a pinned, locally hosted
+  standard build. Optional Umami receives hourly server summaries; configured GlitchTip
+  receives scrubbed errors without tracing, profiling or request context.
+- Keep application/access logging disabled and shared rate-limit counters without IP keys.
+  The explicit minimal mode remains a complete usage/monitoring/backup opt-out.
+- Keep language preferences independent of telemetry and give explicit localized URLs
+  precedence over stored preferences.
+- Compact map controls, balance the homepage notice and share complete Credits rows between
+  homepage and mobile menu, with inactive integration labels and all 13 locales translated.
+- Update Privacy descriptions for the aggregate profile without changing its structure.
+- Use the full track area in e-paper calendars and previews without a visible credit row.
+  Keep Credits, HTTP source links and attribution on standalone track exports.
+- Record supplementary circuit facts separately from Jolpica-licensed sporting history
+  and update Madring facts. Retain existing championship headings and team logos.
+
+### Removed
+
+- Unlicensed F1 source rasters/PSDs, track bitmaps, driver graphics and documentation
+  imagery from the distributed tree. Disable the old import/download/scraping workflows
+  and reject unknown, stale or modified public assets at runtime.
+- Individual visitor telemetry in the default profile. Explicit `MINIMAL_DATA_MODE=true`
+  returns 410 for statistics pages and all statistics APIs.
+
+### Fixed
+
+- Restrict Credits redirects to precomputed local paths and match placeholder deployment
+  domains on DNS label boundaries, including the standard example domains and localhost.
+- Use fixed, parameterized statistics/audit SQL, a shared request-pacing interface and
+  explicit database fixture cleanup. Clarify reviewed logging and SVG-construction behavior.
+- Keep API documentation and changelog inside narrow mobile viewports; wrap long inline
+  code and URLs while scrolling wide parameter tables and code samples independently.
+- Remove obsolete visitor/device fields and visit-order validation from the performance
+  ingestion schema. Keep legacy version markers compatible and discard extra metadata
+  before ingestion; document this behavior accurately.
+- Extend the shared Open-Meteo budget to 300,000 attempts over rolling 31 days. Fetch only
+  the race day within the existing 16-day forecast horizon, avoiding multiweek call weighting.
+- Resolve the Las Vegas provider ID `vegas` to `las_vegas` throughout artwork rendering,
+  exports and Credits links. Invalidate cached calendars and previews that lacked the map.
+- Publish core calendars and previews before optional weather/teams enrichment, enforce total
+  timeout budgets and preserve readiness with an explicit degraded state after upstream failures.
+- Bind previews and calendar caches to the requested race, source BMP, palette, generation age
+  and artwork options. Reject expired, mismatched and withdrawn generated content.
+- Merge current bundled circuit metadata with newer runtime historical results and retain
+  runtime-only circuits without overwriting newer sporting history.
+- Serialize SQLite operations through cancellation and rollback; deduplicate retried request
+  writes, including aggregate server batches, and enforce bounded retention.
+- Format calendar dates identically on desktop and mobile without timezone-induced day shifts.
+- Count each Open-Meteo attempt, including retries, against the shared provider quota.
+- Close shared database workers after direct service tests so successful CI runs terminate.
+- Run branch, pull-request and manual CI on ephemeral GitHub-hosted runners, using the
+  same required `test` job for repository branches and fork contributions.
+
+### Migration notes
+
+- Weather quota timestamps now remain for 31 days instead of one. Older deleted history
+  cannot be reconstructed, so the rolling monthly count is partial during the first 31 days
+  after upgrading. Separate databases/applications still need a shared provider budget.
+- Database schema 6 adds map choices to both statistics storage formats and backfills
+  unrecorded historic calendar choices as `legacy`, without changing existing counts.
+- Startup migrates old individual usage records into aggregates and removes original rows
+  and identifiers from active SQLite/WAL, even with image scheduling disabled. Stop the old
+  writer before upgrading. Existing external backups/logs require separate cleanup.
+- An explicitly configured `MINIMAL_DATA_MODE=true` still erases all usage totals and disables
+  statistics. Change that deployment setting to `false` to restore them; previously deleted
+  records cannot be recovered by changing flags.
+- Existing image endpoint URLs and one-bit display defaults remain supported. Regenerate old
+  images and review proxy/CDN caches. Per-map Credits, HTTP licence notices and attribution
+  on standalone track exports remain present.
+- See `TRACK_ARTWORK.md`, `DATA_LICENSES.md` and `docs/data-collection.md` for source
+  licences, configuration and upgrade guidance.
+
 ## [1.2.40] - 2026-09-02
 
 ### Backend

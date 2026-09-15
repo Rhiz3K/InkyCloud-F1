@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Credits · F1.InkyCloud.click{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ site_url }}{{ lang_url('/credits') }}">{% endblock %}
+{% block content %}
+{% set ctext = t.credits_page %}
+<main class="flex-1 py-8 px-4">
+  <div class="max-w-4xl mx-auto bg-white border-2 border-black shadow-neo p-6 space-y-6">
+    <h1 class="text-3xl font-bold">Credits</h1>
+    <p>{{ ctext.intro }}</p>
+    <p>{{ ctext.licences }}</p>
+    <p class="text-sm"><a class="underline" href="https://github.com/julesr0y/f1-circuits-svg/tree/9c93759b076d1b87eac265a009b21b399253220a" target="_blank" rel="noopener noreferrer">Jules Roy · f1-circuits-svg</a> · <a class="underline" href="/static/track_art/JULES-LICENSE.txt">CC BY 4.0 · {{ ctext.licenceText }}</a> · <a class="underline" href="/api/tracks">JSON API</a></p>
+    <section id="data" class="border-t-2 border-black pt-4 space-y-3">
+      <h2 class="text-xl font-bold">{{ ctext.dataTitle }}</h2>
+      <p><a class="underline" href="https://github.com/jolpica/jolpica-f1">Jolpica-F1 / Ergast contributors</a> · <a class="underline" href="https://creativecommons.org/licenses/by-nc-sa/4.0/">CC BY-NC-SA 4.0</a>. {{ ctext.raceChange }}</p>
+      <p><a class="underline" href="https://open-meteo.com/">Open-Meteo</a> · <a class="underline" href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. {{ ctext.weatherChange }}</p>
+      {% for year in [2025, 2026] %}<p><a class="underline" href="https://en.wikipedia.org/wiki/{{ year }}_Formula_One_World_Championship">Wikipedia · {{ year }}</a> · <a class="underline" href="https://en.wikipedia.org/w/index.php?title={{ year }}_Formula_One_World_Championship&amp;action=history">{{ ctext.history }}</a> · <a class="underline" href="https://creativecommons.org/licenses/by-sa/4.0/">CC BY-SA 4.0</a>. {{ ctext.wikiChange }}</p>{% endfor %}
+      <p><a class="underline" href="https://flagpedia.net/download/icons">Flagpedia / Flagcdn</a> · {{ ctext.flags }}</p>
+      <p>Titillium Web, Space Mono, Racing Sans One, Noto Sans CJK, Weather Icons · SIL OFL 1.1.</p>
+      <p><a class="underline" href="https://github.com/GoogleChrome/web-vitals">GoogleChrome / web-vitals</a> · <a class="underline" href="/static/licenses/web-vitals-LICENSE.txt">Apache-2.0</a>.</p>
+      <p><a class="underline" href="/static/licenses/DATA_LICENSES.txt">{{ ctext.dataLicences }}</a> · <a class="underline" href="/static/licenses/THIRD_PARTY_NOTICES.txt">{{ ctext.notices }}</a> · <a class="underline" href="/static/licenses/dependencies.json">{{ ctext.dependencies }}</a></p>
+    </section>
+    <section id="project-artwork" class="border-t-2 border-black pt-4 space-y-3">
+      <h2 class="text-xl font-bold">{{ ctext.artTitle }}</h2>
+      <p>{{ ctext.ai }}</p>
+      <p>{{ ctext.logos }}</p>
+      <p><a class="underline" href="/static/licenses/DATA_LICENSES.txt">{{ ctext.provenance }}</a></p>
+    </section>
+    {% for track in track_credits %}
+    <section class="border-t-2 border-black pt-4 space-y-3">
+      <h2 class="text-xl font-bold">{{ track.name }}</h2>
+      {% for variant in track.variants %}{% set c = variant.credit %}
+      <article id="{{ track.id }}-{{ variant.id }}" class="text-sm space-y-1 break-words">
+        <h3 class="font-bold">{{ 'Jules Roy' if variant.id == 'jules' else 'Wikimedia Commons' }} · {{ c.layout_id }}</h3>
+        <p><a class="underline" href="{{ c.source }}" target="_blank" rel="noopener noreferrer">{{ c.author }} · {{ ctext.original }}</a> · <a class="underline" href="{{ c.license_url }}" target="_blank" rel="noopener noreferrer">{{ c.license_label }}</a></p>
+        {% for original in c.get('attribution_sources', []) %}
+        <p>{{ ctext.underlying }}: <a class="underline" href="{{ original.source }}" target="_blank" rel="noopener noreferrer">{{ original.author }}</a> · <a class="underline" href="{{ original.license_url }}" target="_blank" rel="noopener noreferrer">{{ original.license_label }}</a></p>
+        {% endfor %}
+        <p>{{ ctext.adapted }}: InkyCloud contributors · <a class="underline" href="{{ c.artwork_license_url }}" target="_blank" rel="noopener noreferrer">{{ c.artwork_license }}</a></p>
+        <p class="text-gray-600">{{ ctext.adaptation }}</p>
+        <p><a class="underline" href="/api/tracks/{{ track.id }}">{{ ctext.metadata }}</a> · <a class="underline" href="/api/tracks/{{ track.id }}.svg?track_source={{ variant.id }}">SVG</a></p>
+      </article>
+      {% endfor %}
+    </section>
+    {% endfor %}
+  </div>
+</main>
+{% endblock %}

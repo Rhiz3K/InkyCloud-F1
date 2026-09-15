@@ -100,6 +100,16 @@ def preserve_cancelled_races(
 
 def write_season_file(output_path: Path, season_payload: dict[str, Any]) -> None:
     """Atomically write season JSON with a trailing newline."""
+    season_payload = {
+        **season_payload,
+        "_provenance": {
+            "source": f"{API_BASE}/{season_payload['season']}.json",
+            "author": "Jolpica-F1 / Ergast contributors",
+            "license": "CC-BY-NC-SA-4.0",
+            "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+            "changes": "Selected fields, normalized JSON, retained cancelled races",
+        },
+    }
     atomic_write_json(output_path, season_payload)
 
 
@@ -107,7 +117,9 @@ def has_material_season_change(
     season_payload: dict[str, Any], existing_payload: dict[str, Any] | None
 ) -> bool:
     """Return True when calendar data changed beyond generated_at metadata."""
-    return has_material_change(season_payload, existing_payload, ignored_keys=("generated_at",))
+    return has_material_change(
+        season_payload, existing_payload, ignored_keys=("generated_at", "_provenance")
+    )
 
 
 async def fetch_season(client: httpx.AsyncClient, year: int) -> dict:

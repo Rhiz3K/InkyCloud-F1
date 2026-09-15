@@ -19,9 +19,18 @@ This is a FastAPI service that generates **800x480 BMP images** (1-bit, B/W/R, B
 - `app/services/scheduler.py` - APScheduler background jobs
 - `app/services/backup.py` - S3 database backup automation
 - `app/services/i18n.py` - Translation loader with caching
-- `app/services/analytics.py` - Fire-and-forget Umami tracking
+- `app/services/analytics.py` - Optional hourly server totals for Umami, without visitor metadata
 - `app/services/version_service.py` - Version management
 - `translations/*.json` - i18n strings for the 13 locales listed in `LANGUAGE_CODES` (`app/config.py`)
+
+## Privacy defaults
+
+Defaults are `MINIMAL_DATA_MODE=false`, `AGGREGATE_STATS_ONLY=true`: hourly usage totals,
+coarse numeric performance histograms sampled at 10%, and scrubbed errors when configured.
+No visitor IDs, browser/device metadata, raw request logs or per-IP rate-limit keys.
+Language preference storage is functional and independent of analytics. Optional Umami
+receives hourly server totals. Explicit `MINIMAL_DATA_MODE=true` disables all collection
+and S3 backups. See `docs/data-collection.md` for migration, retention and deployment details.
 
 ## Critical Patterns
 
@@ -163,7 +172,12 @@ The `/calendar.bmp` endpoint returns standard BMP files fetchable by ESP32 HTTPC
 
 ## Track Map Rendering
 
-Track maps are real circuit outlines. Source artwork lives in `artwork/tracks/`, and the display-specific BMPs under `app/assets/tracks_*` are produced by `python -m scripts.manage` (see `BMP_PROCESSING.md`). At render time `app/services/renderer_assets.py` picks the per-display asset, crops, and fits it into the left column; keep preprocessed heights within the runtime box so no resampling is needed.
+Track maps use reviewed Jules Roy and Commons outlines archived in `artwork/open-tracks/`.
+The offline builder verifies source hashes and attribution before compiling
+`app/assets/track_art/catalog.json`. At runtime, `track_renderer.py` fits the complete
+drawing, including style effects, to the display area and quantizes it to the requested
+palette. Options and artwork versions are part of cache identities. See `TRACK_ARTWORK.md`;
+the legacy F1 raster import and preprocessing commands are retired.
 
 ## Common Gotchas
 

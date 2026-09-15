@@ -49,6 +49,7 @@ class TestBackupConfiguration:
     def test_is_backup_configured_disabled_by_default(self):
         """Test that backup is disabled when BACKUP_ENABLED=false."""
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_ENABLED = False
             mock_config.S3_ENDPOINT_URL = "https://example.com"
             mock_config.S3_ACCESS_KEY_ID = "test"
@@ -60,6 +61,7 @@ class TestBackupConfiguration:
     def test_is_backup_configured_missing_endpoint(self):
         """Test that backup is not configured without S3 endpoint."""
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_ENABLED = True
             mock_config.S3_ENDPOINT_URL = None
             mock_config.S3_ACCESS_KEY_ID = "test"
@@ -71,6 +73,7 @@ class TestBackupConfiguration:
     def test_is_backup_configured_missing_credentials(self):
         """Test that backup is not configured without credentials."""
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_ENABLED = True
             mock_config.S3_ENDPOINT_URL = "https://example.com"
             mock_config.S3_ACCESS_KEY_ID = None
@@ -82,6 +85,7 @@ class TestBackupConfiguration:
     def test_is_backup_configured_missing_bucket(self):
         """Test that backup is not configured without bucket name."""
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_ENABLED = True
             mock_config.S3_ENDPOINT_URL = "https://example.com"
             mock_config.S3_ACCESS_KEY_ID = "test"
@@ -93,6 +97,7 @@ class TestBackupConfiguration:
     def test_is_backup_configured_all_set(self):
         """Test that backup is configured when all settings are present."""
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_ENABLED = True
             mock_config.S3_ENDPOINT_URL = "https://example.com"
             mock_config.S3_ACCESS_KEY_ID = "test-key"
@@ -169,6 +174,7 @@ class TestPerformBackup:
             ):
                 mock_config.DATABASE_PATH = tmp_db_path
                 mock_config.S3_BUCKET_NAME = "test-bucket"
+                mock_config.MINIMAL_DATA_MODE = False
                 mock_config.BACKUP_RETENTION_DAYS = 30
 
                 from app.services.backup import perform_backup
@@ -226,6 +232,7 @@ class TestPerformBackup:
         ):
             mock_config.DATABASE_PATH = database_path
             mock_config.S3_BUCKET_NAME = "bucket"
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_RETENTION_DAYS = 0
 
             assert perform_backup() is False
@@ -252,6 +259,7 @@ class TestPerformBackup:
         ):
             mock_config.DATABASE_PATH = database_path
             mock_config.S3_BUCKET_NAME = "bucket"
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_RETENTION_DAYS = 0
 
             assert perform_backup() is True
@@ -263,6 +271,7 @@ class TestCleanupOldBackups:
     def test_cleanup_disabled_when_retention_zero(self):
         """Test that cleanup is skipped when retention is 0."""
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_RETENTION_DAYS = 0
 
             from app.services.backup import cleanup_old_backups
@@ -296,6 +305,7 @@ class TestCleanupOldBackups:
         mock_s3_client.get_paginator.return_value = mock_paginator
 
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_RETENTION_DAYS = 30
             mock_config.S3_BUCKET_NAME = "test-bucket"
 
@@ -330,6 +340,7 @@ class TestCleanupOldBackups:
         client = MagicMock()
         client.get_paginator.return_value.paginate.return_value = [{}]
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_RETENTION_DAYS = 30
             mock_config.S3_BUCKET_NAME = "bucket"
 
@@ -379,6 +390,7 @@ class TestBackupDiagnostics:
         from app.services.backup import _get_s3_client
 
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = endpoint
             mock_config.S3_ACCESS_KEY_ID = access_key
             mock_config.S3_SECRET_ACCESS_KEY = secret_key
@@ -394,6 +406,7 @@ class TestBackupDiagnostics:
             patch("app.services.backup.config") as mock_config,
             patch.dict(sys.modules, {"boto3": None}),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -411,6 +424,7 @@ class TestBackupDiagnostics:
             patch("app.services.backup.config") as mock_config,
             patch.dict(sys.modules, {"boto3": boto3}),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -432,6 +446,7 @@ class TestBackupDiagnostics:
         from app.services.backup import get_backup_config_info
 
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.BACKUP_ENABLED = True
             mock_config.S3_ENDPOINT_URL = None
             mock_config.S3_BUCKET_NAME = None
@@ -480,6 +495,7 @@ class TestBackupDiagnostics:
         from app.services.backup import test_s3_connection
 
         with patch("app.services.backup.config") as mock_config:
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = endpoint
             mock_config.S3_ACCESS_KEY_ID = access_key
             mock_config.S3_SECRET_ACCESS_KEY = secret_key
@@ -498,6 +514,7 @@ class TestBackupDiagnostics:
             patch("app.services.backup.config") as mock_config,
             patch("app.services.backup._get_s3_client", return_value=None),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -517,6 +534,7 @@ class TestBackupDiagnostics:
             patch("app.services.backup._get_s3_client", return_value=client),
             patch("time.time", side_effect=[10.0, 10.25, 10.5]),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -561,6 +579,7 @@ class TestBackupDiagnostics:
             patch("app.services.backup.config") as mock_config,
             patch("app.services.backup._get_s3_client", return_value=client),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -581,6 +600,7 @@ class TestBackupDiagnostics:
             patch("app.services.backup.config") as mock_config,
             patch("app.services.backup._get_s3_client", return_value=client),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -601,6 +621,7 @@ class TestBackupDiagnostics:
             patch("app.services.backup._get_s3_client", return_value=MagicMock()),
             patch("time.time", side_effect=RuntimeError("clock failed")),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -716,6 +737,7 @@ class TestBackupReporting:
             patch("app.services.backup.config") as mock_config,
             patch("app.services.backup._get_s3_client", return_value=client),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = endpoint
             mock_config.S3_ACCESS_KEY_ID = access_key
             mock_config.S3_SECRET_ACCESS_KEY = secret_key
@@ -737,6 +759,7 @@ class TestBackupReporting:
             patch("app.services.backup.config") as mock_config,
             patch("app.services.backup._get_s3_client", return_value=None),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -763,6 +786,7 @@ class TestBackupReporting:
             patch("app.services.backup.generate_backup_filename", return_value="backup.db"),
             patch("app.services.backup.cleanup_old_backups", return_value=3),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -793,6 +817,7 @@ class TestBackupReporting:
             patch("app.services.backup._get_s3_client", return_value=MagicMock()),
             patch("app.services.backup.cleanup_old_backups", cleanup),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -822,6 +847,7 @@ class TestBackupReporting:
             ),
             patch("app.services.backup.sentry_sdk.capture_exception", capture_exception),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -845,6 +871,7 @@ class TestBackupReporting:
             patch("app.services.backup._get_s3_client", return_value=MagicMock()),
             patch("app.services.backup.tempfile.mkstemp", side_effect=OSError("disk full")),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -872,6 +899,7 @@ class TestBackupReporting:
             patch("app.services.backup._create_sqlite_snapshot"),
             patch("app.services.backup.os.remove", side_effect=OSError("busy")),
         ):
+            mock_config.MINIMAL_DATA_MODE = False
             mock_config.S3_ENDPOINT_URL = "https://s3.example"
             mock_config.S3_ACCESS_KEY_ID = "access"
             mock_config.S3_SECRET_ACCESS_KEY = "secret"
@@ -895,6 +923,7 @@ def test_cleanup_uses_configured_client_and_reports_listing_failure():
         patch("app.services.backup._get_s3_client", return_value=client),
         patch("app.services.backup.sentry_sdk.capture_exception", capture_exception),
     ):
+        mock_config.MINIMAL_DATA_MODE = False
         mock_config.BACKUP_RETENTION_DAYS = 30
         mock_config.S3_BUCKET_NAME = "bucket"
 

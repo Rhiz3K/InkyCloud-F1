@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ nav.nav_stats }} · F1.InkyCloud.click{% endblock %}
+{% block content %}
+<main class="flex-1 py-8 px-4">
+  <article class="max-w-3xl mx-auto bg-white border-2 border-black shadow-neo p-6 space-y-6">
+    <h1 class="text-3xl font-bold">{{ t.privacy_minimal_title }}</h1>
+    <p>{{ t.stats_disabled }}</p>
+    <a class="underline" href="{{ lang_url('/privacy') }}">{{ nav.nav_privacy }}</a>
+  </article>
+</main>
+{% endblock %}

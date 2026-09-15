@@ -13,6 +13,8 @@ TRACK_SOURCE_EXTENSIONS = (".png", ".jpg", ".jpeg")
 TRACK_VARIANT_SUFFIXES = ("bw", "bwr", "bwry", "spectra6")
 TRACK_BUNDLE_VARIANTS = ("generic", *TRACK_VARIANT_SUFFIXES)
 TRACK_BUNDLE_SCHEMA_VERSION = 1
+TRACK_PROCESSING_PROFILE_KEY = "inky_track_profile"
+TRACK_PROCESSING_PROFILE = "semantic-v1"
 
 _CIRCUIT_ID_RE = re.compile(r"[a-z0-9]+(?:_[a-z0-9]+)*\Z")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")

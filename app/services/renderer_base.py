@@ -49,6 +49,8 @@ from app.services.renderer_text import (
     get_text_y,
     right_align_x,
 )
+from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
+from app.services.track_renderer import render_track_image
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
@@ -346,7 +348,12 @@ class RendererBase(RendererCore):
         )
 
     def _draw_track_section(
-        self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict
+        self,
+        draw: ImageDraw.ImageDraw,
+        image: Image.Image,
+        race_data: dict,
+        *,
+        track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
     ) -> None:
         """Draw the left-side circuit map and label block."""
         draw_track_section(
@@ -358,6 +365,13 @@ class RendererBase(RendererCore):
             padding=self.layout["padding"],
             label_font=self.fonts["circuit_name"],
             label_fill=self.theme.text_fill,
+            render_track_image_fn=lambda race, width, height: render_track_image(
+                race,
+                width,
+                height,
+                {2: "1bit", 3: "bwr", 4: "bwry", 6: "spectra6"}[len(self.colors.PALETTE)],
+                track_options,
+            ),
             load_track_image_fn=self._load_track_image,
             prepare_track_image_fn=lambda track_image, width, height: (
                 self.theme.prepare_track_image(track_image, width, height, logger)

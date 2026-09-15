@@ -1,5 +1,6 @@
 """Weather service using Open-Meteo APIs for race weekend weather."""
 
+import asyncio
 import logging
 import math
 from dataclasses import dataclass
@@ -10,6 +11,7 @@ import httpx
 
 from app.config import config
 from app.services.http_client import get_shared_http_client
+from app.services.weather_budget import WEATHER_BUDGET
 from app.utils.http import fetch_with_retry
 
 if TYPE_CHECKING:
@@ -179,7 +181,9 @@ class WeatherService:
         }
 
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-        response = await fetch_with_retry(client, OPEN_METEO_URL, params=params, logger=logger)
+        response = await fetch_with_retry(
+            client, OPEN_METEO_URL, params=params, pacer=WEATHER_BUDGET, logger=logger
+        )
         data = response.json()
 
         current = data.get("current") or {}
@@ -238,8 +242,8 @@ class WeatherService:
             logger.debug("Race already started, fetching historical weather")
             return await self.get_historical_race_weather(lat, lon, race_datetime_utc)
 
-        # Open-Meteo forecast_days includes today, so to include race date
-        # we need date_diff + 1 days.
+        # The 16-day availability horizon includes today. Fetch only the target day,
+        # not all intervening days: each request stays within one provider call unit.
         forecast_days = (race_datetime_utc.date() - now.date()).days + 1
         if forecast_days > 16:
             logger.debug(
@@ -249,7 +253,7 @@ class WeatherService:
             return None
 
         try:
-            weather_data = await self._fetch_weather(lat, lon, race_datetime_utc, forecast_days)
+            weather_data = await self._fetch_weather(lat, lon, race_datetime_utc)
             if weather_data:
                 self._set_cached(cache_key, weather_data)
             return weather_data
@@ -304,7 +308,6 @@ class WeatherService:
         lat: float,
         lon: float,
         race_datetime: datetime,
-        forecast_days: int,
     ) -> Optional[WeatherData]:
         """
         Fetch hourly forecast for race datetime from Open-Meteo.
@@ -313,21 +316,24 @@ class WeatherService:
             lat: Latitude.
             lon: Longitude.
             race_datetime: Target datetime (matches exact hour or same day).
-            forecast_days: Number of forecast days to request (max 16).
 
         Returns:
             WeatherData for matching hour/day, or None if no data found.
         """
+        race_date = race_datetime.strftime("%Y-%m-%d")
         params: dict[str, str | int | float] = {
             "latitude": round(lat, 2),
             "longitude": round(lon, 2),
             "hourly": "temperature_2m,weather_code,precipitation_probability",
             "timezone": "UTC",
-            "forecast_days": min(forecast_days, 16),
+            "start_date": race_date,
+            "end_date": race_date,
         }
 
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
-        response = await fetch_with_retry(client, OPEN_METEO_URL, params=params, logger=logger)
+        response = await fetch_with_retry(
+            client, OPEN_METEO_URL, params=params, pacer=WEATHER_BUDGET, logger=logger
+        )
         data = response.json()
 
         return _match_hourly_weather(
@@ -357,7 +363,7 @@ class WeatherService:
 
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
         response = await fetch_with_retry(
-            client, OPEN_METEO_ARCHIVE_URL, params=params, logger=logger
+            client, OPEN_METEO_ARCHIVE_URL, params=params, pacer=WEATHER_BUDGET, logger=logger
         )
         data = response.json()
 
@@ -667,7 +673,7 @@ async def _resolve_race_weather(
     return race_weather, service
 
 
-async def get_weather_context(
+async def _get_weather_context_unbounded(
     race_data: dict | None,
 ) -> tuple[
     Optional[WeatherData],
@@ -707,6 +713,18 @@ async def get_weather_context(
         weather_by_type["race"] = race_weather
 
     return current_weather, race_weather, weather_by_type
+
+
+async def get_weather_context(
+    race_data: dict | None,
+) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
+    """Bound optional weather enrichment for both scheduled and on-demand calendars."""
+    try:
+        async with asyncio.timeout(config.WEATHER_ENRICHMENT_TIMEOUT_SECONDS):
+            return await _get_weather_context_unbounded(race_data)
+    except TimeoutError:
+        logger.warning("Weather enrichment timed out; rendering without weather")
+        return None, None, {"off": None}
 
 
 # =========================================================================

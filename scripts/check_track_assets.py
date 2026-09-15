@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail when active races do not have rebuildable track artwork and runtime BMPs."""
+"""Verify that active races have both reviewed open vector outlines."""
 
 from __future__ import annotations
 
@@ -15,31 +15,8 @@ from typing import Any, Sequence
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
-from app.services.track_artwork import TrackArtworkError, load_track_source_manifest
-from app.services.track_assets import (
-    TRACK_SOURCE_EXTENSIONS,
-    TrackBundleError,
-    resolve_track_source_path,
-    track_bundle_marker_path,
-    validate_track_bundle,
-)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
-# Each runtime palette must be reproducible from its preferred artwork variant or the generic
-# source. Keep these suffixes aligned with app.services.asset_preprocessing._PALETTE_SPECS.
-SOURCE_VARIANTS: tuple[tuple[str, str], ...] = (
-    ("mono", "bw"),
-    ("bwr", "bwr"),
-    ("bwry", "bwry"),
-    ("spectra6", "spectra6"),
-)
-RUNTIME_ASSET_DIRS: tuple[tuple[str, str], ...] = (
-    ("mono", "tracks_processed"),
-    ("bwr", "tracks_bwr"),
-    ("bwry", "tracks_bwry"),
-    ("spectra6", "tracks_spectra6"),
-)
 
 
 class SeasonDataError(ValueError):
@@ -157,79 +134,24 @@ def load_active_circuits(season_path: Path) -> list[ActiveCircuit]:
     return circuits
 
 
-def _source_expectation(stems: Sequence[str], variant: str) -> str:
-    """Describe the exact preferred-variant and generic source fallback candidates."""
-    source_stems = [f"{stem}_{variant}" for stem in stems] + list(stems)
-    stem_choices = ",".join(source_stems)
-    extension_choices = ",".join(
-        extension.removeprefix(".") for extension in TRACK_SOURCE_EXTENSIONS
-    )
-    return f"artwork/tracks/{{{stem_choices}}}.{{{extension_choices}}}"
-
-
 def find_missing_assets(
     project_root: Path, circuits: Sequence[ActiveCircuit]
 ) -> list[MissingAsset]:
-    """Return all missing rebuild sources and runtime BMPs for active circuits."""
-    artwork_dir = project_root / "artwork" / "tracks"
-    manifest_path = artwork_dir / "sources.json"
-    if manifest_path.is_file():
-        try:
-            managed_tracks = load_track_source_manifest(manifest_path)
-        except TrackArtworkError as exc:
-            raise SeasonDataError(f"Cannot validate managed track sources: {exc}") from exc
-    else:
-        managed_tracks = {}
-    missing: list[MissingAsset] = []
-
-    for circuit in circuits:
-        source_stems = list(dict.fromkeys((circuit.source_id, circuit.runtime_id)))
-        for managed_id in (stem for stem in source_stems if stem in managed_tracks):
-            try:
-                validate_track_bundle(
-                    artwork_dir,
-                    managed_id,
-                    managed_tracks[managed_id].source_sha256,
-                )
-            except TrackBundleError as exc:
-                marker_path = track_bundle_marker_path(artwork_dir, managed_id)
-                missing.append(
-                    MissingAsset(
-                        circuit=circuit,
-                        requirement=f"valid managed artwork bundle ({exc})",
-                        expected=str(marker_path.relative_to(project_root)),
-                    )
-                )
-
-        for palette, variant in SOURCE_VARIANTS:
-            source_path = resolve_track_source_path(
-                artwork_dir,
-                source_stems,
-                variant_suffix=variant,
-            )
-            if source_path is None or not source_path.is_file():
-                missing.append(
-                    MissingAsset(
-                        circuit=circuit,
-                        requirement=(
-                            f"{palette} artwork source ({variant!r} variant or generic fallback)"
-                        ),
-                        expected=_source_expectation(source_stems, variant),
-                    )
-                )
-
-        for palette, directory in RUNTIME_ASSET_DIRS:
-            relative_path = Path("app") / "assets" / directory / f"{circuit.runtime_id}.bmp"
-            if not (project_root / relative_path).is_file():
-                missing.append(
-                    MissingAsset(
-                        circuit=circuit,
-                        requirement=f"{palette} runtime BMP",
-                        expected=str(relative_path),
-                    )
-                )
-
-    return missing
+    """Check both reviewed vector sources for every active circuit."""
+    if not circuits:
+        return []
+    catalogue_path = project_root / "app/assets/track_art/catalog.json"
+    try:
+        catalogue = json.loads(catalogue_path.read_text())
+        available = {tuple(key.split(":")) for key in catalogue["geometries"]}
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise SeasonDataError(f"Invalid open track catalogue: {exc}") from exc
+    return [
+        MissingAsset(circuit, f"reviewed {source} outline", str(catalogue_path))
+        for circuit in circuits
+        for source in ("jules", "commons")
+        if not any((key, source) in available for key in (circuit.source_id, circuit.runtime_id))
+    ]
 
 
 def check_track_assets(project_root: Path, season_paths: Sequence[Path]) -> list[MissingAsset]:
@@ -254,7 +176,7 @@ def parse_years(value: str) -> list[int]:
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the track-asset coverage check and return a process exit status."""
     parser = argparse.ArgumentParser(
-        description="Check active current/next-season circuits for source artwork and runtime BMPs"
+        description="Check active current/next-season circuits for both open vector sources"
     )
     parser.add_argument(
         "--years",

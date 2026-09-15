@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import logging
+from email.utils import formatdate
 from io import BytesIO
 from pathlib import Path
 
@@ -12,13 +14,23 @@ from fastapi.responses import FileResponse, RedirectResponse, Response, Streamin
 
 from app.config import LANGUAGE_CODES, config
 from app.paths import ASSETS_DIR
+from app.services.artifact_metadata import calendar_identity, read_artifact_metadata
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.image_keys import get_configure_preview_filename, get_preview_filename
 from app.services.renderers import COLOR_DISPLAYS, create_renderer
 from app.services.teams_service import TeamsService, get_default_teams_year
+from app.services.track_catalog import (
+    DEFAULT_TRACK_OPTIONS,
+    TrackAccent,
+    TrackOptions,
+    TrackSource,
+    TrackStyle,
+)
+from app.services.track_renderer import attribution_headers
+from app.state import get_bmp_cache
 from app.utils.async_tasks import run_render
-from app.utils.etag import if_none_match_matches
+from app.utils.etag import if_none_match_matches, strong_etag
 from app.utils.image_conversion import bmp_to_png
 from app.utils.rate_limit import enforce_rate_limit
 
@@ -28,37 +40,60 @@ logger = logging.getLogger(__name__)
 _PREVIEW_CACHE_CONTROL = "public, max-age=300"
 
 
-def _configure_preview_file_response(path: Path, request: Request) -> Response:
-    """Serve a configure preview, honoring validators without reading the PNG."""
-    stat_result = path.stat()
-    file_response = FileResponse(
-        path,
-        media_type="image/png",
-        headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
-        stat_result=stat_result,
-    )
-    if not if_none_match_matches(
-        request.headers.get("If-None-Match"), file_response.headers["etag"]
-    ):
-        return file_response
+def _preview_snapshot(path: Path, identity: str) -> tuple[bytes, dict] | None:
+    """Read a content-verified preview without mixing concurrent generations."""
+    metadata = read_artifact_metadata(path)
+    if not identity or metadata is None or metadata["identity"] != identity:
+        return None
+    try:
+        content = path.read_bytes()
+    except OSError:
+        return None
+    if strong_etag(content) != metadata["etag"] or read_artifact_metadata(path) != metadata:
+        return None
+    return content, metadata
 
+
+async def _cached_preview_response(path: Path, request: Request, identity: str) -> Response | None:
+    """Serve a fresh PNG snapshot or let the caller render/fall back to the BMP."""
+    snapshot = await asyncio.to_thread(_preview_snapshot, path, identity)
+    if snapshot is None:
+        return None
+    content, metadata = snapshot
+    not_modified = if_none_match_matches(request.headers.get("If-None-Match"), metadata["etag"])
     return Response(
-        status_code=304,
+        content=b"" if not_modified else content,
+        status_code=304 if not_modified else 200,
+        media_type=None if not_modified else "image/png",
         headers={
-            "Cache-Control": file_response.headers["cache-control"],
-            "ETag": file_response.headers["etag"],
-            "Last-Modified": file_response.headers["last-modified"],
+            "Cache-Control": _PREVIEW_CACHE_CONTROL,
+            "ETag": metadata["etag"],
+            "Last-Modified": formatdate(metadata["mtime_ns"] / 1e9, usegmt=True),
         },
     )
 
 
+def _preview_identity(screen: str) -> str:
+    """Resolve the current race or season represented by automatic previews."""
+    if screen == "calendar":
+        return calendar_identity(F1Service().get_next_race_from_static())
+    return f"teams:{get_default_teams_year()}"
+
+
 def _build_calendar_preview_png(
-    lang: str, display: str, race_data: dict, historical_data, full_size: bool
+    lang: str,
+    display: str,
+    race_data: dict,
+    historical_data,
+    full_size: bool,
+    track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
 ) -> bytes:
     """Render the next-race calendar and convert it to a browser preview PNG."""
     translator = get_translator(lang)
     renderer = create_renderer(display, translator, lang)
-    bmp_data = renderer.render_calendar(race_data, historical_data, None, "off")
+    bmp_data = renderer.render_calendar(
+        race_data, historical_data, None, "off", track_options=track_options
+    )
     return bmp_to_png(
         bmp_data,
         width=400,
@@ -68,7 +103,11 @@ def _build_calendar_preview_png(
 
 
 async def _render_calendar_preview(
-    lang: str, display: str = "1bit", *, full_size: bool
+    lang: str,
+    display: str = "1bit",
+    *,
+    full_size: bool,
+    track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
 ) -> StreamingResponse:
     """Render the next race when startup has not produced a calendar preview yet."""
     f1_service = F1Service()
@@ -86,12 +125,78 @@ async def _render_calendar_preview(
             race_data,
             historical_data,
             full_size,
+            track_options,
         )
     )
     return StreamingResponse(
         BytesIO(png_data),
         media_type="image/png",
-        headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
+        headers={
+            "Cache-Control": _PREVIEW_CACHE_CONTROL,
+            **attribution_headers(circuit_id, track_options),
+        },
+    )
+
+
+async def _render_configure_calendar(
+    request: Request, lang: str, display: str, weather: str, options: TrackOptions
+) -> Response:
+    """Share calendar BMP caching and singleflight, then encode the matching PNG preview."""
+    from app.routes.images import _get_cache_key, _render_calendar_artifact, _singleflight
+
+    service = F1Service()
+    race = service.get_next_race_from_static()
+    weather_type = "race_day" if weather == "race" else weather
+    key = (
+        calendar_identity(race, options)
+        + "|"
+        + _get_cache_key(
+            lang,
+            None,
+            None,
+            None,
+            None,
+            weather != "off",
+            weather_type,
+            display,
+        )
+    )
+    artifact = get_bmp_cache().get(key)
+    if artifact is None:
+        artifact = await _singleflight(
+            f"calendar:{key}",
+            functools.partial(
+                _render_calendar_artifact,
+                cache_key=key,
+                f1_service=service,
+                lang=lang,
+                year=None,
+                race_round=None,
+                race_key=None,
+                target_tz=config.DEFAULT_TIMEZONE,
+                weather=weather != "off",
+                weather_type=weather_type,
+                display=display,
+                selected_race=race,
+                track_options=options,
+            ),
+        )
+    content = await run_render(
+        functools.partial(
+            bmp_to_png, artifact[0], full_size=True, preserve_color=display in COLOR_DISPLAYS
+        )
+    )
+    etag = strong_etag(content)
+    unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
+    return Response(
+        content=b"" if unchanged else content,
+        status_code=304 if unchanged else 200,
+        media_type=None if unchanged else "image/png",
+        headers={
+            "ETag": etag,
+            "Cache-Control": _PREVIEW_CACHE_CONTROL if key in get_bmp_cache() else "no-store",
+            **attribution_headers((race or {}).get("circuit", {}).get("circuitId", ""), options),
+        },
     )
 
 
@@ -114,7 +219,8 @@ async def _render_teams_preview(
     """Render a dynamic Teams PNG when no pregenerated preview is available."""
     season = get_default_teams_year()
     teams_service = TeamsService()
-    teams_data = await teams_service.get_teams_and_drivers(season)
+    async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
+        teams_data = await teams_service.get_teams_and_drivers(season)
     if not teams_data.teams:
         raise RuntimeError(f"No teams data available for preview season {season}")
 
@@ -152,12 +258,9 @@ async def get_preview_png(
 
     filename = get_preview_filename(safe_screen, safe_lang)
     preview_path = Path(config.IMAGES_PATH) / filename
-    if preview_path.exists():
-        return FileResponse(
-            preview_path,
-            media_type="image/png",
-            headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
-        )
+    cached = await _cached_preview_response(preview_path, request, _preview_identity(safe_screen))
+    if cached is not None:
+        return cached
 
     enforce_rate_limit(request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
     try:
@@ -175,6 +278,9 @@ async def get_configure_preview_png(
     lang: str = Query(default="en"),
     weather_type: str = Query(default="off"),
     display: str = Query(default="1bit"),
+    track_style: TrackStyle = TrackStyle.RELIEF,
+    track_source: TrackSource = TrackSource.JULES,
+    track_accent: TrackAccent = TrackAccent.ALL,
 ) -> Response:
     """Serve pre-generated configure-preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
@@ -201,14 +307,30 @@ async def get_configure_preview_png(
         weather=safe_weather if safe_screen == "calendar" else "off",
     )
     configure_path = Path(config.IMAGES_PATH) / filename
-    if configure_path.exists():
-        return _configure_preview_file_response(configure_path, request)
+    options = TrackOptions(track_style, track_source, track_accent)
+    cached = (
+        await _cached_preview_response(configure_path, request, _preview_identity(safe_screen))
+        if options == DEFAULT_TRACK_OPTIONS or safe_screen == "teams"
+        else None
+    )
+    if cached is not None:
+        if safe_screen == "calendar":
+            race = F1Service().get_next_race_from_static() or {}
+            cached.headers.update(
+                attribution_headers(race.get("circuit", {}).get("circuitId", ""), options)
+            )
+        return cached
 
-    # Fallback to default variant if specific one not found
-    fallback_filename = get_configure_preview_filename(safe_screen, safe_lang)
-    fallback_path = Path(config.IMAGES_PATH) / fallback_filename
-    if fallback_path.exists():
-        return _configure_preview_file_response(fallback_path, request)
+    if safe_screen == "calendar":
+        enforce_rate_limit(
+            request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
+        )
+        try:
+            return await _render_configure_calendar(
+                request, safe_lang, safe_display, safe_weather, options
+            )
+        except Exception as exc:
+            logger.warning("Dynamic calendar configure preview failed: %s", exc)
 
     if safe_screen == "teams":
         enforce_rate_limit(

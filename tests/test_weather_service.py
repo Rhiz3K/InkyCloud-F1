@@ -356,13 +356,13 @@ class TestWeatherService:
 
     @staticmethod
     @pytest.mark.asyncio
-    async def test_get_race_weather_requests_forecast_covering_race_date(monkeypatch):
+    @pytest.mark.parametrize("days_ahead", [1, 11, 15])
+    async def test_get_race_weather_requests_only_race_date(monkeypatch, days_ahead):
         base_now = datetime.now(timezone.utc)
-        race_dt = base_now + timedelta(days=11, hours=8)
+        race_dt = base_now + timedelta(days=days_ahead)
         race_hour = race_dt.strftime("%Y-%m-%dT%H:00")
-        expected_forecast_days = (race_dt.date() - base_now.date()).days + 1
 
-        captured_params: dict[str, int] = {}
+        captured_params: dict = {}
         mock_response_data = {
             "hourly": {
                 "time": [race_hour],
@@ -391,7 +391,7 @@ class TestWeatherService:
             @staticmethod
             async def get(url, params=None):
                 assert params is not None
-                captured_params["forecast_days"] = int(params["forecast_days"])
+                captured_params.update(params)
                 return MockResponse()
 
         monkeypatch.setattr(
@@ -402,7 +402,14 @@ class TestWeatherService:
         service = WeatherService()
         result = await service.get_race_weather(lat=52.52, lon=13.41, race_datetime=race_dt)
         assert result is not None
-        assert captured_params["forecast_days"] == expected_forecast_days
+        assert (
+            captured_params["start_date"]
+            == captured_params["end_date"]
+            == race_dt.date().isoformat()
+        )
+        assert "forecast_days" not in captured_params
+        assert captured_params["timezone"] == "UTC"
+        assert result.temperature_c == 21.0
 
     @staticmethod
     @pytest.mark.asyncio

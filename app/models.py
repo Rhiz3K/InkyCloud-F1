@@ -3,7 +3,7 @@
 import logging
 import re
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -224,16 +224,21 @@ class TeamsData(BaseModel):
 
 
 class PerfMetricsPayload(BaseModel):
-    """Payload for performance metrics from browser."""
+    """Numeric browser metrics; discard obsolete or unknown metadata before ingestion."""
+
+    model_config = ConfigDict(extra="ignore")
 
     page_path: str = Field(..., max_length=500)
+    measurement_version: Literal[1, 2, 3] = Field(
+        default=3,
+        description="Legacy version markers are accepted; ingestion always uses version 3.",
+    )
+
     lcp_ms: Optional[float] = Field(default=None, ge=0, le=60000)
     cls: Optional[float] = Field(default=None, ge=0, le=10)
     fcp_ms: Optional[float] = Field(default=None, ge=0, le=60000)
     ttfb_ms: Optional[float] = Field(default=None, ge=0, le=60000)
     inp_ms: Optional[float] = Field(default=None, ge=0, le=60000)
-    connection_type: Optional[str] = Field(default=None, max_length=50)
-    device_memory: Optional[float] = Field(default=None, ge=0, le=512)
 
     @field_validator("page_path")
     @classmethod

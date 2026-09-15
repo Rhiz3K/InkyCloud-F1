@@ -12,6 +12,12 @@ from pathlib import Path
 from typing import TypeVar
 
 from app.config import LANGUAGE_CODES, config
+from app.services.artifact_metadata import (
+    calendar_identity,
+    metadata_path,
+    read_artifact_metadata,
+    write_artifact_metadata,
+)
 from app.services.database import Database, get_database
 from app.services.f1_service import F1Service
 from app.services.generation_freshness import (
@@ -56,7 +62,7 @@ async def _bounded_gather(jobs: Sequence[Callable[[], Awaitable[_T]]]) -> list[_
     return list(await asyncio.gather(*(run_one(job) for job in jobs)))
 
 
-async def _write_bmp_artifact(image_path: Path, bmp_data: bytes) -> str:
+async def _write_bmp_artifact(image_path: Path, bmp_data: bytes, identity: str = "") -> str:
     """Atomically write a BMP and its mtime-bound strong-ETag sidecar."""
     await _atomic_write_bytes(image_path, bmp_data)
     image_stat = await asyncio.to_thread(image_path.stat)
@@ -65,6 +71,7 @@ async def _write_bmp_artifact(image_path: Path, bmp_data: bytes) -> str:
         etag_sidecar_path(image_path),
         encode_etag_sidecar(image_stat.st_mtime_ns, etag),
     )
+    await write_artifact_metadata(image_path, bmp_data, identity)
     return etag
 
 
@@ -179,6 +186,9 @@ async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> No
                     logger.debug("Skipping missing calendar preview source: %s", bmp_path)
                     continue
                 try:
+                    source_metadata = read_artifact_metadata(bmp_path)
+                    if source_metadata is None:
+                        continue
                     outputs = await run_render(
                         functools.partial(
                             _calendar_preview_pngs_from_bmp,
@@ -189,7 +199,9 @@ async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> No
                         )
                     )
                     for filename, png_data in outputs:
-                        await _atomic_write_bytes(images_dir / filename, png_data)
+                        await _write_preview_artifact(
+                            images_dir / filename, png_data, bmp_path, source_metadata
+                        )
                         calendar_written += 1
                 except Exception as e:
                     logger.error(
@@ -209,11 +221,16 @@ async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> No
                 logger.debug("Skipping missing teams preview source: %s", bmp_path)
                 continue
             try:
+                source_metadata = read_artifact_metadata(bmp_path)
+                if source_metadata is None:
+                    continue
                 outputs = await run_render(
                     functools.partial(_teams_preview_pngs_from_bmp, bmp_path, lang, display_name)
                 )
                 for filename, png_data in outputs:
-                    await _atomic_write_bytes(images_dir / filename, png_data)
+                    await _write_preview_artifact(
+                        images_dir / filename, png_data, bmp_path, source_metadata
+                    )
                     teams_written += 1
             except Exception as e:
                 logger.error(
@@ -224,6 +241,18 @@ async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> No
                     e,
                 )
         logger.info("Generated %d teams preview PNGs for %s", teams_written, lang)
+
+
+async def _write_preview_artifact(
+    path: Path, content: bytes, source_path: Path, source_metadata: dict
+) -> None:
+    """Publish a PNG only if its source generation survived the conversion unchanged."""
+    if read_artifact_metadata(source_path) != source_metadata:
+        return
+    await _atomic_write_bytes(path, content)
+    await write_artifact_metadata(
+        path, content, source_metadata["identity"], source=(source_path, source_metadata)
+    )
 
 
 async def _generate_variant(
@@ -260,7 +289,7 @@ async def _generate_variant(
                 weather_type,
             )
         )
-        await _write_bmp_artifact(image_path, bmp_data)
+        await _write_bmp_artifact(image_path, bmp_data, calendar_identity(race_data))
         await db.save_generated_image(image_key=image_key, image_path=str(image_path), lang=lang)
     except Exception as exc:
         logger.error(
@@ -289,6 +318,7 @@ def _delete_stale_bmps(images_dir: Path, *, keep: set[Path]) -> int:
         if bmp_file.name not in keep_names:
             bmp_file.unlink(missing_ok=True)
             etag_sidecar_path(bmp_file).unlink(missing_ok=True)
+            metadata_path(bmp_file).unlink(missing_ok=True)
             removed += 1
     for sidecar in images_dir.glob("*.bmp.etag"):
         if not sidecar.with_suffix("").exists():
@@ -507,7 +537,7 @@ async def _generate_teams_variant(
         )
         image_key = get_teams_image_key(lang, teams_year, display=display)
         image_path = images_dir / f"{image_key}.bmp"
-        await _write_bmp_artifact(image_path, bmp_data)
+        await _write_bmp_artifact(image_path, bmp_data, f"teams:{teams_year}")
         await db.save_generated_image(
             image_key=image_key,
             image_path=str(image_path),
@@ -546,7 +576,8 @@ async def _generate_teams_bmp_variants(
     teams_year = get_default_teams_year()
     teams_service = TeamsService()
     try:
-        teams_data = await teams_service.get_teams_and_drivers(teams_year)
+        async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
+            teams_data = await teams_service.get_teams_and_drivers(teams_year)
     except Exception as exc:
         logger.error("Error fetching teams BMP data for %d: %s", teams_year, exc, exc_info=True)
         return set(), 1
@@ -615,13 +646,8 @@ async def _collect_and_generate_unlocked() -> None:
 
         historical_data = _load_historical_data(race_data)
 
-        _, _, weather_by_type = await _load_weather_context(race_data)
-
-        # When an expected weather variant is missing (open-meteo outage or partial
-        # failure), it simply isn't produced this run. Treat that as degraded so stale
-        # pruning doesn't delete previously-good *_weather_* files.
-        weather_degraded = _weather_context_degraded(race_data, weather_by_type)
-
+        # Core calendars must be ready before any optional upstream dependency is awaited.
+        weather_by_type: dict[str, WeatherData | None] = {"off": None}
         display_types = DISPLAY_TYPES
         logger.info(
             "Generating variants: displays=%s, weather=%s",
@@ -646,6 +672,31 @@ async def _collect_and_generate_unlocked() -> None:
         generated_paths |= base_paths
         total_failures += base_failures
 
+        from app.services.teams_service import get_default_teams_year
+
+        if base_paths:
+            await db.set_cache_meta(GENERATION_STATUS_META_KEY, GENERATION_STATUS_DEGRADED)
+            await db.set_cache_meta(
+                GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat()
+            )
+            clear_bmp_cache()
+            await generate_preview_pngs(["off"], get_default_teams_year())
+
+        _, _, weather_by_type = await _load_weather_context(race_data)
+        weather_degraded = _weather_context_degraded(race_data, weather_by_type)
+        weather_variants = {key: value for key, value in weather_by_type.items() if key != "off"}
+        if weather_variants:
+            weather_paths, weather_failures = await _generate_base_variants(
+                images_dir=images_dir,
+                db=db,
+                race_data=race_data,
+                historical_data=historical_data,
+                display_types=display_types,
+                weather_by_type=weather_variants,
+            )
+            generated_paths |= weather_paths
+            total_failures += weather_failures
+
         tz_paths, tz_failures = await _generate_popular_tz_variants(
             images_dir=images_dir,
             db=db,
@@ -662,8 +713,6 @@ async def _collect_and_generate_unlocked() -> None:
         )
         generated_paths |= teams_paths
         total_failures += teams_failures
-
-        from app.services.teams_service import get_default_teams_year
 
         await generate_preview_pngs(list(weather_by_type), get_default_teams_year())
 

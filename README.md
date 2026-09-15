@@ -1,8 +1,17 @@
 # F1 E-Ink Calendar
 
-**Free F1 race calendar for your E-Ink display!** Use the public instance at **[f1.inkycloud.click](https://f1.inkycloud.click)** — no setup required.
+Calendar artwork now supports 18 styles, all 16 accent combinations, and reviewed
+Jules Roy / Wikimedia Commons outlines for all 26 circuits. Defaults are isometric
+relief, all four accents and Jules Roy. See [artwork API and licences](TRACK_ARTWORK.md).
 
-[![Public Demo](https://img.shields.io/badge/Public_Demo-f1.inkycloud.click-E10600?style=for-the-badge)](https://f1.inkycloud.click)
+Independent, noncommercial fan project for e-paper race calendars. Not affiliated with,
+endorsed by or sponsored by the Formula One group, FIA, teams or drivers.
+
+The project retains its F1.InkyCloud.click name and original car illustration, which
+the maintainer identifies as AI-generated. Team logos identify the respective teams;
+their separate rights status is recorded in [the asset notices](DATA_LICENSES.md).
+Configure your actual `SITE_URL`; the examples use a reserved example domain.
+
 [![Self-Host](https://img.shields.io/badge/Self--Host-Guide-6C47FF?style=for-the-badge&logo=docker&logoColor=white)](./SELF-HOSTING.md)
 [![CodSpeed](https://img.shields.io/badge/CodSpeed-Performance-0A7BFF?style=for-the-badge)](https://codspeed.io/Rhiz3K/InkyCloud-F1?utm_source=badge)
 
@@ -10,7 +19,7 @@
 
 ## Quick Start — Use It Now!
 
-The easiest way to display the F1 calendar on your E-Ink device is to use our **free public instance**:
+Configure your deployed instance following [the self-hosting guide](SELF-HOSTING.md):
 
 ### For [zivyobraz.eu](https://zivyobraz.eu) Users
 
@@ -18,7 +27,7 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 2. In device settings, select **"URL"** as content source
 3. Enter the calendar URL:
    ```
-   https://f1.inkycloud.click/calendar.bmp?lang=cs
+   https://racing.example.com/calendar.bmp?lang=cs
    ```
 4. Done! Your E-Ink display will show the next F1 race 🏁
 
@@ -38,44 +47,38 @@ The easiest way to display the F1 calendar on your E-Ink device is to use our **
 **Examples:**
 
 ```text
-https://f1.inkycloud.click/calendar.bmp?lang=cs
-https://f1.inkycloud.click/calendar.bmp?lang=en&tz=America/New_York
-https://f1.inkycloud.click/calendar.bmp?lang=en&year=2026&round=5
-https://f1.inkycloud.click/calendar.bmp?lang=en&year=2026&race_key=2026-round-5-monaco-2026-05-24
-https://f1.inkycloud.click/calendar.bmp?lang=en&display=bwr
-https://f1.inkycloud.click/calendar.bmp?lang=en&display=bwry
-https://f1.inkycloud.click/calendar.bmp?lang=en&display=spectra6
-https://f1.inkycloud.click/calendar.bmp?lang=en&weather=true&weather_type=current
-https://f1.inkycloud.click/teams.bmp?lang=ja&display=spectra6
-https://f1.inkycloud.click/sk/configure/calendar
+https://racing.example.com/calendar.bmp?lang=cs
+https://racing.example.com/calendar.bmp?lang=en&tz=America/New_York
+https://racing.example.com/calendar.bmp?lang=en&year=2026&round=5
+https://racing.example.com/calendar.bmp?lang=en&year=2026&race_key=2026-round-5-monaco-2026-05-24
+https://racing.example.com/calendar.bmp?lang=en&display=bwr
+https://racing.example.com/calendar.bmp?lang=en&display=bwry
+https://racing.example.com/calendar.bmp?lang=en&display=spectra6
+https://racing.example.com/calendar.bmp?lang=en&weather=true&weather_type=current
+https://racing.example.com/teams.bmp?lang=ja&display=spectra6
+https://racing.example.com/sk/configure/calendar
 ```
 
 ---
 
 ## Preview
 
-![F1 E-Ink Calendar Preview](./assets/device.jpg)
-
-_LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
-
-![SVERIO B/W/R/Y](./assets/device_sverio_bwry.png)
-
-_SVERIO PaperBoard 7.5" GDEM075F52 four-color 800×480 ePaper (black/white/yellow/red)_
+![F1 E-Ink Calendar](./app/assets/images/og-preview.png)
 
 ---
 
 ## Features
 
 - **800x480 BMP output** — `1bit` monochrome, `bwr` B/W/R, `bwry` B/W/R/Y, and `spectra6` 6-color mode for both calendar and teams screens
-- **Teams & Drivers screen** — Dedicated `teams.bmp` render for the default or selected season with constructor lineup, driver photos, and championship points
+- **Teams & Drivers screen** — Dedicated `teams.bmp` render for the default or selected season with constructor lineup, plain driver numbers, and championship points
 - **Localized UI and assets** — Routing, configure pages, previews, docs, and pregenerated BMPs support `cs`, `de`, `en`, `es`, `fr`, `it`, `ja`, `nl`, `pl`, `pt-BR`, `sk`, `tr`, and `zh-CN`
 - **Hourly regeneration + startup warmup** — Calendar and teams assets are regenerated on startup and every hour, with version metadata refreshed hourly and teams render assets warmed on boot
 - **Any Timezone** — Convert race times to your local timezone
 - **Race Status States** — Upcoming countdown, `IN PROGRESS` / `PROBÍHÁ`, `COMPLETED` / `DOKONČEN`, and cancelled race handling
 - **Optional Weather Overlay** — Current, race-day forecast, and historical race-time weather on the calendar screen
 - **Historical Results** — Previous year's podium for each circuit
-- **Track Info** — Circuit map, length, laps, and first GP year
-- **Display-Specific Track Art** — `1bit`, `bwr`, `bwry`, and `spectra6` now prefer per-display source artwork before falling back to generic circuit assets
+- **Track Info** — Licensed circuit map plus circuit length, lap count, first Grand Prix and lap record where available; data sources and rights notes are kept separately
+- **Display-Specific Track Art** — reviewed Jules Roy and Commons outlines in all four display palettes, without F1 raster fallbacks
 - **Interactive configure flow** — Localized `/configure/calendar` and `/configure/teams` pages with pregenerated previews, direct BMP URLs, weather/display switching, and season leaders sidebar
 - **SEO-friendly public pages** — Canonical URLs, hreflang alternates, `robots.txt`, and a localized `sitemap.xml` without synthetic daily `lastmod` churn
 - **Session Schedule** — FP1, FP2, FP3, Qualifying, Sprint, Race times
@@ -94,7 +97,7 @@ Planned features for future releases:
 #### Screens and layouts
 
 - [x] **Championship standings** — Driver and constructor standings view
-- [x] **Teams & Drivers screen** — Full team grid with driver photos and points
+- [x] **Teams & Drivers screen** — Full team grid with plain driver numbers and points
 - [ ] **Custom layouts** — Multiple layout options to choose from
 - [ ] **Additional display sizes** — Beyond 800x480 (e.g. 4.2", 5.83", 12.48")
 
@@ -118,7 +121,7 @@ Compatible with [zivyobraz.eu](https://zivyobraz.eu) — a service for managing 
 #include <HTTPClient.h>
 
 HTTPClient http;
-http.begin("https://f1.inkycloud.click/calendar.bmp?lang=cs");
+http.begin("https://racing.example.com/calendar.bmp?lang=cs");
 const char* responseHeaders[] = {"ETag"};
 http.collectHeaders(responseHeaders, 1);
 
@@ -146,7 +149,7 @@ which permits conditional revalidation without accepting a stale response.
 
 ## Public Routes and API Endpoints
 
-The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides these endpoints:
+The public instance at [racing.example.com](https://racing.example.com) provides these endpoints:
 
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
@@ -167,17 +170,47 @@ The public instance at [f1.inkycloud.click](https://f1.inkycloud.click) provides
 | `GET /api/teams/{year}`                  | Teams and drivers for a season (JSON)                   |
 | `GET /api/standings/leader`              | Current championship leader (JSON)                      |
 | `GET /api/standings/leader/{year}`       | Championship leader for a specific season (JSON)        |
-| `GET /api/stats`                         | Request statistics, including 200/304 status totals     |
+| `GET /api/stats`                         | Request statistics, 200/304 status totals and map style/source/accent usage |
 | `GET /api/stats/history`                 | Historical hourly request statistics                    |
-| `POST /api/perf-metrics`                 | Store frontend performance metrics (Core Web Vitals)    |
-| `GET /api/perf-metrics`                  | Read aggregated frontend performance metrics            |
+| `POST /api/perf-metrics`                 | Retired; returns 410 without storing telemetry    |
+| `GET /api/perf-metrics`                  | Performance summaries; 410 only in minimal mode            |
 | `GET /robots.txt`                        | Crawler policy with canonical sitemap reference         |
 | `GET /sitemap.xml`                       | Localized sitemap with canonical URLs and hreflang alternates |
 | `GET /sw.js`                             | Service worker script                                   |
 | `GET /health`                            | Process liveness                                        |
 | `GET /health/ready`                      | SQLite, storage, and core-generation readiness/degradation |
 
-When `ADMIN_API_TOKEN` is configured, read-only operational endpoints (`/api/stats`, `/api/stats/history`, and `GET /api/perf-metrics`) require either `X-Admin-Token` or `Authorization: Bearer <token>`. Public image endpoints and `POST /api/perf-metrics` remain available, with rate limits applied.
+Statistics and their read APIs are available by default with `MINIMAL_DATA_MODE=false`
+and `AGGREGATE_STATS_ONLY=true`. They store hourly usage totals and coarse performance
+histograms without visitor identifiers. `POST /api/perf-metrics` accepts numeric measurements
+only; a random 10% sample of page loads sends one report. When `ADMIN_API_TOKEN` is configured,
+read-only statistics APIs require `X-Admin-Token` or `Authorization: Bearer <token>`.
+Explicit `MINIMAL_DATA_MODE=true` makes the statistics page and all statistics APIs return 410.
+
+Core calendar BMPs and PNG previews are published before optional upstream lookups. Weather
+and teams enrichment have total budgets of 15 and 30 seconds, configurable with
+`WEATHER_ENRICHMENT_TIMEOUT_SECONDS` and `TEAMS_ENRICHMENT_TIMEOUT_SECONDS`. A timeout keeps
+core readiness available and marks generation degraded. Preview metadata sidecars bind each
+PNG to the current race and source BMP and preserve the source's six-hour freshness limit;
+missing or stale configure previews fall back to rendering the requested BMP.
+
+The persistent circuit snapshot takes current metadata and new circuits from the bundled
+release, while retaining newer historical results and runtime-only circuits. Startup migrates
+old individual usage records into hourly totals and removes their identifiers from the active
+SQLite database, including when image scheduling is disabled. Sport data and weather quotas
+remain. Previously deleted statistics cannot be recovered by changing flags.
+
+Language preferences are saved in localStorage and a functional cookie independently of
+analytics, and the browser detects its timezone. Optional Umami receives only hourly server
+summaries; optional GlitchTip receives scrubbed errors with tracing/profiling disabled.
+Application/access logs remain disabled, and rate limits use shared 60-second counters without
+IP keys. Backups require explicit configuration and bounded retention. External provider logs,
+old backups and snapshots require separate configuration and cleanup.
+
+See [data collection and upgrades](docs/data-collection.md) for retention, optional
+integrations and a read-only runtime check. Configure privacy notices and provider
+arrangements for your own deployment.
+
 
 ---
 
@@ -225,5 +258,11 @@ Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelin
 - **Platform:** [Živýobraz.eu](https://zivyobraz.eu)
 - **Devices:** [LaskaKit](https://www.laskakit.cz/) and [SVERIO](https://pajenicko.cz/sverio-paperboard-ctyrbarevny-7.5-gdem075f52-s-cernym-rameckem)
 - **Hosting:** [Coolify](https://coolify.io) + [Hetzner](https://www.hetzner.com/)
-- **Analytics:** [Umami](https://umami.is)
-- **Errors:** [GlitchTip](https://glitchtip.com)
+
+## Rights and privacy
+
+Software is MIT; this does not relicense data, map artwork, fonts or dependencies.
+Read [data licences](DATA_LICENSES.md), [third-party notices](THIRD_PARTY_NOTICES.md)
+and [data collection](docs/data-collection.md). Optional analytics receives only hourly
+server summaries. The default profile retains aggregate operational statistics.
+Commercial deployments must independently resolve the noncommercial data conditions.

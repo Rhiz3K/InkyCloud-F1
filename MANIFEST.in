@@ -18,9 +18,12 @@ recursive-include app/assets/fonts *
 recursive-include app/assets/images *
 recursive-include app/assets/js *
 recursive-include app/assets/seasons *
-recursive-include app/assets/tracks_bwr *
-recursive-include app/assets/tracks_bwry *
-recursive-include app/assets/tracks_processed *
-recursive-include app/assets/tracks_spectra6 *
+recursive-include app/assets/track_art *
 recursive-include app/templates *.html
 prune artwork
+
+include DATA_LICENSES.md
+include THIRD_PARTY_NOTICES.md
+include TRACK_ARTWORK.md
+include app/assets/asset-register.json
+recursive-include app/assets/licenses *

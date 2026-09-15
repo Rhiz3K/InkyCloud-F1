@@ -11,6 +11,16 @@ import pytest
 from app.services import historical_refresh as historical
 
 
+@pytest.fixture(autouse=True)
+def isolated_circuit_seed(tmp_path, monkeypatch):
+    """Keep refresh scenarios independent of the bundled season's circuit list."""
+    from app.services import circuit_data
+
+    seed = tmp_path / "bundle.json"
+    seed.write_text("{}")
+    monkeypatch.setattr(circuit_data, "BUNDLED_CIRCUITS_DATA_PATH", seed)
+
+
 def _response(payload: dict):
     return SimpleNamespace(json=lambda: payload)
 

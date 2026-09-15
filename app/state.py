@@ -1,10 +1,19 @@
 """Process-local caches and buffered request-statistics state."""
 
 import logging
-from collections import deque
+from collections import OrderedDict, deque
 from datetime import datetime, timezone
+from uuid import uuid4
 
 from cachetools import TTLCache
+
+from app.config import config
+from app.services.private_stats import (
+    DIMENSIONS,
+    accumulate,
+    normalize_call,
+    normalize_track_options,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +32,7 @@ _bmp_cache: TTLCache[str, BmpArtifact] = TTLCache(
 # appends past the cap drop the oldest entry, so no mutation site can forget to trim.
 API_CALLS_BUFFER_MAXSIZE = 10_000
 _api_calls_buffer: deque = deque(maxlen=API_CALLS_BUFFER_MAXSIZE)
+_aggregate_calls: OrderedDict[tuple, dict] = OrderedDict()
 
 
 def clear_bmp_cache() -> None:
@@ -48,8 +58,14 @@ def record_api_call(
     is_auto_selected: bool = False,
     display_type: str | None = None,
     status_code: int = 200,
+    *,
+    track_style: str | None = None,
+    track_source: str | None = None,
+    track_accent: str | None = None,
 ) -> None:
     """Append one normalized API-call record to the bounded flush buffer."""
+    if config.MINIMAL_DATA_MODE:
+        return
     call = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "endpoint": endpoint,
@@ -63,14 +79,42 @@ def record_api_call(
         "is_auto_selected": 1 if is_auto_selected else 0,
         "display_type": display_type,
         "status_code": status_code,
+        **normalize_track_options(
+            {
+                "endpoint": endpoint,
+                "track_style": track_style,
+                "track_source": track_source,
+                "track_accent": track_accent,
+            }
+        ),
     }
-    _api_calls_buffer.append(call)
+    if config.AGGREGATE_STATS_ONLY:
+        bucket = normalize_call(call)
+        key = tuple(bucket[field] for field in DIMENSIONS)
+        if key in _aggregate_calls:
+            accumulate(_aggregate_calls[key], bucket)
+        else:
+            _aggregate_calls[key] = bucket
+            if len(_aggregate_calls) > API_CALLS_BUFFER_MAXSIZE:
+                _aggregate_calls.popitem(last=False)
+    else:
+        call["event_id"] = str(uuid4())
+        _api_calls_buffer.append(call)
 
 
 def get_and_clear_api_calls_buffer() -> list:
     """Drain and return all currently buffered API-call records."""
-    calls = list(_api_calls_buffer)
+    if config.MINIMAL_DATA_MODE:
+        _api_calls_buffer.clear()
+        _aggregate_calls.clear()
+        return []
+    calls = list(_api_calls_buffer) + list(_aggregate_calls.values())
+    if _aggregate_calls:
+        batch_id = str(uuid4())
+        for bucket in _aggregate_calls.values():
+            bucket["batch_id"] = batch_id
     _api_calls_buffer.clear()
+    _aggregate_calls.clear()
     return calls
 
 
@@ -81,6 +125,10 @@ def requeue_api_calls(calls: list) -> None:
     deque.extend with maxlen then drops the oldest overflow. extendleft on a full deque would
     instead evict from the right — the newest records — which is the wrong end to lose.
     """
+    if config.MINIMAL_DATA_MODE:
+        _api_calls_buffer.clear()
+        _aggregate_calls.clear()
+        return
     if not calls:
         return
     combined = list(calls) + list(_api_calls_buffer)

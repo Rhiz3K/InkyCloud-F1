@@ -1,13 +1,17 @@
 {
   "name": "f1-eink-calendar",
-  "version": "1.2.40",
+  "version": "1.3.0",
   "private": true,
   "scripts": {
     "build:css": "tailwindcss -i ./app/assets/css/input.css -o ./app/assets/css/tailwind.min.css --minify",
-    "watch:css": "tailwindcss -i ./app/assets/css/input.css -o ./app/assets/css/tailwind.min.css --watch"
+    "watch:css": "tailwindcss -i ./app/assets/css/input.css -o ./app/assets/css/tailwind.min.css --watch",
+    "build:js": "node scripts/build-js.mjs",
+    "check:js": "node scripts/build-js.mjs --check",
+    "test:js": "node --test tests/js/*.test.mjs"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "web-vitals": "6.2.1"
   }
 }
