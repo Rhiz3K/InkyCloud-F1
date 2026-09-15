@@ -5,10 +5,15 @@ These PNG previews show the actual 800 × 480 calendar BMP output with
 Czech labels and the Europe/Prague timezone. The decorative extrusion is not
 terrain elevation, and the colours do not represent official timing sectors.
 
+The new-circuit example uses English labels and deliberately supplies no historical
+results. It demonstrates the retained flag, `N/A` fields and localized status badge;
+it does not assert that historical results are currently unavailable for this event.
+
 | Preview | Track outline and licence |
 | --- | --- |
 | [Jules Roy / Spectra 6](calendar-jules-spectra6.png) | ROY Jules, [Madring outline](https://github.com/julesr0y/f1-circuits-svg/blob/9c93759b076d1b87eac265a009b21b399253220a/circuits/minimal/black/madring-1.svg), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 | [Commons / monochrome](calendar-commons-1bit.png) | GabrielStella, [Madring (2026).svg](https://commons.wikimedia.org/wiki/File:Madring_(2026).svg), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) |
+| [New circuit / Spectra 6](calendar-new-track.png) | ROY Jules, [Madring outline](https://github.com/julesr0y/f1-circuits-svg/blob/9c93759b076d1b87eac265a009b21b399253220a/circuits/minimal/black/madring-1.svg), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
 
 Map adaptations add relief, palette mapping, rotation and fitting. Each adaptation
 retains its source licence. Exact original hashes and reviewed revisions are in

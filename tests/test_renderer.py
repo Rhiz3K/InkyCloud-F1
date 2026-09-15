@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image, ImageDraw, ImageOps
 
+from app.config import LANGUAGE_CODES
 from app.models import (
     ConstructorInfo,
     DriverInfo,
@@ -1002,6 +1003,71 @@ def test_render_calendar_with_new_track(mock_race_data):
     assert img.format == "BMP"
     assert img.size == (800, 480)
     assert img.mode == "1"
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, BwrRenderer, BwryRenderer, Spectra6Renderer])
+@pytest.mark.parametrize("missing_history", [True, False])
+def test_new_track_keeps_flag_and_result_placeholders(
+    renderer_cls, missing_history, mock_race_data, mock_historical_data
+):
+    """Unavailable history keeps the flag and both podium columns without stale results."""
+    renderer = renderer_cls(get_translator("en"))
+    mock_race_data["circuit"]["country"] = "Spain"
+    history = (
+        None if missing_history else mock_historical_data.model_copy(update={"is_new_track": True})
+    )
+    image = renderer._new_canvas()
+    draw = MagicMock(wraps=ImageDraw.Draw(image))
+
+    renderer._draw_results_section(draw, image, mock_race_data, history)
+
+    texts = [call.args[1] for call in draw.text.call_args_list]
+    assert texts.count("NEW TRACK") == 1
+    assert sum("N/A" in text for text in texts) == 13
+    assert "2023" not in texts
+    assert not any("Verstappen" in text for text in texts)
+    for title_key in (
+        renderer.theme.qualifying_translation_key,
+        renderer.theme.race_translation_key,
+    ):
+        assert renderer.translator[title_key] in texts
+    for position in range(1, 4):
+        assert sum(text.startswith(f"{position}.") for text in texts) == 2
+
+    reference = renderer._new_canvas()
+    renderer._draw_results_section(
+        ImageDraw.Draw(reference), reference, mock_race_data, mock_historical_data
+    )
+    flag_bounds = (0, 420, renderer.layout["results_col1_x"], renderer.height)
+    assert image.crop(flag_bounds).tobytes() == reference.crop(flag_bounds).tobytes()
+    assert image.crop(flag_bounds).convert("L").getextrema() == (0, 255)
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, BwrRenderer, BwryRenderer, Spectra6Renderer])
+@pytest.mark.parametrize("lang", LANGUAGE_CODES)
+@pytest.mark.parametrize("country", ["Spain", "Unknown"])
+def test_new_track_badge_and_rows_fit_footer(renderer_cls, lang, country, mock_race_data):
+    """Every localized badge and row stays within the footer, even without a flag."""
+    renderer = renderer_cls(get_translator(lang), lang)
+    mock_race_data["circuit"]["country"] = country
+    image = renderer._new_canvas()
+    draw = MagicMock(wraps=ImageDraw.Draw(image))
+
+    renderer._draw_results_section(draw, image, mock_race_data, HistoricalData(is_new_track=True))
+
+    shadow = draw.rectangle.call_args_list[-2].args[0]
+    panel = draw.rectangle.call_args_list[-1].args[0]
+    assert renderer.layout["results_col1_x"] <= panel[0] < panel[2] < shadow[2] < renderer.width
+    assert renderer.layout["results_y_start"] < panel[1] < panel[3] < shadow[3] < renderer.height
+    for call in draw.text.call_args_list:
+        x0, y0, x1, y1 = draw.textbbox(call.args[0], call.args[1], font=call.kwargs["font"])
+        assert 0 <= x0 < x1 <= renderer.width
+        assert renderer.layout["results_y_start"] < y0 < y1 < renderer.height, call.args[1]
+        if "N/A" in call.args[1]:
+            assert not (x0 < shadow[2] and x1 > panel[0] and y0 < shadow[3] and y1 > panel[1])
+        if call.args[1] == renderer.translator["new_track"]:
+            assert panel[0] < x0 < x1 < panel[2]
+            assert panel[1] < y0 < y1 < panel[3]
 
 
 def test_render_calendar_without_historical_data(mock_race_data):

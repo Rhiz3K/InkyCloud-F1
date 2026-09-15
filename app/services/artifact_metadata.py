@@ -10,6 +10,8 @@ from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.utils.atomic_io import atomic_write_bytes
 from app.utils.etag import strong_etag
 
+CALENDAR_LAYOUT_VERSION = 2
+
 
 def calendar_identity(
     race: dict | None, track_options: TrackOptions = DEFAULT_TRACK_OPTIONS
@@ -26,7 +28,7 @@ def calendar_identity(
             race.get("date"),
         )
     )
-    return f"calendar:{key}:{track_options.cache_key}"
+    return f"calendar:v{CALENDAR_LAYOUT_VERSION}:{key}:{track_options.cache_key}"
 
 
 def metadata_path(path: Path) -> Path:
