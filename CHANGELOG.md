@@ -59,9 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Preserve the country flag and qualifying/race columns for new circuits. Show `N/A`
-  placeholders and a localized bordered badge with a hard shadow, keep footer rows inside
-  the display even without a flag, and invalidate calendars cached with the previous layout.
+- Preserve the country flag and qualifying/race columns for new circuits. Show podium
+  dashes, blank year/times and a localized bordered badge with a hard shadow. Keep footer rows
+  inside the display even without a flag and invalidate calendars cached with the previous layout.
+- Show Malaysia as `MY` in the mobile race selector instead of the fallback flag symbol.
 - Restrict Credits redirects to precomputed local paths and match placeholder deployment
   domains on DNS label boundaries, including the standard example domains and localhost.
 - Use fixed, parameterized statistics/audit SQL, a shared request-pacing interface and

@@ -18,10 +18,10 @@ from app.utils.etag import strong_etag
     ("race", "expected"),
     [
         (None, ""),
-        ({"race_key": "2026-monza"}, "calendar:v2:2026-monza"),
+        ({"race_key": "2026-monza"}, "calendar:v3:2026-monza"),
         (
             {"season": 2026, "round": 16, "circuit": {"circuitId": "monza"}, "date": "2026-09-06"},
-            "calendar:v2:2026:16:monza:2026-09-06",
+            "calendar:v3:2026:16:monza:2026-09-06",
         ),
     ],
 )
@@ -36,7 +36,7 @@ async def test_previous_footer_layout_is_not_reused_for_bmp_or_preview(tmp_path)
     """A fresh cached image with the old footer still requires regeneration."""
     source = tmp_path / "calendar_en.bmp"
     preview = source.with_suffix(".png")
-    old_identity = f"calendar:2026-madring:{DEFAULT_TRACK_OPTIONS.cache_key}"
+    old_identity = f"calendar:v2:2026-madring:{DEFAULT_TRACK_OPTIONS.cache_key}"
     current_identity = metadata.calendar_identity({"race_key": "2026-madring"})
     await scheduler_generation._write_bmp_artifact(source, b"bmp", old_identity)
     source_data = metadata.read_artifact_metadata(source)

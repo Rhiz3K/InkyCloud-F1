@@ -6,8 +6,8 @@ Czech labels and the Europe/Prague timezone. The decorative extrusion is not
 terrain elevation, and the colours do not represent official timing sectors.
 
 The new-circuit example uses English labels and deliberately supplies no historical
-results. It demonstrates the retained flag, `N/A` fields and localized status badge;
-it does not assert that historical results are currently unavailable for this event.
+results. It demonstrates the retained flag, podium dashes, blank year/times and localized
+status badge; it does not assert that historical results are currently unavailable for this event.
 
 | Preview | Track outline and licence |
 | --- | --- |

@@ -1023,7 +1023,11 @@ def test_new_track_keeps_flag_and_result_placeholders(
 
     texts = [call.args[1] for call in draw.text.call_args_list]
     assert texts.count("NEW TRACK") == 1
-    assert sum("N/A" in text for text in texts) == 13
+    assert not any("N/A" in text for text in texts)
+    assert sum(text.endswith(" -") for text in texts) == 6
+    assert all(
+        call.args[0][0] >= renderer.layout["results_col1_x"] for call in draw.text.call_args_list
+    )
     assert "2023" not in texts
     assert not any("Verstappen" in text for text in texts)
     for title_key in (
@@ -1063,7 +1067,7 @@ def test_new_track_badge_and_rows_fit_footer(renderer_cls, lang, country, mock_r
         x0, y0, x1, y1 = draw.textbbox(call.args[0], call.args[1], font=call.kwargs["font"])
         assert 0 <= x0 < x1 <= renderer.width
         assert renderer.layout["results_y_start"] < y0 < y1 < renderer.height, call.args[1]
-        if "N/A" in call.args[1]:
+        if call.args[1].endswith(" -"):
             assert not (x0 < shadow[2] and x1 > panel[0] and y0 < shadow[3] and y1 > panel[1])
         if call.args[1] == renderer.translator["new_track"]:
             assert panel[0] < x0 < x1 < panel[2]

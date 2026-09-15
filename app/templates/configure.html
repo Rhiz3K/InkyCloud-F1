@@ -425,8 +425,8 @@ block content %}
 ></div>
 {% endblock %} {% block scripts %}
 <script>
-  // Country to ISO code mapping for flag images
-  const COUNTRY_ISO = {
+  // Countries with bundled flag images.
+  const FLAG_ISO = {
     Australia: "au",
     Austria: "at",
     Azerbaijan: "az",
@@ -459,6 +459,8 @@ block content %}
     Turkey: "tr",
     Russia: "ru",
   };
+  // Text labels also support countries without a bundled flag image.
+  const COUNTRY_ISO = { ...FLAG_ISO, Malaysia: "my" };
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -470,7 +472,7 @@ block content %}
   }
 
   function getFlagHtml(country, size = "h-4") {
-    const iso = COUNTRY_ISO[country];
+    const iso = FLAG_ISO[country];
     if (iso) {
       return `<img src="/static/flags/${iso}.png" alt="${escapeHtml(country)}" class="inline ${size} w-auto" loading="lazy" decoding="async">`;
     }

@@ -526,7 +526,7 @@ class RendererBase(RendererCore):
             y_start=y_start,
             season=season,
             country_name=country_name,
-            year_font=self.fonts["schedule_title" if season == "N/A" else "results_year"],
+            year_font=self.fonts["results_year"],
             text_fill=self.theme.text_fill,
             outline_fill=self.theme.text_fill,
             country_map=COUNTRY_MAP,
@@ -564,9 +564,9 @@ class RendererBase(RendererCore):
         )
 
     def _draw_new_track_message(self, draw: ImageDraw.ImageDraw, y_start: int) -> None:
-        """Place the status badge between result fields, keeping the flag and N/A visible."""
+        """Place the status badge between result fields, keeping flag and rows visible."""
         message = self.translator.get("new_track", "NEW TRACK")
-        row_bbox = draw.textbbox((0, 0), "3. N/A", font=self.fonts["results_row"])
+        row_bbox = draw.textbbox((0, 0), "3. -", font=self.fonts["results_row"])
         x_start = self.layout["results_col2_x"] + int(row_bbox[2] - row_bbox[0]) + 12
         x_end = self.layout["results_col2_x"] + self.layout["results_time_offset"] - 12
         font = fit_ui_font(

@@ -58,7 +58,8 @@ def draw_results_header(
 
     year_x = (header_area_width - year_text_width) // 2
     text_y = visual_top - bbox[1]
-    draw.text((year_x, text_y), year_text, fill=text_fill, font=year_font)
+    if year_text:
+        draw.text((year_x, text_y), year_text, fill=text_fill, font=year_font)
 
     if flag_img:
         x = (header_area_width - flag_img.width) // 2
@@ -105,7 +106,7 @@ def draw_results_section(
 
     is_new_track = historical_data is None or historical_data.is_new_track
     if is_new_track:
-        season = "N/A"
+        season = ""
         qualifying_results = race_results = [None, None, None]
     else:
         season = historical_data.season or ""
@@ -195,8 +196,8 @@ def draw_results_column(
         y = y_rows_start + (i * row_height)
         pos = i + 1
         if entry is None:
-            text = f"{pos}. N/A"
-            time_str = "N/A"
+            text = f"{pos}. -"
+            time_str = ""
         else:
             driver_name = entry.driver.display_name
             team = entry.constructor.name

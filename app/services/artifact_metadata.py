@@ -10,7 +10,7 @@ from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.utils.atomic_io import atomic_write_bytes
 from app.utils.etag import strong_etag
 
-CALENDAR_LAYOUT_VERSION = 2
+CALENDAR_LAYOUT_VERSION = 3
 
 
 def calendar_identity(
