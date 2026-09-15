@@ -199,8 +199,18 @@ PLAN.md
 AGENTS.md
 
 # Local environment files
-.env.local
+.env.*
+!.env.example
 !.env.local.example
+
+# SQLite databases and live journal sidecars
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
 
 # Auto-generated files
 .auto-claude/
@@ -215,3 +225,6 @@ scripts/AGENTS.md
 
 # Local dev runtime data
 .local-dev-data/
+
+# Local browser review captures
+output/playwright/

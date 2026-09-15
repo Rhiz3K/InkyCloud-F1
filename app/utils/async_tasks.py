@@ -12,6 +12,8 @@ from typing import Any, TypeVar
 
 import sentry_sdk
 
+from app.config import config
+
 logger = logging.getLogger(__name__)
 _background_tasks: set[asyncio.Task[Any]] = set()
 
@@ -63,7 +65,8 @@ async def _run_supervised(coro: Awaitable[Any], name: str) -> Any:
         raise
     except Exception as exc:
         logger.error("Background task failed: %s", name, exc_info=True)
-        sentry_sdk.capture_exception(exc)
+        if not config.MINIMAL_DATA_MODE:
+            sentry_sdk.capture_exception(exc)
         return None
 
 

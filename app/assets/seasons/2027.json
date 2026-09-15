@@ -2,5 +2,14 @@
   "season": "2027",
   "generated_at": "2026-03-30T06:32:25.416743+00:00",
   "total_races": 0,
-  "races": []
+  "races": [],
+  "_provenance": {
+    "source": "https://api.jolpi.ca/ergast/f1/2027.json",
+    "author": "Jolpica-F1 / Ergast contributors",
+    "license": "CC-BY-NC-SA-4.0",
+    "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+    "changes": "Selected fields, normalized JSON, retained previously cancelled races",
+    "reviewed_on": "2026-09-09"
+  }
 }

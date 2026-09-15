@@ -8,13 +8,20 @@ import math
 import random
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 1.0
 MAX_RETRY_DELAY = 300.0
+
+
+class RequestPacer(Protocol):
+    """Provider-specific permission to make one outgoing network attempt."""
+
+    async def wait(self) -> None:
+        """Reserve a request slot, waiting or raising when the provider budget requires it."""
 
 
 class AsyncPacer:
@@ -80,7 +87,7 @@ async def fetch_with_retry(
     *,
     max_retries: int = MAX_RETRIES,
     retry_base_delay: float = RETRY_BASE_DELAY,
-    pacer: AsyncPacer | None = None,
+    pacer: RequestPacer | None = None,
     logger: logging.Logger | None = None,
     **request_kwargs: Any,
 ) -> httpx.Response:

@@ -9,15 +9,17 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import AsyncIterator, ClassVar, Optional
+from uuid import uuid4
 
 import aiosqlite
 
 from app.config import config
+from app.services import private_stats
 from app.utils.async_tasks import create_supervised_task
 
 logger = logging.getLogger(__name__)
 PERF_STATS_SAMPLE_LIMIT = 10_000
-DATABASE_SCHEMA_VERSION = 2
+DATABASE_SCHEMA_VERSION = 6
 
 STATS_CLEANUP_QUERIES = {
     "request_stats": "DELETE FROM request_stats WHERE timestamp < ?",
@@ -59,6 +61,7 @@ class Database:
         self._connection: aiosqlite.Connection | None = None
         self._connection_loop: asyncio.AbstractEventLoop | None = None
         self._connection_lock = asyncio.Lock()
+        self._operation_lock = asyncio.Lock()
         self._instances.add(self)
 
     def _ensure_directory(self) -> None:
@@ -92,12 +95,29 @@ class Database:
 
     @asynccontextmanager
     async def _get_connection(self) -> AsyncIterator[aiosqlite.Connection]:
-        """Yield the persistent database connection without recreating it per operation."""
-        yield await self._ensure_connection()
+        """Serialize operations and settle failed transactions before reusing the connection.
+
+        Cancelling an aiosqlite await does not stop queued SQLite work. Rollback is queued
+        behind that work and must finish before another writer can commit on this connection.
+        Stable event IDs also cover cancellation after an already completed commit.
+        """
+        async with self._operation_lock:
+            conn = await self._ensure_connection()
+            try:
+                yield conn
+            except BaseException:
+                rollback = asyncio.create_task(conn.rollback())
+                while not rollback.done():
+                    try:
+                        await asyncio.shield(rollback)
+                    except asyncio.CancelledError:
+                        continue
+                rollback.result()
+                raise
 
     async def close(self) -> None:
         """Close this instance's persistent connection, if any."""
-        async with self._connection_lock:
+        async with self._operation_lock, self._connection_lock:
             if self._connection is None:
                 return
             try:
@@ -191,7 +211,20 @@ class Database:
                         status_code INTEGER NOT NULL DEFAULT 200
                     );
 
-                    -- Performance metrics table (Real User Monitoring)
+                    -- Hourly aggregates carry no request/visitor identifiers.
+                    CREATE TABLE IF NOT EXISTS api_call_totals (
+                        timestamp TEXT NOT NULL, endpoint TEXT NOT NULL,
+                        response_time_ms REAL, response_count INTEGER NOT NULL,
+                        response_min REAL, response_max REAL,
+                        response_size_bytes INTEGER, sample_count INTEGER NOT NULL,
+                        lang TEXT, tz TEXT, year INTEGER, round INTEGER,
+                        display_type TEXT, race_name TEXT, is_auto_selected INTEGER,
+                        status_code INTEGER NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_api_call_totals_timestamp
+                        ON api_call_totals(timestamp);
+
+                    -- Performance metrics table (legacy data, collection retired)
                     CREATE TABLE IF NOT EXISTS perf_metrics (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         timestamp TEXT NOT NULL,
@@ -205,6 +238,11 @@ class Database:
                         connection_type TEXT,
                         device_memory REAL
                     );
+
+                    -- Anonymous API quota, shared by workers using this database.
+                    CREATE TABLE IF NOT EXISTS weather_api_requests (timestamp REAL NOT NULL);
+                    CREATE INDEX IF NOT EXISTS idx_weather_api_request_time
+                        ON weather_api_requests(timestamp);
 
                     -- Circuit weather cache table (batch circuit caching)
                     CREATE TABLE IF NOT EXISTS circuit_weather (
@@ -249,6 +287,11 @@ class Database:
                 )
                 await conn.commit()
 
+                if config.MINIMAL_DATA_MODE:
+                    await self._purge_usage_tables(conn)
+                elif config.AGGREGATE_STATS_ONLY:
+                    await private_stats.migrate_records(conn)
+
                 logger.info("Database initialized at %s", self.db_path)
                 with cls.schema_state_lock:
                     cls.initialized_paths.add(self.db_path)
@@ -269,6 +312,7 @@ class Database:
 
         # Define columns that should exist (added in later versions)
         migrations = [
+            ("event_id", "TEXT"),
             ("year", "INTEGER"),
             ("round", "INTEGER"),
             ("display_type", "TEXT"),
@@ -282,6 +326,46 @@ class Database:
                 logger.info("Migration: Adding column '%s' to api_calls table", column_name)
                 await conn.execute(f"ALTER TABLE api_calls ADD COLUMN {column_name} {column_type}")
 
+        await conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_api_calls_event_id ON api_calls(event_id)"
+        )
+
+        async with conn.execute("PRAGMA table_info(perf_metrics)") as cursor:
+            perf_columns = {row[1] for row in await cursor.fetchall()}
+        for column_name, column_type in (
+            ("visit_id", "TEXT"),
+            ("report_seq", "INTEGER NOT NULL DEFAULT 0"),
+            ("measurement_version", "INTEGER NOT NULL DEFAULT 1"),
+        ):
+            if column_name not in perf_columns:
+                await conn.execute(
+                    f"ALTER TABLE perf_metrics ADD COLUMN {column_name} {column_type}"
+                )
+        await conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_perf_metrics_visit "
+            "ON perf_metrics(visit_id, page_path, measurement_version)"
+        )
+
+        await private_stats.migrate_track_options(conn)
+        await conn.execute("DROP VIEW IF EXISTS api_calls_combined")
+        await conn.execute("""
+            CREATE VIEW api_calls_combined AS
+            SELECT timestamp, endpoint, response_time_ms,
+                   CASE WHEN response_time_ms IS NULL THEN 0 ELSE 1 END AS response_count,
+                   response_time_ms AS response_min, response_time_ms AS response_max,
+                   response_size_bytes, 1 AS sample_count, lang, tz, year, round,
+                   display_type, race_name, is_auto_selected, status_code,
+                   track_style, track_source, track_accent
+              FROM api_calls
+            UNION ALL
+            SELECT timestamp, endpoint, response_time_ms, response_count,
+                   response_min, response_max, response_size_bytes, sample_count,
+                   lang, tz, year, round, display_type, race_name, is_auto_selected, status_code,
+                   track_style, track_source, track_accent
+              FROM api_call_totals
+        """)
+
+        await conn.executescript(private_stats.DDL)
         await conn.execute(f"PRAGMA user_version = {DATABASE_SCHEMA_VERSION}")
         await conn.commit()
 
@@ -398,8 +482,8 @@ class Database:
                 WITH hourly AS (
                     SELECT
                         substr(timestamp, 1, 13) || ':00:00+00:00' AS timestamp,
-                        COUNT(*) AS hour_count
-                    FROM api_calls
+                        COALESCE(SUM(sample_count), 0) AS hour_count
+                    FROM api_calls_combined
                     WHERE timestamp > ?
                     GROUP BY substr(timestamp, 1, 13)
                 ),
@@ -434,27 +518,94 @@ class Database:
                 for row in rows
             ]
 
+    @staticmethod
+    async def _purge_usage_tables(conn: aiosqlite.Connection) -> None:
+        """Erase retired usage rows and checkpoint their WAL before declaring the DB ready."""
+        await conn.execute("PRAGMA secure_delete=ON")
+        for query in (
+            "DELETE FROM api_calls",
+            "DELETE FROM api_call_totals",
+            "DELETE FROM perf_metrics",
+            "DELETE FROM request_stats",
+            "DELETE FROM perf_buckets",
+            "DELETE FROM stats_batches",
+        ):
+            await conn.execute(query)
+        await conn.execute(
+            "DELETE FROM sqlite_sequence WHERE name IN "
+            "('api_calls', 'perf_metrics', 'request_stats')"
+        )
+        await conn.commit()
+        async with conn.execute("PRAGMA wal_checkpoint(TRUNCATE)") as cursor:
+            result = await cursor.fetchone()
+        if result is not None and result[0] != 0:
+            raise RuntimeError("Usage data cleanup awaits exclusive database access")
+
     async def cleanup_old_stats(self, days: int = 30) -> int:
         """
-        Remove stats rows older than specified days across all metrics tables.
+        Roll up old requests and remove expired records and retired visitor identifiers.
 
         Args:
-            days: Number of days to keep
+            days: Aggregate retention; raw records use the shorter configured period
 
         Returns:
             Number of deleted records across request_stats, api_calls, and perf_metrics
         """
+        if config.MINIMAL_DATA_MODE:
+            await self._init_db_if_needed()
+            async with self._get_connection() as conn:
+                await self._purge_usage_tables(conn)
+            return 0
+        if not 1 <= days <= 400:
+            raise ValueError("Retention must be between 1 and 400 days")
         await self._init_db_if_needed()
-        cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        now = datetime.now(timezone.utc)
+        cutoff_date = (now - timedelta(days=days)).isoformat()
+        raw_cutoff = (now - timedelta(days=min(days, config.RAW_STATS_RETENTION_DAYS))).isoformat()
         deleted_counts: dict[str, int] = {}
-
         async with self._get_connection() as conn:
             try:
+                # Aggregation and raw deletion are one transaction, making retries idempotent.
+                await conn.execute(
+                    """
+                    INSERT INTO api_call_totals
+                        (timestamp, endpoint, response_time_ms, response_count,
+                         response_min, response_max, response_size_bytes, sample_count,
+                         lang, tz, year, round, display_type, race_name, is_auto_selected,
+                         status_code, track_style, track_source, track_accent)
+                    SELECT substr(timestamp, 1, 13) || ':00:00+00:00', endpoint,
+                           SUM(response_time_ms), COUNT(response_time_ms),
+                           MIN(response_time_ms), MAX(response_time_ms),
+                           SUM(response_size_bytes), COUNT(*), lang, tz, year, round,
+                           display_type, race_name, is_auto_selected, status_code,
+                           track_style, track_source, track_accent
+                      FROM api_calls WHERE timestamp < ? AND timestamp >= ?
+                     GROUP BY substr(timestamp, 1, 13), endpoint, lang, tz, year, round,
+                              display_type, race_name, is_auto_selected, status_code,
+                              track_style, track_source, track_accent
+                """,
+                    (raw_cutoff, cutoff_date),
+                )
                 for table_name, query in STATS_CLEANUP_QUERIES.items():
-                    cursor = await conn.execute(query, (cutoff_date,))
+                    cutoff = (
+                        raw_cutoff if table_name in {"api_calls", "perf_metrics"} else cutoff_date
+                    )
+                    cursor = await conn.execute(query, (cutoff,))
                     deleted_counts[table_name] = cursor.rowcount
+                await conn.execute(
+                    "DELETE FROM api_call_totals WHERE timestamp < ?", (cutoff_date,)
+                )
+                for query in (
+                    "DELETE FROM perf_buckets WHERE timestamp < ?",
+                    "DELETE FROM stats_batches WHERE timestamp < ?",
+                ):
+                    await conn.execute(query, (raw_cutoff,))
+                await conn.execute("""UPDATE perf_metrics SET user_agent=NULL,
+                    connection_type=NULL, device_memory=NULL, visit_id=NULL
+                    WHERE user_agent IS NOT NULL OR connection_type IS NOT NULL
+                       OR device_memory IS NOT NULL OR visit_id IS NOT NULL""")
                 await conn.commit()
-            except Exception:
+            except BaseException:
                 await conn.rollback()
                 raise
 
@@ -476,11 +627,14 @@ class Database:
         Args:
             calls: List of call dictionaries with keys:
                    timestamp, endpoint, response_time_ms, response_size_bytes, lang, tz,
-                   year, round, display_type, race_name, is_auto_selected, status_code
+                   year, round, display_type, race_name, is_auto_selected, status_code,
+                   track_style, track_source, track_accent
 
         Returns:
             Number of inserted records
         """
+        if config.MINIMAL_DATA_MODE:
+            return 0
         if not calls:
             return 0
 
@@ -498,17 +652,29 @@ class Database:
         if not valid_calls:
             return 0
 
+        if config.AGGREGATE_STATS_ONLY:
+            await self._init_db_if_needed()
+            async with self._get_connection() as conn:
+                return await private_stats.save_api_buckets(conn, valid_calls)
+
+        for call in valid_calls:
+            call.setdefault("event_id", str(uuid4()))
+            call.update(private_stats.normalize_track_options(call))
+
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
-            await conn.executemany(
+            cursor = await conn.executemany(
                 """
                 INSERT INTO api_calls
-                    (timestamp, endpoint, response_time_ms, response_size_bytes, lang, tz,
-                     year, round, display_type, race_name, is_auto_selected, status_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (event_id, timestamp, endpoint, response_time_ms, response_size_bytes, lang, tz,
+                     year, round, display_type, race_name, is_auto_selected, status_code,
+                     track_style, track_source, track_accent)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(event_id) DO NOTHING
                 """,
                 [
                     (
+                        call["event_id"],
                         call.get("timestamp"),
                         call.get("endpoint"),
                         call.get("response_time_ms"),
@@ -521,13 +687,16 @@ class Database:
                         call.get("race_name"),
                         call.get("is_auto_selected", 0),
                         call.get("status_code", 200),
+                        call["track_style"],
+                        call["track_source"],
+                        call["track_accent"],
                     )
                     for call in valid_calls
                 ],
             )
             await conn.commit()
-            logger.debug("Saved %s API calls to database", len(valid_calls))
-            return len(valid_calls)
+            logger.debug("Saved %s API calls to database", cursor.rowcount)
+            return cursor.rowcount
 
     async def get_api_calls_stats_24h(self) -> dict:
         """
@@ -539,6 +708,7 @@ class Database:
                 - avg_response_ms: Average response time in ms (or None)
                 - total_bytes_24h: Total bytes transferred (or 0)
                 - status_codes: Request counts grouped by real HTTP status
+                - track_styles, track_sources, track_accents: Calendar map choice counts
         """
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
@@ -547,10 +717,10 @@ class Database:
             async with conn.execute(
                 """
             SELECT
-                COUNT(*) as count,
-                AVG(response_time_ms) as avg_ms,
+                COALESCE(SUM(sample_count), 0) as count,
+                SUM(response_time_ms) * 1.0 / NULLIF(SUM(response_count), 0) as avg_ms,
                 COALESCE(SUM(response_size_bytes), 0) as total_bytes
-            FROM api_calls
+            FROM api_calls_combined
             WHERE timestamp > ?
             """,
                 (cutoff,),
@@ -573,8 +743,8 @@ class Database:
 
             async with conn.execute(
                 """
-                SELECT status_code, COUNT(*) AS count
-                FROM api_calls
+                SELECT status_code, COALESCE(SUM(sample_count), 0) AS count
+                FROM api_calls_combined
                 WHERE timestamp > ?
                 GROUP BY status_code
                 ORDER BY status_code ASC
@@ -585,6 +755,7 @@ class Database:
             stats["status_codes"] = [
                 {"status_code": row["status_code"], "count": row["count"]} for row in rows
             ]
+            stats.update(await private_stats.load_track_usage(conn, cutoff))
             return stats
 
     async def get_stats_for_range(self, hours: int) -> dict:
@@ -597,7 +768,7 @@ class Database:
         Returns:
             dict with total_requests, min/avg/max_response_ms, total_bytes,
             endpoints, languages, calendar display_types, teams_display_types, timezones,
-            hourly, and races breakdowns.
+            hourly, races, track_styles, track_sources, and track_accents breakdowns.
         """
         await self._init_db_if_needed()
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
@@ -607,12 +778,12 @@ class Database:
             async with conn.execute(
                 """
                 SELECT
-                    COUNT(*) as total_requests,
-                    MIN(response_time_ms) as min_ms,
-                    AVG(response_time_ms) as avg_ms,
-                    MAX(response_time_ms) as max_ms,
+                    COALESCE(SUM(sample_count), 0) as total_requests,
+                    MIN(response_min) as min_ms,
+                    SUM(response_time_ms) * 1.0 / NULLIF(SUM(response_count), 0) as avg_ms,
+                    MAX(response_max) as max_ms,
                     COALESCE(SUM(response_size_bytes), 0) as total_bytes
-                FROM api_calls
+                FROM api_calls_combined
                 WHERE timestamp > ?
                 """,
                 (cutoff,),
@@ -638,8 +809,8 @@ class Database:
             # Endpoint breakdown
             async with conn.execute(
                 """
-                SELECT endpoint, COUNT(*) as count
-                FROM api_calls
+                SELECT endpoint, COALESCE(SUM(sample_count), 0) as count
+                FROM api_calls_combined
                 WHERE timestamp > ?
                 GROUP BY endpoint
                 ORDER BY count DESC
@@ -655,8 +826,8 @@ class Database:
             # HTTP status breakdown keeps successful transfers distinct from ETag 304s.
             async with conn.execute(
                 """
-                SELECT status_code, COUNT(*) as count
-                FROM api_calls
+                SELECT status_code, COALESCE(SUM(sample_count), 0) as count
+                FROM api_calls_combined
                 WHERE timestamp > ?
                 GROUP BY status_code
                 ORDER BY status_code ASC
@@ -671,8 +842,8 @@ class Database:
             # Language breakdown
             async with conn.execute(
                 """
-                SELECT lang, COUNT(*) as count
-                FROM api_calls
+                SELECT lang, COALESCE(SUM(sample_count), 0) as count
+                FROM api_calls_combined
                 WHERE timestamp > ? AND lang IS NOT NULL
                 GROUP BY lang
                 ORDER BY count DESC
@@ -685,8 +856,8 @@ class Database:
             # Display breakdown - calendar requests
             async with conn.execute(
                 """
-                SELECT display_type, COUNT(*) as count
-                FROM api_calls
+                SELECT display_type, COALESCE(SUM(sample_count), 0) as count
+                FROM api_calls_combined
                 WHERE timestamp > ?
                     AND endpoint = '/calendar.bmp'
                     AND display_type IS NOT NULL
@@ -704,8 +875,9 @@ class Database:
             # Display breakdown - teams requests
             async with conn.execute(
                 """
-                SELECT COALESCE(NULLIF(display_type, ''), '1bit') as display_type, COUNT(*) as count
-                FROM api_calls
+                SELECT COALESCE(NULLIF(display_type, ''), '1bit') as display_type,
+                    COALESCE(SUM(sample_count), 0) as count
+                FROM api_calls_combined
                 WHERE timestamp > ?
                     AND endpoint = '/teams.bmp'
                 GROUP BY COALESCE(NULLIF(display_type, ''), '1bit')
@@ -721,8 +893,8 @@ class Database:
             # Timezone breakdown (top 10)
             async with conn.execute(
                 """
-                SELECT tz, COUNT(*) as count
-                FROM api_calls
+                SELECT tz, COALESCE(SUM(sample_count), 0) as count
+                FROM api_calls_combined
                 WHERE timestamp > ? AND tz IS NOT NULL AND tz != ''
                 GROUP BY tz
                 ORDER BY count DESC
@@ -740,8 +912,8 @@ class Database:
                 """
                 SELECT
                     strftime('%Y-%m-%d %H:00', timestamp) as hour,
-                    COUNT(*) as count
-                FROM api_calls
+                    COALESCE(SUM(sample_count), 0) as count
+                FROM api_calls_combined
                 WHERE timestamp > ?
                 GROUP BY hour
                 ORDER BY hour ASC
@@ -758,9 +930,10 @@ class Database:
                     year,
                     round,
                     race_name,
-                    SUM(CASE WHEN is_auto_selected = 1 THEN 1 ELSE 0 END) as auto_selected_count,
-                    COUNT(*) as count
-                FROM api_calls
+                    SUM(CASE WHEN is_auto_selected = 1 THEN sample_count ELSE 0 END)
+                        as auto_selected_count,
+                    COALESCE(SUM(sample_count), 0) as count
+                FROM api_calls_combined
                 WHERE timestamp > ?
                     AND endpoint = '/calendar.bmp'
                     AND race_name IS NOT NULL
@@ -793,6 +966,7 @@ class Database:
                 "timezones": timezone_stats,
                 "hourly": hourly_stats,
                 "races": race_stats,
+                **await private_stats.load_track_usage(conn, cutoff),
             }
 
     async def get_api_calls_count(self, hours: int) -> int:
@@ -803,7 +977,8 @@ class Database:
         async with (
             self._get_connection() as conn,
             conn.execute(
-                "SELECT COUNT(*) as count FROM api_calls WHERE timestamp > ?",
+                "SELECT COALESCE(SUM(sample_count), 0) as count "
+                "FROM api_calls_combined WHERE timestamp > ?",
                 (cutoff,),
             ) as cursor,
         ):
@@ -839,8 +1014,8 @@ class Database:
             self._get_connection() as conn,
             conn.execute(
                 """
-            SELECT lang, tz, COUNT(*) as count
-            FROM api_calls
+            SELECT lang, tz, COALESCE(SUM(sample_count), 0) as count
+            FROM api_calls_combined
             WHERE timestamp > ?
               AND endpoint = '/calendar.bmp'
               AND tz IS NOT NULL
@@ -848,7 +1023,7 @@ class Database:
               AND tz != ?
               AND is_auto_selected = 1
             GROUP BY lang, tz
-            HAVING COUNT(*) >= ?
+            HAVING COALESCE(SUM(sample_count), 0) >= ?
             ORDER BY count DESC
             LIMIT ?
             """,
@@ -869,16 +1044,43 @@ class Database:
         user_agent: str | None = None,
         connection_type: str | None = None,
         device_memory: float | None = None,
+        visit_id: str | None = None,
+        report_seq: int = 0,
+        measurement_version: int = 2,
     ) -> None:
-        """Persist a single client-side performance metric payload."""
+        """Keep the latest ordered visit snapshot; preserve unidentified legacy rows."""
+        if config.MINIMAL_DATA_MODE:
+            return
+        if config.AGGREGATE_STATS_ONLY:
+            await self._init_db_if_needed()
+            async with self._get_connection() as conn:
+                await private_stats.save_performance(
+                    conn,
+                    page_path,
+                    {
+                        "lcp_ms": lcp_ms,
+                        "cls": cls,
+                        "fcp_ms": fcp_ms,
+                        "ttfb_ms": ttfb_ms,
+                        "inp_ms": inp_ms,
+                    },
+                )
+                await conn.commit()
+            return
         await self._init_db_if_needed()
         async with self._get_connection() as conn:
             await conn.execute(
                 """
                 INSERT INTO perf_metrics
                     (timestamp, page_path, lcp_ms, cls, fcp_ms, ttfb_ms, inp_ms,
-                     user_agent, connection_type, device_memory)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     user_agent, connection_type, device_memory,
+                     visit_id, report_seq, measurement_version)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(visit_id, page_path, measurement_version) DO UPDATE SET
+                    lcp_ms=excluded.lcp_ms, cls=excluded.cls, fcp_ms=excluded.fcp_ms,
+                    ttfb_ms=excluded.ttfb_ms, inp_ms=excluded.inp_ms,
+                    report_seq=excluded.report_seq
+                WHERE excluded.report_seq > perf_metrics.report_seq
                 """,
                 (
                     datetime.now(timezone.utc).isoformat(),
@@ -891,6 +1093,9 @@ class Database:
                     user_agent,
                     connection_type,
                     device_memory,
+                    visit_id,
+                    report_seq,
+                    measurement_version,
                 ),
             )
             await conn.commit()
@@ -898,6 +1103,10 @@ class Database:
     async def get_perf_stats(self, hours: int = 24) -> dict:
         """Return aggregate Web Vitals statistics for the lookback window."""
         await self._init_db_if_needed()
+        if config.AGGREGATE_STATS_ONLY:
+            async with self._get_connection() as conn:
+                groups = await private_stats.load_performance(conn, hours)
+            return groups.get("all", private_stats.summarize({}))
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with self._get_connection() as conn:
@@ -916,7 +1125,7 @@ class Database:
                     MIN(ttfb_ms) as min_ttfb,
                     MAX(ttfb_ms) as max_ttfb
                 FROM perf_metrics
-                WHERE timestamp > ?
+                WHERE measurement_version IN (2, 3) AND timestamp > ?
                 """,
                 (cutoff,),
             ) as cursor:
@@ -951,7 +1160,7 @@ class Database:
             async with conn.execute(
                 """SELECT lcp_ms, cls, fcp_ms, ttfb_ms, inp_ms
                 FROM perf_metrics
-                WHERE timestamp > ?
+                WHERE measurement_version IN (2, 3) AND timestamp > ?
                 ORDER BY timestamp DESC
                 LIMIT ?""",
                 (cutoff, PERF_STATS_SAMPLE_LIMIT),
@@ -1005,6 +1214,19 @@ class Database:
     async def get_perf_stats_by_page(self, hours: int = 24) -> list[dict]:
         """Return aggregate Web Vitals statistics grouped by page path."""
         await self._init_db_if_needed()
+        if config.AGGREGATE_STATS_ONLY:
+            async with self._get_connection() as conn:
+                groups = await private_stats.load_performance(conn, hours, "page")
+            return [
+                {
+                    "page": page,
+                    "samples": stats["sample_count"],
+                    **{metric: stats[metric]["avg"] for metric in ("lcp", "cls", "fcp", "ttfb")},
+                }
+                for page, stats in sorted(
+                    groups.items(), key=lambda item: -item[1]["sample_count"]
+                )[:10]
+            ]
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with (
@@ -1019,7 +1241,7 @@ class Database:
                 AVG(fcp_ms) as avg_fcp,
                 AVG(ttfb_ms) as avg_ttfb
             FROM perf_metrics
-            WHERE timestamp > ?
+            WHERE measurement_version IN (2, 3) AND timestamp > ?
             GROUP BY page_path
             ORDER BY sample_count DESC
             LIMIT 10
@@ -1079,6 +1301,17 @@ class Database:
             dict with hours, lcp, fcp, ttfb (averages or None), and samples lists.
         """
         await self._init_db_if_needed()
+        if config.AGGREGATE_STATS_ONLY:
+            async with self._get_connection() as conn:
+                groups = await private_stats.load_performance(conn, hours, "hour")
+            return {
+                "hours": list(groups),
+                "samples": [s["sample_count"] for s in groups.values()],
+                **{
+                    metric: [s[metric]["avg"] for s in groups.values()]
+                    for metric in ("lcp", "fcp", "ttfb")
+                },
+            }
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
 
         async with (
@@ -1092,7 +1325,7 @@ class Database:
                 AVG(ttfb_ms) as avg_ttfb,
                 COUNT(*) as samples
             FROM perf_metrics
-            WHERE timestamp > ?
+            WHERE measurement_version IN (2, 3) AND timestamp > ?
             GROUP BY hour
             ORDER BY hour ASC
             """,
@@ -1205,6 +1438,40 @@ class Database:
     # =========================================================================
     # Weather Cache Methods (key-based caching with TTL)
     # =========================================================================
+
+    async def reserve_weather_request(self, now: float | None = None) -> bool:
+        """Enforce Open-Meteo quotas; rolling 31 days conservatively covers any month."""
+        await self._init_db_if_needed()
+        stamp = datetime.now(timezone.utc).timestamp() if now is None else now
+        async with self._get_connection() as conn:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                await conn.execute(
+                    "DELETE FROM weather_api_requests WHERE timestamp <= ?", (stamp - 31 * 86400,)
+                )
+                async with conn.execute(
+                    """SELECT COUNT(*) AS month_count,
+                    COALESCE(SUM(timestamp > ?), 0) AS day_count,
+                    COALESCE(SUM(timestamp > ?), 0) AS hour_count,
+                    COALESCE(SUM(timestamp > ?), 0) AS minute_count
+                    FROM weather_api_requests""",
+                    (stamp - 86400, stamp - 3600, stamp - 60),
+                ) as cursor:
+                    row = await cursor.fetchone()
+                allowed = (
+                    row is not None
+                    and row["month_count"] < 300000
+                    and row["day_count"] < 10000
+                    and row["hour_count"] < 5000
+                    and row["minute_count"] < 600
+                )
+                if allowed:
+                    await conn.execute("INSERT INTO weather_api_requests VALUES (?)", (stamp,))
+                await conn.commit()
+                return allowed
+            except BaseException:
+                await conn.rollback()
+                raise
 
     async def save_weather_cache(
         self,

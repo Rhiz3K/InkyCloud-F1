@@ -54,11 +54,12 @@ def draw_results_header(
 
     standard_gap = 3
     total_block_h = text_height + (standard_gap if flag_h > 0 else 0) + flag_h
-    visual_top = y_start + (footer_height - total_block_h) // 2
+    visual_top = min(y_start + (footer_height - total_block_h) // 2, y_start + 5)
 
     year_x = (header_area_width - year_text_width) // 2
     text_y = visual_top - bbox[1]
-    draw.text((year_x, text_y), year_text, fill=text_fill, font=year_font)
+    if year_text:
+        draw.text((year_x, text_y), year_text, fill=text_fill, font=year_font)
 
     if flag_img:
         x = (header_area_width - flag_img.width) // 2
@@ -103,11 +104,14 @@ def draw_results_section(
         width=separator_width,
     )
 
-    if historical_data is None or historical_data.is_new_track:
-        draw_new_track_message_fn(draw, y_start)
-        return
-
-    season = historical_data.season or ""
+    is_new_track = historical_data is None or historical_data.is_new_track
+    if is_new_track:
+        season = ""
+        qualifying_results = race_results = [None, None, None]
+    else:
+        season = historical_data.season or ""
+        qualifying_results = historical_data.qualifying_results
+        race_results = historical_data.race_results
     country = race_data.get("circuit", {}).get("country", "")
     visual_top = draw_results_header_fn(draw, image, y_start, season, country)
 
@@ -116,7 +120,7 @@ def draw_results_section(
         results_col1_x,
         visual_top,
         qualifying_title,
-        historical_data.qualifying_results,
+        qualifying_results,
         is_qualifying=True,
     )
 
@@ -125,26 +129,40 @@ def draw_results_section(
         results_col2_x,
         visual_top,
         race_title,
-        historical_data.race_results,
+        race_results,
         is_qualifying=False,
     )
+
+    if is_new_track:
+        draw_new_track_message_fn(draw, y_start)
 
 
 def draw_new_track_message(
     draw: ImageDraw.ImageDraw,
     *,
-    canvas_width: int,
+    x_end: int,
+    canvas_height: int,
+    x_start: int,
     y_start: int,
     message: str,
     font,
     fill,
+    background_fill,
 ) -> None:
-    """Draw a centered new-track message when historical data is unavailable."""
+    """Overlay a bordered new-track badge with a palette-safe hard shadow."""
     bbox = draw.textbbox((0, 0), message, font=font)
-    message_width = bbox[2] - bbox[0]
-    x = (canvas_width - message_width) // 2
-    y = y_start + 30
-    draw.text((x, y), message, fill=fill, font=font)
+    box_width = bbox[2] - bbox[0] + 24
+    box_height = bbox[3] - bbox[1] + 16
+    x = (x_start + x_end - box_width) // 2
+    y = (y_start + 28 + canvas_height - box_height - 4) // 2
+    draw.rectangle([x + 4, y + 4, x + box_width + 4, y + box_height + 4], fill=fill)
+    draw.rectangle(
+        [x, y, x + box_width, y + box_height],
+        fill=background_fill,
+        outline=fill,
+        width=2,
+    )
+    draw.text((x + 12 - bbox[0], y + 8 - bbox[1]), message, fill=fill, font=font)
 
 
 def draw_results_column(
@@ -165,11 +183,10 @@ def draw_results_column(
     split_position_prefix: bool = False,
 ) -> None:
     """Draw one historical results column aligned with the footer header."""
-    ref_bbox = draw.textbbox((0, 0), "Ay", font=font_title)
+    ref_bbox = draw.textbbox((0, 0), "ÁŽÝgy", font=font_title)
     header_y_anchor = visual_top - ref_bbox[1]
     draw.text((x_start, header_y_anchor), title, fill=text_fill, font=font_title)
 
-    ref_bbox = draw.textbbox((0, 0), "Hg", font=font_title)
     header_visual_bottom = header_y_anchor + ref_bbox[3]
 
     row_bbox = draw.textbbox((0, 0), "1", font=font_row)
@@ -178,11 +195,15 @@ def draw_results_column(
     for i, entry in enumerate(results[:3]):
         y = y_rows_start + (i * row_height)
         pos = i + 1
-        driver_name = entry.driver.display_name
-        team = entry.constructor.name
-        time_str = entry.q3_time or "" if is_qualifying else entry.time or ""
-        max_width = time_x - x_start - 10
-        text = fit_result_text_fn(draw, font_row, max_width, pos, driver_name, team)
+        if entry is None:
+            text = f"{pos}. -"
+            time_str = ""
+        else:
+            driver_name = entry.driver.display_name
+            team = entry.constructor.name
+            time_str = entry.q3_time or "" if is_qualifying else entry.time or ""
+            max_width = time_x - x_start - 10
+            text = fit_result_text_fn(draw, font_row, max_width, pos, driver_name, team)
 
         if split_position_prefix:
             pos_text = f"{pos}."

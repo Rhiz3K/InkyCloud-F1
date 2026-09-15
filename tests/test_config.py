@@ -144,7 +144,7 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert str(config.GITHUB_API_BASE_URL) == "https://api.github.com"
     assert str(config.OPEN_METEO_URL) == "https://api.open-meteo.com/v1/forecast"
     assert str(config.OPEN_METEO_ARCHIVE_URL) == "https://archive-api.open-meteo.com/v1/archive"
-    assert config.SENTRY_TRACES_SAMPLE_RATE == 0.1
+    assert config.SENTRY_TRACES_SAMPLE_RATE == 0.0
     assert config.DEFAULT_LANG == "en"
     assert config.STATS_RETENTION_DAYS == 400
 

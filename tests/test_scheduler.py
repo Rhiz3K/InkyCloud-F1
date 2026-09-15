@@ -12,6 +12,7 @@ from PIL import Image
 from app.models import TeamEntry, TeamsData
 from app.services import scheduler, scheduler_generation, scheduler_maintenance
 from app.services import scheduler_weather as weather_jobs
+from app.services.artifact_metadata import calendar_identity
 from app.services.historical_refresh import HistoricalRefreshResult
 from app.services.image_keys import get_teams_image_key
 from app.services.scheduler_generation import (
@@ -110,9 +111,13 @@ async def test_generate_preview_pngs_converts_existing_bmps_without_rendering(
     )
 
     for display in ("1bit", "spectra6", "bwr", "bwry"):
-        (tmp_path / f"{_get_image_key('en', display=display)}.bmp").write_bytes(bmp_data)
+        await scheduler_generation._write_bmp_artifact(
+            tmp_path / f"{_get_image_key('en', display=display)}.bmp", bmp_data, "calendar:test"
+        )
         teams_key = get_teams_image_key("en", 2026, display=display)
-        (tmp_path / f"{teams_key}.bmp").write_bytes(bmp_data)
+        await scheduler_generation._write_bmp_artifact(
+            tmp_path / f"{teams_key}.bmp", bmp_data, "teams:2026"
+        )
 
     await generate_preview_pngs(["off"], 2026)
 
@@ -577,7 +582,7 @@ async def test_collect_and_generate_skips_stale_prune_when_race_weather_missing(
         await collect_and_generate()
 
     prune.assert_not_called()
-    assert db.set_cache_meta.await_count == 2
+    assert db.set_cache_meta.await_count == 4
     assert db.set_cache_meta.await_args_list[0] == call(
         scheduler_generation.GENERATION_STATUS_META_KEY,
         scheduler_generation.GENERATION_STATUS_DEGRADED,
@@ -679,7 +684,7 @@ def test_render_variant_helpers_construct_renderer_in_calling_thread():
 @pytest.mark.parametrize("screen", ["calendar", "teams"])
 async def test_preview_generation_isolates_conversion_failures(tmp_path, screen):
     source = tmp_path / ("calendar_en.bmp" if screen == "calendar" else "teams_2026_en.bmp")
-    source.write_bytes(b"not-used")
+    await scheduler_generation._write_bmp_artifact(source, b"not-used", "calendar:test")
     with (
         patch("app.services.scheduler_generation.SUPPORTED_LANGUAGES", ["en"]),
         patch("app.services.scheduler_generation.config.IMAGES_PATH", str(tmp_path)),
@@ -714,7 +719,7 @@ async def test_generate_variant_persists_success_and_returns_none_on_failure(tmp
         )
 
     assert image_path == tmp_path / "calendar_en.bmp"
-    write.assert_awaited_once_with(image_path, b"bmp")
+    write.assert_awaited_once_with(image_path, b"bmp", calendar_identity({"race": 1}))
     db.save_generated_image.assert_awaited_once()
 
     with patch(
@@ -1097,12 +1102,12 @@ async def test_collect_and_generate_prunes_after_fully_successful_run(tmp_path):
 
     assert keep.exists()
     assert not stale.exists()
-    assert db.set_cache_meta.await_count == 2
-    assert db.set_cache_meta.await_args_list[0] == call(
+    assert db.set_cache_meta.await_count == 4
+    assert db.set_cache_meta.await_args_list[2] == call(
         scheduler_generation.GENERATION_STATUS_META_KEY,
         scheduler_generation.GENERATION_STATUS_READY,
     )
-    assert db.set_cache_meta.await_args_list[1].args[0] == (
+    assert db.set_cache_meta.await_args_list[3].args[0] == (
         scheduler_generation.GENERATION_SUCCESS_META_KEY
     )
 
@@ -1507,6 +1512,7 @@ def test_start_and_stop_scheduler_cover_disabled_existing_and_weather_jobs():
             "hourly_generation",
             "historical_results_refresh",
             "flush_api_calls",
+            "cleanup_retained_stats",
             "fetch_circuit_weather",
             "refresh_version_info",
         }
@@ -1551,7 +1557,7 @@ async def test_run_initial_generation_publishes_calendar_before_upstream_refresh
     [None, RuntimeError("weather")],
     ids=["fresh", "cached-fallback"],
 )
-async def test_run_initial_generation_fetches_weather_before_only_generation(weather_error):
+async def test_run_initial_generation_does_not_preload_all_weather_without_scheduler(weather_error):
     order: list[str] = []
 
     def step(name: str, error: Exception | None = None):
@@ -1575,7 +1581,7 @@ async def test_run_initial_generation_fetches_weather_before_only_generation(wea
     ):
         await scheduler.run_initial_generation()
 
-    assert order == ["load", "weather", "generate", "version"]
+    assert order == ["load", "generate", "version"]
 
 
 @pytest.mark.asyncio

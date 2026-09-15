@@ -48,6 +48,8 @@ def _get_s3_client():
     Returns:
         boto3 S3 client or None if configuration is incomplete.
     """
+    if config.MINIMAL_DATA_MODE:
+        return None
     access_key_id = _resolve_secret(config.S3_ACCESS_KEY_ID)
     secret_access_key = _resolve_secret(config.S3_SECRET_ACCESS_KEY)
 
@@ -86,7 +88,7 @@ def is_backup_configured() -> bool:
     Returns:
         True if backup is enabled and all required S3 settings are present.
     """
-    if not config.BACKUP_ENABLED:
+    if config.MINIMAL_DATA_MODE or not config.BACKUP_ENABLED:
         return False
 
     required = [
@@ -164,7 +166,8 @@ def perform_backup() -> bool:
 
     except Exception as e:
         logger.error("Backup failed: %s", e, exc_info=True)
-        sentry_sdk.capture_exception(e)
+        if not config.MINIMAL_DATA_MODE:
+            sentry_sdk.capture_exception(e)
         return False
 
     finally:
@@ -235,7 +238,8 @@ def cleanup_old_backups(s3_client=None) -> int:
 
     except Exception as e:
         logger.error("Failed to cleanup old backups: %s", e, exc_info=True)
-        sentry_sdk.capture_exception(e)
+        if not config.MINIMAL_DATA_MODE:
+            sentry_sdk.capture_exception(e)
 
     return deleted_count
 
@@ -475,7 +479,8 @@ def perform_backup_with_details() -> dict[str, Any]:
 
     except Exception as e:
         result["error"] = str(e)
-        sentry_sdk.capture_exception(e)
+        if not config.MINIMAL_DATA_MODE:
+            sentry_sdk.capture_exception(e)
 
     finally:
         if temp_path and os.path.exists(temp_path):

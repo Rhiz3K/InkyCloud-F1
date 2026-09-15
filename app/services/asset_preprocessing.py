@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageChops, ImageOps
 
 if TYPE_CHECKING:
     import numpy as np
@@ -18,6 +18,8 @@ from app.services.renderers import DISPLAY_TYPES
 from app.services.spectra6_renderer import Spectra6Colors
 from app.services.track_artwork import TrackArtworkError, load_track_source_manifest
 from app.services.track_assets import (
+    TRACK_PROCESSING_PROFILE,
+    TRACK_PROCESSING_PROFILE_KEY,
     TrackBundleError,
     discover_track_source_stems,
     resolve_track_source_path,
@@ -30,6 +32,7 @@ from app.utils.bmp import (
     encode_indexed_bmp_4bit,
     map_to_bwr_palette,
     map_to_bwry_palette,
+    preserve_neutral_colors,
     quantize_to_palette,
 )
 
@@ -109,26 +112,11 @@ def _flatten_color_source(image: Image.Image, white: RgbColor, *, spectra: bool)
 
 def _crop_non_white(image: Image.Image) -> Image.Image:
     """Crop RGB whitespace using the historical 245-channel threshold."""
-    pixels = image.load()
-    if pixels is None:
-        raise ValueError("Failed to access track pixels")
-    min_x, min_y = image.width, image.height
-    max_x = max_y = -1
-    for y in range(image.height):
-        for x in range(image.width):
-            pixel = pixels[x, y]  # type: ignore[index]
-            if isinstance(pixel, tuple):
-                red, green, blue = (int(channel) for channel in pixel[:3])
-            else:
-                red = green = blue = int(pixel)
-            if min(red, green, blue) < TRACK_NON_WHITE_THRESHOLD:
-                min_x = min(min_x, x)
-                min_y = min(min_y, y)
-                max_x = max(max_x, x)
-                max_y = max(max_y, y)
-    if max_x >= 0 and max_y >= 0:
-        return image.crop((min_x, min_y, max_x + 1, max_y + 1))
-    return image
+    red, green, blue = image.convert("RGB").split()
+    darkest = ImageChops.darker(ImageChops.darker(red, green), blue)
+    mask = darkest.point(lambda channel: 255 if channel < TRACK_NON_WHITE_THRESHOLD else 0)
+    bbox = mask.getbbox()
+    return image.crop(bbox) if bbox else image
 
 
 def _fit_track(image: Image.Image) -> Image.Image:
@@ -138,7 +126,7 @@ def _fit_track(image: Image.Image) -> Image.Image:
     if ratio >= 1:
         return image
     return image.resize(
-        (int(width * ratio), int(height * ratio)),
+        (max(1, int(width * ratio)), max(1, int(height * ratio))),
         Image.Resampling.LANCZOS,
     )
 
@@ -167,8 +155,9 @@ def process_track_image(input_path: Path, output_path: Path, palette: str) -> di
     input_size = input_path.stat().st_size
     with Image.open(input_path) as opened:
         original_dimensions = opened.size
+        semantic = opened.info.get(TRACK_PROCESSING_PROFILE_KEY) == TRACK_PROCESSING_PROFILE
         if spec.name == "mono":
-            gray = opened.convert("L")
+            gray = _flatten_color_source(opened, (255, 255, 255), spectra=True).convert("L")
             crop_mask = ImageOps.invert(
                 gray.point(lambda pixel: 255 if pixel > 128 else 0)  # type: ignore[operator]
             )
@@ -182,7 +171,10 @@ def process_track_image(input_path: Path, output_path: Path, palette: str) -> di
         else:
             white = spec.colors[1] if spec.colors is not None else (255, 255, 255)
             rgb = _flatten_color_source(opened, white, spectra=spec.name == "spectra6")
-            final = _map_color_palette(_fit_track(_crop_non_white(rgb)), spec)
+            prepared_rgb = _fit_track(_crop_non_white(rgb))
+            if semantic and spec.name == "spectra6":
+                prepared_rgb = preserve_neutral_colors(prepared_rgb)
+            final = _map_color_palette(prepared_rgb, spec)
             _write_color_bmp(output_path, final, spec)
 
     output_size = output_path.stat().st_size
@@ -371,10 +363,15 @@ def preprocess_tracks(
     *,
     source_dir: Path | None = None,
     output_dir: Path | None = None,
+    manifest_path: Path | None = None,
 ) -> BatchResult:
     """Preprocess selected or all track sources for one palette."""
+    if source_dir is None or output_dir is None:
+        raise PreprocessingError(
+            "Legacy track import is retired; use the reviewed open vector catalogue"
+        )
     spec = get_palette_spec(palette)
-    source = source_dir or PROJECT_ROOT / "artwork" / "tracks"
+    source = source_dir
     destination = output_dir or PROJECT_ROOT / "app" / "assets" / spec.track_output
     if not source.is_dir():
         raise PreprocessingError(f"Input directory not found: {source}")
@@ -382,7 +379,7 @@ def preprocess_tracks(
     if circuits:
         wanted = {circuit.strip().lower() for circuit in circuits if circuit.strip()}
         stems = [stem for stem in stems if stem in wanted]
-    _validate_managed_track_bundles(source, stems)
+    _validate_managed_track_bundles(source, stems, manifest_path=manifest_path)
     files = [
         path
         for stem in stems
@@ -401,9 +398,11 @@ def preprocess_tracks(
     )
 
 
-def _validate_managed_track_bundles(source_dir: Path, stems: list[str]) -> None:
+def _validate_managed_track_bundles(
+    source_dir: Path, stems: list[str], *, manifest_path: Path | None = None
+) -> None:
     """Fail before preprocessing if a selected manifest-managed bundle is inconsistent."""
-    manifest_path = source_dir / "sources.json"
+    manifest_path = manifest_path or source_dir / "sources.json"
     if not manifest_path.is_file():
         return
     try:

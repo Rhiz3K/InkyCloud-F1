@@ -1,0 +1,31 @@
+{% set credit_entries = [
+  ('inspiration', [('FoxeeLab', 'https://x.com/foxeelab/status/1761498129268981856')]),
+  ('raceData', [('Jolpica-F1 API', 'https://github.com/jolpica/jolpica-f1')]),
+  ('weather', [('Open-Meteo', 'https://open-meteo.com')]),
+  ('icons', [('Weather-icons', 'https://github.com/erikflowers/weather-icons')]),
+  ('flags', [('Flagcdn', 'https://flagcdn.com')]),
+  ('platform', [('Živýobraz.eu', 'https://zivyobraz.eu')]),
+  ('devices', [('LaskaKit', 'https://www.laskakit.cz/laskakit-live-7-5-e-paper-stavebnice-s-wifi-pro---zivy-obraz-/'), ('SVERIO', 'https://pajenicko.cz/sverio-paperboard-ctyrbarevny-7.5-gdem075f52-s-cernym-rameckem')]),
+  ('hosting', [('Coolify', 'https://coolify.io'), ('Hetzner', 'https://hetzner.com')]),
+  ('analytics', [('Umami', 'https://umami.is')]),
+  ('errors', [('GlitchTip', 'https://glitchtip.com')])
+] %}
+{% macro rows(start=0, end=10) %}
+{% for key, links in credit_entries[start:end] %}
+<div class="credit-row" data-credit="{{ key }}" style="display: grid; grid-template-columns: 92px minmax(0, 1fr); column-gap: 10px; align-items: baseline">
+  <span class="text-[10px] tracking-wider text-gray-500">{{ t.credits_labels[key] }}</span>
+  <div class="min-w-0">
+    {% for name, url in links %}{% if not loop.first %}{{ '+' if key == 'hosting' else '&' }}{% endif %}
+    <a href="{{ url }}" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red{% if key == 'inspiration' %} font-bold hover:underline{% endif %}">{{ name }}</a>
+    {% endfor %}
+    {% if (key == 'analytics' and not analytics_enabled) or (key == 'errors' and not errors_enabled) %}<span class="text-[10px] text-gray-500">({{ t.credits_labels.inactive }})</span>{% endif %}
+  </div>
+</div>
+{% endfor %}
+{% endmacro %}
+{% macro track_row() %}
+<div class="home-credits-tracks" data-credit="tracks" style="grid-column: 1 / -1; display: grid; grid-template-columns: 92px minmax(0, 1fr); column-gap: 10px; align-items: baseline">
+  <span class="text-[10px] tracking-wider text-gray-500">{{ t.credits_labels.tracks }}</span>
+  <a href="{{ lang_url('/credits') }}" class="min-w-0 hover:text-racing-red">Jules Roy &amp; Wikimedia Commons</a>
+</div>
+{% endmacro %}

@@ -11,7 +11,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
 />{% endblock %} {% block og_tags %}
 <meta
   property="og:title"
-  content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+  content="{{ t.get('site_name', 'F1.InkyCloud.click') }}"
 />
 <meta
   property="og:description"
@@ -25,7 +25,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
 {% endblock %} {% block twitter_tags %}
 <meta
   name="twitter:title"
-  content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+  content="{{ t.get('site_name', 'F1.InkyCloud.click') }}"
 />
 <meta
   name="twitter:description"
@@ -40,7 +40,7 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "{{ t.get('site_name', 'F1 E-Ink Calendar') }}",
+    "name": "{{ t.get('site_name', 'F1.InkyCloud.click') }}",
     "description": "{{ t.get('meta_description_home', 'F1 race calendar for E-Ink displays') }}",
     "url": "{{ site_url }}",
     "applicationCategory": "UtilitiesApplication",
@@ -162,9 +162,9 @@ block content %}
         <div class="font-bold uppercase tracking-wider mb-2">
           {{ nav.nav_menu }}
         </div>
-        <a href="{{ lang_url('/stats') }}" class="block hover:text-racing-red"
+        {% if not minimal_data_mode %}<a href="{{ lang_url('/stats') }}" class="block hover:text-racing-red"
           >{{ nav.nav_stats }}</a
-        >
+        >{% endif %}
         <a
           href="{{ lang_url('/api/docs/html') }}"
           class="block hover:text-racing-red"
@@ -425,8 +425,8 @@ block content %}
 ></div>
 {% endblock %} {% block scripts %}
 <script>
-  // Country to ISO code mapping for flag images
-  const COUNTRY_ISO = {
+  // Countries with bundled flag images.
+  const FLAG_ISO = {
     Australia: "au",
     Austria: "at",
     Azerbaijan: "az",
@@ -459,6 +459,8 @@ block content %}
     Turkey: "tr",
     Russia: "ru",
   };
+  // Text labels also support countries without a bundled flag image.
+  const COUNTRY_ISO = { ...FLAG_ISO, Malaysia: "my" };
 
   function escapeHtml(value) {
     return String(value ?? "")
@@ -470,7 +472,7 @@ block content %}
   }
 
   function getFlagHtml(country, size = "h-4") {
-    const iso = COUNTRY_ISO[country];
+    const iso = FLAG_ISO[country];
     if (iso) {
       return `<img src="/static/flags/${iso}.png" alt="${escapeHtml(country)}" class="inline ${size} w-auto" loading="lazy" decoding="async">`;
     }
@@ -482,7 +484,7 @@ block content %}
   const currentTeamsSeason = {{ current_teams_season | tojson }};
   const availableTeamsSeasons = {{ available_teams_seasons | tojson }};
   let currentScreenType = "{{ screen_type }}";
-  let currentDisplayType = "1bit";
+  let currentDisplayType = currentScreenType === "calendar" ? "spectra6" : "1bit";
   let racesData = [];
   let selectedYear = null;
   let selectedRound = null;
@@ -979,6 +981,7 @@ block content %}
         "race_day";
       let url = `${window.location.origin}/calendar.bmp`;
       let params = [];
+      appendTrackParams(params);
       if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
       if (tz) params.push(`tz=${encodeURIComponent(tz)}`);
       if (selectedYear && selectedRaceKey) {
@@ -1022,6 +1025,31 @@ block content %}
     });
   }
 
+  function appendTrackParams(params) {
+    for (const field of ["style", "source", "accent"]) {
+      const control = document.getElementById(`track-${field}`);
+      if (control) params.push(`track_${field}=${encodeURIComponent(control.value)}`);
+    }
+  }
+
+  function initTrackOptions() {
+    const query = new URLSearchParams(window.location.search);
+    const display = query.get("display");
+    if (["1bit", "bwr", "bwry", "spectra6"].includes(display)) currentDisplayType = display;
+    for (const field of ["style", "source", "accent"]) {
+      const control = document.getElementById(`track-${field}`);
+      if (!control) continue;
+      const requested = query.get(`track_${field}`);
+      if ([...control.options].some(option => option.value === requested)) control.value = requested;
+      control.addEventListener("change", () => {
+        const url = new URL(window.location.href);
+        url.searchParams.set(`track_${field}`, control.value);
+        window.history.replaceState(null, "", url);
+        updatePreview();
+      });
+    }
+  }
+
   function canUsePrerenderedPreview() {
     if (currentScreenType === "calendar") {
       // Pre-rendered previews are generated server-side in the server's DEFAULT_TIMEZONE,
@@ -1048,6 +1076,7 @@ block content %}
       
       let url = `${window.location.origin}/preview/configure/${currentScreenType}.png`;
       let params = [];
+      appendTrackParams(params);
       if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
       params.push(`weather_type=${finalWeather}`);
       if (currentDisplayType !== "1bit") params.push(`display=${currentDisplayType}`);
@@ -1118,13 +1147,7 @@ block content %}
             </button>`;
 
       racesData.forEach((race) => {
-        const date = race.date ? new Date(race.date) : null;
-        const dateStr = date
-          ? String(date.getDate()).padStart(2, "0") +
-            "." +
-            String(date.getMonth() + 1).padStart(2, "0") +
-            "."
-          : "";
+        const dateStr = formatRaceDate(race.date);
         const country = race.country || "";
         const flagHtml = getFlagHtml(country, "h-2.5");
         const name = race.race_name
@@ -1162,13 +1185,7 @@ block content %}
       // Build mobile select (use ISO codes for text, no images in select options)
       let mobileHtml = `<option value="">${escapeHtml(t.nextRace)}</option>`;
       racesData.forEach((race) => {
-        const date = race.date ? new Date(race.date) : null;
-        const dateStr = date
-          ? String(date.getDate()).padStart(2, "0") +
-            "." +
-            String(date.getMonth() + 1).padStart(2, "0") +
-            "."
-          : "";
+        const dateStr = formatRaceDate(race.date);
         const country = race.country || "";
         const iso = COUNTRY_ISO[country] || "";
         const isoDisplay = iso ? iso.toUpperCase() : "🏁";
@@ -1306,44 +1323,11 @@ block content %}
       });
   }
 
-  // UI Language switching with localStorage
+  // common.js owns persistence and redirects; this page only syncs its selector.
   function initUiLanguage() {
-    const saved = localStorage.getItem("preferredLang");
     const uiSwitch = document.getElementById("uiLangSwitch");
-
-    // If saved preference differs from current, redirect
-    const isSupportedSavedLang =
-      typeof isSupportedLanguage === "function"
-        ? isSupportedLanguage(saved)
-        : Array.isArray(window.SERVER_LANGUAGE_CODES) &&
-          window.SERVER_LANGUAGE_CODES.includes(saved);
-
-    if (saved && saved !== currentUiLang && isSupportedSavedLang) {
-      const basePath =
-        typeof getBasePath === "function"
-          ? getBasePath(window.location.pathname)
-          : typeof stripLanguagePrefix === "function"
-            ? stripLanguagePrefix(window.location.pathname)
-            : window.location.pathname;
-      const normalizedBasePath = basePath || "/";
-      const search = window.location.search || "";
-      const targetUrl =
-        typeof buildLangUrl === "function"
-          ? buildLangUrl(normalizedBasePath, saved)
-          : saved !== "en"
-            ? `/${saved}${normalizedBasePath}${search}`
-            : `${normalizedBasePath}${search}`;
-
-      if (targetUrl !== window.location.href && targetUrl !== window.location.pathname) {
-        window.location.replace(targetUrl);
-        return false; // Signal that redirect is happening
-      }
-    }
-
-    // Sync UI language switch
     if (uiSwitch) uiSwitch.value = currentUiLang;
-
-    return true; // Continue initialization
+    return true;
   }
 
   // Timezone handling - simple list sorted by UTC offset
@@ -1839,8 +1823,13 @@ block content %}
     }
   }
 
-  function setDisplayType(type) {
+  function setDisplayType(type, refresh = true) {
     currentDisplayType = type;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("display", type);
+      window.history.replaceState(null, "", url);
+    }
 
     const allBtns = [
       document.getElementById("display1bitBtn"),
@@ -1933,7 +1922,7 @@ block content %}
       }
     }
 
-    updatePreview();
+    if (refresh) updatePreview();
   }
 
   function startApp() {
@@ -1943,6 +1932,8 @@ block content %}
     }
 
     initScreenTypeVisibility();
+    initTrackOptions();
+    setDisplayType(currentDisplayType, false);
     initializeWeatherTooltips();
     setUiLanguage(currentUiLang);
 

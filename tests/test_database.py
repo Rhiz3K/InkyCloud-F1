@@ -118,7 +118,9 @@ class TestDatabaseConnectionLifecycle:
     async def test_database_reuses_connection_within_same_loop(tmp_path):
         db = Database(str(tmp_path / "reuse.db"))
         try:
-            async with db._get_connection() as first_conn, db._get_connection() as second_conn:
+            async with db._get_connection() as first_conn:
+                pass
+            async with db._get_connection() as second_conn:
                 assert first_conn is second_conn
         finally:
             await db.close()
@@ -991,9 +993,12 @@ async def test_schema_initialization_observes_path_initialized_inside_lock(tmp_p
 async def test_run_migrations_adds_every_missing_api_call_column():
     conn = await aiosqlite.connect(":memory:")
     try:
-        await conn.execute("CREATE TABLE api_calls (id INTEGER PRIMARY KEY)")
+        await conn.execute("CREATE TABLE api_calls (id INTEGER PRIMARY KEY, endpoint TEXT)")
+        await conn.execute("CREATE TABLE api_call_totals (endpoint TEXT)")
+        await conn.execute("CREATE TABLE perf_metrics (id INTEGER PRIMARY KEY, page_path TEXT)")
 
         await Database._run_migrations(conn)
+        await Database._run_migrations(conn)  # Restart after migration must be idempotent.
 
         async with conn.execute("PRAGMA table_info(api_calls)") as cursor:
             columns = {row[1] for row in await cursor.fetchall()}
@@ -1049,6 +1054,9 @@ async def test_stats_24h_handles_missing_aggregate_row(tmp_path, monkeypatch):
         "avg_response_ms": None,
         "total_bytes_24h": 0,
         "status_codes": [],
+        "track_styles": [],
+        "track_sources": [],
+        "track_accents": [],
     }
 
 
@@ -1074,12 +1082,31 @@ async def test_stats_range_handles_missing_aggregate_row(tmp_path, monkeypatch):
         "timezones": [],
         "hourly": [],
         "races": [],
+        "track_styles": [],
+        "track_sources": [],
+        "track_accents": [],
     }
 
 
 def test_percentile_helpers_accept_empty_samples():
     assert Database._calculate_percentile([], 75) is None
     assert Database._calculate_percentile_fine([], 75) is None
+
+
+@pytest.mark.asyncio
+async def test_raw_perf_stats_interpolate_sorted_samples(tmp_path, monkeypatch):
+    """Historic performance samples keep accurate timing and layout-shift percentiles."""
+    monkeypatch.setattr(database.config, "AGGREGATE_STATS_ONLY", False)
+    db = Database(str(tmp_path / "perf-percentiles.db"))
+    try:
+        for latency, shift in ((4000, 0.4), (1000, 0.1), (3000, 0.3), (2000, 0.2)):
+            await db.save_perf_metric(page_path="/stats", lcp_ms=latency, cls=shift)
+        stats = await db.get_perf_stats(hours=24)
+        assert stats["percentile_sample_count"] == 4
+        assert [stats["lcp"][key] for key in ("p50", "p75", "p95")] == [2500, 3250, 3850]
+        assert [stats["cls"][key] for key in ("p50", "p75", "p95")] == [0.25, 0.325, 0.385]
+    finally:
+        await db.close()
 
 
 @pytest.mark.asyncio

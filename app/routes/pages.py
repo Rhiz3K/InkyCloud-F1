@@ -26,13 +26,12 @@ from app.services.version_service import (
 from app.utils.f1_season import get_current_f1_season
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.timezones import TIMEZONE_ALIASES
-from app.version import APP_VERSION
 from app.web.api_docs import build_api_docs_context
 from app.web.templates import calc_percent, get_template_context, lang_url, templates
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(include_in_schema=False)
 _HTML_ROUTE_METHODS = ["GET", "HEAD"]
 
 # Elements that should never survive in rendered changelog HTML.
@@ -166,6 +165,9 @@ def _empty_stats() -> dict:
         "languages": [],
         "display_types": [],
         "teams_display_types": [],
+        "track_styles": [],
+        "track_sources": [],
+        "track_accents": [],
         "races": [],
         "timezones": [],
     }
@@ -270,13 +272,13 @@ async def _home_handler(request: Request, ui_lang: str) -> HTMLResponse:
         url=url,
         title="F1 E-Ink Calendar",
         lang=ui_lang,
-        user_agent=request.headers.get("User-Agent"),
-        referrer=request.headers.get("Referer", ""),
+        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
+        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
     )
 
     context = get_template_context(request, ui_lang)
     context["active_page"] = "home"
-    context["preview_version"] = APP_VERSION
+    context["preview_version"] = context["asset_version"]
     context["screen_types"] = [
         {
             "id": "calendar",
@@ -336,8 +338,8 @@ async def _configure_handler(request: Request, screen_type: str, ui_lang: str) -
         url=url,
         title=f"Configure {screen_type.title()}",
         lang=ui_lang,
-        user_agent=request.headers.get("User-Agent"),
-        referrer=request.headers.get("Referer", ""),
+        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
+        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
     )
 
     context = get_template_context(request, ui_lang)
@@ -438,8 +440,8 @@ async def _privacy_handler(request: Request, ui_lang: str) -> HTMLResponse:
         url=url,
         title="Privacy Policy",
         lang=ui_lang,
-        user_agent=request.headers.get("User-Agent"),
-        referrer=request.headers.get("Referer", ""),
+        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
+        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
     )
 
     context = get_template_context(request, ui_lang)
@@ -503,8 +505,8 @@ async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
         url=url,
         title="Changelog",
         lang=ui_lang,
-        user_agent=request.headers.get("User-Agent"),
-        referrer=request.headers.get("Referer", ""),
+        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
+        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
     )
 
     changelog_html = await asyncio.to_thread(_load_changelog_html, CHANGELOG_PATH)
@@ -588,8 +590,8 @@ async def _api_docs_handler(request: Request, ui_lang: str) -> HTMLResponse:
         url=url,
         title="API Documentation",
         lang=ui_lang,
-        user_agent=request.headers.get("User-Agent"),
-        referrer=request.headers.get("Referer", ""),
+        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
+        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
     )
 
     context = get_template_context(request, ui_lang)
@@ -654,6 +656,9 @@ async def api_docs_html_lang_slash_redirect(request: Request, lang_prefix: str):
 
 async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTMLResponse:
     """Render stats page."""
+    if config.MINIMAL_DATA_MODE:
+        context = get_template_context(request, ui_lang)
+        return templates.TemplateResponse(request, "stats_disabled.html", context, status_code=410)
     enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
     hours_map = {"1h": 1, "24h": 24, "7d": 168, "30d": 720, "365d": 8760}
     hours = hours_map.get(time_range, 24)
@@ -674,8 +679,8 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
         url=url,
         title="Statistics Dashboard",
         lang=ui_lang,
-        user_agent=request.headers.get("User-Agent"),
-        referrer=request.headers.get("Referer", ""),
+        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
+        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
     )
 
     context = get_template_context(request, ui_lang)
@@ -710,7 +715,7 @@ async def stats_dashboard(
             request, _canonical_stats_path("en", time_range), preserve_query=False
         )
     if request.method == "HEAD":
-        return _head_ok()
+        return HTMLResponse(status_code=410) if config.MINIMAL_DATA_MODE else _head_ok()
     return await _stats_handler(request, time_range, "en")
 
 
@@ -739,7 +744,7 @@ async def stats_dashboard_lang(
             request, _canonical_stats_path(lang_prefix, time_range), preserve_query=False
         )
     if request.method == "HEAD":
-        return _head_ok()
+        return HTMLResponse(status_code=410) if config.MINIMAL_DATA_MODE else _head_ok()
     return await _stats_handler(request, time_range, lang_prefix)
 
 

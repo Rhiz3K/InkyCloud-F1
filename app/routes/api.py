@@ -9,13 +9,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.models import PerfMetricsPayload
-from app.services.analytics import track_event
 from app.services.database import get_database
 from app.services.f1_service import F1Service
+from app.services.private_stats import canonical_page
 from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_service import TeamsService
+from app.services.track_catalog import TrackAccent, TrackSource, TrackStyle
 from app.state import get_bmp_cache
-from app.utils.async_tasks import create_supervised_task
 from app.utils.f1_season import get_current_f1_season, is_supported_f1_season
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.standings_metadata import TEAM_ID_MAP, get_driver_number
@@ -116,6 +116,16 @@ async def api_info() -> dict:
     return {
         "service": "F1 E-Ink Calendar API",
         "version": APP_VERSION,
+        "statistics": {
+            "enabled": not config.MINIMAL_DATA_MODE,
+            "aggregate_only": config.AGGREGATE_STATS_ONLY,
+            "disabled_response": "410 when MINIMAL_DATA_MODE=true",
+            "performance_sample_rate": 0
+            if config.MINIMAL_DATA_MODE
+            else config.PERF_METRICS_SAMPLE_RATE,
+            "privacy": "Performance ingestion discards unknown and legacy visitor metadata. "
+            "Default storage: hourly usage totals and coarse performance histograms.",
+        },
         "description": (
             f"Generate {config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} BMP images "
             "for E-Ink displays showing F1 race schedules"
@@ -132,6 +142,21 @@ async def api_info() -> dict:
                     f"({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT})"
                 ),
                 "parameters": {
+                    "track_style": {
+                        "type": "string",
+                        "default": "relief",
+                        "values": [style.value for style in TrackStyle],
+                    },
+                    "track_source": {
+                        "type": "string",
+                        "default": "jules",
+                        "values": [source.value for source in TrackSource],
+                    },
+                    "track_accent": {
+                        "type": "string",
+                        "default": "all",
+                        "values": [accent.value for accent in TrackAccent],
+                    },
                     "lang": {
                         "type": "string",
                         "description": "Language code for calendar text",
@@ -250,14 +275,42 @@ async def api_info() -> dict:
                 ],
             },
             "/api": {"method": "GET", "description": "API documentation (this endpoint)"},
+            "/api/tracks": {"method": "GET", "description": "Track artwork choices and catalogue"},
+            "/api/tracks/{circuit_id}": {"method": "GET", "description": "Per-file attribution"},
+            "/api/tracks/{circuit_id}.{svg|png|bmp}": {
+                "method": "GET",
+                "description": "Attributed standalone artwork",
+                "parameters": ["display", "track_style", "track_source", "track_accent"],
+            },
+            "/credits": {"method": "GET", "description": "Artwork authors and licences"},
             "/api/docs": {"method": "GET", "description": "API documentation (alias for /api)"},
             "/api/stats": {
                 "method": "GET",
-                "description": "Request statistics (last hour and 24h counts)",
+                "description": "Request statistics for the last 24h, including calendar "
+                "map choices; "
+                "410 when MINIMAL_DATA_MODE=true",
+                "calendar_map_breakdowns": {
+                    "requests.by_track_style": "Counts by requested track_style",
+                    "requests.by_track_source": "Counts by requested track_source",
+                    "requests.by_track_accent": "Counts by requested track_accent",
+                    "legacy": "Historic requests with unrecorded map choices; "
+                    "new requests record resolved defaults even when query parameters are omitted",
+                },
             },
             "/api/stats/history": {
                 "method": "GET",
-                "description": "Historical hourly request statistics",
+                "description": "Historical hourly request statistics; "
+                "410 when MINIMAL_DATA_MODE=true",
+            },
+            "/api/perf-metrics": {
+                "methods": ["GET", "POST"],
+                "description": "GET: performance summaries. POST: numeric Web Vitals and "
+                "a known page category only. Both return 410 when MINIMAL_DATA_MODE=true.",
+                "measurement_version": 3,
+                "legacy_compatibility": "Version markers 1 and 2 remain accepted. "
+                "Obsolete visitor/device fields and unknown fields are ignored, never stored.",
+                "timing_resolution_ms": 50,
+                "cls_resolution": 0.01,
             },
             "/api/races/{year}": {
                 "method": "GET",
@@ -291,6 +344,8 @@ async def api_info() -> dict:
 @router.get("/api/stats")
 async def get_stats(request: Request) -> dict:
     """Get API request statistics from database."""
+    if config.MINIMAL_DATA_MODE:
+        raise HTTPException(status_code=410, detail="Usage statistics are disabled")
     enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
     _require_operational_api_auth(request)
 
@@ -301,6 +356,9 @@ async def get_stats(request: Request) -> dict:
             "avg_response_ms": stats["avg_response_ms"],
             "total_bytes_24h": stats["total_bytes_24h"],
             "by_status": stats["status_codes"],
+            "by_track_style": stats["track_styles"],
+            "by_track_source": stats["track_sources"],
+            "by_track_accent": stats["track_accents"],
         },
         "cache_size": len(get_bmp_cache()),
         "cache_max_size": get_bmp_cache().maxsize,
@@ -309,54 +367,34 @@ async def get_stats(request: Request) -> dict:
 
 @router.post("/api/perf-metrics")
 async def post_perf_metrics(payload: PerfMetricsPayload, request: Request) -> dict[str, str]:
-    """Store client-side Web Vitals metrics for later aggregation."""
+    """Accept numeric performance measurements without request or visitor metadata."""
+    if config.MINIMAL_DATA_MODE:
+        raise HTTPException(status_code=410, detail="Client telemetry is disabled")
     enforce_rate_limit(
-        request,
-        bucket="perf_metrics",
-        limit=config.PERF_METRICS_RATE_LIMIT_PER_MINUTE,
+        request, bucket="perf_write", limit=config.PERF_METRICS_RATE_LIMIT_PER_MINUTE
     )
-
-    user_agent = (request.headers.get("User-Agent") or "")[:_MAX_USER_AGENT_LENGTH] or None
-    page_path = normalize_perf_page_path(payload.page_path)
-    db = get_database()
-    try:
-        await db.save_perf_metric(
-            page_path=page_path,
-            lcp_ms=payload.lcp_ms,
-            cls=payload.cls,
-            fcp_ms=payload.fcp_ms,
-            ttfb_ms=payload.ttfb_ms,
-            inp_ms=payload.inp_ms,
-            user_agent=user_agent,
-            connection_type=payload.connection_type,
-            device_memory=payload.device_memory,
-        )
-    except Exception as exc:
-        logger.warning("Failed to save perf metrics: %s", exc)
-        raise HTTPException(status_code=503, detail="Failed to save metrics") from exc
-
-    create_supervised_task(
-        track_event(
-            url=page_path,
-            event_name="web_vitals",
-            lang="en",
-            user_agent=user_agent,
-            event_data={
-                "lcp": payload.lcp_ms,
-                "cls": payload.cls,
-                "fcp": payload.fcp_ms,
-                "ttfb": payload.ttfb_ms,
-            },
-        ),
-        name="track_web_vitals",
+    if all(
+        value is None
+        for value in (payload.lcp_ms, payload.cls, payload.fcp_ms, payload.ttfb_ms, payload.inp_ms)
+    ):
+        return {"status": "ignored"}
+    await get_database().save_perf_metric(
+        page_path=canonical_page(payload.page_path),
+        measurement_version=3,
+        lcp_ms=payload.lcp_ms,
+        cls=payload.cls,
+        fcp_ms=payload.fcp_ms,
+        ttfb_ms=payload.ttfb_ms,
+        inp_ms=payload.inp_ms,
     )
-
     return {"status": "ok"}
 
 
 @router.get("/api/perf-metrics")
 async def get_perf_metrics(request: Request, hours: int = Query(default=24, ge=1, le=720)) -> dict:
     """Return aggregated performance metrics for the requested lookback window."""
+    if config.MINIMAL_DATA_MODE:
+        raise HTTPException(status_code=410, detail="Usage statistics are disabled")
     enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
     _require_operational_api_auth(request)
 
@@ -371,6 +409,8 @@ async def get_stats_history(
     request: Request, limit: int = Query(default=168, ge=1, le=720)
 ) -> dict:
     """Return recent hourly request history for the stats dashboard."""
+    if config.MINIMAL_DATA_MODE:
+        raise HTTPException(status_code=410, detail="Usage statistics are disabled")
     enforce_rate_limit(request, bucket="stats_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
     _require_operational_api_auth(request)
 

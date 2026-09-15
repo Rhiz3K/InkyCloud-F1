@@ -439,6 +439,7 @@ def draw_track_section(
     prepare_track_image_fn,
     paste_track_image_fn,
     draw_track_placeholder_fn,
+    render_track_image_fn=None,
 ) -> None:
     """Draw the left-side track map and circuit label block."""
     circuit = race_data.get("circuit", {})
@@ -457,9 +458,17 @@ def draw_track_section(
     available_height = track_bottom - track_top
     available_width = left_column_width - (side_margin * 2)
 
-    track_image = load_track_image_fn(race_data)
+    track_image = (
+        render_track_image_fn(race_data, available_width, available_height)
+        if render_track_image_fn
+        else load_track_image_fn(race_data)
+    )
     if track_image:
-        prepared_image = prepare_track_image_fn(track_image, available_width, available_height)
+        prepared_image = (
+            track_image
+            if render_track_image_fn
+            else prepare_track_image_fn(track_image, available_width, available_height)
+        )
         final_w, final_h = prepared_image.size
         paste_x = int(side_margin + (available_width - final_w) // 2)
         paste_y = int(track_top + (available_height - final_h) // 2)

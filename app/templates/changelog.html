@@ -2,18 +2,18 @@
 "Changelog") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
 %}<meta
   name="description"
-  content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1 E-Ink Calendar') }}"
+  content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1.InkyCloud.click') }}"
 />{% endblock %} {% block canonical %}<link
   rel="canonical"
   href="{{ site_url }}{{ lang_url('/changelog') }}"
 />{% endblock %} {% block og_tags %}
 <meta
   property="og:title"
-  content="{{ t.get('changelog_title', 'Changelog') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+  content="{{ t.get('changelog_title', 'Changelog') }} - {{ t.get('site_name', 'F1.InkyCloud.click') }}"
 />
 <meta
   property="og:description"
-  content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1 E-Ink Calendar') }}"
+  content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1.InkyCloud.click') }}"
 />
 <meta property="og:url" content="{{ site_url }}{{ lang_url('/changelog') }}" />
 <meta
@@ -23,11 +23,11 @@
 {% endblock %} {% block twitter_tags %}
 <meta
   name="twitter:title"
-  content="{{ t.get('changelog_title', 'Changelog') }} - {{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+  content="{{ t.get('changelog_title', 'Changelog') }} - {{ t.get('site_name', 'F1.InkyCloud.click') }}"
 />
 <meta
   name="twitter:description"
-  content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1 E-Ink Calendar') }}"
+  content="{{ t.get('meta_description_changelog', 'Changelog and version history for F1.InkyCloud.click') }}"
 />
 <meta
   name="twitter:image"
@@ -35,6 +35,15 @@
 />
 {% endblock %} {% block head %}
 <style>
+  .changelog-page {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .changelog-content pre {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-wrap: normal;
+  }
   .changelog-content h1 {
     display: none;
   }
@@ -87,7 +96,6 @@
   .changelog-content a:hover {
     background-color: #dc2626;
     color: white;
-    padding: 0 0.25rem;
   }
   .changelog-content strong {
     font-weight: 700;
@@ -128,7 +136,7 @@
   }
 </style>
 {% endblock %} {% block content %}
-<main class="flex-1 py-8 px-4">
+<main class="changelog-page flex-1 py-8 px-4">
   <div
     class="max-w-3xl mx-auto bg-white border-2 border-black shadow-neo p-6 md:p-8"
   >

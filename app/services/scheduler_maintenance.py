@@ -24,6 +24,11 @@ _HISTORICAL_REFRESH_MAX_AGE = timedelta(days=1)
 _HISTORICAL_REFRESH_ALERT_AFTER_RUNS = 3
 
 
+async def cleanup_retained_stats() -> None:
+    """Enforce retention independently of upstream race and weather availability."""
+    await get_database().cleanup_old_stats(days=config.STATS_RETENTION_DAYS)
+
+
 async def flush_api_calls_to_db() -> None:
     """
     Flush API calls buffer to SQLite.
@@ -31,6 +36,9 @@ async def flush_api_calls_to_db() -> None:
     This job runs every minute to persist API call data from
     the in-memory buffer to the database.
     """
+    from app.services.analytics import flush_analytics
+
+    await flush_analytics()
     calls = get_and_clear_api_calls_buffer()
     if not calls:
         return

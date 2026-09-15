@@ -1,48 +1,25 @@
-"""Tests for the one-shot circuit metadata scraper."""
+"""Regression coverage for retiring the unlicensed circuit scraper."""
 
-import json
+from pathlib import Path
 
-import pytest
-
-from scripts.scrape_circuits import _load_existing_circuits, _merge_circuit_entry
+from app.services.circuit_data import load_circuits_data
 
 
-def test_merge_circuit_entry_preserves_historical_results():
-    historical = {"2025": [{"position": 1, "driver": "NOR"}]}
-
-    merged = _merge_circuit_entry(
-        {"historical": historical, "circuit_length": "old"},
-        race_name="Australian Grand Prix",
-        url_slug="australia",
-        scraped={"circuit_length": "5.278 km"},
-    )
-
-    assert merged["historical"] == historical
-    assert merged["circuit_length"] == "5.278 km"
+def test_legacy_scraper_is_not_distributed():
+    """The maintenance entrypoint cannot fetch F1 circuit metadata again."""
+    assert not Path("scripts/scrape_circuits.py").exists()
 
 
-def test_merge_circuit_entry_does_not_replace_valid_values_with_none():
-    merged = _merge_circuit_entry(
-        {"circuit_length": "5.278 km", "lap_record": "1:20.235"},
-        race_name="Australian Grand Prix",
-        url_slug="australia",
-        scraped={"circuit_length": None, "lap_record": "1:19.813"},
-    )
-
-    assert merged["circuit_length"] == "5.278 km"
-    assert merged["lap_record"] == "1:19.813"
-
-
-def test_load_existing_circuits_refuses_invalid_json(tmp_path):
-    output_path = tmp_path / "circuits_data.json"
-    output_path.write_text("{broken", encoding="utf-8")
-
-    with pytest.raises(RuntimeError, match="Cannot safely update"):
-        _load_existing_circuits(output_path)
-
-
-def test_load_existing_circuits_reads_object(tmp_path):
-    output_path = tmp_path / "circuits_data.json"
-    output_path.write_text(json.dumps({"monza": {"historical": {}}}), encoding="utf-8")
-
-    assert _load_existing_circuits(output_path) == {"monza": {"historical": {}}}
+def test_restored_circuit_facts_keep_their_separate_provenance(tmp_path):
+    """Restoring the display must not relabel legacy facts as Jolpica-licensed data."""
+    records = load_circuits_data(tmp_path / "absent.json")
+    assert records["albert_park"]["circuit_length"] == "5.278km"
+    assert records["albert_park"]["fastest_lap_time"] == "1:19.813"
+    for record in records.values():
+        assert record["_provenance"]["scope"] == "historical"
+        if record.get("circuit_length"):
+            provenance = record["_provenance"]["supplementary"]
+            assert provenance["license"] == "LicenseRef-Legacy-Circuit-Facts-Unverified"
+            assert provenance["source"].startswith("https://github.com/Rhiz3K/InkyCloud-F1/blob/")
+    # Sepang is an extra artwork circuit, without legacy fact data to restore.
+    assert records["sepang"]["circuit_length"] is None

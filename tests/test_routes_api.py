@@ -2,7 +2,7 @@
 
 import functools
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -118,20 +118,12 @@ def test_normalize_perf_page_path_collapses_unknown_pages(page_path, expected):
 
 
 @pytest.mark.asyncio
-async def test_post_perf_metrics_stores_normalized_page_path():
-    db = SimpleNamespace(save_perf_metric=AsyncMock())
+async def test_post_perf_metrics_honors_opt_out(monkeypatch):
+    monkeypatch.setattr(api.config, "MINIMAL_DATA_MODE", True)
     payload = PerfMetricsPayload(page_path="/cs/whatever", lcp_ms=100)
-    with (
-        patch("app.routes.api.enforce_rate_limit"),
-        patch("app.routes.api.get_database", return_value=db),
-        patch("app.routes.api.create_supervised_task"),
-        patch("app.routes.api.track_event", new=MagicMock()) as track_event,
-    ):
-        result = await api.post_perf_metrics(payload, _request({"User-Agent": "ua"}))
-
-    assert result == {"status": "ok"}
-    assert db.save_perf_metric.await_args.kwargs["page_path"] == api.PERF_METRIC_OTHER_PAGE
-    assert track_event.call_args.kwargs["url"] == api.PERF_METRIC_OTHER_PAGE
+    with pytest.raises(HTTPException) as error:
+        await api.post_perf_metrics(payload, _request({"User-Agent": "ua"}))
+    assert error.value.status_code == 410
 
 
 @pytest.mark.asyncio

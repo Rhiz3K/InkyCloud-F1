@@ -6,7 +6,7 @@
     <title>{% block title %}F1.InkyCloud.click{% endblock %}</title>
 
     <!-- SEO Meta Tags -->
-    <meta name="author" content="F1 E-Ink Calendar" />
+    <meta name="author" content="F1.InkyCloud.click" />
     <meta
       name="keywords"
       content="{{ t.get('meta_keywords', 'F1, Formula 1, E-Ink, calendar, race schedule') }}"
@@ -41,7 +41,7 @@
     <!-- Open Graph -->
     <meta
       property="og:site_name"
-      content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+      content="{{ t.get('site_name', 'F1.InkyCloud.click') }}"
     />
     <meta property="og:type" content="website" />
     <meta
@@ -51,7 +51,7 @@
     {% block og_tags %}
     <meta
       property="og:title"
-      content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+      content="{{ t.get('site_name', 'F1.InkyCloud.click') }}"
     />
     <meta
       property="og:description"
@@ -69,7 +69,7 @@
     {% block twitter_tags %}
     <meta
       name="twitter:title"
-      content="{{ t.get('site_name', 'F1 E-Ink Calendar') }}"
+      content="{{ t.get('site_name', 'F1.InkyCloud.click') }}"
     />
     <meta
       name="twitter:description"
@@ -82,20 +82,19 @@
     {% endblock %}
 
     <!-- Favicons -->
-    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/static/favicon/favicon.ico?v={{ asset_version }}" sizes="48x48" />
     <link
       rel="icon"
       type="image/png"
       sizes="96x96"
-      href="/static/favicon/favicon-96x96.png"
+      href="/static/favicon/favicon-96x96.png?v={{ asset_version }}"
     />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
-      href="/static/favicon/apple-touch-icon.png"
+      href="/static/favicon/apple-touch-icon.png?v={{ asset_version }}"
     />
-    <link rel="manifest" href="/static/favicon/site.webmanifest" />
-    {{ umami_script | safe }}
+    <link rel="manifest" href="/static/favicon/site.webmanifest?v={{ asset_version }}" />
     <style>
       @font-face {
         font-family: "Space Mono";
@@ -127,8 +126,8 @@
         background: #fff;
       }
     </style>
-    <link rel="stylesheet" href="/static/css/tailwind.min.css?v={{ app_version }}" />
-    <link rel="stylesheet" href="/static/css/styles.css?v={{ app_version }}" />
+    <link rel="stylesheet" href="/static/css/tailwind.min.css?v={{ asset_version }}" />
+    <link rel="stylesheet" href="/static/css/styles.css?v={{ asset_version }}" />
     <link
       rel="preload"
       href="/static/fonts/SpaceMono-Regular.ttf"
@@ -186,11 +185,11 @@
           class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'home' %}bg-racing-red text-white border-racing-red{% endif %}"
           >{{ nav.nav_home }}</a
         >
-          <a
+          {% if not minimal_data_mode %}<a
             href="{{ lang_url('/stats') }}"
             class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'stats' %}bg-racing-red text-white border-racing-red{% endif %}"
             >{{ nav.nav_stats }}</a
-          >
+          >{% endif %}
           <a
             href="{{ lang_url('/api/docs/html') }}"
             class="block px-3 py-2 border-2 border-black hover:bg-black hover:text-white transition-colors font-bold uppercase text-sm {% if active_page == 'api' %}bg-racing-red text-white border-racing-red{% endif %}"
@@ -214,136 +213,25 @@
             >GitHub</a
           >
         </div>
-        <div class="mt-auto space-y-2 pt-4 pb-2 text-xs">
-          <div class="font-bold uppercase tracking-wider">Credits</div>
-          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
-            <span class="text-gray-500">Inspiration:</span>
-            <a
-              href="https://x.com/foxeelab/status/1761498129268981856"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="font-bold hover:text-racing-red hover:underline"
-              >FoxeeLab</a
-            >
-          </div>
-          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
-            <span class="text-gray-500">Race data:</span>
-            <a
-              href="https://github.com/jolpica/jolpica-f1"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-racing-red"
-              >Jolpica-F1 API</a
-            >
-          </div>
-          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
-            <span class="text-gray-500">Weather:</span>
-            <a
-              href="https://open-meteo.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-racing-red"
-              >Open-Meteo</a
-            >
-          </div>
-          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
-            <span class="text-gray-500">Icons:</span>
-            <a
-              href="https://github.com/erikflowers/weather-icons"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-racing-red"
-              >Weather-icons</a
-            >
-          </div>
-          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
-            <span class="text-gray-500">Flags:</span>
-            <a
-              href="https://flagcdn.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-racing-red"
-              >Flagcdn</a
-            >
-          </div>
-          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
-            <span class="text-gray-500">Platform:</span>
-            <a
-              href="https://zivyobraz.eu"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-racing-red"
-              >Živýobraz.eu</a
-            >
-          </div>
-          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
-            <span class="text-gray-500">Devices:</span>
-            <div class="flex flex-wrap gap-x-2 gap-y-1">
-              <a
-                href="https://www.laskakit.cz/laskakit-live-7-5-e-paper-stavebnice-s-wifi-pro---zivy-obraz-/"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="hover:text-racing-red"
-                >LaskaKit</a
-              >
-              <span>&amp;</span>
-              <a
-                href="https://pajenicko.cz/sverio-paperboard-ctyrbarevny-7.5-gdem075f52-s-cernym-rameckem"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="hover:text-racing-red"
-                >SVERIO</a
-              >
-            </div>
-          </div>
-          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
-            <span class="text-gray-500">Hosting:</span>
-            <div class="flex flex-wrap gap-x-2 gap-y-1">
-              <a
-                href="https://coolify.io"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="hover:text-racing-red"
-                >Coolify</a
-              >
-              <span>+</span>
-              <a
-                href="https://hetzner.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="hover:text-racing-red"
-                >Hetzner</a
-              >
-            </div>
-          </div>
-          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
-            <span class="text-gray-500">Analytics:</span>
-            <a
-              href="https://umami.is"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-racing-red"
-              >Umami</a
-            >
-          </div>
-          <div style="display: grid; grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; align-items: baseline">
-            <span class="text-gray-500">Errors:</span>
-            <a
-              href="https://glitchtip.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-racing-red"
-              >GlitchTip</a
-            >
-          </div>
+        {% from 'components/credit_rows.html' import rows, track_row with context %}
+        <div class="mt-auto space-y-2 pt-4 pb-2 text-xs" id="mobile-credits">
+          <a class="font-bold uppercase tracking-wider" href="{{ lang_url('/credits') }}">Credits</a>
+          {{ rows() }}
+          {{ track_row() }}
         </div>
       </nav>
     </div>
 
     <script>
+      window.MINIMAL_DATA_MODE = {{ minimal_data_mode | tojson }};
+      window.PERF_SAMPLE_RATE = {{ perf_sample_rate | tojson }};
       window.SERVER_LANGUAGE_CODES = {{ supported_language_codes | tojson }};
     </script>
-    <script src="/static/js/common.js?v={{ app_version }}" defer></script>
+    <script src="/static/js/common.js?v={{ asset_version }}" defer></script>
+    {% if perf_sample_rate > 0 %}
+    <script src="/static/js/web-vitals.js?v={{ asset_version }}" defer></script>
+    <script src="/static/js/perf-metrics.js?v={{ asset_version }}" defer></script>
+    {% endif %}
     {% block scripts %}{% endblock %}
   </body>
 </html>

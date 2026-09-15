@@ -641,7 +641,7 @@
       "Circuit": {
         "circuitId": "rodriguez",
         "url": "https://en.wikipedia.org/wiki/Aut%C3%B3dromo_Hermanos_Rodr%C3%ADguez",
-        "circuitName": "Aut\u00f3dromo Hermanos Rodr\u00edguez",
+        "circuitName": "Autódromo Hermanos Rodríguez",
         "Location": {
           "lat": "19.4042",
           "long": "-99.0907",
@@ -676,11 +676,11 @@
       "Circuit": {
         "circuitId": "interlagos",
         "url": "https://en.wikipedia.org/wiki/Interlagos_Circuit",
-        "circuitName": "Aut\u00f3dromo Jos\u00e9 Carlos Pace",
+        "circuitName": "Autódromo José Carlos Pace",
         "Location": {
           "lat": "-23.7036",
           "long": "-46.6997",
-          "locality": "S\u00e3o Paulo",
+          "locality": "São Paulo",
           "country": "Brazil"
         }
       },
@@ -876,5 +876,14 @@
         "time": "17:00:00Z"
       }
     }
-  ]
+  ],
+  "_provenance": {
+    "source": "https://api.jolpi.ca/ergast/f1/2026.json",
+    "author": "Jolpica-F1 / Ergast contributors",
+    "license": "CC-BY-NC-SA-4.0",
+    "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+    "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+    "changes": "Selected fields, normalized JSON, retained previously cancelled races",
+    "reviewed_on": "2026-09-09"
+  }
 }

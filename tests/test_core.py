@@ -29,7 +29,7 @@ def test_config_validators_cover_contextless_and_unparseable_inputs():
     assert config.validate_positive_float("inf", _info("JOLPICA_MIN_REQUEST_INTERVAL")) == 2.0
     assert config.validate_positive_float("nan", _info("JOLPICA_MIN_REQUEST_INTERVAL")) == 2.0
     assert config.validate_sample_rate("bad", _info(None)) == 0.1
-    assert config.validate_sample_rate(object(), _info("SENTRY_TRACES_SAMPLE_RATE")) == 0.1
+    assert config.validate_sample_rate(object(), _info("SENTRY_TRACES_SAMPLE_RATE")) == 0.0
     assert config.validate_timezone("UTC", _info(None)) == "Europe/Prague"
     assert config.validate_default_lang("cs", _info(None)) == "en"
     assert config.validate_url("https://example.test", _info(None)) == "https://example.com"

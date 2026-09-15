@@ -13,13 +13,13 @@ from app.config import config
 from app.models import HistoricalData, TeamsData
 from app.services.font_utils import (
     load_brand_font,
-    load_racing_font,
     load_symbol_icon_font,
     load_ui_font,
     load_weather_icon_font,
 )
 from app.services.renderer_assets import ASSET_CACHE_LOCK
 from app.services.renderer_theme import RenderTheme
+from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.weather_service import WeatherData
 
 logger = logging.getLogger(__name__)
@@ -142,12 +142,14 @@ class RendererCore(ABC):
         historical_data: HistoricalData | None = None,
         weather_data: WeatherData | None = None,
         weather_type: str = "",
+        *,
+        track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
     ) -> bytes:
         """Render a calendar using the variant's immutable theme."""
         image = self._new_canvas()
         draw = ImageDraw.Draw(image)
         self._draw_header(draw, image, race_data)
-        self._draw_track_section(draw, image, race_data)
+        self._draw_track_section(draw, image, race_data, track_options=track_options)
         schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data, weather_type)
         self._draw_circuit_stats(draw, race_data, schedule_bottom)
         self._draw_results_section(draw, image, race_data, historical_data)
@@ -188,7 +190,12 @@ class RendererCore(ABC):
 
     @abstractmethod
     def _draw_track_section(
-        self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict
+        self,
+        draw: ImageDraw.ImageDraw,
+        image: Image.Image,
+        race_data: dict,
+        *,
+        track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
     ) -> None:
         """Draw the circuit identity and track image section."""
 
@@ -250,9 +257,8 @@ class RendererCore(ABC):
         return self._racing_fonts[size]
 
     def _ensure_teams_assets(self) -> None:
-        """Lazy-load cached driver and team assets used by the teams screen."""
-        if self._driver_photos is None:
-            self._driver_photos = self._get_cached_driver_photos()
+        """Load team logos lazily while keeping driver portraits disabled."""
+        self._driver_photos = {}
         if self._team_logos is None:
             self._team_logos = self._get_cached_team_logos()
 
@@ -302,7 +308,7 @@ class RendererCore(ABC):
 
     def _load_racing_font(self, size: int) -> Font:
         """Load the stylized racing number font used for driver numbers."""
-        return load_racing_font(size, logger, self._load_font)
+        return self._load_font(size, bold=True)
 
     @abstractmethod
     def _new_canvas(self) -> Image.Image:

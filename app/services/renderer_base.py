@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw
 from app.models import HistoricalData
 from app.services.circuit_data import load_circuits_data
 from app.services.circuit_metadata import CIRCUIT_ID_MAP, COUNTRY_MAP
-from app.services.font_utils import CJK_LANG_CODES
+from app.services.font_utils import CJK_LANG_CODES, fit_ui_font
 from app.services.renderer_assets import build_track_stems, load_track_image_asset
 from app.services.renderer_calendar import (
     draw_circuit_stats_block,
@@ -49,6 +49,8 @@ from app.services.renderer_text import (
     get_text_y,
     right_align_x,
 )
+from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
+from app.services.track_renderer import render_track_image
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 
 logger = logging.getLogger(__name__)
@@ -346,7 +348,12 @@ class RendererBase(RendererCore):
         )
 
     def _draw_track_section(
-        self, draw: ImageDraw.ImageDraw, image: Image.Image, race_data: dict
+        self,
+        draw: ImageDraw.ImageDraw,
+        image: Image.Image,
+        race_data: dict,
+        *,
+        track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
     ) -> None:
         """Draw the left-side circuit map and label block."""
         draw_track_section(
@@ -358,6 +365,13 @@ class RendererBase(RendererCore):
             padding=self.layout["padding"],
             label_font=self.fonts["circuit_name"],
             label_fill=self.theme.text_fill,
+            render_track_image_fn=lambda race, width, height: render_track_image(
+                race,
+                width,
+                height,
+                {2: "1bit", 3: "bwr", 4: "bwry", 6: "spectra6"}[len(self.colors.PALETTE)],
+                track_options,
+            ),
             load_track_image_fn=self._load_track_image,
             prepare_track_image_fn=lambda track_image, width, height: (
                 self.theme.prepare_track_image(track_image, width, height, logger)
@@ -550,14 +564,30 @@ class RendererBase(RendererCore):
         )
 
     def _draw_new_track_message(self, draw: ImageDraw.ImageDraw, y_start: int) -> None:
-        """Draw a centered message when historical data is unavailable."""
+        """Place the status badge between result fields, keeping flag and rows visible."""
+        message = self.translator.get("new_track", "NEW TRACK")
+        row_bbox = draw.textbbox((0, 0), "3. -", font=self.fonts["results_row"])
+        x_start = self.layout["results_col2_x"] + int(row_bbox[2] - row_bbox[0]) + 12
+        x_end = self.layout["results_col2_x"] + self.layout["results_time_offset"] - 12
+        font = fit_ui_font(
+            draw,
+            self.lang_code,
+            message,
+            max_width=x_end - x_start - 24,
+            base_size=24,
+            min_size=14,
+            bold=True,
+        )
         draw_new_track_message(
             draw,
-            canvas_width=self.width,
+            x_end=x_end,
+            canvas_height=self.height,
+            x_start=x_start,
             y_start=y_start,
-            message=self.translator.get("new_track", "NEW TRACK"),
-            font=self.fonts["schedule_title"],
+            message=message,
+            font=font,
             fill=self.theme.text_fill,
+            background_fill=self.colors.WHITE,
         )
 
     def _draw_results_column(

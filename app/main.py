@@ -1,4 +1,4 @@
-"""F1 E-Ink calendar service main application."""
+"""F1.InkyCloud.click service main application."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from urllib.parse import urlparse
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.gzip import GZipMiddleware
@@ -23,14 +22,18 @@ from starlette.responses import Response as StarletteResponse
 from app.config import VALID_LANGUAGES, config
 from app.paths import ASSETS_DIR
 from app.routes.api import router as api_router
+from app.routes.credits import router as credits_router
 from app.routes.health import router as health_router
 from app.routes.images import router as images_router
 from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
+from app.routes.tracks import router as tracks_router
 from app.services.circuit_data import ensure_runtime_circuits_data
-from app.services.database import close_shared_database
+from app.services.database import close_shared_database, get_database
 from app.services.http_client import close_shared_http_clients
+from app.services.legal import AttributionMiddleware, scrub_error_event
+from app.services.licensed_assets import LicensedStaticFiles
 from app.services.scheduler import (
     run_initial_generation,
     start_scheduler,
@@ -62,15 +65,25 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+if config.MINIMAL_DATA_MODE or config.AGGREGATE_STATS_ONLY:
+    # Suppress payloads and tracebacks from both application and library loggers.
+    # Intentional privacy default; scrubbed error monitoring is configured below.
+    # skipcq: PY-A6006
+    logging.disable(logging.CRITICAL)
 
 # Initialize Sentry/GlitchTip
-if config.SENTRY_DSN:
+if not config.MINIMAL_DATA_MODE and config.SENTRY_ENABLED and config.SENTRY_DSN:
     sentry_sdk.init(
         dsn=config.SENTRY_DSN,
         environment=config.SENTRY_ENVIRONMENT,
         release=f"f1-eink-cal@{APP_VERSION}",
-        traces_sample_rate=config.SENTRY_TRACES_SAMPLE_RATE,
-        profiles_sample_rate=config.SENTRY_TRACES_SAMPLE_RATE,
+        traces_sample_rate=0.0,
+        profiles_sample_rate=0.0,
+        send_default_pii=False,
+        include_local_variables=False,
+        max_request_body_size="never",
+        before_send=scrub_error_event,
+        before_send_transaction=scrub_error_event,
     )
     logger.info("Sentry/GlitchTip initialized")
 
@@ -116,14 +129,18 @@ def _check_persistent_storage() -> bool:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
-    logger.info("Starting F1 E-Ink calendar service")
+    logger.info("Starting F1.InkyCloud.click service")
 
     _check_persistent_storage()
+    if config.MINIMAL_DATA_MODE or config.AGGREGATE_STATS_ONLY:
+        # Enforce the local migration even when the periodic scheduler is disabled.
+        await get_database().ping()
     try:
         ensure_runtime_circuits_data()
     except Exception as exc:
         logger.error("Could not seed persistent circuit data: %s", exc, exc_info=True)
-        sentry_sdk.capture_exception(exc)
+        if not config.MINIMAL_DATA_MODE:
+            sentry_sdk.capture_exception(exc)
     try:
         # Warm on the render executor so the per-thread font caches it populates are the
         # ones actual renders will reuse.
@@ -132,15 +149,27 @@ async def lifespan(_app: FastAPI):
         )
     except Exception as exc:
         logger.error("Teams renderer warmup failed: %s", exc, exc_info=True)
-        sentry_sdk.capture_exception(exc)
+        if not config.MINIMAL_DATA_MODE:
+            sentry_sdk.capture_exception(exc)
 
     start_scheduler()
+    stats_task = None
+    if (
+        not config.MINIMAL_DATA_MODE
+        and config.AGGREGATE_STATS_ONLY
+        and not config.SCHEDULER_ENABLED
+    ):
+        stats_task = create_supervised_task(_maintain_private_stats(), name="private_stats")
     initial_generation_task = create_supervised_task(
         run_initial_generation(), name="initial_generation"
     )
 
     yield
 
+    if stats_task is not None:
+        stats_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await stats_task
     if not initial_generation_task.done():
         initial_generation_task.cancel()
         with suppress(asyncio.CancelledError):
@@ -168,12 +197,25 @@ async def lifespan(_app: FastAPI):
         await close_shared_database()
     except Exception as exc:
         logger.error("Database shutdown failed: %s", exc, exc_info=True)
-    logger.info("Shutting down F1 E-Ink calendar service")
+    logger.info("Shutting down F1.InkyCloud.click service")
+
+
+async def _maintain_private_stats() -> None:
+    """Persist aggregate counters even when image scheduling is disabled."""
+    while True:
+        await asyncio.sleep(60)
+        try:
+            await flush_api_calls_to_db()
+            await get_database().cleanup_old_stats(config.STATS_RETENTION_DAYS)
+        except Exception as exc:
+            # A transient storage failure must not permanently stop persistence/retention.
+            if config.SENTRY_ENABLED and config.SENTRY_DSN:
+                sentry_sdk.capture_exception(exc)
 
 
 app = FastAPI(
-    title="F1 E-Ink Calendar",
-    description="Generates 800x480 1-bit BMPs for F1 E-Ink displays (LaskaKit)",
+    title="F1.InkyCloud.click",
+    description="Independent racing calendars for 800x480 e-paper displays",
     version=APP_VERSION,
     lifespan=lifespan,
     redirect_slashes=False,
@@ -322,7 +364,9 @@ app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
-app.mount("/static", StaticFiles(directory=ASSETS_DIR), name="static")
+app.add_middleware(AttributionMiddleware)
+
+app.mount("/static", LicensedStaticFiles(directory=ASSETS_DIR), name="static")
 
 # Routers - order matters! More specific routes first
 app.include_router(previews_router)  # /preview/* must be before pages (/{lang}/* patterns)
@@ -330,6 +374,8 @@ app.include_router(seo_router)
 app.include_router(health_router)
 app.include_router(api_router)
 app.include_router(images_router)
+app.include_router(tracks_router)
+app.include_router(credits_router)
 app.include_router(pages_router)  # Generic /{lang}/* patterns last
 
 
@@ -342,5 +388,6 @@ if __name__ == "__main__":
         port=config.APP_PORT,
         reload=config.DEBUG,
         proxy_headers=True,
+        access_log=False,
         forwarded_allow_ips=config.FORWARDED_ALLOW_IPS,
     )

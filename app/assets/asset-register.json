@@ -1,0 +1,3050 @@
+{
+  "schema": 1,
+  "assets": {
+    "circuits_data.json": {
+      "sha256": "9f7cb33d36c2b5b578a94651c682d34ecf89cecd824c42b7eb9a650472438bb4",
+      "license": "CC-BY-NC-SA-4.0 AND LicenseRef-Legacy-Circuit-Facts-Unverified",
+      "author": "Jolpica-F1 / Ergast contributors; legacy F1.com factual metadata",
+      "source": "/static/licenses/DATA_LICENSES.txt",
+      "reviewed_on": "2026-09-15"
+    },
+    "css/input.css": {
+      "sha256": "84067b3d7ba6e1e14288b7ac569897ad7627d25e4d0eb7932f4a0f9f0f3cf9ea",
+      "license": "MIT",
+      "author": "InkyCloud contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1",
+      "reviewed_on": "2026-09-09"
+    },
+    "css/styles.css": {
+      "sha256": "d6874b6aa11cdc442ab82e698af64af9bac4f51dc26cb849517456ca757a99b6",
+      "license": "MIT",
+      "author": "InkyCloud contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1",
+      "reviewed_on": "2026-09-09"
+    },
+    "css/tailwind.min.css": {
+      "sha256": "999df4d0f2b1c6e0fad0464e98e0510b5b61748651f646c563dd74e42bace37f",
+      "license": "MIT",
+      "author": "InkyCloud contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1",
+      "reviewed_on": "2026-09-11"
+    },
+    "favicon/apple-touch-icon.png": {
+      "sha256": "7e7f922bf7f77cf20908f24fca0c65c84904f4ee63685a178b113d6cce483da6",
+      "license": "LicenseRef-Project-AI-Artwork",
+      "author": "InkyCloud project maintainer / contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/favicon/apple-touch-icon.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Original project header / branding composition with reported AI-generated car artwork. Model, prompt and generation terms are not recorded. No third-party trademark rights are granted."
+    },
+    "favicon/favicon-96x96.png": {
+      "sha256": "1b8b7416659a4163fdc3f5d354914e80fa929fb75daf1e053d83abfd139e3a5f",
+      "license": "LicenseRef-Project-AI-Artwork",
+      "author": "InkyCloud project maintainer / contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/favicon/favicon-96x96.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Original project header / branding composition with reported AI-generated car artwork. Model, prompt and generation terms are not recorded. No third-party trademark rights are granted."
+    },
+    "favicon/favicon.ico": {
+      "sha256": "1b9d0d7f4fc84ab48c6e8b0f3b1cb2bd165fe9b90ad45f5172e7696cc6e7fbaf",
+      "license": "LicenseRef-Project-AI-Artwork",
+      "author": "InkyCloud project maintainer / contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/favicon/favicon.ico",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Original project header / branding composition with reported AI-generated car artwork. Model, prompt and generation terms are not recorded. No third-party trademark rights are granted."
+    },
+    "favicon/site.webmanifest": {
+      "sha256": "3c6f5d63be4a23dee1ac6400845d2bc028eab454f8e92f723527ca1a10b1cb9e",
+      "license": "MIT",
+      "author": "InkyCloud contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1",
+      "reviewed_on": "2026-09-09"
+    },
+    "favicon/web-app-manifest-192x192.png": {
+      "sha256": "1af056b3cdcba190d71fb14d5274e584d0021bfa508585b14c869325a32d87ec",
+      "license": "LicenseRef-Project-AI-Artwork",
+      "author": "InkyCloud project maintainer / contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/favicon/web-app-manifest-192x192.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Original project header / branding composition with reported AI-generated car artwork. Model, prompt and generation terms are not recorded. No third-party trademark rights are granted."
+    },
+    "favicon/web-app-manifest-512x512.png": {
+      "sha256": "85e58614c40f7ce8e6961b3a88c0d36a3f8ecbbe3446ae94380fc97b78d6c13e",
+      "license": "LicenseRef-Project-AI-Artwork",
+      "author": "InkyCloud project maintainer / contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/favicon/web-app-manifest-512x512.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Original project header / branding composition with reported AI-generated car artwork. Model, prompt and generation terms are not recorded. No third-party trademark rights are granted."
+    },
+    "flags/ae.png": {
+      "sha256": "1ece8ae6b1d6f33f7209e0150c8bd7584ca772f16fd0de1116cb3b7730f86b8f",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/at.png": {
+      "sha256": "caa70deca6b2961e49dc55b6f6afc83c869813dc51ef9b9a8e2c169263090f45",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/au.png": {
+      "sha256": "ee72e87bd2115079b2967e2fbbf8b600c9addfb826282b6af36c14ca90e559bb",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/az.png": {
+      "sha256": "88083485f5847217cc883391661c40850d35d58fdfdb1ad994165b6ed3e7179f",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/be.png": {
+      "sha256": "3f0f3bc788a1f1d6127c80b66fba756e63d48a576282a37d9adf480bd9687ddb",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/bh.png": {
+      "sha256": "b2c32f202bd0d1450f9e8b04f3995c41a6aab2845081bfa602c532ed62ae791b",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/br.png": {
+      "sha256": "6b4b6cab9bc8ce98b65e310683e687b1eab9068ca146a6090319dbe787c23e17",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/ca.png": {
+      "sha256": "f43cb1bbc56f594a5cad103c1ddf339629fc69cd65f4587a3c61c4e61e286a8e",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/cn.png": {
+      "sha256": "a0877bfd8bf9b286098788d723a5c3f674fb5ba8c736d828eb3152dee305f480",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/de.png": {
+      "sha256": "a1697806037dc2264f78ee71e3d818ce59eb2953821887c2fc3069918ed3b4c7",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/es.png": {
+      "sha256": "e7c2f43b9602aab0390dfc0e4acc9dc9ec8a2f56f752ed2d1918a25e633ad31c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/fr.png": {
+      "sha256": "a7857cf13c29a21b7a1460ccfff6992f537d8c73d513e30339f868fa29c6cdb3",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/gb.png": {
+      "sha256": "a8fdda6c8233d7afcfa0e10c50e52d2527a877c37be752923a89ae0e3a771dc6",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/hu.png": {
+      "sha256": "fed43a82ca1c8f521df0858b05a40c3a97f56837c55a77b58fb9e755c3371e7d",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/it.png": {
+      "sha256": "e2de8ae3b7525ee0c7af757805c161f5d2f7a3e6d1bfa4faf6be7729b5ab9385",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/jp.png": {
+      "sha256": "5c3fa2621647966f675f7d4c63c21471b397a844ed478d9bf17c9e277aff7f59",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/mc.png": {
+      "sha256": "3640595e2cc12e5fbe8e98dcf9b60a069472d5165d179bcc7ba7f6ed0f06df0a",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/mx.png": {
+      "sha256": "b5f0abea115649b2eca4740283fd4040343ff395ae034d7f280b105cd4ede506",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/nl.png": {
+      "sha256": "5302df84498c506a59a9db87a3d12e31a666dc89bc496f7da7c6d30da7372ef0",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/pt.png": {
+      "sha256": "228ab17aa481137feef3f972f16210497eaf6e55e1478e014311f4f70d2ad74b",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/qa.png": {
+      "sha256": "7a76dc92004326db19d45bb8b495bf48fbd2737ccbd1003509db9804e09c025e",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/ru.png": {
+      "sha256": "7d2d510c6575c3b1249c80c11c3b4afc7f03063b60a2512b5871965efe77b491",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/sa.png": {
+      "sha256": "3ecf84fdc28d51dd4cb129970ad65ba9cdf14584c9f3e8888dbe2d500397451e",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/sg.png": {
+      "sha256": "44682f85378da8565b97ff794721aa68657812259684e701d194c413b896ed0c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/tr.png": {
+      "sha256": "7c1fd68f24076248293b7f2f76371f42ccf086a4ac9d898eb6e6cc7d169af68f",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags/us.png": {
+      "sha256": "a37554bb90b3833e1c18b85ddc24c048d95b19729abfc93921f7cf7fa7d67abe",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/ae.bmp": {
+      "sha256": "e505936cfb0340806de3195b8f19fbe5cf896c2e64f1a6b3ca23905f4c2e376c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/at.bmp": {
+      "sha256": "baaaa071c763a657d2a0fcf08ddb147f390e8c4550fb29a4ac20bd487c8f96c6",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/au.bmp": {
+      "sha256": "23f0677abedcce2de5e290dded262f262665cde64381277d82ac9b53d0d43568",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/az.bmp": {
+      "sha256": "562d4a91634f64b66237dd69c9889f92a7e55edb0c255871cb87ba73c520989f",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/be.bmp": {
+      "sha256": "6b7bf70fa56eb6ca2640502a4abdcad6fedc20f15d7832d834c9d380c6527417",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/bh.bmp": {
+      "sha256": "10deb91dc5739408218ba86d6ce8fdd8b3d864c525e6ee231b88343ac4fa70dd",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/br.bmp": {
+      "sha256": "c60650f1ca14f563943c703fbe493e0435e3ace42efac6f172a1257204389f77",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/ca.bmp": {
+      "sha256": "4fefa540449b0dc433f8b5e0e2ccbdbf82bf289a1637b93255adf1759df2d3dc",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/cn.bmp": {
+      "sha256": "6ec4b42076bcf15cfaab69fdc0d6fb44bc95e02fab5b918da893ec213f82c3c7",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/de.bmp": {
+      "sha256": "b2a228385dcee3c30138e0094e4e5a82f490ebbc12dc1d032c5ee7a59726ae82",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/es.bmp": {
+      "sha256": "1bc8f722bf3dcd39fcf8b48ce9f0f52c294e4b0b3dd97d93c4db13fd60fc2909",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/fr.bmp": {
+      "sha256": "c3d79aa89d6a5ecd1e06c0bb0d69a0c813d3f2c95a3f8499a26021de6cedb42f",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/gb.bmp": {
+      "sha256": "abfc8d4dd5807cc9573b307596d28e11eb70ac403f05d4799807be09bf309a44",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/hu.bmp": {
+      "sha256": "3ed09772c2b23ac9bd39ae5ea0def89e367b5a4a7f5b29fad37998c610e9a540",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/it.bmp": {
+      "sha256": "c3d79aa89d6a5ecd1e06c0bb0d69a0c813d3f2c95a3f8499a26021de6cedb42f",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/jp.bmp": {
+      "sha256": "96218cf5e4c38c521d54c6ce529471c885a4d23225d07738b661eb4fa643c07b",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/mc.bmp": {
+      "sha256": "c5d52846a72d9c2d7e147d4d4eecde7204e07f8c42fe6d9e4ab478f3975dc5c2",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/mx.bmp": {
+      "sha256": "83287adbd0c44a35482c3924c9c360989073efa038f7f9dd604512454387c249",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/nl.bmp": {
+      "sha256": "3ed09772c2b23ac9bd39ae5ea0def89e367b5a4a7f5b29fad37998c610e9a540",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/pt.bmp": {
+      "sha256": "e7b5d878234d1913e7228f14a690512578c3bd8c8098d228fa7e8bca7cbf387e",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/qa.bmp": {
+      "sha256": "2edb7a078df4575f3407db745814ef8737a2247fc154e4a814af5f2d1a02541d",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/ru.bmp": {
+      "sha256": "b31d1e6dec0d03b92be464c3d3c7f69cacda8878f5f752691caf8ad6e14b826e",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/sa.bmp": {
+      "sha256": "744481be2d2bf308a444d42f2f42ad65b2fbb1664da91cf6f69706641ac91f2c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/sg.bmp": {
+      "sha256": "62daf4556aae8229614f082611f890c80e9958acc003b95dc10a615edc9595aa",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/tr.bmp": {
+      "sha256": "20aa41657cf65445f1733b6f4a58f6627272319b5fc2cc2b8f0daea1227cb738",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwr/us.bmp": {
+      "sha256": "e5b594a3c6dd4437653de95e6bbc5a496c14393a71c2ed693283d24b128c3816",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/ae.bmp": {
+      "sha256": "a3b59f6b805311f7c7294e706ae88f53ca3576261364cca2c6f968842361154e",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/at.bmp": {
+      "sha256": "6f88f6a813ccbbf8f31c81783e763054cfd7d7adc1d174c0a220d194038d5032",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/au.bmp": {
+      "sha256": "1afd9e9992c6cd3694b71cab70eee51a25ee5ab4cc9efba979bc40fbaff8735c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/az.bmp": {
+      "sha256": "47bf08c6b1aadbe1c64292d28dbce14cc4e14f5d95165ed52ddb335e5dd6f816",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/be.bmp": {
+      "sha256": "c2851f91a929e0abf88283e80269e16cc4f188efe4bf6f0e61eb4fcccb1fdeff",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/bh.bmp": {
+      "sha256": "fbd34562a4b7467e64266da1af4466686b045e4a4d7f84fd5949ae4b606cd84d",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/br.bmp": {
+      "sha256": "c5edfca3b1815aa9190cb79f6ac59d8188c369dbfb3346241fbe7995be963de8",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/ca.bmp": {
+      "sha256": "2ca99da8a31a47143df1d81a3c9f74c3b087eadeda5f300394236d69b61b8421",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/cn.bmp": {
+      "sha256": "a4270452b14ba86dce18414640ebc8f1e3fc870f3aed74e45d4e48e111f993e2",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/de.bmp": {
+      "sha256": "2919030f648d583b6edf42914ccf0f5e2ba5b9f711e5eb124f9a88e4a7b7a748",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/es.bmp": {
+      "sha256": "3f15633c3b6e41bae5f2c995db4a342469857a19aa756434fb9d6a304171e43d",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/fr.bmp": {
+      "sha256": "7ff6b64bb56d132c750567a04367feb7724679df6e81c6e166a6ef248872c91b",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/gb.bmp": {
+      "sha256": "d357255649b9cc4011d19eccef5aba8df55469ef90fe5827f60f86a30c8b1817",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/hu.bmp": {
+      "sha256": "be7ff9197263b38ff4476df69377ce2f027034de7b77a1986d80b1084c0f7f66",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/it.bmp": {
+      "sha256": "7ff6b64bb56d132c750567a04367feb7724679df6e81c6e166a6ef248872c91b",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/jp.bmp": {
+      "sha256": "7bb312980d61ce873ae8e566ae3061adefffc25a76c6f8297b51497d109fcecf",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/mc.bmp": {
+      "sha256": "31880924b8961a1b91969c6559a7d2620c9bf36588b41e75ec9de2de0d63a0ce",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/mx.bmp": {
+      "sha256": "39b803620abb757efd19f3f2dfc03bea66de75862d91b99db40d9683f95c2c11",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/nl.bmp": {
+      "sha256": "b09618f6a62ee9e7d137d96c380fd32918263fcede59caad0076a6d83ba15fab",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/pt.bmp": {
+      "sha256": "f86961c75d23fcf4cc7012318d39560ac8b5ecad4fd9eff98e01bc4c256c6a29",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/qa.bmp": {
+      "sha256": "b30f00ad73c9776e571babc299d9cbe101e518698c58e5fd10291c6afafb878c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/ru.bmp": {
+      "sha256": "3eec28451489d370022ab0cadc7d17f13aabf107f4ee2ee2fd7abb243bd2cdb0",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/sa.bmp": {
+      "sha256": "78c72dde4c79e69131f6080613c13ef1df22414c3db68f4dd9864b1ff3b65055",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/sg.bmp": {
+      "sha256": "efa25b7bd2928cae9636158957c6268db5d8d889591eb25fe89c8f8b20d1311d",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/tr.bmp": {
+      "sha256": "7a2e75c6bb3f2d2ae0d13b1dd8602bd55b996d62f640f79d9f16e2d7b1e842d9",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_bwry/us.bmp": {
+      "sha256": "44c18268e642bcdfbe8bea796c6773482f9751d807ed13b2c2468c0e6cee16ec",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/ae.png": {
+      "sha256": "709f7c8b8a3c4cdc39c35e60f918e944dee6544913bf7f9a1f4efa27aba7cf70",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/at.png": {
+      "sha256": "6db2a0734919d8c19430b79af8b2682be3a6cb878162aaff1c9c2a47b7660953",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/au.png": {
+      "sha256": "eb3cd6aba81315a7db38b55a555938f3d4c1553342eafb3a37e13d4d1fe76450",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/az.png": {
+      "sha256": "cd60096c80f2a6ab9f9354949240746eec6b167f97f2fc64f14a9c1da3458f2b",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/be.png": {
+      "sha256": "4bb0a14682b00ccb8912a25aee9a44a5129362d0c09e3cfdb5257879bd23adb3",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/bh.png": {
+      "sha256": "71cb00a8b7070d702abdc8a98d8c5f68b66b1c500b7730c56fc5c6070174b84d",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/br.png": {
+      "sha256": "c9ea019c610713d111f4c81d97f5c0df2caf7ae4c9bda6079f414916dcada975",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/ca.png": {
+      "sha256": "c6a0b1b087f62170a41cd9d0b35bd532df0286608cc7c1c5a8c3639937b6c867",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/cn.png": {
+      "sha256": "fdbfb0d49ec098827d28f297a4ee3614edd1dcc014bcdf978b7dce73c7b7b4f1",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/de.png": {
+      "sha256": "5eb33c86a8f1cd43cbbd990aee89e4ce4fabf7efdece1529be66fb1becf29fc9",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/es.png": {
+      "sha256": "cfd46911c2d8a218317ecfa94d776ca3784def0212332b2c230d0a7cfeb6be41",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/fr.png": {
+      "sha256": "2a539c1a42f160aab68730f4caaa322bd6fbccf42145015bb7544961671a9cbd",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/gb.png": {
+      "sha256": "94f29281d0b2b67b035dd279a4b43b18b8be9e889f5287af2b2c5e3723e0c810",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/hu.png": {
+      "sha256": "5e54bb353099fd19f6e6ce673d7248bf83090909d5b4728367971fae097b23b0",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/it.png": {
+      "sha256": "655b1b31b9a3d3b6f659863e6ffebedaf8810e5e97f12fea687e9ede6d298c3d",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/jp.png": {
+      "sha256": "25c1ac6db4fa0b5e6b79b4efe546683c8589cf060f5f848b27be02944fad8114",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/mc.png": {
+      "sha256": "a848cea9948b2022be902760bbda38b98485a5af04214f75c80b9b6801608aba",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/mx.png": {
+      "sha256": "c0fdb027d455efda31d165351dbac9b2145fdca51aa1f9c9410a346b43bf1f2f",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/nl.png": {
+      "sha256": "2551bcd6a2ea816da99fd646a6f68feef0e3b2897216b1afca88a6e4283ee42f",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/pt.png": {
+      "sha256": "0006bee743a0d81fc4dcea7ae2fdc2bb17e560792b9939fb10ec05d76dd828ef",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/qa.png": {
+      "sha256": "ab007ed48922bf300c3a76462aa8a40ccdb2bf9a06276e3acde96a6b6296bbbc",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/ru.png": {
+      "sha256": "fe1a82a5145e5fba6982bb14cb20663b888a5feabada2235d036825fa4cbcac8",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/sa.png": {
+      "sha256": "279bc6e2da48470081c4c754c9c6b880465fa425d70319fcc786b06a4e01821b",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/sg.png": {
+      "sha256": "a99506c879dd6e6d86d9b75e79ff9ec63c1ff7948906ac9b91c8b0e09390f5d5",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/tr.png": {
+      "sha256": "1cacb57e7a84e9305b482108bfbd5af019dbb5268d55f8533ee651065cea9f85",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/us.png": {
+      "sha256": "59ac434b97e6db8b4fcee5c8e1996995562747e76875625f0886f1936488b7c9",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/ae.bmp": {
+      "sha256": "fed9aac6613872ddef075be925d95a0cf0de123665238856c9f8e8b02b0eda6c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/at.bmp": {
+      "sha256": "1825a8a54f18e90dd86798c3ed817776d595797dbf64852e16b839643637e86d",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/au.bmp": {
+      "sha256": "56031551cc75da383310f6734209977e469b9b853362ebb1b693b3b00d1a6eda",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/az.bmp": {
+      "sha256": "bf934aa10afff30ec24b731bb2a5014e0162a39a39b4d4e32b8fd1e187790d5b",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/be.bmp": {
+      "sha256": "fc1b98625e710e74d8026b6ca9bd0e334d805bbb694c6df64e7a650e014d1366",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/bh.bmp": {
+      "sha256": "1d217685366ef2f2db7678132116fcf1a97d3a6eb99209131502cfbc28988eb9",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/br.bmp": {
+      "sha256": "f496ffbba9c45de716cd406c6d024f21fe3698b8c870e6cae85e7a4691066626",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/ca.bmp": {
+      "sha256": "93f6d63c4c41ba8b072c13ff7506e4d794d363a0f086da8326d4c1a3aad2235c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/cn.bmp": {
+      "sha256": "c67224855a4679b4ae7aa486c7d8a96727b5199661a68b3b1f459d2f98b187cc",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/de.bmp": {
+      "sha256": "4e466d34a0b8c6c592405e58d0e69abd2fef14a4a6e8dcf160aee5137c83d788",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/es.bmp": {
+      "sha256": "8f948e5d21b76c3203de8693c0ee4186d1b212a77bf2583696fea72d57746317",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/fr.bmp": {
+      "sha256": "f95500dbe5f7ea99796ad5adf7aa7346804a3a2d962bd529d54af4d69a826a02",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/gb.bmp": {
+      "sha256": "dc25e7afe5939f685e6ea4454d9de1362df16aa495c2adc85a0b051d49cbd085",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/hu.bmp": {
+      "sha256": "eb840eaa9704373b3e4bbb693a3ca5dba750f0e81cae11c516b709ec481652f2",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/it.bmp": {
+      "sha256": "85e60e8164ad37f7b9793460975db8cdaa7154d665c15aa2091684dd9b12371c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/jp.bmp": {
+      "sha256": "c6854d52d34a5cd851567d35001c734f4b6f17be695ab0c6ab974c1a10f042e7",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/mc.bmp": {
+      "sha256": "a63a6cc2526c0508ce2406606a6f5aa76f93b068bc6e9318afa177cd88b644bd",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/mx.bmp": {
+      "sha256": "4140477f67f06b91e96ac0e714507a8382538e9858336dbda387cebb0b9e7cae",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/nl.bmp": {
+      "sha256": "834789e2216fc91b16e4c0b0d0b9448def753a77d4cfe96fddd68856e190e245",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/pt.bmp": {
+      "sha256": "569776633372c5eb685db06a1ef222508f7bbae7376075b434ba2d53829e850c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/qa.bmp": {
+      "sha256": "8efd352c16034914e2f114a0e1c0524046f0716411b87abef61e1484fd603636",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/ru.bmp": {
+      "sha256": "689663feb363eacd4524cd9f9806fec7daa0966e44ee7ea2843d5d97d4c38a76",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/sa.bmp": {
+      "sha256": "d99feae13cda7e7049195fa870f52f199b15f87459ac8f8ecae425c4d2a168b3",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/sg.bmp": {
+      "sha256": "de8cb1cfa38532f4ad5b1f2c14592027783dc19a6c319ab57d0378674262a641",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/tr.bmp": {
+      "sha256": "86b182fabdc0432c4446a195e8c39a99c50faa32b930a1af70eab01e3afd1b8e",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_processed/us.bmp": {
+      "sha256": "1cf311b7206fe70e45a4782fc3cfaa5cc0a216cde4216e5673515d9eb4ac9e05",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/ae.bmp": {
+      "sha256": "ca30fd15d08128fe11c7e4641575bf2d13cd347c3660dd4cefb90102bdc09b1e",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/at.bmp": {
+      "sha256": "e290f829816b95d9bc07161b6e32bf6a4246ed248f354fc66fff4393d1c3b4ac",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/au.bmp": {
+      "sha256": "6fb51a4315f146176c2b5f2c9db88499c277489139bb28a626dd6c4856654b60",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/az.bmp": {
+      "sha256": "cf44cbb042364deed1dcd6a6b16466b9601183d8eec3c42e6abb6c6db31dcb46",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/be.bmp": {
+      "sha256": "e6bc511d5ced36fbbe369acbeb23de09a360c480ade71d9ff53a97ee30021c0d",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/bh.bmp": {
+      "sha256": "d533a5caaa71ad817c98a9846a2232751a6297bec4249273c00eeaa498aa8f60",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/br.bmp": {
+      "sha256": "6dbe16f2dddb94b30709c15bf5a6660c395f2ae480ac85c03f52b9f949181f63",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/ca.bmp": {
+      "sha256": "1dcf4884af8fedde466c7497f9a7d76d8321f874e12e32dfaf841d922f5ee6c5",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/cn.bmp": {
+      "sha256": "c9c64355e3b9638f24dda986a98e0ae2bcaf3d95f7d204cc75cf22900c34e874",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/de.bmp": {
+      "sha256": "48f17f16d91f48a37790db1074dc5edd2f62ca3b7b0af5ebcfde69b2f6a262a9",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/es.bmp": {
+      "sha256": "35f5126eab362bcbf6585e240291669b08afbbaf1068877576e47ed5dd4f7417",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/fr.bmp": {
+      "sha256": "226e0250b2e9ed9af06dab97889b2d8ef591267ddbed15c5ebf69d400800dcb7",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/gb.bmp": {
+      "sha256": "e3b6f8ca476f4a8d48103e677fea9ac468a28c0ced265011a4debdb926579983",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/hu.bmp": {
+      "sha256": "899edbe89b9b510a06d457181c4a5fd2fb0c1c688170b23da8075f59ee7fb7a9",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/it.bmp": {
+      "sha256": "ff06ece437e577807ea7bf1a6c15aba14d543a54b27623aaa8f9ea6f88402213",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/jp.bmp": {
+      "sha256": "f25d4413517277372a7c47379c5dc975afc7531f6be59c203c3e2726c0663af2",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/mc.bmp": {
+      "sha256": "e1842e00730ffd6f58edc56265af24ff337006824b3f32a30c2c924442baed20",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/mx.bmp": {
+      "sha256": "b3ebd334a8df408839842ad99e1570bd63053ffde2993f12bc64fc5fafd5d398",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/nl.bmp": {
+      "sha256": "6bacf0188f2780d7c606e66686688455b50f0e21a3035d2453e53b048393d824",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/pt.bmp": {
+      "sha256": "3fdea8c8d219e1f76aa986e83da7f43036b8fccdecf375a53a0240f70967f4ea",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/qa.bmp": {
+      "sha256": "657a7772976b83b486741a8e93fbf5fed5c22a85efc522ca565ba6975d6139c9",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/ru.bmp": {
+      "sha256": "d15dd095b4fc9b28fdc3e2a07f3efdaee8ce2b883080b8d45c64bf132085c1b1",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/sa.bmp": {
+      "sha256": "57f43c1904508edcef7c83d547cc28d713b96ec12a0f2756e50dda876d59d39c",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/sg.bmp": {
+      "sha256": "8a202ea1ecf3aa8507b48fe0dc7dfd94c172da95976087ace9d11be81ef4daf9",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/tr.bmp": {
+      "sha256": "f7c88eb095a0f592d962a5a00e9e446a3fe18f8811448a3bfa971dd7aab78bdb",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "flags_spectra6/us.bmp": {
+      "sha256": "28b260209cd3e20f3a753c2c5f9920a8f3bd6fff7232db811e5b130cce556d69",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-09-09"
+    },
+    "fonts/NotoSansCJK-Regular.ttc": {
+      "sha256": "b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a",
+      "license": "OFL-1.1",
+      "author": "Noto/Adobe/Google contributors",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "fonts/RacingSansOne-Regular.ttf": {
+      "sha256": "8b5cada83e3e4692f624f1b583a069b34e457e07a4210ceddbb1133b3383673e",
+      "license": "OFL-1.1",
+      "author": "Racing Sans One authors",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "fonts/SpaceMono-Bold.ttf": {
+      "sha256": "d3518d96a84996e48690010f6e0d566cece91106af156859f608282809732b04",
+      "license": "OFL-1.1",
+      "author": "Space Mono Project authors",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "fonts/SpaceMono-Italic.ttf": {
+      "sha256": "162e79a7c9ef6a0270bde409e17dff7f6f6ebf65999497aa0a31dc9f1163fc8d",
+      "license": "OFL-1.1",
+      "author": "Space Mono Project authors",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "fonts/SpaceMono-Regular.ttf": {
+      "sha256": "d7462073cbe679b8f9ef0137f36c3cfcec4fa70156f0bcf8eb1f645035b3f942",
+      "license": "OFL-1.1",
+      "author": "Space Mono Project authors",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "fonts/TitilliumWeb-Bold.ttf": {
+      "sha256": "e2e8e1812041e2c5868f1d03ac24994312052c5381cca2e80748f08cb7e13093",
+      "license": "OFL-1.1",
+      "author": "Titillium Web authors",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "fonts/TitilliumWeb-Regular.ttf": {
+      "sha256": "7b6b4452c65cc8b8522e92e7d4d4c2e6d7675341ceafd041bb6bd30297517ea5",
+      "license": "OFL-1.1",
+      "author": "Titillium Web authors",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "fonts/weathericons-regular-webfont.ttf": {
+      "sha256": "176bda6661f213dde47c2114d76e476ec8ca9aae07dd54f9550d2d28fe02b4fd",
+      "license": "OFL-1.1",
+      "author": "Erik Flowers",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "images/eInkF1logo.jpg": {
+      "sha256": "10b2c2b5a467a5539adeb3fe31fd393fa741d1bfaf26247910063370d2bf1ba1",
+      "license": "LicenseRef-Project-AI-Artwork",
+      "author": "InkyCloud project maintainer / contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/eInkF1logo.jpg",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Original project header / branding composition with reported AI-generated car artwork. Model, prompt and generation terms are not recorded. No third-party trademark rights are granted."
+    },
+    "images/f1_homepage_logo_1x.webp": {
+      "sha256": "5db0223b00143f78e2df89bcdfe79ed56088c6c8736da198805c9fba7bba0b34",
+      "license": "LicenseRef-Project-AI-Artwork",
+      "author": "InkyCloud project maintainer / contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/f1_homepage_logo_1x.webp",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Original project header / branding composition with reported AI-generated car artwork. Model, prompt and generation terms are not recorded. No third-party trademark rights are granted."
+    },
+    "images/f1_homepage_logo_optimized.png": {
+      "sha256": "f199c942f6e44509b309a47410e59324f86890fa3db01ac528ce10c88e2d93f5",
+      "license": "LicenseRef-Project-AI-Artwork",
+      "author": "InkyCloud project maintainer / contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/f1_homepage_logo_optimized.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Original project header / branding composition with reported AI-generated car artwork. Model, prompt and generation terms are not recorded. No third-party trademark rights are granted."
+    },
+    "images/og-preview.png": {
+      "sha256": "57edd2e1f74473777b9d29cca801dfd5a10fbb8ccc42b411d3c3693a19251c43",
+      "license": "MIT",
+      "author": "InkyCloud project maintainer / contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/og-preview.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Original project text layout with Titillium Web (SIL OFL 1.1)."
+    },
+    "images/teams/alpine.png": {
+      "sha256": "afc9a6cb04cd27a991bbfcde6a548ce5e87f5b48ac0f0bfe192b2b065e454064",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/alpine.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/aston_martin.png": {
+      "sha256": "7be2b344de867c6482be8181da19b64cd01770b53cba3dade2dcd0a4b7f94a70",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/aston_martin.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/audi.png": {
+      "sha256": "ca072fa03eef203e035918c65a23bfe0b23876c29598b1801d4ef050f74748c1",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/audi.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/cadillac.png": {
+      "sha256": "6347170cd81054842d76ee7e9cebec79ec530bcd3c00a22d3e3e1285422b379c",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/cadillac.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/ferrari.png": {
+      "sha256": "047dc71995cd6ec417d9ffd6675f85307d2c25c98e8ddfd73b50f1a4b522597d",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/ferrari.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/haas.png": {
+      "sha256": "08acbbd2fb9ac11a3898f8d70ae671804aa06583923632b674054b3a723ced77",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/haas.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/mclaren.png": {
+      "sha256": "5e921fefb47f939206723f15b27ed8ee6108f302601cff932e2340f954ce6bc7",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/mclaren.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/mercedes.png": {
+      "sha256": "49fc74450c85a926404cf029f7910086064f57e5ee1de8342249ac8a687c2910",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/mercedes.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/racing_bulls.png": {
+      "sha256": "1ed957d17e362ec49e2b5a3de27bf0e3334bf5006c7b75aa8e955bcdec58efc7",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/racing_bulls.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/red_bull.png": {
+      "sha256": "d5bd86395ba5e7177b9e98914954b5da5fa237c623bb3a76bfbe5bd080849a7c",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/red_bull.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/sauber.png": {
+      "sha256": "8ffea4cd74107f1300f8cde8ee689796bb8c8d2d30b775c7714946b97bc14487",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/sauber.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams/williams.png": {
+      "sha256": "8fbf5ce82a831680822a54c53626e35e8a56bcb858b61056188b25a3cd48981c",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/williams.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/alpine.png": {
+      "sha256": "b14503f7694922d950e1e7c71fff17eccefbc6cfa0465bbbeb2373ff09d15fed",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/alpine.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/aston_martin.png": {
+      "sha256": "41eacf585a56908c37b68629da5554dc6676bd8714c499edac3f560db8d33749",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/aston_martin.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/audi.png": {
+      "sha256": "2624db4a04483385557cd150cd0b87ec56bd4e51a25006db693375ca68e7010e",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/audi.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/cadillac.png": {
+      "sha256": "462fc5d19c10b32e69b03a5a687c397b8ea1913c8bf7fa2485e081b4a1d486bb",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/cadillac.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/ferrari.png": {
+      "sha256": "d494191734d69a6c3cee334fa9830cc57dc95f4b0479f343bd9676ce1f06465d",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/ferrari.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/haas.png": {
+      "sha256": "855467264aa676c03234bfbef74b85cad4b11111ffd82f58c917d04cfcb10837",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/haas.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/mclaren.png": {
+      "sha256": "92c672fdc24cd8378d43506489ce82c3dd47f7675923b37f1a6fe97a340acf04",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/mclaren.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/mercedes.png": {
+      "sha256": "7609bfc7bd2f17fe75d636f37c2ff91ad26099ca6f3dbca03bcf2e459caf230a",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/mercedes.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/racing_bulls.png": {
+      "sha256": "1c6addfe97dff237e3da53be08a1f430687c304bfa246b6f599bdc18ea8a121c",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/racing_bulls.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/red_bull.png": {
+      "sha256": "d4d76dc6da00a2c9042d0bd1fbfe94479673496869b097f00d941946e73331d8",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/red_bull.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/sauber.png": {
+      "sha256": "73e9b664e68946f388fa5c2d6c0c6b6a70fe1ca123c4316d80193a35626d495a",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/sauber.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "images/teams_color/williams.png": {
+      "sha256": "4fbc1aeffb6a7c783032b58fa6f89b42b3b05ca0d922b4c27b157d4c97c13d07",
+      "license": "LicenseRef-Team-Logo-Unverified",
+      "author": "Respective team / trademark owner; original graphic author not recorded",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/williams.png",
+      "reviewed_on": "2026-09-09",
+      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
+    },
+    "js/common.js": {
+      "sha256": "a8901d519128eb39d86a24b09b4f10a3596fb01f0466585a513aa35c4f849785",
+      "license": "MIT",
+      "author": "InkyCloud contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1",
+      "reviewed_on": "2026-09-11"
+    },
+    "js/perf-metrics.js": {
+      "sha256": "3e022738c07f352df0590c4e06051228101c383060b00e1b1e527de71c0ee82d",
+      "license": "MIT",
+      "author": "InkyCloud contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1",
+      "reviewed_on": "2026-09-11"
+    },
+    "js/sw.js": {
+      "sha256": "a5e724925665f360aec027bc4068e060938fd1adcb1548d391c9824d1986c141",
+      "license": "MIT",
+      "author": "InkyCloud contributors",
+      "source": "https://github.com/Rhiz3K/InkyCloud-F1",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/DATA_LICENSES.txt": {
+      "sha256": "24e284627a00471c9ffa857d17e8c6e446468878877fcbcab536e076dbf949c0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-15"
+    },
+    "licenses/InkyCloud-MIT.txt": {
+      "sha256": "95dd815d873a58f559a363720a51a5788cf27fb0d2626fb8ba953c2dd8ed7f78",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/Jolpica-TERMS.txt": {
+      "sha256": "2c196c2ec2faa87b75cf77344f8af78c0a0d122f0844b53b3e764c05427ffdda",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/NotoSansCJK-OFL.txt": {
+      "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/RacingSansOne-OFL.txt": {
+      "sha256": "cdcc959c42ab255b4cea4bd82f2db5c24a2da7ecabe615d02d5a5dba3716e446",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/SpaceMono-OFL.txt": {
+      "sha256": "8e4ee42b2553e1e01504e61cb0d46d148cd8c9e5eacaa3622a7df2d4f2955b9f",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/THIRD_PARTY_NOTICES.txt": {
+      "sha256": "a4654ca7d457cffc7003abe02f620e8ed52fd2c8bd0efb925c378c428fa38b1d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-11"
+    },
+    "licenses/Tailwind-MIT.txt": {
+      "sha256": "60e0b68c0f35c078eef3a5d29419d0b03ff84ec1df9c3f9d6e39a519a5ae7985",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/TitilliumWeb-OFL.txt": {
+      "sha256": "c0562e066174197902a4a10606673d189f067970ef89c6013943b9cf182aadbc",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/WeatherIcons-OFL.txt": {
+      "sha256": "ececd60d954ee970cdd5bd1139cca96ddb4bb12a342ebfb7d2ba9d97dd9b747b",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies.json": {
+      "sha256": "d8dc90d9e7047d580882130e2747e264072ae26bdc1dff7f0ef3a88f855cfca5",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/aiofiles--licenses--LICENSE": {
+      "sha256": "cb5e8e7e5f4a3988e1063c142c60dc2df75605f4c46515e776e3aca6df976e14",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/aiofiles--licenses--NOTICE": {
+      "sha256": "104c58d1d450bd6474c09d8b64bc0182733a60ac3d8c253e334cde8294520ff1",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/aiosqlite--licenses--LICENSE": {
+      "sha256": "ab0c171dc3ef8bf325a84bb77d855421f2611335ddf6e08816b2922c4edc0f76",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/annotated-doc--licenses--LICENSE": {
+      "sha256": "fff170779a6acbf65abdb405c087f1cee1786691e4a96a4034517e4a504a0cdf",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/annotated-types--licenses--LICENSE": {
+      "sha256": "fe1049884b1a0d9342901e88e07f32925d24b3121d9972b6a6805fb9824b095d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/anyio--licenses--LICENSE": {
+      "sha256": "5361ac9dc58f2ef5fd2e9b09c68297c17f04950909bbc8023bdb82eacf22c2b0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/apscheduler--licenses--LICENSE.txt": {
+      "sha256": "6163f7987dfb38d6bc320ce2b70b2f02b862bc41126516d552ef1cd43247e758",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/beautifulsoup4--licenses--LICENSE": {
+      "sha256": "55b4d8d4b1e5bc86d10efac91b74c87bcb77526b0f5b9edaf8b9cd2adc7397b2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/boto3--LICENSE": {
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/boto3--NOTICE": {
+      "sha256": "04fb1e61484a7810f1ba09bb42bc01ca58c9af33927d7c5a21556e4c4d1c7fa4",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/botocore--LICENSE.txt": {
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/botocore--NOTICE": {
+      "sha256": "1d1c5a6f3d68cb11f4fad1afa86a7450d0286f15c176ef0ea048f255b46d95b0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/cachetools--licenses--LICENSE": {
+      "sha256": "28c000b52b0ee27138a68ef778227e4057046e86b65f62f1cacb99b0cc49e0d2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/certifi--licenses--LICENSE": {
+      "sha256": "e93716da6b9c0d5a4a1df60fe695b370f0695603d21f6f83f053e42cfc10caf7",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/click--licenses--LICENSE.txt": {
+      "sha256": "9a8ad106a394e853bfe21f42f4e72d592819a22805d991b5f3275029292b658d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/colorama--licenses--LICENSE.txt": {
+      "sha256": "cac35c02686e5d04a5a7140bfb3b36e73aed496656e891102e428886d7930318",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/fastapi--licenses--LICENSE": {
+      "sha256": "4ec89ffc81485b97fec584b2d4a961032eeffe834453894fd9c1274906cc744e",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/h11--licenses--LICENSE.txt": {
+      "sha256": "37db5bb85926db28a427a25867f10b1232003aea1be69ccb851138adb8e6f361",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/httpcore--licenses--LICENSE.md": {
+      "sha256": "fdcb59154c74cbaba16a11242f7740bea9f23d6feb5547917d8c5f94a80392a5",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/httptools--licenses--LICENSE": {
+      "sha256": "f4573e7cb7676745fb5b8d36fa548aa93e391cfb6872ddacd65130c45ea6a92d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/httptools--licenses--vendor--http-parser--LICENSE-MIT": {
+      "sha256": "79e6ba8b687cb54786207342b9b6fcee0ac10218453ed9009b84d949b2233cc0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/httptools--licenses--vendor--llhttp--LICENSE": {
+      "sha256": "628168d68bb5a8a17e0bbefb3bd74e326e1edc20583d76f52f457c82c921867d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/httpx--licenses--LICENSE.md": {
+      "sha256": "4ec59d544f12b5f539a3a716fd321ac58ccd8030b465221f2c880200cdf28d8d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/idna--licenses--LICENSE.md": {
+      "sha256": "1a9a4f0e3d479a27240ddd59a9137a66ab4a0f9dfdc8ca6188cc0bfd85187f04",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/jinja2--licenses--LICENSE.txt": {
+      "sha256": "3b49dcee4105eb37bac10faf1be260408fe85d252b8e9df2e0979fc1e094437b",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/jmespath--LICENSE": {
+      "sha256": "6eefacfa4d71b82d08408c751470ac8d9854538da2142cb27be0287fb13d0ab9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/lxml--licenses--LICENSE.txt": {
+      "sha256": "8fc2b568133516e46845d2147917adeee1648e70ae9ab5ed6c5417afef4ce855",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/lxml--licenses--LICENSES.txt": {
+      "sha256": "41d49dd406aa0e1548a6d5f21a30d6bf638b3cd96eb7289dd348d83ed2e40392",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/markdown--licenses--LICENSE.md": {
+      "sha256": "7ba4eb6d10b32b2d11dce13821340351cdbbb30ba8ccc67841db2ffd86e79aca",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/markupsafe--licenses--LICENSE.txt": {
+      "sha256": "489a8e1108509ed98a37bb983e11e0f7e1d31f0bd8f99a79c8448e7ff37d07ea",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/pillow--licenses--LICENSE": {
+      "sha256": "dda12a98c1979cf3d94df1cff45d27a4cb3f04a60c76f76902ac54cac03ec0ce",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/pydantic--licenses--LICENSE": {
+      "sha256": "a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/pydantic-core--licenses--LICENSE": {
+      "sha256": "2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/pydantic-settings--licenses--LICENSE": {
+      "sha256": "eb355a753e020346d33d83bf9769135b89fc610568ac531a01c295bcee7fd998",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/python-dateutil--LICENSE": {
+      "sha256": "ba00f51a0d92823b5a1cde27d8b5b9d2321e67ed8da9bc163eff96d5e17e577e",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/python-dotenv--licenses--LICENSE": {
+      "sha256": "80619b7049f08c81683ad0e01f08f257a840652dd71ee83146d36658c7d2c2b9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/pyyaml--licenses--LICENSE": {
+      "sha256": "8d3928f9dc4490fd635707cb88eb26bd764102a7282954307d3e5167a577e8a4",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/resvg-py--licenses--LICENSE": {
+      "sha256": "753a9e3c09cece8584467a0f605e065005c2a5e5c6da4f0cbb0493d2d52b96f6",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/s3transfer--LICENSE.txt": {
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/s3transfer--NOTICE.txt": {
+      "sha256": "d8354e0fa7fb762da7bc054a8a6774a0b310dfbbc78006393ee573a0e57612b5",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/sentry-sdk--licenses--LICENSE": {
+      "sha256": "2a140d660f462812fa290bc740d04633126c5ec45d84b79b569e127b0eeddd0b",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/six--LICENSE": {
+      "sha256": "4375ba20e2b9c6c4e7cad2940a628fd90e95cc3d50ee92aae755715d8ba1fbd0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/soupsieve--licenses--LICENSE.md": {
+      "sha256": "76a0acdb98c3a63681e20b6f096699ef8cad5fb35d56eef8387e0fa71d797a9a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/starlette--licenses--LICENSE.md": {
+      "sha256": "dcb95677a02240243187e964f941847d19b17821cf99e5afae684fab328c19bf",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/typing-extensions--licenses--LICENSE": {
+      "sha256": "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/typing-inspection--licenses--LICENSE": {
+      "sha256": "804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/tzlocal--LICENSE.txt": {
+      "sha256": "d99ab209aeb16aad2c25c90ffd83c1a981e290ffff76a420a2ab03e03f041b8c",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/urllib3--licenses--LICENSE.txt": {
+      "sha256": "130e3a64d5fdd5d096a752694634a7d9df284469de86e5732100268041e3d686",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/uvicorn--licenses--LICENSE.md": {
+      "sha256": "efe1acf3e62fb99c288b0ec73e5a773b7268ef4320fe757ea994214e4b63c371",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/uvloop--licenses--LICENSE-APACHE": {
+      "sha256": "377025287798f9dcd819e1f826fa5fc5e2f382528691ab0528c5cf8c8c282c27",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/uvloop--licenses--LICENSE-MIT": {
+      "sha256": "6dd4c399f26de043d77a2ad7e31db4cb5bf08ea8368b0a42d6e158635cc8ab62",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/watchfiles--licenses--LICENSE": {
+      "sha256": "4fd78355b67ce2677ede9fb6f63a250f377bb7e22088136a5f4699adb4bc069f",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/dependencies/websockets--licenses--LICENSE": {
+      "sha256": "3d6a0c050d8bec52fabad502e45fb25bd02bcadbd70dea34d447b6a0ff4e6da8",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native.json": {
+      "sha256": "3e165ed8cd7141511965e8da6181dfb5fb131e0d7ee2cfe4d18f636faf9e7b1d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/adler2-2.0.1--LICENSE-0BSD": {
+      "sha256": "861399f8c21c042b110517e76dc6b63a2b334276c8cf17412fc3c8908ca8dc17",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/adler2-2.0.1--LICENSE-APACHE": {
+      "sha256": "8ada45cd9f843acf64e4722ae262c622a2b3b3007c7310ef36ac1061a30f6adb",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/adler2-2.0.1--LICENSE-MIT": {
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/arrayref-0.3.9--LICENSE": {
+      "sha256": "1bc7e6f475b3ec99b7e2643411950ae2368c250dd4c5c325f80f9811362a94a1",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/arrayvec-0.7.8--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/arrayvec-0.7.8--LICENSE-MIT": {
+      "sha256": "4da95ec4ecb65b738d470b7d762894ad9c97da93e6cbfb18b570fc2c96f4b871",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/autocfg-1.5.1--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/autocfg-1.5.1--LICENSE-MIT": {
+      "sha256": "27995d58ad5c1145c1a8cd86244ce844886958a35eb2b78c6b772748669999ac",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/base64-0.23.1--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/base64-0.23.1--LICENSE-MIT": {
+      "sha256": "ab499c75a0f0da8e0fe83bf9ba3a27e5c39705310f07107c6c66b69958d2401c",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/bitflags-2.13.1--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/bitflags-2.13.1--LICENSE-MIT": {
+      "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/bytemuck-1.25.2--LICENSE-APACHE": {
+      "sha256": "e3ba223bb1423f0aad8c3dfce0fe3148db48926d41e6fbc3afbbf5ff9e1c89cb",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/bytemuck-1.25.2--LICENSE-MIT": {
+      "sha256": "9df9ba60a11af705f2e451b53762686e615d86f76b169cf075c3237730dbd7e2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/bytemuck-1.25.2--LICENSE-ZLIB": {
+      "sha256": "84b34dd7608f7fb9b17bd588a6bf392bf7de504e2716f024a77d89f1b145a151",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/bytemuck_derive-1.12.0--LICENSE-APACHE": {
+      "sha256": "e3ba223bb1423f0aad8c3dfce0fe3148db48926d41e6fbc3afbbf5ff9e1c89cb",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/bytemuck_derive-1.12.0--LICENSE-MIT": {
+      "sha256": "9df9ba60a11af705f2e451b53762686e615d86f76b169cf075c3237730dbd7e2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/bytemuck_derive-1.12.0--LICENSE-ZLIB": {
+      "sha256": "84b34dd7608f7fb9b17bd588a6bf392bf7de504e2716f024a77d89f1b145a151",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/byteorder-lite-0.1.0--LICENSE-MIT": {
+      "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/byteorder-lite-0.1.0--UNLICENSE": {
+      "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/cfg-if-1.0.4--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/cfg-if-1.0.4--LICENSE-MIT": {
+      "sha256": "378f5840b258e2779c39418f3f2d7b2ba96f1c7917dd6be0713f88305dbda397",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/color_quant-1.1.0--LICENSE": {
+      "sha256": "592dc80f1a865d20d61a2006a2d29ce34a2bc28cd7e868ab300fdeed6da154ca",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/crc32fast-1.5.0--LICENSE-APACHE": {
+      "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/crc32fast-1.5.0--LICENSE-MIT": {
+      "sha256": "61d383b05b87d78f94d2937e2580cce47226d17823c0430fbcad09596537efcf",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/data-url-0.3.2--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/data-url-0.3.2--LICENSE-MIT": {
+      "sha256": "b38f11f6096706e6de553dabe2a7ed142d59b6fa8c97e290c67496154745cdd5",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/euclid-0.22.14--COPYRIGHT": {
+      "sha256": "ec82b96487e9e778ee610c7ab245162464782cfa1f555c2299333f8dbe5c036a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/euclid-0.22.14--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/euclid-0.22.14--LICENSE-MIT": {
+      "sha256": "62065228e42caebca7e7d7db1204cbb867033de5982ca4009928915e4095f3a3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/fdeflate-0.3.7--LICENSE-APACHE": {
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/fdeflate-0.3.7--LICENSE-MIT": {
+      "sha256": "c77a4cf9da729987d0fe7ccd811e3bd27393914ddf3d23467c18cc22954513b3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/flate2-1.1.9--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/flate2-1.1.9--LICENSE-MIT": {
+      "sha256": "025436edff4cfcdde17a5811fdea78892d8482efd1abdec5a17872d07a4f2112",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/float-cmp-0.9.0--LICENSE": {
+      "sha256": "40be1e77825d7e49485a2e43d89bed29dfff29f8f529e71d3c683656021f0d08",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/font-types-0.12.3--LICENSE-APACHE": {
+      "sha256": "eba684204073ed715c4abb48129acdfd2bff8ae48339e6a7da3b341d3027b7f0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/font-types-0.12.3--LICENSE-MIT": {
+      "sha256": "7b4c9a3946dfcea7967582760e963e27799e225dcf20565c8ef55324bb017427",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/fontconfig-parser-0.5.8--LICENSE": {
+      "sha256": "1f90908c18012716ff9965086920050b7d31ad2a9da41e3473a6a5a46e9c908f",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/fontdb-0.24.0--LICENSE": {
+      "sha256": "59a1fdac3bd550043599bd159fd70f09a1108c2b09e3751d39b11e1ff8e51f00",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/fontdb-0.24.0--tests--fonts--LICENSE.txt": {
+      "sha256": "b84fdd2c3da5db56385cdbb639795e90aa3e035c53bc3591135f18df3331451f",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/gif-0.14.2--LICENSE-APACHE": {
+      "sha256": "769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/gif-0.14.2--LICENSE-MIT": {
+      "sha256": "77257f3d2181236b1aee78920238062ae64efe13c5d858b2db126e79c9e1b14f",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/harfrust-0.12.0--LICENSE": {
+      "sha256": "3a7c3f0b887abb7c638faf022d29257418458614c6724b120ceeffb279f9c7d2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/heck-0.5.0--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/heck-0.5.0--LICENSE-MIT": {
+      "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/image-webp-0.2.4--LICENSE-APACHE": {
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/image-webp-0.2.4--LICENSE-MIT": {
+      "sha256": "c77a4cf9da729987d0fe7ccd811e3bd27393914ddf3d23467c18cc22954513b3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/imagesize-0.15.0--LICENSE": {
+      "sha256": "fa0d694967d5c279e70a5c7b7e4b9929e4c1c8c1b8506998e66fc2f1547b200a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/kurbo-0.13.1--LICENSE-APACHE": {
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/kurbo-0.13.1--LICENSE-MIT": {
+      "sha256": "23c23145f6eac25c28cdcc03d38506a5712a9a8cffb5bd5301457f6173ea696e",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/libc-0.2.189--LICENSE-APACHE": {
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/libc-0.2.189--LICENSE-MIT": {
+      "sha256": "123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/log-0.4.34--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/log-0.4.34--LICENSE-MIT": {
+      "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/memchr-2.8.3--COPYING": {
+      "sha256": "01c266bced4a434da0051174d6bee16a4c82cf634e2679b6155d40d75012390f",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/memchr-2.8.3--LICENSE-MIT": {
+      "sha256": "0f96a83840e146e43c0ec96a22ec1f392e0680e6c1226e6f3ba87e0740af850f",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/memchr-2.8.3--UNLICENSE": {
+      "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/memmap2-0.9.11--LICENSE-APACHE": {
+      "sha256": "04ea4849dba9dcae07113850c6f1b1a69052c625210639914eee352023f750ad",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/memmap2-0.9.11--LICENSE-MIT": {
+      "sha256": "0d25d03b5ab49576178ad0cae7a2648d12c17ad0452fe49c07e55e4b59aa5257",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/miniz_oxide-0.8.9--LICENSE": {
+      "sha256": "4108245a1f2df9d4e94df8abed5b4ba0759bb2f9b40a6b939f1be141077ae50b",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/miniz_oxide-0.8.9--LICENSE-APACHE.md": {
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/miniz_oxide-0.8.9--LICENSE-MIT.md": {
+      "sha256": "799e9ca9d179295ef372f25d3769cdda7d25bb2668add6a6a1e22d1e4c678b8d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/miniz_oxide-0.8.9--LICENSE-ZLIB.md": {
+      "sha256": "0a54e647fe54104658b5e563c04c6f9edf251710e47bce692e0bd990a4ddaa39",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/num-traits-0.2.19--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/num-traits-0.2.19--LICENSE-MIT": {
+      "sha256": "6485b8ed310d3f0340bf1ad1f47645069ce4069dcc6bb46c7d5c6faf41de1fdb",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/once_cell-1.21.4--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/once_cell-1.21.4--LICENSE-MIT": {
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pico-args-0.5.0--LICENSE": {
+      "sha256": "f71452d91682fdae0ca948b18cfed53a953d1237740dd80371c76a5c1c7bbe91",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/png-0.18.1--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/png-0.18.1--LICENSE-MIT": {
+      "sha256": "eaf40297c75da471f7cda1f3458e8d91b4b2ec866e609527a13acfa93b638652",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/polycool-0.4.0--LICENSE-APACHE": {
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/polycool-0.4.0--LICENSE-MIT": {
+      "sha256": "23c23145f6eac25c28cdcc03d38506a5712a9a8cffb5bd5301457f6173ea696e",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/portable-atomic-1.15.0--LICENSE-APACHE": {
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/portable-atomic-1.15.0--LICENSE-MIT": {
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/proc-macro2-1.0.107--LICENSE-APACHE": {
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/proc-macro2-1.0.107--LICENSE-MIT": {
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-0.29.2--LICENSE-APACHE": {
+      "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-0.29.2--LICENSE-MIT": {
+      "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-0.29.2--pyo3-runtime--LICENSE-APACHE": {
+      "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-0.29.2--pyo3-runtime--LICENSE-MIT": {
+      "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-build-config-0.29.2--LICENSE-APACHE": {
+      "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-build-config-0.29.2--LICENSE-MIT": {
+      "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-ffi-0.29.2--LICENSE-APACHE": {
+      "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-ffi-0.29.2--LICENSE-MIT": {
+      "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-macros-0.29.2--LICENSE-APACHE": {
+      "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-macros-0.29.2--LICENSE-MIT": {
+      "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-macros-backend-0.29.2--LICENSE-APACHE": {
+      "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/pyo3-macros-backend-0.29.2--LICENSE-MIT": {
+      "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/quick-error-2.0.1--LICENSE-APACHE": {
+      "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/quick-error-2.0.1--LICENSE-MIT": {
+      "sha256": "058f01fe181608d027fcde7e528fc03ea3cf90f30903c407644b0a9bbc54f500",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/quote-1.0.47--LICENSE-APACHE": {
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/quote-1.0.47--LICENSE-MIT": {
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/read-fonts-0.41.0--LICENSE-APACHE": {
+      "sha256": "eba684204073ed715c4abb48129acdfd2bff8ae48339e6a7da3b341d3027b7f0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/read-fonts-0.41.0--LICENSE-MIT": {
+      "sha256": "7b4c9a3946dfcea7967582760e963e27799e225dcf20565c8ef55324bb017427",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/resvg-0.48.1--LICENSE-APACHE": {
+      "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/resvg-0.48.1--LICENSE-MIT": {
+      "sha256": "f5d934dc281b44e0003ee461ac740b18b6629a454decd872c774d34e4ee0b21d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/rgb-0.8.53--LICENSE": {
+      "sha256": "457b464bc0fba8a3d67d2458569104f5611869f0c1563a1a12d9c51a0bca9261",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/roxmltree-0.20.0--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/roxmltree-0.20.0--LICENSE-MIT": {
+      "sha256": "fffe218c1e349e1d482a05677f2ce850502f88298174d77f6ac7c04821db7899",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/roxmltree-0.21.1--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/roxmltree-0.21.1--LICENSE-MIT": {
+      "sha256": "fffe218c1e349e1d482a05677f2ce850502f88298174d77f6ac7c04821db7899",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/simd-adler32-0.3.10--LICENSE.md": {
+      "sha256": "42a35170233e83e18856792e748de4c1ce4a63b2afce9a370c89ef3fe23f9f2d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/simplecss-0.2.2--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/simplecss-0.2.2--LICENSE-MIT": {
+      "sha256": "0b5f24524360e15bcf9fb79bca875f5aa62f01f94f2988e23238c7ec0e6e8784",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/siphasher-1.0.3--COPYING": {
+      "sha256": "c962ee4d1d05ddc138b202b2540219ebc57893fcf97b364852094a9a94ce1365",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/skrifa-0.44.0--LICENSE-APACHE": {
+      "sha256": "eba684204073ed715c4abb48129acdfd2bff8ae48339e6a7da3b341d3027b7f0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/skrifa-0.44.0--LICENSE-MIT": {
+      "sha256": "7b4c9a3946dfcea7967582760e963e27799e225dcf20565c8ef55324bb017427",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/slotmap-1.1.1--LICENSE": {
+      "sha256": "6cec81441b2ab2b5090954c1fb5d0bcca81b86487b5849061fa8952d20ef67d4",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/smallvec-1.15.2--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/smallvec-1.15.2--LICENSE-MIT": {
+      "sha256": "0b28172679e0009b655da42797c03fd163a3379d5cfa67ba1f1655e974a2a1a9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/strict-num-0.1.1--LICENSE": {
+      "sha256": "3085885678bb161f6c472bbd331f66a2550b555eb76128f7f8247779128199c0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/svgtypes-0.16.1--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/svgtypes-0.16.1--LICENSE-MIT": {
+      "sha256": "f3c9fe731c701ed77fd5fbaac573872af04dc5869385eb9bd5e3c73c42713814",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/syn-2.0.119--LICENSE-APACHE": {
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/syn-2.0.119--LICENSE-MIT": {
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/syn-3.0.3--LICENSE-APACHE": {
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/syn-3.0.3--LICENSE-MIT": {
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/target-lexicon-0.13.5--LICENSE": {
+      "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/tiny-skia-0.12.0--LICENSE": {
+      "sha256": "6d41e05f1d54fe726997cb0334ec539f1dff50600b1d5d90462ec2b392770ced",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/tiny-skia-path-0.12.0--LICENSE": {
+      "sha256": "6d41e05f1d54fe726997cb0334ec539f1dff50600b1d5d90462ec2b392770ced",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/tinyvec-1.12.0--LICENSE-APACHE.md": {
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/tinyvec-1.12.0--LICENSE-MIT.md": {
+      "sha256": "fd80a26fbb3f644af1fa994134446702932968519797227e07a1368dea80f0bc",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/tinyvec-1.12.0--LICENSE-ZLIB.md": {
+      "sha256": "84b34dd7608f7fb9b17bd588a6bf392bf7de504e2716f024a77d89f1b145a151",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/tinyvec_macros-0.1.1--LICENSE-APACHE.md": {
+      "sha256": "4f44572785f35152c1fd2eadf565b7e079c0f300b4324f0af653419f9d76b735",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/tinyvec_macros-0.1.1--LICENSE-MIT.md": {
+      "sha256": "1dd8eca0f83669e75fa119e34fb9e1be9d16e3e9b6368962b8019db6e8ae5f7b",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/tinyvec_macros-0.1.1--LICENSE-ZLIB.md": {
+      "sha256": "41ace205715d9f19a3214218cc1c01d57c533e02cd0fef7c8e51a49a7fce5ac5",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/unicode-bidi-0.3.18--COPYRIGHT": {
+      "sha256": "edb20b474f6cbd4f4db066b54a9e0f687d0009d309412a63431189b59b8e2a07",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/unicode-bidi-0.3.18--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/unicode-bidi-0.3.18--LICENSE-MIT": {
+      "sha256": "7b63ecd5f1902af1b63729947373683c32745c16a10e8e6292e2e2dcd7e90ae0",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/unicode-ident-1.0.24--LICENSE-APACHE": {
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/unicode-ident-1.0.24--LICENSE-MIT": {
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/unicode-ident-1.0.24--LICENSE-UNICODE": {
+      "sha256": "f7db81051789b729fea528a63ec4c938fdcb93d9d61d97dc8cc2e9df6d47f2a1",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/unicode-script-0.5.8--LICENSE-APACHE": {
+      "sha256": "7cbb56d1b5d83d735056b363ab20958524120afafc4ad8206e6be98cdec5d737",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/unicode-script-0.5.8--LICENSE-MIT": {
+      "sha256": "7ad3ea8ca3caf894db98c3f31d5d4949173ffa93c883ef19a9e529ad48960f8c",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/unicode-vo-0.1.0--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/unicode-vo-0.1.0--LICENSE-MIT": {
+      "sha256": "0b5f24524360e15bcf9fb79bca875f5aa62f01f94f2988e23238c7ec0e6e8784",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/usvg-0.48.1--LICENSE-APACHE": {
+      "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/usvg-0.48.1--LICENSE-MIT": {
+      "sha256": "f5d934dc281b44e0003ee461ac740b18b6629a454decd872c774d34e4ee0b21d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/version_check-0.9.5--LICENSE-APACHE": {
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/version_check-0.9.5--LICENSE-MIT": {
+      "sha256": "b7e650f3fce5c53249d1cdc608b54df156a97edd636cf9d23498d0cfe7aec63e",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/weezl-0.1.12--LICENSE-APACHE": {
+      "sha256": "769f80b5bcb42ed0af4e4d2fd74e1ac9bf843cb80c5a29219d1ef3544428a6bb",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/weezl-0.1.12--LICENSE-MIT": {
+      "sha256": "573f5227db835cd30bbdd3aed3f82615f80119a4d5c82b4daf642dbfe2b6afde",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/xmlwriter-0.1.0--LICENSE": {
+      "sha256": "2cdce1ff4ca8f455ef169691ea493407e23c32ecdea5fd9b3a6fc82be5b49b5a",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/zune-core-0.5.3--LICENSE-APACHE": {
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/zune-core-0.5.3--LICENSE-MIT": {
+      "sha256": "d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/zune-core-0.5.3--LICENSE-ZLIB": {
+      "sha256": "d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/zune-jpeg-0.5.15--LICENSE-APACHE": {
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/zune-jpeg-0.5.15--LICENSE-MIT": {
+      "sha256": "d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/native/zune-jpeg-0.5.15--LICENSE-ZLIB": {
+      "sha256": "d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/resvg-APACHE.txt": {
+      "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "licenses/resvg-MIT.txt": {
+      "sha256": "f5d934dc281b44e0003ee461ac740b18b6629a454decd872c774d34e4ee0b21d",
+      "license": "Third-party notices; see file",
+      "author": "Original authors named in each notice",
+      "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
+      "reviewed_on": "2026-09-09"
+    },
+    "seasons/2025.json": {
+      "sha256": "0e121cfaf1c9aae9debb85f2fe374e3252470b6136e91aa7eb7a694a7b612ed2",
+      "license": "CC-BY-NC-SA-4.0",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "source": "https://api.jolpi.ca/ergast/f1/2025.json",
+      "reviewed_on": "2026-09-09"
+    },
+    "seasons/2025_teams.json": {
+      "sha256": "acf3f4ddf1fb9cacb846a94b2ce3d1ebe1018bdc9fc7786208c05d3f2a303120",
+      "license": "CC-BY-SA-4.0",
+      "author": "Wikipedia contributors",
+      "source": "https://en.wikipedia.org/wiki/2025_Formula_One_World_Championship",
+      "reviewed_on": "2026-09-09"
+    },
+    "seasons/2026.json": {
+      "sha256": "a06d52f51a541d6da459075732fe3d51d292de7a0f9a5088360ca33167ada5fb",
+      "license": "CC-BY-NC-SA-4.0",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "source": "https://api.jolpi.ca/ergast/f1/2026.json",
+      "reviewed_on": "2026-09-09"
+    },
+    "seasons/2026_teams.json": {
+      "sha256": "869a4f124de7ec507c3dcd11819fd0f616847c8d42321148b97312086433228d",
+      "license": "CC-BY-SA-4.0",
+      "author": "Wikipedia contributors",
+      "source": "https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship",
+      "reviewed_on": "2026-09-09"
+    },
+    "seasons/2027.json": {
+      "sha256": "633dffd1042b5b3b73d7d4bc49714b7e33df2278b7679c86284dce309fd38882",
+      "license": "CC-BY-NC-SA-4.0",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "source": "https://api.jolpi.ca/ergast/f1/2027.json",
+      "reviewed_on": "2026-09-09"
+    },
+    "track_art/JULES-LICENSE.txt": {
+      "sha256": "d3f2bda6cdcbf904aa7f3e6bfc09c41aa19986ab721d05433081d968f426bdf4",
+      "license": "Per-file CC-BY-4.0 / CC-BY-SA-4.0 / CC-BY-SA-3.0 / CC0-1.0",
+      "author": "ROY Jules and individually listed Commons authors",
+      "source": "/credits",
+      "reviewed_on": "2026-09-09"
+    },
+    "track_art/catalog.json": {
+      "sha256": "bee3b016e095f88f1fff5fea5bd516e46f0e8eaaee3367c346e28a57b688a49f",
+      "license": "Per-file CC-BY-4.0 / CC-BY-SA-4.0 / CC-BY-SA-3.0 / CC0-1.0",
+      "author": "ROY Jules and individually listed Commons authors",
+      "source": "/credits",
+      "reviewed_on": "2026-09-09"
+    },
+    "js/web-vitals.js": {
+      "sha256": "f88532fa800e24f8e73404947b65f1b13535e5c1e08b32104cc1f0e55178aed5",
+      "license": "Apache-2.0",
+      "author": "Google LLC / Web Vitals contributors",
+      "source": "https://github.com/GoogleChrome/web-vitals/tree/v6.2.1",
+      "reviewed_on": "2026-09-11",
+      "provenance_note": "Pinned npm web-vitals 6.2.1 standard build, hosted locally; source map link removed. Apache-2.0 notice distributed alongside."
+    },
+    "licenses/web-vitals-LICENSE.txt": {
+      "sha256": "bfdeded4040e05da31ca9b6239dc83bd23fa26ac8db87342a7ca4363f68916ff",
+      "license": "Apache-2.0",
+      "author": "Google LLC / Web Vitals contributors",
+      "source": "https://github.com/GoogleChrome/web-vitals/tree/v6.2.1",
+      "reviewed_on": "2026-09-11",
+      "provenance_note": "Pinned npm web-vitals 6.2.1 standard build, hosted locally; source map link removed. Apache-2.0 notice distributed alongside."
+    }
+  }
+}

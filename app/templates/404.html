@@ -42,7 +42,7 @@
           {{ t.get('nav_home', 'Home') }}
         </span>
         <strong class="block text-base">
-          {{ t.get('site_name', 'F1 E-Ink Calendar') }}
+          {{ t.get('site_name', 'F1.InkyCloud.click') }}
         </strong>
       </a>
       <a
@@ -56,7 +56,7 @@
           {{ t.get('screen_calendar_name', 'Calendar') }}
         </strong>
       </a>
-      <a
+      {% if not minimal_data_mode %}<a
         href="{{ lang_url('/stats') }}"
         class="block border-2 border-black p-4 hover:bg-black hover:text-white transition-colors"
       >
@@ -66,7 +66,7 @@
         <strong class="block text-base">
           {{ t.get('stats_24h', 'Last 24 Hours') }}
         </strong>
-      </a>
+      </a>{% endif %}
       <a
         href="{{ lang_url('/privacy') }}"
         class="block border-2 border-black p-4 hover:bg-black hover:text-white transition-colors"

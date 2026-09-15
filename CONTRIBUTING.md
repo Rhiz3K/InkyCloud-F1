@@ -51,6 +51,19 @@ uv run ruff format .
 uv run mypy
 ```
 
+### Browser scripts
+
+Run `npm ci`, `npm run check:js`, and `npm run test:js` to verify browser behavior,
+functional preferences, and the sampled numeric-only performance collector.
+When editing a distributed asset, review the change and update only its SHA-256 entry in
+`app/assets/asset-register.json`. Verify source and release contents with
+`uv run python scripts/check_legal_assets.py`; do not automatically approve unknown files.
+
+The default `MINIMAL_DATA_MODE=false` with `AGGREGATE_STATS_ONLY=true` retains hourly
+usage totals and coarse performance histograms. Application/access logs stay disabled;
+explicit `MINIMAL_DATA_MODE=true` disables collection entirely. See
+[the profile documentation](docs/data-collection.md) for configuration and retention.
+
 ### Running Tests
 
 ```bash
@@ -151,7 +164,7 @@ InkyCloud-F1/
 │       ├── database.py      # SQLite operations
 │       ├── scheduler.py     # APScheduler background jobs
 │       ├── backup.py        # S3 database backup
-│       ├── analytics.py     # Umami analytics
+│       ├── analytics.py     # optional server-side aggregate analytics
 │       └── i18n.py          # Translations
 ├── scripts/             # Data update & preprocessing utilities
 ├── translations/        # i18n JSON files (13 supported locales)

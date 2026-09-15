@@ -1,0 +1,22 @@
+<style>
+  .track-control { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 6px; align-items: center; }
+  .track-control label { font-size: 10px; line-height: 1.25; font-weight: 700; }
+  .track-control select { width: 100%; min-width: 0; min-height: 30px; padding: 4px; border: 2px solid #000; background: #fff; font-size: 12px; }
+  #track-art-hint { font-size: 10px; line-height: 1.4; }
+</style>
+<section id="track-options" class="p-2 border-b-2 border-black space-y-2 flex-shrink-0" aria-label="{{ track_ui.styleLabel }}">
+  {% for field, label, choices in [('style', track_ui.styleLabel, track_ui.styles), ('source', track_ui.sourceLabel, track_ui.sources), ('accent', track_ui.accentLabel, track_ui.accents)] %}
+  <div class="track-control">
+    <label for="track-{{ field }}">{{ label }}</label>
+    <select id="track-{{ field }}" name="track_{{ field }}"
+      class="focus:ring-2 focus:ring-racing-red"
+      aria-describedby="track-art-hint">
+      {% for choice in choices %}
+      <option value="{{ choice.id }}" {% if choice.id == track_ui.defaults[field] %}selected{% endif %}>{{ choice.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endfor %}
+  <p id="track-art-hint" class="text-xs text-gray-600">{{ track_ui.hint }}</p>
+  <a class="text-xs underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ track_ui.creditsLabel }}</a>
+</section>

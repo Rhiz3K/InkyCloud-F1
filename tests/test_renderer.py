@@ -1,7 +1,6 @@
 """Test renderer service."""
 
 from datetime import datetime, timedelta, timezone
-from hashlib import sha256
 from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -9,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image, ImageDraw, ImageOps
 
+from app.config import LANGUAGE_CODES
 from app.models import (
     ConstructorInfo,
     DriverInfo,
@@ -175,46 +175,37 @@ def mock_ranked_teams_data():
     )
 
 
-@pytest.mark.parametrize(
-    ("display", "calendar_hash", "teams_hash"),
-    [
-        (
-            "1bit",
-            "2650ed2bca8e79d91f4f03b59a472fbc702e60e070ba6151f9c4feda8140b1b6",
-            "b0ec1a3d41b48ada3963a2a24dbe937d8d7eb14c51182ecd78855adfbcffa570",
-        ),
-        (
-            "bwr",
-            "a5f9605c0a102654267c01680348ccfd4e5dac10902d5c7872fa4b66418ed392",
-            "b3580bbcda260d58572949d1fd0f328c8eaf0531294ab42394e8960ef061cfa8",
-        ),
-        (
-            "bwry",
-            "8a2ad75ab60dc36e94d8055128c42352237b201a71b7b04199fa63f7373d635f",
-            "d249ab66d019454df6b92859841a086b4786e94d6e0a0bb5d2f15926068cd578",
-        ),
-        (
-            "spectra6",
-            "c6f06ed40cd9f4190fa78960b031720f37723a203ac81ca4749b187df8ad91cf",
-            "4d504a91a75965799d7e05c9041447aa1be5f21349e781dd7a7073b6b8c74547",
-        ),
-    ],
-)
-def test_refactored_renderers_remain_byte_identical(
-    display,
-    calendar_hash,
-    teams_hash,
-    mock_race_data,
-    mock_historical_data,
-    mock_ranked_teams_data,
+@pytest.mark.parametrize("display", ["1bit", "bwr", "bwry", "spectra6"])
+def test_restored_artwork_preserves_display_contract(
+    display, mock_race_data, mock_historical_data, mock_ranked_teams_data
 ):
-    """Lock every display mode to the pre-refactor calendar and teams BMP bytes."""
     renderer = create_renderer(display, get_translator("en"), "en")
-
-    assert sha256(renderer.render_calendar(mock_race_data, mock_historical_data)).hexdigest() == (
-        calendar_hash
-    )
-    assert sha256(renderer.render_teams_drivers(mock_ranked_teams_data)).hexdigest() == teams_hash
+    for data in [
+        renderer.render_calendar(mock_race_data, mock_historical_data),
+        renderer.render_teams_drivers(mock_ranked_teams_data),
+    ]:
+        with Image.open(BytesIO(data)) as image:
+            assert image.size == (800, 480)
+            assert image.format == "BMP"
+            assert (
+                len(image.convert("RGB").getcolors(256))
+                <= {"1bit": 2, "bwr": 3, "bwry": 4, "spectra6": 6}[display]
+            )
+    assert set(renderer._team_logos) == {
+        "alpine",
+        "aston_martin",
+        "audi",
+        "cadillac",
+        "ferrari",
+        "haas",
+        "mclaren",
+        "mercedes",
+        "racing_bulls",
+        "red_bull",
+        "sauber",
+        "williams",
+    }
+    assert renderer._driver_photos == {}
 
 
 def test_render_calendar_english(mock_race_data):
@@ -1012,6 +1003,75 @@ def test_render_calendar_with_new_track(mock_race_data):
     assert img.format == "BMP"
     assert img.size == (800, 480)
     assert img.mode == "1"
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, BwrRenderer, BwryRenderer, Spectra6Renderer])
+@pytest.mark.parametrize("missing_history", [True, False])
+def test_new_track_keeps_flag_and_result_placeholders(
+    renderer_cls, missing_history, mock_race_data, mock_historical_data
+):
+    """Unavailable history keeps the flag and both podium columns without stale results."""
+    renderer = renderer_cls(get_translator("en"))
+    mock_race_data["circuit"]["country"] = "Spain"
+    history = (
+        None if missing_history else mock_historical_data.model_copy(update={"is_new_track": True})
+    )
+    image = renderer._new_canvas()
+    draw = MagicMock(wraps=ImageDraw.Draw(image))
+
+    renderer._draw_results_section(draw, image, mock_race_data, history)
+
+    texts = [call.args[1] for call in draw.text.call_args_list]
+    assert texts.count("NEW TRACK") == 1
+    assert not any("N/A" in text for text in texts)
+    assert sum(text.endswith(" -") for text in texts) == 6
+    assert all(
+        call.args[0][0] >= renderer.layout["results_col1_x"] for call in draw.text.call_args_list
+    )
+    assert "2023" not in texts
+    assert not any("Verstappen" in text for text in texts)
+    for title_key in (
+        renderer.theme.qualifying_translation_key,
+        renderer.theme.race_translation_key,
+    ):
+        assert renderer.translator[title_key] in texts
+    for position in range(1, 4):
+        assert sum(text.startswith(f"{position}.") for text in texts) == 2
+
+    reference = renderer._new_canvas()
+    renderer._draw_results_section(
+        ImageDraw.Draw(reference), reference, mock_race_data, mock_historical_data
+    )
+    flag_bounds = (0, 420, renderer.layout["results_col1_x"], renderer.height)
+    assert image.crop(flag_bounds).tobytes() == reference.crop(flag_bounds).tobytes()
+    assert image.crop(flag_bounds).convert("L").getextrema() == (0, 255)
+
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, BwrRenderer, BwryRenderer, Spectra6Renderer])
+@pytest.mark.parametrize("lang", LANGUAGE_CODES)
+@pytest.mark.parametrize("country", ["Spain", "Unknown"])
+def test_new_track_badge_and_rows_fit_footer(renderer_cls, lang, country, mock_race_data):
+    """Every localized badge and row stays within the footer, even without a flag."""
+    renderer = renderer_cls(get_translator(lang), lang)
+    mock_race_data["circuit"]["country"] = country
+    image = renderer._new_canvas()
+    draw = MagicMock(wraps=ImageDraw.Draw(image))
+
+    renderer._draw_results_section(draw, image, mock_race_data, HistoricalData(is_new_track=True))
+
+    shadow = draw.rectangle.call_args_list[-2].args[0]
+    panel = draw.rectangle.call_args_list[-1].args[0]
+    assert renderer.layout["results_col1_x"] <= panel[0] < panel[2] < shadow[2] < renderer.width
+    assert renderer.layout["results_y_start"] < panel[1] < panel[3] < shadow[3] < renderer.height
+    for call in draw.text.call_args_list:
+        x0, y0, x1, y1 = draw.textbbox(call.args[0], call.args[1], font=call.kwargs["font"])
+        assert 0 <= x0 < x1 <= renderer.width
+        assert renderer.layout["results_y_start"] < y0 < y1 < renderer.height, call.args[1]
+        if call.args[1].endswith(" -"):
+            assert not (x0 < shadow[2] and x1 > panel[0] and y0 < shadow[3] and y1 > panel[1])
+        if call.args[1] == renderer.translator["new_track"]:
+            assert panel[0] < x0 < x1 < panel[2]
+            assert panel[1] < y0 < y1 < panel[3]
 
 
 def test_render_calendar_without_historical_data(mock_race_data):
@@ -1941,6 +2001,7 @@ def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch)
     renderer._ensure_teams_assets()
 
     assert renderer._team_logos["mclaren"].getpixel((0, 0))[:3] == (255, 135, 0)
+    assert renderer._driver_photos == {}
 
 
 def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch, mock_race_data):
@@ -1999,6 +2060,7 @@ def test_renderer_prefers_color_team_logo_assets_for_1bit_sizing(tmp_path, monke
     renderer._ensure_teams_assets()
 
     assert renderer._team_logos["mclaren"].size == (8, 4)
+    assert renderer._driver_photos == {}
 
 
 def test_spectra6_renderer_crops_audi_wordmark_to_primary_band():
@@ -2141,6 +2203,7 @@ def test_renderer_uses_monochrome_override_for_ferrari_in_1bit(tmp_path, monkeyp
     renderer._ensure_teams_assets()
 
     assert renderer._team_logos["ferrari"].getpixel((0, 0))[:3] == (0, 0, 0)
+    assert renderer._driver_photos == {}
 
 
 def test_renderer_uses_monochrome_override_for_red_bull_in_1bit(tmp_path, monkeypatch):
@@ -2163,6 +2226,7 @@ def test_renderer_uses_monochrome_override_for_red_bull_in_1bit(tmp_path, monkey
     renderer._ensure_teams_assets()
 
     assert renderer._team_logos["red_bull"].getpixel((0, 0))[:3] == (0, 0, 0)
+    assert renderer._driver_photos == {}
 
 
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])

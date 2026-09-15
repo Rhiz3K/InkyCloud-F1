@@ -13,6 +13,7 @@ from starlette.requests import Request
 
 from app.models import TeamEntry, TeamsData
 from app.routes import images
+from app.services.artifact_metadata import calendar_identity, write_artifact_metadata
 from app.services.image_keys import get_teams_image_key
 from app.services.weather_service import WeatherData
 from app.state import get_bmp_cache
@@ -284,6 +285,9 @@ async def test_render_calendar_ignores_weather_for_off_variant():
 async def test_calendar_endpoint_serves_pregenerated_file_and_error_fallback(tmp_path):
     pregenerated = tmp_path / "calendar.bmp"
     pregenerated.write_bytes(b"pregenerated")
+    await write_artifact_metadata(
+        pregenerated, b"pregenerated", calendar_identity({"season": 2026, "round": 1})
+    )
     f1 = SimpleNamespace(
         get_next_race_from_static=MagicMock(return_value={"season": 2026, "round": 1}),
         get_all_races_from_static=MagicMock(return_value=[]),
@@ -307,7 +311,7 @@ async def test_calendar_endpoint_serves_pregenerated_file_and_error_fallback(tmp
             f1_service=f1,
         )
     assert response.headers["x-cache"] == "MISS"
-    assert any(content == b"pregenerated" for content, _etag in get_bmp_cache().values())
+    assert response.body == b"pregenerated"
 
     get_bmp_cache().clear()
     disappeared = MagicMock()
@@ -397,7 +401,10 @@ async def test_teams_endpoint_serves_cache_and_caches_complete_render():
 async def test_calendar_cached_etag_returns_empty_304_without_analytics():
     etag = strong_etag(b"cached")
     cache_key = images._get_cache_key("en", None, None, None, None, True, "race_day", "1bit")
-    get_bmp_cache()[cache_key] = (b"cached", etag)
+    get_bmp_cache()[calendar_identity({"season": 2026, "round": 1}) + "|" + cache_key] = (
+        b"cached",
+        etag,
+    )
     service = SimpleNamespace(
         get_next_race_from_static=MagicMock(
             return_value={"season": 2026, "round": 1, "race_name": "Test GP"}
@@ -530,6 +537,9 @@ async def test_pregenerated_hashes_replaced_body_when_sidecar_turns_stale(tmp_pa
 async def test_calendar_endpoint_returns_304_from_pregenerated_sidecar(tmp_path):
     image_path = tmp_path / "calendar.bmp"
     image_path.write_bytes(b"pregenerated-calendar")
+    await write_artifact_metadata(
+        image_path, b"pregenerated-calendar", calendar_identity({"season": 2026, "round": 1})
+    )
     etag = strong_etag(b"pregenerated-calendar")
     etag_sidecar_path(image_path).write_bytes(
         encode_etag_sidecar(image_path.stat().st_mtime_ns, etag)
@@ -570,6 +580,7 @@ async def test_calendar_endpoint_returns_304_from_pregenerated_sidecar(tmp_path)
 async def test_teams_endpoint_handles_sidecar_304_and_empty_fallback(tmp_path):
     image_path = tmp_path / "teams.bmp"
     image_path.write_bytes(b"pregenerated-teams")
+    await write_artifact_metadata(image_path, b"pregenerated-teams", "teams:2026")
     etag = strong_etag(b"pregenerated-teams")
     etag_sidecar_path(image_path).write_bytes(
         encode_etag_sidecar(image_path.stat().st_mtime_ns, etag)

@@ -9,6 +9,7 @@ from starlette.requests import Request
 
 from app.models import TeamEntry, TeamsData
 from app.routes import previews
+from app.services.artifact_metadata import write_artifact_metadata
 
 
 def _request(if_none_match: str | None = None) -> Request:
@@ -116,10 +117,12 @@ async def test_dynamic_preview_dispatches_calendar_and_teams():
 @pytest.mark.asyncio
 async def test_home_preview_route_covers_file_dynamic_invalid_and_failed_paths(tmp_path):
     request = _request()
-    (tmp_path / "preview_calendar_en.png").write_bytes(b"png")
+    path = tmp_path / "preview_calendar_en.png"
+    path.write_bytes(b"png")
+    await write_artifact_metadata(path, b"png", previews._preview_identity("calendar"))
     with patch("app.routes.previews.config.IMAGES_PATH", str(tmp_path)):
         response = await previews.get_preview_png("calendar", request, "invalid")
-    assert response.path == tmp_path / "preview_calendar_en.png"
+    assert response.body == b"png"
 
     with pytest.raises(HTTPException) as error:
         await previews.get_preview_png("unknown", request, "en")
@@ -154,20 +157,29 @@ async def test_configure_preview_route_covers_files_fallback_and_dynamic_teams(t
 
     exact = tmp_path / "configure_calendar_en_bwr_weather_race.png"
     exact.write_bytes(b"png")
+    await write_artifact_metadata(exact, b"png", previews._preview_identity("calendar"))
     with patch("app.routes.previews.config.IMAGES_PATH", str(tmp_path)):
         response = await previews.get_configure_preview_png(
             "calendar", request, lang="invalid", weather_type="race_day", display="bwr"
         )
-    assert response.path == exact
+    assert response.body == b"png"
 
     exact.unlink()
     fallback = tmp_path / "configure_calendar_en.png"
     fallback.write_bytes(b"png")
-    with patch("app.routes.previews.config.IMAGES_PATH", str(tmp_path)):
-        response = await previews.get_configure_preview_png(
+    await write_artifact_metadata(fallback, b"png", previews._preview_identity("calendar"))
+    with (
+        patch("app.routes.previews.config.IMAGES_PATH", str(tmp_path)),
+        patch(
+            "app.routes.previews._render_configure_calendar",
+            new=AsyncMock(side_effect=RuntimeError("failed")),
+        ),
+        pytest.raises(HTTPException) as error,
+    ):
+        await previews.get_configure_preview_png(
             "calendar", request, lang="en", weather_type="invalid", display="bwr"
         )
-    assert response.path == fallback
+    assert error.value.status_code == 404
 
     fallback.unlink()
     dynamic = AsyncMock(return_value=SimpleNamespace(media_type="image/png"))
@@ -191,6 +203,10 @@ async def test_configure_preview_route_covers_files_fallback_and_dynamic_teams(t
 
     with (
         patch("app.routes.previews.config.IMAGES_PATH", str(tmp_path)),
+        patch(
+            "app.routes.previews._render_configure_calendar",
+            new=AsyncMock(side_effect=RuntimeError("failed")),
+        ),
         pytest.raises(HTTPException) as error,
     ):
         await previews.get_configure_preview_png("calendar", request)
@@ -201,6 +217,7 @@ async def test_configure_preview_route_covers_files_fallback_and_dynamic_teams(t
 async def test_configure_preview_file_honors_if_none_match(tmp_path):
     preview_path = tmp_path / "configure_calendar_en.png"
     preview_path.write_bytes(b"png")
+    await write_artifact_metadata(preview_path, b"png", previews._preview_identity("calendar"))
 
     with patch("app.routes.previews.config.IMAGES_PATH", str(tmp_path)):
         initial = await previews.get_configure_preview_png("calendar", _request())
