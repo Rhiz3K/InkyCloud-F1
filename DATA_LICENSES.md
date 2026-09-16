@@ -22,8 +22,9 @@ have only one of those licences. The software and its MIT licence remain separat
 No general permission for commercial redistribution of the Jolpica data is offered.
 
 Season JSON files contain `_provenance`; their exact reviewed bytes are recorded in
-`app/assets/asset-register.json`. The old F1 circuit artwork, photographic previews,
-driver graphics and source import commands have been retired. Team logos and original
+`app/assets/asset-register.json`. The old F1 circuit artwork, driver graphics and source
+import commands have been retired. The maintainer's photographs of physical displays
+in the README are retained as historical examples. Team logos and original
 project branding are retained as described above; a successful asset inventory check
 verifies the recorded files and hashes, not legal permission to use every item.
 Supplementary facts are available for the 25 circuits in the legacy snapshot; Sepang

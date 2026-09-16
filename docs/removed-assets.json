@@ -1170,16 +1170,6 @@
     "reason": "Legacy documentation image without a complete redistribution record"
   },
   {
-    "path": "assets/device.jpg",
-    "sha256": "61cf4b62275227f4fc6bb787932d2517b557591bc0669022ef7583b03cca6a7f",
-    "reason": "Legacy documentation image without a complete redistribution record"
-  },
-  {
-    "path": "assets/device_sverio_bwry.png",
-    "sha256": "897f627abccf0b8d6b2c1f2865f37d29dfd60bcf18b4a69f9fa48ec8561646f7",
-    "reason": "Legacy documentation image without a complete redistribution record"
-  },
-  {
     "path": "assets/preview.bmp",
     "sha256": "a01984eb1c16e04045dfa72cacbb14a0d17af5b1a4092afeb058954e9b2447e3",
     "reason": "Legacy documentation image without a complete redistribution record"

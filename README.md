@@ -63,7 +63,13 @@ https://racing.example.com/sk/configure/calendar
 
 ## Preview
 
-![F1 E-Ink Calendar](./app/assets/images/og-preview.png)
+![F1 E-Ink Calendar Preview](./assets/device.jpg)
+
+_LaskaKit 7.5" E-Ink display showing F1 race calendar in Czech_
+
+![SVERIO B/W/R/Y](./assets/device_sverio_bwry.png)
+
+_SVERIO PaperBoard 7.5" GDEM075F52 four-color 800×480 ePaper (black/white/yellow/red)_
 
 ---
 
