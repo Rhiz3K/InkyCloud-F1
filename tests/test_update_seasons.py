@@ -157,6 +157,56 @@ def test_write_season_file_appends_trailing_newline(tmp_path):
     )
 
     assert output_path.read_bytes().endswith(b"\n")
+    provenance = json.loads(output_path.read_text())["_provenance"]
+    assert provenance["terms"] == "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md"
+    assert "reviewed_on" not in provenance
+
+
+@pytest.mark.asyncio
+async def test_main_preserves_provenance_when_calendar_changes(tmp_path, monkeypatch):
+    existing = {
+        "season": "2026",
+        "generated_at": "before",
+        "total_races": 1,
+        "races": [
+            _race(
+                season="2026",
+                race_name="Qatar Grand Prix",
+                circuit_id="losail",
+                date="2026-11-29",
+                round_value="22",
+            )
+        ],
+        "_provenance": {
+            "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+            "reviewed_on": "2026-09-09",
+            "changes": "Selected fields, normalized JSON, retained previously cancelled races",
+            "review_note": "Keep the original source review record",
+        },
+    }
+    output_path = tmp_path / "2026.json"
+    output_path.write_text(json.dumps(existing), encoding="utf-8")
+    refreshed = json.loads(json.dumps(existing))
+    del refreshed["_provenance"]
+    refreshed["generated_at"] = "after"
+    refreshed["races"][0]["Circuit"]["circuitName"] = "Lusail International Circuit"
+    monkeypatch.setattr(update_seasons, "SEASONS_DIR", tmp_path)
+    fetch = AsyncMock(return_value=refreshed)
+    monkeypatch.setattr(update_seasons, "fetch_season", fetch)
+    monkeypatch.setattr(update_seasons.asyncio, "sleep", AsyncMock())
+
+    assert await update_seasons.main([2026]) is True
+    saved_bytes = output_path.read_bytes()
+    saved = json.loads(saved_bytes)
+    assert saved["races"] == refreshed["races"]
+    for key, value in existing["_provenance"].items():
+        assert saved["_provenance"][key] == value
+    assert saved["_provenance"]["source"].endswith("/2026.json")
+
+    # A later refresh with identical calendar data must leave the reviewed bytes intact.
+    fetch.return_value = {**refreshed, "generated_at": "later"}
+    assert await update_seasons.main([2026]) is True
+    assert output_path.read_bytes() == saved_bytes
 
 
 def test_season_change_detection_ignores_generated_at_only_changes():

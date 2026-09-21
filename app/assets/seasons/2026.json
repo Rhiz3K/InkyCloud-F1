@@ -882,6 +882,8 @@
     "author": "Jolpica-F1 / Ergast contributors",
     "license": "CC-BY-NC-SA-4.0",
     "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
-    "changes": "Selected fields, normalized JSON, retained cancelled races"
+    "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+    "changes": "Selected fields, normalized JSON, retained previously cancelled races",
+    "reviewed_on": "2026-09-09"
   }
 }
