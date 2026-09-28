@@ -18,7 +18,7 @@ jobs:
   publish:
     name: publish
     if: github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     permissions:
       contents: write # Required to create the GitHub release and tag
 

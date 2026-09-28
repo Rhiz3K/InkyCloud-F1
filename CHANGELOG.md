@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-09-28
+
+### Changed
+
+- Run GitHub release publishing on the standard GitHub-hosted Ubuntu runner, so all
+  GitHub Actions jobs use standard hosted runners without a self-hosted runner dependency.
+
 ## [1.3.0] - 2026-09-15
 
 ### Added
