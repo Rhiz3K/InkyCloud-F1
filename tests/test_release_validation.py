@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import runpy
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -224,11 +225,27 @@ def test_release_validation_main_reports_success(latest_tag, monkeypatch, capsys
     assert f"latest tag {latest_tag or 'none'}" in output
 
 
-def test_release_validation_module_entrypoint(monkeypatch, capsys):
+@pytest.mark.parametrize("pending_notes, expected_code", [("", 0), ("- Pending fix", 1)])
+def test_release_validation_module_entrypoint(
+    pending_notes, expected_code, tmp_path, monkeypatch, capsys
+):
+    # Exercise __main__ against a fixture repository, independent of pending project releases.
+    module_path = tmp_path / "app" / "utils" / "release_validation.py"
+    module_path.parent.mkdir(parents=True)
+    module_path.write_text(Path(release_validation.__file__).read_text(encoding="utf-8"))
+    (tmp_path / "CHANGELOG.md").write_text(
+        f"# Changelog\n\n## [Unreleased]\n\n{pending_notes}\n\n"
+        "## [1.3.0] - 2026-09-15\n\n- Ready for release\n",
+        encoding="utf-8",
+    )
     monkeypatch.setattr(release_validation.subprocess, "check_output", lambda *_a, **_k: "")
 
     with pytest.raises(SystemExit) as exc_info:
-        runpy.run_path(str(release_validation.__file__), run_name="__main__")
+        runpy.run_path(str(module_path), run_name="__main__")
 
-    assert exc_info.value.code == 0
-    assert "latest tag none" in capsys.readouterr().out
+    assert exc_info.value.code == expected_code
+    output = capsys.readouterr()
+    if expected_code == 0:
+        assert "latest tag none" in output.out
+    else:
+        assert "Unreleased section must be empty" in output.err

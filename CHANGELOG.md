@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve season provenance metadata during calendar refreshes and restore the reviewed
+  asset hash for the 2026 snapshot with the updated Lusail circuit name.
+
 ## [1.3.0] - 2026-09-15
 
 ### Added
