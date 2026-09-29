@@ -169,7 +169,11 @@ hourly. Season calendar source files are maintained by the GitHub Actions workfl
 - daily from December through February
 - manual `workflow_dispatch` at any time
 
-The workflow validates upstream structure and opens a pull request only when files changed.
+The workflow validates upstream structure, records the SHA-256 of each rewritten snapshot in
+`app/assets/asset-register.json`, and opens a pull request only when files changed. Add a
+`DATA_UPDATE_TOKEN` repository secret (a fine-grained token or GitHub App token with contents and
+pull-requests write access) so those pull requests run CI; pull requests opened with the default
+`GITHUB_TOKEN` do not trigger other workflows.
 Manual commands and the weekly artwork procedure are listed in
 [`scripts/README.md`](./scripts/README.md).
 

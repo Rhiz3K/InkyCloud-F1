@@ -26,8 +26,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # A PAT/App token lets the resulting PR run CI without manual approval. The workflow still
-          # works with GITHUB_TOKEN, but GitHub may require a maintainer to approve that CI run.
+          # Set DATA_UPDATE_TOKEN (fine-grained PAT or GitHub App token with contents and
+          # pull-requests write) so the generated PR triggers CI. Pull requests opened with
+          # GITHUB_TOKEN do not start pull_request workflows, so required checks never report.
           token: ${{ secrets.DATA_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
           persist-credentials: false
 
@@ -55,6 +56,13 @@ jobs:
         continue-on-error: true
         run: uv run --locked python scripts/check_track_assets.py
 
+      - name: Verify reviewed asset register
+        id: legal_assets
+        # update_seasons.py records the SHA-256 of every rewritten snapshot; this confirms the
+        # register matches the tree before the pull request is opened.
+        continue-on-error: true
+        run: uv run --locked python scripts/check_legal_assets.py
+
       - name: Check for changes
         id: check_changes
         run: |
@@ -73,15 +81,33 @@ jobs:
           git commit -m "chore: update F1 data"
           gh auth setup-git
           git push -u origin "$BRANCH"
-          gh pr create --title "chore: update F1 season data" --body "F1 season calendar update from Jolpica API. Review the changed snapshots and update their hashes in app/assets/asset-register.json before merging. Historical race results are refreshed daily by the running app." --base main --head "$BRANCH"
+          {
+            echo "F1 season calendar update from the Jolpica API."
+            echo
+            echo "Changed files:"
+            git diff --name-only HEAD~1 HEAD | sed 's/^/- `/; s/$/`/'
+            echo
+            echo "The SHA-256 of each rewritten snapshot is already recorded in"
+            echo "\`app/assets/asset-register.json\`. Review the calendar changes before merging;"
+            echo "new season files are registered without \`reviewed_on\`, so add it once reviewed."
+            echo
+            echo "Historical race results are refreshed daily by the running app."
+          } > "$RUNNER_TEMP/pr-body.md"
+          gh pr create --title "chore: update F1 season data" --body-file "$RUNNER_TEMP/pr-body.md" --base main --head "$BRANCH"
 
       - name: Fail the run when an update or asset check failed
-        if: steps.update.outcome == 'failure' || steps.track_assets.outcome == 'failure'
+        if: >-
+          steps.update.outcome == 'failure' ||
+          steps.track_assets.outcome == 'failure' ||
+          steps.legal_assets.outcome == 'failure'
         run: |
           if [[ "${{ steps.update.outcome }}" == "failure" ]]; then
             echo "::error::scripts/update_seasons.py reported a failure; see the update step log"
           fi
           if [[ "${{ steps.track_assets.outcome }}" == "failure" ]]; then
             echo "::error::Active circuit track assets are incomplete; see the asset check log"
+          fi
+          if [[ "${{ steps.legal_assets.outcome }}" == "failure" ]]; then
+            echo "::error::The asset register does not match the updated tree; see the register log"
           fi
           exit 1

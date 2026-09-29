@@ -12,6 +12,7 @@ This script is meant to be run:
 
 import argparse
 import asyncio
+import hashlib
 import json
 import sys
 from datetime import datetime, timezone
@@ -28,6 +29,7 @@ from app.utils.material_diff import has_material_change
 
 API_BASE = "https://api.jolpi.ca/ergast/f1"
 SEASONS_DIR = Path(__file__).parent.parent / "app" / "assets" / "seasons"
+ASSET_REGISTER = SEASONS_DIR.parent / "asset-register.json"
 
 
 class SeasonNotPublishedError(ValueError):
@@ -119,6 +121,23 @@ def write_season_file(
     atomic_write_json(output_path, season_payload)
 
 
+def record_season_hash(output_path: Path, season: str) -> None:
+    """Record the written snapshot's SHA-256 in the asset register for pull-request review."""
+    register = json.loads(ASSET_REGISTER.read_text(encoding="utf-8"))
+    name = f"seasons/{output_path.name}"
+    entry = register["assets"].setdefault(
+        name,
+        {
+            "sha256": "",
+            "license": "CC-BY-NC-SA-4.0",
+            "author": "Jolpica-F1 / Ergast contributors",
+            "source": f"{API_BASE}/{season}.json",
+        },
+    )
+    entry["sha256"] = hashlib.sha256(output_path.read_bytes()).hexdigest()
+    atomic_write_json(ASSET_REGISTER, register)
+
+
 def has_material_season_change(
     season_payload: dict[str, Any], existing_payload: dict[str, Any] | None
 ) -> bool:
@@ -184,6 +203,7 @@ async def main(target_years: list[int]) -> bool:
                     continue
 
                 write_season_file(output_path, data, existing_data)
+                record_season_hash(output_path, data["season"])
                 print(f"  Saved {data['total_races']} races to {output_path}")
 
                 # Rate limiting

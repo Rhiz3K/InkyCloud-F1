@@ -33,7 +33,9 @@ jobs:
         github.event_name == 'pull_request' &&
         github.base_ref == 'main' &&
         github.event.pull_request.user.login != 'dependabot[bot]' &&
-        github.event.pull_request.user.login != 'github-actions[bot]'
+        github.event.pull_request.user.login != 'github-actions[bot]' &&
+        !(startsWith(github.head_ref, 'chore/update-f1-data-') &&
+          github.event.pull_request.head.repo.full_name == github.repository)
       env:
         BASE_REF: ${{ github.base_ref }}
       run: |
@@ -45,4 +47,6 @@ jobs:
     - name: Run project CI
       uses: ./.github/actions/ci-test
       with:
-        validate-release: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' && github.event.pull_request.user.login != 'dependabot[bot]' && github.event.pull_request.user.login != 'github-actions[bot]' }}
+        # Data-refresh PRs from this repository's update workflow are exempt even when opened with
+        # DATA_UPDATE_TOKEN, whose owner (not github-actions[bot]) then authors the pull request.
+        validate-release: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' && github.event.pull_request.user.login != 'dependabot[bot]' && github.event.pull_request.user.login != 'github-actions[bot]' && !(startsWith(github.head_ref, 'chore/update-f1-data-') && github.event.pull_request.head.repo.full_name == github.repository) }}

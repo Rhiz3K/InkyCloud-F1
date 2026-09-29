@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-09-29
+
+### Changed
+
+- The season data workflow records the SHA-256 of every rewritten calendar snapshot in the asset
+  register, verifies the register before opening its pull request, and lists the changed files in
+  the pull request description.
+- Data-refresh pull requests are exempt from the changelog and release checks when opened with
+  `DATA_UPDATE_TOKEN`, so the token can be used to trigger their CI.
+
 ## [1.3.1] - 2026-09-29
 
 ### Changed

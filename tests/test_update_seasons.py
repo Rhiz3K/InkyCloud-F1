@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -9,6 +10,15 @@ from unittest.mock import AsyncMock
 import pytest
 
 from scripts import update_seasons
+
+
+@pytest.fixture(autouse=True)
+def isolated_asset_register(tmp_path, monkeypatch):
+    """Keep tests that run main() from rewriting the repository asset register."""
+    register_path = tmp_path / "asset-register.json"
+    register_path.write_text(json.dumps({"schema": 1, "assets": {}}), encoding="utf-8")
+    monkeypatch.setattr(update_seasons, "ASSET_REGISTER", register_path)
+    return register_path
 
 
 def _race(
@@ -163,7 +173,9 @@ def test_write_season_file_appends_trailing_newline(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_main_preserves_provenance_when_calendar_changes(tmp_path, monkeypatch):
+async def test_main_preserves_provenance_when_calendar_changes(
+    tmp_path, monkeypatch, isolated_asset_register
+):
     existing = {
         "season": "2026",
         "generated_at": "before",
@@ -190,6 +202,11 @@ async def test_main_preserves_provenance_when_calendar_changes(tmp_path, monkeyp
     del refreshed["_provenance"]
     refreshed["generated_at"] = "after"
     refreshed["races"][0]["Circuit"]["circuitName"] = "Lusail International Circuit"
+    register_path = isolated_asset_register
+    register_path.write_text(
+        json.dumps({"schema": 1, "assets": {"seasons/2026.json": {"sha256": "stale"}}}),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(update_seasons, "SEASONS_DIR", tmp_path)
     fetch = AsyncMock(return_value=refreshed)
     monkeypatch.setattr(update_seasons, "fetch_season", fetch)
@@ -202,11 +219,32 @@ async def test_main_preserves_provenance_when_calendar_changes(tmp_path, monkeyp
     for key, value in existing["_provenance"].items():
         assert saved["_provenance"][key] == value
     assert saved["_provenance"]["source"].endswith("/2026.json")
+    register = json.loads(register_path.read_text())
+    assert (
+        register["assets"]["seasons/2026.json"]["sha256"] == hashlib.sha256(saved_bytes).hexdigest()
+    )
 
     # A later refresh with identical calendar data must leave the reviewed bytes intact.
     fetch.return_value = {**refreshed, "generated_at": "later"}
     assert await update_seasons.main([2026]) is True
     assert output_path.read_bytes() == saved_bytes
+
+
+def test_record_season_hash_registers_new_snapshot(tmp_path, isolated_asset_register):
+    register_path = isolated_asset_register
+    output_path = tmp_path / "2028.json"
+    output_path.write_text('{"season": "2028"}\n', encoding="utf-8")
+
+    update_seasons.record_season_hash(output_path, "2028")
+
+    entry = json.loads(register_path.read_text())["assets"]["seasons/2028.json"]
+    assert entry == {
+        "sha256": hashlib.sha256(output_path.read_bytes()).hexdigest(),
+        "license": "CC-BY-NC-SA-4.0",
+        "author": "Jolpica-F1 / Ergast contributors",
+        "source": "https://api.jolpi.ca/ergast/f1/2028.json",
+    }
+    assert "reviewed_on" not in entry
 
 
 def test_season_change_detection_ignores_generated_at_only_changes():
