@@ -73,7 +73,7 @@ jobs:
           git commit -m "chore: update F1 data"
           gh auth setup-git
           git push -u origin "$BRANCH"
-          gh pr create --title "chore: update F1 season data" --body "Manual F1 season calendar update from Jolpica API. Historical race results are refreshed daily by the running app." --base main --head "$BRANCH"
+          gh pr create --title "chore: update F1 season data" --body "F1 season calendar update from Jolpica API. Review the changed snapshots and update their hashes in app/assets/asset-register.json before merging. Historical race results are refreshed daily by the running app." --base main --head "$BRANCH"
 
       - name: Fail the run when an update or asset check failed
         if: steps.update.outcome == 'failure' || steps.track_assets.outcome == 'failure'

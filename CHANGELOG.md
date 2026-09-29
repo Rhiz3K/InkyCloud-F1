@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.3.1] - 2026-09-28
+## [1.3.1] - 2026-09-29
 
 ### Changed
 
 - Run GitHub release publishing on the standard GitHub-hosted Ubuntu runner, so all
   GitHub Actions jobs use standard hosted runners without a self-hosted runner dependency.
+
+### Fixed
+
+- Preserve season provenance metadata during calendar refreshes and restore the reviewed
+  asset hash for the 2026 snapshot with the updated Lusail circuit name.
 
 ## [1.3.0] - 2026-09-15
 

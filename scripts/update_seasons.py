@@ -7,7 +7,7 @@ Usage:
 
 This script is meant to be run:
 - Manually when FIA announces calendar changes
-- Via GitHub Action in January each year
+- Via scheduled or manually triggered GitHub Actions
 """
 
 import argparse
@@ -98,8 +98,12 @@ def preserve_cancelled_races(
     }
 
 
-def write_season_file(output_path: Path, season_payload: dict[str, Any]) -> None:
-    """Atomically write season JSON with a trailing newline."""
+def write_season_file(
+    output_path: Path,
+    season_payload: dict[str, Any],
+    existing_payload: dict[str, Any] | None = None,
+) -> None:
+    """Atomically write season JSON while retaining existing provenance metadata."""
     season_payload = {
         **season_payload,
         "_provenance": {
@@ -107,7 +111,9 @@ def write_season_file(output_path: Path, season_payload: dict[str, Any]) -> None
             "author": "Jolpica-F1 / Ergast contributors",
             "license": "CC-BY-NC-SA-4.0",
             "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+            "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
             "changes": "Selected fields, normalized JSON, retained cancelled races",
+            **(existing_payload or {}).get("_provenance", {}),
         },
     }
     atomic_write_json(output_path, season_payload)
@@ -177,7 +183,7 @@ async def main(target_years: list[int]) -> bool:
                     await asyncio.sleep(2)
                     continue
 
-                write_season_file(output_path, data)
+                write_season_file(output_path, data, existing_data)
                 print(f"  Saved {data['total_races']} races to {output_path}")
 
                 # Rate limiting
