@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Builder
 # ============================================
-FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS builder
+FROM python:3.14-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS builder
 
 WORKDIR /app
 
@@ -28,7 +28,7 @@ RUN pip install --no-cache-dir --no-deps --prefix=/install --no-warn-script-loca
 # ============================================
 # Stage 2: Runtime
 # ============================================
-FROM python:3.14-slim@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 AS runtime
+FROM python:3.14-slim@sha256:51dafde81dbdb6ebde285137a295cf18a47ca95234fe388a343719cb97305b3d AS runtime
 
 WORKDIR /app
 
