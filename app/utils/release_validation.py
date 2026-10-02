@@ -38,6 +38,11 @@ class ReleaseValidationResult:
     unreleased_body: str
     release_body: str
 
+    @property
+    def is_new_release(self) -> bool:
+        """Return whether the newest CHANGELOG version has not been tagged yet."""
+        return self.latest_tag is None or self.latest_version > self.latest_tag
+
 
 def parse_latest_release_section(changelog: str) -> ReleaseValidationResult:
     """Parse the newest semantic release and Unreleased bodies from a changelog."""
@@ -95,24 +100,37 @@ def get_latest_git_tag() -> SemVer | None:
 
 
 def validate_release_readiness(changelog_path: Path = CHANGELOG_PATH) -> ReleaseValidationResult:
-    """Validate changelog structure and version ordering for a release PR."""
+    """Validate that a main PR either records Unreleased notes or prepares a new release.
+
+    A PR that keeps the newest version equal to the latest tag defers its release and must
+    describe the change under Unreleased. A PR that adds a newer version publishes it on merge,
+    so its notes must move into that release section and Unreleased must be empty.
+    """
     changelog = changelog_path.read_text(encoding="utf-8")
     result = parse_latest_release_section(changelog)
 
     if COLLAPSIBLE_HTML_RE.search(changelog):
         raise ValueError("CHANGELOG must not contain HTML details/summary blocks")
 
+    if result.latest_tag is not None and result.latest_version < result.latest_tag:
+        raise ValueError(
+            "Latest CHANGELOG version must not be older than the latest git tag: "
+            f"{result.latest_version} < {result.latest_tag}"
+        )
+
+    if not result.is_new_release:
+        if not result.unreleased_body:
+            raise ValueError(
+                f"Describe the change under {UNRELEASED_HEADING} or add a release section "
+                f"newer than {result.latest_version}"
+            )
+        return result
+
     if result.unreleased_body:
         raise ValueError("Unreleased section must be empty before merging a release PR to main")
 
     if not result.release_body:
         raise ValueError(f"Release section {result.latest_version} must not be empty")
-
-    if result.latest_tag is not None and result.latest_version <= result.latest_tag:
-        raise ValueError(
-            "Latest CHANGELOG version must be greater than the latest git tag: "
-            f"{result.latest_version} <= {result.latest_tag}"
-        )
 
     return result
 
@@ -126,6 +144,13 @@ def main() -> int:
         return 1
 
     latest_tag = str(result.latest_tag) if result.latest_tag is not None else "none"
+    if not result.is_new_release:
+        print(
+            "Changelog OK: Unreleased notes recorded, "
+            f"no new release (CHANGELOG {result.latest_version}, latest tag {latest_tag})"
+        )
+        return 0
+
     print(
         "Release readiness OK: "
         f"CHANGELOG {result.latest_version}, latest tag {latest_tag}, "

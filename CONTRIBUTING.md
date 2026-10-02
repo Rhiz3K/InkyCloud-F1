@@ -133,18 +133,22 @@ docs: update Docker deployment instructions
 
 1. **Update tests** - Ensure all tests pass
 2. **Update documentation** - Document any new features
-3. **Prepare a release section** - Add a new semantic-version heading above the previous release,
-   keep `## [Unreleased]` empty, and describe the change in that new release section
-4. **Validate release metadata** - Run `uv run python -m app.utils.release_validation`
-5. **Create PR** - Provide clear description of changes
-6. **Address feedback** - Respond to review comments
+3. **Update the changelog** - Describe the change under `## [Unreleased]`. Small changes such as
+   dependency, CI or documentation updates can stay there without publishing a release
+4. **Prepare a release when needed** - To publish on merge, move the Unreleased notes into a new
+   semantic-version heading above the previous release, keep `## [Unreleased]` empty, and bump
+   `version` in `pyproject.toml`. Merging that section to `main` tags the release and publishes
+   the container image
+5. **Validate release metadata** - Run `uv run python -m app.utils.release_validation`
+6. **Create PR** - Provide clear description of changes
+7. **Address feedback** - Respond to review comments
 
 ### PR Checklist
 
 - [ ] Tests added/updated and passing
 - [ ] Code follows project style (Ruff checks pass)
 - [ ] Documentation updated
-- [ ] `CHANGELOG.md` has a new versioned release section and release validation passes
+- [ ] `CHANGELOG.md` has Unreleased notes or a new release section and release validation passes
 - [ ] Commit messages follow conventions
 - [ ] No breaking changes (or clearly documented)
 
