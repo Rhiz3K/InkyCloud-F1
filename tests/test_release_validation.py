@@ -56,7 +56,7 @@ def test_validate_release_readiness_fails_when_unreleased_not_empty(tmp_path, mo
         release_validation.validate_release_readiness(changelog)
 
 
-def test_validate_release_readiness_fails_when_version_not_bumped(tmp_path, monkeypatch):
+def test_validate_release_readiness_fails_without_unreleased_notes_or_bump(tmp_path, monkeypatch):
     changelog = tmp_path / "CHANGELOG.md"
     changelog.write_text(
         """# Changelog
@@ -71,7 +71,74 @@ def test_validate_release_readiness_fails_when_version_not_bumped(tmp_path, monk
     )
     monkeypatch.setattr(release_validation, "get_latest_git_tag", lambda: SemVer(1, 2, 9))
 
-    with pytest.raises(ValueError, match="Latest CHANGELOG version must be greater"):
+    with pytest.raises(ValueError, match=r"Describe the change under ## \[Unreleased\]"):
+        release_validation.validate_release_readiness(changelog)
+
+
+def test_validate_release_readiness_rejects_heading_only_unreleased(tmp_path, monkeypatch):
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(
+        """# Changelog
+
+## [Unreleased]
+
+### Security
+
+## [1.2.9] - 2026-03-13
+
+- Added release notes
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(release_validation, "get_latest_git_tag", lambda: SemVer(1, 2, 9))
+
+    with pytest.raises(ValueError, match=r"Describe the change under ## \[Unreleased\]"):
+        release_validation.validate_release_readiness(changelog)
+
+
+def test_validate_release_readiness_accepts_unreleased_notes_without_bump(tmp_path, monkeypatch):
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(
+        """# Changelog
+
+## [Unreleased]
+
+### Security
+
+- Pending dependency fix
+
+## [1.2.9] - 2026-03-13
+
+- Added release notes
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(release_validation, "get_latest_git_tag", lambda: SemVer(1, 2, 9))
+
+    result = release_validation.validate_release_readiness(changelog)
+
+    assert not result.is_new_release
+    assert result.unreleased_body == "### Security\n\n- Pending dependency fix"
+
+
+def test_validate_release_readiness_rejects_version_older_than_tag(tmp_path, monkeypatch):
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(
+        """# Changelog
+
+## [Unreleased]
+
+- Pending item
+
+## [1.2.9] - 2026-03-13
+
+- Added release notes
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(release_validation, "get_latest_git_tag", lambda: SemVer(1, 3, 0))
+
+    with pytest.raises(ValueError, match="must not be older than the latest git tag"):
         release_validation.validate_release_readiness(changelog)
 
 
@@ -223,6 +290,21 @@ def test_release_validation_main_reports_success(latest_tag, monkeypatch, capsys
     output = capsys.readouterr().out
     assert "Release readiness OK" in output
     assert f"latest tag {latest_tag or 'none'}" in output
+
+
+def test_release_validation_main_reports_unreleased_notes(monkeypatch, capsys):
+    result = release_validation.ReleaseValidationResult(
+        latest_version=SemVer(1, 2, 9),
+        latest_tag=SemVer(1, 2, 9),
+        unreleased_body="- Pending fix",
+        release_body="- Released",
+    )
+    monkeypatch.setattr(release_validation, "validate_release_readiness", lambda: result)
+
+    assert release_validation.main() == 0
+    output = capsys.readouterr().out
+    assert "Changelog OK: Unreleased notes recorded, no new release" in output
+    assert "latest tag 1.2.9" in output
 
 
 @pytest.mark.parametrize("pending_notes, expected_code", [("", 0), ("- Pending fix", 1)])

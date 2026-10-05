@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-05
+
+### Changed
+
+- Let pull requests record small changes under Unreleased without publishing a release.
+  A release is still tagged and published when a pull request adds a new version section.
+
+### Security
+
+- Update urllib3 to 2.8.0 for CVE-2026-97687, CVE-2026-97688 and CVE-2026-97689.
+
 ## [1.3.1] - 2026-09-29
 
 ### Changed
