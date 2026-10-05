@@ -75,6 +75,27 @@ def test_validate_release_readiness_fails_without_unreleased_notes_or_bump(tmp_p
         release_validation.validate_release_readiness(changelog)
 
 
+def test_validate_release_readiness_rejects_heading_only_unreleased(tmp_path, monkeypatch):
+    changelog = tmp_path / "CHANGELOG.md"
+    changelog.write_text(
+        """# Changelog
+
+## [Unreleased]
+
+### Security
+
+## [1.2.9] - 2026-03-13
+
+- Added release notes
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(release_validation, "get_latest_git_tag", lambda: SemVer(1, 2, 9))
+
+    with pytest.raises(ValueError, match=r"Describe the change under ## \[Unreleased\]"):
+        release_validation.validate_release_readiness(changelog)
+
+
 def test_validate_release_readiness_accepts_unreleased_notes_without_bump(tmp_path, monkeypatch):
     changelog = tmp_path / "CHANGELOG.md"
     changelog.write_text(

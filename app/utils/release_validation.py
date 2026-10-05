@@ -99,6 +99,11 @@ def get_latest_git_tag() -> SemVer | None:
     return None
 
 
+def _has_changelog_entries(body: str) -> bool:
+    """Return whether a changelog section body contains more than headings."""
+    return any(line.strip() and not line.lstrip().startswith("#") for line in body.splitlines())
+
+
 def validate_release_readiness(changelog_path: Path = CHANGELOG_PATH) -> ReleaseValidationResult:
     """Validate that a main PR either records Unreleased notes or prepares a new release.
 
@@ -119,7 +124,7 @@ def validate_release_readiness(changelog_path: Path = CHANGELOG_PATH) -> Release
         )
 
     if not result.is_new_release:
-        if not result.unreleased_body:
+        if not _has_changelog_entries(result.unreleased_body):
             raise ValueError(
                 f"Describe the change under {UNRELEASED_HEADING} or add a release section "
                 f"newer than {result.latest_version}"
