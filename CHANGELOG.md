@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Update Pillow to 13.0.0 and certifi to 2026.10.19 to address the vulnerabilities
+  reported by the dependency audit and container scan.
+
 ## [1.3.2] - 2026-10-05
 
 ### Changed
