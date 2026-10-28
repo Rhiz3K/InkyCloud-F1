@@ -64,8 +64,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         {{ t.get("api_docs_title", "API Documentation") }}
       </h1>
       <p class="text-sm mb-4">
-        {{ t.get("api_docs_intro", "Generate 800×480 1-bit BMP images for E-Ink
-        displays showing F1 race schedules.") }}
+        {{ t.get("api_docs_intro", "Generate 800×480 BMP images for E-Ink
+        displays showing F1 race schedules in 1bit, B/W/R, B/W/R/Y, or Spectra 6 mode.") }}
       </p>
       <div class="flex flex-wrap gap-2 text-xs">
         <span class="px-2 py-1 border-2 border-black font-mono">800×480</span>
@@ -83,6 +83,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         <code class="text-lg font-mono">/calendar.bmp</code>
       </div>
       <p class="text-sm mb-4">{{ calendar_desc }}</p>
+      <p class="text-sm mb-4">{{ t.get("api_docs_selection_note", "Without year plus round or race_key, the next race is selected. Copy round or race_key from /api/races/{year}.") }}</p>
       <div class="border-2 border-black p-3 mb-4 text-sm space-y-2">
         <p>{{ track_ui.styleLabel }}: <code>track_style=relief</code> · {{ track_ui.sourceLabel }}: <code>track_source=jules</code> · {{ track_ui.accentLabel }}: <code>track_accent=all</code>.</p>
         <p>{{ track_ui.hint }} {{ t.credits_page.allAccents }} <code>display=spectra6</code>.</p>
@@ -148,7 +149,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 {{ round_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_optional", "optional") }} — {{ eg }}
-                  <code class="bg-gray-100 px-1">5</code></span
+                  <code class="bg-gray-100 px-1">?year=2026&amp;round=5</code></span
                 >
               </td>
             </tr>
@@ -161,7 +162,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 {{ t.get("api_docs_race_key_desc", "Stable race identifier; requires year") }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_optional", "optional") }} — {{ eg }}
-                  <code class="bg-gray-100 px-1">2026-05-monaco</code></span
+                  <code class="bg-gray-100 px-1">2026-round-6-monaco-2026-06-07</code></span
                 >
               </td>
             </tr>
@@ -173,7 +174,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_optional", "optional") }} — {{ eg }}
                   <code class="bg-gray-100 px-1">America/New_York</code>,
-                  <code class="bg-gray-100 px-1">Europe/Prague</code></span
+                  <code class="bg-gray-100 px-1">Europe/Prague</code>
+                  ({{ t.get("api_docs_default", "default") }}: <code>{{ default_timezone }}</code>)</span
                 >
               </td>
             </tr>
@@ -205,7 +207,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
                   <code class="bg-gray-100 px-1">true</code>,
-                  <code class="bg-gray-100 px-1">false</code></span
+                  <code class="bg-gray-100 px-1">false</code>
+                  ({{ t.get("api_docs_default", "default") }}: <code>true</code>)</span
                 >
               </td>
             </tr>
@@ -221,10 +224,29 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                   <code class="bg-gray-100 px-1">off</code>,
                   <code class="bg-gray-100 px-1">race_day</code>,
                   <code class="bg-gray-100 px-1">race</code>,
-                  <code class="bg-gray-100 px-1">current</code></span
+                  <code class="bg-gray-100 px-1">current</code>
+                  ({{ t.get("api_docs_default", "default") }}: <code>race_day</code>)</span
                 >
               </td>
             </tr>
+            {% for parameter, choices, label, default in [
+              ('track_style', track_ui.styles, track_ui.styleLabel, track_ui.defaults.style),
+              ('track_source', track_ui.sources, track_ui.sourceLabel, track_ui.defaults.source),
+              ('track_accent', track_ui.accents, track_ui.accentLabel, track_ui.defaults.accent)
+            ] %}
+            <tr>
+              <td class="px-3 py-2 font-mono text-racing-red font-bold">{{ parameter }}</td>
+              <td class="px-3 py-2">string</td>
+              <td class="px-3 py-2">
+                {{ label }}
+                <br /><span class="text-xs text-gray-500">
+                  {{ t.get("api_docs_values", "Values") }}:
+                  {% for choice in choices %}<code class="bg-gray-100 px-1">{{ choice.id }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+                  ({{ t.get("api_docs_default", "default") }}: <code>{{ default }}</code>)
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
@@ -257,10 +279,11 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           </div>
           <div>
             <span class="text-gray-500 block text-xs uppercase">Cache</span>
-            <code class="font-bold">1 hour</code>
+            <code class="font-bold">public, max-age=3600</code>
           </div>
         </div>
       </div>
+      <p class="text-sm mb-6">{{ t.get("api_docs_etag_note", "BMP responses include ETag. Send If-None-Match to receive 304 when the image is unchanged.") }}</p>
 
       <!-- Try it -->
       <div class="flex flex-wrap gap-3">
@@ -533,7 +556,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           </div>
           <div>
             <span class="text-gray-500 block text-xs uppercase">Cache</span>
-            <code class="font-bold">no-store</code>
+            <code class="font-bold">no-cache</code>
           </div>
         </div>
       </div>
@@ -636,6 +659,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             {{ t.get("api_docs_standings_leader_desc", "Get current championship
             leaders (driver and constructor)") }}
           </p>
+          <p class="text-xs mb-3"><code>/api/standings/leader/{year}</code></p>
           <div class="flex gap-2">
             <button
               onclick="tryEndpoint('/api/standings/leader', 'result-leader')"
@@ -725,6 +749,28 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           ></pre>
         </div>
 
+        <div class="border-2 border-black p-4">
+          <p class="font-mono mb-2">GET /api/stats/history</p>
+          <p class="text-sm">{{ t.get("api_docs_history_desc", "Hourly request history; limit: 1–720 (default 168).") }}</p>
+        </div>
+
+        <div class="border-2 border-black p-4">
+          <p class="font-mono mb-2">GET / POST /api/perf-metrics</p>
+          <p class="text-sm">{{ t.get("api_docs_perf_desc", "GET: performance summaries; hours: 1–720 (default 24). POST: numeric Web Vitals; visitor and device metadata are ignored.") }}</p>
+        </div>
+
+        <div class="border-2 border-black p-4">
+          <p class="font-mono mb-2">GET /preview/{screen_type}.png</p>
+          <p class="font-mono mb-2">GET /preview/configure/{screen_type}.png</p>
+          <p class="text-sm">{{ t.get("api_docs_preview_desc", "PNG previews for calendar or teams; lang selects the language. Configure previews also accept display and calendar weather_type (default off).") }}</p>
+          <p class="text-xs mt-2"><code>track_style</code>, <code>track_source</code>, <code>track_accent</code> — {{ track_ui.styleLabel }}, {{ track_ui.sourceLabel }}, {{ track_ui.accentLabel }} (<code>calendar</code>).</p>
+        </div>
+
+        <div class="border-2 border-black p-4">
+          <p class="font-mono mb-2">GET /health/ready</p>
+          <p class="text-sm">{{ t.get("api_docs_readiness_desc", "Database, writable storage and image freshness; HTTP 200 when ready, 503 otherwise.") }}</p>
+        </div>
+
         <!-- /health -->
         <div
           class="border-2 border-black p-4 hover:shadow-neo-sm transition-shadow"
@@ -774,6 +820,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           </div>
         </div>
       </div>
+      <p class="text-sm mt-4">{{ t.get("api_docs_operational_auth", "Statistics read APIs require X-Admin-Token or Authorization: Bearer <token> when ADMIN_API_TOKEN is configured. With MINIMAL_DATA_MODE=true, all statistics APIs return 410.") }}</p>
+      <p class="text-sm mt-2">{{ t.get("api_docs_rate_limit_note", "Rate-limited requests return 429 with Retry-After.") }}</p>
     </div>
   </div>
 </main>

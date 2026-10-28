@@ -5,12 +5,12 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import SecretStr
 from starlette.requests import Request
 
 from app.models import PerfMetricsPayload, TeamEntry, TeamsData
-from app.routes import api
+from app.routes import api, images, previews, tracks
 
 
 def _request(headers: dict[str, str] | None = None) -> Request:
@@ -32,6 +32,70 @@ def _request(headers: dict[str, str] | None = None) -> Request:
             "server": ("test", 443),
         }
     )
+
+
+@pytest.mark.asyncio
+async def test_api_documentation_covers_public_routes_and_query_contracts():
+    """Catch undocumented endpoints, query additions, changed defaults and enum choices."""
+    application = FastAPI()
+    for router in (api.router, images.router, previews.router, tracks.router):
+        application.include_router(router)
+    schema = application.openapi()
+    documentation = (await api.api_info())["endpoints"]
+
+    for path, operations in schema["paths"].items():
+        if not (
+            path == "/api"
+            or path.startswith("/api/")
+            or path.endswith(".bmp")
+            or path.startswith("/preview/")
+            and path.endswith(".png")
+        ):
+            continue
+        documented_path = path.replace("{image_format}", "{svg|png|bmp}")
+        assert documented_path in documentation, path
+        endpoint = documentation[documented_path]
+        for method, operation in operations.items():
+            assert method.upper() in endpoint.get("methods", [endpoint.get("method")]), path
+            if method != "get":
+                continue
+            parameters = {
+                parameter["name"]: parameter["schema"]
+                for parameter in operation.get("parameters", [])
+                if parameter["in"] == "query"
+            }
+            documented_parameters = {
+                name: parameter
+                for name, parameter in endpoint.get("parameters", {}).items()
+                if parameter.get("in", "query") == "query"
+            }
+            assert documented_parameters.keys() == parameters.keys(), path
+            for name, parameter in parameters.items():
+                documented = documented_parameters[name]
+                for field in ("default", "minimum", "maximum"):
+                    if field in parameter:
+                        assert documented.get(field) == parameter[field], (path, name, field)
+                if "$ref" in parameter:
+                    parameter = schema["components"]["schemas"][parameter["$ref"].split("/")[-1]]
+                if "enum" in parameter:
+                    assert documented["values"] == parameter["enum"], (path, name)
+
+
+@pytest.mark.asyncio
+async def test_api_documentation_reports_operator_configuration(monkeypatch):
+    """Documentation reflects configured defaults and auth without exposing token contents."""
+    monkeypatch.setattr(api.config, "DEFAULT_TIMEZONE", "UTC")
+    monkeypatch.setattr(api.config, "ADMIN_API_TOKEN", SecretStr("private-token"))
+    monkeypatch.setattr(api.config, "MINIMAL_DATA_MODE", True)
+    monkeypatch.setattr(api.config, "IMAGE_RATE_LIMIT_PER_MINUTE", 15)
+    documentation = await api.api_info()
+
+    assert documentation["endpoints"]["/calendar.bmp"]["parameters"]["tz"]["default"] == "UTC"
+    assert documentation["statistics"]["read_authentication"]["required"] is True
+    assert documentation["statistics"]["enabled"] is False
+    assert documentation["statistics"]["performance_sample_rate"] == 0
+    assert documentation["rate_limits"]["image_requests"] == 15
+    assert "private-token" not in str(documentation)
 
 
 @pytest.mark.parametrize(

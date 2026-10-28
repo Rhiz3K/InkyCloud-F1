@@ -16,6 +16,9 @@ curl http://localhost:8000/calendar.bmp?lang=cs -o calendar.bmp
 
 ```bash
 curl http://localhost:8000/health
+
+# Readiness of the database, storage, and generated images
+curl http://localhost:8000/health/ready
 ```
 
 ### Get Landing Page / API Info
@@ -48,16 +51,16 @@ curl "http://localhost:8000/calendar.bmp?lang=en&tz=Australia/Sydney" -o calenda
 
 ```bash
 # English privacy policy
-curl http://localhost:8000/privacy?lang=en
+curl http://localhost:8000/privacy
 
 # Czech privacy policy
-curl http://localhost:8000/privacy?lang=cs
+curl http://localhost:8000/cs/privacy
 ```
 
 ### API Statistics
 
 ```bash
-# Get current stats (1h and 24h request counts)
+# Get 24h request totals, response status counts, and artwork usage
 curl http://localhost:8000/api/stats
 
 # Get historical stats (last 168 hours by default)
@@ -65,6 +68,45 @@ curl http://localhost:8000/api/stats/history
 
 # Get historical stats with custom limit (max 720 hours = 30 days)
 curl "http://localhost:8000/api/stats/history?limit=720"
+
+# Get aggregate performance metrics (24 hours by default; maximum 720)
+curl "http://localhost:8000/api/perf-metrics?hours=24"
+```
+
+These endpoints return HTTP 410 when `MINIMAL_DATA_MODE=true`. When
+`ADMIN_API_TOKEN` is configured, statistics reads also require
+`X-Admin-Token: <token>` or `Authorization: Bearer <token>`.
+
+### Select a Race
+
+```bash
+# List season races and their race_key values
+curl http://localhost:8000/api/races/2026
+
+# Select Monaco using its key from the bundled 2026 season
+curl "http://localhost:8000/calendar.bmp?year=2026&race_key=2026-round-6-monaco-2026-06-07" -o monaco.bmp
+
+# Select a round instead
+curl "http://localhost:8000/calendar.bmp?year=2026&round=6" -o round_6.bmp
+```
+
+`race_key` requires `year`. Without `round` or `race_key`, the calendar shows the
+automatically selected next race, even if `year` is supplied.
+
+### Circuit Artwork
+
+```bash
+# Discover styles, source families, accent subsets, and circuit IDs
+curl http://localhost:8000/api/tracks
+
+# Calendar with custom artwork and all six display colours
+curl "http://localhost:8000/calendar.bmp?display=spectra6&track_style=contours&track_source=commons&track_accent=all" -o calendar_colour.bmp
+
+# Standalone export (defaults to Spectra 6)
+curl "http://localhost:8000/api/tracks/monza.svg?track_style=relief" -o monza.svg
+
+# Per-file authorship and licences
+curl http://localhost:8000/api/tracks/monza
 ```
 
 ### Championship Standings

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Align HTML and JSON API documentation, examples, and all 13 locales with the
+  supported endpoints, race selection, artwork options, caching, and statistics APIs.
+- Check documented API parameters against OpenAPI and verify that race examples
+  resolve to bundled season data.
+
 ### Security
 
 - Update Pillow to 13.0.0 and certifi to 2026.10.19 to address the vulnerabilities
