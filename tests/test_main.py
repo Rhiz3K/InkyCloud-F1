@@ -749,8 +749,10 @@ def test_api_docs_html_contains_required_sections(ui_lang):
 
     # Examples must resolve to bundled races; a plausible-looking key can still be invalid.
     race_key = next(
-        code.get_text() for code in table.find_all("code") if "-round-" in code.get_text()
+        (code.get_text() for code in table.find_all("code") if "-round-" in code.get_text()),
+        None,
     )
+    assert race_key is not None, "Calendar documentation must include a race key example"
     races = F1Service().get_all_races_from_static(int(race_key.split("-")[0]))
     assert race_key in {race["race_key"] for race in races}
 

@@ -75,7 +75,7 @@ curl "http://localhost:8000/api/perf-metrics?hours=24"
 
 These endpoints return HTTP 410 when `MINIMAL_DATA_MODE=true`. When
 `ADMIN_API_TOKEN` is configured, statistics reads also require
-`X-Admin-Token: <token>` or `Authorization: Bearer <token>`.
+the `X-Admin-Token` header or the `Authorization` header with the `Bearer` scheme.
 
 ### Select a Race
 
@@ -84,7 +84,8 @@ These endpoints return HTTP 410 when `MINIMAL_DATA_MODE=true`. When
 curl http://localhost:8000/api/races/2026
 
 # Select Monaco using its key from the bundled 2026 season
-curl "http://localhost:8000/calendar.bmp?year=2026&race_key=2026-round-6-monaco-2026-06-07" -o monaco.bmp
+SELECTED_RACE=2026-round-6-monaco-2026-06-07
+curl "http://localhost:8000/calendar.bmp?year=2026&race_key=$SELECTED_RACE" -o monaco.bmp
 
 # Select a round instead
 curl "http://localhost:8000/calendar.bmp?year=2026&round=6" -o round_6.bmp

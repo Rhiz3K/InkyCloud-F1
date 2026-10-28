@@ -46,7 +46,7 @@
   "api_docs_title": "API-Dokumentation",
   "api_docs_intro": "Erzeugen Sie 800×480-BMP-Bilder für E-Ink-Displays mit F1-Rennzeitplänen im 1bit-, B/W/R-, B/W/R/Y- oder Spectra-6-Modus.",
   "api_docs_race_key_desc": "Rennkennung aus /api/races/{year}; erfordert year",
-  "api_docs_selection_note": "Ohne die Kombination aus year und round oder race_key wird das nächste Rennen ausgewählt. Übernehmen Sie round oder race_key aus /api/races/{year}.",
+  "api_docs_selection_note": "Ohne die Kombination aus year und round oder race_key wird das nächste Rennen ausgewählt. Übernehmen Sie round oder race_key aus /api/races/{year}. Ausnahme: race_key ohne year gibt HTTP 400 zurück.",
   "api_docs_etag_note": "BMP-Antworten enthalten ETag. Senden Sie If-None-Match, um bei unverändertem Bild den Status 304 zu erhalten.",
   "api_docs_operational_auth": "Die Lese-APIs für Statistiken erfordern X-Admin-Token oder Authorization: Bearer <token>, wenn ADMIN_API_TOKEN konfiguriert ist. Bei MINIMAL_DATA_MODE=true geben alle Statistik-APIs den Status 410 zurück.",
   "api_docs_history_desc": "Stündlicher Anfrageverlauf; limit: 1–720 (Standard 168).",

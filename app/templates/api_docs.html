@@ -83,7 +83,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         <code class="text-lg font-mono">/calendar.bmp</code>
       </div>
       <p class="text-sm mb-4">{{ calendar_desc }}</p>
-      <p class="text-sm mb-4">{{ t.get("api_docs_selection_note", "Without year plus round or race_key, the next race is selected. Copy round or race_key from /api/races/{year}.") }}</p>
+      <p class="text-sm mb-4">{{ t.get("api_docs_selection_note", "Without year plus round or race_key, the next race is selected. Copy round or race_key from /api/races/{year}. Exception: race_key without year returns HTTP 400.") }}</p>
       <div class="border-2 border-black p-3 mb-4 text-sm space-y-2">
         <p>{{ track_ui.styleLabel }}: <code>track_style=relief</code> · {{ track_ui.sourceLabel }}: <code>track_source=jules</code> · {{ track_ui.accentLabel }}: <code>track_accent=all</code>.</p>
         <p>{{ track_ui.hint }} {{ t.credits_page.allAccents }} <code>display=spectra6</code>.</p>

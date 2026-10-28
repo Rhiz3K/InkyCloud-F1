@@ -218,9 +218,10 @@ async def api_info() -> dict:
                     },
                     "race_key": {
                         "type": "string",
-                        "description": "Race identifier from /api/races/{year}, including "
-                        "cancelled races without a round. Requires year; "
-                        "omission of year returns 400.",
+                        "description": "Race identifier for a bundled race from /api/races/{year}, "
+                        "including cancelled races without a round. "
+                        "Remote-only races are not selectable. "
+                        "Requires year; omission of year returns 400.",
                         "optional": True,
                     },
                     "tz": {

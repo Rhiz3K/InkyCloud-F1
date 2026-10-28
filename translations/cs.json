@@ -46,7 +46,7 @@
   "api_docs_title": "Dokumentace API",
   "api_docs_intro": "Generování 800×480 BMP obrázků pro E-Ink displeje zobrazující harmonogramy závodů F1 v režimu 1bit, B/W/R, B/W/R/Y nebo Spectra 6.",
   "api_docs_race_key_desc": "Identifikátor závodu z /api/races/{year}; vyžaduje year",
-  "api_docs_selection_note": "Bez kombinace year a round nebo race_key se vybere nejbližší závod. Hodnotu round nebo race_key zkopírujte z /api/races/{year}.",
+  "api_docs_selection_note": "Bez kombinace year a round nebo race_key se vybere nejbližší závod. Hodnotu round nebo race_key zkopírujte z /api/races/{year}. Výjimka: race_key bez year vrací HTTP 400.",
   "api_docs_etag_note": "Odpovědi s BMP obsahují ETag. Odešlete If-None-Match a při nezměněném obrázku obdržíte 304.",
   "api_docs_operational_auth": "API pro čtení statistik vyžadují X-Admin-Token nebo Authorization: Bearer <token>, pokud je nastaven ADMIN_API_TOKEN. Při MINIMAL_DATA_MODE=true vracejí všechna statistická API stav 410.",
   "api_docs_history_desc": "Historie požadavků po hodinách; limit: 1–720 (výchozí 168).",

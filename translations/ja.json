@@ -46,7 +46,7 @@
   "api_docs_title": "API ドキュメント",
   "api_docs_intro": "1bit、B/W/R、B/W/R/Y、または Spectra 6 モードで F1 レース日程を表示する E-Ink ディスプレイ向けに、800×480 の BMP 画像を生成します。",
   "api_docs_race_key_desc": "/api/races/{year} のレース識別子。year が必要です",
-  "api_docs_selection_note": "year と round または race_key の組み合わせを指定しない場合、次のレースが選択されます。round または race_key を /api/races/{year} からコピーしてください。",
+  "api_docs_selection_note": "year と round または race_key の組み合わせを指定しない場合、次のレースが選択されます。round または race_key を /api/races/{year} からコピーしてください。 例外：year なしで race_key を指定すると HTTP 400 が返されます。",
   "api_docs_etag_note": "BMP レスポンスには ETag が含まれます。If-None-Match を送信すると、画像が変更されていない場合に 304 が返されます。",
   "api_docs_operational_auth": "ADMIN_API_TOKEN が設定されている場合、統計読み取り API には X-Admin-Token または Authorization: Bearer <token> が必要です。MINIMAL_DATA_MODE=true の場合、すべての統計 API が 410 を返します。",
   "api_docs_history_desc": "1 時間ごとのリクエスト履歴。limit: 1–720（デフォルト 168）。",

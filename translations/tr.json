@@ -46,7 +46,7 @@
   "api_docs_title": "API Dokümantasyonu",
   "api_docs_intro": "1bit, B/W/R, B/W/R/Y veya Spectra 6 modunda F1 yarış takvimlerini gösteren E-Ink ekranlar için 800×480 BMP görseller oluşturun.",
   "api_docs_race_key_desc": "/api/races/{year} kaynağından yarış tanımlayıcısı; year gerektirir",
-  "api_docs_selection_note": "year ile round veya race_key birlikte belirtilmezse sıradaki yarış seçilir. round veya race_key değerini /api/races/{year} kaynağından kopyalayın.",
+  "api_docs_selection_note": "year ile round veya race_key birlikte belirtilmezse sıradaki yarış seçilir. round veya race_key değerini /api/races/{year} kaynağından kopyalayın. İstisna: year olmadan race_key HTTP 400 döndürür.",
   "api_docs_etag_note": "BMP yanıtları ETag içerir. Görsel değişmediyse 304 almak için If-None-Match gönderin.",
   "api_docs_operational_auth": "ADMIN_API_TOKEN yapılandırıldığında istatistik okuma API’leri X-Admin-Token veya Authorization: Bearer <token> gerektirir. MINIMAL_DATA_MODE=true olduğunda tüm istatistik API’leri 410 döndürür.",
   "api_docs_history_desc": "Saatlik istek geçmişi; limit: 1–720 (varsayılan 168).",

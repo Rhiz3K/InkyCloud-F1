@@ -46,7 +46,7 @@
   "api_docs_title": "Documentazione API",
   "api_docs_intro": "Genera immagini BMP 800×480 per display E-Ink che mostrano i programmi delle gare di F1 in modalità 1bit, B/W/R, B/W/R/Y o Spectra 6.",
   "api_docs_race_key_desc": "Identificatore della gara da /api/races/{year}; richiede year",
-  "api_docs_selection_note": "Senza la combinazione di year e round o race_key, viene selezionata la prossima gara. Copia round o race_key da /api/races/{year}.",
+  "api_docs_selection_note": "Senza la combinazione di year e round o race_key, viene selezionata la prossima gara. Copia round o race_key da /api/races/{year}. Eccezione: race_key senza year restituisce HTTP 400.",
   "api_docs_etag_note": "Le risposte BMP includono ETag. Invia If-None-Match per ricevere 304 quando l’immagine non è cambiata.",
   "api_docs_operational_auth": "Le API di lettura delle statistiche richiedono X-Admin-Token o Authorization: Bearer <token> quando ADMIN_API_TOKEN è configurato. Con MINIMAL_DATA_MODE=true, tutte le API delle statistiche restituiscono 410.",
   "api_docs_history_desc": "Cronologia delle richieste per ora; limit: 1–720 (predefinito 168).",
