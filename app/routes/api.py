@@ -13,10 +13,15 @@ from app.services.database import get_database
 from app.services.f1_service import F1Service
 from app.services.private_stats import canonical_page
 from app.services.renderers import DISPLAY_TYPES
-from app.services.teams_service import TeamsService
+from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.track_catalog import TrackAccent, TrackSource, TrackStyle
 from app.state import get_bmp_cache
-from app.utils.f1_season import get_current_f1_season, is_supported_f1_season
+from app.utils.f1_season import (
+    MIN_F1_SEASON,
+    get_current_f1_season,
+    get_max_supported_f1_season,
+    is_supported_f1_season,
+)
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.standings_metadata import TEAM_ID_MAP, get_driver_number
 from app.version import APP_VERSION
@@ -113,6 +118,43 @@ def _require_operational_api_auth(request: Request) -> None:
 @router.get("/api/docs")
 async def api_info() -> dict:
     """API documentation endpoint."""
+    season = get_current_f1_season()
+    season_parameter = {
+        "type": "integer",
+        "description": "Season year",
+        "in": "path",
+        "minimum": MIN_F1_SEASON,
+        "maximum": get_max_supported_f1_season(),
+    }
+    timezone_parameter = {
+        "type": "string",
+        "description": "IANA timezone for the F1 service; an invalid timezone returns 400",
+        "default": config.DEFAULT_TIMEZONE,
+        "optional": True,
+    }
+    track_parameters = {
+        "track_style": {
+            "type": "string",
+            "default": "relief",
+            "values": [style.value for style in TrackStyle],
+        },
+        "track_source": {
+            "type": "string",
+            "default": "jules",
+            "values": [source.value for source in TrackSource],
+        },
+        "track_accent": {
+            "type": "string",
+            "default": "all",
+            "values": [accent.value for accent in TrackAccent],
+        },
+    }
+    operational_auth = {
+        "required": config.ADMIN_API_TOKEN is not None,
+        "description": "Public unless ADMIN_API_TOKEN is configured. Applies to GET only.",
+        "headers": ["X-Admin-Token: <token>", "Authorization: Bearer <token>"],
+        "unauthorized_status": 401,
+    }
     return {
         "service": "F1 E-Ink Calendar API",
         "version": APP_VERSION,
@@ -125,6 +167,17 @@ async def api_info() -> dict:
             else config.PERF_METRICS_SAMPLE_RATE,
             "privacy": "Performance ingestion discards unknown and legacy visitor metadata. "
             "Default storage: hourly usage totals and coarse performance histograms.",
+            "read_authentication": operational_auth,
+        },
+        "rate_limits": {
+            "enabled": config.RATE_LIMIT_ENABLED,
+            "window_seconds": 60,
+            "scope": "Shared per bucket in minimal or aggregate-only mode; otherwise per IP",
+            "image_requests": config.IMAGE_RATE_LIMIT_PER_MINUTE,
+            "data_api_requests": config.DATA_API_RATE_LIMIT_PER_MINUTE,
+            "statistics_reads": config.STATS_RATE_LIMIT_PER_MINUTE,
+            "performance_posts": config.PERF_METRICS_RATE_LIMIT_PER_MINUTE,
+            "exceeded_response": "429 with Retry-After header",
         },
         "description": (
             f"Generate {config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} BMP images "
@@ -142,21 +195,7 @@ async def api_info() -> dict:
                     f"({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT})"
                 ),
                 "parameters": {
-                    "track_style": {
-                        "type": "string",
-                        "default": "relief",
-                        "values": [style.value for style in TrackStyle],
-                    },
-                    "track_source": {
-                        "type": "string",
-                        "default": "jules",
-                        "values": [source.value for source in TrackSource],
-                    },
-                    "track_accent": {
-                        "type": "string",
-                        "default": "all",
-                        "values": [accent.value for accent in TrackAccent],
-                    },
+                    **track_parameters,
                     "lang": {
                         "type": "string",
                         "description": "Language code for calendar text",
@@ -166,21 +205,30 @@ async def api_info() -> dict:
                     },
                     "year": {
                         "type": "integer",
-                        "description": "Season year for specific race",
-                        "example": "?year=2025",
+                        "description": "Season year; combine with round or race_key "
+                        "to select a race",
+                        "example": f"?year={season}",
                         "optional": True,
                     },
                     "round": {
                         "type": "integer",
-                        "description": "Round number (1-24) for specific race",
-                        "example": "?round=5",
+                        "description": "Round number from /api/races/{year}; ignored without year",
+                        "example": f"?year={season}&round=5",
+                        "optional": True,
+                    },
+                    "race_key": {
+                        "type": "string",
+                        "description": "Race identifier for a bundled race from /api/races/{year}, "
+                        "including cancelled races without a round. "
+                        "Remote-only races are not selectable. "
+                        "Requires year; omission of year returns 400.",
                         "optional": True,
                     },
                     "tz": {
                         "type": "string",
                         "description": "Timezone for schedule times (IANA format)",
                         "example": "?tz=America/New_York",
-                        "default": "Europe/Prague",
+                        "default": config.DEFAULT_TIMEZONE,
                         "optional": True,
                     },
                     "display": {
@@ -218,11 +266,14 @@ async def api_info() -> dict:
                         "1-bit monochrome, 4-bit indexed B/W/R, "
                         "4-bit indexed B/W/R/Y, or indexed Spectra 6"
                     ),
+                    "cache_control": "public, max-age=3600; no-store for rendering errors",
+                    "conditional_requests": "Send If-None-Match with the previous ETag for a "
+                    "body-free 304 response when unchanged",
                 },
                 "examples": [
                     "/calendar.bmp",
                     "/calendar.bmp?lang=cs",
-                    "/calendar.bmp?year=2025&round=1",
+                    f"/calendar.bmp?year={season}&round=1",
                     "/calendar.bmp?lang=en&tz=America/Los_Angeles",
                     "/calendar.bmp?display=bwr",
                     "/calendar.bmp?display=bwry",
@@ -245,8 +296,10 @@ async def api_info() -> dict:
                     },
                     "year": {
                         "type": "integer",
-                        "description": "Season year for team data",
-                        "example": "?year=2026",
+                        "description": "Season year for team data; defaults to the newest bundled "
+                        "season at or before the current season, when available",
+                        "default": get_default_teams_year(),
+                        "example": f"?year={get_default_teams_year()}",
                         "optional": True,
                     },
                     "display": {
@@ -265,30 +318,86 @@ async def api_info() -> dict:
                         "1-bit monochrome, 4-bit indexed B/W/R, "
                         "4-bit indexed B/W/R/Y, or indexed Spectra 6"
                     ),
+                    "cache_control": "no-cache; no-store for rendering errors",
+                    "conditional_requests": "Send If-None-Match with the previous ETag for a "
+                    "body-free 304 response when unchanged",
                 },
                 "examples": [
                     "/teams.bmp",
                     "/teams.bmp?lang=cs",
-                    "/teams.bmp?year=2026",
+                    f"/teams.bmp?year={get_default_teams_year()}",
                     "/teams.bmp?display=bwr",
                     "/teams.bmp?display=spectra6",
                 ],
             },
             "/api": {"method": "GET", "description": "API documentation (this endpoint)"},
-            "/api/tracks": {"method": "GET", "description": "Track artwork choices and catalogue"},
+            "/preview/{screen_type}.png": {
+                "method": "GET",
+                "description": "400px-wide browser preview of the next race "
+                "or default teams season",
+                "parameters": {
+                    "screen_type": {
+                        "type": "string",
+                        "in": "path",
+                        "values": ["calendar", "teams"],
+                    },
+                    "lang": {"type": "string", "default": "en", "values": _LANGUAGE_VALUES},
+                },
+                "response": {"content_type": "image/png"},
+            },
+            "/preview/configure/{screen_type}.png": {
+                "method": "GET",
+                "description": "Full-size browser preview of the next race or default teams "
+                "season; weather and track options apply only to calendar",
+                "parameters": {
+                    "screen_type": {
+                        "type": "string",
+                        "in": "path",
+                        "values": ["calendar", "teams"],
+                    },
+                    "lang": {"type": "string", "default": "en", "values": _LANGUAGE_VALUES},
+                    "display": {"type": "string", "default": "1bit", "values": _DISPLAY_VALUES},
+                    "weather_type": {
+                        "type": "string",
+                        "default": "off",
+                        "values": ["off", "current", "race", "race_day"],
+                    },
+                    **track_parameters,
+                },
+                "response": {"content_type": "image/png"},
+            },
+            "/api/tracks": {
+                "method": "GET",
+                "description": "Track artwork choices and catalogue",
+                "parameters": {
+                    "lang": {"type": "string", "default": "en", "values": _LANGUAGE_VALUES}
+                },
+            },
             "/api/tracks/{circuit_id}": {"method": "GET", "description": "Per-file attribution"},
             "/api/tracks/{circuit_id}.{svg|png|bmp}": {
                 "method": "GET",
                 "description": "Attributed standalone artwork",
-                "parameters": ["display", "track_style", "track_source", "track_accent"],
+                "parameters": {
+                    "display": {
+                        "type": "string",
+                        "default": "spectra6",
+                        "values": _DISPLAY_VALUES,
+                    },
+                    **track_parameters,
+                },
             },
             "/credits": {"method": "GET", "description": "Artwork authors and licences"},
             "/api/docs": {"method": "GET", "description": "API documentation (alias for /api)"},
+            "/api/docs/html": {
+                "method": "GET",
+                "description": "HTML API documentation; localized pages use /{lang}/api/docs/html",
+            },
             "/api/stats": {
                 "method": "GET",
                 "description": "Request statistics for the last 24h, including calendar "
                 "map choices; "
                 "410 when MINIMAL_DATA_MODE=true",
+                "authentication": operational_auth,
                 "calendar_map_breakdowns": {
                     "requests.by_track_style": "Counts by requested track_style",
                     "requests.by_track_source": "Counts by requested track_source",
@@ -301,11 +410,44 @@ async def api_info() -> dict:
                 "method": "GET",
                 "description": "Historical hourly request statistics; "
                 "410 when MINIMAL_DATA_MODE=true",
+                "authentication": operational_auth,
+                "parameters": {
+                    "limit": {
+                        "type": "integer",
+                        "default": 168,
+                        "minimum": 1,
+                        "maximum": 720,
+                        "description": "Maximum number of hourly history entries",
+                    }
+                },
             },
             "/api/perf-metrics": {
                 "methods": ["GET", "POST"],
                 "description": "GET: performance summaries. POST: numeric Web Vitals and "
                 "a known page category only. Both return 410 when MINIMAL_DATA_MODE=true.",
+                "authentication": operational_auth,
+                "parameters": {
+                    "hours": {
+                        "type": "integer",
+                        "default": 24,
+                        "minimum": 1,
+                        "maximum": 720,
+                        "description": "GET lookback window in hours",
+                    }
+                },
+                "post_body": {
+                    "content_type": "application/json",
+                    "required": ["page_path"],
+                    "optional": [
+                        "measurement_version",
+                        "lcp_ms",
+                        "cls",
+                        "fcp_ms",
+                        "ttfb_ms",
+                        "inp_ms",
+                    ],
+                    "response": "status=ok, or status=ignored when no numeric metric is supplied",
+                },
                 "measurement_version": 3,
                 "legacy_compatibility": "Version markers 1 and 2 remain accepted. "
                 "Obsolete visitor/device fields and unknown fields are ignored, never stored.",
@@ -315,17 +457,41 @@ async def api_info() -> dict:
             "/api/races/{year}": {
                 "method": "GET",
                 "description": "Get list of races for a season",
-                "parameters": {
-                    "year": {"type": "integer", "description": "Season year", "in": "path"}
-                },
+                "parameters": {"year": season_parameter, "tz": timezone_parameter},
             },
             "/api/race/{year}/{round_num}": {
                 "method": "GET",
                 "description": "Get detailed race information",
                 "parameters": {
-                    "year": {"type": "integer", "description": "Season year", "in": "path"},
-                    "round_num": {"type": "integer", "description": "Round number", "in": "path"},
+                    "year": season_parameter,
+                    "tz": timezone_parameter,
+                    "round_num": {
+                        "type": "integer",
+                        "description": "Round number; unavailable races return 404",
+                        "in": "path",
+                        "minimum": 1,
+                        "maximum": 30,
+                    },
                 },
+            },
+            "/api/teams/{year}": {
+                "method": "GET",
+                "description": "Teams and drivers for a season; 503 when unavailable",
+                "parameters": {"year": season_parameter},
+            },
+            "/api/standings/leader": {
+                "method": "GET",
+                "description": "Driver and constructor championship leaders; has_data=false "
+                "when standings are unavailable",
+                "parameters": {
+                    "year": {**season_parameter, "in": "query", "default": season, "optional": True}
+                },
+            },
+            "/api/standings/leader/{year}": {
+                "method": "GET",
+                "description": "Driver and constructor championship leaders for a season; "
+                "has_data=false when standings are unavailable",
+                "parameters": {"year": season_parameter},
             },
             "/health": {"method": "GET", "description": "Process liveness check"},
             "/health/ready": {
@@ -335,8 +501,11 @@ async def api_info() -> dict:
         },
         "e_ink_usage": {
             "description": "For E-Ink displays, fetch /calendar.bmp and display directly",
-            "recommended_refresh": "Every 1-6 hours (data updates hourly)",
-            "display_compatibility": 'Any 800x480 E-Ink display (e.g., Waveshare 7.5")',
+            "recommended_refresh": "Every 1-6 hours (images regenerate hourly)",
+            "display_compatibility": (
+                f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} E-Ink displays "
+                "using the matching display output mode"
+            ),
         },
     }
 

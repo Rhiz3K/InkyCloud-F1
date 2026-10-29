@@ -774,14 +774,27 @@ async def _render_teams_artifact(
 @router.get("/calendar.bmp")
 async def get_calendar_bmp(
     request: Request,
-    lang: str = Query(default="en", description="Language code (cs, en)"),
-    year: int | None = Query(default=None, description="Season year (e.g., 2025)"),
-    race_round: int | None = Query(default=None, description="Round number", alias="round"),
-    race_key: str | None = Query(default=None, description="Race identifier", alias="race_key"),
-    tz: str | None = Query(default=None, description="Timezone"),
+    lang: str = Query(default="en", description=f"Language code ({', '.join(LANGUAGE_CODES)})"),
+    year: int | None = Query(
+        default=None, description="Season year; combine with round or race_key"
+    ),
+    race_round: int | None = Query(
+        default=None,
+        description="Round from /api/races/{year}; ignored without year",
+        alias="round",
+    ),
+    race_key: str | None = Query(
+        default=None,
+        description="Race identifier from /api/races/{year}; requires year",
+        alias="race_key",
+    ),
+    tz: str | None = Query(
+        default=None, description="IANA timezone; defaults to the server's DEFAULT_TIMEZONE"
+    ),
     weather: bool = Query(default=True, description="Show weather forecast"),
     weather_type: str = Query(
-        default="race_day", description="Weather type: 'current' or 'race_day'"
+        default="race_day",
+        description="Weather type: 'race_day' (alias 'race'), 'current', or 'off'",
     ),
     display: str = Query(
         default="1bit",
@@ -949,7 +962,7 @@ async def get_calendar_bmp(
 @router.get("/teams.bmp")
 async def get_teams_bmp(
     request: Request,
-    lang: str = Query(default="en", description="Language code (cs, en)"),
+    lang: str = Query(default="en", description=f"Language code ({', '.join(LANGUAGE_CODES)})"),
     year: int | None = Query(default=None, description="Season year"),
     display: str = Query(
         default="1bit",
