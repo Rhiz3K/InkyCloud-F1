@@ -37,12 +37,15 @@ Configure your deployed instance following [the self-hosting guide](SELF-HOSTING
 | -------------- | -------------------------------- | ------------------------------------ |
 | `lang`         | `cs`, `de`, `en`, `es`, `fr`, `it`, `ja`, `nl`, `pl`, `pt-BR`, `sk`, `tr`, `zh-CN` | `?lang=sk` |
 | `tz`           | Any IANA timezone                | `?tz=America/New_York`               |
-| `year`         | Season year                      | `?year=2026`                         |
+| `year`         | Season year; pair with `round` or `race_key` to select a race | `?year=2026&round=6` |
 | `round`        | Race round number                | `?year=2026&round=5`                 |
-| `race_key`     | Specific race key from `/api/races/{year}` (requires `year`) | `?year=2026&race_key=2026-round-5-monaco-2026-05-24` |
+| `race_key`     | Specific race key from `/api/races/{year}` (requires `year`) | `?year=2026&race_key=2026-round-6-monaco-2026-06-07` |
 | `display`      | `1bit`, `bwr`, `bwry`, `spectra6` | `?display=bwry`                      |
 | `weather`      | `true`, `false`                  | `?weather=false`                     |
 | `weather_type` | `race_day`, `race`, `current`, `off` | `?weather=true&weather_type=current` |
+| `track_style`  | 18 style identifiers from `/api/tracks`; default `relief` | `?track_style=contours` |
+| `track_source` | `jules` (default), `commons`       | `?track_source=commons`              |
+| `track_accent` | 16 accent subsets from `/api/tracks`; default `all` | `?track_accent=warm` |
 
 **Examples:**
 
@@ -50,7 +53,7 @@ Configure your deployed instance following [the self-hosting guide](SELF-HOSTING
 https://racing.example.com/calendar.bmp?lang=cs
 https://racing.example.com/calendar.bmp?lang=en&tz=America/New_York
 https://racing.example.com/calendar.bmp?lang=en&year=2026&round=5
-https://racing.example.com/calendar.bmp?lang=en&year=2026&race_key=2026-round-5-monaco-2026-05-24
+https://racing.example.com/calendar.bmp?lang=en&year=2026&race_key=2026-round-6-monaco-2026-06-07
 https://racing.example.com/calendar.bmp?lang=en&display=bwr
 https://racing.example.com/calendar.bmp?lang=en&display=bwry
 https://racing.example.com/calendar.bmp?lang=en&display=spectra6
@@ -155,11 +158,11 @@ which permits conditional revalidation without accepting a stale response.
 
 ## Public Routes and API Endpoints
 
-The public instance at [racing.example.com](https://racing.example.com) provides these endpoints:
+Your deployed instance provides these endpoints:
 
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
-| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, and `tz` params |
+| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `tz`, `track_style`, `track_source`, and `track_accent` params |
 | `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`) |
 | `GET /`                                  | Landing page with screen type selection                 |
 | `GET /configure/{screen}`                | Interactive localized preview/config page (calendar/teams) |
@@ -176,9 +179,13 @@ The public instance at [racing.example.com](https://racing.example.com) provides
 | `GET /api/teams/{year}`                  | Teams and drivers for a season (JSON)                   |
 | `GET /api/standings/leader`              | Current championship leader (JSON)                      |
 | `GET /api/standings/leader/{year}`       | Championship leader for a specific season (JSON)        |
+| `GET /api/tracks`                        | Circuit artwork catalogue, available styles, sources, accents, and display palettes |
+| `GET /api/tracks/{circuit_id}`           | Circuit artwork metadata and per-file attribution (JSON) |
+| `GET /api/tracks/{circuit_id}.{svg\|png\|bmp}` | Attributed circuit artwork export; default display `spectra6` |
+| `GET /credits`                           | Circuit artwork authors and licences                    |
 | `GET /api/stats`                         | Request statistics, 200/304 status totals and map style/source/accent usage |
 | `GET /api/stats/history`                 | Historical hourly request statistics                    |
-| `POST /api/perf-metrics`                 | Retired; returns 410 without storing telemetry    |
+| `POST /api/perf-metrics`                 | Submit numeric performance measurements; 410 in minimal mode |
 | `GET /api/perf-metrics`                  | Performance summaries; 410 only in minimal mode            |
 | `GET /robots.txt`                        | Crawler policy with canonical sitemap reference         |
 | `GET /sitemap.xml`                       | Localized sitemap with canonical URLs and hreflang alternates |

@@ -715,9 +715,12 @@ def test_api_docs_html_endpoint_returns_html():
     assert "API Documentation" in response.text or "Dokumentace API" in response.text
 
 
-def test_api_docs_html_contains_required_sections():
+@pytest.mark.parametrize("ui_lang", LANGUAGE_CODES)
+def test_api_docs_html_contains_required_sections(ui_lang):
     """Test API docs HTML page has all required sections."""
-    response = client.get("/api/docs/html?lang=en")
+    prefix = "" if ui_lang == "en" else f"/{ui_lang}"
+    response = client.get(f"{prefix}/api/docs/html")
+    assert response.status_code == 200
     html = response.text
 
     # Main endpoint section
@@ -730,6 +733,29 @@ def test_api_docs_html_contains_required_sections():
     assert "round" in html
     assert "tz" in html
 
+    # The calendar table must document every query parameter accepted by the route.
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table")
+    documented_parameters = {
+        row.find("td").get_text(strip=True) for row in table.select("tbody tr")
+    }
+    schema = app.openapi()
+    accepted_parameters = {
+        parameter["name"]
+        for parameter in schema["paths"]["/calendar.bmp"]["get"]["parameters"]
+        if parameter["in"] == "query"
+    }
+    assert documented_parameters == accepted_parameters
+
+    # Examples must resolve to bundled races; a plausible-looking key can still be invalid.
+    race_key = next(
+        (code.get_text() for code in table.find_all("code") if "-round-" in code.get_text()),
+        None,
+    )
+    assert race_key is not None, "Calendar documentation must include a race key example"
+    races = F1Service().get_all_races_from_static(int(race_key.split("-")[0]))
+    assert race_key in {race["race_key"] for race in races}
+
     # Code examples section
     assert "cURL" in html
     assert "Python" in html
@@ -739,6 +765,12 @@ def test_api_docs_html_contains_required_sections():
     assert "/api/races/" in html
     assert "/api/stats" in html
     assert "/health" in html
+    assert "/health/ready" in html
+    assert "/api/perf-metrics" in html
+    assert "/api/stats/history" in html
+    assert "If-None-Match" in html
+    assert "X-Admin-Token" in html
+    assert "no-cache" in html
 
     # Try it buttons
     assert "tryCalendarBmp" in html or "Try it" in html

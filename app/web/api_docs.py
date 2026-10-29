@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.config import config
+
 API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "en": {
         "lang_desc": "Language code for calendar text",
         "year_desc": "Season year for specific race",
-        "round_desc": "Round number (1-24) for specific race",
+        "round_desc": "Round number from the season race list; ignored without year",
         "tz_desc": "Timezone for schedule times (IANA format)",
         "display_desc": "Output mode for 1bit, B/W/R, B/W/R/Y, or Spectra 6 displays",
         "weather_desc": "Enable or disable the weather overlay",
@@ -22,7 +24,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Color depth",
         "races_desc": "List of all races for a given season",
         "race_desc": "Detailed race information including schedule",
-        "stats_desc": "Request statistics (last hour and 24h counts)",
+        "stats_desc": "Request statistics for the last 24 hours",
         "health_desc": "Service health check",
         "json_api_desc": "API documentation in JSON format",
         "laskakit_title": "For LaskaKit / zivyobraz.eu:",
@@ -36,7 +38,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "cs": {
         "lang_desc": "Kód jazyka pro text kalendáře",
         "year_desc": "Rok sezóny pro konkrétní závod",
-        "round_desc": "Číslo kola (1-24) pro konkrétní závod",
+        "round_desc": "Číslo kola ze seznamu závodů sezóny; bez year se ignoruje",
         "tz_desc": "Časové pásmo pro časy v harmonogramu (IANA formát)",
         "display_desc": "Režim výstupu pro 1bit, B/W/R, B/W/R/Y nebo Spectra 6 displeje",
         "weather_desc": "Zapnutí nebo vypnutí překrytí s počasím",
@@ -50,7 +52,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Barevná hloubka",
         "races_desc": "Seznam všech závodů pro danou sezónu",
         "race_desc": "Detailní informace o konkrétním závodě včetně harmonogramu",
-        "stats_desc": "Statistiky požadavků (počet za hodinu a 24 hodin)",
+        "stats_desc": "Statistiky požadavků za posledních 24 hodin",
         "health_desc": "Kontrola zdraví služby",
         "json_api_desc": "Dokumentace API ve formátu JSON",
         "laskakit_title": "Pro LaskaKit / zivyobraz.eu:",
@@ -64,7 +66,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "de": {
         "lang_desc": "Sprachcode für den Kalendertext",
         "year_desc": "Saisonjahr für ein bestimmtes Rennen",
-        "round_desc": "Rundennummer (1-24) für ein bestimmtes Rennen",
+        "round_desc": "Rundennummer aus der Saison-Rennliste; ohne year ignoriert",
         "tz_desc": "Zeitzone für Zeitangaben im Zeitplan (IANA-Format)",
         "display_desc": "Ausgabemodus für 1bit-, B/W/R-, B/W/R/Y- oder Spectra-6-Displays",
         "weather_desc": "Wetter-Overlay aktivieren oder deaktivieren",
@@ -78,7 +80,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Farbtiefe",
         "races_desc": "Liste aller Rennen einer Saison",
         "race_desc": "Detaillierte Renninformationen inklusive Zeitplan",
-        "stats_desc": "Anfragestatistiken (letzte Stunde und 24h)",
+        "stats_desc": "Anfragestatistiken der letzten 24 Stunden",
         "health_desc": "Service-Statusprüfung",
         "json_api_desc": "API-Dokumentation im JSON-Format",
         "laskakit_title": "Für LaskaKit / zivyobraz.eu:",
@@ -92,7 +94,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "sk": {
         "lang_desc": "Kód jazyka pre text kalendára",
         "year_desc": "Rok sezóny pre konkrétne preteky",
-        "round_desc": "Číslo kola (1-24) pre konkrétne preteky",
+        "round_desc": "Číslo kola zo zoznamu pretekov sezóny; bez year sa ignoruje",
         "tz_desc": "Časové pásmo pre časy v harmonograme (formát IANA)",
         "display_desc": "Výstupný režim pre 1bit, B/W/R, B/W/R/Y alebo Spectra 6 displeje",
         "weather_desc": "Zapnúť alebo vypnúť vrstvu počasia",
@@ -106,7 +108,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Farebná hĺbka",
         "races_desc": "Zoznam všetkých pretekov danej sezóny",
         "race_desc": "Detailné informácie o konkrétnych pretekoch vrátane harmonogramu",
-        "stats_desc": "Štatistiky požiadaviek (posledná hodina a 24 hodín)",
+        "stats_desc": "Štatistiky požiadaviek za posledných 24 hodín",
         "health_desc": "Kontrola zdravia služby",
         "json_api_desc": "Dokumentácia API vo formáte JSON",
         "laskakit_title": "Pre LaskaKit / zivyobraz.eu:",
@@ -120,7 +122,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "es": {
         "lang_desc": "Código de idioma para el texto del calendario",
         "year_desc": "Año de temporada para una carrera concreta",
-        "round_desc": "Número de ronda (1-24) para una carrera concreta",
+        "round_desc": "Número de ronda de la lista de carreras; se ignora sin year",
         "tz_desc": "Zona horaria para los horarios (formato IANA)",
         "display_desc": "Modo de salida para pantallas 1bit, B/W/R, B/W/R/Y o Spectra 6",
         "weather_desc": "Activa o desactiva la capa del tiempo",
@@ -134,7 +136,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Profundidad de color",
         "races_desc": "Lista de todas las carreras de una temporada",
         "race_desc": "Información detallada de una carrera, incluido el horario",
-        "stats_desc": "Estadísticas de peticiones (última hora y 24 h)",
+        "stats_desc": "Estadísticas de peticiones de las últimas 24 horas",
         "health_desc": "Comprobación del estado del servicio",
         "json_api_desc": "Documentación de la API en formato JSON",
         "laskakit_title": "Para LaskaKit / zivyobraz.eu:",
@@ -148,7 +150,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "it": {
         "lang_desc": "Codice lingua per il testo del calendario",
         "year_desc": "Anno di stagione per una gara specifica",
-        "round_desc": "Numero del round (1-24) per una gara specifica",
+        "round_desc": "Numero del round dall'elenco delle gare; ignorato senza year",
         "tz_desc": "Fuso orario per gli orari del programma (formato IANA)",
         "display_desc": "Modalità di output per display 1bit, B/W/R, B/W/R/Y o Spectra 6",
         "weather_desc": "Abilita o disabilita l'overlay meteo",
@@ -162,7 +164,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Profondità colore",
         "races_desc": "Elenco di tutte le gare di una stagione",
         "race_desc": "Informazioni dettagliate sulla gara, incluso il programma",
-        "stats_desc": "Statistiche delle richieste (ultima ora e 24h)",
+        "stats_desc": "Statistiche delle richieste nelle ultime 24 ore",
         "health_desc": "Controllo stato del servizio",
         "json_api_desc": "Documentazione API in formato JSON",
         "laskakit_title": "Per LaskaKit / zivyobraz.eu:",
@@ -176,7 +178,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "fr": {
         "lang_desc": "Code langue pour le texte du calendrier",
         "year_desc": "Année de saison pour une course spécifique",
-        "round_desc": "Numéro de manche (1-24) pour une course spécifique",
+        "round_desc": "Numéro de manche de la liste des courses ; ignoré sans year",
         "tz_desc": "Fuseau horaire pour les horaires (format IANA)",
         "display_desc": "Mode de sortie pour écrans 1bit, B/W/R, B/W/R/Y ou Spectra 6",
         "weather_desc": "Activer ou désactiver l'overlay météo",
@@ -190,7 +192,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Profondeur de couleur",
         "races_desc": "Liste de toutes les courses d'une saison",
         "race_desc": "Informations détaillées sur une course, y compris l'horaire",
-        "stats_desc": "Statistiques des requêtes (dernière heure et 24 h)",
+        "stats_desc": "Statistiques des requêtes des dernières 24 heures",
         "health_desc": "Vérification de l'état du service",
         "json_api_desc": "Documentation API au format JSON",
         "laskakit_title": "Pour LaskaKit / zivyobraz.eu :",
@@ -204,7 +206,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "pt-BR": {
         "lang_desc": "Código do idioma para o texto do calendário",
         "year_desc": "Ano da temporada para uma corrida específica",
-        "round_desc": "Número da rodada (1-24) para uma corrida específica",
+        "round_desc": "Número da rodada na lista de corridas; ignorado sem year",
         "tz_desc": "Fuso horário para os horários do cronograma (formato IANA)",
         "display_desc": "Modo de saída para telas 1bit, B/W/R, B/W/R/Y ou Spectra 6",
         "weather_desc": "Ativa ou desativa a sobreposição de clima",
@@ -218,7 +220,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Profundidade de cor",
         "races_desc": "Lista de todas as corridas de uma temporada",
         "race_desc": "Informações detalhadas da corrida, incluindo cronograma",
-        "stats_desc": "Estatísticas de requisições (última hora e 24 h)",
+        "stats_desc": "Estatísticas de requisições nas últimas 24 horas",
         "health_desc": "Verificação de saúde do serviço",
         "json_api_desc": "Documentação da API em formato JSON",
         "laskakit_title": "Para LaskaKit / zivyobraz.eu:",
@@ -232,7 +234,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "nl": {
         "lang_desc": "Taalcode voor kalendertekst",
         "year_desc": "Seizoensjaar voor een specifieke race",
-        "round_desc": "Rondenummer (1-24) voor een specifieke race",
+        "round_desc": "Rondenummer uit de racelijst van het seizoen; genegeerd zonder year",
         "tz_desc": "Tijdzone voor tijden in het schema (IANA-formaat)",
         "display_desc": "Uitvoermodus voor 1bit-, B/W/R-, B/W/R/Y- of Spectra 6-displays",
         "weather_desc": "Weeroverlay in- of uitschakelen",
@@ -246,7 +248,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Kleurdiepte",
         "races_desc": "Lijst van alle races voor een seizoen",
         "race_desc": "Gedetailleerde race-informatie inclusief schema",
-        "stats_desc": "Aanvraagstatistieken (laatste uur en 24 u)",
+        "stats_desc": "Aanvraagstatistieken van de laatste 24 uur",
         "health_desc": "Service health-check",
         "json_api_desc": "API-documentatie in JSON-formaat",
         "laskakit_title": "Voor LaskaKit / zivyobraz.eu:",
@@ -260,7 +262,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "pl": {
         "lang_desc": "Kod języka dla tekstu kalendarza",
         "year_desc": "Rok sezonu dla konkretnego wyścigu",
-        "round_desc": "Numer rundy (1-24) dla konkretnego wyścigu",
+        "round_desc": "Numer rundy z listy wyścigów sezonu; ignorowany bez year",
         "tz_desc": "Strefa czasowa dla godzin harmonogramu (format IANA)",
         "display_desc": "Tryb wyjścia dla ekranów 1bit, B/W/R, B/W/R/Y lub Spectra 6",
         "weather_desc": "Włącz lub wyłącz nakładkę pogody",
@@ -274,7 +276,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Głębia kolorów",
         "races_desc": "Lista wszystkich wyścigów danego sezonu",
         "race_desc": "Szczegółowe informacje o wyścigu wraz z harmonogramem",
-        "stats_desc": "Statystyki żądań (ostatnia godzina i 24 h)",
+        "stats_desc": "Statystyki żądań z ostatnich 24 godzin",
         "health_desc": "Kontrola stanu usługi",
         "json_api_desc": "Dokumentacja API w formacie JSON",
         "laskakit_title": "Dla LaskaKit / zivyobraz.eu:",
@@ -288,7 +290,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "tr": {
         "lang_desc": "Takvim metni için dil kodu",
         "year_desc": "Belirli yarış için sezon yılı",
-        "round_desc": "Belirli yarış için tur numarası (1-24)",
+        "round_desc": "Sezon yarış listesindeki tur numarası; year olmadan yok sayılır",
         "tz_desc": "Takvim saatleri için saat dilimi (IANA biçimi)",
         "display_desc": "1bit, B/W/R, B/W/R/Y veya Spectra 6 ekranlar için çıktı modu",
         "weather_desc": "Hava durumu katmanını aç veya kapat",
@@ -302,7 +304,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "Renk derinliği",
         "races_desc": "Belirli bir sezon için tüm yarışların listesi",
         "race_desc": "Takvim dahil ayrıntılı yarış bilgisi",
-        "stats_desc": "İstek istatistikleri (son saat ve 24 saat)",
+        "stats_desc": "Son 24 saatin istek istatistikleri",
         "health_desc": "Servis sağlık kontrolü",
         "json_api_desc": "JSON formatında API dokümantasyonu",
         "laskakit_title": "LaskaKit / zivyobraz.eu için:",
@@ -316,7 +318,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "ja": {
         "lang_desc": "カレンダーテキスト用の言語コード",
         "year_desc": "特定レース用のシーズン年",
-        "round_desc": "特定レース用のラウンド番号 (1-24)",
+        "round_desc": "シーズンのレース一覧のラウンド番号（year がなければ無視）",
         "tz_desc": "スケジュール時刻用のタイムゾーン (IANA 形式)",
         "display_desc": "1bit、B/W/R、B/W/R/Y、Spectra 6 ディスプレイ用の出力モード",
         "weather_desc": "天気オーバーレイの有効化または無効化",
@@ -330,7 +332,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "色深度",
         "races_desc": "指定シーズンの全レース一覧",
         "race_desc": "スケジュールを含む詳細なレース情報",
-        "stats_desc": "リクエスト統計 (直近1時間と24時間)",
+        "stats_desc": "直近24時間のリクエスト統計",
         "health_desc": "サービス稼働状況チェック",
         "json_api_desc": "JSON 形式の API ドキュメント",
         "laskakit_title": "LaskaKit / zivyobraz.eu 向け:",
@@ -344,7 +346,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
     "zh-CN": {
         "lang_desc": "日历文本的语言代码",
         "year_desc": "指定比赛的赛季年份",
-        "round_desc": "指定比赛的轮次编号 (1-24)",
+        "round_desc": "赛季比赛列表中的轮次编号；未提供 year 时忽略",
         "tz_desc": "赛程时间使用的时区 (IANA 格式)",
         "display_desc": "适用于 1bit、B/W/R、B/W/R/Y 或 Spectra 6 显示器的输出模式",
         "weather_desc": "启用或禁用天气叠加层",
@@ -358,7 +360,7 @@ API_DOCS_TEXTS: dict[str, dict[str, str]] = {
         "color_depth_label": "色深",
         "races_desc": "指定赛季的全部比赛列表",
         "race_desc": "包含赛程的详细比赛信息",
-        "stats_desc": "请求统计（最近 1 小时和 24 小时）",
+        "stats_desc": "最近 24 小时的请求统计",
         "health_desc": "服务健康检查",
         "json_api_desc": "JSON 格式的 API 文档",
         "laskakit_title": "适用于 LaskaKit / zivyobraz.eu：",
@@ -392,7 +394,7 @@ def _build_english_code_examples(server_url: str) -> dict[str, str]:
             f"{curl_comment2}\n"
             f'curl -o calendar.bmp "{server_url}/calendar.bmp?lang=cs&tz=Europe/Prague"\n\n'
             f"{curl_comment3}\n"
-            f'curl -o calendar.bmp "{server_url}/calendar.bmp?year=2025&round=5"\n\n'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp?year=2026&round=6"\n\n'
             f"{curl_comment4}\n"
             f'curl -o calendar.bmp "{server_url}/calendar.bmp?display=bwry"'
         ),
@@ -458,7 +460,7 @@ def _build_czech_code_examples(server_url: str) -> dict[str, str]:
             f"{curl_comment2}\n"
             f'curl -o calendar.bmp "{server_url}/calendar.bmp?lang=cs&tz=Europe/Prague"\n\n'
             f"{curl_comment3}\n"
-            f'curl -o calendar.bmp "{server_url}/calendar.bmp?year=2025&round=5"\n\n'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp?year=2026&round=6"\n\n'
             f"{curl_comment4}\n"
             f'curl -o calendar.bmp "{server_url}/calendar.bmp?display=bwry"'
         ),
@@ -512,4 +514,9 @@ def build_api_docs_context(ui_lang: str, server_url: str) -> dict[str, Any]:
         if ui_lang == "cs"
         else _build_english_code_examples(server_url)
     )
-    return {**code_examples, **texts, "server_url": server_url}
+    return {
+        **code_examples,
+        **texts,
+        "server_url": server_url,
+        "default_timezone": config.DEFAULT_TIMEZONE,
+    }

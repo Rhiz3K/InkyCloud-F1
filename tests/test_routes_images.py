@@ -203,6 +203,8 @@ def test_static_race_selection_covers_key_round_missing_and_next():
     assert images._get_race_data_from_static(service, 2026, 14, None) == races[1]
     assert images._get_race_data_from_static(service, 2026, 1, None) is None
     assert images._get_race_data_from_static(service, None, None, None) == {"race_key": "next"}
+    assert images._get_race_data_from_static(service, None, 14, None) == {"race_key": "next"}
+    assert images._get_race_data_from_static(service, 2026, None, None) == {"race_key": "next"}
 
 
 def test_timezone_conversion_returns_same_or_converted_payload():
