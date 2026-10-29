@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Update the Docker base image to python:3.14-slim (Python 3.14.10) by digest,
+  replacing the Python 3.14.7 image flagged by the vulnerability tracker.
 - Update Pillow to 13.0.0 and certifi to 2026.10.19 to address the vulnerabilities
   reported by the dependency audit and container scan.
 
