@@ -48,6 +48,33 @@ def test_config_defaults():
     assert config.HISTORICAL_REFRESH_TIMEOUT_SECONDS == 5400
 
 
+def test_privacy_infrastructure_defaults():
+    """Hosting and infrastructure retention defaults match the documented deployment."""
+    config = config_module.Config(_env_file=None)
+
+    assert config.HOSTING_DETAILS == "Hetzner Online GmbH, Germany"
+    assert config.PROXY_LOG_RETENTION_DAYS == 7
+    assert config.TRAFFIC_STATS_HOURLY_DAYS == 30
+    assert config.TRAFFIC_STATS_DAILY_DAYS == 395
+
+
+@pytest.mark.parametrize(
+    ("field_name", "default"),
+    [
+        ("PROXY_LOG_RETENTION_DAYS", 7),
+        ("TRAFFIC_STATS_HOURLY_DAYS", 30),
+        ("TRAFFIC_STATS_DAILY_DAYS", 395),
+    ],
+)
+@pytest.mark.parametrize("value", ["0", "-3", "soon"])
+def test_infrastructure_retention_rejects_non_positive_values(field_name, default, value):
+    """Infrastructure retention days must be positive integers or fall back to defaults."""
+    config = config_module.Config(_env_file=None, **{field_name: value})
+
+    assert getattr(config, field_name) == default
+    assert getattr(config_module.Config(_env_file=None, **{field_name: "14"}), field_name) == 14
+
+
 def test_default_stats_retention_covers_longest_dashboard_range():
     """The shipped retention must preserve every selectable dashboard range."""
     default_retention = config_module.Config.model_fields["STATS_RETENTION_DAYS"].default
@@ -120,7 +147,6 @@ def test_config_invalid_env_falls_back(monkeypatch):
     monkeypatch.setenv("HISTORICAL_REFRESH_TIMEOUT_SECONDS", "0")
     monkeypatch.setenv("DEFAULT_TIMEZONE", "Not/AZone")
     monkeypatch.setenv("SITE_URL", "not-a-url")
-    monkeypatch.setenv("UMAMI_API_URL", "not-a-url")
     monkeypatch.setenv("GITHUB_API_BASE_URL", "not-a-url")
     monkeypatch.setenv("OPEN_METEO_URL", "still-not-a-url")
     monkeypatch.setenv("OPEN_METEO_ARCHIVE_URL", "bad-archive-url")
@@ -140,7 +166,6 @@ def test_config_invalid_env_falls_back(monkeypatch):
     assert config.HISTORICAL_REFRESH_TIMEOUT_SECONDS == 5400
     assert config.DEFAULT_TIMEZONE == "Europe/Prague"
     assert str(config.SITE_URL) == "http://localhost:8000"
-    assert str(config.UMAMI_API_URL) == "https://analytics.example.com/api/send"
     assert str(config.GITHUB_API_BASE_URL) == "https://api.github.com"
     assert str(config.OPEN_METEO_URL) == "https://api.open-meteo.com/v1/forecast"
     assert str(config.OPEN_METEO_ARCHIVE_URL) == "https://archive-api.open-meteo.com/v1/archive"

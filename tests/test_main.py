@@ -40,7 +40,6 @@ from app.routes.images import (
     _get_pregenerated_teams_path,
     _get_race_data_from_static,
     _get_race_info_for_stats,
-    _schedule_calendar_analytics,
 )
 from app.services.artifact_metadata import calendar_identity, write_artifact_metadata
 from app.services.f1_service import F1Service
@@ -185,13 +184,12 @@ def test_public_html_pages_support_head(path: str):
         "/cs/privacy",
     ],
 )
-def test_public_html_pages_head_does_not_track_pageview(path: str):
-    """HEAD requests should skip analytics tracking on public HTML pages."""
-    with patch("app.routes.pages.track_pageview", new_callable=AsyncMock) as mock_track:
-        response = client.request("HEAD", path)
+def test_public_html_pages_head_returns_empty_ok(path: str):
+    """HEAD requests on public HTML pages should succeed without rendering a body."""
+    response = client.request("HEAD", path)
 
     assert response.status_code == 200
-    mock_track.assert_not_awaited()
+    assert response.content == b""
 
 
 def test_stats_head_does_not_query_database():
@@ -614,7 +612,6 @@ def test_homepage_contains_credits_links():
     html = response.text
     assert "Credits" in html
     assert "FoxeeLab" in html
-    assert 'href="https://umami.is"' in html
     assert 'href="https://glitchtip.com"' in html
     assert 'href="https://coolify.io"' in html
     assert 'href="https://hetzner.com"' in html
@@ -624,6 +621,25 @@ def test_homepage_contains_credits_links():
     assert "Jolpica" in html
     assert 'href="https://open-meteo.com"' in html
     assert 'href="https://github.com/erikflowers/weather-icons"' in html
+
+
+def test_credits_component_has_no_umami_entry():
+    """Credits list every remaining provider in both layouts and no Umami analytics entry."""
+    html = client.get("/").text
+    assert 'data-credit="analytics"' not in html
+    assert "umami.is" not in html.lower()
+    for key in (
+        "inspiration",
+        "raceData",
+        "weather",
+        "icons",
+        "flags",
+        "platform",
+        "devices",
+        "hosting",
+        "errors",
+    ):
+        assert html.count(f'data-credit="{key}"') == 2
 
 
 def test_configure_page_has_sidebar():
@@ -826,7 +842,6 @@ def test_stats_dashboard_renders_zero_state_when_database_fails():
     """The DB failure fallback must satisfy the full template contract."""
     with (
         patch("app.routes.pages.get_database", side_effect=RuntimeError("database unavailable")),
-        patch("app.routes.pages.track_pageview", new=AsyncMock()),
     ):
         response = client.get("/stats")
 
@@ -843,7 +858,6 @@ def test_stats_dashboard_reuses_database_without_closing_it():
 
     with (
         patch("app.routes.pages.get_database", return_value=database),
-        patch("app.routes.pages.track_pageview", new=AsyncMock()),
     ):
         response = client.get("/stats")
 
@@ -936,7 +950,6 @@ def test_stats_dashboard_uses_ranked_breakdown_bar_colors():
             "app.services.database.Database.get_perf_stats",
             new=AsyncMock(return_value={"sample_count": 0}),
         ),
-        patch("app.routes.pages.track_pageview", new=AsyncMock()),
     ):
         response = client.get("/stats")
 
@@ -1016,7 +1029,6 @@ def test_stats_dashboard_localizes_range_and_fallback_labels():
             "app.services.database.Database.get_perf_stats",
             new=AsyncMock(return_value={"sample_count": 0}),
         ),
-        patch("app.routes.pages.track_pageview", new=AsyncMock()),
     ):
         response = client.get("/cs/stats")
 
@@ -1509,7 +1521,6 @@ def test_configure_teams_seasons_are_supplied_by_backend():
     with (
         patch("app.routes.pages.get_current_f1_season", return_value=2027),
         patch("app.routes.pages.get_available_teams_years", return_value=[2025, 2026]),
-        patch("app.routes.pages.track_pageview", new=AsyncMock()),
     ):
         response = client.get("/configure/teams")
 
@@ -1662,37 +1673,6 @@ def test_calendar_bmp_with_bwry_display():
     assert response.headers["content-type"] == "image/bmp"
     assert response.content[:2] == b"BM"
     assert int.from_bytes(response.content[28:30], byteorder="little") == 4
-
-
-def test_schedule_calendar_analytics_uses_background_task():
-    tracked_coro = object()
-
-    with (
-        patch.object(
-            images_routes, "_track_calendar_analytics", new=Mock(return_value=tracked_coro)
-        ) as mock_track,
-        patch.object(images_routes, "create_supervised_task") as mock_create_task,
-    ):
-        _schedule_calendar_analytics(
-            lang="en",
-            tz="Europe/Prague",
-            year=2026,
-            race_round=5,
-            race_key="2026-round-5-monaco-2026-05-24",
-            user_agent="TestAgent/1.0",
-            referrer="https://example.com",
-        )
-
-    mock_track.assert_called_once_with(
-        lang="en",
-        tz="Europe/Prague",
-        year=2026,
-        race_round=5,
-        race_key="2026-round-5-monaco-2026-05-24",
-        user_agent="TestAgent/1.0",
-        referrer="https://example.com",
-    )
-    mock_create_task.assert_called_once_with(tracked_coro, name="calendar_analytics")
 
 
 def test_calendar_bmp_rate_limit_returns_429(monkeypatch):
@@ -2015,7 +1995,6 @@ def test_missing_changelog_message_is_localized(tmp_path):
     missing_path = tmp_path / "missing.md"
     with (
         patch.object(pages_routes, "CHANGELOG_PATH", missing_path),
-        patch("app.routes.pages.track_pageview", new=AsyncMock()),
     ):
         response = client.get("/cs/changelog")
 
@@ -2039,7 +2018,6 @@ def test_changelog_render_is_cached_by_file_version():
             "markdown",
             wraps=pages_routes.markdown.markdown,
         ) as render_markdown,
-        patch("app.routes.pages.track_pageview", new=AsyncMock()),
     ):
         assert client.get("/changelog").status_code == 200
         assert client.get("/changelog").status_code == 200

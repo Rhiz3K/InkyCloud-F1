@@ -92,23 +92,26 @@ function buildLangUrl(basePath, lang) {
     return url.toString();
 }
 
+// Language cookie lifetime (30 days); stated on the privacy page and next to the switcher.
+const LANGUAGE_COOKIE_MAX_AGE_SECONDS = 2592000;
+
+// Called only from switchUiLanguage, so storage is written solely on an explicit choice.
 function saveLanguagePreference(lang) {
     if (!isSupportedLanguage(lang)) return;
     try { localStorage.setItem("preferredLang", lang); } catch (_) {}
-    try { document.cookie = `preferredLang=${lang};path=/;max-age=31536000;SameSite=Lax`; } catch (_) {}
+    try {
+        document.cookie = `preferredLang=${lang};path=/;max-age=${LANGUAGE_COOKIE_MAX_AGE_SECONDS};SameSite=Lax`;
+    } catch (_) {}
 }
 
+// Reads an earlier choice and redirects to it; never writes or refreshes the preference.
 (function initLanguagePreference() {
     try {
         const currentLang = getCurrentLang();
         const path = window.location.pathname || "/";
-        if (stripLanguagePrefix(path) !== path) {
-            saveLanguagePreference(currentLang);
-            return;
-        }
+        if (stripLanguagePrefix(path) !== path) return;
         const storedLang = localStorage.getItem("preferredLang");
         if (!isSupportedLanguage(storedLang)) return;
-        saveLanguagePreference(storedLang);
         if (currentLang !== storedLang) {
             window.location.replace(buildLangUrl(getBasePath(path), storedLang));
         }

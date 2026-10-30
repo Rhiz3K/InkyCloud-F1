@@ -1449,11 +1449,11 @@
       "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
     },
     "js/common.js": {
-      "sha256": "a8901d519128eb39d86a24b09b4f10a3596fb01f0466585a513aa35c4f849785",
+      "sha256": "6e401abc2b5f9b4e2b09642943e3c4647179704f515dd3cd2ad0eec4f762032a",
       "license": "MIT",
       "author": "InkyCloud contributors",
       "source": "https://github.com/Rhiz3K/InkyCloud-F1",
-      "reviewed_on": "2026-09-11"
+      "reviewed_on": "2026-10-30"
     },
     "js/perf-metrics.js": {
       "sha256": "3e022738c07f352df0590c4e06051228101c383060b00e1b1e527de71c0ee82d",

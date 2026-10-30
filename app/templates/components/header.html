@@ -79,17 +79,27 @@
       </nav>
 
       <!-- Language Switcher -->
-      <div class="relative ml-auto flex justify-end w-12 md:ml-0 md:block md:w-auto">
-        <select
-          id="uiLangSwitch"
-          onchange="switchUiLanguage()"
-          aria-label="{{ nav.get('nav_language', 'Language') }}"
-          class="block w-full appearance-none bg-white border-2 border-black px-0 md:px-3 py-1 cursor-pointer text-center md:text-left hover:bg-racing-red hover:text-white transition-colors focus:outline-none shadow-neo-sm md:w-auto"
+      <div class="ml-auto flex flex-col items-end gap-1 md:ml-0 md:flex-row md:items-center">
+        <div class="relative flex justify-end w-12 md:block md:w-auto">
+          <select
+            id="uiLangSwitch"
+            onchange="switchUiLanguage()"
+            aria-label="{{ nav.get('nav_language', 'Language') }}"
+            aria-describedby="langCookieNote"
+            title="{{ nav.lang_cookie_note }}"
+            class="block w-full appearance-none bg-white border-2 border-black px-0 md:px-3 py-1 cursor-pointer text-center md:text-left hover:bg-racing-red hover:text-white transition-colors focus:outline-none shadow-neo-sm md:w-auto"
+          >
+            {% for language in supported_languages %}
+            <option value="{{ language.code }}" {{ language.selected }}>{{ language.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <p
+          id="langCookieNote"
+          class="w-32 text-right md:text-left text-[9px] leading-tight font-normal normal-case text-gray-500"
         >
-          {% for language in supported_languages %}
-          <option value="{{ language.code }}" {{ language.selected }}>{{ language.label }}</option>
-          {% endfor %}
-        </select>
+          {{ nav.lang_cookie_note }}
+        </p>
       </div>
     </div>
   </div>

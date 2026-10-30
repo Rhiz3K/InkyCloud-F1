@@ -15,7 +15,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.config import VALID_LANGUAGES, config
 from app.paths import CHANGELOG_PATH
-from app.services.analytics import track_pageview
 from app.services.database import get_database
 from app.services.teams_service import get_available_teams_years
 from app.services.version_service import (
@@ -27,7 +26,7 @@ from app.utils.f1_season import get_current_f1_season
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.timezones import TIMEZONE_ALIASES
 from app.web.api_docs import build_api_docs_context
-from app.web.templates import calc_percent, get_template_context, lang_url, templates
+from app.web.templates import calc_percent, get_template_context, templates
 
 logger = logging.getLogger(__name__)
 
@@ -267,15 +266,6 @@ def _redirect_localized_public_page(
 
 async def _home_handler(request: Request, ui_lang: str) -> HTMLResponse:
     """Render home page."""
-    url = lang_url("/", ui_lang)
-    await track_pageview(
-        url=url,
-        title="F1 E-Ink Calendar",
-        lang=ui_lang,
-        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
-        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
-    )
-
     context = get_template_context(request, ui_lang)
     context["active_page"] = "home"
     context["preview_version"] = context["asset_version"]
@@ -332,15 +322,6 @@ async def _configure_handler(request: Request, screen_type: str, ui_lang: str) -
     """Render configure page."""
     if screen_type not in _VALID_SCREEN_TYPES:
         raise HTTPException(status_code=404, detail="Unknown screen type")
-
-    url = lang_url(f"/configure/{screen_type}", ui_lang)
-    await track_pageview(
-        url=url,
-        title=f"Configure {screen_type.title()}",
-        lang=ui_lang,
-        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
-        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
-    )
 
     context = get_template_context(request, ui_lang)
     context["active_page"] = "configure"
@@ -435,15 +416,6 @@ async def configure_screen_lang(
 
 async def _privacy_handler(request: Request, ui_lang: str) -> HTMLResponse:
     """Render privacy page."""
-    url = lang_url("/privacy", ui_lang)
-    await track_pageview(
-        url=url,
-        title="Privacy Policy",
-        lang=ui_lang,
-        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
-        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
-    )
-
     context = get_template_context(request, ui_lang)
     context["active_page"] = "privacy"
     return templates.TemplateResponse(request, "privacy.html", context)
@@ -500,15 +472,6 @@ async def privacy_lang_slash_redirect(request: Request, lang_prefix: str):
 
 async def _changelog_handler(request: Request, ui_lang: str) -> HTMLResponse:
     """Render changelog page."""
-    url = lang_url("/changelog", ui_lang)
-    await track_pageview(
-        url=url,
-        title="Changelog",
-        lang=ui_lang,
-        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
-        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
-    )
-
     changelog_html = await asyncio.to_thread(_load_changelog_html, CHANGELOG_PATH)
 
     version_info = get_cached_version()
@@ -585,15 +548,6 @@ async def changelog_lang_slash_redirect(request: Request, lang_prefix: str):
 
 async def _api_docs_handler(request: Request, ui_lang: str) -> HTMLResponse:
     """Render API docs page."""
-    url = lang_url("/api/docs/html", ui_lang)
-    await track_pageview(
-        url=url,
-        title="API Documentation",
-        lang=ui_lang,
-        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
-        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
-    )
-
     context = get_template_context(request, ui_lang)
     context["active_page"] = "api"
     context.update(build_api_docs_context(ui_lang, str(config.SITE_URL).rstrip("/")))
@@ -672,16 +626,6 @@ async def _stats_handler(request: Request, time_range: str, ui_lang: str) -> HTM
         logger.error("Failed to load statistics dashboard data: %s", exc, exc_info=True)
         stats = _empty_stats()
         perf_stats = {"sample_count": 0}
-
-    base_url = lang_url("/stats", ui_lang)
-    url = f"{base_url}?range={time_range}" if time_range != "24h" else base_url
-    await track_pageview(
-        url=url,
-        title="Statistics Dashboard",
-        lang=ui_lang,
-        user_agent=None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent"),
-        referrer="" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", ""),
-    )
 
     context = get_template_context(request, ui_lang)
     context["active_page"] = "stats"

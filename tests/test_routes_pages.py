@@ -150,7 +150,6 @@ async def test_changelog_handler_uses_localized_fallback_when_version_refresh_fa
         return SimpleNamespace(template=template)
 
     with (
-        patch("app.routes.pages.track_pageview", new=AsyncMock()),
         patch("app.routes.pages.asyncio.to_thread", new=AsyncMock(return_value=None)),
         patch("app.routes.pages.get_cached_version", return_value=None),
         patch("app.routes.pages.version_fetch_recently_failed", return_value=False),
@@ -173,7 +172,6 @@ async def test_changelog_handler_uses_localized_fallback_when_version_refresh_fa
     captured.clear()
     cached_version = {"current": "1.0.0"}
     with (
-        patch("app.routes.pages.track_pageview", new=AsyncMock()),
         patch("app.routes.pages.asyncio.to_thread", new=AsyncMock(return_value="<p>changes</p>")),
         patch("app.routes.pages.get_cached_version", return_value=cached_version),
         patch("app.routes.pages.refresh_version_info", new=AsyncMock()) as refresh,
@@ -194,7 +192,6 @@ async def test_changelog_handler_skips_version_refresh_inside_negative_cache_win
         return SimpleNamespace(template=template)
 
     with (
-        patch("app.routes.pages.track_pageview", new=AsyncMock()),
         patch("app.routes.pages.asyncio.to_thread", new=AsyncMock(return_value="<p>changes</p>")),
         patch("app.routes.pages.get_cached_version", return_value=None),
         patch("app.routes.pages.version_fetch_recently_failed", return_value=True),

@@ -34,7 +34,15 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
 />
 {% endblock %} {% block content %} {% set effective_raw_retention_days =
 [legal_config.RAW_STATS_RETENTION_DAYS, legal_config.STATS_RETENTION_DAYS] |
-min %}
+min %} {% macro privacy_contact() %}{% if
+legal_config.PRIVACY_CONTACT_EMAIL %}<a
+  href="mailto:{{ legal_config.PRIVACY_CONTACT_EMAIL }}"
+  class="text-racing-red hover:bg-racing-red hover:text-white px-1 transition-colors"
+  >{{ legal_config.PRIVACY_CONTACT_EMAIL }}</a
+>{% else %}<strong class="text-racing-red"
+  >{{ t.get("privacy_controller_email_missing", "TODO: contact e-mail not yet
+  provided") }}</strong
+>{% endif %}{% endmacro %}
 <!-- Main Content -->
 <main class="flex-1 py-8 px-4">
   <div
@@ -89,8 +97,9 @@ min %}
         </li>
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
-          t.get("privacy_data_local", "Local Storage: Preferences stored
-          locally.") }}
+          t.get("privacy_data_local", "Preferences: the language is saved in
+          localStorage and a functional cookie for 30 days, only when you choose
+          a language with the switcher.") }}
         </li>
       </ul>
     </section>
@@ -103,8 +112,13 @@ min %}
         {{ t.get("privacy_thirdparty_title", "Third-Party Services") }}
       </h2>
       <p class="text-sm leading-relaxed">
-        {{ t.get("privacy_thirdparty_text", "Our service may link to third-party
-        websites.") }}
+        {{ t.get("privacy_thirdparty_text", "Processors: Hetzner Online GmbH
+        (servers, Germany); coolLabs Solutions Kft. – Coolify Cloud (server
+        management, EU); Cloudflare, Inc. (DNS and forwarding of privacy@
+        e-mail; EU-US Data Privacy Framework). Forwarded privacy e-mails are
+        delivered to a Google (Gmail) mailbox, so Google is a recipient of those
+        e-mails. Optional GlitchTip receives scrubbed errors. Credits show which
+        integrations are active.") }}
       </p>
     </section>
 
@@ -144,15 +158,8 @@ min %}
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span>
           <span
-            >{{ t.get("privacy_controller_email", "Privacy contact") }}: {% if
-            legal_config.PRIVACY_CONTACT_EMAIL %}<a
-              href="mailto:{{ legal_config.PRIVACY_CONTACT_EMAIL }}"
-              class="text-racing-red hover:bg-racing-red hover:text-white px-1 transition-colors"
-              >{{ legal_config.PRIVACY_CONTACT_EMAIL }}</a
-            >{% else %}<strong class="text-racing-red"
-              >{{ t.get("privacy_controller_email_missing", "TODO: contact
-              e-mail not yet provided") }}</strong
-            >{% endif %}</span
+            >{{ t.get("privacy_controller_email", "Privacy contact") }}: {{
+            privacy_contact() }}</span
           >
         </li>
       </ul>
@@ -168,7 +175,8 @@ min %}
       <p class="text-sm mb-3">
         {{ t.get("privacy_basis_text", "Processing relies on legitimate interest
         under Art. 6(1)(f) GDPR. Our interest is operating a secure, reliable
-        free service.") }}
+        free service and visitor statistics (aggregate measurement of site
+        usage).") }}
       </p>
       <ul class="text-sm space-y-2 ml-4">
         <li class="flex items-start gap-2">
@@ -176,6 +184,11 @@ min %}
           t.get("privacy_basis_delivery", "Delivering the service: your IP
           address and HTTP headers are received to send each response and are
           not written to storage by the application. Art. 6(1)(f).") }}
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_basis_visitor_stats", "Purpose: visitor statistics
+          (aggregate proxy-level measurement of site usage). Art. 6(1)(f).") }}
         </li>
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {% if
@@ -194,15 +207,14 @@ min %}
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {% if
           legal_config.AGGREGATE_STATS_ONLY %}{{ t.get("privacy_basis_stats",
-          "Aggregate statistics: hourly usage counts and sampled Web Vitals
-          histograms without visitor identifiers; optional Umami receives only
-          server-side hourly summaries. Art. 6(1)(f).") }}{% else %}{{
-          t.get("privacy_basis_stats_raw", "Usage statistics: individual API
-          request records and individual sampled performance measurements,
-          without IP addresses or visitor identifiers, kept for the raw-record
-          period in the Retention section; request records then remain only as
-          hourly totals and performance measurements are deleted. Optional
-          Umami receives only server-side hourly summaries. Art. 6(1)(f).") }}{%
+          "Purpose: visitor statistics. Aggregate statistics: hourly usage
+          counts and sampled Web Vitals histograms without visitor identifiers.
+          Art. 6(1)(f).") }}{% else %}{{ t.get("privacy_basis_stats_raw",
+          "Purpose: visitor statistics. Usage statistics: individual API request
+          records and individual sampled performance measurements, without IP
+          addresses or visitor identifiers, kept for the raw-record period in
+          the Retention section; request records then remain only as hourly
+          totals and performance measurements are deleted. Art. 6(1)(f).") }}{%
           endif %}
         </li>
         {% endif %} {% if errors_enabled %}
@@ -215,10 +227,10 @@ min %}
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
           t.get("privacy_basis_language", "Language preference: a functional
-          cookie and localStorage entry are set when you choose a language or
-          open a language-specific page. They only provide the language you
-          requested, so they fall under the ePrivacy exemption for strictly
-          necessary storage. Art. 6(1)(f).") }}
+          cookie and localStorage entry are set only when you choose a language
+          with the switcher. They only provide the language you requested.
+          Art. 6(1)(f) GDPR; storage exempt under §89(3) of the Czech Electronic
+          Communications Act (ZEK).") }}
         </li>
       </ul>
     </section>
@@ -236,6 +248,18 @@ min %}
           t.get("privacy_retention_ratelimit", "Rate-limit counters: kept only
           in memory, expire about 60 seconds after the last counted request,
           never written to disk.") }}
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_retention_proxy", "The hosting proxy (Traefik) keeps
+          access logs with IP address, time, URL, User-Agent and Referer for at
+          most {proxy_days} days. Coolify Sentinel derives aggregate visitor
+          statistics (IP shortened to /24 or /48, country and city via local
+          GeoIP): hourly for {hourly_days} days, daily for {daily_days} days.
+          The application container writes no access
+          log.").format(proxy_days=legal_config.PROXY_LOG_RETENTION_DAYS,
+          hourly_days=legal_config.TRAFFIC_STATS_HOURLY_DAYS,
+          daily_days=legal_config.TRAFFIC_STATS_DAILY_DAYS) }}
         </li>
         {% if not minimal_data_mode %}
         <li class="flex items-start gap-2">
@@ -282,7 +306,7 @@ min %}
         {% endif %}
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
-          t.get("privacy_retention_language", "Language cookie: 1 year. The
+          t.get("privacy_retention_language", "Language cookie: 30 days. The
           localStorage entry stays until you clear site data.") }}
         </li>
         {% if legal_config.HOSTING_DETAILS %}
@@ -366,15 +390,13 @@ min %}
       >
         {{ t.get("privacy_contact_title", "Contact") }}
       </h2>
+      {# Split around {contact} so translated text stays autoescaped. #} {% set
+      contact_parts = t.get("privacy_contact_text", "For privacy requests,
+      write to {contact}. Do not publish personal data in GitHub
+      issues.").split("{contact}", 1) %}
       <p class="text-sm leading-relaxed">
-        {{ t.get("privacy_contact_text", "For privacy concerns, please open an
-        issue on our GitHub repository.") }}
-        <a
-          href="https://github.com/Rhiz3K/InkyCloud-F1"
-          target="_blank"
-          class="text-racing-red hover:bg-racing-red hover:text-white px-1 transition-colors"
-          >GitHub</a
-        >
+        {{ contact_parts[0] }}{{ privacy_contact() }}{{ contact_parts[1] if
+        contact_parts | length > 1 else "" }}
       </p>
     </section>
   </div>

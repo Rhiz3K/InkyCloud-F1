@@ -109,7 +109,35 @@ class Config(BaseSettings):
     # Public operator details must be supplied before public deployment.
     OPERATOR_NAME: str = Field("", description="Public name of the data controller")
     PRIVACY_CONTACT_EMAIL: str = Field("", description="Public contact for privacy and corrections")
-    HOSTING_DETAILS: str = Field("Hetzner, Germany", description="Hosting provider and country")
+    HOSTING_DETAILS: str = Field(
+        "Hetzner Online GmbH, Germany", description="Hosting provider and country"
+    )
+    # Infrastructure retention shown on the privacy page; the periods themselves are
+    # configured in Coolify/Traefik, not enforced by this application.
+    PROXY_LOG_RETENTION_DAYS: int = Field(
+        7,
+        gt=0,
+        description=(
+            "Days the hosting proxy (Traefik) keeps access logs; set in the Coolify/Traefik "
+            "infrastructure, not by this app"
+        ),
+    )
+    TRAFFIC_STATS_HOURLY_DAYS: int = Field(
+        30,
+        gt=0,
+        description=(
+            "Days Coolify Sentinel keeps hourly visitor statistics; set in the Coolify "
+            "infrastructure, not by this app"
+        ),
+    )
+    TRAFFIC_STATS_DAILY_DAYS: int = Field(
+        395,
+        gt=0,
+        description=(
+            "Days Coolify Sentinel keeps daily visitor statistics; set in the Coolify "
+            "infrastructure, not by this app"
+        ),
+    )
     MONITORING_DETAILS: str = Field("", description="Monitoring provider, country and retention")
     BACKUP_DETAILS: str = Field("", description="Backup provider and country")
     HETZNER_DPA_CONFIRMED: bool = Field(
@@ -125,18 +153,11 @@ class Config(BaseSettings):
     SENTRY_ENVIRONMENT: str = Field("production", description="Sentry environment name")
     SENTRY_TRACES_SAMPLE_RATE: float = Field(0.0, ge=0.0, le=1.0, description="Tracing sample rate")
 
-    # Umami Analytics settings
-    UMAMI_WEBSITE_ID: Optional[str] = Field(default=None, description="Umami website identifier")
-    UMAMI_API_URL: str = Field(
-        "https://analytics.example.com/api/send",
-        description="Umami analytics endpoint",
-    )
+    # GitHub release checks
     GITHUB_API_BASE_URL: str = Field(
         "https://api.github.com",
         description="GitHub REST API base URL",
     )
-    UMAMI_ENABLED: bool = Field(False, description="Toggle Umami analytics")
-    ANALYTICS_HOSTNAME: str = Field("", description="Hostname for analytics tracking")
 
     # API settings
     JOLPICA_API_URL: str = Field(
@@ -290,6 +311,9 @@ class Config(BaseSettings):
         "PERF_METRICS_RATE_LIMIT_PER_MINUTE",
         "DATA_API_RATE_LIMIT_PER_MINUTE",
         "STATS_RATE_LIMIT_PER_MINUTE",
+        "PROXY_LOG_RETENTION_DAYS",
+        "TRAFFIC_STATS_HOURLY_DAYS",
+        "TRAFFIC_STATS_DAILY_DAYS",
         mode="before",
     )
     @classmethod
@@ -373,7 +397,6 @@ class Config(BaseSettings):
 
     @field_validator(
         "SITE_URL",
-        "UMAMI_API_URL",
         "GITHUB_API_BASE_URL",
         "JOLPICA_API_URL",
         "OPEN_METEO_URL",

@@ -10,7 +10,6 @@ STATS_RETENTION_DAYS=400
 RAW_STATS_RETENTION_DAYS=30
 SENTRY_ENABLED=true
 SENTRY_TRACES_SAMPLE_RATE=0
-UMAMI_ENABLED=false
 BACKUP_ENABLED=false
 ```
 
@@ -38,7 +37,7 @@ disables collection entirely, including optional monitoring and S3 backups.
   being aggregates rather than raw visitor records.
 - `stats_batches` contains server batch acknowledgements for transactional retry
   deduplication, with the same 30-day retention. Batch UUIDs identify server writes;
-  they are never assigned to visitors or sent to browsers or Umami.
+  they are never assigned to visitors or sent to browsers or third parties.
 
 `POST /api/perf-metrics` accepts only a known page category, numeric metrics and a
 version marker. Legacy versions 1 and 2 remain accepted; storage always uses version
@@ -54,12 +53,9 @@ image settings in URLs work independently of telemetry.
 
 ## Optional integrations
 
-Umami requires both `UMAMI_ENABLED=true` and `UMAMI_WEBSITE_ID`. It receives closed
-hourly server summaries with a fixed server User-Agent and no visitor headers; no
-Umami script runs in the browser. Interpret the `usage_summary` event's `count`,
-not Umami's visitor count. Failed submissions retry for at most one day in a bounded
-buffer. A lost acknowledgement can cause duplicate summaries in Umami; local
-statistics have transactional deduplication.
+There is no third-party analytics. The application sends no usage data to external
+analytics services and loads no analytics script in the browser; usage statistics
+stay in the local database described above.
 
 GlitchTip/Sentry requires a configured DSN and enablement. The scrubber retains error
 type and code location, removing request data, users, value-bearing messages,

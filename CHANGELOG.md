@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Art. 6), configured retention periods and data subject rights, with visible
   placeholders until the operator name and privacy contact are configured.
 
+### Removed
+
+- Remove the optional Umami integration (server-side hourly summaries), its
+  configuration (`UMAMI_*`, `ANALYTICS_HOSTNAME`) and credits entry.
+
 ### Fixed
 
 - Align HTML and JSON API documentation, examples, and all 13 locales with the

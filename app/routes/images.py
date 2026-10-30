@@ -9,14 +9,12 @@ import os
 import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from urllib.parse import urlencode
 
 import sentry_sdk
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
-from app.services.analytics import track_event, track_pageview
 from app.services.artifact_metadata import artifact_matches, calendar_identity
 from app.services.f1_service import F1Service
 from app.services.generation_freshness import PREGENERATED_MAX_AGE_SECONDS
@@ -38,7 +36,7 @@ from app.services.track_catalog import (
 from app.services.track_renderer import attribution_headers
 from app.services.weather_service import get_weather_context
 from app.state import BmpArtifact, get_bmp_cache, record_api_call
-from app.utils.async_tasks import create_supervised_task, run_render
+from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
 from app.utils.race_times import convert_race_times_to_timezone
 from app.utils.rate_limit import enforce_rate_limit
@@ -140,7 +138,7 @@ def _get_race_info_for_stats(
     race_round: int | None,
     race_key: str | None,
 ) -> tuple[bool, int | None, int | None, str | None]:
-    """Resolve the race metadata that should be recorded in analytics."""
+    """Resolve the race metadata that should be recorded in call statistics."""
     is_auto_selected = year is None and race_round is None and race_key is None
     actual_year = year
     actual_round = race_round
@@ -167,77 +165,6 @@ def _get_race_info_for_stats(
         actual_race_name = race_info.get("race_name", "Next Race")
 
     return is_auto_selected, actual_year, actual_round, actual_race_name
-
-
-def _schedule_calendar_analytics(
-    *,
-    lang: str,
-    tz: str | None,
-    year: int | None,
-    race_round: int | None,
-    race_key: str | None,
-    user_agent: str | None,
-    referrer: str,
-) -> None:
-    """Schedule calendar analytics without blocking BMP responses."""
-    create_supervised_task(
-        _track_calendar_analytics(
-            lang=lang,
-            tz=tz,
-            year=year,
-            race_round=race_round,
-            race_key=race_key,
-            user_agent=user_agent,
-            referrer=referrer,
-        ),
-        name="calendar_analytics",
-    )
-
-
-async def _track_calendar_analytics(
-    *,
-    lang: str,
-    tz: str | None,
-    year: int | None,
-    race_round: int | None,
-    race_key: str | None,
-    user_agent: str | None,
-    referrer: str,
-) -> None:
-    """Send calendar download analytics events for direct BMP requests."""
-    query_params: dict[str, str] = {"lang": lang}
-    if tz:
-        query_params["tz"] = tz
-    if year is not None:
-        query_params["year"] = str(year)
-    if race_round is not None:
-        query_params["round"] = str(race_round)
-    if race_key is not None:
-        query_params["race_key"] = race_key
-
-    url = f"/calendar.bmp?{urlencode(query_params)}"
-
-    await track_pageview(
-        url=url,
-        title=f"Calendar BMP - {lang}",
-        lang=lang,
-        user_agent=user_agent,
-        referrer=referrer,
-    )
-
-    await track_event(
-        url="/calendar.bmp",
-        event_name="calendar_download",
-        lang=lang,
-        user_agent=user_agent,
-        event_data={
-            "language": lang,
-            "timezone": tz or "default",
-            "year": year,
-            "round": race_round,
-            "source": "direct" if not referrer else "referral",
-        },
-    )
 
 
 def _record_calendar_api_call(
@@ -306,10 +233,9 @@ def _bmp_response(
     filename: str,
     cache_control: str,
     record_call: Callable[[int, int], None],
-    schedule_analytics: Callable[[], None] | None = None,
     cache_status: str | None = None,
 ) -> Response:
-    """Build a 200/304 BMP response and apply telemetry exactly once."""
+    """Build a 200/304 BMP response and record the call exactly once."""
     not_modified = if_none_match_matches(request.headers.get("If-None-Match"), etag)
     status_code = 304 if not_modified else 200
     body = b"" if not_modified else (content or b"")
@@ -322,8 +248,6 @@ def _bmp_response(
         headers["X-Cache"] = cache_status
 
     record_call(status_code, len(body))
-    if status_code == 200 and schedule_analytics is not None:
-        schedule_analytics()
 
     return Response(
         content=body,
@@ -346,17 +270,11 @@ def _calendar_response(
     actual_round: int | None,
     actual_race_name: str | None,
     is_auto_selected: bool,
-    year: int | None,
-    race_round: int | None,
-    race_key: str | None,
-    user_agent: str | None,
-    referrer: str,
     cache_control: str,
     cache_status: str | None,
-    analytics: bool = True,
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
 ) -> Response:
-    """Apply the shared calendar response, call-record, and analytics epilogue."""
+    """Apply the shared calendar response and call-record epilogue."""
     return _bmp_response(
         request,
         content=content,
@@ -377,19 +295,6 @@ def _calendar_response(
             status_code=status,
             track_options=track_options,
         ),
-        schedule_analytics=(
-            lambda: _schedule_calendar_analytics(
-                lang=lang,
-                tz=tz,
-                year=year,
-                race_round=race_round,
-                race_key=race_key,
-                user_agent=user_agent,
-                referrer=referrer,
-            )
-        )
-        if analytics
-        else None,
     )
 
 
@@ -814,8 +719,6 @@ async def get_calendar_bmp(
     start_time = time.time()
     track_options = TrackOptions(track_style, track_source, track_accent)
     enforce_rate_limit(request, bucket="calendar_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
-    user_agent = None if config.MINIMAL_DATA_MODE else request.headers.get("User-Agent")
-    referrer = "" if config.MINIMAL_DATA_MODE else request.headers.get("Referer", "")
 
     lang = _normalize_lang(lang)
     display = _normalize_display(display)
@@ -834,9 +737,8 @@ async def get_calendar_bmp(
         *,
         cache_control: str,
         cache_status: str | None,
-        analytics: bool = True,
     ) -> Response:
-        """Build the calendar response with the request's normalized analytics context."""
+        """Build the calendar response with the request's normalized statistics context."""
         response = _calendar_response(
             request,
             content=content,
@@ -849,14 +751,8 @@ async def get_calendar_bmp(
             actual_round=actual_round,
             actual_race_name=actual_race_name,
             is_auto_selected=is_auto_selected,
-            year=year,
-            race_round=race_round,
-            race_key=race_key,
-            user_agent=user_agent,
-            referrer=referrer,
             cache_control=cache_control,
             cache_status=cache_status,
-            analytics=analytics,
             track_options=track_options,
         )
         response.headers.update(
@@ -955,7 +851,6 @@ async def get_calendar_bmp(
             strong_etag(bmp_data),
             cache_control="no-store",
             cache_status=None,
-            analytics=False,
         )
 
 

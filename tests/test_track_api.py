@@ -3,7 +3,7 @@
 import asyncio
 from copy import deepcopy
 from io import BytesIO
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -33,8 +33,6 @@ def artwork_app(monkeypatch, tmp_path):
     monkeypatch.setattr(images.config, "IMAGES_PATH", str(tmp_path))
     monkeypatch.setattr(images.config, "IMAGE_RATE_LIMIT_PER_MINUTE", 10000)
     monkeypatch.setattr(images, "_record_calendar_api_call", lambda **_: None)
-    monkeypatch.setattr(images, "_schedule_calendar_analytics", lambda **_: None)
-    monkeypatch.setattr(pages, "track_pageview", AsyncMock())
     get_bmp_cache().clear()
     _reset_rate_limit_state_for_tests()
     images._singleflight_tasks.clear()

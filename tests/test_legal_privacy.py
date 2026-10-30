@@ -397,6 +397,95 @@ def test_privacy_controller_renders_escaped_identity_and_mailto(monkeypatch):
     assert "TODO:" not in html
 
 
+def test_privacy_contact_section_uses_configured_controller(monkeypatch):
+    """A configured controller appears in the controller section and as the contact mailto."""
+    monkeypatch.setattr(config, "OPERATOR_NAME", "Example Operator")
+    monkeypatch.setattr(config, "PRIVACY_CONTACT_EMAIL", "privacy@example.org")
+    html = _privacy_html()
+    assert "Controller: Example Operator" in html
+    assert html.count('href="mailto:privacy@example.org"') == 2
+    assert "For privacy requests, write to <a" in html
+    assert "Do not publish personal data in GitHub issues." in html
+    assert "TODO:" not in html
+    czech = _privacy_html("/cs/privacy")
+    assert czech.count('href="mailto:privacy@example.org"') == 2
+    assert "posílejte na <a" in czech
+
+
+def test_privacy_contact_section_shows_todo_without_controller(monkeypatch):
+    """Without controller details the contact sentence shows the TODO marker, not a link."""
+    monkeypatch.setattr(config, "OPERATOR_NAME", "")
+    monkeypatch.setattr(config, "PRIVACY_CONTACT_EMAIL", "")
+    html = _privacy_html()
+    assert "TODO: controller name not yet provided" in html
+    assert html.count("TODO: contact e-mail not yet provided") == 2
+    assert "For privacy requests, write to <strong" in html
+    assert "mailto:" not in html
+
+
+def test_privacy_contact_email_is_escaped(monkeypatch):
+    """A configured contact address is escaped in both the href and the link text."""
+    monkeypatch.setattr(config, "PRIVACY_CONTACT_EMAIL", 'a"<b>@example.org')
+    html = _privacy_html()
+    assert html.count('href="mailto:a&#34;&lt;b&gt;@example.org"') == 2
+    assert "<b>@example.org" not in html
+
+
+@pytest.mark.parametrize("minimal", [False, True])
+@pytest.mark.parametrize("aggregate_only", [False, True])
+@pytest.mark.parametrize("path", ["/privacy", "/cs/privacy"])
+def test_privacy_page_has_no_umami_mentions(monkeypatch, minimal, aggregate_only, path):
+    """No configuration or language variant of the privacy page mentions Umami."""
+    monkeypatch.setattr(config, "MINIMAL_DATA_MODE", minimal)
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", aggregate_only)
+    assert "umami" not in _privacy_html(path).lower()
+
+
+def test_privacy_infrastructure_retention_and_processors(monkeypatch):
+    """Proxy logs, Sentinel statistics and processors follow configuration in every mode."""
+    monkeypatch.setattr(config, "PROXY_LOG_RETENTION_DAYS", 3)
+    monkeypatch.setattr(config, "TRAFFIC_STATS_HOURLY_DAYS", 14)
+    monkeypatch.setattr(config, "TRAFFIC_STATS_DAILY_DAYS", 200)
+    for minimal in (False, True):
+        monkeypatch.setattr(config, "MINIMAL_DATA_MODE", minimal)
+        html = _privacy_html()
+        assert "User-Agent and Referer for at most 3 days" in html
+        assert "hourly for 14 days, daily for 200 days" in html
+        assert "The application container writes no access log." in html
+        assert "Purpose: visitor statistics (aggregate proxy-level measurement" in html
+        assert "coolLabs Solutions Kft. – Coolify Cloud" in html
+        assert "Google is a recipient of those e-mails" in html
+    czech = _privacy_html("/cs/privacy")
+    assert "Refererem nejvýše 3 dní" in czech
+    assert "hodinové po dobu 14 dní, denní po dobu 200 dní" in czech
+    assert "Účel: statistiky návštěvnosti (souhrnné měření" in czech
+
+
+def test_privacy_stats_basis_names_visitor_statistics_purpose(monkeypatch):
+    """Both statistics legal-basis variants state the visitor-statistics purpose."""
+    monkeypatch.setattr(config, "MINIMAL_DATA_MODE", False)
+    for aggregate_only in (True, False):
+        monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", aggregate_only)
+        html = _privacy_html()
+        assert html.count("Purpose: visitor statistics.") == 1
+        assert "free service and visitor statistics (aggregate measurement" in html
+
+
+def test_language_cookie_is_described_as_switcher_only():
+    """The privacy page and header describe the 30-day, switcher-only language cookie."""
+    html = _privacy_html()
+    assert "functional cookie for 30 days, only when you choose a language" in html
+    assert "language-specific page" not in html
+    assert "storage exempt under §89(3) of the Czech Electronic Communications Act (ZEK)" in html
+    note = "The language choice is stored in a cookie for 30 days."
+    assert f'title="{note}"' in html
+    assert f">\n          {note}\n        </p>" in html
+    czech = _privacy_html("/cs/privacy")
+    assert "Volba jazyka se ukládá do cookie na 30 dní." in czech
+    assert "Jazyková cookie: 30 dní." in czech
+    assert "§ 89 odst. 3 zákona o elektronických komunikacích (ZEK)" in czech
+
+
 def test_privacy_backup_retention_requires_enabled_backups(monkeypatch):
     """Backup retention and provider details appear only when backups are enabled."""
     monkeypatch.setattr(config, "BACKUP_RETENTION_DAYS", 17)
@@ -434,7 +523,7 @@ def test_privacy_legal_basis_and_retention_follow_configuration(monkeypatch):
     assert "Performance histograms:" not in html
     assert "Error events: GlitchTip, EU, &lt;30&gt; days" in html
     assert "Hosting: Example Host, Germany" in html
-    assert "Language cookie: 1 year" in html
+    assert "Language cookie: 30 days" in html
     assert "www.uoou.gov.cz" in html
     assert "(Art. 21)" in html
     monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", True)

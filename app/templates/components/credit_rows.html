@@ -7,10 +7,9 @@
   ('platform', [('Živýobraz.eu', 'https://zivyobraz.eu')]),
   ('devices', [('LaskaKit', 'https://www.laskakit.cz/laskakit-live-7-5-e-paper-stavebnice-s-wifi-pro---zivy-obraz-/'), ('SVERIO', 'https://pajenicko.cz/sverio-paperboard-ctyrbarevny-7.5-gdem075f52-s-cernym-rameckem')]),
   ('hosting', [('Coolify', 'https://coolify.io'), ('Hetzner', 'https://hetzner.com')]),
-  ('analytics', [('Umami', 'https://umami.is')]),
   ('errors', [('GlitchTip', 'https://glitchtip.com')])
 ] %}
-{% macro rows(start=0, end=10) %}
+{% macro rows(start=0, end=none) %}
 {% for key, links in credit_entries[start:end] %}
 <div class="credit-row" data-credit="{{ key }}" style="display: grid; grid-template-columns: 92px minmax(0, 1fr); column-gap: 10px; align-items: baseline">
   <span class="text-[10px] tracking-wider text-gray-500">{{ t.credits_labels[key] }}</span>
@@ -18,7 +17,7 @@
     {% for name, url in links %}{% if not loop.first %}{{ '+' if key == 'hosting' else '&' }}{% endif %}
     <a href="{{ url }}" target="_blank" rel="noopener noreferrer" class="hover:text-racing-red{% if key == 'inspiration' %} font-bold hover:underline{% endif %}">{{ name }}</a>
     {% endfor %}
-    {% if (key == 'analytics' and not analytics_enabled) or (key == 'errors' and not errors_enabled) %}<span class="text-[10px] text-gray-500">({{ t.credits_labels.inactive }})</span>{% endif %}
+    {% if key == 'errors' and not errors_enabled %}<span class="text-[10px] text-gray-500">({{ t.credits_labels.inactive }})</span>{% endif %}
   </div>
 </div>
 {% endfor %}

@@ -21,7 +21,6 @@ from app.utils import rate_limit
 def aggregate_profile(monkeypatch):
     monkeypatch.setattr(config, "MINIMAL_DATA_MODE", False)
     monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", True)
-    monkeypatch.setattr(config, "UMAMI_ENABLED", False)
     monkeypatch.setattr(config, "WEATHER_ENABLED", False)
     monkeypatch.setattr(pages, "refresh_version_info", AsyncMock())
     state._api_calls_buffer.clear()
@@ -374,8 +373,9 @@ def test_all_locales_have_complete_map_credits_and_matching_mobile_rows(lang):
     client = TestClient(main.app)
     home = client.get(prefix + "/").text
     assert home.count('data-credit="tracks"') == 2
-    for key in ("hosting", "analytics", "errors"):
+    for key in ("hosting", "errors"):
         assert home.count(f'data-credit="{key}"') == 2
+    assert 'data-credit="analytics"' not in home
     credit_html = client.get(prefix + "/credits").text
     assert credit_html.count("<article id=") == 52
     assert translations["credits_page"]["intro"] in credit_html

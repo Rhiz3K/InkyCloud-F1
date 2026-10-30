@@ -43,22 +43,41 @@ for (const minimal of [true, false]) {
             });
             vm.runInContext(common, ctx);
             assert.equal(redirects.length, blockedStorage ? 0 : 1);
+            assert.deepEqual(cookies, []);
+            assert.deepEqual(saved, []);
             ctx.switchUiLanguage();
             assert.equal(ctx.window.location.href, "https://racing.example.org/cs/configure/calendar?display=spectra6");
-            assert.ok(cookies.at(-1).startsWith("preferredLang=cs;"));
-            assert.deepEqual(saved.at(-1), blockedStorage ? undefined : ["preferredLang", "cs"]);
+            assert.deepEqual(cookies, ["preferredLang=cs;path=/;max-age=2592000;SameSite=Lax"]);
+            assert.deepEqual(saved, blockedStorage ? [] : [["preferredLang", "cs"]]);
         });
     }
 }
 
-test("explicit localized URL overrides stale preference", () => {
-    const saved = [];
+for (const [pathname, stored] of [["/de/configure/calendar", "cs"], ["/cs/configure/calendar", "cs"], ["/configure/calendar", "cs"], ["/", "en"]]) {
+    test(`loading ${pathname} with stored ${stored} writes no cookie or localStorage`, () => {
+        const saved = [], cookies = [], redirects = [];
+        vm.runInNewContext(common, {
+            URL, URLSearchParams,
+            window: {location: {origin: "https://racing.example.org", pathname, search: "", replace(url) {redirects.push(url);}}},
+            navigator: {},
+            document: {addEventListener() {}, set cookie(value) {cookies.push(value);}},
+            localStorage: {getItem() {return stored;}, setItem(...args) {saved.push(args);}},
+        });
+        assert.deepEqual(cookies, []);
+        assert.deepEqual(saved, []);
+        const prefixed = pathname.startsWith("/de/") || pathname.startsWith("/cs/");
+        assert.deepEqual(redirects, prefixed || stored === "en" ? [] : ["https://racing.example.org/cs/configure/calendar"]);
+    });
+}
+
+test("explicit localized URL is not overridden by a stale preference", () => {
+    const saved = [], cookies = [], redirects = [];
     vm.runInNewContext(common, {
-        window: {location: {pathname: "/de/configure/calendar"}}, navigator: {},
-        document: {addEventListener() {}, set cookie(_) {}},
+        window: {location: {pathname: "/de/configure/calendar", replace(url) {redirects.push(url);}}}, navigator: {},
+        document: {addEventListener() {}, set cookie(value) {cookies.push(value);}},
         localStorage: {getItem() {throw Error("Stale preference read");}, setItem(...args) {saved.push(args);}},
     });
-    assert.deepEqual(saved, [["preferredLang", "de"]]);
+    assert.deepEqual([saved, cookies, redirects], [[], [], []]);
 });
 
 function runCollector(overrides = {}) {

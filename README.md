@@ -214,8 +214,8 @@ SQLite database, including when image scheduling is disabled. Sport data and wea
 remain. Previously deleted statistics cannot be recovered by changing flags.
 
 Language preferences are saved in localStorage and a functional cookie independently of
-analytics, and the browser detects its timezone. Optional Umami receives only hourly server
-summaries; optional GlitchTip receives scrubbed errors with tracing/profiling disabled.
+statistics, and the browser detects its timezone. No usage data is sent to third-party
+analytics; optional GlitchTip receives scrubbed errors with tracing/profiling disabled.
 Application/access logs remain disabled, and rate limits use shared 60-second counters without
 IP keys. Backups require explicit configuration and bounded retention. External provider logs,
 old backups and snapshots require separate configuration and cleanup.
@@ -276,6 +276,6 @@ Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelin
 
 Software is MIT; this does not relicense data, map artwork, fonts or dependencies.
 Read [data licences](DATA_LICENSES.md), [third-party notices](THIRD_PARTY_NOTICES.md)
-and [data collection](docs/data-collection.md). Optional analytics receives only hourly
-server summaries. The default profile retains aggregate operational statistics.
+and [data collection](docs/data-collection.md). There is no third-party analytics.
+The default profile retains aggregate operational statistics.
 Commercial deployments must independently resolve the noncommercial data conditions.
