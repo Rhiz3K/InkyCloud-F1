@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Production start now requires `OPERATOR_NAME` and `PRIVACY_CONTACT_EMAIL`: the new
   `APP_ENV` setting defaults to `production` in the Docker image, which refuses to start
   without them. The language cookie gets the `Secure` attribute on HTTPS.
+- Remove the language cookie note under the header language switcher; the cookie is
+  described only on the privacy page.
 
 ### Removed
 
