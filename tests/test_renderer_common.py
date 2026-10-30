@@ -665,6 +665,15 @@ def test_get_team_badge_falls_back_to_neutral_initials(constructor, expected):
 
 
 @pytest.mark.parametrize(
+    ("constructor", "expected"),
+    [("McLaren", "#ff8000"), ("Alpine F1 Team", "#0093cc"), ("Andretti Global", None)],
+)
+def test_get_team_color_hex_reuses_badge_identity(constructor, expected):
+    """Web swatches should use the renderer badge color as lowercase ``#rrggbb``."""
+    assert renderer_text.get_team_color_hex(constructor) == expected
+
+
+@pytest.mark.parametrize(
     ("renderer_cls", "team_key", "fill_name", "text_name"),
     [
         (Spectra6Renderer, "ferrari", "RED", "WHITE"),

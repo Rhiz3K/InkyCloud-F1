@@ -283,6 +283,15 @@ def get_team_badge(constructor: str) -> tuple[str, tuple[int, int, int] | None]:
     return TEAM_IDENTITIES[team_key]
 
 
+def get_team_color_hex(constructor: str) -> str | None:
+    """Return the team identity color as ``#rrggbb``, or None for unknown teams."""
+    team_key = get_team_key(constructor)
+    if team_key is None:
+        return None
+    red, green, blue = TEAM_IDENTITIES[team_key][1]
+    return f"#{red:02x}{green:02x}{blue:02x}"
+
+
 def get_team_key(constructor: str) -> str | None:
     """Map a constructor name to its canonical team key."""
     name = constructor.lower()

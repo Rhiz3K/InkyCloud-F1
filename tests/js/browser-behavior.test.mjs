@@ -51,6 +51,13 @@ for (const minimal of [true, false]) {
     }
 }
 
+test("season leaders show a validated team colour swatch instead of a logo", () => {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    assert.ok(!template.includes("/static/images/teams"));
+    assert.ok(template.includes("/^#[0-9a-f]{6}$/i.test(teamColor || \"\")"));
+    assert.ok(template.includes("style=\"background-color: ${teamColor}\""));
+});
+
 test("explicit localized URL overrides stale preference", () => {
     const saved = [];
     vm.runInNewContext(common, {

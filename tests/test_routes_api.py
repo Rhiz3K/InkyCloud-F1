@@ -295,7 +295,7 @@ async def test_standings_leader_returns_full_empty_and_failure_payloads():
 
     assert result == {
         "season": 2026,
-        "leader_team": {"name": "McLaren", "id": "mclaren"},
+        "leader_team": {"name": "McLaren", "id": "mclaren", "color": "#ff8000"},
         "leader_driver": {
             "name": "NORRIS",
             "code": "NOR",

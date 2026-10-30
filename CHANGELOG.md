@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Remove the 12 team logos (colour and monochrome variants) because no written
+  redistribution permission is recorded. The e-ink teams screen now draws a team-colour
+  abbreviation badge, and the configure page's season leaders show a colour swatch
+  next to the team name. The removed files and hashes are listed in
+  `docs/removed-assets.json`; earlier Git history and released artifacts are unchanged.
+  Update the licence notices, documentation and credits text in all 13 locales.
+
 ### Fixed
 
 - Align HTML and JSON API documentation, examples, and all 13 locales with the
