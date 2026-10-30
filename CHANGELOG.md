@@ -24,8 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   described only on the privacy page.
 - Teams screen: remove the team abbreviation badges; driver names use the freed width
   and shrink or ellipsize to fit.
-- Teams screen on colour displays: card headers use the team colour mapped to the nearest
-  palette colour, with black or white text picked for contrast; 1-bit unchanged.
 
 ### Removed
 

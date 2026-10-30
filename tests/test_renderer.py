@@ -1847,33 +1847,13 @@ def test_spectra6_render_teams_drivers(mock_ranked_teams_data, lang):
     assert img.mode == "P"
 
 
-def test_spectra6_team_row_header_uses_mapped_team_fill():
-    """Teams card headers should use the palette-mapped team colour."""
+def test_spectra6_team_row_header_uses_black_fill():
+    """Teams card headers should stay black while the screen header remains red."""
     renderer = Spectra6Renderer(get_translator("en"))
     image = Image.new("RGB", (renderer.width, renderer.height), renderer.colors.WHITE)
     draw = ImageDraw.Draw(image)
     team = TeamEntry(
         constructor_name="Audi",
-        chassis="",
-        power_unit="",
-        drivers=[],
-    )
-
-    renderer._draw_team_row(image, draw, 5, 100, 395, team, 80)
-
-    expected_fill, _ = renderer.theme.team_header_colors_for("Audi")
-    assert expected_fill != renderer.colors.BLACK
-    assert image.getpixel((200, 110)) == expected_fill
-
-
-@pytest.mark.parametrize("constructor_name", ["Unknown Racing", "Haas F1 Team"])
-def test_spectra6_team_row_header_falls_back_to_black_fill(constructor_name):
-    """Unknown or white-mapped teams should keep the default black header."""
-    renderer = Spectra6Renderer(get_translator("en"))
-    image = Image.new("RGB", (renderer.width, renderer.height), renderer.colors.WHITE)
-    draw = ImageDraw.Draw(image)
-    team = TeamEntry(
-        constructor_name=constructor_name,
         chassis="",
         power_unit="",
         drivers=[],
@@ -1909,8 +1889,7 @@ def test_team_row_header_draws_shared_stats_panel(renderer_cls):
         assert panel_left_edge_pixel == 0
         assert panel_fill_pixel == 1
     else:
-        expected_header_fill, _ = renderer.theme.team_header_colors_for(team.constructor_name)
-        assert panel_left_edge_pixel == expected_header_fill
+        assert panel_left_edge_pixel == renderer.colors.BLACK
         assert panel_fill_pixel == renderer.colors.WHITE
 
 
