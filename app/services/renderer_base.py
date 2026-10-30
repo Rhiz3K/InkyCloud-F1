@@ -211,6 +211,9 @@ class RendererBase(RendererCore):
             points_font = self.fonts["circuit_stats_value"]
 
         team_name, meta_text, team_pos, team_pts = build_team_header_values(team)
+        header_fill, header_text_fill = self.theme.team_header_colors_for(
+            getattr(team, "constructor_name", None) or getattr(team, "entrant", None) or ""
+        )
 
         def render_team_stats_panel(
             panel_x: int,
@@ -267,8 +270,8 @@ class RendererBase(RendererCore):
             row_height=row_height,
             team_font=team_font,
             tech_font=tech_font,
-            header_fill=self.theme.team_header_fill,
-            header_text_fill=self.theme.team_header_text_fill,
+            header_fill=header_fill,
+            header_text_fill=header_text_fill,
             outline_fill=self.theme.team_outline_fill,
             stats_padding=5,
             get_text_y_fn=get_text_y,
