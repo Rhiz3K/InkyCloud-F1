@@ -86,7 +86,7 @@ runs:
       shell: bash
       run: |
         docker build -t f1-eink-cal:test .
-        docker run --rm -i --entrypoint python --workdir /tmp f1-eink-cal:test - <<'PY'
+        docker run --rm -i -e OPERATOR_NAME=CI -e PRIVACY_CONTACT_EMAIL=ci@example.invalid --entrypoint python --workdir /tmp f1-eink-cal:test - <<'PY'
         import hashlib, json
         from io import BytesIO
         from PIL import Image
