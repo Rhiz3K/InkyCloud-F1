@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Extend the privacy policy with GDPR sections for the data controller, legal basis
+  (Art. 6), configured retention periods and data subject rights, with visible
+  placeholders until the operator name and privacy contact are configured.
+
 ### Fixed
 
 - Align HTML and JSON API documentation, examples, and all 13 locales with the

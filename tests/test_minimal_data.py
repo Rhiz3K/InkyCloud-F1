@@ -197,7 +197,8 @@ def test_minimal_privacy_notice_is_translated_and_shows_effective_services(lang,
     assert "must-not-be-shown" not in response.text
     assert "{retention}" not in response.text
     assert "{sample}" not in response.text
-    assert "2026-09-11" in response.text
+    assert "2026-10-30" in response.text
+    assert "Database backups" not in response.text
 
 
 def test_minimal_mode_overrides_old_backup_credentials_and_enabled_flag(monkeypatch):
