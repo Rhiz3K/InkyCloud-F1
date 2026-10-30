@@ -716,7 +716,8 @@ def test_team_driver_row_centres_fitted_name_in_driver_row():
             badge_colors_fn=lambda _position: ("white", "black"),
             lang_code="en",
         )
-        name_call = next(call for call in spy.text.call_args_list if call.args[1] == name)
+        name_call = next((call for call in spy.text.call_args_list if call.args[1] == name), None)
+        assert name_call is not None
         font = name_call.kwargs["font"]
         assert "anchor" not in name_call.kwargs
         assert name_call.args[0][1] == renderer_text.get_text_y(draw, font, 22, 10, name)
