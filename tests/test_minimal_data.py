@@ -197,7 +197,8 @@ def test_minimal_privacy_notice_is_translated_and_shows_effective_services(lang,
     assert "must-not-be-shown" not in response.text
     assert "{retention}" not in response.text
     assert "{sample}" not in response.text
-    assert "2026-09-11" in response.text
+    assert "2026-10-30" in response.text
+    assert "Database backups" not in response.text
 
 
 def test_minimal_mode_overrides_old_backup_credentials_and_enabled_flag(monkeypatch):
@@ -285,12 +286,11 @@ def test_public_check_does_not_claim_minimal_data_exempts_operator_obligations()
         PRIVACY_CONTACT_EMAIL="",
         MONITORING_DETAILS="",
         BACKUP_DETAILS="",
-        HETZNER_DPA_CONFIRMED=False,
     )
     unresolved = "\n".join(findings(settings))
     assert "OPERATOR_NAME" in unresolved
     assert "PRIVACY_CONTACT_EMAIL" in unresolved
-    assert "HETZNER_DPA_CONFIRMED" in unresolved
+    assert "SITE_URL" in unresolved
     for disabled_service in ("MONITORING_DETAILS", "BACKUP_DETAILS", "SCHEDULER_ENABLED"):
         assert disabled_service not in unresolved
 

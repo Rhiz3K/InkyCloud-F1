@@ -16,8 +16,6 @@ def findings(settings=config) -> list[str]:
     for name in ("OPERATOR_NAME", "PRIVACY_CONTACT_EMAIL", "HOSTING_DETAILS"):
         if not getattr(settings, name).strip():
             missing.append(f"{name}: unresolved")
-    if not settings.HETZNER_DPA_CONFIRMED:
-        missing.append("HETZNER_DPA_CONFIRMED: account agreement not confirmed")
     if (
         not settings.MINIMAL_DATA_MODE
         and settings.SENTRY_ENABLED

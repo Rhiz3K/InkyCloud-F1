@@ -32,7 +32,17 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   name="twitter:image"
   content="{{ site_url }}/static/images/og-preview.png"
 />
-{% endblock %} {% block content %}
+{% endblock %} {% block content %} {% set effective_raw_retention_days =
+[legal_config.RAW_STATS_RETENTION_DAYS, legal_config.STATS_RETENTION_DAYS] |
+min %} {% macro privacy_contact() %}{% if
+legal_config.PRIVACY_CONTACT_EMAIL %}<a
+  href="mailto:{{ legal_config.PRIVACY_CONTACT_EMAIL }}"
+  class="text-racing-red hover:bg-racing-red hover:text-white px-1 transition-colors"
+  >{{ legal_config.PRIVACY_CONTACT_EMAIL }}</a
+>{% else %}<strong class="text-racing-red"
+  >{{ t.get("privacy_controller_email_missing", "TODO: contact e-mail not yet
+  provided") }}</strong
+>{% endif %}{% endmacro %}
 <!-- Main Content -->
 <main class="flex-1 py-8 px-4">
   <div
@@ -44,7 +54,7 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
       {{ t.get("privacy_title", "Privacy Policy") }}
     </h1>
     <p class="text-xs text-gray-500 mb-6 font-mono">
-      {{ t.get("privacy_last_updated", "Last updated") }}: 2026-09-11
+      {{ t.get("privacy_last_updated", "Last updated") }}: 2026-10-30
     </p>
 
     <!-- Introduction -->
@@ -78,7 +88,7 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
         </li>
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
-          t.privacy_data_webvitals.format(sample=(perf_sample_rate * 100) | round(1), perf_retention=[legal_config.RAW_STATS_RETENTION_DAYS, legal_config.STATS_RETENTION_DAYS] | min) }}
+          t.privacy_data_webvitals.format(sample=(perf_sample_rate * 100) | round(1), perf_retention=effective_raw_retention_days) }}
         </li>
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
@@ -87,8 +97,11 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
         </li>
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
-          t.get("privacy_data_local", "Local Storage: Preferences stored
-          locally.") }}
+          t.get("privacy_data_local", "Preferences: when you choose a language
+          with the switcher, it is saved in localStorage (until you clear site
+          data) and in a functional cookie for 30 days. The browser detects the
+          time zone. Selected settings are sent in the URL to generate your
+          image. Clear browser site data to remove the preference.") }}
         </li>
       </ul>
     </section>
@@ -101,8 +114,17 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
         {{ t.get("privacy_thirdparty_title", "Third-Party Services") }}
       </h2>
       <p class="text-sm leading-relaxed">
-        {{ t.get("privacy_thirdparty_text", "Our service may link to third-party
-        websites.") }}
+        {{ t.get("privacy_thirdparty_text", "Processors: Hetzner Online GmbH
+        (servers, Germany); coolLabs Solutions Kft. – Coolify Cloud (server
+        management, Hungary); Cloudflare, Inc. (DNS and forwarding of privacy@
+        e-mail; EU-US Data Privacy Framework). E-mails to the privacy contact
+        are forwarded to a Gmail mailbox, so Google LLC (USA, EU-US Data Privacy
+        Framework) is a recipient of them. These e-mails are used only to handle
+        your request – on the basis of Art. 6(1)(c) GDPR for requests under the
+        GDPR and Art. 6(1)(f) GDPR for other enquiries – and are deleted
+        {mail_days} days after the request is closed. Optional GlitchTip
+        receives scrubbed errors. Credits show which integrations are
+        active.").format(mail_days=legal_config.PRIVACY_MAIL_RETENTION_DAYS) }}
       </p>
     </section>
 
@@ -114,8 +136,248 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
         {{ t.get("privacy_gdpr_title", "GDPR Compliance (EU Users)") }}
       </h2>
       <p class="text-sm leading-relaxed">
-        {{ t.get("privacy_gdpr_text", "If you are a resident of the EEA, you
-        have certain data protection rights.") }}
+        {{ t.get("privacy_gdpr_text", "Reducing collection does not remove all
+        GDPR obligations. The sections below name the controller, legal basis,
+        retention periods and your rights.") }}
+      </p>
+    </section>
+
+    <!-- Data Controller -->
+    <section class="mb-6 p-4 border-2 border-black bg-gray-50">
+      <h2
+        class="text-lg font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-3"
+      >
+        {{ t.get("privacy_controller_title", "Data Controller") }}
+      </h2>
+      <ul class="text-sm space-y-2 ml-4">
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span>
+          <span
+            >{{ t.get("privacy_controller_name", "Controller") }}: {% if
+            legal_config.OPERATOR_NAME %}{{ legal_config.OPERATOR_NAME }}{% else
+            %}<strong class="text-racing-red"
+              >{{ t.get("privacy_controller_name_missing", "TODO: controller
+              name not yet provided") }}</strong
+            >{% endif %}</span
+          >
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span>
+          <span
+            >{{ t.get("privacy_controller_email", "Privacy contact") }}: {{
+            privacy_contact() }}</span
+          >
+        </li>
+      </ul>
+    </section>
+
+    <!-- Legal Basis -->
+    <section class="mb-6 p-4 border-2 border-black bg-gray-50">
+      <h2
+        class="text-lg font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-3"
+      >
+        {{ t.get("privacy_basis_title", "Legal Basis (GDPR Art. 6)") }}
+      </h2>
+      <p class="text-sm mb-3">
+        {{ t.get("privacy_basis_text", "Processing relies on legitimate interest
+        under Art. 6(1)(f) GDPR. Our interest is operating a secure, reliable
+        free service and visitor statistics (aggregate measurement of site
+        usage).") }}
+      </p>
+      <ul class="text-sm space-y-2 ml-4">
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_basis_delivery", "Delivering the service: your IP
+          address and HTTP headers are received to send each response and are
+          not written to storage by the application. Art. 6(1)(f).") }}
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_basis_visitor_stats", "Purpose: visitor statistics
+          (aggregate proxy-level measurement of site usage). Art. 6(1)(f).") }}
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {% if
+          minimal_data_mode or legal_config.AGGREGATE_STATS_ONLY %}{{
+          t.get("privacy_basis_security_shared", "Security and rate limiting:
+          one shared request counter per rate-limit bucket, without IP
+          addresses. Counters are kept only in memory, expire about 60 seconds
+          after the last counted request and are never written to disk.
+          Art. 6(1)(f).") }}{% else %}{{ t.get("privacy_basis_security_ip",
+          "Security and rate limiting: request counters keyed by IP address.
+          Counters are kept only in memory, expire about 60 seconds after the
+          last counted request and are never written to disk. Art. 6(1)(f).")
+          }}{% endif %}
+        </li>
+        {% if not minimal_data_mode %}
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {% if
+          legal_config.AGGREGATE_STATS_ONLY %}{{ t.get("privacy_basis_stats",
+          "Purpose: visitor statistics. Aggregate statistics: hourly usage
+          counts and sampled Web Vitals histograms without visitor identifiers.
+          Art. 6(1)(f).") }}{% else %}{{ t.get("privacy_basis_stats_raw",
+          "Purpose: visitor statistics. Usage statistics: individual API request
+          records and individual sampled performance measurements, without IP
+          addresses or visitor identifiers, kept for the raw-record period in
+          the Retention section; request records then remain only as hourly
+          totals and performance measurements are deleted. Art. 6(1)(f).") }}{%
+          endif %}
+        </li>
+        {% endif %} {% if errors_enabled %}
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_basis_errors", "Error monitoring: scrubbed GlitchTip
+          error events without request data or user details. Art. 6(1)(f).") }}
+        </li>
+        {% endif %}
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_basis_language", "Language preference: a functional
+          cookie and localStorage entry are set only when you choose a language
+          with the switcher. They only provide the language you requested.
+          Art. 6(1)(f) GDPR; storage exempt under §89(3) of the Czech Electronic
+          Communications Act (ZEK).") }}
+        </li>
+      </ul>
+    </section>
+
+    <!-- Retention -->
+    <section class="mb-6 p-4 border-2 border-black bg-gray-50">
+      <h2
+        class="text-lg font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-3"
+      >
+        {{ t.get("privacy_retention_title", "Retention") }}
+      </h2>
+      <ul class="text-sm space-y-2 ml-4">
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_retention_ratelimit", "Rate-limit counters: kept only
+          in memory, expire about 60 seconds after the last counted request,
+          never written to disk.") }}
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_retention_proxy", "The hosting proxy (Traefik) keeps
+          access logs with the full IP address, time, URL path, User-Agent and
+          Referer for at most {proxy_days} days. Coolify Sentinel uses the path,
+          User-Agent and Referer to keep aggregate visitor statistics (path,
+          browser, operating system, device type, referrer, country and city
+          via local GeoIP; IP shortened to /24 or /48): hourly for
+          {hourly_days} days, daily for {daily_days} days. The application
+          container writes no access
+          log.").format(proxy_days=legal_config.PROXY_LOG_RETENTION_DAYS,
+          hourly_days=legal_config.TRAFFIC_STATS_HOURLY_DAYS,
+          daily_days=legal_config.TRAFFIC_STATS_DAILY_DAYS) }}
+        </li>
+        {% if not minimal_data_mode %}
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_retention_raw", "Individual request records without IP
+          addresses or identifiers (only when aggregate-only mode is disabled):
+          deleted after {days} days. Before deletion they are merged into hourly
+          totals only if they are still within the hourly-totals retention
+          period.").format(days=effective_raw_retention_days) }}
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_retention_aggregate", "Hourly usage totals: {days}
+          days.").format(days=legal_config.STATS_RETENTION_DAYS) }}
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {% if
+          legal_config.AGGREGATE_STATS_ONLY %}{{ t.get("privacy_retention_perf",
+          "Performance histograms: {days}
+          days.").format(days=effective_raw_retention_days) }}{% else %}{{
+          t.get("privacy_retention_perf_raw", "Individual performance
+          measurements without IP addresses or identifiers: deleted after {days}
+          days. They are not merged into totals.").format(days=effective_raw_retention_days)
+          }}{% endif %}
+        </li>
+        {% endif %} {% if legal_config.BACKUP_ENABLED and not minimal_data_mode
+        %}
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_retention_backups", "Database backups: {days}
+          days.").format(days=legal_config.BACKUP_RETENTION_DAYS) }}{% if
+          legal_config.BACKUP_DETAILS %} ({{ legal_config.BACKUP_DETAILS }}){%
+          endif %}
+        </li>
+        {% endif %} {% if errors_enabled %}
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {% if
+          legal_config.MONITORING_DETAILS %}{{ t.get("privacy_retention_errors",
+          "Error events: {details}").format(details=legal_config.MONITORING_DETAILS)
+          }}{% else %}{{ t.get("privacy_retention_errors_operator", "Error
+          events: retention is set by the operator of the monitoring service.")
+          }}{% endif %}
+        </li>
+        {% endif %}
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_retention_language", "Language cookie: 30 days. The
+          localStorage entry stays until you clear site data.") }}
+        </li>
+        {% if legal_config.HOSTING_DETAILS %}
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_retention_hosting", "Hosting:
+          {details}").format(details=legal_config.HOSTING_DETAILS) }}
+        </li>
+        {% endif %}
+      </ul>
+    </section>
+
+    <!-- Your Rights -->
+    <section class="mb-6 p-4 border-2 border-black bg-gray-50">
+      <h2
+        class="text-lg font-bold uppercase tracking-wider border-b-2 border-black pb-2 mb-3"
+      >
+        {{ t.get("privacy_rights_title", "Your Rights") }}
+      </h2>
+      <p class="text-sm mb-3">
+        {{ t.get("privacy_rights_text", "Under the GDPR you have the right
+        to:") }}
+      </p>
+      <ul class="text-sm space-y-2 ml-4 mb-3">
+        {% for key, fallback in [ ("privacy_rights_access", "access your data
+        (Art. 15)"), ("privacy_rights_rectification", "rectification (Art.
+        16)"), ("privacy_rights_erasure", "erasure (Art. 17)"),
+        ("privacy_rights_restriction", "restriction of processing (Art. 18)"),
+        ("privacy_rights_objection", "object to processing based on legitimate
+        interest (Art. 21)"), ] %}
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{ t.get(key,
+          fallback) }}
+        </li>
+        {% endfor %}
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span>
+          <span
+            >{{ t.get("privacy_rights_complaint", "lodge a complaint with a
+            supervisory authority; in the Czech Republic this is the Office for
+            Personal Data Protection (ÚOOÚ):") }}
+            <a
+              href="https://www.uoou.gov.cz"
+              target="_blank"
+              rel="noopener"
+              class="text-racing-red hover:bg-racing-red hover:text-white px-1 transition-colors"
+              >www.uoou.gov.cz</a
+            ></span
+          >
+        </li>
+      </ul>
+      <p class="text-sm leading-relaxed mb-3">
+        {{ t.get("privacy_rights_identification", "No visitor identifiers are
+        stored, so the operator may be unable to identify data relating to you
+        (Art. 11 GDPR). Articles 15 to 20 then apply only if you provide
+        additional information that enables identification. Within {proxy_days}
+        days, a request can be looked up in the proxy logs if you give your IP
+        address and the approximate time of your
+        visit.").format(proxy_days=legal_config.PROXY_LOG_RETENTION_DAYS) }}
+      </p>
+      <p class="text-sm leading-relaxed">
+        {{ t.get("privacy_rights_contact", "To exercise your rights, contact the
+        controller at the e-mail address in the Data Controller section.") }}
       </p>
     </section>
 
@@ -139,15 +401,13 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
       >
         {{ t.get("privacy_contact_title", "Contact") }}
       </h2>
+      {# Split around {contact} so translated text stays autoescaped. #} {% set
+      contact_parts = t.get("privacy_contact_text", "For privacy requests,
+      write to {contact}. Do not publish personal data in GitHub
+      issues.").split("{contact}", 1) %}
       <p class="text-sm leading-relaxed">
-        {{ t.get("privacy_contact_text", "For privacy concerns, please open an
-        issue on our GitHub repository.") }}
-        <a
-          href="https://github.com/Rhiz3K/InkyCloud-F1"
-          target="_blank"
-          class="text-racing-red hover:bg-racing-red hover:text-white px-1 transition-colors"
-          >GitHub</a
-        >
+        {{ contact_parts[0] }}{{ privacy_contact() }}{{ contact_parts[1] if
+        contact_parts | length > 1 else "" }}
       </p>
     </section>
   </div>

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Extend the privacy policy with GDPR sections for the data controller, legal basis
+  (Art. 6), configured retention periods and data subject rights, with visible
+  placeholders until the operator name and privacy contact are configured.
+- Production start now requires `OPERATOR_NAME` and `PRIVACY_CONTACT_EMAIL`: the new
+  `APP_ENV` setting defaults to `production` in the Docker image, which refuses to start
+  without them. The language cookie gets the `Secure` attribute on HTTPS.
+
+### Removed
+
+- Remove the optional Umami integration (server-side hourly summaries), its
+  configuration (`UMAMI_*`, `ANALYTICS_HOSTNAME`) and credits entry.
+- Remove the `HETZNER_DPA_CONFIRMED` setting and its public deployment check.
+
 ## [1.3.3] - 2026-10-30
 
 ### Removed

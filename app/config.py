@@ -15,6 +15,7 @@ from pydantic import (
     ValidationError,
     ValidationInfo,
     field_validator,
+    model_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -65,11 +66,19 @@ def _warn_invalid(field_name: str, raw_value: object, default: T, reason: str) -
 class Config(BaseSettings):
     """Application configuration loaded from environment variables."""
 
+    # Errors must not echo the settings input: it holds secrets and controller details.
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+        hide_input_in_errors=True,
     )
 
     # Application settings
+    APP_ENV: str = Field(
+        "development", description="Deployment environment: development, test or production"
+    )
     APP_HOST: str = Field(
         # skipcq: BAN-B104 - required to serve Docker/self-hosted deployments;
         # bound explicitly by env/network config
@@ -109,11 +118,42 @@ class Config(BaseSettings):
     # Public operator details must be supplied before public deployment.
     OPERATOR_NAME: str = Field("", description="Public name of the data controller")
     PRIVACY_CONTACT_EMAIL: str = Field("", description="Public contact for privacy and corrections")
-    HOSTING_DETAILS: str = Field("Hetzner, Germany", description="Hosting provider and country")
+    HOSTING_DETAILS: str = Field(
+        "Hetzner Online GmbH, Germany", description="Hosting provider and country"
+    )
+    # Infrastructure retention shown on the privacy page; the periods themselves are
+    # configured in Coolify/Traefik, not enforced by this application.
+    PROXY_LOG_RETENTION_DAYS: int = Field(
+        7,
+        gt=0,
+        description=(
+            "Days the hosting proxy (Traefik) keeps access logs; set in the Coolify/Traefik "
+            "infrastructure, not by this app"
+        ),
+    )
+    TRAFFIC_STATS_HOURLY_DAYS: int = Field(
+        30,
+        gt=0,
+        description=(
+            "Days Coolify Sentinel keeps hourly visitor statistics; set in the Coolify "
+            "infrastructure, not by this app"
+        ),
+    )
+    TRAFFIC_STATS_DAILY_DAYS: int = Field(
+        395,
+        gt=0,
+        description=(
+            "Days Coolify Sentinel keeps daily visitor statistics; set in the Coolify "
+            "infrastructure, not by this app"
+        ),
+    )
     MONITORING_DETAILS: str = Field("", description="Monitoring provider, country and retention")
     BACKUP_DETAILS: str = Field("", description="Backup provider and country")
-    HETZNER_DPA_CONFIRMED: bool = Field(
-        False, description="Operator has verified the processor agreement"
+    PRIVACY_MAIL_RETENTION_DAYS: int = Field(
+        365,
+        gt=0,
+        le=3650,
+        description="Days e-mails to the privacy contact are kept after the request is closed",
     )
     RAW_STATS_RETENTION_DAYS: int = Field(30, gt=0, le=400)
 
@@ -125,18 +165,11 @@ class Config(BaseSettings):
     SENTRY_ENVIRONMENT: str = Field("production", description="Sentry environment name")
     SENTRY_TRACES_SAMPLE_RATE: float = Field(0.0, ge=0.0, le=1.0, description="Tracing sample rate")
 
-    # Umami Analytics settings
-    UMAMI_WEBSITE_ID: Optional[str] = Field(default=None, description="Umami website identifier")
-    UMAMI_API_URL: str = Field(
-        "https://analytics.example.com/api/send",
-        description="Umami analytics endpoint",
-    )
+    # GitHub release checks
     GITHUB_API_BASE_URL: str = Field(
         "https://api.github.com",
         description="GitHub REST API base URL",
     )
-    UMAMI_ENABLED: bool = Field(False, description="Toggle Umami analytics")
-    ANALYTICS_HOSTNAME: str = Field("", description="Hostname for analytics tracking")
 
     # API settings
     JOLPICA_API_URL: str = Field(
@@ -290,6 +323,9 @@ class Config(BaseSettings):
         "PERF_METRICS_RATE_LIMIT_PER_MINUTE",
         "DATA_API_RATE_LIMIT_PER_MINUTE",
         "STATS_RATE_LIMIT_PER_MINUTE",
+        "PROXY_LOG_RETENTION_DAYS",
+        "TRAFFIC_STATS_HOURLY_DAYS",
+        "TRAFFIC_STATS_DAILY_DAYS",
         mode="before",
     )
     @classmethod
@@ -373,7 +409,6 @@ class Config(BaseSettings):
 
     @field_validator(
         "SITE_URL",
-        "UMAMI_API_URL",
         "GITHUB_API_BASE_URL",
         "JOLPICA_API_URL",
         "OPEN_METEO_URL",
@@ -420,6 +455,44 @@ class Config(BaseSettings):
         except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be an integer from 1 to 400")
+
+    @field_validator("PRIVACY_MAIL_RETENTION_DAYS", mode="before")
+    @classmethod
+    def validate_privacy_mail_retention_days(cls, value: object) -> int:
+        """Validate the privacy mailbox retention; invalid values fall back to the default."""
+        field_name = "PRIVACY_MAIL_RETENTION_DAYS"
+        default: int = cls.model_fields[field_name].default
+        try:
+            days = int(value)  # type: ignore[call-overload]
+            if 0 < days <= 3650:
+                return days
+        except TypeError, ValueError:
+            pass
+        return _warn_invalid(field_name, value, default, "must be an integer from 1 to 3650")
+
+    @field_validator("APP_ENV", mode="before")
+    @classmethod
+    def normalize_app_env(cls, value: object) -> str:
+        """Compare deployment environments case-insensitively and without padding."""
+        return str(value).strip().lower()
+
+    @model_validator(mode="after")
+    def require_controller_identity_in_production(self) -> "Config":
+        """Refuse to start production without the data controller identity; never echo values."""
+        if self.APP_ENV != "production":
+            return self
+        missing = [
+            name
+            for name in ("OPERATOR_NAME", "PRIVACY_CONTACT_EMAIL")
+            if not getattr(self, name).strip()
+        ]
+        if missing:
+            raise ValueError(
+                f"APP_ENV=production requires {' and '.join(missing)} to be set (data "
+                "controller identity for the privacy page). Set them in the deployment "
+                "environment (e.g. Coolify) before deploying."
+            )
+        return self
 
     @field_validator("S3_ENDPOINT_URL", mode="before")
     @classmethod

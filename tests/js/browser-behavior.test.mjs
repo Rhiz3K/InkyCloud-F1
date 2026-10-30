@@ -43,12 +43,52 @@ for (const minimal of [true, false]) {
             });
             vm.runInContext(common, ctx);
             assert.equal(redirects.length, blockedStorage ? 0 : 1);
+            assert.deepEqual(cookies, []);
+            assert.deepEqual(saved, []);
             ctx.switchUiLanguage();
             assert.equal(ctx.window.location.href, "https://racing.example.org/cs/configure/calendar?display=spectra6");
-            assert.ok(cookies.at(-1).startsWith("preferredLang=cs;"));
-            assert.deepEqual(saved.at(-1), blockedStorage ? undefined : ["preferredLang", "cs"]);
+            assert.deepEqual(cookies, ["preferredLang=cs;path=/;max-age=2592000;SameSite=Lax"]);
+            assert.deepEqual(saved, blockedStorage ? [] : [["preferredLang", "cs"]]);
         });
     }
+}
+
+for (const [pathname, stored] of [["/de/configure/calendar", "cs"], ["/cs/configure/calendar", "cs"], ["/configure/calendar", "cs"], ["/", "en"]]) {
+    test(`loading ${pathname} with stored ${stored} writes no cookie or localStorage`, () => {
+        const saved = [], cookies = [], redirects = [];
+        vm.runInNewContext(common, {
+            URL, URLSearchParams,
+            window: {location: {origin: "https://racing.example.org", pathname, search: "", replace(url) {redirects.push(url);}}},
+            navigator: {},
+            document: {addEventListener() {}, set cookie(value) {cookies.push(value);}},
+            localStorage: {getItem() {return stored;}, setItem(...args) {saved.push(args);}},
+        });
+        assert.deepEqual(cookies, []);
+        assert.deepEqual(saved, []);
+        const prefixed = pathname.startsWith("/de/") || pathname.startsWith("/cs/");
+        assert.deepEqual(redirects, prefixed || stored === "en" ? [] : ["https://racing.example.org/cs/configure/calendar"]);
+    });
+}
+
+for (const [protocol, suffix] of [["http:", ";SameSite=Lax"], ["https:", ";SameSite=Lax;Secure"]]) {
+    test(`language cookie over ${protocol} ends with ${suffix}`, () => {
+        const cookies = [];
+        const ctx = vm.createContext({
+            URL, URLSearchParams,
+            window: {location: {
+                origin: `${protocol}//racing.example.org`, protocol, pathname: "/cs/configure", search: "",
+                replace() {},
+            }}, navigator: {},
+            document: {addEventListener() {}, set cookie(value) {cookies.push(value);}, getElementById() {return {value: "de"};}},
+            localStorage: {getItem() {return null;}, setItem() {}},
+        });
+        vm.runInContext(common, ctx);
+        ctx.switchUiLanguage();
+        assert.equal(cookies.length, 1);
+        assert.ok(cookies[0].endsWith(suffix), cookies[0]);
+        assert.equal(cookies[0].includes("Secure"), protocol === "https:");
+        assert.ok(cookies[0].startsWith("preferredLang=de;path=/;max-age=2592000;"));
+    });
 }
 
 // Top-level functions in configure.html's inline script are 2-space indented and end with "  }".
@@ -111,14 +151,14 @@ test("missing leader team falls back to a dash without a swatch", () => {
     assert.ok(html.includes("truncate\">-</span>"));
 });
 
-test("explicit localized URL overrides stale preference", () => {
-    const saved = [];
+test("explicit localized URL is not overridden by a stale preference", () => {
+    const saved = [], cookies = [], redirects = [];
     vm.runInNewContext(common, {
-        window: {location: {pathname: "/de/configure/calendar"}}, navigator: {},
-        document: {addEventListener() {}, set cookie(_) {}},
+        window: {location: {pathname: "/de/configure/calendar", replace(url) {redirects.push(url);}}}, navigator: {},
+        document: {addEventListener() {}, set cookie(value) {cookies.push(value);}},
         localStorage: {getItem() {throw Error("Stale preference read");}, setItem(...args) {saved.push(args);}},
     });
-    assert.deepEqual(saved, [["preferredLang", "de"]]);
+    assert.deepEqual([saved, cookies, redirects], [[], [], []]);
 });
 
 function runCollector(overrides = {}) {

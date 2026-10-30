@@ -30,8 +30,6 @@ def usage_profile(monkeypatch):
     monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", True)
     monkeypatch.setattr(config, "RATE_LIMIT_ENABLED", False)
     monkeypatch.setattr(config, "ADMIN_API_TOKEN", None)
-    monkeypatch.setattr(config, "UMAMI_ENABLED", False)
-    monkeypatch.setattr(pages, "track_pageview", AsyncMock())
     monkeypatch.setattr(pages, "refresh_version_info", AsyncMock())
     state.get_and_clear_api_calls_buffer()
     state.get_bmp_cache().clear()
@@ -174,7 +172,6 @@ async def test_calendar_defaults_custom_choices_cache_and_304_reach_stats_api(
     }
     service = SimpleNamespace(get_next_race_from_static=lambda: race)
     monkeypatch.setattr(api, "get_database", lambda: db)
-    monkeypatch.setattr(images, "_schedule_calendar_analytics", lambda **_: None)
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", lambda **_: None)
     renders = []
 

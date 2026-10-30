@@ -61,7 +61,7 @@ the `starting` state; `/health/ready` still exposes its detailed 503 response du
 ## Configuration
 
 `.env.example` is the complete configuration reference. Keep all values in Coolify's environment
-UI and mark S3, Sentry, analytics, and admin-token values as secrets. Redeploy after changing
+UI and mark S3, Sentry, and admin-token values as secrets. Redeploy after changing
 environment values.
 
 Important operational rules:
@@ -70,7 +70,12 @@ Important operational rules:
 - `/app/data` persistent storage is mandatory
 - `STATS_RETENTION_DAYS=400` retains the full 365-day dashboard
 - `BACKUP_ENABLED=true` requires a valid S3 target and cron schedule
-- `SITE_URL` and `ANALYTICS_HOSTNAME` serve different purposes
+- the image runs with `APP_ENV=production` and refuses to start unless `OPERATOR_NAME` and
+  `PRIVACY_CONTACT_EMAIL` are set (the data controller identity on the privacy page); the
+  `.env.example` value `APP_ENV=development` overrides this, so set `APP_ENV=production` or drop
+  that line when importing
+- `PRIVACY_MAIL_RETENTION_DAYS` (default 365) is the period, stated on the privacy page, for
+  which e-mails to the privacy contact are kept after the request is closed
 
 ## Release deployment
 

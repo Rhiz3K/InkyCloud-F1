@@ -265,8 +265,6 @@ docker build -t f1-eink-cal .
 docker run -d \
   -p 8000:8000 \
   -e SENTRY_DSN=your-sentry-dsn \
-  -e UMAMI_WEBSITE_ID=your-umami-id \
-  -e UMAMI_ENABLED=true \
   --name f1-calendar \
   f1-eink-cal
 

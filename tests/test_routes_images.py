@@ -109,30 +109,6 @@ def test_race_stats_metadata_covers_invalid_selection_key_and_next_race():
     )
 
 
-@pytest.mark.asyncio
-async def test_calendar_analytics_includes_all_selection_fields():
-    pageview = AsyncMock()
-    event = AsyncMock()
-    with (
-        patch("app.routes.images.track_pageview", new=pageview),
-        patch("app.routes.images.track_event", new=event),
-    ):
-        await images._track_calendar_analytics(
-            lang="en",
-            tz="UTC",
-            year=2026,
-            race_round=2,
-            race_key="monza",
-            user_agent="test",
-            referrer="https://example.test",
-        )
-
-    assert pageview.await_args.kwargs["url"] == (
-        "/calendar.bmp?lang=en&tz=UTC&year=2026&round=2&race_key=monza"
-    )
-    assert event.await_args.kwargs["event_data"]["source"] == "referral"
-
-
 def test_fresh_pregenerated_path_rejects_escape_missing_and_stale_files(tmp_path):
     images_dir = tmp_path / "images"
     images_dir.mkdir()
@@ -298,7 +274,6 @@ async def test_calendar_endpoint_serves_pregenerated_file_and_error_fallback(tmp
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._get_pregenerated_calendar_path", return_value=pregenerated),
         patch("app.routes.images._record_calendar_api_call"),
-        patch("app.routes.images._schedule_calendar_analytics"),
     ):
         response = await images.get_calendar_bmp(
             _request(),
@@ -326,7 +301,6 @@ async def test_calendar_endpoint_serves_pregenerated_file_and_error_fallback(tmp
             new=AsyncMock(return_value=(b"rendered", None, False)),
         ),
         patch("app.routes.images._record_calendar_api_call"),
-        patch("app.routes.images._schedule_calendar_analytics"),
     ):
         response = await images.get_calendar_bmp(
             _request(),
@@ -400,7 +374,7 @@ async def test_teams_endpoint_serves_cache_and_caches_complete_render():
 
 
 @pytest.mark.asyncio
-async def test_calendar_cached_etag_returns_empty_304_without_analytics():
+async def test_calendar_cached_etag_returns_empty_304():
     etag = strong_etag(b"cached")
     cache_key = images._get_cache_key("en", None, None, None, None, True, "race_day", "1bit")
     get_bmp_cache()[calendar_identity({"season": 2026, "round": 1}) + "|" + cache_key] = (
@@ -417,7 +391,6 @@ async def test_calendar_cached_etag_returns_empty_304_without_analytics():
     with (
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._record_calendar_api_call") as record_call,
-        patch("app.routes.images._schedule_calendar_analytics") as analytics,
     ):
         response = await images.get_calendar_bmp(
             _request({"If-None-Match": etag}),
@@ -440,7 +413,6 @@ async def test_calendar_cached_etag_returns_empty_304_without_analytics():
     record_call.assert_called_once()
     assert record_call.call_args.kwargs["status_code"] == 304
     assert record_call.call_args.kwargs["size_bytes"] == 0
-    analytics.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -557,7 +529,6 @@ async def test_calendar_endpoint_returns_304_from_pregenerated_sidecar(tmp_path)
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._get_pregenerated_calendar_path", return_value=image_path),
         patch("app.routes.images._record_calendar_api_call"),
-        patch("app.routes.images._schedule_calendar_analytics"),
     ):
         response = await images.get_calendar_bmp(
             _request({"If-None-Match": etag}),
@@ -684,7 +655,6 @@ async def test_concurrent_identical_calendar_misses_render_and_hash_once():
         patch("app.routes.images._render_calendar", new=render),
         patch("app.routes.images.strong_etag", wraps=strong_etag) as hash_content,
         patch("app.routes.images._record_calendar_api_call"),
-        patch("app.routes.images._schedule_calendar_analytics"),
     ):
         first = asyncio.create_task(request_calendar())
         await started.wait()

@@ -342,26 +342,246 @@ def test_public_preflight_keeps_identity_private_and_reports_unresolved_settings
         BACKUP_ENABLED=True,
         BACKUP_DETAILS="",
         SCHEDULER_ENABLED=False,
-        HETZNER_DPA_CONFIRMED=False,
     )
     messages = findings(settings)
     for key in [
         "OPERATOR_NAME",
         "PRIVACY_CONTACT_EMAIL",
-        "HETZNER_DPA_CONFIRMED",
         "MONITORING_DETAILS",
         "BACKUP_DETAILS",
         "SCHEDULER_ENABLED",
+        "SITE_URL",
     ]:
         assert any(message.startswith(key) for message in messages)
     settings.OPERATOR_NAME = "Example Association"
     settings.PRIVACY_CONTACT_EMAIL = "privacy@example.org"
-    settings.HETZNER_DPA_CONFIRMED = True
     settings.SENTRY_ENABLED = False
     settings.BACKUP_ENABLED = False
     settings.SCHEDULER_ENABLED = True
     settings.SITE_URL = "https://racing.test"
     assert findings(settings) == []
+
+
+def _privacy_html(path="/privacy"):
+    """Render the privacy page through the application routes."""
+    from app import main
+
+    response = TestClient(main.app).get(path)
+    assert response.status_code == 200
+    return response.text
+
+
+def test_privacy_controller_shows_visible_placeholders_when_identity_is_missing(monkeypatch):
+    """Missing controller details render translated TODO markers instead of invented values."""
+    monkeypatch.setattr(config, "OPERATOR_NAME", "")
+    monkeypatch.setattr(config, "PRIVACY_CONTACT_EMAIL", "")
+    html = _privacy_html()
+    assert "TODO: controller name not yet provided" in html
+    assert "TODO: contact e-mail not yet provided" in html
+    assert "mailto:" not in html
+    czech = _privacy_html("/cs/privacy")
+    assert "TODO: jméno správce zatím nebylo uvedeno" in czech
+    assert "TODO: kontaktní e-mail zatím nebyl uveden" in czech
+
+
+def test_privacy_controller_renders_escaped_identity_and_mailto(monkeypatch):
+    """Configured controller details are shown escaped, with the e-mail as a mailto link."""
+    monkeypatch.setattr(config, "OPERATOR_NAME", "<b>Example & Co</b>")
+    monkeypatch.setattr(config, "PRIVACY_CONTACT_EMAIL", "privacy@example.org")
+    html = _privacy_html()
+    assert "&lt;b&gt;Example &amp; Co&lt;/b&gt;" in html
+    assert "<b>Example" not in html
+    assert 'href="mailto:privacy@example.org"' in html
+    assert "TODO:" not in html
+
+
+def test_privacy_contact_section_uses_configured_controller(monkeypatch):
+    """A configured controller appears in the controller section and as the contact mailto."""
+    monkeypatch.setattr(config, "OPERATOR_NAME", "Example Operator")
+    monkeypatch.setattr(config, "PRIVACY_CONTACT_EMAIL", "privacy@example.org")
+    html = _privacy_html()
+    assert "Controller: Example Operator" in html
+    assert html.count('href="mailto:privacy@example.org"') == 2
+    assert "For privacy requests, write to <a" in html
+    assert "Do not publish personal data in GitHub issues." in html
+    assert "TODO:" not in html
+    czech = _privacy_html("/cs/privacy")
+    assert czech.count('href="mailto:privacy@example.org"') == 2
+    assert "posílejte na <a" in czech
+
+
+def test_privacy_contact_section_shows_todo_without_controller(monkeypatch):
+    """Without controller details the contact sentence shows the TODO marker, not a link."""
+    monkeypatch.setattr(config, "OPERATOR_NAME", "")
+    monkeypatch.setattr(config, "PRIVACY_CONTACT_EMAIL", "")
+    html = _privacy_html()
+    assert "TODO: controller name not yet provided" in html
+    assert html.count("TODO: contact e-mail not yet provided") == 2
+    assert "For privacy requests, write to <strong" in html
+    assert "mailto:" not in html
+
+
+def test_privacy_contact_email_is_escaped(monkeypatch):
+    """A configured contact address is escaped in both the href and the link text."""
+    monkeypatch.setattr(config, "PRIVACY_CONTACT_EMAIL", 'a"<b>@example.org')
+    html = _privacy_html()
+    assert html.count('href="mailto:a&#34;&lt;b&gt;@example.org"') == 2
+    assert "<b>@example.org" not in html
+
+
+@pytest.mark.parametrize("minimal", [False, True])
+@pytest.mark.parametrize("aggregate_only", [False, True])
+@pytest.mark.parametrize("path", ["/privacy", "/cs/privacy"])
+def test_privacy_page_has_no_umami_mentions(monkeypatch, minimal, aggregate_only, path):
+    """No configuration or language variant of the privacy page mentions Umami."""
+    monkeypatch.setattr(config, "MINIMAL_DATA_MODE", minimal)
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", aggregate_only)
+    assert "umami" not in _privacy_html(path).lower()
+
+
+def test_privacy_infrastructure_retention_and_processors(monkeypatch):
+    """Proxy logs, Sentinel statistics and processors follow configuration in every mode."""
+    monkeypatch.setattr(config, "PROXY_LOG_RETENTION_DAYS", 3)
+    monkeypatch.setattr(config, "TRAFFIC_STATS_HOURLY_DAYS", 14)
+    monkeypatch.setattr(config, "TRAFFIC_STATS_DAILY_DAYS", 200)
+    monkeypatch.setattr(config, "PRIVACY_MAIL_RETENTION_DAYS", 200)
+    for minimal in (False, True):
+        monkeypatch.setattr(config, "MINIMAL_DATA_MODE", minimal)
+        html = _privacy_html()
+        assert "User-Agent and Referer for at most 3 days" in html
+        assert "hourly for 14 days, daily for 200 days" in html
+        assert "The application container writes no access log." in html
+        assert "Purpose: visitor statistics (aggregate proxy-level measurement" in html
+        assert "coolLabs Solutions Kft. – Coolify Cloud (server management, Hungary)" in html
+        assert "Google LLC (USA, EU-US Data Privacy Framework) is a recipient of them" in html
+        assert "Art. 6(1)(c) GDPR" in html
+        assert "Art. 6(1)(f) GDPR" in html
+        assert "deleted 200 days after the request is closed" in html
+    czech = _privacy_html("/cs/privacy")
+    assert "Refererem nejvýše 3 dní" in czech
+    assert "hodinové po dobu 14 dní, denní po dobu 200 dní" in czech
+    assert "Účel: statistiky návštěvnosti (souhrnné měření" in czech
+
+
+def test_privacy_stats_basis_names_visitor_statistics_purpose(monkeypatch):
+    """Both statistics legal-basis variants state the visitor-statistics purpose."""
+    monkeypatch.setattr(config, "MINIMAL_DATA_MODE", False)
+    for aggregate_only in (True, False):
+        monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", aggregate_only)
+        html = _privacy_html()
+        assert html.count("Purpose: visitor statistics.") == 1
+        assert "free service and visitor statistics (aggregate measurement" in html
+
+
+def test_language_cookie_is_described_as_switcher_only():
+    """The privacy page and header describe the 30-day, switcher-only language cookie."""
+    html = _privacy_html()
+    assert "when you choose a language with the switcher" in html
+    assert "saved in localStorage (until you clear site data)" in html
+    assert "in a functional cookie for 30 days." in html
+    assert "language-specific page" not in html
+    assert "storage exempt under §89(3) of the Czech Electronic Communications Act (ZEK)" in html
+    note = "The language choice is stored in a cookie for 30 days."
+    assert f'title="{note}"' in html
+    assert f">\n          {note}\n        </p>" in html
+    czech = _privacy_html("/cs/privacy")
+    assert "Volba jazyka se ukládá do cookie na 30 dní." in czech
+    assert "Jazyková cookie: 30 dní." in czech
+    assert "§ 89 odst. 3 zákona o elektronických komunikacích (ZEK)" in czech
+
+
+def test_privacy_backup_retention_requires_enabled_backups(monkeypatch):
+    """Backup retention and provider details appear only when backups are enabled."""
+    monkeypatch.setattr(config, "BACKUP_RETENTION_DAYS", 17)
+    monkeypatch.setattr(config, "BACKUP_DETAILS", "Example Storage, Germany")
+    monkeypatch.setattr(config, "BACKUP_ENABLED", False)
+    html = _privacy_html()
+    assert "Database backups" not in html
+    assert "Example Storage" not in html
+    monkeypatch.setattr(config, "BACKUP_ENABLED", True)
+    html = _privacy_html()
+    assert "Database backups: 17 days. (Example Storage, Germany)" in html
+    monkeypatch.setattr(config, "BACKUP_DETAILS", "")
+    html = _privacy_html()
+    assert "Database backups: 17 days." in html
+    assert "Database backups: 17 days. (" not in html
+
+
+def test_privacy_legal_basis_and_retention_follow_configuration(monkeypatch):
+    """Legal basis and retention reflect rate-limit mode, statistics and monitoring settings."""
+    monkeypatch.setattr(config, "RAW_STATS_RETENTION_DAYS", 11)
+    monkeypatch.setattr(config, "STATS_RETENTION_DAYS", 222)
+    monkeypatch.setattr(config, "SENTRY_ENABLED", True)
+    monkeypatch.setattr(config, "SENTRY_DSN", "https://public@monitoring.test/1")
+    monkeypatch.setattr(config, "MONITORING_DETAILS", "GlitchTip, EU, <30> days")
+    monkeypatch.setattr(config, "HOSTING_DETAILS", "Example Host, Germany")
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", False)
+    html = _privacy_html()
+    assert "request counters keyed by IP address" in html
+    assert "expire about 60 seconds after the last counted request" in html
+    assert "never written to disk" in html
+    assert "deleted after 11 days" in html
+    assert "Hourly usage totals: 222 days" in html
+    assert "Individual performance measurements without IP addresses" in html
+    assert "identifiers: deleted after 11 days. They are not merged" in html
+    assert "Performance histograms:" not in html
+    assert "Error events: GlitchTip, EU, &lt;30&gt; days" in html
+    assert "Hosting: Example Host, Germany" in html
+    assert "Language cookie: 30 days" in html
+    assert "www.uoou.gov.cz" in html
+    assert "(Art. 21)" in html
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", True)
+    monkeypatch.setattr(config, "MONITORING_DETAILS", "")
+    monkeypatch.setattr(config, "HOSTING_DETAILS", "")
+    html = _privacy_html()
+    assert "one shared request counter per rate-limit bucket, without IP addresses" in html
+    assert "retention is set by the operator of the monitoring service" in html
+    assert "Hosting:" not in html
+    monkeypatch.setattr(config, "SENTRY_DSN", None)
+    html = _privacy_html()
+    assert "Error monitoring:" not in html
+    assert "Error events:" not in html
+    monkeypatch.setattr(config, "MINIMAL_DATA_MODE", True)
+    html = _privacy_html()
+    assert "Aggregate statistics:" not in html
+    assert "Hourly usage totals:" not in html
+    assert "Performance histograms:" not in html
+
+
+def test_privacy_raw_and_histogram_retention_use_effective_minimum(monkeypatch):
+    """Raw records and histograms show min(RAW, STATS) days, matching cleanup_old_stats."""
+    monkeypatch.setattr(config, "MINIMAL_DATA_MODE", False)
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", True)
+    monkeypatch.setattr(config, "RAW_STATS_RETENTION_DAYS", 30)
+    monkeypatch.setattr(config, "STATS_RETENTION_DAYS", 7)
+    html = _privacy_html()
+    assert "deleted after 7 days" in html
+    assert "Performance histograms: 7 days" in html
+    assert "Hourly usage totals: 7 days" in html
+    assert "Retention: 7 days. These are approximate" in html
+    assert "deleted after 30 days" not in html
+    czech = _privacy_html("/cs/privacy")
+    assert "smažou se po 7 dnech" in czech
+    assert "Histogramy výkonu: 7 dní" in czech
+
+
+def test_privacy_stats_basis_matches_aggregate_only_mode(monkeypatch):
+    """The statistics legal basis names individual records unless aggregate-only mode is on."""
+    monkeypatch.setattr(config, "MINIMAL_DATA_MODE", False)
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", False)
+    html = _privacy_html()
+    assert "Usage statistics: individual API request records" in html
+    assert "individual sampled performance measurements" in html
+    assert "Aggregate statistics:" not in html
+    czech = _privacy_html("/cs/privacy")
+    assert "Statistiky používání: jednotlivé záznamy požadavků na API" in czech
+    assert "Jednotlivá měření výkonu bez IP adres" in czech
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", True)
+    html = _privacy_html()
+    assert "Aggregate statistics: hourly usage counts" in html
+    assert "Performance histograms:" in html
+    assert "Usage statistics: individual" not in html
+    assert "Individual performance measurements" not in html
 
 
 @pytest.mark.parametrize(

@@ -138,7 +138,7 @@ block og_tags %}
       {% from 'components/credit_rows.html' import rows, track_row with context %}
       <div class="home-credits-desktop text-left text-xs text-gray-700">
         <div style="display: flex; flex-direction: column; gap: 8px">{{ rows(0, 5) }}</div>
-        <div style="display: flex; flex-direction: column; gap: 8px">{{ rows(5, 10) }}</div>
+        <div style="display: flex; flex-direction: column; gap: 8px">{{ rows(5) }}</div>
         {{ track_row() }}
       </div>
     </div>

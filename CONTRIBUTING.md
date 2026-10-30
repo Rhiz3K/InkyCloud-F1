@@ -168,7 +168,6 @@ InkyCloud-F1/
 │       ├── database.py      # SQLite operations
 │       ├── scheduler.py     # APScheduler background jobs
 │       ├── backup.py        # S3 database backup
-│       ├── analytics.py     # optional server-side aggregate analytics
 │       └── i18n.py          # Translations
 ├── scripts/             # Data update & preprocessing utilities
 ├── translations/        # i18n JSON files (13 supported locales)

@@ -10,7 +10,6 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.paths import TEMPLATES_DIR
-from app.services.analytics import analytics_enabled, get_umami_script_tag
 from app.services.i18n import get_translator
 from app.services.legal import CONTENT_POLICY_VERSION
 from app.services.track_catalog import track_ui_options
@@ -160,6 +159,9 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "nav_language": t.get("nav_language", "Language"),
         "nav_privacy": t.get("nav_privacy", "Privacy"),
         "nav_changelog": t.get("nav_changelog", "Changelog"),
+        "lang_cookie_note": t.get(
+            "lang_cookie_note", "The language choice is stored in a cookie for 30 days."
+        ),
     }
 
     # Get base path without language prefix for hreflang generation
@@ -184,7 +186,6 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
     return {
         "request": request,
         "ui_lang": ui_lang,
-        "umami_script": get_umami_script_tag(),
         "t": t,
         "nav": nav,
         "site_url": str(config.SITE_URL).rstrip("/"),
@@ -201,7 +202,6 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "track_ui": track_ui_options(ui_lang),
         "legal_config": config,
         "minimal_data_mode": config.MINIMAL_DATA_MODE,
-        "analytics_enabled": analytics_enabled(),
         "errors_enabled": not config.MINIMAL_DATA_MODE
         and config.SENTRY_ENABLED
         and bool(config.SENTRY_DSN),

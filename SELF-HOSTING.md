@@ -27,6 +27,12 @@ F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:vX.Y.Z docker compose up -d --no-build
 Edit `.env` before exposing the service. At minimum, set `SITE_URL` to the public URL. The
 Compose file maps a named volume to `/app/data` and exposes port 8000.
 
+The image runs with `APP_ENV=production` and refuses to start unless `OPERATOR_NAME` and
+`PRIVACY_CONTACT_EMAIL` are set, because the privacy page names the data controller. The
+template's `APP_ENV=development` overrides the image default, so set `APP_ENV=production` in
+`.env` for a public deployment. `PRIVACY_MAIL_RETENTION_DAYS` (default 365, at most 3650) states
+how long e-mails to the privacy contact are kept after the request is closed.
+
 Use these commands for normal operation:
 
 ```bash

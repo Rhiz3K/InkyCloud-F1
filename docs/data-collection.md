@@ -10,12 +10,15 @@ STATS_RETENTION_DAYS=400
 RAW_STATS_RETENTION_DAYS=30
 SENTRY_ENABLED=true
 SENTRY_TRACES_SAMPLE_RATE=0
-UMAMI_ENABLED=false
 BACKUP_ENABLED=false
 ```
 
 Explicit environment values override these defaults. `MINIMAL_DATA_MODE=true`
 disables collection entirely, including optional monitoring and S3 backups.
+
+The Docker image runs with `APP_ENV=production` and refuses to start unless `OPERATOR_NAME` and
+`PRIVACY_CONTACT_EMAIL` are set. `PRIVACY_MAIL_RETENTION_DAYS=365` is the stated period for
+keeping e-mails to the privacy contact after the request is closed.
 
 ## Stored aggregates
 
@@ -38,7 +41,7 @@ disables collection entirely, including optional monitoring and S3 backups.
   being aggregates rather than raw visitor records.
 - `stats_batches` contains server batch acknowledgements for transactional retry
   deduplication, with the same 30-day retention. Batch UUIDs identify server writes;
-  they are never assigned to visitors or sent to browsers or Umami.
+  they are never assigned to visitors or sent to browsers or third parties.
 
 `POST /api/perf-metrics` accepts only a known page category, numeric metrics and a
 version marker. Legacy versions 1 and 2 remain accepted; storage always uses version
@@ -47,19 +50,17 @@ version marker. Legacy versions 1 and 2 remain accepted; storage always uses ver
 fields were stored. The current browser collector does not send them.
 
 This profile stores no IP addresses, full User-Agents, referrers, arbitrary URLs or
-query strings, visitor identifiers or browser/device attributes. Language selection
-uses the independent `preferredLang` localStorage value and one-year functional
-cookie. Explicit localized URLs take precedence. Browser timezone detection and
+query strings, visitor identifiers or browser/device attributes. The language
+preference is written only when the user picks a language with the switcher: an
+independent `preferredLang` localStorage value, kept until site data is cleared,
+and a functional cookie with a 30-day max-age. Explicit localized URLs take precedence. Browser timezone detection and
 image settings in URLs work independently of telemetry.
 
 ## Optional integrations
 
-Umami requires both `UMAMI_ENABLED=true` and `UMAMI_WEBSITE_ID`. It receives closed
-hourly server summaries with a fixed server User-Agent and no visitor headers; no
-Umami script runs in the browser. Interpret the `usage_summary` event's `count`,
-not Umami's visitor count. Failed submissions retry for at most one day in a bounded
-buffer. A lost acknowledgement can cause duplicate summaries in Umami; local
-statistics have transactional deduplication.
+There is no third-party analytics. The application sends no usage data to external
+analytics services and loads no analytics script in the browser; usage statistics
+stay in the local database described above.
 
 GlitchTip/Sentry requires a configured DSN and enablement. The scrubber retains error
 type and code location, removing request data, users, value-bearing messages,

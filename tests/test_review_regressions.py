@@ -159,7 +159,6 @@ async def test_auto_calendar_memory_cache_changes_with_next_race(monkeypatch):
     service = SimpleNamespace(get_next_race_from_static=lambda: race)
     monkeypatch.setattr(images, "enforce_rate_limit", Mock())
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", lambda **_: None)
-    monkeypatch.setattr(images, "_schedule_calendar_analytics", Mock())
     render = AsyncMock(side_effect=[(b"monza", race, True), (b"madring", race, True)])
     monkeypatch.setattr(images, "_render_calendar", render)
     kwargs = dict(

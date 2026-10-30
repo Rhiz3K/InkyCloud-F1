@@ -36,9 +36,6 @@ async def flush_api_calls_to_db() -> None:
     This job runs every minute to persist API call data from
     the in-memory buffer to the database.
     """
-    from app.services.analytics import flush_analytics
-
-    await flush_analytics()
     calls = get_and_clear_api_calls_buffer()
     if not calls:
         return

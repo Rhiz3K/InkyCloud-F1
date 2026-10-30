@@ -19,7 +19,6 @@ This is a FastAPI service that generates **800x480 BMP images** (1-bit, B/W/R, B
 - `app/services/scheduler.py` - APScheduler background jobs
 - `app/services/backup.py` - S3 database backup automation
 - `app/services/i18n.py` - Translation loader with caching
-- `app/services/analytics.py` - Optional hourly server totals for Umami, without visitor metadata
 - `app/services/version_service.py` - Version management
 - `translations/*.json` - i18n strings for the 13 locales listed in `LANGUAGE_CODES` (`app/config.py`)
 
@@ -28,8 +27,8 @@ This is a FastAPI service that generates **800x480 BMP images** (1-bit, B/W/R, B
 Defaults are `MINIMAL_DATA_MODE=false`, `AGGREGATE_STATS_ONLY=true`: hourly usage totals,
 coarse numeric performance histograms sampled at 10%, and scrubbed errors when configured.
 No visitor IDs, browser/device metadata, raw request logs or per-IP rate-limit keys.
-Language preference storage is functional and independent of analytics. Optional Umami
-receives hourly server totals. Explicit `MINIMAL_DATA_MODE=true` disables all collection
+Language preference storage is functional and independent of statistics. No usage data
+is sent to third-party analytics. Explicit `MINIMAL_DATA_MODE=true` disables all collection
 and S3 backups. See `docs/data-collection.md` for migration, retention and deployment details.
 
 ## Critical Patterns
@@ -124,7 +123,7 @@ All config comes from environment variables via `app/config.py`. Never hardcode:
 - Display dimensions (use `config.DISPLAY_WIDTH/HEIGHT`)
 - Monitoring DSNs (use `config.SENTRY_DSN`)
 
-Feature flags like `UMAMI_ENABLED` control optional services - code must handle disabled features gracefully.
+Feature flags like `SENTRY_ENABLED` control optional services - code must handle disabled features gracefully.
 
 ## Adding Translations
 
@@ -230,7 +229,6 @@ InkyCloud-F1/
 │   │   ├── database.py          # SQLite persistence
 │   │   ├── scheduler.py         # Background jobs
 │   │   ├── backup.py            # S3 backups
-│   │   ├── analytics.py         # Umami tracking
 │   │   ├── i18n.py              # Translations
 │   │   └── version_service.py   # Version management
 │   ├── templates/           # Jinja2 HTML templates
