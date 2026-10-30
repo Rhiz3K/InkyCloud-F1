@@ -116,11 +116,15 @@ legal_config.PRIVACY_CONTACT_EMAIL %}<a
       <p class="text-sm leading-relaxed">
         {{ t.get("privacy_thirdparty_text", "Processors: Hetzner Online GmbH
         (servers, Germany); coolLabs Solutions Kft. – Coolify Cloud (server
-        management, EU); Cloudflare, Inc. (DNS and forwarding of privacy@
-        e-mail; EU-US Data Privacy Framework). Forwarded privacy e-mails are
-        delivered to a Google (Gmail) mailbox, so Google is a recipient of those
-        e-mails. Optional GlitchTip receives scrubbed errors. Credits show which
-        integrations are active.") }}
+        management, Hungary); Cloudflare, Inc. (DNS and forwarding of privacy@
+        e-mail; EU-US Data Privacy Framework). E-mails to the privacy contact
+        are forwarded to a Gmail mailbox, so Google LLC (USA, EU-US Data Privacy
+        Framework) is a recipient of them. These e-mails are used only to handle
+        your request – on the basis of Art. 6(1)(c) GDPR for requests under the
+        GDPR and Art. 6(1)(f) GDPR for other enquiries – and are deleted
+        {mail_days} days after the request is closed. Optional GlitchTip
+        receives scrubbed errors. Credits show which integrations are
+        active.").format(mail_days=legal_config.PRIVACY_MAIL_RETENTION_DAYS) }}
       </p>
     </section>
 
@@ -254,11 +258,13 @@ legal_config.PRIVACY_CONTACT_EMAIL %}<a
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
           t.get("privacy_retention_proxy", "The hosting proxy (Traefik) keeps
-          access logs with IP address, time, URL, User-Agent and Referer for at
-          most {proxy_days} days. Coolify Sentinel derives aggregate visitor
-          statistics (IP shortened to /24 or /48, country and city via local
-          GeoIP): hourly for {hourly_days} days, daily for {daily_days} days.
-          The application container writes no access
+          access logs with the full IP address, time, URL path, User-Agent and
+          Referer for at most {proxy_days} days. Coolify Sentinel uses the path,
+          User-Agent and Referer to keep aggregate visitor statistics (path,
+          browser, operating system, device type, referrer, country and city
+          via local GeoIP; IP shortened to /24 or /48): hourly for
+          {hourly_days} days, daily for {daily_days} days. The application
+          container writes no access
           log.").format(proxy_days=legal_config.PROXY_LOG_RETENTION_DAYS,
           hourly_days=legal_config.TRAFFIC_STATS_HOURLY_DAYS,
           daily_days=legal_config.TRAFFIC_STATS_DAILY_DAYS) }}
@@ -364,7 +370,10 @@ legal_config.PRIVACY_CONTACT_EMAIL %}<a
         {{ t.get("privacy_rights_identification", "No visitor identifiers are
         stored, so the operator may be unable to identify data relating to you
         (Art. 11 GDPR). Articles 15 to 20 then apply only if you provide
-        additional information that enables identification.") }}
+        additional information that enables identification. Within {proxy_days}
+        days, a request can be looked up in the proxy logs if you give your IP
+        address and the approximate time of your
+        visit.").format(proxy_days=legal_config.PROXY_LOG_RETENTION_DAYS) }}
       </p>
       <p class="text-sm leading-relaxed">
         {{ t.get("privacy_rights_contact", "To exercise your rights, contact the

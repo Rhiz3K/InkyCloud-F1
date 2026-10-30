@@ -15,6 +15,7 @@ from pydantic import (
     ValidationError,
     ValidationInfo,
     field_validator,
+    model_validator,
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -65,11 +66,19 @@ def _warn_invalid(field_name: str, raw_value: object, default: T, reason: str) -
 class Config(BaseSettings):
     """Application configuration loaded from environment variables."""
 
+    # Errors must not echo the settings input: it holds secrets and controller details.
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+        hide_input_in_errors=True,
     )
 
     # Application settings
+    APP_ENV: str = Field(
+        "development", description="Deployment environment: development, test or production"
+    )
     APP_HOST: str = Field(
         # skipcq: BAN-B104 - required to serve Docker/self-hosted deployments;
         # bound explicitly by env/network config
@@ -140,8 +149,11 @@ class Config(BaseSettings):
     )
     MONITORING_DETAILS: str = Field("", description="Monitoring provider, country and retention")
     BACKUP_DETAILS: str = Field("", description="Backup provider and country")
-    HETZNER_DPA_CONFIRMED: bool = Field(
-        False, description="Operator has verified the processor agreement"
+    PRIVACY_MAIL_RETENTION_DAYS: int = Field(
+        365,
+        gt=0,
+        le=3650,
+        description="Days e-mails to the privacy contact are kept after the request is closed",
     )
     RAW_STATS_RETENTION_DAYS: int = Field(30, gt=0, le=400)
 
@@ -443,6 +455,44 @@ class Config(BaseSettings):
         except TypeError, ValueError:
             pass
         return _warn_invalid(info.field_name, value, default, "must be an integer from 1 to 400")
+
+    @field_validator("PRIVACY_MAIL_RETENTION_DAYS", mode="before")
+    @classmethod
+    def validate_privacy_mail_retention_days(cls, value: object) -> int:
+        """Validate the privacy mailbox retention; invalid values fall back to the default."""
+        field_name = "PRIVACY_MAIL_RETENTION_DAYS"
+        default: int = cls.model_fields[field_name].default
+        try:
+            days = int(value)  # type: ignore[call-overload]
+            if 0 < days <= 3650:
+                return days
+        except TypeError, ValueError:
+            pass
+        return _warn_invalid(field_name, value, default, "must be an integer from 1 to 3650")
+
+    @field_validator("APP_ENV", mode="before")
+    @classmethod
+    def normalize_app_env(cls, value: object) -> str:
+        """Compare deployment environments case-insensitively and without padding."""
+        return str(value).strip().lower()
+
+    @model_validator(mode="after")
+    def require_controller_identity_in_production(self) -> "Config":
+        """Refuse to start production without the data controller identity; never echo values."""
+        if self.APP_ENV != "production":
+            return self
+        missing = [
+            name
+            for name in ("OPERATOR_NAME", "PRIVACY_CONTACT_EMAIL")
+            if not getattr(self, name).strip()
+        ]
+        if missing:
+            raise ValueError(
+                f"APP_ENV=production requires {' and '.join(missing)} to be set (data "
+                "controller identity for the privacy page). Set them in the deployment "
+                "environment (e.g. Coolify) before deploying."
+            )
+        return self
 
     @field_validator("S3_ENDPOINT_URL", mode="before")
     @classmethod

@@ -70,6 +70,27 @@ for (const [pathname, stored] of [["/de/configure/calendar", "cs"], ["/cs/config
     });
 }
 
+for (const [protocol, suffix] of [["http:", ";SameSite=Lax"], ["https:", ";SameSite=Lax;Secure"]]) {
+    test(`language cookie over ${protocol} ends with ${suffix}`, () => {
+        const cookies = [];
+        const ctx = vm.createContext({
+            URL, URLSearchParams,
+            window: {location: {
+                origin: `${protocol}//racing.example.org`, protocol, pathname: "/cs/configure", search: "",
+                replace() {},
+            }}, navigator: {},
+            document: {addEventListener() {}, set cookie(value) {cookies.push(value);}, getElementById() {return {value: "de"};}},
+            localStorage: {getItem() {return null;}, setItem() {}},
+        });
+        vm.runInContext(common, ctx);
+        ctx.switchUiLanguage();
+        assert.equal(cookies.length, 1);
+        assert.ok(cookies[0].endsWith(suffix), cookies[0]);
+        assert.equal(cookies[0].includes("Secure"), protocol === "https:");
+        assert.ok(cookies[0].startsWith("preferredLang=de;path=/;max-age=2592000;"));
+    });
+}
+
 test("explicit localized URL is not overridden by a stale preference", () => {
     const saved = [], cookies = [], redirects = [];
     vm.runInNewContext(common, {

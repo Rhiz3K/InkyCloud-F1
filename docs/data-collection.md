@@ -16,6 +16,10 @@ BACKUP_ENABLED=false
 Explicit environment values override these defaults. `MINIMAL_DATA_MODE=true`
 disables collection entirely, including optional monitoring and S3 backups.
 
+The Docker image runs with `APP_ENV=production` and refuses to start unless `OPERATOR_NAME` and
+`PRIVACY_CONTACT_EMAIL` are set. `PRIVACY_MAIL_RETENTION_DAYS=365` is the stated period for
+keeping e-mails to the privacy contact after the request is closed.
+
 ## Stored aggregates
 
 - API requests are combined in memory by UTC hour and validated endpoint, language,

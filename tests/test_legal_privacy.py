@@ -342,21 +342,19 @@ def test_public_preflight_keeps_identity_private_and_reports_unresolved_settings
         BACKUP_ENABLED=True,
         BACKUP_DETAILS="",
         SCHEDULER_ENABLED=False,
-        HETZNER_DPA_CONFIRMED=False,
     )
     messages = findings(settings)
     for key in [
         "OPERATOR_NAME",
         "PRIVACY_CONTACT_EMAIL",
-        "HETZNER_DPA_CONFIRMED",
         "MONITORING_DETAILS",
         "BACKUP_DETAILS",
         "SCHEDULER_ENABLED",
+        "SITE_URL",
     ]:
         assert any(message.startswith(key) for message in messages)
     settings.OPERATOR_NAME = "Example Association"
     settings.PRIVACY_CONTACT_EMAIL = "privacy@example.org"
-    settings.HETZNER_DPA_CONFIRMED = True
     settings.SENTRY_ENABLED = False
     settings.BACKUP_ENABLED = False
     settings.SCHEDULER_ENABLED = True
@@ -446,6 +444,7 @@ def test_privacy_infrastructure_retention_and_processors(monkeypatch):
     monkeypatch.setattr(config, "PROXY_LOG_RETENTION_DAYS", 3)
     monkeypatch.setattr(config, "TRAFFIC_STATS_HOURLY_DAYS", 14)
     monkeypatch.setattr(config, "TRAFFIC_STATS_DAILY_DAYS", 200)
+    monkeypatch.setattr(config, "PRIVACY_MAIL_RETENTION_DAYS", 200)
     for minimal in (False, True):
         monkeypatch.setattr(config, "MINIMAL_DATA_MODE", minimal)
         html = _privacy_html()
@@ -453,8 +452,11 @@ def test_privacy_infrastructure_retention_and_processors(monkeypatch):
         assert "hourly for 14 days, daily for 200 days" in html
         assert "The application container writes no access log." in html
         assert "Purpose: visitor statistics (aggregate proxy-level measurement" in html
-        assert "coolLabs Solutions Kft. – Coolify Cloud" in html
-        assert "Google is a recipient of those e-mails" in html
+        assert "coolLabs Solutions Kft. – Coolify Cloud (server management, Hungary)" in html
+        assert "Google LLC (USA, EU-US Data Privacy Framework) is a recipient of them" in html
+        assert "Art. 6(1)(c) GDPR" in html
+        assert "Art. 6(1)(f) GDPR" in html
+        assert "deleted 200 days after the request is closed" in html
     czech = _privacy_html("/cs/privacy")
     assert "Refererem nejvýše 3 dní" in czech
     assert "hodinové po dobu 14 dní, denní po dobu 200 dní" in czech

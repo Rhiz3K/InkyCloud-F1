@@ -75,6 +75,85 @@ def test_infrastructure_retention_rejects_non_positive_values(field_name, defaul
     assert getattr(config_module.Config(_env_file=None, **{field_name: "14"}), field_name) == 14
 
 
+def test_production_requires_both_controller_fields():
+    """Production refuses to start without the data controller identity."""
+    with pytest.raises(ValidationError) as excinfo:
+        config_module.Config(
+            _env_file=None, APP_ENV="production", OPERATOR_NAME="", PRIVACY_CONTACT_EMAIL="  "
+        )
+
+    message = str(excinfo.value)
+    assert "APP_ENV=production requires OPERATOR_NAME and PRIVACY_CONTACT_EMAIL" in message
+
+
+@pytest.mark.parametrize(
+    ("present", "missing"),
+    [("OPERATOR_NAME", "PRIVACY_CONTACT_EMAIL"), ("PRIVACY_CONTACT_EMAIL", "OPERATOR_NAME")],
+)
+def test_production_names_only_the_missing_controller_field(present, missing):
+    """The startup error lists exactly the unset fields and never echoes configured values."""
+    with pytest.raises(ValidationError) as excinfo:
+        config_module.Config(
+            _env_file=None, APP_ENV="production", **{present: "secret-value", missing: ""}
+        )
+
+    message = str(excinfo.value)
+    assert f"requires {missing} to be set" in message
+    assert present not in message
+    assert "secret-value" not in message
+
+
+@pytest.mark.parametrize("app_env", ["production", "PRODUCTION", "  Production "])
+def test_production_starts_with_controller_identity(app_env):
+    """APP_ENV is case-insensitive and production boots once both fields are set."""
+    config = config_module.Config(
+        _env_file=None,
+        APP_ENV=app_env,
+        OPERATOR_NAME="Example Association",
+        PRIVACY_CONTACT_EMAIL="privacy@example.org",
+    )
+
+    assert config.APP_ENV == "production"
+
+
+def test_uppercase_production_still_enforces_controller_identity():
+    """Case variants of production must not bypass the controller identity check."""
+    with pytest.raises(ValidationError, match="OPERATOR_NAME and PRIVACY_CONTACT_EMAIL"):
+        config_module.Config(
+            _env_file=None, APP_ENV="PRODUCTION", OPERATOR_NAME="", PRIVACY_CONTACT_EMAIL=""
+        )
+
+
+@pytest.mark.parametrize("app_env", [None, "development", "test"])
+def test_non_production_allows_empty_controller_identity(app_env, monkeypatch):
+    """Development and test environments boot without operator details."""
+    monkeypatch.delenv("APP_ENV", raising=False)
+    overrides = {} if app_env is None else {"APP_ENV": app_env}
+
+    config = config_module.Config(
+        _env_file=None, OPERATOR_NAME="", PRIVACY_CONTACT_EMAIL="", **overrides
+    )
+
+    assert config.APP_ENV == (app_env or "development")
+
+
+def test_privacy_mail_retention_default(monkeypatch):
+    """Privacy mailbox retention defaults to one year."""
+    monkeypatch.delenv("PRIVACY_MAIL_RETENTION_DAYS", raising=False)
+
+    assert config_module.Config(_env_file=None).PRIVACY_MAIL_RETENTION_DAYS == 365
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "3651", "soon", object()])
+def test_privacy_mail_retention_invalid_values_fall_back(value):
+    """Out-of-range or unparseable mailbox retention falls back to the default."""
+    config = config_module.Config(_env_file=None, PRIVACY_MAIL_RETENTION_DAYS=value)
+
+    assert config.PRIVACY_MAIL_RETENTION_DAYS == 365
+    valid = config_module.Config(_env_file=None, PRIVACY_MAIL_RETENTION_DAYS="3650")
+    assert valid.PRIVACY_MAIL_RETENTION_DAYS == 3650
+
+
 def test_default_stats_retention_covers_longest_dashboard_range():
     """The shipped retention must preserve every selectable dashboard range."""
     default_retention = config_module.Config.model_fields["STATS_RETENTION_DAYS"].default

@@ -70,6 +70,12 @@ Important operational rules:
 - `/app/data` persistent storage is mandatory
 - `STATS_RETENTION_DAYS=400` retains the full 365-day dashboard
 - `BACKUP_ENABLED=true` requires a valid S3 target and cron schedule
+- the image runs with `APP_ENV=production` and refuses to start unless `OPERATOR_NAME` and
+  `PRIVACY_CONTACT_EMAIL` are set (the data controller identity on the privacy page); the
+  `.env.example` value `APP_ENV=development` overrides this, so set `APP_ENV=production` or drop
+  that line when importing
+- `PRIVACY_MAIL_RETENTION_DAYS` (default 365) is the period, stated on the privacy page, for
+  which e-mails to the privacy contact are kept after the request is closed
 
 ## Release deployment
 

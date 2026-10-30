@@ -100,7 +100,9 @@ function saveLanguagePreference(lang) {
     if (!isSupportedLanguage(lang)) return;
     try { localStorage.setItem("preferredLang", lang); } catch (_) {}
     try {
-        document.cookie = `preferredLang=${lang};path=/;max-age=${LANGUAGE_COOKIE_MAX_AGE_SECONDS};SameSite=Lax`;
+        // Secure only on HTTPS so plain-http localhost development keeps the preference.
+        const secure = window.location.protocol === "https:" ? ";Secure" : "";
+        document.cookie = `preferredLang=${lang};path=/;max-age=${LANGUAGE_COOKIE_MAX_AGE_SECONDS};SameSite=Lax${secure}`;
     } catch (_) {}
 }
 

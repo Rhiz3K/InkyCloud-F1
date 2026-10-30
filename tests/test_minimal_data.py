@@ -286,12 +286,11 @@ def test_public_check_does_not_claim_minimal_data_exempts_operator_obligations()
         PRIVACY_CONTACT_EMAIL="",
         MONITORING_DETAILS="",
         BACKUP_DETAILS="",
-        HETZNER_DPA_CONFIRMED=False,
     )
     unresolved = "\n".join(findings(settings))
     assert "OPERATOR_NAME" in unresolved
     assert "PRIVACY_CONTACT_EMAIL" in unresolved
-    assert "HETZNER_DPA_CONFIRMED" in unresolved
+    assert "SITE_URL" in unresolved
     for disabled_service in ("MONITORING_DETAILS", "BACKUP_DETAILS", "SCHEDULER_ENABLED"):
         assert disabled_service not in unresolved
 

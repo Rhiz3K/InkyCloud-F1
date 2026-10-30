@@ -76,6 +76,7 @@ EXPOSE 8000
 # Environment variables for better container behavior
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    APP_ENV=production \
     APP_HOST=0.0.0.0 \
     APP_PORT=8000 \
     FORWARDED_ALLOW_IPS=127.0.0.1
