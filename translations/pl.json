@@ -227,7 +227,7 @@
   "privacy_gdpr_title": "Zgodność z RODO (użytkownicy UE)",
   "privacy_gdpr_text": "IP i nagłówki HTTP są niezbędnie odbierane do świadczenia usługi, choć aplikacja ich nie zapisuje. Ograniczenie zbierania nie usuwa wszystkich obowiązków RODO. Stosowne prawa obejmują dostęp, poprawienie, usunięcie i sprzeciw; skargi można składać do czeskiego ÚOOÚ.",
   "privacy_opensource_title": "Open Source",
-  "privacy_opensource_text": "Kod aplikacji ma licencję MIT. Mapy, dane, fonty i logotypy mają osobne prawa opisane w Credits.",
+  "privacy_opensource_text": "Kod aplikacji ma licencję MIT. Mapy, dane i fonty mają osobne prawa opisane w Credits.",
   "privacy_contact_title": "Kontakt",
   "privacy_contact_text": "Pytania o aplikację kieruj przez GitHub. Nie publikuj danych osobowych w publicznych zgłoszeniach.",
   "track_art": {

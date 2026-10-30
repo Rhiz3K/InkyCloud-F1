@@ -227,7 +227,7 @@
   "privacy_gdpr_title": "GDPR 合规（欧盟用户）",
   "privacy_gdpr_text": "即使应用不存储，提供服务仍必须接收 IP 和 HTTP 标头。减少收集不免除所有 GDPR 义务。适用权利包括查阅、更正、删除和反对处理；可向捷克 ÚOOÚ 投诉。",
   "privacy_opensource_title": "开源",
-  "privacy_opensource_text": "应用代码采用 MIT 许可。地图、数据、字体和标志的独立权利在 Credits 中说明。",
+  "privacy_opensource_text": "应用代码采用 MIT 许可。地图、数据和字体的独立权利在 Credits 中说明。",
   "privacy_contact_title": "联系",
   "privacy_contact_text": "应用相关问题请通过 GitHub 提交。请勿在公开 Issue 中发布个人数据。",
   "track_art": {

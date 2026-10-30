@@ -227,7 +227,7 @@
   "privacy_gdpr_title": "DSGVO-Konformität (EU-Nutzer)",
   "privacy_gdpr_text": "Zur Bereitstellung des Dienstes werden IP-Adresse und HTTP-Header empfangen, auch wenn die Anwendung sie nicht speichert. Weniger Datenerhebung hebt nicht alle DSGVO-Pflichten auf. Anwendbare Rechte umfassen Auskunft, Berichtigung, Löschung und Widerspruch; Beschwerden sind beim tschechischen ÚOOÚ möglich.",
   "privacy_opensource_title": "Open Source",
-  "privacy_opensource_text": "Der Anwendungscode steht unter MIT. Karten, Daten, Schriften und Logos haben eigene, in Credits erläuterte Rechte.",
+  "privacy_opensource_text": "Der Anwendungscode steht unter MIT. Karten, Daten und Schriften haben eigene, in Credits erläuterte Rechte.",
   "privacy_contact_title": "Kontakt",
   "privacy_contact_text": "Fragen zur Anwendung können über GitHub gestellt werden. Veröffentlichen Sie keine personenbezogenen Daten in öffentlichen Issues.",
   "track_art": {

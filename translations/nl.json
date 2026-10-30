@@ -227,7 +227,7 @@
   "privacy_gdpr_title": "AVG-naleving (EU-gebruikers)",
   "privacy_gdpr_text": "IP-adressen en HTTP-headers worden noodzakelijkerwijs ontvangen om de dienst te leveren, ook al slaat de applicatie ze niet op. Minder verzameling heft niet alle AVG-verplichtingen op. Toepasselijke rechten omvatten inzage, correctie, verwijdering en bezwaar; klachten kunnen bij het Tsjechische ÚOOÚ worden ingediend.",
   "privacy_opensource_title": "Open Source",
-  "privacy_opensource_text": "De applicatiecode gebruikt MIT. Kaarten, gegevens, lettertypen en logo’s hebben afzonderlijke rechten, beschreven in Credits.",
+  "privacy_opensource_text": "De applicatiecode gebruikt MIT. Kaarten, gegevens en lettertypen hebben afzonderlijke rechten, beschreven in Credits.",
   "privacy_contact_title": "Contact",
   "privacy_contact_text": "Gebruik GitHub voor vragen over de applicatie. Plaats geen persoonsgegevens in openbare issues.",
   "track_art": {

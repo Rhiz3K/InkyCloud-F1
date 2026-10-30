@@ -227,7 +227,7 @@
   "privacy_gdpr_title": "Soulad s GDPR (uživatelé z EU)",
   "privacy_gdpr_text": "IP adresa a HTTP hlavičky jsou nezbytně přijímány pro doručení služby, i když je aplikace neukládá. Omezení sběru neruší všechny povinnosti podle GDPR. Za příslušných podmínek máte právo na přístup, opravu, výmaz a námitku; stížnost lze podat ÚOOÚ.",
   "privacy_opensource_title": "Open Source",
-  "privacy_opensource_text": "Kód aplikace má licenci MIT. Mapy, data, fonty a loga mají samostatná práva popsaná v Credits.",
+  "privacy_opensource_text": "Kód aplikace má licenci MIT. Mapy, data a fonty mají samostatná práva popsaná v Credits.",
   "privacy_contact_title": "Kontakt",
   "privacy_contact_text": "Dotazy k aplikaci řešte přes GitHub. Do veřejných issues nevkládejte osobní údaje.",
   "track_art": {

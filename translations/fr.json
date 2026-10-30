@@ -227,7 +227,7 @@
   "privacy_gdpr_title": "Conformité RGPD (utilisateurs UE)",
   "privacy_gdpr_text": "L’IP et les en-têtes HTTP sont nécessairement reçus pour fournir le service, même si l’application ne les stocke pas. Réduire la collecte ne supprime pas toutes les obligations du RGPD. Les droits applicables incluent accès, rectification, effacement et opposition ; une réclamation peut être adressée à l’ÚOOÚ tchèque.",
   "privacy_opensource_title": "Open Source",
-  "privacy_opensource_text": "Le code est sous licence MIT. Cartes, données, polices et logos ont des droits distincts décrits dans Credits.",
+  "privacy_opensource_text": "Le code est sous licence MIT. Cartes, données et polices ont des droits distincts décrits dans Credits.",
   "privacy_contact_title": "Contact",
   "privacy_contact_text": "Pour les questions sur l’application, utilisez GitHub. Ne publiez pas de données personnelles dans les tickets publics.",
   "track_art": {

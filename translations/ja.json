@@ -227,7 +227,7 @@
   "privacy_gdpr_title": "GDPR 対応（EU ユーザー）",
   "privacy_gdpr_text": "アプリが保存しなくても、サービス提供のため IP と HTTP ヘッダーは受信します。収集の削減は GDPR のすべての義務をなくすものではありません。適用される権利にはアクセス、訂正、削除、異議申立てがあり、チェコの ÚOOÚ に苦情を申し立てられます。",
   "privacy_opensource_title": "オープンソース",
-  "privacy_opensource_text": "アプリのコードは MIT ライセンスです。地図、データ、フォント、ロゴには Credits に記載の別の権利が適用されます。",
+  "privacy_opensource_text": "アプリのコードは MIT ライセンスです。地図、データ、フォントには Credits に記載の別の権利が適用されます。",
   "privacy_contact_title": "お問い合わせ",
   "privacy_contact_text": "アプリへの質問は GitHub を利用してください。公開 Issue に個人情報を書かないでください。",
   "track_art": {

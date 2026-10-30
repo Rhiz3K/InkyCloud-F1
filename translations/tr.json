@@ -227,7 +227,7 @@
   "privacy_gdpr_title": "KVKK/GDPR Uyumu (AB kullanıcıları)",
   "privacy_gdpr_text": "Uygulama saklamasa da hizmeti sunmak için IP ve HTTP başlıkları alınır. Veri toplamayı azaltmak tüm GDPR yükümlülüklerini kaldırmaz. Geçerli haklar erişim, düzeltme, silme ve itirazı içerir; Çek ÚOOÚ kurumuna şikâyet iletilebilir.",
   "privacy_opensource_title": "Açık Kaynak",
-  "privacy_opensource_text": "Uygulama kodu MIT lisanslıdır. Harita, veri, yazı tipi ve logoların ayrı hakları Credits’te açıklanır.",
+  "privacy_opensource_text": "Uygulama kodu MIT lisanslıdır. Harita, veri ve yazı tiplerinin ayrı hakları Credits’te açıklanır.",
   "privacy_contact_title": "İletişim",
   "privacy_contact_text": "Uygulama soruları için GitHub’ı kullanın. Herkese açık kayıtlarda kişisel veri paylaşmayın.",
   "track_art": {
