@@ -2,8 +2,10 @@
 
 F1.InkyCloud.click's own software is MIT licensed (see `LICENSE`). Map artwork,
 data, fonts and dependencies retain separate licences. Original project AI artwork
-and the 12 retained team logos have distinct provenance/rights notes in `DATA_LICENSES.md`
-and the asset register; their inclusion does not claim a verified open licence.
+has distinct provenance/rights notes in `DATA_LICENSES.md` and the asset register; its
+inclusion does not claim a verified open licence. Team logos have been removed; teams
+are shown by name and a project-drawn colour badge. Earlier Git history and released
+artifacts may still contain the logos.
 
 - Data and maps: `DATA_LICENSES.md`, `TRACK_ARTWORK.md`, `/credits` and per-file metadata.
 - Titillium Web: Accademia di Belle Arti di Urbino; SIL OFL 1.1, bundled copyright and

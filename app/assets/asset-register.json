@@ -1256,198 +1256,6 @@
       "reviewed_on": "2026-09-09",
       "provenance_note": "Original project text layout with Titillium Web (SIL OFL 1.1)."
     },
-    "images/teams/alpine.png": {
-      "sha256": "afc9a6cb04cd27a991bbfcde6a548ce5e87f5b48ac0f0bfe192b2b065e454064",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/alpine.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/aston_martin.png": {
-      "sha256": "7be2b344de867c6482be8181da19b64cd01770b53cba3dade2dcd0a4b7f94a70",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/aston_martin.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/audi.png": {
-      "sha256": "ca072fa03eef203e035918c65a23bfe0b23876c29598b1801d4ef050f74748c1",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/audi.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/cadillac.png": {
-      "sha256": "6347170cd81054842d76ee7e9cebec79ec530bcd3c00a22d3e3e1285422b379c",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/cadillac.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/ferrari.png": {
-      "sha256": "047dc71995cd6ec417d9ffd6675f85307d2c25c98e8ddfd73b50f1a4b522597d",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/ferrari.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/haas.png": {
-      "sha256": "08acbbd2fb9ac11a3898f8d70ae671804aa06583923632b674054b3a723ced77",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/haas.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/mclaren.png": {
-      "sha256": "5e921fefb47f939206723f15b27ed8ee6108f302601cff932e2340f954ce6bc7",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/mclaren.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/mercedes.png": {
-      "sha256": "49fc74450c85a926404cf029f7910086064f57e5ee1de8342249ac8a687c2910",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/mercedes.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/racing_bulls.png": {
-      "sha256": "1ed957d17e362ec49e2b5a3de27bf0e3334bf5006c7b75aa8e955bcdec58efc7",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/racing_bulls.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/red_bull.png": {
-      "sha256": "d5bd86395ba5e7177b9e98914954b5da5fa237c623bb3a76bfbe5bd080849a7c",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/red_bull.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/sauber.png": {
-      "sha256": "8ffea4cd74107f1300f8cde8ee689796bb8c8d2d30b775c7714946b97bc14487",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/sauber.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams/williams.png": {
-      "sha256": "8fbf5ce82a831680822a54c53626e35e8a56bcb858b61056188b25a3cd48981c",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams/williams.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/alpine.png": {
-      "sha256": "b14503f7694922d950e1e7c71fff17eccefbc6cfa0465bbbeb2373ff09d15fed",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/alpine.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/aston_martin.png": {
-      "sha256": "41eacf585a56908c37b68629da5554dc6676bd8714c499edac3f560db8d33749",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/aston_martin.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/audi.png": {
-      "sha256": "2624db4a04483385557cd150cd0b87ec56bd4e51a25006db693375ca68e7010e",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/audi.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/cadillac.png": {
-      "sha256": "462fc5d19c10b32e69b03a5a687c397b8ea1913c8bf7fa2485e081b4a1d486bb",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/cadillac.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/ferrari.png": {
-      "sha256": "d494191734d69a6c3cee334fa9830cc57dc95f4b0479f343bd9676ce1f06465d",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/ferrari.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/haas.png": {
-      "sha256": "855467264aa676c03234bfbef74b85cad4b11111ffd82f58c917d04cfcb10837",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/haas.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/mclaren.png": {
-      "sha256": "92c672fdc24cd8378d43506489ce82c3dd47f7675923b37f1a6fe97a340acf04",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/mclaren.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/mercedes.png": {
-      "sha256": "7609bfc7bd2f17fe75d636f37c2ff91ad26099ca6f3dbca03bcf2e459caf230a",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/mercedes.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/racing_bulls.png": {
-      "sha256": "1c6addfe97dff237e3da53be08a1f430687c304bfa246b6f599bdc18ea8a121c",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/racing_bulls.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/red_bull.png": {
-      "sha256": "d4d76dc6da00a2c9042d0bd1fbfe94479673496869b097f00d941946e73331d8",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/red_bull.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/sauber.png": {
-      "sha256": "73e9b664e68946f388fa5c2d6c0c6b6a70fe1ca123c4316d80193a35626d495a",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/sauber.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
-    "images/teams_color/williams.png": {
-      "sha256": "4fbc1aeffb6a7c783032b58fa6f89b42b3b05ca0d922b4c27b157d4c97c13d07",
-      "license": "LicenseRef-Team-Logo-Unverified",
-      "author": "Respective team / trademark owner; original graphic author not recorded",
-      "source": "https://github.com/Rhiz3K/InkyCloud-F1/blob/91337c8e1718181544267c680ebabd0e29cab506/app/assets/images/teams_color/williams.png",
-      "reviewed_on": "2026-09-09",
-      "provenance_note": "Team logo used for team identification. No written redistribution permission is recorded; not covered by the software or track licences."
-    },
     "js/common.js": {
       "sha256": "7287d0f910f1205c4e3fe4b05d219b28456f1f5ad35d2c64ccfff7a9b4e4e5ca",
       "license": "MIT",
@@ -1470,7 +1278,7 @@
       "reviewed_on": "2026-09-09"
     },
     "licenses/DATA_LICENSES.txt": {
-      "sha256": "24e284627a00471c9ffa857d17e8c6e446468878877fcbcab536e076dbf949c0",
+      "sha256": "afbdcc8ee3e2cb326131db7a5654ae6e0cd83bfde33179cb03ce1a2d1a43a914",
       "license": "Third-party notices; see file",
       "author": "Original authors named in each notice",
       "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
@@ -1512,7 +1320,7 @@
       "reviewed_on": "2026-09-09"
     },
     "licenses/THIRD_PARTY_NOTICES.txt": {
-      "sha256": "a4654ca7d457cffc7003abe02f620e8ed52fd2c8bd0efb925c378c428fa38b1d",
+      "sha256": "b65740b4248881c46fbdc2e04a7c73a51ec3ad64ef2cf6b30f5471aeb5794c44",
       "license": "Third-party notices; see file",
       "author": "Original authors named in each notice",
       "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",

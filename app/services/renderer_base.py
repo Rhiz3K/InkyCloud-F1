@@ -31,8 +31,8 @@ from app.services.renderer_results import (
 )
 from app.services.renderer_teams import (
     draw_driver_photo,
+    draw_team_badge,
     draw_team_driver_row,
-    draw_team_logo,
     draw_team_row,
     draw_team_stats_panel,
     draw_teams_content,
@@ -45,7 +45,6 @@ from app.services.renderer_text import (
     format_points,
     format_schedule_session_name,
     format_team_driver_display_name,
-    get_team_logo_key,
     get_text_y,
     right_align_x,
 )
@@ -196,7 +195,7 @@ class RendererBase(RendererCore):
         team,
         row_height: int,
     ) -> None:
-        """Draw one themed team card with standings, drivers, and logo."""
+        """Draw one themed team card with standings, drivers, and team badge."""
         if self.lang_code in CJK_LANG_CODES:
             team_font = self._load_brand_font(18, bold=True)
             small_font = self._load_brand_font(18, bold=True)
@@ -264,25 +263,23 @@ class RendererBase(RendererCore):
                 driver_font,
             )
 
-        def draw_team_logo_cb(
+        def draw_team_badge_cb(
             team_obj,
             driver_y_start: int,
             driver_area_height: int,
-            logo_container_left: int,
-            logo_container_right: int,
+            badge_container_left: int,
+            badge_container_right: int,
         ) -> None:
-            """Load team artwork lazily and draw it through the shared layout callback."""
-            self._ensure_teams_assets()
-            draw_team_logo(
-                image,
+            """Draw the themed team abbreviation badge through the shared layout callback."""
+            draw_team_badge(
+                draw,
                 team_obj,
-                team_logos=self._team_logos,
-                get_team_logo_key_fn=get_team_logo_key,
                 driver_area_y=driver_y_start,
                 driver_area_h=driver_area_height,
-                container_left=logo_container_left,
-                container_right=logo_container_right,
-                paste_logo_fn=self._paste_team_logo,
+                container_left=badge_container_left,
+                container_right=badge_container_right,
+                badge_colors_fn=self.theme.team_badge_colors,
+                outline_fill=self.theme.team_outline_fill,
             )
 
         draw_team_row(
@@ -305,7 +302,7 @@ class RendererBase(RendererCore):
             clamp_text_fn=clamp_text,
             draw_team_stats_panel_fn=render_team_stats_panel,
             draw_team_driver_row_fn=render_team_driver_row,
-            draw_team_logo_fn=draw_team_logo_cb,
+            draw_team_badge_fn=draw_team_badge_cb,
         )
 
     def _draw_teams_content(

@@ -12,6 +12,7 @@ from app.models import PerfMetricsPayload
 from app.services.database import get_database
 from app.services.f1_service import F1Service
 from app.services.private_stats import canonical_page
+from app.services.renderer_text import get_team_color_hex
 from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.track_catalog import TrackAccent, TrackSource, TrackStyle
@@ -683,7 +684,11 @@ async def get_standings_leader(request: Request, year: int | None = None) -> dic
 
         if constructor_standings:
             c = constructor_standings[0]
-            leader_team = {"name": c.constructor_name, "id": _get_team_id(c.constructor_name)}
+            leader_team = {
+                "name": c.constructor_name,
+                "id": _get_team_id(c.constructor_name),
+                "color": get_team_color_hex(c.constructor_name),
+            }
 
         has_data = leader_driver is not None or leader_team is not None
 

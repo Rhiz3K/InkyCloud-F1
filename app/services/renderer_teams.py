@@ -5,7 +5,11 @@ from __future__ import annotations
 from PIL import Image, ImageDraw
 
 from app.services.font_utils import CJK_LANG_CODES, fit_brand_font_box
-from app.services.renderer_text import select_active_team_drivers, split_teams_for_columns
+from app.services.renderer_text import (
+    get_team_badge,
+    select_active_team_drivers,
+    split_teams_for_columns,
+)
 
 
 def draw_teams_header(
@@ -248,7 +252,7 @@ def draw_team_row(
     clamp_text_fn,
     draw_team_stats_panel_fn,
     draw_team_driver_row_fn,
-    draw_team_logo_fn,
+    draw_team_badge_fn,
 ) -> None:
     """Draw the shared team-card layout and delegate renderer-specific row details."""
     _ = stats_padding
@@ -300,15 +304,15 @@ def draw_team_row(
             badge_pad_x,
         )
 
-    logo_container_right = driver_pos_x - 8
+    badge_container_right = driver_pos_x - 8
     driver_name_base_x = photo_x + photo_size + driver_name_padding + 4
-    logo_container_left = max(driver_name_base_x + 170, logo_container_right - 96)
-    draw_team_logo_fn(
+    badge_container_left = max(driver_name_base_x + 170, badge_container_right - 96)
+    draw_team_badge_fn(
         team,
         driver_y_start,
         driver_area_height,
-        logo_container_left,
-        logo_container_right,
+        badge_container_left,
+        badge_container_right,
     )
 
 
@@ -372,43 +376,48 @@ def draw_driver_photo(
     return new_w + 2
 
 
-def draw_team_logo(
-    image: Image.Image,
+def draw_team_badge(
+    draw: ImageDraw.ImageDraw,
     team,
     *,
-    team_logos: dict[str, Image.Image] | None,
-    get_team_logo_key_fn,
     driver_area_y: int,
     driver_area_h: int,
     container_left: int,
     container_right: int,
-    paste_logo_fn,
+    badge_colors_fn,
+    outline_fill,
 ) -> None:
-    """Draw a centered team logo inside the reserved logo container."""
-    if not team_logos:
-        return
-
-    constructor = team.constructor_name or team.entrant or ""
-    logo_key = get_team_logo_key_fn(constructor)
-    if not logo_key:
-        return
-
-    logo = team_logos.get(logo_key)
-    if not logo:
-        return
-
-    orig_w, orig_h = logo.size
+    """Draw a centered team-colored abbreviation badge inside the reserved badge slot."""
     container_w = container_right - container_left
-    if container_w <= 0:
+    abbreviation, identity = get_team_badge(team.constructor_name or team.entrant or "")
+    if container_w <= 0 or not abbreviation:
         return
 
-    max_w = max(1, container_w - 12)
-    max_h = driver_area_h - 2
-    scale = min(max_w / orig_w, max_h / orig_h)
-    new_w = max(1, int(orig_w * scale))
-    new_h = max(1, int(orig_h * scale))
+    badge_w = max(1, min(container_w - 12, 72))
+    badge_h = max(1, min(driver_area_h - 4, 30))
+    badge_x = container_left + (container_w - badge_w) // 2
+    badge_y = driver_area_y + (driver_area_h - badge_h) // 2
+    badge_fill, text_fill = badge_colors_fn(identity)
+    draw.rounded_rectangle(
+        [(badge_x, badge_y), (badge_x + badge_w - 1, badge_y + badge_h - 1)],
+        radius=min(6, badge_h // 4),
+        fill=badge_fill,
+        outline=outline_fill,
+        width=1,
+    )
 
-    logo_resized = logo.resize((new_w, new_h), Image.Resampling.LANCZOS)
-    logo_x = container_left + (container_w - new_w) // 2
-    logo_y = driver_area_y + (driver_area_h - new_h) // 2
-    paste_logo_fn(image, logo_resized, logo_x, logo_y)
+    font = fit_brand_font_box(
+        draw,
+        abbreviation,
+        max_width=max(1, badge_w - 10),
+        max_height=max(1, badge_h - 8),
+        base_size=22,
+        min_size=10,
+        bold=True,
+    )
+    text_bbox = draw.textbbox((0, 0), abbreviation, font=font)
+    text_w = int(text_bbox[2] - text_bbox[0])
+    text_h = int(text_bbox[3] - text_bbox[1])
+    text_x = badge_x + (badge_w - text_w) // 2 - int(text_bbox[0])
+    text_y = badge_y + (badge_h - text_h) // 2 - int(text_bbox[1])
+    draw.text((text_x, text_y), abbreviation, fill=text_fill, font=font)

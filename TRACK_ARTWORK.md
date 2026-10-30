@@ -99,8 +99,9 @@ style/accent/hardware combinations. They also cover API validation, attribution,
 ETags and independent calendar/preview selections.
 
 Legacy track rasters, PSDs and driver portraits have been removed from the new release.
-Existing team logos and the project's AI car artwork remain; their separate rights
-status is documented in `DATA_LICENSES.md` and is not covered by the map licences.
+Team logos have also been removed; teams are shown by name and a colour badge. The
+project's AI car artwork remains; its separate rights status is documented in
+`DATA_LICENSES.md` and is not covered by the map licences.
 The old public import/preprocessing commands are retired, static serving is restricted
 by a reviewed asset register, and old calendar/teams cache metadata is invalidated.
 See [upgrade guidance](docs/data-collection.md#upgrading-to-130) for cache migration

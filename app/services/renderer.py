@@ -7,13 +7,9 @@ import logging
 from pathlib import Path
 from typing import ClassVar
 
-from PIL import Image, ImageOps
+from PIL import Image
 
-from app.services.renderer_assets import (
-    crop_primary_horizontal_band,
-    crop_to_content,
-    prepare_mono_track_image,
-)
+from app.services.renderer_assets import prepare_mono_track_image
 from app.services.renderer_base import RendererBase
 from app.services.renderer_theme import make_monochrome_theme
 
@@ -23,8 +19,6 @@ ASSETS_DIR = Path(__file__).parent.parent / "assets"
 TRACKS_PROCESSED_DIR = ASSETS_DIR / "tracks_processed"
 IMAGES_DIR = ASSETS_DIR / "images"
 FLAGS_DIR = ASSETS_DIR / "flags_processed"
-TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
-MONOCHROME_1BIT_TEAM_LOGOS = {"ferrari", "cadillac", "red_bull"}
 
 
 class MonoColors:
@@ -68,11 +62,6 @@ class Renderer(RendererBase):
         canvas.paste(photo, (x, y))
 
     @staticmethod
-    def _paste_team_logo(canvas: Image.Image, logo: Image.Image, x: int, y: int) -> None:
-        """Reduce a resized team logo only after scaling, then paste it."""
-        canvas.paste(Renderer._logo_to_1bit(logo), (x, y))
-
-    @staticmethod
     def _load_driver_photos() -> dict[str, Image.Image]:
         """Load driver silhouettes and convert their alpha masks to one bit."""
         drivers_dir = IMAGES_DIR / "drivers"
@@ -99,63 +88,6 @@ class Renderer(RendererBase):
             except Exception as exc:
                 logger.warning("Failed to load driver photo %s: %s", photo_path, exc)
         return photos
-
-    @classmethod
-    def _load_team_logos(cls) -> dict[str, Image.Image]:
-        """Load source logos, keeping selected hand-tuned monochrome overrides."""
-        logos: dict[str, Image.Image] = {}
-        for teams_dir in (TEAMS_COLOR_DIR, IMAGES_DIR / "teams"):
-            if not teams_dir.exists():
-                continue
-            for logo_path in teams_dir.glob("*.png"):
-                team_key = logo_path.stem.lower()
-                if team_key in logos and not (
-                    teams_dir.name == "teams" and team_key in MONOCHROME_1BIT_TEAM_LOGOS
-                ):
-                    continue
-                try:
-                    with Image.open(logo_path) as opened_logo:
-                        img = opened_logo.convert("RGBA")
-                    logos[team_key] = cls._prepare_team_logo(team_key, img)
-                except Exception as exc:
-                    logger.warning("Failed to load team logo %s: %s", logo_path, exc)
-        return logos
-
-    @classmethod
-    def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
-        """Crop a team logo and apply palette-specific trims."""
-        cropped = crop_to_content(img, use_binary_mask=True)
-        if team_key == "sauber":
-            return cls.normalize_sauber_logo_for_non_spectra(cropped)
-        if team_key in {"audi", "cadillac"}:
-            return crop_primary_horizontal_band(cropped)
-        return cropped
-
-    @staticmethod
-    def normalize_sauber_logo_for_non_spectra(img: Image.Image) -> Image.Image:
-        """Map Sauber's green accent to white while preserving its black background."""
-        rgba = img.convert("RGBA")
-        normalized = Image.new("RGBA", rgba.size, (0, 0, 0, 0))
-        for x in range(rgba.width):
-            for y in range(rgba.height):
-                pixel = rgba.getpixel((x, y))
-                if not isinstance(pixel, tuple) or len(pixel) < 4:
-                    continue
-                red, green, blue, alpha = (int(channel) for channel in pixel[:4])
-                if alpha == 0:
-                    continue
-                fill = (0, 0, 0, alpha) if max(red, green, blue) < 48 else (255, 255, 255, alpha)
-                normalized.putpixel((x, y), fill)
-        return normalized
-
-    @staticmethod
-    def _logo_to_1bit(img: Image.Image) -> Image.Image:
-        """Convert a color logo into a high-contrast one-bit bitmap."""
-        flattened = Image.new("RGB", img.size, (255, 255, 255))
-        rgba = img.convert("RGBA")
-        flattened.paste(rgba, mask=rgba.getchannel("A"))
-        grayscale = ImageOps.autocontrast(flattened.convert("L"))
-        return grayscale.point(lambda pixel: 255 if pixel > 240 else 0).convert("1")
 
     @staticmethod
     def _to_bmp(image: Image.Image) -> bytes:

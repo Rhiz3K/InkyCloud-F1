@@ -29,14 +29,13 @@ from app.services.bwry_renderer import BwryColors, BwryRenderer
 from app.services.font_utils import fit_brand_font_box
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
-from app.services.renderer_assets import crop_to_content
-from app.services.renderer_teams import draw_team_logo
+from app.services.renderer_teams import draw_team_badge
 from app.services.renderer_text import (
     build_sprint_qualifying_label,
     build_team_header_values,
     format_schedule_session_name,
     format_team_driver_display_name,
-    get_team_logo_key,
+    get_team_key,
     get_text_y,
     split_teams_for_columns,
     translate_session_name,
@@ -179,6 +178,7 @@ def mock_ranked_teams_data():
 def test_restored_artwork_preserves_display_contract(
     display, mock_race_data, mock_historical_data, mock_ranked_teams_data
 ):
+    """Every display should render palette-bounded BMPs without loading team logo assets."""
     renderer = create_renderer(display, get_translator("en"), "en")
     for data in [
         renderer.render_calendar(mock_race_data, mock_historical_data),
@@ -191,20 +191,7 @@ def test_restored_artwork_preserves_display_contract(
                 len(image.convert("RGB").getcolors(256))
                 <= {"1bit": 2, "bwr": 3, "bwry": 4, "spectra6": 6}[display]
             )
-    assert set(renderer._team_logos) == {
-        "alpine",
-        "aston_martin",
-        "audi",
-        "cadillac",
-        "ferrari",
-        "haas",
-        "mclaren",
-        "mercedes",
-        "racing_bulls",
-        "red_bull",
-        "sauber",
-        "williams",
-    }
+    assert not hasattr(renderer, "_team_logos")
     assert renderer._driver_photos == {}
 
 
@@ -806,9 +793,10 @@ def test_render_teams_drivers_partial_data():
     assert img.mode == "1"
 
 
-def test_team_logo_key_supports_2026_new_teams():
-    assert get_team_logo_key("Audi") == "audi"
-    assert get_team_logo_key("Cadillac Formula 1 Team") == "cadillac"
+def test_team_key_supports_2026_new_teams():
+    """The 2026 entrants should resolve to their own team badge keys."""
+    assert get_team_key("Audi") == "audi"
+    assert get_team_key("Cadillac Formula 1 Team") == "cadillac"
 
 
 def test_split_teams_for_columns_keeps_11th_team_visible():
@@ -1983,27 +1971,6 @@ def test_spectra6_team_row_highlights_first_team_position_in_red():
     assert ("1", renderer.colors.RED) in captured
 
 
-def test_spectra6_renderer_prefers_color_team_logo_assets(tmp_path, monkeypatch):
-    """Color renderers should prefer teams_color assets over monochrome teams assets."""
-    images_dir = tmp_path / "images"
-    teams_dir = images_dir / "teams"
-    teams_color_dir = images_dir / "teams_color"
-    teams_dir.mkdir(parents=True)
-    teams_color_dir.mkdir(parents=True)
-
-    Image.new("RGBA", (4, 4), color=(0, 0, 0, 255)).save(teams_dir / "mclaren.png", "PNG")
-    Image.new("RGBA", (4, 4), color=(255, 135, 0, 255)).save(teams_color_dir / "mclaren.png", "PNG")
-
-    monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", images_dir)
-    monkeypatch.setattr(spectra6_renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
-
-    renderer = Spectra6Renderer(get_translator("en"))
-    renderer._ensure_teams_assets()
-
-    assert renderer._team_logos["mclaren"].getpixel((0, 0))[:3] == (255, 135, 0)
-    assert renderer._driver_photos == {}
-
-
 def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch, mock_race_data):
     """Spectra 6 should select the shared monochrome F1 logo asset during rendering."""
     images_dir = tmp_path / "images"
@@ -2038,195 +2005,74 @@ def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch, 
     assert img.mode == "P"
 
 
-def test_renderer_prefers_color_team_logo_assets_for_1bit_sizing(tmp_path, monkeypatch):
-    """1-bit renderer should use teams_color assets first so crop/size matches color renders."""
-    images_dir = tmp_path / "images"
-    teams_dir = images_dir / "teams"
-    teams_color_dir = images_dir / "teams_color"
-    teams_dir.mkdir(parents=True)
-    teams_color_dir.mkdir(parents=True)
+@pytest.mark.parametrize("renderer_cls", [Renderer, BwrRenderer, BwryRenderer, Spectra6Renderer])
+def test_render_teams_drivers_draws_one_badge_per_team(
+    renderer_cls, mock_ranked_teams_data, monkeypatch
+):
+    """Every display should draw a team badge for each team card instead of a logo."""
+    captured: list[str] = []
+    original_draw_team_badge = renderer_base_module.draw_team_badge
 
-    Image.new("RGBA", (4, 4), color=(0, 0, 0, 255)).save(teams_dir / "mclaren.png", "PNG")
-    color_logo = Image.new("RGBA", (10, 6), color=(0, 0, 0, 0))
-    for x in range(1, 9):
-        for y in range(1, 5):
-            color_logo.putpixel((x, y), (255, 135, 0, 255))
-    color_logo.save(teams_color_dir / "mclaren.png", "PNG")
+    def spy_draw_team_badge(draw, team, **kwargs):
+        captured.append(team.constructor_name)
+        return original_draw_team_badge(draw, team, **kwargs)
 
-    monkeypatch.setattr(renderer_module, "IMAGES_DIR", images_dir)
-    monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
+    monkeypatch.setattr(renderer_base_module, "draw_team_badge", spy_draw_team_badge)
 
-    renderer = Renderer(get_translator("en"))
-    renderer._ensure_teams_assets()
+    renderer = renderer_cls(get_translator("en"))
+    renderer.render_teams_drivers(mock_ranked_teams_data)
 
-    assert renderer._team_logos["mclaren"].size == (8, 4)
-    assert renderer._driver_photos == {}
+    assert captured == ["McLaren-Mercedes", "Ferrari"]
 
 
-def test_spectra6_renderer_crops_audi_wordmark_to_primary_band():
-    """Audi logo should keep the rings band so it renders larger in the teams card."""
-    logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
-    draw = ImageDraw.Draw(logo)
-    draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
-    draw.rectangle((30, 80, 90, 100), fill=(0, 0, 0, 255))
-
-    prepared = Spectra6Renderer._prepare_team_logo("audi", logo)
-
-    assert prepared.size == (101, 46)
-
-
-def test_renderer_crops_audi_wordmark_to_primary_band_before_1bit_conversion():
-    """1-bit teams logos should use the same Audi crop as color renderers."""
-    logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
-    draw = ImageDraw.Draw(logo)
-    draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
-    draw.rectangle((30, 80, 90, 100), fill=(0, 0, 0, 255))
-
-    prepared = Renderer._prepare_team_logo("audi", logo)
-
-    assert prepared.size == (101, 46)
-
-
-def test_spectra6_renderer_crops_cadillac_wordmark_to_primary_band():
-    """Cadillac logo should keep only the crest without the lower wordmark."""
-    logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
-    draw = ImageDraw.Draw(logo)
-    draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
-    draw.rectangle((30, 80, 90, 100), fill=(0, 0, 0, 255))
-
-    prepared = Spectra6Renderer._prepare_team_logo("cadillac", logo)
-
-    assert prepared.size == (101, 46)
-
-
-def test_renderer_crops_cadillac_wordmark_to_primary_band_before_1bit_conversion():
-    """1-bit teams logos should remove the Cadillac wordmark before conversion."""
-    logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
-    draw = ImageDraw.Draw(logo)
-    draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
-    draw.rectangle((30, 80, 90, 100), fill=(0, 0, 0, 255))
-
-    prepared = Renderer._prepare_team_logo("cadillac", logo)
-
-    assert prepared.size == (101, 46)
-
-
-def test_renderer_maps_sauber_green_to_white_for_non_spectra_variants():
-    """1-bit logo prep should convert Sauber's green mark into a white-on-black logo."""
-    logo = Image.new("RGBA", (2, 1), (0, 0, 0, 255))
-    logo.putpixel((1, 0), (0, 255, 0, 255))
-
-    prepared = Renderer.normalize_sauber_logo_for_non_spectra(logo)
-
-    assert prepared.getpixel((0, 0))[:3] == (0, 0, 0)
-    assert prepared.getpixel((1, 0))[:3] == (255, 255, 255)
-
-
-def test_bwr_renderer_maps_sauber_green_to_white_for_non_spectra_variants():
-    """BWR/BWRY logo prep should use the same white-on-black Sauber treatment."""
-    logo = Image.new("RGBA", (4, 1), (0, 0, 0, 0))
-    logo.putpixel((1, 0), (0, 0, 0, 255))
-    logo.putpixel((2, 0), (0, 255, 0, 255))
-
-    prepared = BwrRenderer._prepare_team_logo("sauber", logo)
-
-    assert prepared.getpixel((0, 0))[:3] == (0, 0, 0)
-    assert prepared.getpixel((1, 0))[:3] == (255, 255, 255)
-
-
-def test_spectra6_renderer_preserves_sauber_green_logo():
-    """Spectra 6 should keep Sauber's green accent instead of forcing mono output."""
-    logo = Image.new("RGBA", (2, 1), (0, 0, 0, 255))
-    logo.putpixel((1, 0), (0, 255, 0, 255))
-
-    prepared = Spectra6Renderer._prepare_team_logo("sauber", logo)
-
-    assert prepared.getpixel((1, 0))[:3] == (0, 255, 0)
-
-
-def test_renderer_crop_to_content_ignores_fully_opaque_alpha_for_white_background():
-    """Opaque logos on white backgrounds should crop by visible content, not full alpha bounds."""
-    logo = Image.new("RGBA", (120, 120), (255, 255, 255, 255))
-    draw = ImageDraw.Draw(logo)
-    draw.rectangle((10, 10, 110, 55), fill=(0, 0, 0, 255))
-
-    prepared = crop_to_content(logo, use_binary_mask=True)
-
-    assert prepared.size == (101, 46)
-
-
-def test_renderer_draw_team_logo_centers_logo_in_1bit_mode():
-    """1-bit teams logos should be centered in the logo container like color renderers."""
-    renderer = Renderer(get_translator("en"))
-    renderer._team_logos = {"audi": Image.new("RGBA", (40, 20), (0, 0, 0, 255))}
-    image = Image.new("1", (220, 80), 1)
+@pytest.mark.parametrize("renderer_cls", [Renderer, BwrRenderer, BwryRenderer, Spectra6Renderer])
+def test_draw_team_badge_centers_badge_in_slot(renderer_cls):
+    """Team badges should be centered in the reserved slot on every display palette."""
+    colors = renderer_cls.THEME.colors
+    image_mode = "1" if renderer_cls is Renderer else "RGB"
+    image = Image.new(image_mode, (220, 80), colors.WHITE)
     team = TeamEntry(constructor_name="Audi", chassis="", power_unit="", drivers=[])
 
-    draw_team_logo(
-        image,
+    draw_team_badge(
+        ImageDraw.Draw(image),
         team,
-        team_logos=renderer._team_logos,
-        get_team_logo_key_fn=get_team_logo_key,
         driver_area_y=10,
         driver_area_h=30,
         container_left=100,
         container_right=180,
-        paste_logo_fn=lambda canvas, logo_resized, x, y: canvas.paste(
-            renderer._logo_to_1bit(logo_resized),
-            (x, y),
-        ),
+        badge_colors_fn=renderer_cls.THEME.team_badge_colors,
+        outline_fill=renderer_cls.THEME.team_outline_fill,
     )
 
     bbox = ImageOps.invert(image.convert("L")).getbbox()
 
     assert bbox is not None
     assert (bbox[0] + bbox[2]) // 2 == 140
+    assert (bbox[1] + bbox[3]) // 2 == 25
 
 
-def test_renderer_uses_monochrome_override_for_ferrari_in_1bit(tmp_path, monkeypatch):
-    """Ferrari should use the dedicated mono asset in 1-bit mode to preserve shield detail."""
-    images_dir = tmp_path / "images"
-    teams_dir = images_dir / "teams"
-    teams_color_dir = images_dir / "teams_color"
-    teams_dir.mkdir(parents=True)
-    teams_color_dir.mkdir(parents=True)
+def test_draw_team_badge_uses_only_black_and_white_in_1bit_mode():
+    """1-bit team badges should be a black plate with white text and no gray pixels."""
+    image = Image.new("1", (220, 80), Renderer.THEME.colors.WHITE)
+    team = TeamEntry(constructor_name="Red Bull", chassis="", power_unit="", drivers=[])
 
-    Image.new("RGBA", (8, 8), color=(255, 220, 0, 255)).save(teams_color_dir / "ferrari.png", "PNG")
-    mono_logo = Image.new("1", (8, 8), 1)
-    mono_logo.putpixel((0, 0), 0)
-    mono_logo.save(teams_dir / "ferrari.png", "PNG")
+    draw_team_badge(
+        ImageDraw.Draw(image),
+        team,
+        driver_area_y=10,
+        driver_area_h=30,
+        container_left=100,
+        container_right=180,
+        badge_colors_fn=Renderer.THEME.team_badge_colors,
+        outline_fill=Renderer.THEME.team_outline_fill,
+    )
 
-    monkeypatch.setattr(renderer_module, "IMAGES_DIR", images_dir)
-    monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
+    gray = image.convert("L")
+    badge = gray.crop(ImageOps.invert(gray).getbbox())
+    counts = {value: count for count, value in badge.getcolors()}
 
-    renderer = Renderer(get_translator("en"))
-    renderer._ensure_teams_assets()
-
-    assert renderer._team_logos["ferrari"].getpixel((0, 0))[:3] == (0, 0, 0)
-    assert renderer._driver_photos == {}
-
-
-def test_renderer_uses_monochrome_override_for_red_bull_in_1bit(tmp_path, monkeypatch):
-    """Red Bull should use the dedicated mono asset in 1-bit mode."""
-    images_dir = tmp_path / "images"
-    teams_dir = images_dir / "teams"
-    teams_color_dir = images_dir / "teams_color"
-    teams_dir.mkdir(parents=True)
-    teams_color_dir.mkdir(parents=True)
-
-    Image.new("RGBA", (8, 8), color=(255, 0, 0, 255)).save(teams_color_dir / "red_bull.png", "PNG")
-    mono_logo = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
-    mono_logo.putpixel((0, 0), (0, 0, 0, 255))
-    mono_logo.save(teams_dir / "red_bull.png", "PNG")
-
-    monkeypatch.setattr(renderer_module, "IMAGES_DIR", images_dir)
-    monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", teams_color_dir)
-
-    renderer = Renderer(get_translator("en"))
-    renderer._ensure_teams_assets()
-
-    assert renderer._team_logos["red_bull"].getpixel((0, 0))[:3] == (0, 0, 0)
-    assert renderer._driver_photos == {}
+    assert set(counts) == {0, 255}
+    assert counts[0] > counts[255]
 
 
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
@@ -2269,8 +2115,8 @@ def test_renderer_preserves_half_points_in_team_rows(renderer_cls):
 
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
 def test_renderer_maps_exact_rb_constructor_name(renderer_cls):
-    """The RB constructor alias should resolve to the Racing Bulls logo key."""
-    assert get_team_logo_key("RB") == "racing_bulls"
+    """The RB constructor alias should resolve to the Racing Bulls team key."""
+    assert get_team_key("RB") == "racing_bulls"
 
 
 @pytest.mark.parametrize("lang", ["en", "cs"])
@@ -2590,28 +2436,6 @@ def test_monochrome_driver_loader_handles_alpha_and_corrupt_files(tmp_path, monk
     assert photos["driver"].getpixel((1, 0)) == 1
 
 
-def test_monochrome_team_logo_loader_skips_missing_dir_and_corrupt_asset(tmp_path, monkeypatch):
-    teams = tmp_path / "teams"
-    teams.mkdir()
-    (teams / "broken.png").write_bytes(b"not an image")
-    monkeypatch.setattr(renderer_module, "TEAMS_COLOR_DIR", tmp_path / "missing-color")
-    monkeypatch.setattr(renderer_module, "IMAGES_DIR", tmp_path)
-
-    assert Renderer._load_team_logos() == {}
-
-
-def test_sauber_normalizer_ignores_non_tuple_pixels(monkeypatch):
-    rgba = MagicMock(size=(1, 1), width=1, height=1)
-    rgba.getpixel.return_value = 5
-    source = MagicMock()
-    source.convert.return_value = rgba
-    normalized = MagicMock()
-    monkeypatch.setattr(renderer_module.Image, "new", MagicMock(return_value=normalized))
-
-    assert Renderer.normalize_sauber_logo_for_non_spectra(source) is normalized
-    normalized.putpixel.assert_not_called()
-
-
 def test_spectra_team_row_uses_brand_fonts_for_cjk():
     state = _team_row_renderer_state("ja", Spectra6Renderer.THEME)
     with (
@@ -2675,16 +2499,6 @@ def test_spectra_driver_loader_handles_corrupt_asset(tmp_path, monkeypatch):
     monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", tmp_path)
 
     assert Spectra6Renderer._load_driver_photos() == {}
-
-
-def test_spectra_team_logo_loader_skips_missing_dir_and_corrupt_asset(tmp_path, monkeypatch):
-    teams = tmp_path / "teams"
-    teams.mkdir()
-    (teams / "broken.png").write_bytes(b"not an image")
-    monkeypatch.setattr(spectra6_renderer_module, "TEAMS_COLOR_DIR", tmp_path / "missing-color")
-    monkeypatch.setattr(spectra6_renderer_module, "IMAGES_DIR", tmp_path)
-
-    assert Spectra6Renderer._load_team_logos() == {}
 
 
 def test_driver_photo_paste_adapters_apply_monochrome_and_alpha_images():

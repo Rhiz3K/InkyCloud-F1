@@ -8,8 +8,8 @@ Independent, noncommercial fan project for e-paper race calendars. Not affiliate
 endorsed by or sponsored by the Formula One group, FIA, teams or drivers.
 
 The project retains its F1.InkyCloud.click name and original car illustration, which
-the maintainer identifies as AI-generated. Team logos identify the respective teams;
-their separate rights status is recorded in [the asset notices](DATA_LICENSES.md).
+the maintainer identifies as AI-generated. Team logos have been removed; teams are
+shown by name and a colour badge, as recorded in [the asset notices](DATA_LICENSES.md).
 Configure your actual `SITE_URL`; the examples use a reserved example domain.
 
 [![Self-Host](https://img.shields.io/badge/Self--Host-Guide-6C47FF?style=for-the-badge&logo=docker&logoColor=white)](./SELF-HOSTING.md)
