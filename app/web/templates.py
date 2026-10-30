@@ -159,9 +159,6 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "nav_language": t.get("nav_language", "Language"),
         "nav_privacy": t.get("nav_privacy", "Privacy"),
         "nav_changelog": t.get("nav_changelog", "Changelog"),
-        "lang_cookie_note": t.get(
-            "lang_cookie_note", "The language choice is stored in a cookie for 30 days."
-        ),
     }
 
     # Get base path without language prefix for hreflang generation

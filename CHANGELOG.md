@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Credits page now credits Coolify (https://coolify.io), the self-hosted platform used
+  to host and deploy the service, in all 13 languages.
+
 ### Changed
 
 - Extend the privacy policy with GDPR sections for the data controller, legal basis
@@ -15,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Production start now requires `OPERATOR_NAME` and `PRIVACY_CONTACT_EMAIL`: the new
   `APP_ENV` setting defaults to `production` in the Docker image, which refuses to start
   without them. The language cookie gets the `Secure` attribute on HTTPS.
+- Remove the language cookie note under the header language switcher; the cookie is
+  described only on the privacy page.
 
 ### Removed
 
