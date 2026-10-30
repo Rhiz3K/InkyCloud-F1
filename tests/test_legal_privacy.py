@@ -425,8 +425,11 @@ def test_privacy_legal_basis_and_retention_follow_configuration(monkeypatch):
     monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", False)
     html = _privacy_html()
     assert "request counters keyed by IP address" in html
-    assert "11 days, then merged into hourly totals" in html
-    assert "performance histograms: 222 days" in html
+    assert "expire about 60 seconds after the last counted request" in html
+    assert "never written to disk" in html
+    assert "deleted after 11 days" in html
+    assert "Hourly usage totals: 222 days" in html
+    assert "Performance histograms: 11 days" in html
     assert "Error events: GlitchTip, EU, &lt;30&gt; days" in html
     assert "Hosting: Example Host, Germany" in html
     assert "Language cookie: 1 year" in html
@@ -436,7 +439,7 @@ def test_privacy_legal_basis_and_retention_follow_configuration(monkeypatch):
     monkeypatch.setattr(config, "MONITORING_DETAILS", "")
     monkeypatch.setattr(config, "HOSTING_DETAILS", "")
     html = _privacy_html()
-    assert "single shared request counter without IP addresses" in html
+    assert "one shared request counter per rate-limit bucket, without IP addresses" in html
     assert "retention is set by the operator of the monitoring service" in html
     assert "Hosting:" not in html
     monkeypatch.setattr(config, "SENTRY_DSN", None)
@@ -446,7 +449,24 @@ def test_privacy_legal_basis_and_retention_follow_configuration(monkeypatch):
     monkeypatch.setattr(config, "MINIMAL_DATA_MODE", True)
     html = _privacy_html()
     assert "Aggregate statistics:" not in html
-    assert "performance histograms: 222 days" not in html
+    assert "Hourly usage totals:" not in html
+    assert "Performance histograms:" not in html
+
+
+def test_privacy_raw_and_histogram_retention_use_effective_minimum(monkeypatch):
+    """Raw records and histograms show min(RAW, STATS) days, matching cleanup_old_stats."""
+    monkeypatch.setattr(config, "MINIMAL_DATA_MODE", False)
+    monkeypatch.setattr(config, "RAW_STATS_RETENTION_DAYS", 30)
+    monkeypatch.setattr(config, "STATS_RETENTION_DAYS", 7)
+    html = _privacy_html()
+    assert "deleted after 7 days" in html
+    assert "Performance histograms: 7 days" in html
+    assert "Hourly usage totals: 7 days" in html
+    assert "Retention: 7 days. These are approximate" in html
+    assert "deleted after 30 days" not in html
+    czech = _privacy_html("/cs/privacy")
+    assert "smažou se po 7 dnech" in czech
+    assert "Histogramy výkonu: 7 dní" in czech
 
 
 @pytest.mark.parametrize(

@@ -32,7 +32,9 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   name="twitter:image"
   content="{{ site_url }}/static/images/og-preview.png"
 />
-{% endblock %} {% block content %}
+{% endblock %} {% block content %} {% set effective_raw_retention_days =
+[legal_config.RAW_STATS_RETENTION_DAYS, legal_config.STATS_RETENTION_DAYS] |
+min %}
 <!-- Main Content -->
 <main class="flex-1 py-8 px-4">
   <div
@@ -78,7 +80,7 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
         </li>
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
-          t.privacy_data_webvitals.format(sample=(perf_sample_rate * 100) | round(1), perf_retention=[legal_config.RAW_STATS_RETENTION_DAYS, legal_config.STATS_RETENTION_DAYS] | min) }}
+          t.privacy_data_webvitals.format(sample=(perf_sample_rate * 100) | round(1), perf_retention=effective_raw_retention_days) }}
         </li>
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
@@ -178,12 +180,15 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {% if
           minimal_data_mode or legal_config.AGGREGATE_STATS_ONLY %}{{
-          t.get("privacy_basis_security_shared", "Security and rate limiting: a
-          single shared request counter without IP addresses is kept only in
-          memory for 60 seconds. Art. 6(1)(f).") }}{% else %}{{
-          t.get("privacy_basis_security_ip", "Security and rate limiting: request
-          counters keyed by IP address are kept only in memory for 60 seconds.
-          Art. 6(1)(f).") }}{% endif %}
+          t.get("privacy_basis_security_shared", "Security and rate limiting:
+          one shared request counter per rate-limit bucket, without IP
+          addresses. Counters are kept only in memory, expire about 60 seconds
+          after the last counted request and are never written to disk.
+          Art. 6(1)(f).") }}{% else %}{{ t.get("privacy_basis_security_ip",
+          "Security and rate limiting: request counters keyed by IP address.
+          Counters are kept only in memory, expire about 60 seconds after the
+          last counted request and are never written to disk. Art. 6(1)(f).")
+          }}{% endif %}
         </li>
         {% if not minimal_data_mode %}
         <li class="flex items-start gap-2">
@@ -221,22 +226,28 @@ Policy") }} - F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
       <ul class="text-sm space-y-2 ml-4">
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
-          t.get("privacy_retention_ratelimit", "Rate-limit counters: 60
-          seconds, in memory only.") }}
+          t.get("privacy_retention_ratelimit", "Rate-limit counters: kept only
+          in memory, expire about 60 seconds after the last counted request,
+          never written to disk.") }}
         </li>
         {% if not minimal_data_mode %}
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
           t.get("privacy_retention_raw", "Individual request records without IP
           addresses or identifiers (only when aggregate-only mode is disabled):
-          {days} days, then merged into hourly
-          totals.").format(days=legal_config.RAW_STATS_RETENTION_DAYS) }}
+          deleted after {days} days. Before deletion they are merged into hourly
+          totals only if they are still within the hourly-totals retention
+          period.").format(days=effective_raw_retention_days) }}
         </li>
         <li class="flex items-start gap-2">
           <span class="text-racing-red font-bold">•</span> {{
-          t.get("privacy_retention_aggregate", "Hourly usage totals and
-          performance histograms: {days}
+          t.get("privacy_retention_aggregate", "Hourly usage totals: {days}
           days.").format(days=legal_config.STATS_RETENTION_DAYS) }}
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-racing-red font-bold">•</span> {{
+          t.get("privacy_retention_perf", "Performance histograms: {days}
+          days.").format(days=effective_raw_retention_days) }}
         </li>
         {% endif %} {% if legal_config.BACKUP_ENABLED and not minimal_data_mode
         %}
