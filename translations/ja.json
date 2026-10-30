@@ -222,7 +222,7 @@
   "privacy_data_usage": "利用状況：公開設定ごとの時間単位のリクエスト件数と応答集計。IP、User-Agent、参照元、訪問者 ID は保存しません。保存期間は {retention} 日です。",
   "privacy_data_webvitals": "性能：ページ読み込みの {sample}% を無作為に選び、数値の Web Vitals を一度送信します。50 ms と CLS 0.01 単位に丸めた時間別ヒストグラムのみ保存します。保存期間は {perf_retention} 日です。概算の性能値であり、ユニーク訪問者数ではありません。",
   "privacy_data_errors": "エラー：設定時のみ GlitchTip に情報を除去したエラー種別とコード位置を送ります。リクエスト本文、ユーザー情報、操作履歴（breadcrumbs）、ローカル変数、トレース、プロファイルは送りません。標準プロファイルでは、アプリケーションコンテナ内のアプリログとアクセスログは無効です。ホスティングプロキシのアクセスログについては「保存期間」に記載しています。",
-  "privacy_data_local": "設定：言語切り替えで言語を選択した場合にのみ、言語を localStorage と機能用 Cookie に 30 日間保存します。ブラウザがタイムゾーンを検出します。画像生成のため選択した設定を URL で送信します。設定を消すにはブラウザのサイトデータを削除してください。",
+  "privacy_data_local": "設定：言語切り替えで言語を選択すると、言語を localStorage（サイトデータを削除するまで）と機能用 Cookie（30 日間）に保存します。ブラウザがタイムゾーンを検出します。画像生成のため選択した設定を URL で送信します。設定を消すにはブラウザのサイトデータを削除してください。",
   "privacy_thirdparty_title": "第三者サービス",
   "privacy_thirdparty_text": "処理者: Hetzner Online GmbH（サーバー、ドイツ）、coolLabs Solutions Kft. – Coolify Cloud（サーバー管理、EU）、Cloudflare, Inc.（DNS と privacy@ 宛てメールの転送。EU-US Data Privacy Framework）。転送されたプライバシー関連のメールは Google (Gmail) のメールボックスに届くため、Google はそれらのメールの受信者となります。任意設定の GlitchTip は処理済みエラーを受信します。有効な連携は Credits に表示します。",
   "privacy_gdpr_title": "GDPR 対応（EU ユーザー）",

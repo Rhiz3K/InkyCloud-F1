@@ -474,7 +474,9 @@ def test_privacy_stats_basis_names_visitor_statistics_purpose(monkeypatch):
 def test_language_cookie_is_described_as_switcher_only():
     """The privacy page and header describe the 30-day, switcher-only language cookie."""
     html = _privacy_html()
-    assert "functional cookie for 30 days, only when you choose a language" in html
+    assert "when you choose a language with the switcher" in html
+    assert "saved in localStorage (until you clear site data)" in html
+    assert "in a functional cookie for 30 days." in html
     assert "language-specific page" not in html
     assert "storage exempt under §89(3) of the Czech Electronic Communications Act (ZEK)" in html
     note = "The language choice is stored in a cookie for 30 days."
