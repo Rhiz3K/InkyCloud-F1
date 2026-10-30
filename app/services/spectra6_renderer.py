@@ -9,11 +9,7 @@ from typing import ClassVar
 
 from PIL import Image
 
-from app.services.renderer_assets import (
-    crop_primary_horizontal_band,
-    crop_to_content,
-    prepare_color_track_image,
-)
+from app.services.renderer_assets import prepare_color_track_image
 from app.services.renderer_base import RendererBase
 from app.services.renderer_theme import make_color_theme
 from app.utils.bmp import preserve_neutral_colors, quantize_to_palette
@@ -24,7 +20,6 @@ ASSETS_DIR = Path(__file__).parent.parent / "assets"
 TRACKS_SPECTRA6_DIR = ASSETS_DIR / "tracks_spectra6"
 IMAGES_DIR = ASSETS_DIR / "images"
 FLAGS_DIR = ASSETS_DIR / "flags_spectra6"
-TEAMS_COLOR_DIR = IMAGES_DIR / "teams_color"
 
 
 class Spectra6Colors:
@@ -92,11 +87,6 @@ class Spectra6Renderer(RendererBase):
         canvas.paste(photo, (x, y), photo)
 
     @staticmethod
-    def _paste_team_logo(canvas: Image.Image, logo: Image.Image, x: int, y: int) -> None:
-        """Paste an RGBA team logo with its alpha mask."""
-        canvas.paste(logo, (x, y), logo)
-
-    @staticmethod
     def _load_driver_photos() -> dict[str, Image.Image]:
         """Load color driver portraits used by the teams screen."""
         drivers_dir = IMAGES_DIR / "drivers"
@@ -110,33 +100,6 @@ class Spectra6Renderer(RendererBase):
             except Exception as exc:
                 logger.warning("Failed to load driver photo %s: %s", photo_path, exc)
         return photos
-
-    @classmethod
-    def _load_team_logos(cls) -> dict[str, Image.Image]:
-        """Load and prepare color team logos."""
-        logos: dict[str, Image.Image] = {}
-        for teams_dir in (TEAMS_COLOR_DIR, IMAGES_DIR / "teams"):
-            if not teams_dir.exists():
-                continue
-            for logo_path in teams_dir.glob("*.png"):
-                team_key = logo_path.stem.lower()
-                if team_key in logos:
-                    continue
-                try:
-                    with Image.open(logo_path) as opened_logo:
-                        img = opened_logo.convert("RGBA")
-                    logos[team_key] = cls._prepare_team_logo(team_key, img)
-                except Exception as exc:
-                    logger.warning("Failed to load team logo %s: %s", logo_path, exc)
-        return logos
-
-    @classmethod
-    def _prepare_team_logo(cls, team_key: str, img: Image.Image) -> Image.Image:
-        """Crop a logo to visible content and apply team-specific trims."""
-        cropped = crop_to_content(img)
-        if team_key in {"audi", "cadillac"}:
-            return crop_primary_horizontal_band(cropped)
-        return cropped
 
     def _to_indexed_bmp(self, image: Image.Image) -> bytes:
         """Quantize RGB pixels through the shared fixed-palette helper."""

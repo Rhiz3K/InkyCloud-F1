@@ -600,14 +600,14 @@ block content %}
       if (s.disabled || !data.has_data) {
         html += `<span class="flex-1 text-xs">—</span>`;
       } else {
-        const teamId = data.leader_team?.id;
+        const teamColor = data.leader_team?.color;
         const teamName = data.leader_team?.name || "-";
         const driverNum = data.leader_driver?.number || "";
         const driverCode = data.leader_driver?.code || "-";
 
         html += `<span class="flex-1 flex items-center gap-2 min-w-0">`;
-        if (teamId) {
-          html += `<img src="/static/images/teams/${encodeURIComponent(teamId)}.png" alt="" class="h-4 w-4 object-contain flex-shrink-0" onerror="this.style.display='none'">`;
+        if (/^#[0-9a-f]{6}$/i.test(teamColor || "")) {
+          html += `<span class="h-3 w-3 border border-black flex-shrink-0" style="background-color: ${teamColor}" aria-hidden="true"></span>`;
         }
         html += `<span class="text-xs font-bold truncate">${escapeHtml(teamName)}</span>`;
         html += `</span>`;

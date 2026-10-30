@@ -1,6 +1,5 @@
 """Focused tests for shared renderer helpers."""
 
-import random
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -17,7 +16,12 @@ from app.services import (
     renderer_results,
     renderer_teams,
     renderer_text,
+    renderer_theme,
 )
+from app.services.bwr_renderer import BwrColors, BwrRenderer
+from app.services.bwry_renderer import BwryColors, BwryRenderer
+from app.services.renderer import Renderer
+from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
 
 
 def test_select_active_team_drivers_uses_latest_roster_range():
@@ -135,75 +139,6 @@ def test_sprint_schedule_label_chooses_full_or_abbreviated(measured_width, expec
         renderer_text.format_schedule_session_name(draw, "Sprint Shootout", 50, "en", translator)
         == expected
     )
-
-
-@pytest.mark.parametrize(
-    "image",
-    [Image.new("RGB", (2, 2), "white"), Image.new("RGBA", (2, 2), (255, 255, 255, 0))],
-)
-def test_crop_to_content_returns_blank_image_unchanged(image):
-    assert renderer_assets.crop_to_content(image) is image
-
-
-def test_transparent_alpha_helper_accepts_missing_channel():
-    assert renderer_assets._has_transparent_alpha(None) is False
-
-
-def _reference_active_counts(image: Image.Image, threshold: int = 16) -> list[int]:
-    rows = []
-    for y in range(image.height):
-        active = 0
-        for x in range(image.width):
-            pixel = image.getpixel((x, y))
-            value = max(pixel) if isinstance(pixel, tuple) else pixel
-            if value > threshold:
-                active += 1
-        rows.append(active)
-    return rows
-
-
-@pytest.mark.parametrize("mode", ["L", "RGB", "RGBA", "1"])
-def test_active_pixel_counts_match_per_pixel_reference(mode):
-    rng = random.Random(7)
-    image = Image.new(mode, (37, 11))
-    band_count = len(image.getbands())
-    if mode == "1":
-        image.putdata([rng.choice((0, 255)) for _ in range(37 * 11)])
-    elif band_count == 1:
-        image.putdata([rng.randrange(256) for _ in range(37 * 11)])
-    else:
-        image.putdata(
-            [tuple(rng.randrange(256) for _ in range(band_count)) for _ in range(37 * 11)]
-        )
-
-    assert renderer_assets._active_pixel_counts(image) == _reference_active_counts(image)
-    assert renderer_assets._active_pixel_counts(image, threshold=200.5) == (
-        _reference_active_counts(image, threshold=200)
-    )
-
-
-def test_crop_primary_horizontal_band_returns_dominant_band(monkeypatch):
-    image = Image.new("RGB", (10, 10), "white")
-    monkeypatch.setattr(
-        renderer_assets,
-        "_find_horizontal_segments",
-        lambda _rows: [(2, 5, 10), (7, 9, 2)],
-    )
-    monkeypatch.setattr(renderer_assets, "_preserves_stacked_logo", lambda *_args: False)
-
-    assert renderer_assets.crop_primary_horizontal_band(image).size == (10, 3)
-
-
-def test_crop_primary_horizontal_band_preserves_stacked_logo(monkeypatch):
-    image = Image.new("RGB", (10, 10), "white")
-    monkeypatch.setattr(
-        renderer_assets,
-        "_find_horizontal_segments",
-        lambda _rows: [(2, 5, 10), (7, 9, 8)],
-    )
-    monkeypatch.setattr(renderer_assets, "_preserves_stacked_logo", lambda *_args: True)
-
-    assert renderer_assets.crop_primary_horizontal_band(image) is image
 
 
 def _width_draw(fitting_text: str | None):
@@ -693,31 +628,151 @@ def test_schedule_section_stops_before_results_area(monkeypatch):
     schedule_row.assert_called_once()
 
 
-def test_draw_team_logo_accepts_missing_collection_and_key():
-    team = SimpleNamespace(constructor_name="Team", entrant="")
-    paste = MagicMock()
+def test_team_identities_cover_all_teams():
+    """Every known team should map to a key, abbreviation, and valid RGB identity color."""
+    constructors = {
+        "Alpine F1 Team": ("alpine", "ALP"),
+        "Aston Martin": ("aston_martin", "AST"),
+        "Audi": ("audi", "AUD"),
+        "Cadillac Formula 1 Team": ("cadillac", "CAD"),
+        "Ferrari": ("ferrari", "FER"),
+        "Haas F1 Team": ("haas", "HAA"),
+        "McLaren": ("mclaren", "MCL"),
+        "Mercedes": ("mercedes", "MER"),
+        "RB": ("racing_bulls", "RB"),
+        "Red Bull": ("red_bull", "RBR"),
+        "Kick Sauber": ("sauber", "SAU"),
+        "Williams": ("williams", "WIL"),
+    }
 
-    renderer_teams.draw_team_logo(
-        Image.new("RGB", (20, 20)),
-        team,
-        team_logos=None,
-        get_team_logo_key_fn=lambda _name: "team",
-        driver_area_y=0,
-        driver_area_h=10,
-        container_left=0,
-        container_right=10,
-        paste_logo_fn=paste,
-    )
-    renderer_teams.draw_team_logo(
-        Image.new("RGB", (20, 20)),
-        team,
-        team_logos={"other": Image.new("RGB", (2, 2))},
-        get_team_logo_key_fn=lambda _name: "team",
-        driver_area_y=0,
-        driver_area_h=10,
-        container_left=0,
-        container_right=10,
-        paste_logo_fn=paste,
+    assert set(renderer_text.TEAM_IDENTITIES) == {key for key, _ in constructors.values()}
+    for constructor, (team_key, abbreviation) in constructors.items():
+        assert renderer_text.get_team_key(constructor) == team_key
+        badge_text, identity = renderer_text.get_team_badge(constructor)
+        assert badge_text == abbreviation
+        assert identity is not None
+        assert len(identity) == 3
+        assert all(0 <= channel <= 255 for channel in identity)
+
+
+@pytest.mark.parametrize(
+    ("constructor", "expected"),
+    [("Andretti Global", "AND"), ("7 Up", "UP"), ("", "")],
+)
+def test_get_team_badge_falls_back_to_neutral_initials(constructor, expected):
+    """Unknown teams should get up to three uppercase letters and no identity color."""
+    assert renderer_text.get_team_badge(constructor) == (expected, None)
+
+
+@pytest.mark.parametrize(
+    ("constructor", "expected"),
+    [("McLaren", "#ff8000"), ("Alpine F1 Team", "#0093cc"), ("Andretti Global", None)],
+)
+def test_get_team_color_hex_reuses_badge_identity(constructor, expected):
+    """Web swatches should use the renderer badge color as lowercase ``#rrggbb``."""
+    assert renderer_text.get_team_color_hex(constructor) == expected
+
+
+@pytest.mark.parametrize(
+    ("renderer_cls", "team_key", "fill_name", "text_name"),
+    [
+        (Spectra6Renderer, "ferrari", "RED", "WHITE"),
+        (Spectra6Renderer, "mclaren", "YELLOW", "BLACK"),
+        (Spectra6Renderer, "mercedes", "BLUE", "WHITE"),
+        (Spectra6Renderer, "aston_martin", "GREEN", "WHITE"),
+        (Spectra6Renderer, "haas", "WHITE", "BLACK"),
+        (Spectra6Renderer, "cadillac", "BLACK", "WHITE"),
+        (BwrRenderer, "mclaren", "RED", "WHITE"),
+        (BwrRenderer, "mercedes", "WHITE", "BLACK"),
+        (BwrRenderer, "williams", "BLACK", "WHITE"),
+        (BwryRenderer, "mclaren", "YELLOW", "BLACK"),
+        (Renderer, "ferrari", "BLACK", "WHITE"),
+        (Renderer, "haas", "BLACK", "WHITE"),
+    ],
+)
+def test_team_badge_colors_use_nearest_palette_fill_with_contrast(
+    renderer_cls, team_key, fill_name, text_name
+):
+    """Badge fills should snap to the nearest display color with readable text."""
+    colors = renderer_cls.THEME.colors
+    identity = renderer_text.TEAM_IDENTITIES[team_key][1]
+
+    assert renderer_cls.THEME.team_badge_colors(identity) == (
+        getattr(colors, fill_name),
+        getattr(colors, text_name),
     )
 
-    paste.assert_not_called()
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer, BwrRenderer, BwryRenderer])
+def test_team_badge_colors_are_neutral_for_unknown_teams(renderer_cls):
+    """Teams without an identity color should get a black badge with white text."""
+    colors = renderer_cls.THEME.colors
+
+    assert renderer_cls.THEME.team_badge_colors(None) == (colors.BLACK, colors.WHITE)
+
+
+def test_nearest_palette_color_picks_closest_entry():
+    """Nearest-color lookup should pick the palette entry with the smallest RGB distance."""
+    assert renderer_theme.nearest_palette_color((250, 10, 10), BwrColors.PALETTE) == BwrColors.RED
+    assert (
+        renderer_theme.nearest_palette_color((240, 200, 20), Spectra6Colors.PALETTE)
+        == Spectra6Colors.YELLOW
+    )
+
+
+def _draw_badge(image, renderer_cls, constructor, *, container_right=196):
+    """Draw a team badge into a fixed test slot using the renderer's theme."""
+    renderer_teams.draw_team_badge(
+        ImageDraw.Draw(image),
+        SimpleNamespace(constructor_name=constructor, entrant=""),
+        driver_area_y=0,
+        driver_area_h=35,
+        container_left=100,
+        container_right=container_right,
+        badge_colors_fn=renderer_cls.THEME.team_badge_colors,
+        outline_fill=renderer_cls.THEME.team_outline_fill,
+    )
+
+
+@pytest.mark.parametrize("constructor", ["Ferrari", "Andretti Global"])
+def test_monochrome_team_badge_is_black_with_crisp_white_text(constructor):
+    """1-bit badges should be black plates with white text and only pure black/white pixels."""
+    image = Image.new("1", (220, 40), 1)
+
+    _draw_badge(image, Renderer, constructor)
+
+    badge = image.convert("L").crop((112, 2, 184, 32))
+    counts = {value: count for count, value in badge.getcolors()}
+    assert set(counts) == {0, 255}
+    assert counts[0] > counts[255]
+    assert image.getpixel((113, 17)) == 0
+
+
+@pytest.mark.parametrize(
+    ("renderer_cls", "constructor", "fill"),
+    [
+        (Spectra6Renderer, "Ferrari", Spectra6Colors.RED),
+        (Spectra6Renderer, "Mercedes", Spectra6Colors.BLUE),
+        (Spectra6Renderer, "Andretti Global", Spectra6Colors.BLACK),
+        (BwrRenderer, "Ferrari", BwrColors.RED),
+        (BwryRenderer, "McLaren", BwryColors.YELLOW),
+    ],
+)
+def test_color_team_badge_fills_slot_with_palette_color(renderer_cls, constructor, fill):
+    """Color badges should use the mapped palette fill inside a themed outline."""
+    image = Image.new("RGB", (220, 40), (255, 255, 255))
+
+    _draw_badge(image, renderer_cls, constructor)
+
+    assert image.getpixel((113, 17)) == fill
+    assert image.getpixel((112, 17)) == renderer_cls.THEME.team_outline_fill
+
+
+def test_team_badge_skips_empty_slot_or_name():
+    """No badge should be drawn for a zero-width slot or an empty team name."""
+    image = Image.new("1", (220, 40), 1)
+
+    _draw_badge(image, Renderer, "Ferrari", container_right=100)
+    _draw_badge(image, Renderer, "")
+
+    assert image.convert("L").getextrema() == (255, 255)

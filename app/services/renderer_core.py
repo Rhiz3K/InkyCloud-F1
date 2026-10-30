@@ -47,8 +47,6 @@ class RendererCore(ABC):
     THEME: ClassVar[RenderTheme]
     _cached_driver_photos: ClassVar[dict[str, Image.Image] | None] = None
     _cached_driver_photos_key: ClassVar[tuple[str, str] | None] = None
-    _cached_team_logos: ClassVar[dict[str, Image.Image] | None] = None
-    _cached_team_logos_key: ClassVar[tuple[str, str] | None] = None
 
     width: int
     height: int
@@ -59,7 +57,6 @@ class RendererCore(ABC):
     theme: RenderTheme
     _racing_fonts: dict[int, Font]
     _driver_photos: dict[str, Image.Image] | None
-    _team_logos: dict[str, Image.Image] | None
 
     def __init__(self, translator: dict, lang_code: str = "en") -> None:
         """Bind this renderer's immutable theme and initialize shared state."""
@@ -104,7 +101,6 @@ class RendererCore(ABC):
         )
         self.fonts = fonts
         self._driver_photos = None
-        self._team_logos = None
         self.layout = {
             "header_height": 90,
             "header_split_x": 230,
@@ -257,10 +253,8 @@ class RendererCore(ABC):
         return self._racing_fonts[size]
 
     def _ensure_teams_assets(self) -> None:
-        """Load team logos lazily while keeping driver portraits disabled."""
+        """Prepare teams screen state while keeping driver portraits disabled."""
         self._driver_photos = {}
-        if self._team_logos is None:
-            self._team_logos = self._get_cached_team_logos()
 
     def ensure_teams_assets(self) -> None:
         """Public warmup hook for teams assets used outside the renderer."""
@@ -276,17 +270,6 @@ class RendererCore(ABC):
                     cls._cached_driver_photos = cls._load_driver_photos()
                     cls._cached_driver_photos_key = cache_key
         return cls._cached_driver_photos
-
-    @classmethod
-    def _get_cached_team_logos(cls) -> dict[str, Image.Image]:
-        """Return the process cache of palette-prepared team logos."""
-        cache_key = (cls.__qualname__, str(cls.THEME.images_directory()))
-        if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
-            with ASSET_CACHE_LOCK:
-                if cls._cached_team_logos is None or cls._cached_team_logos_key != cache_key:
-                    cls._cached_team_logos = cls._load_team_logos()
-                    cls._cached_team_logos_key = cache_key
-        return cls._cached_team_logos
 
     def _load_font(self, size: int, bold: bool = False) -> Font:
         """Load the main UI font for the active locale."""
@@ -323,11 +306,6 @@ class RendererCore(ABC):
     def _load_driver_photos() -> dict[str, Image.Image]:
         """Load and prepare the variant's driver image assets."""
 
-    @classmethod
-    @abstractmethod
-    def _load_team_logos(cls) -> dict[str, Image.Image]:
-        """Load and prepare the variant's team logo assets."""
-
     @staticmethod
     @abstractmethod
     def _prepare_f1_logo(image: Image.Image) -> Image.Image:
@@ -337,8 +315,3 @@ class RendererCore(ABC):
     @abstractmethod
     def _paste_driver_photo(canvas: Image.Image, photo: Image.Image, x: int, y: int) -> None:
         """Paste one prepared driver image onto the canvas."""
-
-    @staticmethod
-    @abstractmethod
-    def _paste_team_logo(canvas: Image.Image, logo: Image.Image, x: int, y: int) -> None:
-        """Paste one prepared team logo onto the canvas."""
