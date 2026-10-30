@@ -46,9 +46,10 @@ version marker. Legacy versions 1 and 2 remain accepted; storage always uses ver
 fields were stored. The current browser collector does not send them.
 
 This profile stores no IP addresses, full User-Agents, referrers, arbitrary URLs or
-query strings, visitor identifiers or browser/device attributes. Language selection
-uses the independent `preferredLang` localStorage value and one-year functional
-cookie. Explicit localized URLs take precedence. Browser timezone detection and
+query strings, visitor identifiers or browser/device attributes. The language
+preference is written only when the user picks a language with the switcher: an
+independent `preferredLang` localStorage value, kept until site data is cleared,
+and a functional cookie with a 30-day max-age. Explicit localized URLs take precedence. Browser timezone detection and
 image settings in URLs work independently of telemetry.
 
 ## Optional integrations
