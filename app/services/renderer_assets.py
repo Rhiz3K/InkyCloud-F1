@@ -1,15 +1,13 @@
-"""Cached image loading, cropping, and track preparation for renderers."""
+"""Cached image loading and track preparation for renderers."""
 
 from __future__ import annotations
 
-import functools
-import math
 import threading
 from collections.abc import Sequence
 from pathlib import Path
 
 from cachetools import LRUCache
-from PIL import Image, ImageChops, ImageOps
+from PIL import Image, ImageOps
 
 from app.services.circuit_metadata import CIRCUIT_ID_MAP
 from app.services.track_assets import build_track_stem_candidates
@@ -51,116 +49,6 @@ def _load_image_file(path_value: str, mtime_ns: int) -> Image.Image:
 def _load_image_copy(path: Path) -> Image.Image:
     """Return an independent copy of a cached image asset."""
     return _load_image_file(str(path), path.stat().st_mtime_ns).copy()
-
-
-def crop_to_content(img: Image.Image, *, use_binary_mask: bool = False) -> Image.Image:
-    """Crop a logo to visible content, respecting transparency when present."""
-    if "A" in img.getbands():
-        alpha = img.getchannel("A")
-        extrema = alpha.getextrema()
-        alpha_min = extrema[0] if extrema is not None else None
-        if not isinstance(alpha_min, tuple) and alpha_min is not None and alpha_min < 255:
-            bbox = alpha.getbbox()
-            if bbox:
-                return img.crop(bbox)
-
-    inverted = ImageOps.invert(img.convert("L"))
-    if use_binary_mask:
-        inverted = inverted.convert("1")
-    bbox = inverted.getbbox()
-    if bbox:
-        return img.crop(bbox)
-    return img
-
-
-def _has_transparent_alpha(alpha: Image.Image | None) -> bool:
-    """Return whether an alpha channel contains any non-opaque pixels."""
-    if alpha is None:
-        return False
-    alpha_extrema = alpha.getextrema()
-    alpha_min = alpha_extrema[0] if alpha_extrema is not None else None
-    return not isinstance(alpha_min, tuple) and alpha_min is not None and alpha_min < 255
-
-
-def _active_pixel_counts(mask: Image.Image, *, threshold: float = 16) -> list[int]:
-    """Count pixels whose brightest band exceeds ``threshold`` for every mask row.
-
-    Runs entirely in Pillow's C loops: a per-pixel ``getpixel`` walk over a 2048x1536 logo
-    took seconds per renderer class during startup warmup.
-    """
-    activity = functools.reduce(ImageChops.lighter, mask.split())
-    if activity.mode != "L":
-        activity = activity.convert("L")
-
-    cutoff = math.floor(threshold)
-    active = activity.point(lambda value: 255 if value > cutoff else 0).tobytes()
-    width = mask.width
-    return [active[row * width : (row + 1) * width].count(0xFF) for row in range(mask.height)]
-
-
-def _find_horizontal_segments(
-    rows: Sequence[int],
-    *,
-    threshold: int = 5,
-) -> list[tuple[int, int, int]]:
-    """Find contiguous active row segments and their peak widths."""
-    segments: list[tuple[int, int, int]] = []
-    start: int | None = None
-    for index, count in enumerate(rows):
-        if count > threshold:
-            if start is None:
-                start = index
-            continue
-        if start is None:
-            continue
-        segment_rows = rows[start:index]
-        segments.append((start, index, max(segment_rows) if segment_rows else 0))
-        start = None
-    if start is not None:
-        segment_rows = rows[start:]
-        segments.append((start, len(rows), max(segment_rows) if segment_rows else 0))
-    return segments
-
-
-def _preserves_stacked_logo(
-    img: Image.Image,
-    first_segment: tuple[int, int, int],
-    second_segment: tuple[int, int, int],
-) -> bool:
-    """Decide whether cropping would incorrectly split a stacked logo."""
-    first_start, first_end, first_peak = first_segment
-    second_start, second_end, second_peak = second_segment
-    first_height = first_end - first_start
-    second_height = second_end - second_start
-    gap = second_start - first_end
-
-    min_gap = max(8, img.height // 30)
-    min_primary_height = max(12, img.height // 5)
-    return (
-        gap < min_gap
-        or first_height < min_primary_height
-        or first_height < second_height
-        or first_peak < second_peak
-    )
-
-
-def crop_primary_horizontal_band(img: Image.Image) -> Image.Image:
-    """Keep only the dominant upper band for tall stacked logo assets."""
-    alpha = img.getchannel("A") if "A" in img.getbands() else None
-    if _has_transparent_alpha(alpha) and alpha is not None:
-        mask = alpha
-    else:
-        mask = ImageOps.invert(img.convert("L"))
-    segments = _find_horizontal_segments(_active_pixel_counts(mask))
-
-    if len(segments) < 2:
-        return img
-
-    first_start, first_end, _first_peak = segments[0]
-    if _preserves_stacked_logo(img, segments[0], segments[1]):
-        return img
-
-    return img.crop((0, first_start, img.width, first_end))
 
 
 def get_country_flag_iso_code(country_name: str, country_map: dict[str, str]) -> str:

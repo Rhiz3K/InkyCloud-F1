@@ -257,8 +257,34 @@ def format_schedule_session_name(
     return build_sprint_qualifying_label(translator, lang_code, abbreviated=True)
 
 
-def get_team_logo_key(constructor: str) -> str | None:
-    """Map a constructor name to the corresponding team logo asset key."""
+# Team key -> (badge abbreviation, RGB identity color) for the teams screen badge.
+TEAM_IDENTITIES: dict[str, tuple[str, tuple[int, int, int]]] = {
+    "alpine": ("ALP", (0x00, 0x93, 0xCC)),
+    "aston_martin": ("AST", (0x22, 0x99, 0x71)),
+    "audi": ("AUD", (0xF5, 0x05, 0x37)),
+    "cadillac": ("CAD", (0x1A, 0x1A, 0x1A)),
+    "ferrari": ("FER", (0xE8, 0x00, 0x20)),
+    "haas": ("HAA", (0xB6, 0xBA, 0xBD)),
+    "mclaren": ("MCL", (0xFF, 0x80, 0x00)),
+    "mercedes": ("MER", (0x27, 0xF4, 0xD2)),
+    "racing_bulls": ("RB", (0x66, 0x92, 0xFF)),
+    "red_bull": ("RBR", (0x36, 0x71, 0xC6)),
+    "sauber": ("SAU", (0x52, 0xE2, 0x52)),
+    "williams": ("WIL", (0x00, 0x5A, 0xFF)),
+}
+
+
+def get_team_badge(constructor: str) -> tuple[str, tuple[int, int, int] | None]:
+    """Return the badge abbreviation and identity color, or a neutral fallback, for a team."""
+    team_key = get_team_key(constructor)
+    if team_key is None:
+        letters = "".join(char for char in constructor if char.isalpha())
+        return letters[:3].upper(), None
+    return TEAM_IDENTITIES[team_key]
+
+
+def get_team_key(constructor: str) -> str | None:
+    """Map a constructor name to its canonical team key."""
     name = constructor.lower()
     if "audi" in name:
         return "audi"
