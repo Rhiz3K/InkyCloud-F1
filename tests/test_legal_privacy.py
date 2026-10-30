@@ -429,7 +429,9 @@ def test_privacy_legal_basis_and_retention_follow_configuration(monkeypatch):
     assert "never written to disk" in html
     assert "deleted after 11 days" in html
     assert "Hourly usage totals: 222 days" in html
-    assert "Performance histograms: 11 days" in html
+    assert "Individual performance measurements without IP addresses" in html
+    assert "identifiers: deleted after 11 days. They are not merged" in html
+    assert "Performance histograms:" not in html
     assert "Error events: GlitchTip, EU, &lt;30&gt; days" in html
     assert "Hosting: Example Host, Germany" in html
     assert "Language cookie: 1 year" in html
@@ -456,6 +458,7 @@ def test_privacy_legal_basis_and_retention_follow_configuration(monkeypatch):
 def test_privacy_raw_and_histogram_retention_use_effective_minimum(monkeypatch):
     """Raw records and histograms show min(RAW, STATS) days, matching cleanup_old_stats."""
     monkeypatch.setattr(config, "MINIMAL_DATA_MODE", False)
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", True)
     monkeypatch.setattr(config, "RAW_STATS_RETENTION_DAYS", 30)
     monkeypatch.setattr(config, "STATS_RETENTION_DAYS", 7)
     html = _privacy_html()
@@ -467,6 +470,25 @@ def test_privacy_raw_and_histogram_retention_use_effective_minimum(monkeypatch):
     czech = _privacy_html("/cs/privacy")
     assert "smažou se po 7 dnech" in czech
     assert "Histogramy výkonu: 7 dní" in czech
+
+
+def test_privacy_stats_basis_matches_aggregate_only_mode(monkeypatch):
+    """The statistics legal basis names individual records unless aggregate-only mode is on."""
+    monkeypatch.setattr(config, "MINIMAL_DATA_MODE", False)
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", False)
+    html = _privacy_html()
+    assert "Usage statistics: individual API request records" in html
+    assert "individual sampled performance measurements" in html
+    assert "Aggregate statistics:" not in html
+    czech = _privacy_html("/cs/privacy")
+    assert "Statistiky používání: jednotlivé záznamy požadavků na API" in czech
+    assert "Jednotlivá měření výkonu bez IP adres" in czech
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", True)
+    html = _privacy_html()
+    assert "Aggregate statistics: hourly usage counts" in html
+    assert "Performance histograms:" in html
+    assert "Usage statistics: individual" not in html
+    assert "Individual performance measurements" not in html
 
 
 @pytest.mark.parametrize(

@@ -192,11 +192,18 @@ min %}
         </li>
         {% if not minimal_data_mode %}
         <li class="flex items-start gap-2">
-          <span class="text-racing-red font-bold">•</span> {{
-          t.get("privacy_basis_stats", "Aggregate statistics: hourly usage
-          counts and sampled Web Vitals histograms without visitor identifiers;
-          optional Umami receives only server-side hourly summaries.
-          Art. 6(1)(f).") }}
+          <span class="text-racing-red font-bold">•</span> {% if
+          legal_config.AGGREGATE_STATS_ONLY %}{{ t.get("privacy_basis_stats",
+          "Aggregate statistics: hourly usage counts and sampled Web Vitals
+          histograms without visitor identifiers; optional Umami receives only
+          server-side hourly summaries. Art. 6(1)(f).") }}{% else %}{{
+          t.get("privacy_basis_stats_raw", "Usage statistics: individual API
+          request records and individual sampled performance measurements,
+          without IP addresses or visitor identifiers, kept for the raw-record
+          period in the Retention section; request records then remain only as
+          hourly totals and performance measurements are deleted. Optional
+          Umami receives only server-side hourly summaries. Art. 6(1)(f).") }}{%
+          endif %}
         </li>
         {% endif %} {% if errors_enabled %}
         <li class="flex items-start gap-2">
@@ -245,9 +252,14 @@ min %}
           days.").format(days=legal_config.STATS_RETENTION_DAYS) }}
         </li>
         <li class="flex items-start gap-2">
-          <span class="text-racing-red font-bold">•</span> {{
-          t.get("privacy_retention_perf", "Performance histograms: {days}
-          days.").format(days=effective_raw_retention_days) }}
+          <span class="text-racing-red font-bold">•</span> {% if
+          legal_config.AGGREGATE_STATS_ONLY %}{{ t.get("privacy_retention_perf",
+          "Performance histograms: {days}
+          days.").format(days=effective_raw_retention_days) }}{% else %}{{
+          t.get("privacy_retention_perf_raw", "Individual performance
+          measurements without IP addresses or identifiers: deleted after {days}
+          days. They are not merged into totals.").format(days=effective_raw_retention_days)
+          }}{% endif %}
         </li>
         {% endif %} {% if legal_config.BACKUP_ENABLED and not minimal_data_mode
         %}
