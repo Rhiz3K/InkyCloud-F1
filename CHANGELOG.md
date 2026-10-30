@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Remove the optional Umami integration (server-side hourly summaries), its
+  configuration (`UMAMI_*`, `ANALYTICS_HOSTNAME`) and credits entry.
+- Remove the `HETZNER_DPA_CONFIRMED` setting and its public deployment check.
+
+## [1.3.3] - 2026-10-30
+
+### Removed
+
 - Remove the 12 team logos (colour and monochrome variants) because no written
   redistribution permission is recorded. The e-ink teams screen now draws a team-colour
   abbreviation badge, and the configure page's season leaders show a colour swatch
@@ -27,9 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   open-source notice in all 13 locales.
   Pregenerated teams images and previews from earlier versions are no longer served;
   they are regenerated without logos after the upgrade.
-- Remove the optional Umami integration (server-side hourly summaries), its
-  configuration (`UMAMI_*`, `ANALYTICS_HOSTNAME`) and credits entry.
-- Remove the `HETZNER_DPA_CONFIRMED` setting and its public deployment check.
 
 ### Fixed
 
