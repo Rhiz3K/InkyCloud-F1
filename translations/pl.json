@@ -324,6 +324,7 @@
     "weatherChange": "Wybór pól i zaokrąglanie.",
     "wikiChange": "Wybrane komórki tabeli, znormalizowany JSON i poprawki. Nie zapisano pierwotnej wersji importu.",
     "flags": "Flagi z domeny publicznej; zmiana rozmiaru i kolorów.",
+    "hosting": "samodzielnie hostowana platforma, na której działa i jest wdrażana ta usługa.",
     "artTitle": "Grafika projektu",
     "ai": "Według opiekuna ilustracja samochodu powstała dzięki AI; model, prompt i warunki generowania nie są udokumentowane.",
     "logos": "Nazwy i kolory zespołów służą wyłącznie do ich identyfikacji; logotypy zespołów nie są wyświetlane. Nie oznacza to partnerstwa ani poparcia.",

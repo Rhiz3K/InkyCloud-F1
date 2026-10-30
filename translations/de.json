@@ -324,6 +324,7 @@
     "weatherChange": "Ausgewählte Felder und Rundung.",
     "wikiChange": "Ausgewählte Tabellenzellen, normalisiertes JSON und Korrekturen. Die ursprüngliche Importversion wurde nicht erfasst.",
     "flags": "Gemeinfreie Flaggen; skaliert und umgefärbt.",
+    "hosting": "selbst gehostete Plattform, auf der dieser Dienst betrieben und bereitgestellt wird.",
     "artTitle": "Projektgrafik",
     "ai": "Laut Betreiber wurde die Autoillustration mit KI erstellt; Modell, Prompt und Erstellungsbedingungen sind nicht dokumentiert.",
     "logos": "Teamnamen und -farben dienen nur zur Kennzeichnung der Teams; Teamlogos werden nicht angezeigt. Dies bedeutet keine Partnerschaft oder Unterstützung.",

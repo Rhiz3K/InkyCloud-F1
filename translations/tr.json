@@ -324,6 +324,7 @@
     "weatherChange": "Seçilen alanlar ve yuvarlama.",
     "wikiChange": "Seçilen tablo hücreleri, normalleştirilmiş JSON ve düzeltmeler. İlk içe aktarma sürümü kaydedilmemiştir.",
     "flags": "Kamu malı bayraklar; boyut ve renk değişiklikleri.",
+    "hosting": "bu hizmetin barındırıldığı ve dağıtıldığı kendi kendine barındırılan platform.",
     "artTitle": "Proje görselleri",
     "ai": "Yöneticiye göre araç çizimi yapay zekâyla oluşturulmuştur; model, istem ve üretim koşulları kaydedilmemiştir.",
     "logos": "Takım adları ve renkleri yalnızca takımları tanımlamak için kullanılır; takım logoları gösterilmez. Bu, herhangi bir ortaklık veya destek anlamına gelmez.",

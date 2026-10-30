@@ -324,6 +324,7 @@
     "weatherChange": "Selected fields and rounding.",
     "wikiChange": "Selected table cells, normalized JSON and corrections. Original import revision was not recorded.",
     "flags": "Public-domain flags; resized and recoloured.",
+    "hosting": "self-hosted platform used to host and deploy this service.",
     "artTitle": "Project artwork",
     "ai": "The maintainer identifies the car illustration as AI-generated; model, prompt and generation terms were not recorded.",
     "logos": "Team names and colours are used only to identify teams; no team logos are shown. This does not imply any partnership or endorsement.",

@@ -324,6 +324,7 @@
     "weatherChange": "Výber údajov a zaokrúhlenie.",
     "wikiChange": "Výber buniek tabuľky, normalizácia JSON a opravy. Pôvodná revízia importu nebola zaznamenaná.",
     "flags": "Voľné vlajky; zmena veľkosti a farieb.",
+    "hosting": "self-hostovaná platforma, na ktorej táto služba beží a nasadzuje sa.",
     "artTitle": "Grafika projektu",
     "ai": "Podľa správcu ilustrácia auta vznikla pomocou AI; model, prompt a podmienky generovania nie sú zaznamenané.",
     "logos": "Názvy a farby tímov slúžia iba na ich identifikáciu; logá tímov sa nezobrazujú. Nevyjadruje to žiadne partnerstvo ani podporu.",

@@ -324,6 +324,7 @@
     "weatherChange": "Campos selecionados e arredondamento.",
     "wikiChange": "Células selecionadas, JSON normalizado e correções. A revisão original da importação não foi registrada.",
     "flags": "Bandeiras de domínio público; redimensionadas e recoloridas.",
+    "hosting": "plataforma auto-hospedada usada para hospedar e implantar este serviço.",
     "artTitle": "Arte do projeto",
     "ai": "Segundo o responsável, a ilustração do carro foi gerada por IA; modelo, prompt e condições de geração não foram registrados.",
     "logos": "Os nomes e as cores das equipes são usados apenas para identificá-las; nenhum logotipo de equipe é exibido. Isso não indica parceria nem apoio.",
