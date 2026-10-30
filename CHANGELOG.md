@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Credits page now credits Coolify (https://coolify.io), the self-hosted platform used
+  to host and deploy the service, in all 13 languages.
+
 ### Changed
 
 - Extend the privacy policy with GDPR sections for the data controller, legal basis
