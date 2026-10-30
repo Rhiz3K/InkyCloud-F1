@@ -51,6 +51,30 @@ async def test_previous_footer_layout_is_not_reused_for_bmp_or_preview(tmp_path)
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("stale", ["bmp", "png"])
+async def test_teams_art_from_logo_policy_is_not_served_after_upgrade(tmp_path, stale):
+    """Fresh teams BMPs/previews stamped before the logo removal must be regenerated."""
+    source = tmp_path / "teams_2026_en.bmp"
+    preview = tmp_path / "configure_teams_en.png"
+    await scheduler_generation._write_bmp_artifact(source, b"bmp", "teams:2026")
+    await scheduler_generation._write_preview_artifact(
+        preview, b"png", source, metadata.read_artifact_metadata(source)
+    )
+    assert metadata.artifact_matches(source, "teams:2026")
+    assert previews._preview_snapshot(preview, "teams:2026") is not None
+
+    sidecar = metadata.metadata_path(source if stale == "bmp" else preview)
+    data = json.loads(sidecar.read_text())
+    sidecar.write_text(
+        json.dumps(data | {"content_policy": "open-tracks-display-no-caption-2026-09-14"})
+    )
+
+    assert metadata.artifact_matches(source, "teams:2026") is (stale == "png")
+    assert metadata.read_artifact_metadata(preview) is None
+    assert previews._preview_snapshot(preview, "teams:2026") is None
+
+
+@pytest.mark.asyncio
 async def test_preview_inherits_source_age_and_rejects_replaced_source(tmp_path):
     source = tmp_path / "calendar_en.bmp"
     await scheduler_generation._write_bmp_artifact(source, b"bmp", "calendar:monza")

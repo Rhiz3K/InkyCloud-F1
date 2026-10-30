@@ -51,11 +51,64 @@ for (const minimal of [true, false]) {
     }
 }
 
-test("season leaders show a validated team colour swatch instead of a logo", () => {
+// Top-level functions in configure.html's inline script are 2-space indented and end with "  }".
+function templateFunction(template, name) {
+    const start = template.indexOf(`\n  function ${name}(`);
+    assert.ok(start >= 0, `${name} not found in configure.html`);
+    return template.slice(start, template.indexOf("\n  }\n", start) + 4);
+}
+
+function renderSeasonLeader(leaderTeam) {
     const template = readFileSync("app/templates/configure.html", "utf8");
-    assert.ok(!template.includes("/static/images/teams"));
-    assert.ok(template.includes("/^#[0-9a-f]{6}$/i.test(teamColor || \"\")"));
-    assert.ok(template.includes("style=\"background-color: ${teamColor}\""));
+    const container = {innerHTML: ""};
+    const ctx = vm.createContext({
+        uiText: {currentSeason: "Current"}, currentTeamsSeason: 2026, availableTeamsSeasons: [2026],
+        selectedTeamsYear: null, leaderData: {2026: {has_data: true, leader_team: leaderTeam, leader_driver: {number: 1, code: "VER"}}},
+        document: {getElementById(id) {return id === "teamsSeasonButtons" ? container : null;}},
+    });
+    for (const name of ["escapeHtml", "getCurrentSeason", "getTeamsSeasonEntries", "renderTeamsSeasonButtons"]) {
+        vm.runInContext(templateFunction(template, name), ctx);
+    }
+    ctx.renderTeamsSeasonButtons();
+    return container.innerHTML;
+}
+
+test("season leaders reference no team logo images", () => {
+    assert.ok(!readFileSync("app/templates/configure.html", "utf8").includes("/static/images/teams"));
+});
+
+test("valid hex team colour renders a swatch with that background", () => {
+    for (const color of ["#3671C6", "#ff8000"]) {
+        const html = renderSeasonLeader({name: "Red Bull", color});
+        assert.equal(html.split("background-color").length - 1, 1);
+        assert.ok(html.includes(`style="background-color: ${color}" aria-hidden="true"`));
+        assert.ok(html.includes(">Red Bull</span>"));
+    }
+});
+
+for (const color of [undefined, null, "", "#fff", "red", "#12345g", "#ffffff\n", "red;background:url(x)",
+    "#ffffff;background:url(x)", "#fff\" onload=\"alert(1)", "#ffffff\" onload=\"alert(1)"]) {
+    test(`missing or unsafe team colour ${JSON.stringify(color)} renders no swatch`, () => {
+        const html = renderSeasonLeader({name: "Ferrari", color});
+        assert.ok(!html.includes("background-color"));
+        assert.ok(!html.includes("aria-hidden"));
+        assert.ok(!html.includes("onload"));
+        assert.ok(!html.includes("url("));
+        assert.ok(html.includes(">Ferrari</span>"));
+    });
+}
+
+test("team name containing HTML stays escaped next to the swatch", () => {
+    const html = renderSeasonLeader({name: "<img src=x onerror=\"alert(1)\">", color: "#E8002D"});
+    assert.ok(!html.includes("<img"));
+    assert.ok(html.includes("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;"));
+    assert.ok(html.includes("style=\"background-color: #E8002D\""));
+});
+
+test("missing leader team falls back to a dash without a swatch", () => {
+    const html = renderSeasonLeader(undefined);
+    assert.ok(!html.includes("background-color"));
+    assert.ok(html.includes("truncate\">-</span>"));
 });
 
 test("explicit localized URL overrides stale preference", () => {

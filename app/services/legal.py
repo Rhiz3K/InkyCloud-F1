@@ -7,7 +7,7 @@ from typing import Any
 from app.config import config
 
 BRAND_NAME = "F1.InkyCloud.click"
-CONTENT_POLICY_VERSION = "open-tracks-display-no-caption-2026-09-14"
+CONTENT_POLICY_VERSION = "team-badges-no-logos-2026-10-30"
 DATA_LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/4.0/"
 
 

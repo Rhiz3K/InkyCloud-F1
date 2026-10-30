@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   next to the team name. The removed files and hashes are listed in
   `docs/removed-assets.json`; earlier Git history and released artifacts are unchanged.
   Update the licence notices, documentation and credits text in all 13 locales.
+  Pregenerated teams images and previews from earlier versions are no longer served;
+  they are regenerated without logos after the upgrade.
 
 ### Fixed
 
