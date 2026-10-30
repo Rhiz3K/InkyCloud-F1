@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw
 
 from app.config import LANGUAGE_CODES
 from app.models import (
@@ -26,10 +26,10 @@ from app.services import renderer_base as renderer_base_module
 from app.services import spectra6_renderer as spectra6_renderer_module
 from app.services.bwr_renderer import BwrColors, BwrRenderer
 from app.services.bwry_renderer import BwryColors, BwryRenderer
-from app.services.font_utils import fit_brand_font_box
+from app.services.font_utils import CJK_LANG_CODES
 from app.services.i18n import get_translator
 from app.services.renderer import Renderer
-from app.services.renderer_teams import draw_team_badge
+from app.services.renderer_teams import fit_team_driver_name
 from app.services.renderer_text import (
     build_sprint_qualifying_label,
     build_team_header_values,
@@ -860,7 +860,6 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
         renderer.height - renderer.layout["header_height"] - 8 - (teams_per_col - 1) * row_gap
     ) // teams_per_col
     card_header_height = 23
-    card_header_gap = 1
     photo_x = 9
     y_start = renderer.layout["header_height"] + 4
 
@@ -879,23 +878,19 @@ def test_cjk_team_driver_names_do_not_touch_card_header(renderer_cls, lang):
                 if not name:
                     name = driver.driver_code or "TBA"
                 display_name = format_team_driver_display_name(name)
-                driver_y = driver_y_start + i * driver_row_height
                 driver_name_x = photo_x + photo_size + renderer.layout["driver_name_padding"] + 4
-                max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
-                driver_font = fit_brand_font_box(
+                display_name, driver_font = fit_team_driver_name(
                     draw,
                     display_name,
-                    max_width=max_name_width,
-                    max_height=max(1, driver_row_height - 1),
-                    base_size=18,
-                    min_size=12,
-                    bold=True,
+                    max_width=driver_pos_x - 8 - driver_name_x,
+                    max_height=max(1, driver_row_height - 1) if lang in CJK_LANG_CODES else None,
                 )
+                driver_y = driver_y_start + i * driver_row_height
                 driver_text_y = get_text_y(
                     draw, driver_font, driver_row_height, driver_y, display_name
                 )
                 bbox = draw.textbbox((driver_name_x, driver_text_y), display_name, font=driver_font)
-                assert bbox[1] >= y + card_header_height + card_header_gap
+                assert bbox[1] > y + card_header_height
 
             y += row_height + row_gap
 
@@ -2005,76 +2000,6 @@ def test_spectra6_renderer_uses_monochrome_f1_logo_asset(tmp_path, monkeypatch, 
     assert img.mode == "P"
 
 
-@pytest.mark.parametrize("renderer_cls", [Renderer, BwrRenderer, BwryRenderer, Spectra6Renderer])
-def test_render_teams_drivers_draws_one_badge_per_team(
-    renderer_cls, mock_ranked_teams_data, monkeypatch
-):
-    """Every display should draw a team badge for each team card instead of a logo."""
-    captured: list[str] = []
-    original_draw_team_badge = renderer_base_module.draw_team_badge
-
-    def spy_draw_team_badge(draw, team, **kwargs):
-        captured.append(team.constructor_name)
-        return original_draw_team_badge(draw, team, **kwargs)
-
-    monkeypatch.setattr(renderer_base_module, "draw_team_badge", spy_draw_team_badge)
-
-    renderer = renderer_cls(get_translator("en"))
-    renderer.render_teams_drivers(mock_ranked_teams_data)
-
-    assert captured == ["McLaren-Mercedes", "Ferrari"]
-
-
-@pytest.mark.parametrize("renderer_cls", [Renderer, BwrRenderer, BwryRenderer, Spectra6Renderer])
-def test_draw_team_badge_centers_badge_in_slot(renderer_cls):
-    """Team badges should be centered in the reserved slot on every display palette."""
-    colors = renderer_cls.THEME.colors
-    image_mode = "1" if renderer_cls is Renderer else "RGB"
-    image = Image.new(image_mode, (220, 80), colors.WHITE)
-    team = TeamEntry(constructor_name="Audi", chassis="", power_unit="", drivers=[])
-
-    draw_team_badge(
-        ImageDraw.Draw(image),
-        team,
-        driver_area_y=10,
-        driver_area_h=30,
-        container_left=100,
-        container_right=180,
-        badge_colors_fn=renderer_cls.THEME.team_badge_colors,
-        outline_fill=renderer_cls.THEME.team_outline_fill,
-    )
-
-    bbox = ImageOps.invert(image.convert("L")).getbbox()
-
-    assert bbox is not None
-    assert (bbox[0] + bbox[2]) // 2 == 140
-    assert (bbox[1] + bbox[3]) // 2 == 25
-
-
-def test_draw_team_badge_uses_only_black_and_white_in_1bit_mode():
-    """1-bit team badges should be a black plate with white text and no gray pixels."""
-    image = Image.new("1", (220, 80), Renderer.THEME.colors.WHITE)
-    team = TeamEntry(constructor_name="Red Bull", chassis="", power_unit="", drivers=[])
-
-    draw_team_badge(
-        ImageDraw.Draw(image),
-        team,
-        driver_area_y=10,
-        driver_area_h=30,
-        container_left=100,
-        container_right=180,
-        badge_colors_fn=Renderer.THEME.team_badge_colors,
-        outline_fill=Renderer.THEME.team_outline_fill,
-    )
-
-    gray = image.convert("L")
-    badge = gray.crop(ImageOps.invert(gray).getbbox())
-    counts = {value: count for count, value in badge.getcolors()}
-
-    assert set(counts) == {0, 255}
-    assert counts[0] > counts[255]
-
-
 @pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
 def test_renderer_preserves_half_points_in_team_rows(renderer_cls):
     """Teams renderers should preserve half-points instead of truncating them."""
@@ -2416,7 +2341,7 @@ def test_monochrome_team_row_uses_brand_fonts_for_cjk():
             20,
         )
 
-    assert state._load_brand_font.call_count == 6
+    assert state._load_brand_font.call_count == 5
     shared_draw.assert_called_once()
 
 
@@ -2456,7 +2381,7 @@ def test_spectra_team_row_uses_brand_fonts_for_cjk():
             20,
         )
 
-    assert state._load_brand_font.call_count == 6
+    assert state._load_brand_font.call_count == 5
     shared_draw.assert_called_once()
 
 

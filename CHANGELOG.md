@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without them. The language cookie gets the `Secure` attribute on HTTPS.
 - Remove the language cookie note under the header language switcher; the cookie is
   described only on the privacy page.
+- Teams screen: remove the team abbreviation badges; driver names use the freed width
+  and shrink or ellipsize to fit.
 
 ### Removed
 
