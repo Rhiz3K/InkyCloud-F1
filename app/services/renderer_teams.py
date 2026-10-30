@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
-from app.services.font_utils import CJK_LANG_CODES, fit_brand_font_box
+from app.services.font_utils import CJK_LANG_CODES, fit_brand_font_box, load_brand_font
 from app.services.renderer_text import (
-    get_team_badge,
+    clamp_text,
     select_active_team_drivers,
     split_teams_for_columns,
 )
+
+DRIVER_NAME_MAX_SIZE = 18
+DRIVER_NAME_MIN_SIZE = 15
+CJK_DRIVER_NAME_MIN_SIZE = 12
 
 
 def draw_teams_header(
@@ -141,6 +145,41 @@ def draw_team_stats_panel(
     return pos_box_x
 
 
+def fit_team_driver_name(
+    draw: ImageDraw.ImageDraw,
+    display_name: str,
+    *,
+    max_width: int,
+    max_height: int | None = None,
+) -> tuple[str, ImageFont.FreeTypeFont | ImageFont.ImageFont]:
+    """Return the driver name and the largest bold brand font that fits ``max_width``.
+
+    Without ``max_height`` only the width is checked between the regular driver sizes.
+    With ``max_height`` (used for CJK locales, whose fallback glyphs are taller) the font
+    must fit both width and height and may shrink down to ``CJK_DRIVER_NAME_MIN_SIZE``.
+    In both cases a name still too wide at the minimum size is ellipsized so its right
+    edge stays within ``max_width``.
+    """
+    if max_height is not None:
+        font = fit_brand_font_box(
+            draw,
+            display_name,
+            max_width=max_width,
+            max_height=max_height,
+            base_size=DRIVER_NAME_MAX_SIZE,
+            min_size=CJK_DRIVER_NAME_MIN_SIZE,
+            bold=True,
+        )
+    else:
+        for size in range(DRIVER_NAME_MAX_SIZE, DRIVER_NAME_MIN_SIZE - 1, -1):
+            font = load_brand_font(size, bold=True)
+            if int(draw.textbbox((0, 0), display_name, font=font)[2]) <= max_width:
+                return display_name, font
+        font = load_brand_font(DRIVER_NAME_MIN_SIZE, bold=True)
+    left_bearing = int(draw.textbbox((0, 0), display_name, font=font)[0])
+    return clamp_text(draw, display_name, font, max_width - left_bearing), font
+
+
 def draw_team_driver_row(
     draw: ImageDraw.ImageDraw,
     image: Image.Image,
@@ -154,9 +193,7 @@ def draw_team_driver_row(
     driver_pos_x: int,
     badge_pad_x: int,
     small_font,
-    driver_font,
     driver_name_padding: int,
-    lang_code: str,
     draw_driver_photo_fn,
     get_text_y_fn,
     format_team_driver_display_name_fn,
@@ -165,6 +202,7 @@ def draw_team_driver_row(
     text_fill,
     badge_outline_fill,
     badge_colors_fn,
+    lang_code: str,
 ) -> None:
     """Draw one driver row inside a team card with renderer-specific colors via callbacks."""
     name = driver.name or f"{driver.given_name} {driver.family_name}".strip()
@@ -186,17 +224,12 @@ def draw_team_driver_row(
         driver_number=driver.driver_number,
     )
     driver_name_x = photo_x + photo_size + driver_name_padding + 4
-    if lang_code in CJK_LANG_CODES:
-        max_name_width = max(1, driver_pos_x - 8 - driver_name_x)
-        driver_font = fit_brand_font_box(
-            draw,
-            display_name,
-            max_width=max_name_width,
-            max_height=max(1, driver_row_height - 1),
-            base_size=18,
-            min_size=12,
-            bold=True,
-        )
+    display_name, driver_font = fit_team_driver_name(
+        draw,
+        display_name,
+        max_width=driver_pos_x - 8 - driver_name_x,
+        max_height=max(1, driver_row_height - 1) if lang_code in CJK_LANG_CODES else None,
+    )
     driver_text_y = get_text_y_fn(draw, driver_font, driver_row_height, driver_y, display_name)
     draw.text((driver_name_x, driver_text_y), display_name, fill=text_fill, font=driver_font)
 
@@ -246,13 +279,11 @@ def draw_team_row(
     header_text_fill,
     outline_fill,
     stats_padding: int,
-    driver_name_padding: int,
     get_text_y_fn,
     build_team_header_values_fn,
     clamp_text_fn,
     draw_team_stats_panel_fn,
     draw_team_driver_row_fn,
-    draw_team_badge_fn,
 ) -> None:
     """Draw the shared team-card layout and delegate renderer-specific row details."""
     _ = stats_padding
@@ -303,17 +334,6 @@ def draw_team_row(
             driver_pos_x,
             badge_pad_x,
         )
-
-    badge_container_right = driver_pos_x - 8
-    driver_name_base_x = photo_x + photo_size + driver_name_padding + 4
-    badge_container_left = max(driver_name_base_x + 170, badge_container_right - 96)
-    draw_team_badge_fn(
-        team,
-        driver_y_start,
-        driver_area_height,
-        badge_container_left,
-        badge_container_right,
-    )
 
 
 def normalize_driver_photo_key(driver_name: str) -> str:
@@ -374,50 +394,3 @@ def draw_driver_photo(
     photo_resized = driver_img.resize((new_w, new_h), resample)
     paste_photo_fn(image, photo_resized, x, y)
     return new_w + 2
-
-
-def draw_team_badge(
-    draw: ImageDraw.ImageDraw,
-    team,
-    *,
-    driver_area_y: int,
-    driver_area_h: int,
-    container_left: int,
-    container_right: int,
-    badge_colors_fn,
-    outline_fill,
-) -> None:
-    """Draw a centered team-colored abbreviation badge inside the reserved badge slot."""
-    container_w = container_right - container_left
-    abbreviation, identity = get_team_badge(team.constructor_name or team.entrant or "")
-    if container_w <= 0 or not abbreviation:
-        return
-
-    badge_w = max(1, min(container_w - 12, 72))
-    badge_h = max(1, min(driver_area_h - 4, 30))
-    badge_x = container_left + (container_w - badge_w) // 2
-    badge_y = driver_area_y + (driver_area_h - badge_h) // 2
-    badge_fill, text_fill = badge_colors_fn(identity)
-    draw.rounded_rectangle(
-        [(badge_x, badge_y), (badge_x + badge_w - 1, badge_y + badge_h - 1)],
-        radius=min(6, badge_h // 4),
-        fill=badge_fill,
-        outline=outline_fill,
-        width=1,
-    )
-
-    font = fit_brand_font_box(
-        draw,
-        abbreviation,
-        max_width=max(1, badge_w - 10),
-        max_height=max(1, badge_h - 8),
-        base_size=22,
-        min_size=10,
-        bold=True,
-    )
-    text_bbox = draw.textbbox((0, 0), abbreviation, font=font)
-    text_w = int(text_bbox[2] - text_bbox[0])
-    text_h = int(text_bbox[3] - text_bbox[1])
-    text_x = badge_x + (badge_w - text_w) // 2 - int(text_bbox[0])
-    text_y = badge_y + (badge_h - text_h) // 2 - int(text_bbox[1])
-    draw.text((text_x, text_y), abbreviation, fill=text_fill, font=font)

@@ -53,8 +53,8 @@ and release packages. Legacy track wrappers fail with a usage error. Pure image-
 helpers remain testable with synthetic, locally supplied inputs and require explicit source,
 manifest and output locations; they do not grant permission to use an image or publish it.
 There is no public upload or URL-to-image import endpoint.
-Team logos have been removed; the e-ink teams screen draws a colour badge with the
-team abbreviation instead. The project's AI car remains, with separate rights disclosures
+Team logos have been removed; the e-ink teams screen shows the team name as text
+instead. The project's AI car remains, with separate rights disclosures
 in `DATA_LICENSES.md`; the open map licences do not cover that asset.
 
 The static server requires an individually reviewed asset entry and matching SHA-256.

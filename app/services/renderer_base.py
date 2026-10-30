@@ -31,7 +31,6 @@ from app.services.renderer_results import (
 )
 from app.services.renderer_teams import (
     draw_driver_photo,
-    draw_team_badge,
     draw_team_driver_row,
     draw_team_row,
     draw_team_stats_panel,
@@ -157,7 +156,6 @@ class RendererBase(RendererCore):
         driver_pos_x: int,
         badge_pad_x: int,
         small_font,
-        driver_font,
     ) -> None:
         """Draw one driver row inside a team card."""
         draw_team_driver_row(
@@ -172,9 +170,7 @@ class RendererBase(RendererCore):
             driver_pos_x=driver_pos_x,
             badge_pad_x=badge_pad_x,
             small_font=small_font,
-            driver_font=driver_font,
             driver_name_padding=self.layout["driver_name_padding"],
-            lang_code=self.lang_code,
             draw_driver_photo_fn=self._draw_driver_photo,
             get_text_y_fn=get_text_y,
             format_team_driver_display_name_fn=format_team_driver_display_name,
@@ -183,6 +179,7 @@ class RendererBase(RendererCore):
             text_fill=self.theme.text_fill,
             badge_outline_fill=self.theme.team_outline_fill,
             badge_colors_fn=self.theme.driver_badge_colors,
+            lang_code=self.lang_code,
         )
 
     def _draw_team_row(
@@ -195,18 +192,16 @@ class RendererBase(RendererCore):
         team,
         row_height: int,
     ) -> None:
-        """Draw one themed team card with standings, drivers, and team badge."""
+        """Draw one themed team card with standings and drivers."""
         if self.lang_code in CJK_LANG_CODES:
             team_font = self._load_brand_font(18, bold=True)
             small_font = self._load_brand_font(18, bold=True)
-            driver_font = self._load_brand_font(18, bold=True)
             tech_font = self._load_brand_font(14)
             stats_font = self._load_brand_font(18, bold=True)
             points_font = self._load_brand_font(18, bold=True)
         else:
             team_font = self.fonts["circuit_name"]
             small_font = self.fonts["circuit_stats_value"]
-            driver_font = self.fonts["circuit_name"]
             tech_font = (
                 self.fonts["circuit_location_bold"]
                 if self.theme.use_bold_team_tech_font
@@ -260,26 +255,6 @@ class RendererBase(RendererCore):
                 driver_pos_x,
                 badge_pad_x,
                 small_font,
-                driver_font,
-            )
-
-        def draw_team_badge_cb(
-            team_obj,
-            driver_y_start: int,
-            driver_area_height: int,
-            badge_container_left: int,
-            badge_container_right: int,
-        ) -> None:
-            """Draw the themed team abbreviation badge through the shared layout callback."""
-            draw_team_badge(
-                draw,
-                team_obj,
-                driver_area_y=driver_y_start,
-                driver_area_h=driver_area_height,
-                container_left=badge_container_left,
-                container_right=badge_container_right,
-                badge_colors_fn=self.theme.team_badge_colors,
-                outline_fill=self.theme.team_outline_fill,
             )
 
         draw_team_row(
@@ -296,13 +271,11 @@ class RendererBase(RendererCore):
             header_text_fill=self.theme.team_header_text_fill,
             outline_fill=self.theme.team_outline_fill,
             stats_padding=5,
-            driver_name_padding=self.layout["driver_name_padding"],
             get_text_y_fn=get_text_y,
             build_team_header_values_fn=lambda _team: (team_name, meta_text, team_pos, team_pts),
             clamp_text_fn=clamp_text,
             draw_team_stats_panel_fn=render_team_stats_panel,
             draw_team_driver_row_fn=render_team_driver_row,
-            draw_team_badge_fn=draw_team_badge_cb,
         )
 
     def _draw_teams_content(

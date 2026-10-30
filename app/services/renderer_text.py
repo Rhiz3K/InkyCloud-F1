@@ -257,30 +257,21 @@ def format_schedule_session_name(
     return build_sprint_qualifying_label(translator, lang_code, abbreviated=True)
 
 
-# Team key -> (badge abbreviation, RGB identity color) for the teams screen badge.
-TEAM_IDENTITIES: dict[str, tuple[str, tuple[int, int, int]]] = {
-    "alpine": ("ALP", (0x00, 0x93, 0xCC)),
-    "aston_martin": ("AST", (0x22, 0x99, 0x71)),
-    "audi": ("AUD", (0xF5, 0x05, 0x37)),
-    "cadillac": ("CAD", (0x1A, 0x1A, 0x1A)),
-    "ferrari": ("FER", (0xE8, 0x00, 0x20)),
-    "haas": ("HAA", (0xB6, 0xBA, 0xBD)),
-    "mclaren": ("MCL", (0xFF, 0x80, 0x00)),
-    "mercedes": ("MER", (0x27, 0xF4, 0xD2)),
-    "racing_bulls": ("RB", (0x66, 0x92, 0xFF)),
-    "red_bull": ("RBR", (0x36, 0x71, 0xC6)),
-    "sauber": ("SAU", (0x52, 0xE2, 0x52)),
-    "williams": ("WIL", (0x00, 0x5A, 0xFF)),
+# Team key -> RGB identity color for the configure page's season-leader swatches.
+TEAM_COLORS: dict[str, tuple[int, int, int]] = {
+    "alpine": (0x00, 0x93, 0xCC),
+    "aston_martin": (0x22, 0x99, 0x71),
+    "audi": (0xF5, 0x05, 0x37),
+    "cadillac": (0x1A, 0x1A, 0x1A),
+    "ferrari": (0xE8, 0x00, 0x20),
+    "haas": (0xB6, 0xBA, 0xBD),
+    "mclaren": (0xFF, 0x80, 0x00),
+    "mercedes": (0x27, 0xF4, 0xD2),
+    "racing_bulls": (0x66, 0x92, 0xFF),
+    "red_bull": (0x36, 0x71, 0xC6),
+    "sauber": (0x52, 0xE2, 0x52),
+    "williams": (0x00, 0x5A, 0xFF),
 }
-
-
-def get_team_badge(constructor: str) -> tuple[str, tuple[int, int, int] | None]:
-    """Return the badge abbreviation and identity color, or a neutral fallback, for a team."""
-    team_key = get_team_key(constructor)
-    if team_key is None:
-        letters = "".join(char for char in constructor if char.isalpha())
-        return letters[:3].upper(), None
-    return TEAM_IDENTITIES[team_key]
 
 
 def get_team_color_hex(constructor: str) -> str | None:
@@ -288,7 +279,7 @@ def get_team_color_hex(constructor: str) -> str | None:
     team_key = get_team_key(constructor)
     if team_key is None:
         return None
-    red, green, blue = TEAM_IDENTITIES[team_key][1]
+    red, green, blue = TEAM_COLORS[team_key]
     return f"#{red:02x}{green:02x}{blue:02x}"
 
 

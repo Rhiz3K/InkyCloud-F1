@@ -1,6 +1,7 @@
 """Focused tests for shared renderer helpers."""
 
 from datetime import datetime, timedelta
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -8,7 +9,7 @@ import pytest
 from cachetools import LRUCache
 from PIL import Image, ImageDraw, ImageFont
 
-from app.models import TeamDriverEntry
+from app.models import TeamDriverEntry, TeamEntry, TeamsData
 from app.services import (
     font_utils,
     renderer_assets,
@@ -16,12 +17,13 @@ from app.services import (
     renderer_results,
     renderer_teams,
     renderer_text,
-    renderer_theme,
 )
-from app.services.bwr_renderer import BwrColors, BwrRenderer
-from app.services.bwry_renderer import BwryColors, BwryRenderer
+from app.services.bwr_renderer import BwrRenderer
+from app.services.bwry_renderer import BwryRenderer
+from app.services.i18n import get_translator
 from app.services.renderer import Renderer
-from app.services.spectra6_renderer import Spectra6Colors, Spectra6Renderer
+from app.services.spectra6_renderer import Spectra6Renderer
+from app.services.teams_service import TeamsService
 
 
 def test_select_active_team_drivers_uses_latest_roster_range():
@@ -266,11 +268,9 @@ def test_results_column_handles_entry_without_time():
     assert draw.text.call_count == 2
 
 
-def test_team_driver_row_uses_code_and_cjk_font_fallback(monkeypatch):
+def test_team_driver_row_falls_back_to_driver_code():
     draw = MagicMock()
     draw.textbbox.return_value = (0, 0, 5, 5)
-    fitted_font = object()
-    monkeypatch.setattr(renderer_teams, "fit_brand_font_box", MagicMock(return_value=fitted_font))
     driver = SimpleNamespace(
         name="",
         given_name="",
@@ -283,19 +283,17 @@ def test_team_driver_row_uses_code_and_cjk_font_fallback(monkeypatch):
 
     renderer_teams.draw_team_driver_row(
         draw,
-        Image.new("RGB", (20, 20)),
+        Image.new("RGB", (80, 20)),
         driver,
         driver_y=0,
         driver_row_height=20,
         photo_x=0,
         photo_size=5,
-        pts_right_x=15,
-        driver_pos_x=18,
+        pts_right_x=75,
+        driver_pos_x=60,
         badge_pad_x=1,
         small_font=object(),
-        driver_font=object(),
         driver_name_padding=1,
-        lang_code="ja",
         draw_driver_photo_fn=MagicMock(),
         get_text_y_fn=lambda *_args: 0,
         format_team_driver_display_name_fn=lambda name: name,
@@ -304,6 +302,7 @@ def test_team_driver_row_uses_code_and_cjk_font_fallback(monkeypatch):
         text_fill="black",
         badge_outline_fill="black",
         badge_colors_fn=lambda _position: ("white", "black"),
+        lang_code="en",
     )
 
     assert any(call.args[1] == "TST" for call in draw.text.call_args_list)
@@ -628,151 +627,275 @@ def test_schedule_section_stops_before_results_area(monkeypatch):
     schedule_row.assert_called_once()
 
 
-def test_team_identities_cover_all_teams():
-    """Every known team should map to a key, abbreviation, and valid RGB identity color."""
+def test_team_colors_cover_all_teams():
+    """Every known team should map to a key and a valid RGB identity color."""
     constructors = {
-        "Alpine F1 Team": ("alpine", "ALP"),
-        "Aston Martin": ("aston_martin", "AST"),
-        "Audi": ("audi", "AUD"),
-        "Cadillac Formula 1 Team": ("cadillac", "CAD"),
-        "Ferrari": ("ferrari", "FER"),
-        "Haas F1 Team": ("haas", "HAA"),
-        "McLaren": ("mclaren", "MCL"),
-        "Mercedes": ("mercedes", "MER"),
-        "RB": ("racing_bulls", "RB"),
-        "Red Bull": ("red_bull", "RBR"),
-        "Kick Sauber": ("sauber", "SAU"),
-        "Williams": ("williams", "WIL"),
+        "Alpine F1 Team": "alpine",
+        "Aston Martin": "aston_martin",
+        "Audi": "audi",
+        "Cadillac Formula 1 Team": "cadillac",
+        "Ferrari": "ferrari",
+        "Haas F1 Team": "haas",
+        "McLaren": "mclaren",
+        "Mercedes": "mercedes",
+        "RB": "racing_bulls",
+        "Red Bull": "red_bull",
+        "Kick Sauber": "sauber",
+        "Williams": "williams",
     }
 
-    assert set(renderer_text.TEAM_IDENTITIES) == {key for key, _ in constructors.values()}
-    for constructor, (team_key, abbreviation) in constructors.items():
+    assert set(renderer_text.TEAM_COLORS) == set(constructors.values())
+    for constructor, team_key in constructors.items():
         assert renderer_text.get_team_key(constructor) == team_key
-        badge_text, identity = renderer_text.get_team_badge(constructor)
-        assert badge_text == abbreviation
-        assert identity is not None
+        identity = renderer_text.TEAM_COLORS[team_key]
         assert len(identity) == 3
         assert all(0 <= channel <= 255 for channel in identity)
 
 
 @pytest.mark.parametrize(
     ("constructor", "expected"),
-    [("Andretti Global", "AND"), ("7 Up", "UP"), ("", "")],
-)
-def test_get_team_badge_falls_back_to_neutral_initials(constructor, expected):
-    """Unknown teams should get up to three uppercase letters and no identity color."""
-    assert renderer_text.get_team_badge(constructor) == (expected, None)
-
-
-@pytest.mark.parametrize(
-    ("constructor", "expected"),
     [("McLaren", "#ff8000"), ("Alpine F1 Team", "#0093cc"), ("Andretti Global", None)],
 )
-def test_get_team_color_hex_reuses_badge_identity(constructor, expected):
-    """Web swatches should use the renderer badge color as lowercase ``#rrggbb``."""
+def test_get_team_color_hex_formats_team_color(constructor, expected):
+    """Web swatches should use the team identity color as lowercase ``#rrggbb``."""
     assert renderer_text.get_team_color_hex(constructor) == expected
 
 
+def test_fit_team_driver_name_uses_largest_size_for_typical_name():
+    """A typical driver name should get the maximum 18px driver font."""
+    draw = ImageDraw.Draw(Image.new("RGB", (400, 60), "white"))
+
+    name, font = renderer_teams.fit_team_driver_name(draw, "George RUSSELL", max_width=230)
+
+    assert name == "George RUSSELL"
+    assert font.size == 18
+
+
+def test_fit_team_driver_name_shrinks_until_name_fits_width():
+    """A name that fits at 16px but not at 18px should shrink to 16px without ellipsis."""
+    draw = ImageDraw.Draw(Image.new("RGB", (400, 60), "white"))
+    name = "Nico HÜLKENBERG"
+    width_16 = draw.textbbox((0, 0), name, font=renderer_teams.load_brand_font(16, bold=True))[2]
+    width_18 = draw.textbbox((0, 0), name, font=renderer_teams.load_brand_font(18, bold=True))[2]
+    assert width_16 < width_18
+
+    fitted, font = renderer_teams.fit_team_driver_name(draw, name, max_width=int(width_16))
+
+    assert fitted == name
+    assert font.size == 16
+
+
+def test_team_driver_row_centres_fitted_name_in_driver_row():
+    """The fitted driver name should be vertically centred in its row via ``get_text_y``."""
+    draw = ImageDraw.Draw(Image.new("RGB", (400, 60), "white"))
+    for name in ("George RUSSELL", "Nico HÜLKENBERG", "Sergio PÉREZ"):
+        spy = MagicMock(wraps=draw)
+        driver = SimpleNamespace(
+            name=name, driver_number=None, points=0, position=None, driver_code=""
+        )
+        renderer_teams.draw_team_driver_row(
+            spy,
+            Image.new("RGB", (400, 60)),
+            driver,
+            driver_y=10,
+            driver_row_height=22,
+            photo_x=0,
+            photo_size=20,
+            pts_right_x=390,
+            driver_pos_x=320,
+            badge_pad_x=5,
+            small_font=renderer_teams.load_brand_font(12),
+            driver_name_padding=1,
+            draw_driver_photo_fn=MagicMock(),
+            get_text_y_fn=renderer_text.get_text_y,
+            format_team_driver_display_name_fn=lambda value: value,
+            format_points_fn=str,
+            right_align_x_fn=lambda *_args: 350,
+            text_fill="black",
+            badge_outline_fill="black",
+            badge_colors_fn=lambda _position: ("white", "black"),
+            lang_code="en",
+        )
+        name_call = next(call for call in spy.text.call_args_list if call.args[1] == name)
+        font = name_call.kwargs["font"]
+        assert "anchor" not in name_call.kwargs
+        assert name_call.args[0][1] == renderer_text.get_text_y(draw, font, 22, 10, name)
+
+
+def test_fit_team_driver_name_ellipsizes_overlong_name_within_slot():
+    """An overlong accented name should be ellipsized so its right edge stays in the slot."""
+    draw = ImageDraw.Draw(Image.new("RGB", (400, 60), "white"))
+    long_name = "Gabriel BORTOLETO ANÇÃ-ØSTERGÅRD"
+
+    name, font = renderer_teams.fit_team_driver_name(draw, long_name, max_width=180)
+
+    assert name != long_name
+    assert name.endswith("...")
+    assert font.size == renderer_teams.DRIVER_NAME_MIN_SIZE
+    assert draw.textbbox((0, 0), name, font=font)[2] <= 180
+
+
+def test_fit_team_driver_name_with_max_height_shrinks_to_fit_row_height():
+    """With ``max_height`` the driver font should shrink until the name fits the row height."""
+    draw = ImageDraw.Draw(Image.new("RGB", (400, 60), "white"))
+    name = "George RUSSELL"
+    bbox_14 = draw.textbbox((0, 0), name, font=renderer_teams.load_brand_font(14, bold=True))
+    max_height = int(bbox_14[3] - bbox_14[1])
+
+    fitted, font = renderer_teams.fit_team_driver_name(
+        draw, name, max_width=230, max_height=max_height
+    )
+
+    bbox = draw.textbbox((0, 0), fitted, font=font)
+    assert fitted == name
+    assert font.size < renderer_teams.DRIVER_NAME_MAX_SIZE
+    assert bbox[3] - bbox[1] <= max_height
+
+
+def test_fit_team_driver_name_with_max_height_ellipsizes_at_cjk_minimum_size():
+    """A name too wide at the CJK minimum size should be ellipsized within the slot."""
+    draw = ImageDraw.Draw(Image.new("RGB", (400, 60), "white"))
+    long_name = "Gabriel BORTOLETO ANÇÃ-ØSTERGÅRD"
+
+    name, font = renderer_teams.fit_team_driver_name(draw, long_name, max_width=100, max_height=100)
+
+    assert name != long_name
+    assert name.endswith("...")
+    assert font.size == renderer_teams.CJK_DRIVER_NAME_MIN_SIZE
+    assert draw.textbbox((0, 0), name, font=font)[2] <= 100
+
+
 @pytest.mark.parametrize(
-    ("renderer_cls", "team_key", "fill_name", "text_name"),
-    [
-        (Spectra6Renderer, "ferrari", "RED", "WHITE"),
-        (Spectra6Renderer, "mclaren", "YELLOW", "BLACK"),
-        (Spectra6Renderer, "mercedes", "BLUE", "WHITE"),
-        (Spectra6Renderer, "aston_martin", "GREEN", "WHITE"),
-        (Spectra6Renderer, "haas", "WHITE", "BLACK"),
-        (Spectra6Renderer, "cadillac", "BLACK", "WHITE"),
-        (BwrRenderer, "mclaren", "RED", "WHITE"),
-        (BwrRenderer, "mercedes", "WHITE", "BLACK"),
-        (BwrRenderer, "williams", "BLACK", "WHITE"),
-        (BwryRenderer, "mclaren", "YELLOW", "BLACK"),
-        (Renderer, "ferrari", "BLACK", "WHITE"),
-        (Renderer, "haas", "BLACK", "WHITE"),
-    ],
+    ("lang_code", "expected_max_height"), [("ja", 21), ("zh-CN", 21), ("en", None)]
 )
-def test_team_badge_colors_use_nearest_palette_fill_with_contrast(
-    renderer_cls, team_key, fill_name, text_name
+def test_team_driver_row_limits_name_height_only_for_cjk(
+    monkeypatch, lang_code, expected_max_height
 ):
-    """Badge fills should snap to the nearest display color with readable text."""
-    colors = renderer_cls.THEME.colors
-    identity = renderer_text.TEAM_IDENTITIES[team_key][1]
-
-    assert renderer_cls.THEME.team_badge_colors(identity) == (
-        getattr(colors, fill_name),
-        getattr(colors, text_name),
+    """CJK locales should fit the driver name to the row height; others only to the width."""
+    draw = ImageDraw.Draw(Image.new("RGB", (400, 60), "white"))
+    fit_spy = MagicMock(wraps=renderer_teams.fit_team_driver_name)
+    monkeypatch.setattr(renderer_teams, "fit_team_driver_name", fit_spy)
+    driver = SimpleNamespace(
+        name="George RUSSELL", driver_number=None, points=0, position=None, driver_code=""
     )
 
-
-@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer, BwrRenderer, BwryRenderer])
-def test_team_badge_colors_are_neutral_for_unknown_teams(renderer_cls):
-    """Teams without an identity color should get a black badge with white text."""
-    colors = renderer_cls.THEME.colors
-
-    assert renderer_cls.THEME.team_badge_colors(None) == (colors.BLACK, colors.WHITE)
-
-
-def test_nearest_palette_color_picks_closest_entry():
-    """Nearest-color lookup should pick the palette entry with the smallest RGB distance."""
-    assert renderer_theme.nearest_palette_color((250, 10, 10), BwrColors.PALETTE) == BwrColors.RED
-    assert (
-        renderer_theme.nearest_palette_color((240, 200, 20), Spectra6Colors.PALETTE)
-        == Spectra6Colors.YELLOW
+    renderer_teams.draw_team_driver_row(
+        draw,
+        Image.new("RGB", (400, 60)),
+        driver,
+        driver_y=10,
+        driver_row_height=22,
+        photo_x=0,
+        photo_size=20,
+        pts_right_x=390,
+        driver_pos_x=320,
+        badge_pad_x=5,
+        small_font=renderer_teams.load_brand_font(12),
+        driver_name_padding=1,
+        draw_driver_photo_fn=MagicMock(),
+        get_text_y_fn=renderer_text.get_text_y,
+        format_team_driver_display_name_fn=lambda value: value,
+        format_points_fn=str,
+        right_align_x_fn=lambda *_args: 350,
+        text_fill="black",
+        badge_outline_fill="black",
+        badge_colors_fn=lambda _position: ("white", "black"),
+        lang_code=lang_code,
     )
 
+    fit_spy.assert_called_once()
+    assert fit_spy.call_args.kwargs["max_width"] == 320 - 8 - (0 + 20 + 1 + 4)
+    assert fit_spy.call_args.kwargs["max_height"] == expected_max_height
 
-def _draw_badge(image, renderer_cls, constructor, *, container_right=196):
-    """Draw a team badge into a fixed test slot using the renderer's theme."""
-    renderer_teams.draw_team_badge(
-        ImageDraw.Draw(image),
-        SimpleNamespace(constructor_name=constructor, entrant=""),
-        driver_area_y=0,
-        driver_area_h=35,
-        container_left=100,
-        container_right=container_right,
-        badge_colors_fn=renderer_cls.THEME.team_badge_colors,
-        outline_fill=renderer_cls.THEME.team_outline_fill,
+
+@pytest.mark.parametrize("renderer_cls", [Renderer, BwrRenderer, BwryRenderer, Spectra6Renderer])
+def test_render_teams_drivers_succeeds_without_team_badges(renderer_cls):
+    """Every display should render the teams screen without any team badge helper."""
+    teams_data = TeamsData(
+        season=2026,
+        teams=[
+            TeamEntry(
+                constructor_name="Ferrari",
+                chassis="SF-26",
+                power_unit="Ferrari 067/6",
+                position=1,
+                points=27.0,
+                drivers=[
+                    TeamDriverEntry(name="Charles Leclerc", driver_number=16, position=2),
+                    TeamDriverEntry(name="Lewis Hamilton", driver_number=44, position=5),
+                ],
+            )
+        ],
     )
 
+    bmp_data = renderer_cls(get_translator("en")).render_teams_drivers(teams_data)
 
-@pytest.mark.parametrize("constructor", ["Ferrari", "Andretti Global"])
-def test_monochrome_team_badge_is_black_with_crisp_white_text(constructor):
-    """1-bit badges should be black plates with white text and only pure black/white pixels."""
-    image = Image.new("1", (220, 40), 1)
-
-    _draw_badge(image, Renderer, constructor)
-
-    badge = image.convert("L").crop((112, 2, 184, 32))
-    counts = {value: count for count, value in badge.getcolors()}
-    assert set(counts) == {0, 255}
-    assert counts[0] > counts[255]
-    assert image.getpixel((113, 17)) == 0
+    assert not hasattr(renderer_teams, "draw_team_badge")
+    assert Image.open(BytesIO(bmp_data)).size == (800, 480)
 
 
-@pytest.mark.parametrize(
-    ("renderer_cls", "constructor", "fill"),
-    [
-        (Spectra6Renderer, "Ferrari", Spectra6Colors.RED),
-        (Spectra6Renderer, "Mercedes", Spectra6Colors.BLUE),
-        (Spectra6Renderer, "Andretti Global", Spectra6Colors.BLACK),
-        (BwrRenderer, "Ferrari", BwrColors.RED),
-        (BwryRenderer, "McLaren", BwryColors.YELLOW),
-    ],
-)
-def test_color_team_badge_fills_slot_with_palette_color(renderer_cls, constructor, fill):
-    """Color badges should use the mapped palette fill inside a themed outline."""
-    image = Image.new("RGB", (220, 40), (255, 255, 255))
-
-    _draw_badge(image, renderer_cls, constructor)
-
-    assert image.getpixel((113, 17)) == fill
-    assert image.getpixel((112, 17)) == renderer_cls.THEME.team_outline_fill
+# Badge abbreviations from the removed TEAM_IDENTITIES / get_team_badge on origin/main.
+TEAM_BADGE_ABBREVIATIONS = {
+    "ALP",
+    "AST",
+    "AUD",
+    "CAD",
+    "FER",
+    "HAA",
+    "MCL",
+    "MER",
+    "RB",
+    "RBR",
+    "SAU",
+    "WIL",
+}
 
 
-def test_team_badge_skips_empty_slot_or_name():
-    """No badge should be drawn for a zero-width slot or an empty team name."""
-    image = Image.new("1", (220, 40), 1)
+@pytest.mark.parametrize("renderer_cls", [Renderer, Spectra6Renderer])
+@pytest.mark.parametrize("lang_code", ["en", "ja"])
+def test_render_full_2026_teams_screen_draws_no_badges(monkeypatch, renderer_cls, lang_code):
+    """The full 2026 teams screen draws no team abbreviation badges.
 
-    _draw_badge(image, Renderer, "Ferrari", container_right=100)
-    _draw_badge(image, Renderer, "")
+    Every ``ImageDraw.text`` call is recorded. No recorded string may be a former
+    team abbreviation badge, and every driver name (identified by the text/font
+    pair returned from ``fit_team_driver_name``) must end left of its card's
+    position column, i.e. before ``x_end - 72 - 8``.
+    """
+    teams_data = TeamsService()._load_from_json(2026)
+    assert teams_data is not None and teams_data.teams
 
-    assert image.convert("L").getextrema() == (255, 255)
+    drawn = []
+    original_text = ImageDraw.ImageDraw.text
+
+    def spy_text(self, xy, text, *args, **kwargs):
+        drawn.append((self, xy, text, kwargs.get("font")))
+        return original_text(self, xy, text, *args, **kwargs)
+
+    fitted_names = []
+    original_fit = renderer_teams.fit_team_driver_name
+
+    def spy_fit(*args, **kwargs):
+        result = original_fit(*args, **kwargs)
+        fitted_names.append(result)
+        return result
+
+    monkeypatch.setattr(ImageDraw.ImageDraw, "text", spy_text)
+    monkeypatch.setattr(renderer_teams, "fit_team_driver_name", spy_fit)
+
+    renderer_cls(get_translator(lang_code)).render_teams_drivers(teams_data)
+
+    drawn_strings = {str(text).strip() for _draw, _xy, text, _font in drawn}
+    assert not drawn_strings & TEAM_BADGE_ABBREVIATIONS
+
+    driver_texts = [
+        (draw, xy, text, font)
+        for draw, xy, text, font in drawn
+        if any(text == name and font is name_font for name, name_font in fitted_names)
+    ]
+    assert len(driver_texts) == len(fitted_names) > 0
+
+    for draw, xy, text, font in driver_texts:
+        width = draw.im.size[0]
+        x_end = width // 2 - 2 if xy[0] < width // 2 else width - 5
+        right_edge = draw.textbbox(xy, text, font=font)[2]
+        assert right_edge <= x_end - 72 - 8, (text, xy, right_edge)

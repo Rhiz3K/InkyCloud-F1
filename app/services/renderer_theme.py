@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeAlias
@@ -12,29 +12,6 @@ from PIL import Image
 RGB: TypeAlias = tuple[int, int, int]
 Fill: TypeAlias = int | RGB
 TrackPreparer: TypeAlias = Callable[[Image.Image, int, int, Any], Image.Image]
-
-
-def nearest_palette_color(color: RGB, palette: Sequence[RGB]) -> RGB:
-    """Return the palette entry closest to ``color`` by squared RGB distance."""
-    return min(
-        palette,
-        key=lambda entry: sum((a - b) ** 2 for a, b in zip(entry, color, strict=True)),
-    )
-
-
-def team_badge_palette_colors(
-    identity: RGB | None,
-    palette: Sequence[RGB],
-    *,
-    black: RGB,
-    white: RGB,
-) -> tuple[RGB, RGB]:
-    """Map a team identity color to a palette fill and a contrasting black/white text fill."""
-    if identity is None:
-        return black, white
-    fill = nearest_palette_color(identity, palette)
-    luminance = 0.299 * fill[0] + 0.587 * fill[1] + 0.114 * fill[2]
-    return fill, black if luminance > 150 else white
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +44,6 @@ class RenderTheme:
     team_position_fill: Callable[[int | None], Fill]
     team_points_fill: Fill
     driver_badge_colors: Callable[[int | None], tuple[Fill, Fill]]
-    team_badge_colors: Callable[[RGB | None], tuple[Fill, Fill]]
     driver_number_fill: Fill
     driver_resample: Image.Resampling
     session_fills: tuple[tuple[str, Fill], ...]
@@ -118,7 +94,6 @@ def make_monochrome_theme(
         driver_badge_colors=lambda position: (
             (colors.BLACK, colors.WHITE) if position in {2, 3} else (colors.WHITE, colors.BLACK)
         ),
-        team_badge_colors=lambda _identity: (colors.BLACK, colors.WHITE),
         driver_number_fill=colors.BLACK,
         driver_resample=Image.Resampling.NEAREST,
         session_fills=(
@@ -185,9 +160,6 @@ def make_color_theme(
             else (black, white)
             if position in {2, 3}
             else (white, black)
-        ),
-        team_badge_colors=lambda identity: team_badge_palette_colors(
-            identity, colors.PALETTE, black=black, white=white
         ),
         driver_number_fill=black,
         driver_resample=Image.Resampling.LANCZOS,
