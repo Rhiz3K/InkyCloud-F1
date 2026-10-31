@@ -34,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   builds the Dockerfile from Git `main`, every merge to `main` deploys, releases go through a
   "Release vX.Y.Z" PR; the GHCR image is documented as an optional self-hosting artifact.
 
+### Fixed
+
+- Keep teams screen position badges inside their driver rows with a blank row between
+  positions, and vertically centre badge and plain position glyphs consistently.
+
 ### Removed
 
 - Remove the optional Umami integration (server-side hourly summaries), its
