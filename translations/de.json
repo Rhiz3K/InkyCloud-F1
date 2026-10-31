@@ -78,8 +78,10 @@
   "api_docs_json_api": "JSON-API",
   "api_docs_back_to_app": "Zurück zur App",
   "api_docs_teams_desc": "Erzeugen Sie ein BMP-Bild mit allen F1-Teams inklusive Fahrern, Fotos und Meisterschaftspunkten in den Ausgabemodi 1bit, B/W/R, B/W/R/Y oder Spectra 6.",
+  "api_docs_teams_credits": "Bildnachweise und Lizenzen (Streckengrafiken CC BY 4.0, Open-Meteo-Wetterdaten CC BY 4.0): siehe Credits. Antworten enthalten außerdem einen Link-Header mit rel=\"license\".",
   "api_docs_display_desc": "Ausgabemodus des Displays",
   "api_docs_teams_year_desc": "Saisonjahr für Teamdaten",
+  "api_docs_teams_extra_desc": "Optionales Panel: none (Standard), timeline, countdown, weather, flags, combo, track. Verwendet lokale Saisondaten und zwischengespeichertes Wetter; nicht verfügbare Panels werden ausgeblendet.",
   "api_docs_teams_json_desc": "Alle Teams mit Fahrern und Punkten für eine Saison abrufen (JSON)",
   "api_docs_standings_leader_desc": "Aktuelle Meisterschaftsführende abrufen (Fahrer und Konstrukteur)",
   "nav_home": "Start",
@@ -189,6 +191,31 @@
     "weatherRaceDayLabel": "Am Renntag",
     "weatherTooltipText": "Aktiviert sich 14 Tage vor dem Rennen",
     "displayLabel": "Display",
+    "imageCreditsNote": "Bildnachweise und Lizenzen:",
+    "teamsExtra": {
+      "label": "Panel im freien Platz",
+      "options": {
+        "none": "Keins",
+        "timeline": "Zeitleiste",
+        "countdown": "Countdown",
+        "weather": "Wetter",
+        "flags": "Flaggen",
+        "combo": "Kombi",
+        "track": "Strecke"
+      },
+      "hints": {
+        "none": "Der freie Platz bleibt leer.",
+        "timeline": "Saisonverlauf mit vergangenen und kommenden Rennen.",
+        "countdown": "Tage bis zum nächsten Rennwochenende.",
+        "weather": "Gespeicherte Vorhersage für den nächsten Rennort.",
+        "flags": "Flaggen der kommenden Rennländer.",
+        "combo": "Countdown und nächste Rennen zusammen.",
+        "track": "Umriss der nächsten Rennstrecke."
+      },
+      "weatherNote": "Wetterdaten von Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "Streckengrafik CC BY 4.0, siehe",
+      "creditsLink": "Quellen und Lizenzen"
+    },
     "searchPlaceholder": "SUCHEN...",
     "noResults": "Keine Ergebnisse",
     "detectedLabel": "ERKANNT",
@@ -320,7 +347,7 @@
     "licences": "Jules Roy (ROY Jules): CC BY 4.0. Urheber und Lizenzen von Commons sind pro Datei angegeben. Grafik- und Codelizenzen sind getrennt; unsere Bearbeitungen von CC0-Konturen stehen unter CC BY 4.0.",
     "dataTitle": "Daten und weitere Quellen",
     "raceChange": "Auswahl, Formatierung und Zeitzonenumrechnung.",
-    "weatherChange": "Ausgewählte Felder und Rundung.",
+    "weatherChange": "Felder ausgewählt, Werte gerundet und verändert; auch im Wetter-Panel der Teamansicht angezeigt.",
     "wikiChange": "Ausgewählte Tabellenzellen, normalisiertes JSON und Korrekturen. Die ursprüngliche Importversion wurde nicht erfasst.",
     "flags": "Gemeinfreie Flaggen; skaliert und umgefärbt.",
     "hosting": "selbst gehostete Plattform, auf der dieser Dienst betrieben und bereitgestellt wird.",
@@ -330,7 +357,7 @@
     "original": "Originaldatei",
     "underlying": "Ursprüngliche Quelle",
     "adapted": "Bearbeitete Grafik",
-    "adaptation": "Ausgewählte Kontur, von InkyCloud transformiert, gedreht, umgefärbt und verziert. Höhe und Farbabschnitte sind dekorativ.",
+    "adaptation": "Ausgewählte Kontur, von InkyCloud transformiert, gedreht, umgefärbt und verziert. Höhe und Farbabschnitte sind dekorativ. Für E-Ink in 1 Bit oder eine begrenzte Farbpalette umgewandelt, zugeschnitten und verkleinert.",
     "metadata": "Metadaten und Prüfsumme des Originals",
     "licenceText": "Lizenztext",
     "dataLicences": "Datenlizenzen",
@@ -348,5 +375,13 @@
     "circuitWikiIntro": "Streckenlänge und Rundenrekord stammen aus der Infobox dieser Versionen englischer Wikipedia-Artikel:",
     "circuitWikiChange": "Angaben aus der Infobox übernommen, Einheiten umgerechnet."
   },
-  "privacy_off": "Nutzungs- und Browserleistungsmessung sind in dieser Bereitstellung deaktiviert."
+  "privacy_off": "Nutzungs- und Browserleistungsmessung sind in dieser Bereitstellung deaktiviert.",
+  "teams_extra_next": "Nächstes Rennen",
+  "teams_extra_season": "Saison",
+  "teams_extra_round": "Runde",
+  "teams_extra_remaining": "verbleibend",
+  "teams_extra_done": "absolviert",
+  "teams_extra_upcoming": "Kommende Rennen",
+  "teams_extra_today": "heute",
+  "teams_extra_weather_credit": "Open-Meteo"
 }

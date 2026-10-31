@@ -1278,7 +1278,7 @@
       "provenance_note": "Original project text layout with Titillium Web (SIL OFL 1.1)."
     },
     "js/common.js": {
-      "sha256": "a116e9a1329ef9a0266a9ced1dec6e5257ae2d3ed37b08e5d857e4596ba4c791",
+      "sha256": "f475d9cf5b4c96b90dc85091498184489209ae3da87ee24ee2ed1571694d4b86",
       "license": "MIT",
       "author": "InkyCloud contributors",
       "source": "https://github.com/Rhiz3K/InkyCloud-F1",
@@ -1299,11 +1299,11 @@
       "reviewed_on": "2026-09-09"
     },
     "licenses/DATA_LICENSES.txt": {
-      "sha256": "3204015627e9360b69a4619df5d363bca4755a0db15ce5ba9b5980b48d5800cc",
+      "sha256": "b716196c215392bba30ac1081bff78d32742c1f2be44f449223922bfd491c776",
       "license": "Third-party notices; see file",
       "author": "Original authors named in each notice",
       "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
-      "reviewed_on": "2026-09-15"
+      "reviewed_on": "2026-10-31"
     },
     "licenses/InkyCloud-MIT.txt": {
       "sha256": "95dd815d873a58f559a363720a51a5788cf27fb0d2626fb8ba953c2dd8ed7f78",

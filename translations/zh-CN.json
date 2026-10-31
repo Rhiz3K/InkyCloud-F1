@@ -78,8 +78,10 @@
   "api_docs_json_api": "JSON API",
   "api_docs_back_to_app": "返回应用",
   "api_docs_teams_desc": "生成 BMP 图片，以 1bit、B/W/R、B/W/R/Y 或 Spectra 6 输出模式显示所有 F1 车队、车手、照片和积分。",
+  "api_docs_teams_credits": "图片署名与许可（赛道图稿 CC BY 4.0，Open-Meteo 天气数据 CC BY 4.0）：参见 Credits。响应还包含带 rel=\"license\" 的 Link 标头。",
   "api_docs_display_desc": "显示输出模式",
   "api_docs_teams_year_desc": "车队数据的赛季年份",
+  "api_docs_teams_extra_desc": "可选面板：none（默认）、timeline、countdown、weather、flags、combo、track。仅使用本地赛季数据和缓存天气；不可用时不显示面板。",
   "api_docs_teams_json_desc": "获取某赛季所有车队及车手和积分（JSON）",
   "api_docs_standings_leader_desc": "获取当前锦标赛领先者（车手和车队）",
   "nav_home": "首页",
@@ -189,6 +191,31 @@
     "weatherRaceDayLabel": "比赛日",
     "weatherTooltipText": "比赛前 14 天启用",
     "displayLabel": "显示",
+    "imageCreditsNote": "图片署名与许可：",
+    "teamsExtra": {
+      "label": "空位面板",
+      "options": {
+        "none": "无",
+        "timeline": "时间线",
+        "countdown": "倒计时",
+        "weather": "天气",
+        "flags": "国旗",
+        "combo": "组合",
+        "track": "赛道"
+      },
+      "hints": {
+        "none": "空位保持空白。",
+        "timeline": "显示已完成和即将进行的分站的赛季进度。",
+        "countdown": "距下一个比赛周末的天数。",
+        "weather": "下一站比赛地点的缓存天气预报。",
+        "flags": "即将举行比赛的国家国旗。",
+        "combo": "倒计时与接下来的比赛合并显示。",
+        "track": "下一站赛道的轮廓。"
+      },
+      "weatherNote": "天气数据来自 Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "赛道图形 CC BY 4.0，详见",
+      "creditsLink": "致谢"
+    },
     "searchPlaceholder": "搜索...",
     "noResults": "无结果",
     "detectedLabel": "已检测",
@@ -320,7 +347,7 @@
     "licences": "Jules Roy（ROY Jules）的素材采用 CC BY 4.0。Commons 的作者与许可逐文件列出。图像许可与代码许可独立；我们基于 CC0 轮廓创作的改编图像采用 CC BY 4.0。",
     "dataTitle": "数据与其他来源",
     "raceChange": "选择、格式化和时区转换。",
-    "weatherChange": "字段选择和数值取整。",
+    "weatherChange": "已选择字段，并对数值进行取整和修改；同时显示在车队页面的天气面板中。",
     "wikiChange": "选取表格单元格、规范化 JSON 并修正。未记录原始导入版本。",
     "flags": "公有领域国旗；调整尺寸和颜色。",
     "hosting": "用于托管和部署本服务的自托管平台。",
@@ -330,7 +357,7 @@
     "original": "原始文件",
     "underlying": "基础来源",
     "adapted": "改编图像",
-    "adaptation": "InkyCloud 选取轮廓并进行变换、旋转、配色和装饰。高度与色彩分区仅为装饰。",
+    "adaptation": "InkyCloud 选取轮廓并进行变换、旋转、配色和装饰。高度与色彩分区仅为装饰。为适配电子墨水屏，已转换为 1 位或有限调色板，并经过裁剪和缩小。",
     "metadata": "元数据与原文件校验和",
     "licenceText": "许可全文",
     "dataLicences": "数据许可",
@@ -348,5 +375,13 @@
     "circuitWikiIntro": "赛道长度和单圈纪录取自以下英文 Wikipedia 条目修订版本的信息框：",
     "circuitWikiChange": "数据摘自信息框，单位已换算。"
   },
-  "privacy_off": "本部署已关闭使用情况和浏览器性能收集。"
+  "privacy_off": "本部署已关闭使用情况和浏览器性能收集。",
+  "teams_extra_next": "下一站",
+  "teams_extra_season": "赛季",
+  "teams_extra_round": "轮次",
+  "teams_extra_remaining": "剩余",
+  "teams_extra_done": "已完成",
+  "teams_extra_upcoming": "即将举行的比赛",
+  "teams_extra_today": "今天",
+  "teams_extra_weather_credit": "Open-Meteo"
 }

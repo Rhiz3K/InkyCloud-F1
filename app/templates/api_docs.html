@@ -462,6 +462,10 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         teams with their drivers, photos, and championship points in 1bit,
         B/W/R, B/W/R/Y, or Spectra 6 output modes.") }}
       </p>
+      {% set teams_credits = t.get("api_docs_teams_credits", "Image attribution and licences (track artwork CC BY 4.0, Open-Meteo weather CC BY 4.0): see Credits. Responses also carry a Link header with rel=\"license\".").partition("Credits") %}
+      <p class="text-sm mb-4">
+        {{ teams_credits[0] }}{% if teams_credits[1] %}<a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}">Credits</a>{{ teams_credits[2] }}{% else %} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}">Credits</a>{% endif %}
+      </p>
 
       <!-- Parameters -->
       <h3
@@ -529,6 +533,11 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                   <code class="bg-gray-100 px-1">1bit</code>)</span
                 >
               </td>
+            </tr>
+            <tr>
+              <td class="px-3 py-2 font-mono text-racing-red font-bold">extra</td>
+              <td class="px-3 py-2">string</td>
+              <td class="px-3 py-2">{{ t.get("api_docs_teams_extra_desc", "Optional teams panel: none (default), timeline, countdown, weather, flags, combo, track.") }}</td>
             </tr>
           </tbody>
         </table>
@@ -773,7 +782,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         <div class="border-2 border-black p-4">
           <p class="font-mono mb-2">GET /preview/{screen_type}.png</p>
           <p class="font-mono mb-2">GET /preview/configure/{screen_type}.png</p>
-          <p class="text-sm">{{ t.get("api_docs_preview_desc", "PNG previews for calendar or teams; lang selects the language. Configure previews also accept display and calendar weather_type (default off).") }}</p>
+          <p class="text-sm">{{ t.get("api_docs_preview_desc", "PNG previews for calendar or teams; lang selects the language. Configure previews also accept display and calendar weather_type (default off). Teams configure previews also accept extra (default none).") }}</p>
+          <p><code>extra</code> — {{ t.get("api_docs_teams_extra_desc") }}</p>
           <p class="text-xs mt-2"><code>track_style</code>, <code>track_source</code>, <code>track_accent</code> — {{ track_ui.styleLabel }}, {{ track_ui.sourceLabel }}, {{ track_ui.accentLabel }} (<code>calendar</code>).</p>
         </div>
 

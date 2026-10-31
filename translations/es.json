@@ -78,8 +78,10 @@
   "api_docs_json_api": "API JSON",
   "api_docs_back_to_app": "Volver a la app",
   "api_docs_teams_desc": "Genera una imagen BMP con todos los equipos de F1, sus pilotos, fotos y puntos del campeonato en modos de salida 1bit, B/W/R, B/W/R/Y o Spectra 6.",
+  "api_docs_teams_credits": "Atribución y licencias de la imagen (ilustraciones de circuitos CC BY 4.0, meteorología de Open-Meteo CC BY 4.0): consulta Credits. Las respuestas también incluyen una cabecera Link con rel=\"license\".",
   "api_docs_display_desc": "Modo de salida de la pantalla",
   "api_docs_teams_year_desc": "Año de temporada para los datos de equipos",
+  "api_docs_teams_extra_desc": "Panel opcional: none (predeterminado), timeline, countdown, weather, flags, combo, track. Usa datos locales de la temporada y el tiempo en caché; los paneles no disponibles se omiten.",
   "api_docs_teams_json_desc": "Obtener todos los equipos con pilotos y puntos de una temporada (JSON)",
   "api_docs_standings_leader_desc": "Obtener los líderes actuales del campeonato (piloto y constructor)",
   "nav_home": "Inicio",
@@ -189,6 +191,31 @@
     "weatherRaceDayLabel": "Día de carrera",
     "weatherTooltipText": "Se activa 14 días antes de la carrera",
     "displayLabel": "Pantalla",
+    "imageCreditsNote": "Atribución y licencias de la imagen:",
+    "teamsExtra": {
+      "label": "Panel en el hueco libre",
+      "options": {
+        "none": "Ninguno",
+        "timeline": "Cronología",
+        "countdown": "Cuenta atrás",
+        "weather": "Tiempo",
+        "flags": "Banderas",
+        "combo": "Combinado",
+        "track": "Circuito"
+      },
+      "hints": {
+        "none": "El hueco libre queda vacío.",
+        "timeline": "Progreso de la temporada con carreras pasadas y próximas.",
+        "countdown": "Días hasta el próximo fin de semana de carrera.",
+        "weather": "Pronóstico guardado para la sede de la próxima carrera.",
+        "flags": "Banderas de los países de las próximas carreras.",
+        "combo": "Cuenta atrás y próximas carreras juntas.",
+        "track": "Contorno del circuito de la próxima carrera."
+      },
+      "weatherNote": "Datos meteorológicos de Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "Gráficos de circuitos CC BY 4.0, ver",
+      "creditsLink": "Créditos"
+    },
     "searchPlaceholder": "BUSCAR...",
     "noResults": "Sin resultados",
     "detectedLabel": "DETECTADO",
@@ -320,7 +347,7 @@
     "licences": "Jules Roy (ROY Jules): CC BY 4.0. Los autores y licencias de Commons se indican por archivo. Las licencias del arte y del código son independientes; nuestras adaptaciones de contornos CC0 usan CC BY 4.0.",
     "dataTitle": "Datos y otras fuentes",
     "raceChange": "Selección, formato y conversión de zona horaria.",
-    "weatherChange": "Selección de campos y redondeo.",
+    "weatherChange": "Campos seleccionados, valores redondeados y modificados; también se muestran en el panel Tiempo de la pantalla de equipos.",
     "wikiChange": "Celdas seleccionadas, JSON normalizado y correcciones. No se registró la revisión original de importación.",
     "flags": "Banderas de dominio público; redimensionadas y recoloreadas.",
     "hosting": "plataforma autoalojada en la que se aloja y despliega este servicio.",
@@ -330,7 +357,7 @@
     "original": "Archivo original",
     "underlying": "Fuente original",
     "adapted": "Obra adaptada",
-    "adaptation": "Contorno seleccionado, transformado, girado, recoloreado y decorado por InkyCloud. La altura y las divisiones son decorativas.",
+    "adaptation": "Contorno seleccionado, transformado, girado, recoloreado y decorado por InkyCloud. La altura y las divisiones son decorativas. Para e-ink convertido a 1 bit o a una paleta de colores limitada, recortado y reducido.",
     "metadata": "Metadatos y suma de comprobación original",
     "licenceText": "Texto de la licencia",
     "dataLicences": "Licencias de datos",
@@ -348,5 +375,13 @@
     "circuitWikiIntro": "La longitud del circuito y el récord de vuelta proceden de la ficha de estas revisiones de artículos de la Wikipedia en inglés:",
     "circuitWikiChange": "Datos extraídos de la ficha, unidades convertidas."
   },
-  "privacy_off": "La recopilación de uso y rendimiento del navegador está desactivada en este despliegue."
+  "privacy_off": "La recopilación de uso y rendimiento del navegador está desactivada en este despliegue.",
+  "teams_extra_next": "Siguiente",
+  "teams_extra_season": "Temporada",
+  "teams_extra_round": "Ronda",
+  "teams_extra_remaining": "restantes",
+  "teams_extra_done": "completadas",
+  "teams_extra_upcoming": "Próximas carreras",
+  "teams_extra_today": "hoy",
+  "teams_extra_weather_credit": "Open-Meteo"
 }

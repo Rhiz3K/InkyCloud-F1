@@ -163,7 +163,7 @@ Your deployed instance provides these endpoints:
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
 | `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `tz`, `track_style`, `track_source`, and `track_accent` params |
-| `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`) |
+| `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`, `extra`); attribution/licences at `/credits` (`Link rel="license"` header) |
 | `GET /`                                  | Landing page with screen type selection                 |
 | `GET /configure/{screen}`                | Interactive localized preview/config page (calendar/teams) |
 | `GET /stats`                             | Public usage statistics dashboard                       |

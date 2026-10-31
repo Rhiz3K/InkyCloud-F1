@@ -18,7 +18,11 @@ from app.services.font_utils import (
     load_weather_icon_font,
 )
 from app.services.renderer_assets import ASSET_CACHE_LOCK
+from app.services.renderer_teams import teams_extra_slot
+from app.services.renderer_teams_extras import draw_teams_extra
+from app.services.renderer_text import split_teams_for_columns
 from app.services.renderer_theme import RenderTheme
+from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.weather_service import WeatherData
 
@@ -151,13 +155,34 @@ class RendererCore(ABC):
         self._draw_results_section(draw, image, race_data, historical_data)
         return self._encode_image(image)
 
-    def render_teams_drivers(self, teams_data: TeamsData) -> bytes:
+    def render_teams_drivers(
+        self,
+        teams_data: TeamsData,
+        extra: TeamsExtra = TeamsExtra.NONE,
+        extra_context: TeamsExtraContext | None = None,
+    ) -> bytes:
         """Render a teams dashboard using the same themed adapter set."""
         self._ensure_teams_assets()
         image = self._new_canvas()
         draw = ImageDraw.Draw(image)
         self._draw_teams_header(draw, image, teams_data.season)
         self._draw_teams_content(image, draw, teams_data.teams)
+        left, right = split_teams_for_columns(teams_data.teams)
+        if extra != TeamsExtra.NONE and extra_context is not None and len(right) < len(left):
+            box = teams_extra_slot(self.width, self.height, self.layout["header_height"], len(left))
+            panel = image.crop(box)
+            display = {2: "1bit", 3: "bwr", 4: "bwry", 6: "spectra6"}[len(self.colors.PALETTE)]
+            draw_teams_extra(
+                panel,
+                ImageDraw.Draw(panel),
+                self.theme,
+                extra_context,
+                extra,
+                display=display,
+                translator=self.translator,
+                lang=self.lang_code,
+            )
+            image.paste(panel, box[:2])
         return self._encode_image(image)
 
     def render_error(self, error_message: str) -> bytes:

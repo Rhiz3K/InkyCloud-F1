@@ -385,3 +385,86 @@ for (const overrides of [{MINIMAL_DATA_MODE: true}, {PERF_SAMPLE_RATE: 0}, {PERF
         assert.equal(posts.length, 0);
     });
 }
+
+// Loads configure.html's teams URL builders into a sandbox with the given state.
+function teamsUrlContext(state = {}) {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const replaced = [];
+    const buttons = ["none", "weather", "track"].map((extra) => {
+        const classes = new Set(extra === "none" ? ["bg-black", "text-white"] : ["bg-white"]);
+        return {
+            dataset: {extra, hint: `hint-${extra}`}, attrs: {},
+            setAttribute(name, value) {this.attrs[name] = value;},
+            classList: {toggle(name, on) {if (on) classes.add(name); else classes.delete(name);}, has: (name) => classes.has(name)},
+        };
+    });
+    const notes = {".teams-extra-hint": [{textContent: ""}]};
+    for (const selector of [".teams-extra-note-weather", ".teams-extra-note-track"]) {
+        const classes = new Set(["hidden"]);
+        notes[selector] = [{classList: {toggle(name, on) {if (on) classes.add(name); else classes.delete(name);}, has: (name) => classes.has(name)}}];
+    }
+    const ctx = vm.createContext({
+        URL,
+        window: {location: {origin: "https://racing.example.org", href: "https://racing.example.org/configure/teams"},
+            history: {replaceState(_s, _t, url) {replaced.push(String(url)); ctx.window.location.href = String(url);}}},
+        document: {
+            getElementById() {return null;},
+            querySelectorAll(selector) {return selector === ".teams-extra-btn, .teams-extra-btn-mobile" ? buttons : notes[selector] || [];},
+        },
+        updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
+        TEAMS_EXTRA_OPTIONS: ["none", "timeline", "countdown", "weather", "flags", "combo", "track"],
+        currentScreenType: "teams", currentUiLang: "en", currentDisplayType: "1bit",
+        currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none", ...state,
+    });
+    for (const name of ["getCurrentSeason", "getApiUrl", "canUsePrerenderedPreview", "getPreviewUrl", "setTeamsExtra"]) {
+        vm.runInContext(templateFunction(template, name), ctx);
+    }
+    return {ctx, replaced, buttons, notes};
+}
+
+test("teams URLs stay byte-identical when the extra panel is none", () => {
+    const {ctx} = teamsUrlContext();
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?year=2026");
+    assert.equal(ctx.canUsePrerenderedPreview(), true);
+    assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/preview/configure/teams.png");
+    ctx.currentUiLang = "cs";
+    ctx.currentDisplayType = "bwr";
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?lang=cs&year=2026&display=bwr");
+    assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/preview/configure/teams.png?lang=cs&display=bwr");
+});
+
+for (const extra of ["timeline", "countdown", "weather", "flags", "combo", "track"]) {
+    test(`teams extra=${extra} is in the API URL and forces the live preview`, () => {
+        const {ctx} = teamsUrlContext({currentTeamsExtra: extra, currentDisplayType: "spectra6"});
+        const api = `https://racing.example.org/teams.bmp?year=2026&display=spectra6&extra=${extra}`;
+        assert.equal(ctx.getApiUrl(), api);
+        assert.equal(ctx.canUsePrerenderedPreview(), false);
+        assert.equal(ctx.getPreviewUrl(), api);
+    });
+}
+
+test("setTeamsExtra updates state, buttons, notes and the page URL", () => {
+    const {ctx, replaced, buttons, notes} = teamsUrlContext();
+    ctx.setTeamsExtra("weather");
+    assert.equal(ctx.currentTeamsExtra, "weather");
+    assert.equal(ctx.previewUpdates, 1);
+    assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?extra=weather"]);
+    assert.deepEqual(buttons.map((b) => b.attrs["aria-pressed"]), ["false", "true", "false"]);
+    assert.equal(buttons[1].classList.has("bg-black"), true);
+    assert.equal(buttons[0].classList.has("bg-black"), false);
+    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-weather");
+    assert.equal(notes[".teams-extra-note-weather"][0].classList.has("hidden"), false);
+    assert.equal(notes[".teams-extra-note-track"][0].classList.has("hidden"), true);
+    assert.match(ctx.getApiUrl(), /&extra=weather$/);
+
+    ctx.setTeamsExtra("bogus");
+    assert.equal(ctx.currentTeamsExtra, "none");
+    assert.equal(replaced.at(-1), "https://racing.example.org/configure/teams");
+    assert.equal(notes[".teams-extra-note-weather"][0].classList.has("hidden"), true);
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?year=2026");
+
+    ctx.setTeamsExtra("track", false);
+    assert.equal(ctx.previewUpdates, 2);
+    assert.equal(replaced.length, 2);
+    assert.equal(notes[".teams-extra-note-track"][0].classList.has("hidden"), false);
+});

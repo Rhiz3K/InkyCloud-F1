@@ -78,8 +78,10 @@
   "api_docs_json_api": "JSON API",
   "api_docs_back_to_app": "Späť do aplikácie",
   "api_docs_teams_desc": "Generovanie BMP obrázka so všetkými F1 tímami, ich jazdcami, fotkami a bodmi v šampionáte v režimoch 1bit, B/W/R, B/W/R/Y alebo Spectra 6.",
+  "api_docs_teams_credits": "Atribúcia a licencie obrázka (kresby tratí CC BY 4.0, počasie Open-Meteo CC BY 4.0): pozri Credits. Odpovede obsahujú aj hlavičku Link s rel=\"license\".",
   "api_docs_display_desc": "Výstupný režim pre displej",
   "api_docs_teams_year_desc": "Rok sezóny pre tímové dáta",
+  "api_docs_teams_extra_desc": "Voliteľný panel: none (predvolené), timeline, countdown, weather, flags, combo, track. Používa miestne údaje sezóny a počasie z vyrovnávacej pamäte; nedostupný panel sa nezobrazí.",
   "api_docs_teams_json_desc": "Získať všetky tímy s jazdcami a bodmi pre sezónu (JSON)",
   "api_docs_standings_leader_desc": "Získať aktuálnych lídrov šampionátu (jazdec a konštruktér)",
   "nav_home": "Domov",
@@ -189,6 +191,31 @@
     "weatherRaceDayLabel": "Deň pretekov",
     "weatherTooltipText": "Aktivuje sa 14 dní pred pretekmi",
     "displayLabel": "Displej",
+    "imageCreditsNote": "Atribúcia a licencie obrázka:",
+    "teamsExtra": {
+      "label": "Panel vo voľnom mieste",
+      "options": {
+        "none": "Žiadny",
+        "timeline": "Časová os",
+        "countdown": "Odpočet",
+        "weather": "Počasie",
+        "flags": "Vlajky",
+        "combo": "Kombinácia",
+        "track": "Trať"
+      },
+      "hints": {
+        "none": "Voľné miesto zostane prázdne.",
+        "timeline": "Priebeh sezóny s odjazdenými a nadchádzajúcimi pretekmi.",
+        "countdown": "Počet dní do ďalšieho pretekárskeho víkendu.",
+        "weather": "Uložená predpoveď pre miesto ďalších pretekov.",
+        "flags": "Vlajky krajín nadchádzajúcich pretekov.",
+        "combo": "Odpočet a najbližšie preteky spolu.",
+        "track": "Obrys okruhu ďalších pretekov."
+      },
+      "weatherNote": "Údaje o počasí od Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "Grafika tratí CC BY 4.0, pozri",
+      "creditsLink": "Zdroje a licencie"
+    },
     "searchPlaceholder": "HĽADAŤ...",
     "noResults": "Žiadne výsledky",
     "detectedLabel": "ZISTENÉ",
@@ -320,7 +347,7 @@
     "licences": "Jules Roy (ROY Jules): CC BY 4.0. Autori a licencie Commons sú uvedení pri každom súbore. Licencia grafiky je oddelená od licencie kódu; naše adaptácie obrysov CC0 používajú CC BY 4.0.",
     "dataTitle": "Dáta a ďalšie zdroje",
     "raceChange": "Výber, formátovanie a prevod časového pásma.",
-    "weatherChange": "Výber údajov a zaokrúhlenie.",
+    "weatherChange": "Výber údajov, zaokrúhlenie a úprava; zobrazené aj v paneli Počasie na obrazovke tímov.",
     "wikiChange": "Výber buniek tabuľky, normalizácia JSON a opravy. Pôvodná revízia importu nebola zaznamenaná.",
     "flags": "Voľné vlajky; zmena veľkosti a farieb.",
     "hosting": "self-hostovaná platforma, na ktorej táto služba beží a nasadzuje sa.",
@@ -330,7 +357,7 @@
     "original": "Pôvodný súbor",
     "underlying": "Pôvodný podklad",
     "adapted": "Grafická adaptácia",
-    "adaptation": "Vybraný obrys, transformácia, natočenie, prefarbenie a dekorácie od InkyCloud. Výška a farebné úseky sú dekoratívne.",
+    "adaptation": "Vybraný obrys, transformácia, natočenie, prefarbenie a dekorácie od InkyCloud. Výška a farebné úseky sú dekoratívne. Pre e-ink prevedené do 1 bitu alebo obmedzenej palety, orezané a zmenšené.",
     "metadata": "Metadáta a kontrolný súčet originálu",
     "licenceText": "Text licencie",
     "dataLicences": "Licencie dát",
@@ -348,5 +375,13 @@
     "circuitWikiIntro": "Dĺžka okruhu a rekord kola pochádzajú z infoboxu týchto revízií článkov anglickej Wikipédie:",
     "circuitWikiChange": "Údaje prevzaté z infoboxu, jednotky prepočítané."
   },
-  "privacy_off": "Zber používania a výkonu prehliadača je na tomto nasadení vypnutý."
+  "privacy_off": "Zber používania a výkonu prehliadača je na tomto nasadení vypnutý.",
+  "teams_extra_next": "Ďalšie",
+  "teams_extra_season": "Sezóna",
+  "teams_extra_round": "Kolo",
+  "teams_extra_remaining": "zostáva",
+  "teams_extra_done": "odjazdené",
+  "teams_extra_upcoming": "Nadchádzajúce preteky",
+  "teams_extra_today": "dnes",
+  "teams_extra_weather_credit": "Open-Meteo"
 }

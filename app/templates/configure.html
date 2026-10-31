@@ -365,6 +365,10 @@ block content %}
             <span id="refreshBtnText">Refresh</span>
           </button>
         </div>
+        <p class="w-full max-w-[800px] mt-2 text-xs text-gray-600">
+          {{ t.configure.imageCreditsNote }}
+          <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ t.configure.teamsExtra.creditsLink }}</a>
+        </p>
 
         <!-- ePaper Setup Info -->
         <div
@@ -493,6 +497,8 @@ block content %}
   let activeContinent = "ALL";
   let selectedTeamsYear = null;
   let leaderData = {};
+  const TEAMS_EXTRA_OPTIONS = ["none", "timeline", "countdown", "weather", "flags", "combo", "track"];
+  let currentTeamsExtra = "none";
 
   function initScreenTypeVisibility() {
     const isCalendar = currentScreenType === "calendar";
@@ -1009,6 +1015,7 @@ block content %}
       if (currentDisplayType !== "1bit") {
         params.push(`display=${currentDisplayType}`);
       }
+      if (currentTeamsExtra !== "none") params.push(`extra=${currentTeamsExtra}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     }
@@ -1039,6 +1046,8 @@ block content %}
     const query = new URLSearchParams(window.location.search);
     const display = query.get("display");
     if (["1bit", "bwr", "bwry", "spectra6"].includes(display)) currentDisplayType = display;
+    const extra = query.get("extra");
+    if (TEAMS_EXTRA_OPTIONS.includes(extra)) currentTeamsExtra = extra;
     for (const field of ["style", "source", "accent"]) {
       const control = document.getElementById(`track-${field}`);
       if (!control) continue;
@@ -1061,7 +1070,8 @@ block content %}
       const isDefaultTz = !selectedTz || selectedTz === defaultTimezone;
       return !selectedYear && !selectedRound && !selectedRaceKey && isDefaultTz;
     } else if (currentScreenType === "teams") {
-      return selectedTeamsYear === getCurrentSeason();
+      // Pre-rendered teams previews only exist for the default (empty) slot.
+      return selectedTeamsYear === getCurrentSeason() && currentTeamsExtra === "none";
     }
     return false;
   }
@@ -1090,6 +1100,7 @@ block content %}
       let params = [];
       if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
       if (currentDisplayType !== "1bit") params.push(`display=${currentDisplayType}`);
+      if (currentTeamsExtra !== "none") params.push(`extra=${currentTeamsExtra}`);
       if (params.length > 0) url += `?${params.join("&")}`;
       return url;
     }
@@ -1826,6 +1837,40 @@ block content %}
     }
   }
 
+  function setTeamsExtra(extra, refresh = true) {
+    if (!TEAMS_EXTRA_OPTIONS.includes(extra)) extra = "none";
+    currentTeamsExtra = extra;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (extra === "none") url.searchParams.delete("extra");
+      else url.searchParams.set("extra", extra);
+      window.history.replaceState(null, "", url);
+    }
+
+    let hint = "";
+    document.querySelectorAll(".teams-extra-btn, .teams-extra-btn-mobile").forEach((btn) => {
+      const active = btn.dataset.extra === extra;
+      if (active) hint = btn.dataset.hint || "";
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+      btn.classList.toggle("bg-black", active);
+      btn.classList.toggle("text-white", active);
+      btn.classList.toggle("bg-white", !active);
+      btn.classList.toggle("hover:bg-black", !active);
+      btn.classList.toggle("hover:text-white", !active);
+    });
+    document.querySelectorAll(".teams-extra-hint").forEach((el) => {
+      el.textContent = hint;
+    });
+    document.querySelectorAll(".teams-extra-note-weather").forEach((el) => {
+      el.classList.toggle("hidden", extra !== "weather");
+    });
+    document.querySelectorAll(".teams-extra-note-track").forEach((el) => {
+      el.classList.toggle("hidden", extra !== "track");
+    });
+
+    if (refresh) updatePreview();
+  }
+
   function setDisplayType(type, refresh = true) {
     currentDisplayType = type;
     if (refresh) {
@@ -1937,6 +1982,7 @@ block content %}
     initScreenTypeVisibility();
     initTrackOptions();
     setDisplayType(currentDisplayType, false);
+    if (currentScreenType === "teams") setTeamsExtra(currentTeamsExtra, false);
     initializeWeatherTooltips();
     setUiLanguage(currentUiLang);
 
