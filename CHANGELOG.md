@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Let calendar.bmp fall back to remote race data for seasons without static data.
 
-- Fix historical race details and calendar images for sessions without times, using the default UTC session time.
+- Fix historical race details and calendar images for sessions without times, returning unknown session times as null and showing them as "–".
 
 ### Removed
 

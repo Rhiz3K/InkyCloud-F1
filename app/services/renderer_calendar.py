@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -133,7 +133,9 @@ def _find_race_datetime(schedule: Sequence, datetime_cls):
             continue
         value = event.get("datetime")
         if isinstance(value, str):
-            return datetime_cls.fromisoformat(value)
+            return (
+                date.fromisoformat(value) if len(value) == 10 else datetime_cls.fromisoformat(value)
+            )
         if isinstance(value, datetime):
             return value
         return None
@@ -148,6 +150,14 @@ def _resolve_countdown_status(
         return translator.get("cancelled", "CANCELLED"), None
     if race_dt is None:
         return None, None
+
+    if isinstance(race_dt, date) and not isinstance(race_dt, datetime):
+        days = (race_dt - datetime_cls.now().date()).days
+        if days < 0:
+            return translator.get("race_completed", "COMPLETED"), None
+        if days == 0:
+            return "–", None
+        return None, timedelta(days=days)
 
     now = datetime_cls.now(race_dt.tzinfo) if race_dt.tzinfo else datetime_cls.now()
     delta = race_dt - now
@@ -314,7 +324,11 @@ def draw_countdown_box(
         lang_code=lang_code,
         weather_type=weather_type,
     )
-    countdown_str = f"{days} {days_label} {hours} {hours_label}"
+    countdown_str = (
+        f"{days} {days_label}"
+        if isinstance(race_dt, date) and not isinstance(race_dt, datetime)
+        else f"{days} {days_label} {hours} {hours_label}"
+    )
 
     flag_bbox = draw.textbbox((0, 0), flag_icon, font=icon_small_font)
     flag_w = flag_bbox[2] - flag_bbox[0]
@@ -508,6 +522,7 @@ def draw_schedule_row(
     dt = event.get("datetime")
     name = event.get("name", "")
 
+    unknown_time = isinstance(dt, str) and len(dt) == 10
     if isinstance(dt, str):
         dt = datetime.fromisoformat(dt)
 
@@ -515,7 +530,7 @@ def draw_schedule_row(
         date_str = dt.strftime("%d.%m.")
         day_key = f"day_{dt.strftime('%a').lower()}"
         day_str = translator.get(day_key, dt.strftime("%a"))
-        time_str = dt.strftime("%H:%M")
+        time_str = "–" if unknown_time else dt.strftime("%H:%M")
     else:
         date_str = ""
         day_str = ""

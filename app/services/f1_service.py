@@ -37,9 +37,6 @@ logger = logging.getLogger(__name__)
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
 SEASONS_DIR = ASSETS_DIR / "seasons"
 
-# Default UTC time used when a session/race time is missing from the data. Shared by the
-# display conversion and the next-race selection so the two never disagree at the boundary.
-DEFAULT_SESSION_TIME_UTC = "12:00:00Z"
 # Keep a race selected as "next" until this long after lights-out, so the calendar doesn't
 # advance to the following Grand Prix the instant the current race starts.
 NEXT_RACE_GRACE = timedelta(hours=4)
@@ -107,8 +104,10 @@ def _is_valid_remote_season_payload(payload: object | None) -> bool:
             Race.model_validate(race)
             race_date = race.get("date", "")
             if race_date:
-                race_time = race.get("time") or DEFAULT_SESSION_TIME_UTC
-                datetime.fromisoformat(f"{race_date}T{race_time}".replace("Z", "+00:00"))
+                race_time = race.get("time")
+                datetime.fromisoformat(
+                    (f"{race_date}T{race_time}" if race_time else race_date).replace("Z", "+00:00")
+                )
     except AttributeError, TypeError, ValueError, ValidationError:
         return False
     return True
@@ -292,7 +291,7 @@ class F1Service:
         """
         Convert Race UTC times to target timezone and return structured payload.
 
-        Parses session/race times (default "12:00:00Z" if missing), converts to
+        Preserves date-only sessions and converts known times to
         target timezone, and produces a sorted schedule. Invalid times are omitted.
 
         Parameters:
@@ -309,8 +308,7 @@ class F1Service:
         def parse_and_convert(date_str: str, time_str: Optional[str]) -> Optional[datetime]:
             """Parse date and time, convert to target timezone."""
             if not time_str:
-                # If no time, use a stable default shared with next-race selection.
-                time_str = DEFAULT_SESSION_TIME_UTC
+                return None
 
             # Combine date and time
             dt_str = f"{date_str}T{time_str}"
@@ -323,6 +321,17 @@ class F1Service:
             except ValueError as e:
                 logger.warning("Error parsing datetime %s: %s", dt_str, e)
                 return None
+
+        def event_payload(name: str, date_str: str, dt: datetime | None) -> dict:
+            """Keep unknown times date-only without timezone conversion."""
+            day = datetime.fromisoformat(date_str)
+            return {
+                "name": name,
+                "datetime": dt.isoformat() if dt else date_str,
+                "date": dt.strftime("%Y-%m-%d") if dt else date_str,
+                "time": dt.strftime("%H:%M") if dt else None,
+                "display_time": dt.strftime("%a %H:%M") if dt else day.strftime("%a –"),
+            }
 
         # Add race sessions to schedule
         sessions = [
@@ -338,28 +347,17 @@ class F1Service:
             session = getattr(race, session_key, None)
             if session:
                 dt = parse_and_convert(session.date, session.time)
-                if dt:
-                    schedule_events.append(
-                        {
-                            "name": display_name,
-                            "datetime": dt.isoformat(),
-                            "display_time": dt.strftime("%a %H:%M"),
-                        }
-                    )
+                if dt or not session.time:
+                    schedule_events.append(event_payload(display_name, session.date, dt))
 
-        # Add main race
         race_dt = parse_and_convert(race.date, race.time)
-        if race_dt:
-            schedule_events.append(
-                {
-                    "name": "Race",
-                    "datetime": race_dt.isoformat(),
-                    "display_time": race_dt.strftime("%a %H:%M"),
-                }
-            )
+        if race_dt or not race.time:
+            schedule_events.append(event_payload("Race", race.date, race_dt))
 
-        # Sort events by datetime
-        schedule_events.sort(key=lambda x: x["datetime"])
+        # Stable sorting leaves date-only sessions last on their day.
+        schedule_events.sort(
+            key=lambda x: (x["date"], x["datetime"][11:] if x["time"] else "24:00")
+        )
 
         now = datetime.now(self.target_tz)
         return {
@@ -385,8 +383,11 @@ class F1Service:
             "schedule": schedule_events,
             "race_date": race_dt.strftime("%d.%m.%Y") if race_dt else race.date,
             "date": race.date,
-            "datetime": race_dt.isoformat() if race_dt else None,
-            "is_past": race_dt < now if race_dt else False,
+            "datetime": race_dt.isoformat() if race_dt else (race.date if not race.time else None),
+            "time": race_dt.strftime("%H:%M") if race_dt else None,
+            "is_past": race_dt < now
+            if race_dt
+            else (not race.time and race.date < now.date().isoformat()),
             "circuit_id": race.Circuit.circuitId,
             "circuit_name": race.Circuit.circuitName,
             "country": race.Circuit.Location.country,
@@ -452,7 +453,9 @@ class F1Service:
         for race in races:
             try:
                 race_date_str = race.get("date", "")
-                race_time_str = race.get("time") or DEFAULT_SESSION_TIME_UTC
+                race_time_str = race.get("time")
+                if race_date_str:
+                    datetime.fromisoformat(race_date_str)
                 round_num = self._extract_round_number(race)
                 circuit = race.get("Circuit") or {}
                 location = circuit.get("Location") or {}
@@ -460,7 +463,7 @@ class F1Service:
                 # Parse race datetime - if parsing fails, use None
                 dt_local = None
                 is_past = False
-                if race_date_str:
+                if race_date_str and race_time_str:
                     dt_str = f"{race_date_str}T{race_time_str}"
                     dt_utc = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
                     dt_local = dt_utc.astimezone(self.target_tz)
@@ -481,8 +484,9 @@ class F1Service:
                         "circuit_name": circuit.get("circuitName", ""),
                         "country": location.get("country", ""),
                         "date": race_date_str,
-                        "datetime": dt_local.isoformat() if dt_local else None,
-                        "is_past": is_past,
+                        "datetime": dt_local.isoformat() if dt_local else (race_date_str or None),
+                        "time": dt_local.strftime("%H:%M") if dt_local else None,
+                        "is_past": is_past if dt_local else race_date_str < now.date().isoformat(),
                         "is_cancelled": self._is_cancelled_race(race),
                     }
                 )
@@ -585,7 +589,7 @@ class F1Service:
         """
         now = datetime.now(dt_timezone.utc)
         current_year = now.year
-        latest_completed: tuple[datetime, Race] | None = None
+        latest_completed: tuple[tuple[str, str], Race] | None = None
 
         # Check current year and next year
         for year in [current_year, current_year + 1]:
@@ -597,7 +601,14 @@ class F1Service:
                         continue
 
                     # Parse race datetime
-                    race_time = race.time or DEFAULT_SESSION_TIME_UTC
+                    if not race.time:
+                        if race.date >= now.date().isoformat():
+                            return self._convert_race_times(race)
+                        race_order = (race.date, "24:00")
+                        if latest_completed is None or race_order > latest_completed[0]:
+                            latest_completed = (race_order, race)
+                        continue
+                    race_time = race.time
                     dt_str = f"{race.date}T{race_time}"
                     race_dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
                     if race_dt.tzinfo is None:
@@ -611,8 +622,9 @@ class F1Service:
                         )
                         return self._convert_race_times(race)
 
-                    if latest_completed is None or race_dt > latest_completed[0]:
-                        latest_completed = (race_dt, race)
+                    race_order = (race_dt.date().isoformat(), race_dt.time().isoformat())
+                    if latest_completed is None or race_order > latest_completed[0]:
+                        latest_completed = (race_order, race)
 
                 except Exception as e:
                     logger.warning("Error parsing race date for %s: %s", race.raceName, e)
@@ -626,16 +638,19 @@ class F1Service:
                 try:
                     if race.round in (None, ""):
                         continue
-                    race_time = race.time or DEFAULT_SESSION_TIME_UTC
-                    race_dt = datetime.fromisoformat(
-                        f"{race.date}T{race_time}".replace("Z", "+00:00")
-                    )
-                    if race_dt.tzinfo is None:
-                        race_dt = race_dt.replace(tzinfo=dt_timezone.utc)
-                    if race_dt <= now and (
-                        latest_completed is None or race_dt > latest_completed[0]
-                    ):
-                        latest_completed = (race_dt, race)
+                    if not race.time:
+                        race_order = (race.date, "24:00")
+                        completed = race.date < now.date().isoformat()
+                    else:
+                        race_dt = datetime.fromisoformat(
+                            f"{race.date}T{race.time}".replace("Z", "+00:00")
+                        )
+                        if race_dt.tzinfo is None:
+                            race_dt = race_dt.replace(tzinfo=dt_timezone.utc)
+                        race_order = (race_dt.date().isoformat(), race_dt.time().isoformat())
+                        completed = race_dt <= now
+                    if completed and (latest_completed is None or race_order > latest_completed[0]):
+                        latest_completed = (race_order, race)
                 except Exception as exc:
                     logger.warning("Error parsing race date for %s: %s", race.raceName, exc)
 

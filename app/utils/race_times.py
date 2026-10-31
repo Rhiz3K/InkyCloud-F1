@@ -25,7 +25,7 @@ def convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
     schedule = result.get("schedule", [])
     for event in schedule:
         iso_str = event.get("datetime")
-        if not iso_str:
+        if not iso_str or len(iso_str) == 10:
             continue
 
         try:
@@ -33,6 +33,8 @@ def convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
             dt_local = dt.astimezone(target_tz)
             event["datetime"] = dt_local.isoformat()
             event["display_time"] = dt_local.strftime("%a %H:%M")
+            event["date"] = dt_local.strftime("%Y-%m-%d")
+            event["time"] = dt_local.strftime("%H:%M")
         except (ValueError, TypeError) as exc:
             logger.warning("Error converting time %s: %s", iso_str, exc)
 

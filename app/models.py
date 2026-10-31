@@ -2,7 +2,7 @@
 
 import logging
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -131,7 +131,9 @@ class ScheduleEvent(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     name: str
-    event_datetime: datetime = Field(alias="datetime")
+    event_datetime: datetime | date = Field(alias="datetime")
+    date: str | None = None
+    time: str | None = None
     display_time: str
 
 
