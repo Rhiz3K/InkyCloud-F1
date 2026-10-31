@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extend HSTS with includeSubDomains and disable the Uvicorn Server header.
 - Serve /docs and /redoc from locally vendored Swagger UI 5.34.1 and ReDoc 2.5.4
   with enforcing CSP, the site's own favicon, and no CDN or Google Fonts.
+- Restrict the data-on-* event dispatcher to an explicit, frozen allowlist of handlers instead of calling any global function, closing a CSP-bypass gadget.
 
 ## [1.3.3] - 2026-10-30
 

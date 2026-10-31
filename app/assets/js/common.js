@@ -204,12 +204,51 @@ function formatRaceDate(value) {
     return `${match[3]}.${match[2]}.`;
 }
 
+// Page handlers are top-level function declarations in nonce'd inline scripts
+// (configure.html, configure/_*.html, api_docs.html). This file is loaded with
+// defer, so it runs only after every inline page script has executed; the
+// snapshot below therefore sees them, and later reassignment of window.X does
+// not change what is dispatched.
+const PAGE_HANDLER_NAMES = [
+    "closeModalBtn",
+    "copyCode",
+    "switchTab",
+    "tryCalendarBmp",
+    "tryEndpoint",
+    "tryTeamsBmp",
+    "copyUrl",
+    "filterTzContinent",
+    "onTzSearch",
+    "refreshPreview",
+    "selectRaceFromList",
+    "selectRaceMobile",
+    "selectTeamsSeason",
+    "selectTimezoneMobile",
+    "selectYearMobile",
+    "setDisplayType",
+    "setWeatherType",
+    "toggleSidebar",
+    "updatePreview",
+    "updateWeatherTypeAvailability",
+];
+
+/** Frozen allowlist of the only functions data-on-* attributes may call. */
+const HANDLERS = Object.freeze(Object.fromEntries([
+    ["toggleMobileMenu", toggleMobileMenu],
+    ["switchUiLanguage", switchUiLanguage],
+    ["closeMobileNav", closeMobileNav],
+    ...PAGE_HANDLER_NAMES
+        .filter((name) => typeof globalThis[name] === "function")
+        .map((name) => [name, globalThis[name]]),
+]));
+
 /**
  * CSP-safe replacement for inline on* attributes. An element may declare
- * data-on-click / data-on-change / data-on-input="fnA fnB" (global function
- * names, called in order) and optional data-args='["x", 2]' (JSON array passed
- * to every listed function). Each function is called as fn.apply(element, args).
- * Names that are not functions on window are ignored.
+ * data-on-click / data-on-change / data-on-input="setWeatherType updatePreview"
+ * (names from the HANDLERS allowlist, called in order) and optional
+ * data-args='["x", 2]' (JSON array passed to every listed function). Each
+ * function is called as HANDLERS[name].apply(element, args). Names not in
+ * HANDLERS are ignored; there is no fallback to window.
  * @param {Event} event - Delegated click, change or input event
  */
 function dispatchDeclaredHandler(event) {
@@ -228,8 +267,7 @@ function dispatchDeclaredHandler(event) {
         }
     }
     for (const name of (element.getAttribute(attr) || "").split(/\s+/)) {
-        const fn = name ? window[name] : undefined;
-        if (typeof fn === "function") fn.apply(element, args);
+        if (Object.hasOwn(HANDLERS, name)) HANDLERS[name].apply(element, args);
     }
 }
 
