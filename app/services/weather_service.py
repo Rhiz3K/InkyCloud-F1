@@ -621,7 +621,7 @@ def _extract_race_datetime(race_data: dict) -> Optional[datetime]:
         return None
 
     dt_str = race_session.get("datetime")
-    if not dt_str:
+    if not dt_str or len(str(dt_str)) == 10:
         return None
 
     try:
@@ -766,7 +766,7 @@ def _get_next_race_details() -> Optional[tuple[float, float, datetime]]:
         return None
 
     race_dt_str = race_session.get("datetime")
-    if not race_dt_str:
+    if not race_dt_str or len(race_dt_str) == 10:
         logger.warning("No race datetime for weather prefetch")
         return None
 

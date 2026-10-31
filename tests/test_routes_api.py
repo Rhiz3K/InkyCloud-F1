@@ -2,15 +2,17 @@
 
 import functools
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, HTTPException
+from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 from starlette.requests import Request
 
 from app.models import PerfMetricsPayload, TeamEntry, TeamsData
 from app.routes import api, images, previews, tracks
+from app.services import f1_service as f1
 
 
 def _request(headers: dict[str, str] | None = None) -> Request:
@@ -198,7 +200,7 @@ async def test_get_season_races_uses_remote_fallback():
     )
     with (
         patch("app.routes.api.enforce_rate_limit"),
-        patch("app.routes.api.is_supported_f1_season", return_value=True),
+        patch("app.utils.f1_season.is_supported_f1_season", return_value=True),
     ):
         result = await api.get_season_races(2026, _request(), service)
 
@@ -211,7 +213,7 @@ async def test_get_race_detail_covers_validation_static_remote_and_missing():
     request = _request()
     with (
         patch("app.routes.api.enforce_rate_limit"),
-        patch("app.routes.api.is_supported_f1_season", return_value=True),
+        patch("app.utils.f1_season.is_supported_f1_season", return_value=True),
     ):
         with pytest.raises(HTTPException) as error:
             await api.get_race_detail(2026, 31, request, SimpleNamespace())
@@ -242,7 +244,7 @@ async def test_get_teams_serializes_data_and_maps_failures_to_503():
     service = SimpleNamespace(get_teams_and_drivers=AsyncMock(return_value=data))
     with (
         patch("app.routes.api.enforce_rate_limit"),
-        patch("app.routes.api.is_supported_f1_season", return_value=True),
+        patch("app.utils.f1_season.is_supported_f1_season", return_value=True),
         patch("app.routes.api.TeamsService", return_value=service),
     ):
         result = await api.get_teams(2026, _request())
@@ -252,7 +254,7 @@ async def test_get_teams_serializes_data_and_maps_failures_to_503():
     service.get_teams_and_drivers.side_effect = RuntimeError("failed")
     with (
         patch("app.routes.api.enforce_rate_limit"),
-        patch("app.routes.api.is_supported_f1_season", return_value=True),
+        patch("app.utils.f1_season.is_supported_f1_season", return_value=True),
         patch("app.routes.api.TeamsService", return_value=service),
         pytest.raises(HTTPException) as error,
     ):
@@ -285,7 +287,7 @@ async def test_standings_leader_returns_full_empty_and_failure_payloads():
     )
     with (
         patch("app.routes.api.enforce_rate_limit"),
-        patch("app.routes.api.is_supported_f1_season", return_value=True),
+        patch("app.utils.f1_season.is_supported_f1_season", return_value=True),
         patch("app.routes.api.get_current_f1_season", return_value=2026),
         patch("app.services.standings_service.StandingsService", return_value=service),
         patch("app.routes.api._get_driver_number", return_value=4),
@@ -310,7 +312,7 @@ async def test_standings_leader_returns_full_empty_and_failure_payloads():
     service.get_constructor_standings.return_value = []
     with (
         patch("app.routes.api.enforce_rate_limit"),
-        patch("app.routes.api.is_supported_f1_season", return_value=True),
+        patch("app.utils.f1_season.is_supported_f1_season", return_value=True),
         patch("app.services.standings_service.StandingsService", return_value=service),
     ):
         result = await api.get_standings_leader(_request(), 2026)
@@ -319,7 +321,7 @@ async def test_standings_leader_returns_full_empty_and_failure_payloads():
     service.get_driver_standings.side_effect = RuntimeError("failed")
     with (
         patch("app.routes.api.enforce_rate_limit"),
-        patch("app.routes.api.is_supported_f1_season", return_value=True),
+        patch("app.utils.f1_season.is_supported_f1_season", return_value=True),
         patch("app.services.standings_service.StandingsService", return_value=service),
     ):
         result = await api.get_standings_leader(_request(), 2026)
@@ -329,3 +331,51 @@ async def test_standings_leader_returns_full_empty_and_failure_payloads():
         "leader_driver": None,
         "has_data": False,
     }
+
+
+@pytest.mark.asyncio
+async def test_historical_race_detail_without_session_times(sepang_2017_payload):
+    service = f1.F1Service(timezone="UTC")
+    application = FastAPI()
+    application.include_router(api.router)
+    application.dependency_overrides[api.get_f1_service] = lambda: service
+    response = SimpleNamespace(
+        json=lambda: {"MRData": {"RaceTable": {"Races": [sepang_2017_payload]}}}
+    )
+    f1._reset_remote_caches_for_tests()
+    try:
+        with (
+            patch.object(service, "get_all_races_from_static", return_value=[]),
+            patch.object(f1, "get_shared_http_client", return_value=object()),
+            patch.object(f1, "fetch_with_retry", new=AsyncMock(return_value=response)),
+            patch("app.routes.api.enforce_rate_limit"),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=application), base_url="http://test"
+            ) as client:
+                result = await client.get("/api/race/2017/15")
+        assert result.status_code == 200
+        assert len(result.json()["schedule"]) == 5
+    finally:
+        f1._reset_remote_caches_for_tests()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "year,round_num,detail",
+    [
+        (1949, 1, "Unsupported F1 season"),
+        (9999, 1, "Unsupported F1 season"),
+        (1949, 0, "Unsupported F1 season"),
+        (2017, 0, "Invalid race round"),
+        (2017, 31, "Invalid race round"),
+    ],
+)
+async def test_race_detail_rejects_invalid_selection_before_lookup(year, round_num, detail):
+    service = SimpleNamespace(get_all_races_from_static=MagicMock(), get_race_by_round=AsyncMock())
+    with patch("app.routes.api.enforce_rate_limit"), pytest.raises(HTTPException) as error:
+        await api.get_race_detail(year, round_num, _request(), service)
+    assert error.value.status_code == 422
+    assert error.value.detail == detail
+    service.get_all_races_from_static.assert_not_called()
+    service.get_race_by_round.assert_not_awaited()

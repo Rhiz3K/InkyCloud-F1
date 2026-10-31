@@ -1,8 +1,8 @@
 """Data models for F1 E-Ink calendar service."""
 
+import datetime as dt
 import logging
 import re
-from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -86,7 +86,7 @@ class RaceSession(BaseModel):
     """Race session timing information."""
 
     date: str
-    time: str
+    time: Optional[str] = None
 
 
 class Race(BaseModel):
@@ -131,8 +131,18 @@ class ScheduleEvent(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     name: str
-    event_datetime: datetime = Field(alias="datetime")
+    event_datetime: dt.datetime | dt.date = Field(alias="datetime")
+    date: str | None = None
+    time: str | None = None
     display_time: str
+
+    @field_validator("event_datetime", mode="before")
+    @classmethod
+    def preserve_date_only(cls, value):
+        """Keep ISO calendar dates distinct from timestamps."""
+        if isinstance(value, str) and len(value) == 10:
+            return dt.date.fromisoformat(value)
+        return value
 
 
 # ============================================================================
