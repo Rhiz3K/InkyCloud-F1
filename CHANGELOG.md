@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Validate calendar remote race lookups with the same season and round bounds as the race API.
+
 - Let calendar.bmp fall back to remote race data for seasons without static data.
 
 - Fix historical race details and calendar images for sessions without times, using the default UTC session time.

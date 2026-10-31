@@ -47,3 +47,12 @@ def is_supported_f1_season(year: object, now: datetime | None = None) -> bool:
         and not isinstance(year, bool)
         and MIN_F1_SEASON <= year <= get_max_supported_f1_season(now)
     )
+
+
+def race_selection_error(year: int, round_num: int) -> str | None:
+    """Return the validation error for a season and round, or None when supported."""
+    if not is_supported_f1_season(year):
+        return "Unsupported F1 season"
+    if not 1 <= round_num <= 30:
+        return "Invalid race round"
+    return None

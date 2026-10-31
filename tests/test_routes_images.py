@@ -766,3 +766,38 @@ async def test_calendar_historical_remote_race_missing():
     assert response.headers["Cache-Control"] == "no-store"
     error.assert_called_once_with("1bit", "en", "Failed to fetch race data")
     render.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("year,round_num", [(1949, 1), (9999, 1), (2017, 0), (2017, 31)])
+@pytest.mark.parametrize("static_race", [None, {"race_name": "Static race"}])
+async def test_calendar_invalid_remote_selection_keeps_static_result(year, round_num, static_race):
+    application = FastAPI()
+    application.include_router(images.router)
+    get_bmp_cache().clear()
+    with (
+        patch("app.routes.images._get_race_data_from_static", return_value=static_race),
+        patch("app.routes.images.F1Service.get_race_by_round", new=AsyncMock()) as lookup,
+        patch("app.services.f1_service.fetch_with_retry", new=AsyncMock()) as fetch,
+        patch("app.routes.images.enforce_rate_limit"),
+        patch("app.routes.images._get_pregenerated_calendar_path", return_value=None),
+        patch("app.routes.images._record_calendar_api_call"),
+        patch("app.routes.images._render_calendar_bytes", return_value=b"calendar") as render,
+        patch("app.routes.images._render_error_bytes", return_value=b"error") as error,
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=application), base_url="http://test"
+        ) as client:
+            response = await client.get(
+                f"/calendar.bmp?year={year}&round={round_num}&weather=false"
+            )
+    lookup.assert_not_awaited()
+    fetch.assert_not_awaited()
+    assert response.status_code == 200
+    assert response.content == (b"calendar" if static_race else b"error")
+    if static_race:
+        assert render.call_args.args[2] == static_race
+        error.assert_not_called()
+    else:
+        error.assert_called_once_with("1bit", "en", "Failed to fetch race data")
+        render.assert_not_called()
