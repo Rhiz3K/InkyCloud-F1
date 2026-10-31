@@ -63,17 +63,146 @@ block og_tags %}
       grid-template-columns: minmax(0, max-content);
     }
   }
+
+  /* Desktop: the unofficial notice on one line (11px only where 12px does not fit). */
+  @media (min-width: 1024px) {
+    #unofficial-notice {
+      width: max-content;
+      max-width: calc(100vw - 2rem);
+    }
+  }
+
+  @media (min-width: 1024px) and (max-width: 1079px) {
+    #unofficial-notice {
+      font-size: 11px;
+    }
+  }
+
+  /* Short desktop viewports: tighten only as much as the height needs. */
+  @media (min-width: 1024px) and (max-height: 982px) {
+    .home-main {
+      padding-top: 32px;
+      padding-bottom: 24px;
+    }
+    .home-title {
+      margin-bottom: 24px;
+    }
+    .home-grid {
+      margin-bottom: 32px;
+    }
+    .home-credits-section {
+      padding-top: 16px;
+    }
+  }
+
+  @media (min-width: 1024px) and (max-height: 901px) {
+    .home-main {
+      padding-top: 24px;
+      padding-bottom: 16px;
+    }
+    .home-credits-desktop {
+      grid-template-columns: repeat(3, max-content);
+      grid-template-rows: repeat(3, auto);
+      grid-auto-flow: column;
+    }
+    .home-credits-desktop > .home-credits-col {
+      display: contents;
+    }
+    .home-credits-desktop > .home-credits-tracks {
+      grid-row: 4;
+    }
+    #unofficial-notice {
+      margin-top: 16px;
+    }
+  }
+
+  @media (min-width: 1024px) and (max-height: 821px) {
+    .home-main {
+      padding-top: 16px;
+      padding-bottom: 8px;
+    }
+    .home-title {
+      margin-bottom: 16px;
+    }
+    .home-grid {
+      margin-bottom: 24px;
+    }
+    .home-card-caption {
+      padding: 8px 12px;
+    }
+    .home-card-caption h2 {
+      font-size: 16px;
+      line-height: 1.25;
+      margin-bottom: 2px;
+    }
+    .home-card-caption p {
+      font-size: 12px;
+      line-height: 1.375;
+    }
+    .home-card-meta {
+      margin-top: 6px;
+    }
+    .home-card-cta {
+      padding-top: 2px;
+      padding-bottom: 2px;
+    }
+    .home-credits-section {
+      padding-top: 8px;
+    }
+    .home-credits-section h3 {
+      margin-bottom: 8px;
+    }
+    .home-credits-desktop {
+      row-gap: 4px;
+    }
+    .home-credits-col {
+      gap: 4px;
+    }
+    #unofficial-notice {
+      margin-top: 12px;
+      line-height: 1.375;
+    }
+  }
+
+  @media (min-width: 1024px) and (max-height: 703px) {
+    .home-main {
+      padding-top: 12px;
+      padding-bottom: 8px;
+    }
+    .home-title {
+      margin-bottom: 12px;
+    }
+    .home-grid {
+      max-width: 780px;
+      margin-bottom: 12px;
+    }
+    .home-credits-section {
+      padding-top: 4px;
+    }
+    .home-credits-section h3 {
+      margin-bottom: 6px;
+    }
+    .home-credits-desktop {
+      row-gap: 2px;
+    }
+    .home-credits-col {
+      gap: 2px;
+    }
+    #unofficial-notice {
+      margin-top: 8px;
+    }
+  }
 </style>
-<main class="flex-1 flex flex-col items-center px-4 py-8 lg:py-12">
+<main class="flex-1 flex flex-col items-center px-4 py-8 lg:py-12 home-main">
   <div class="w-full max-w-4xl flex flex-col items-center">
     <h1
-      class="text-xl lg:text-2xl font-bold uppercase tracking-widest mb-8 text-center border-b-4 border-black pb-2"
+      class="text-xl lg:text-2xl font-bold uppercase tracking-widest mb-8 text-center border-b-4 border-black pb-2 home-title"
     >
       {{ t.get('home_choose_screen', 'Choose Your Screen Type') }}
     </h1>
 
     <div
-      class="w-full max-w-[900px] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8 mb-12"
+      class="w-full max-w-[900px] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8 mb-12 home-grid"
     >
       {% for screen in screen_types %}
       <a
@@ -106,7 +235,7 @@ block og_tags %}
             class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"
           ></div>
         </div>
-        <div class="p-4 flex-1 flex flex-col">
+        <div class="p-4 flex-1 flex flex-col home-card-caption">
           <h2
             class="text-lg font-bold uppercase tracking-wider mb-2 group-hover:text-racing-red transition-colors"
           >
@@ -115,12 +244,12 @@ block og_tags %}
           <p class="text-sm text-gray-600 flex-1">
             {{ t.get(screen.desc_key, '') }}
           </p>
-          <div class="mt-4 flex items-center justify-between">
+          <div class="mt-4 flex items-center justify-between home-card-meta">
             <span class="text-xs font-bold uppercase text-gray-600"
               >800x480 1-BIT</span
             >
             <span
-              class="px-3 py-1 bg-black text-white text-xs font-bold uppercase group-hover:bg-racing-red transition-colors"
+              class="px-3 py-1 bg-black text-white text-xs font-bold uppercase group-hover:bg-racing-red transition-colors home-card-cta"
             >
               {{ t.get('home_configure', 'Configure') }} &rarr;
             </span>
@@ -136,8 +265,8 @@ block og_tags %}
       </h3>
       {% from 'components/credit_rows.html' import rows, track_row with context %}
       <div class="home-credits-desktop text-left text-xs text-gray-700">
-        <div class="flex flex-col gap-[8px]">{{ rows(0, 5) }}</div>
-        <div class="flex flex-col gap-[8px]">{{ rows(5) }}</div>
+        <div class="flex flex-col gap-[8px] home-credits-col">{{ rows(0, 5) }}</div>
+        <div class="flex flex-col gap-[8px] home-credits-col">{{ rows(5) }}</div>
         {{ track_row() }}
       </div>
     </div>
