@@ -288,6 +288,23 @@ async def api_info() -> dict:
                     f"({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT})"
                 ),
                 "parameters": {
+                    "extra": {
+                        "type": "string",
+                        "description": "Optional teams panel; local data and cached weather only. "
+                        "Unavailable panels fall back to none.",
+                        "values": [
+                            "none",
+                            "timeline",
+                            "countdown",
+                            "weather",
+                            "flags",
+                            "combo",
+                            "track",
+                        ],
+                        "default": "none",
+                        "example": "?extra=countdown",
+                        "optional": True,
+                    },
                     "lang": {
                         "type": "string",
                         "description": "Language code for teams text",
@@ -362,6 +379,20 @@ async def api_info() -> dict:
                         "type": "string",
                         "default": "off",
                         "values": ["off", "current", "race", "race_day"],
+                    },
+                    "extra": {
+                        "type": "string",
+                        "description": "Optional teams panel; applies only to teams",
+                        "default": "none",
+                        "values": [
+                            "none",
+                            "timeline",
+                            "countdown",
+                            "weather",
+                            "flags",
+                            "combo",
+                            "track",
+                        ],
                     },
                     **track_parameters,
                 },

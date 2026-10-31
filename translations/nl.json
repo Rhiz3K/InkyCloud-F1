@@ -80,6 +80,7 @@
   "api_docs_teams_desc": "Genereer een BMP-afbeelding met alle F1-teams, hun coureurs, foto's en kampioenschapspunten in 1bit-, B/W/R-, B/W/R/Y- of Spectra 6-uitvoermodus.",
   "api_docs_display_desc": "Uitvoermodus van het display",
   "api_docs_teams_year_desc": "Seizoensjaar voor teamdata",
+  "api_docs_teams_extra_desc": "Optioneel paneel: none (standaard), timeline, countdown, weather, flags, combo, track. Gebruikt lokale seizoensgegevens en weer uit de cache; niet-beschikbare panelen worden weggelaten.",
   "api_docs_teams_json_desc": "Alle teams met coureurs en punten voor een seizoen ophalen (JSON)",
   "api_docs_standings_leader_desc": "Huidige kampioenschapsleiders ophalen (coureur en constructeur)",
   "nav_home": "Home",
@@ -189,6 +190,30 @@
     "weatherRaceDayLabel": "Racedag",
     "weatherTooltipText": "Wordt 14 dagen voor de race geactiveerd",
     "displayLabel": "Scherm",
+    "teamsExtra": {
+      "label": "Paneel in lege plek",
+      "options": {
+        "none": "Geen",
+        "timeline": "Tijdlijn",
+        "countdown": "Aftellen",
+        "weather": "Weer",
+        "flags": "Vlaggen",
+        "combo": "Combinatie",
+        "track": "Circuit"
+      },
+      "hints": {
+        "none": "De lege plek blijft leeg.",
+        "timeline": "Seizoensverloop met verreden en komende races.",
+        "countdown": "Dagen tot het volgende raceweekend.",
+        "weather": "Opgeslagen weersverwachting voor de volgende racelocatie.",
+        "flags": "Vlaggen van de landen van de komende races.",
+        "combo": "Aftellen en volgende races samen.",
+        "track": "Omtrek van het circuit van de volgende race."
+      },
+      "weatherNote": "Weergegevens door Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "Circuitafbeeldingen CC BY 4.0, zie",
+      "creditsLink": "Bronvermelding"
+    },
     "searchPlaceholder": "ZOEKEN...",
     "noResults": "Geen resultaten",
     "detectedLabel": "GEDETECTEERD",
@@ -320,7 +345,7 @@
     "licences": "Jules Roy (ROY Jules): CC BY 4.0. Makers en licenties van Commons staan per bestand vermeld. De licenties voor afbeeldingen en code staan los van elkaar; onze bewerkingen van CC0-contouren gebruiken CC BY 4.0.",
     "dataTitle": "Gegevens en andere bronnen",
     "raceChange": "Selectie, opmaak en tijdzoneconversie.",
-    "weatherChange": "Geselecteerde velden en afronding.",
+    "weatherChange": "Geselecteerde velden, waarden afgerond en aangepast; ook getoond in het Weer-paneel van het teamscherm.",
     "wikiChange": "Geselecteerde tabelcellen, genormaliseerde JSON en correcties. De oorspronkelijke geïmporteerde versie is niet vastgelegd.",
     "flags": "Publiekdomeinvlaggen; geschaald en opnieuw gekleurd.",
     "hosting": "zelfgehost platform waarop deze dienst wordt gehost en uitgerold.",
@@ -330,7 +355,7 @@
     "original": "Origineel bestand",
     "underlying": "Oorspronkelijke bron",
     "adapted": "Bewerkte afbeelding",
-    "adaptation": "Geselecteerde contour, door InkyCloud getransformeerd, gedraaid, gekleurd en versierd. Hoogte en kleurvlakken zijn decoratief.",
+    "adaptation": "Geselecteerde contour, door InkyCloud getransformeerd, gedraaid, gekleurd en versierd. Hoogte en kleurvlakken zijn decoratief. Voor e-ink omgezet naar 1 bit of een beperkt kleurenpalet, bijgesneden en verkleind.",
     "metadata": "Metadata en controlesom van het origineel",
     "licenceText": "Licentietekst",
     "dataLicences": "Gegevenslicenties",
@@ -348,5 +373,14 @@
     "circuitWikiIntro": "Circuitlengte en ronderecord komen uit de infobox van deze versies van Engelstalige Wikipedia-artikelen:",
     "circuitWikiChange": "Gegevens uit de infobox overgenomen, eenheden omgerekend."
   },
-  "privacy_off": "Gebruiks- en browserprestatiemeting zijn in deze installatie uitgeschakeld."
+  "privacy_off": "Gebruiks- en browserprestatiemeting zijn in deze installatie uitgeschakeld.",
+  "teams_extra_next": "Volgende",
+  "teams_extra_season": "Seizoen",
+  "teams_extra_round": "Ronde",
+  "teams_extra_remaining": "resterend",
+  "teams_extra_done": "verreden",
+  "teams_extra_upcoming": "Komende races",
+  "teams_extra_today": "vandaag",
+  "teams_extra_track": "Circuit",
+  "teams_extra_weather_credit": "Open-Meteo"
 }

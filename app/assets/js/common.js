@@ -226,6 +226,7 @@ const PAGE_HANDLER_NAMES = [
     "selectTimezoneMobile",
     "selectYearMobile",
     "setDisplayType",
+    "setTeamsExtra",
     "setWeatherType",
     "toggleSidebar",
     "updatePreview",

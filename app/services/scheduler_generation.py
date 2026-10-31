@@ -34,6 +34,7 @@ from app.services.image_keys import (
     get_teams_image_key,
 )
 from app.services.renderers import COLOR_DISPLAYS, DISPLAY_TYPES, create_renderer
+from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.weather_service import WeatherData, _parse_coordinate, get_weather_context
 from app.state import clear_bmp_cache
 from app.utils.async_locks import LoopLockRegistry, get_loop_lock
@@ -110,11 +111,18 @@ def _render_calendar_variant_bytes(
     return renderer.render_calendar(race_data, historical_data, weather_data, weather_type)
 
 
-def _render_teams_variant_bytes(lang: str, display: str, teams_data) -> bytes:
+def _render_teams_variant_bytes(
+    lang: str,
+    display: str,
+    teams_data,
+    *,
+    extra: TeamsExtra = TeamsExtra.NONE,
+    extra_context: TeamsExtraContext | None = None,
+) -> bytes:
     """Construct the renderer and render the teams screen in the worker thread."""
     translator = get_translator(lang)
     renderer = create_renderer(display, translator, lang)
-    return renderer.render_teams_drivers(teams_data)
+    return renderer.render_teams_drivers(teams_data, extra, extra_context)
 
 
 def _calendar_preview_pngs_from_bmp(
@@ -557,6 +565,7 @@ async def _generate_teams_variant(
         return None
 
 
+# Optional panels are on-demand; scheduler pregeneration remains none-only.
 async def _generate_teams_bmp_variants(
     *,
     images_dir: Path,

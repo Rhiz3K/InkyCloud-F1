@@ -1,3 +1,5 @@
+{% set tx = t.configure.teamsExtra %}
+{% set teams_extra_options = ["none", "timeline", "countdown", "weather", "flags", "combo", "track"] %}
 <div class="hidden lg:flex flex-1 flex-col min-h-0">
   <div class="flex-shrink-0 px-2 py-1.5 border-b-2 border-black bg-gray-50" id="displayContainer">
     <label class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
@@ -38,6 +40,52 @@
       </button>
     </div>
   </div>
+
+  <!-- Teams extra panel (empty slot) - Desktop -->
+  <div class="flex-shrink-0 px-2 py-1.5 border-b-2 border-black bg-gray-50" id="teamsExtraContainer">
+    <span class="text-xs font-bold uppercase mb-1.5 block" id="teamsExtraLabel">{{ tx.label }}</span>
+    <div class="grid grid-cols-4 gap-1" role="group" aria-labelledby="teamsExtraLabel">
+      {% for opt in teams_extra_options %}
+      <button
+        type="button"
+        data-on-click="setTeamsExtra" data-args='["{{ opt }}"]'
+        data-extra="{{ opt }}"
+        data-hint="{{ tx.hints[opt] }}"
+        title="{{ tx.hints[opt] }}"
+        aria-pressed="{{ 'true' if opt == 'none' else 'false' }}"
+        class="teams-extra-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center break-words leading-tight border border-black transition-all {{ 'bg-black text-white' if opt == 'none' else 'bg-white hover:bg-black hover:text-white' }}"
+      >
+        {{ tx.options[opt] }}
+      </button>
+      {% endfor %}
+    </div>
+    <p class="teams-extra-hint mt-2 text-xs text-gray-600" aria-live="polite">{{ tx.hints.none }}</p>
+    <p class="teams-extra-note-weather hidden mt-2 text-xs text-gray-600">{{ tx.weatherNote }}</p>
+    <p class="teams-extra-note-track hidden mt-2 text-xs text-gray-600">{{ tx.trackNote }} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ tx.creditsLink }}</a></p>
+  </div>
+</div>
+
+<!-- Teams extra panel (empty slot) - Mobile -->
+<div class="lg:hidden p-3 border-b-2 border-black bg-gray-50" id="mobileTeamsExtraContainer">
+  <span class="block text-xs font-bold uppercase mb-2" id="teamsExtraLabelMobile">{{ tx.label }}</span>
+  <div class="grid grid-cols-4 gap-1" role="group" aria-labelledby="teamsExtraLabelMobile">
+    {% for opt in teams_extra_options %}
+    <button
+      type="button"
+      data-on-click="setTeamsExtra" data-args='["{{ opt }}"]'
+      data-extra="{{ opt }}"
+      data-hint="{{ tx.hints[opt] }}"
+      title="{{ tx.hints[opt] }}"
+      aria-pressed="{{ 'true' if opt == 'none' else 'false' }}"
+      class="teams-extra-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center break-words leading-tight border-2 border-black transition-all {{ 'bg-black text-white' if opt == 'none' else 'bg-white hover:bg-black hover:text-white' }}"
+    >
+      {{ tx.options[opt] }}
+    </button>
+    {% endfor %}
+  </div>
+  <p class="teams-extra-hint mt-2 text-xs text-gray-600" aria-live="polite">{{ tx.hints.none }}</p>
+  <p class="teams-extra-note-weather hidden mt-2 text-xs text-gray-600">{{ tx.weatherNote }}</p>
+  <p class="teams-extra-note-track hidden mt-2 text-xs text-gray-600">{{ tx.trackNote }} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ tx.creditsLink }}</a></p>
 </div>
 
 <!-- Display Type - Mobile -->

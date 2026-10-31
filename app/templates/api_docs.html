@@ -530,6 +530,11 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 >
               </td>
             </tr>
+            <tr>
+              <td class="px-3 py-2 font-mono text-racing-red font-bold">extra</td>
+              <td class="px-3 py-2">string</td>
+              <td class="px-3 py-2">{{ t.get("api_docs_teams_extra_desc", "Optional teams panel: none (default), timeline, countdown, weather, flags, combo, track.") }}</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -773,7 +778,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         <div class="border-2 border-black p-4">
           <p class="font-mono mb-2">GET /preview/{screen_type}.png</p>
           <p class="font-mono mb-2">GET /preview/configure/{screen_type}.png</p>
-          <p class="text-sm">{{ t.get("api_docs_preview_desc", "PNG previews for calendar or teams; lang selects the language. Configure previews also accept display and calendar weather_type (default off).") }}</p>
+          <p class="text-sm">{{ t.get("api_docs_preview_desc", "PNG previews for calendar or teams; lang selects the language. Configure previews also accept display and calendar weather_type (default off). Teams configure previews also accept extra (default none).") }}</p>
+          <p><code>extra</code> — {{ t.get("api_docs_teams_extra_desc") }}</p>
           <p class="text-xs mt-2"><code>track_style</code>, <code>track_source</code>, <code>track_accent</code> — {{ track_ui.styleLabel }}, {{ track_ui.sourceLabel }}, {{ track_ui.accentLabel }} (<code>calendar</code>).</p>
         </div>
 

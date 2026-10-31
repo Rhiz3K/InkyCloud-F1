@@ -66,10 +66,9 @@ def draw_teams_content(
     gap = col_padding
 
     left_teams, right_teams = split_teams_for_columns(teams)
-    teams_per_col = max(len(left_teams), len(right_teams), 1)
-    row_gap = 2
-    available_height = canvas_height - header_height - 8 - (teams_per_col - 1) * row_gap
-    row_height = available_height // teams_per_col
+    row_height, row_gap = teams_grid_rows(
+        canvas_height, header_height, max(len(left_teams), len(right_teams), 1)
+    )
 
     y = header_height + 4
     for team in left_teams:
@@ -402,3 +401,18 @@ def draw_driver_photo(
     photo_resized = driver_img.resize((new_w, new_h), resample)
     paste_photo_fn(image, photo_resized, x, y)
     return new_w + 2
+
+
+def teams_grid_rows(height: int, header_height: int, rows: int) -> tuple[int, int]:
+    """Return card height and gap shared by the grid and optional panel."""
+    gap = 2
+    return (height - header_height - 8 - (rows - 1) * gap) // rows, gap
+
+
+def teams_extra_slot(
+    width: int, height: int, header_height: int, rows: int
+) -> tuple[int, int, int, int]:
+    """Return the final right-column card box in Pillow crop coordinates."""
+    row_height, gap = teams_grid_rows(height, header_height, rows)
+    y = header_height + 4 + (rows - 1) * (row_height + gap)
+    return width // 2 + 2, y, width - 4, y + row_height - 1

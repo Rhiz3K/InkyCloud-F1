@@ -80,6 +80,7 @@
   "api_docs_teams_desc": "Generování BMP obrázku se všemi F1 týmy, jejich jezdci, fotkami a body v šampionátu v režimech 1bit, B/W/R, B/W/R/Y nebo Spectra 6.",
   "api_docs_display_desc": "Režim výstupu pro displej",
   "api_docs_teams_year_desc": "Rok sezóny pro data týmů",
+  "api_docs_teams_extra_desc": "Volitelný panel: none (výchozí), timeline, countdown, weather, flags, combo, track. Používá místní data sezóny a počasí z mezipaměti; nedostupný panel se nezobrazí.",
   "api_docs_teams_json_desc": "Získat všechny týmy s jezdci a body pro sezónu (JSON)",
   "api_docs_standings_leader_desc": "Získat aktuální lídry šampionátu (jezdec a konstruktér)",
   "nav_home": "Domů",
@@ -189,6 +190,30 @@
     "weatherRaceDayLabel": "V den závodu",
     "weatherTooltipText": "Aktivuje se 14 dní před závodem",
     "displayLabel": "Displej",
+    "teamsExtra": {
+      "label": "Panel ve volném místě",
+      "options": {
+        "none": "Žádný",
+        "timeline": "Časová osa",
+        "countdown": "Odpočet",
+        "weather": "Počasí",
+        "flags": "Vlajky",
+        "combo": "Kombinace",
+        "track": "Trať"
+      },
+      "hints": {
+        "none": "Volné místo zůstane prázdné.",
+        "timeline": "Průběh sezóny s odjetými a nadcházejícími závody.",
+        "countdown": "Počet dní do dalšího závodního víkendu.",
+        "weather": "Uložená předpověď pro místo dalšího závodu.",
+        "flags": "Vlajky zemí nadcházejících závodů.",
+        "combo": "Odpočet a nejbližší závody dohromady.",
+        "track": "Obrys okruhu dalšího závodu."
+      },
+      "weatherNote": "Data o počasí od Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "Grafika tratí CC BY 4.0, viz",
+      "creditsLink": "Zdroje a licence"
+    },
     "searchPlaceholder": "HLEDAT...",
     "noResults": "Bez výsledků",
     "detectedLabel": "DETEKOVÁNO",
@@ -320,7 +345,7 @@
     "licences": "Jules Roy (ROY Jules): CC BY 4.0. Autoři a licence Commons jsou uvedeni u každého souboru. Licence grafiky je oddělená od licence kódu; naše adaptace obrysů CC0 používají CC BY 4.0.",
     "dataTitle": "Data a další zdroje",
     "raceChange": "Výběr, formátování a převod časového pásma.",
-    "weatherChange": "Výběr údajů a zaokrouhlení.",
+    "weatherChange": "Výběr údajů, zaokrouhlení a úprava; zobrazeno i v panelu Počasí na obrazovce týmů.",
     "wikiChange": "Výběr buněk tabulky, normalizace JSON a opravy. Původní revize importu nebyla zaznamenána.",
     "flags": "Volné vlajky; změna velikosti a barev.",
     "hosting": "self-hostovaná platforma, na které tato služba běží a nasazuje se.",
@@ -330,7 +355,7 @@
     "original": "Původní soubor",
     "underlying": "Původní podklad",
     "adapted": "Grafická adaptace",
-    "adaptation": "Vybraný obrys, transformace, natočení, přebarvení a dekorace od InkyCloud. Výška a barevné úseky jsou dekorativní.",
+    "adaptation": "Vybraný obrys, transformace, natočení, přebarvení a dekorace od InkyCloud. Výška a barevné úseky jsou dekorativní. Pro e-ink převedeno do 1 bitu nebo omezené palety, oříznuto a zmenšeno.",
     "metadata": "Metadata a kontrolní součet originálu",
     "licenceText": "Text licence",
     "dataLicences": "Licence dat",
@@ -348,5 +373,14 @@
     "circuitWikiIntro": "Délka okruhu a rekord kola pocházejí z infoboxu těchto revizí článků anglické Wikipedie:",
     "circuitWikiChange": "Údaje převzaté z infoboxu, jednotky převedeny."
   },
-  "privacy_off": "Sběr používání a výkonu prohlížeče je na tomto nasazení vypnutý."
+  "privacy_off": "Sběr používání a výkonu prohlížeče je na tomto nasazení vypnutý.",
+  "teams_extra_next": "Další",
+  "teams_extra_season": "Sezóna",
+  "teams_extra_round": "Kolo",
+  "teams_extra_remaining": "zbývá",
+  "teams_extra_done": "odjeto",
+  "teams_extra_upcoming": "Nadcházející závody",
+  "teams_extra_today": "dnes",
+  "teams_extra_track": "Trať",
+  "teams_extra_weather_credit": "Open-Meteo"
 }

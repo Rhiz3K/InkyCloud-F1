@@ -80,6 +80,7 @@
   "api_docs_teams_desc": "1bit, B/W/R, B/W/R/Y veya Spectra 6 çıktı modlarında tüm F1 takımlarını, sürücülerini, fotoğraflarını ve şampiyona puanlarını gösteren bir BMP görseli oluşturun.",
   "api_docs_display_desc": "Ekran çıktı modu",
   "api_docs_teams_year_desc": "Takım verileri için sezon yılı",
+  "api_docs_teams_extra_desc": "İsteğe bağlı panel: none (varsayılan), timeline, countdown, weather, flags, combo, track. Yerel sezon verilerini ve önbellekteki hava durumunu kullanır; kullanılamayan paneller gösterilmez.",
   "api_docs_teams_json_desc": "Bir sezon için tüm takımları sürücüler ve puanlarla birlikte getir (JSON)",
   "api_docs_standings_leader_desc": "Güncel şampiyona liderlerini getir (sürücü ve takım)",
   "nav_home": "Ana Sayfa",
@@ -189,6 +190,30 @@
     "weatherRaceDayLabel": "Yarış günü",
     "weatherTooltipText": "Yarıştan 14 gün önce etkinleşir",
     "displayLabel": "Ekran",
+    "teamsExtra": {
+      "label": "Boş alandaki panel",
+      "options": {
+        "none": "Yok",
+        "timeline": "Zaman çizelgesi",
+        "countdown": "Geri sayım",
+        "weather": "Hava durumu",
+        "flags": "Bayraklar",
+        "combo": "Kombine",
+        "track": "Pist"
+      },
+      "hints": {
+        "none": "Boş alan boş bırakılır.",
+        "timeline": "Geçmiş ve gelecek yarışlarla sezon ilerlemesi.",
+        "countdown": "Bir sonraki yarış hafta sonuna kalan gün sayısı.",
+        "weather": "Bir sonraki yarış yeri için önbelleğe alınmış tahmin.",
+        "flags": "Yaklaşan yarış ülkelerinin bayrakları.",
+        "combo": "Geri sayım ve sonraki yarışlar bir arada.",
+        "track": "Bir sonraki yarış pistinin taslağı."
+      },
+      "weatherNote": "Hava durumu verileri: Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "Pist görselleri CC BY 4.0, bkz.",
+      "creditsLink": "Katkıda bulunanlar"
+    },
     "searchPlaceholder": "ARA...",
     "noResults": "Sonuç yok",
     "detectedLabel": "ALGILANDI",
@@ -320,7 +345,7 @@
     "licences": "Jules Roy (ROY Jules): CC BY 4.0. Commons yazarları ve lisansları dosya başına belirtilmiştir. Görsel lisansı kod lisansından ayrıdır; CC0 konturlarından uyarlamalarımız CC BY 4.0 kullanır.",
     "dataTitle": "Veriler ve diğer kaynaklar",
     "raceChange": "Seçim, biçimlendirme ve saat dilimi dönüşümü.",
-    "weatherChange": "Seçilen alanlar ve yuvarlama.",
+    "weatherChange": "Alanlar seçildi, değerler yuvarlandı ve değiştirildi; takımlar ekranındaki Hava durumu panelinde de gösterilir.",
     "wikiChange": "Seçilen tablo hücreleri, normalleştirilmiş JSON ve düzeltmeler. İlk içe aktarma sürümü kaydedilmemiştir.",
     "flags": "Kamu malı bayraklar; boyut ve renk değişiklikleri.",
     "hosting": "bu hizmetin barındırıldığı ve dağıtıldığı kendi kendine barındırılan platform.",
@@ -330,7 +355,7 @@
     "original": "Özgün dosya",
     "underlying": "Temel kaynak",
     "adapted": "Uyarlanmış görsel",
-    "adaptation": "InkyCloud tarafından seçilen, dönüştürülen, döndürülen, renklendirilen ve süslenen kontur. Yükseklik ve renkli bölümler dekoratiftir.",
+    "adaptation": "InkyCloud tarafından seçilen, dönüştürülen, döndürülen, renklendirilen ve süslenen kontur. Yükseklik ve renkli bölümler dekoratiftir. E-ink için 1 bit veya sınırlı renk paletine dönüştürüldü, kırpıldı ve küçültüldü.",
     "metadata": "Meta veriler ve özgün dosya sağlama toplamı",
     "licenceText": "Lisans metni",
     "dataLicences": "Veri lisansları",
@@ -348,5 +373,14 @@
     "circuitWikiIntro": "Pist uzunluğu ve tur rekoru, şu İngilizce Wikipedia madde sürümlerinin bilgi kutusundan alınmıştır:",
     "circuitWikiChange": "Bilgiler bilgi kutusundan alındı, birimler dönüştürüldü."
   },
-  "privacy_off": "Bu kurulumda kullanım ve tarayıcı performansı toplama kapalıdır."
+  "privacy_off": "Bu kurulumda kullanım ve tarayıcı performansı toplama kapalıdır.",
+  "teams_extra_next": "Sıradaki",
+  "teams_extra_season": "Sezon",
+  "teams_extra_round": "Tur",
+  "teams_extra_remaining": "kalan",
+  "teams_extra_done": "tamamlanan",
+  "teams_extra_upcoming": "Yaklaşan yarışlar",
+  "teams_extra_today": "bugün",
+  "teams_extra_track": "Pist",
+  "teams_extra_weather_credit": "Open-Meteo"
 }

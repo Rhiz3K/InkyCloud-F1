@@ -80,6 +80,7 @@
   "api_docs_teams_desc": "Generate a BMP image showing all F1 teams with their drivers, photos, and championship points in 1bit, B/W/R, B/W/R/Y, or Spectra 6 output modes.",
   "api_docs_display_desc": "Display output mode",
   "api_docs_teams_year_desc": "Season year for team data",
+  "api_docs_teams_extra_desc": "Optional panel: none (default), timeline, countdown, weather, flags, combo, track. Uses local season data and cached weather only; unavailable panels fall back to none.",
   "api_docs_teams_json_desc": "Get all teams with drivers and points for a season (JSON)",
   "api_docs_standings_leader_desc": "Get current championship leaders (driver and constructor)",
   "nav_home": "Home",
@@ -189,6 +190,30 @@
     "weatherRaceDayLabel": "Race day",
     "weatherTooltipText": "Activates 14 days before race",
     "displayLabel": "Display",
+    "teamsExtra": {
+      "label": "Panel in empty slot",
+      "options": {
+        "none": "None",
+        "timeline": "Timeline",
+        "countdown": "Countdown",
+        "weather": "Weather",
+        "flags": "Flags",
+        "combo": "Combo",
+        "track": "Track"
+      },
+      "hints": {
+        "none": "Leave the empty slot blank.",
+        "timeline": "Season progress with past and upcoming rounds.",
+        "countdown": "Days until the next race weekend.",
+        "weather": "Cached forecast for the next race venue.",
+        "flags": "Flags of the upcoming race countries.",
+        "combo": "Countdown and next races together.",
+        "track": "Outline of the next race circuit."
+      },
+      "weatherNote": "Weather data by Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "Track art CC BY 4.0, see",
+      "creditsLink": "Credits"
+    },
     "searchPlaceholder": "SEARCH...",
     "noResults": "No results",
     "detectedLabel": "DETECTED",
@@ -320,7 +345,7 @@
     "licences": "Jules Roy (ROY Jules): CC BY 4.0. Commons authors and licences are listed per file. The artwork licence is separate from the code licence; our adaptations of CC0 outlines use CC BY 4.0.",
     "dataTitle": "Data and other sources",
     "raceChange": "Selection, formatting and timezone conversion.",
-    "weatherChange": "Selected fields and rounding.",
+    "weatherChange": "Fields selected, values rounded and modified; also shown in the Weather panel of the teams screen.",
     "wikiChange": "Selected table cells, normalized JSON and corrections. Original import revision was not recorded.",
     "flags": "Public-domain flags; resized and recoloured.",
     "hosting": "self-hosted platform used to host and deploy this service.",
@@ -330,7 +355,7 @@
     "original": "Original file",
     "underlying": "Underlying source",
     "adapted": "Adapted artwork",
-    "adaptation": "Selected outline, transformed, rotated, recoloured and decorated by InkyCloud. Height and colour divisions are decorative.",
+    "adaptation": "Selected outline, transformed, rotated, recoloured and decorated by InkyCloud. Height and colour divisions are decorative. For e-ink converted to 1-bit or a limited colour palette, cropped and downscaled.",
     "metadata": "Metadata and original file checksum",
     "licenceText": "Licence text",
     "dataLicences": "Data licences",
@@ -348,5 +373,14 @@
     "circuitWikiIntro": "Circuit length and lap record come from the infobox of these English Wikipedia article revisions:",
     "circuitWikiChange": "Facts extracted from the infobox, units converted."
   },
-  "privacy_off": "Usage and browser performance collection are disabled on this deployment."
+  "privacy_off": "Usage and browser performance collection are disabled on this deployment.",
+  "teams_extra_next": "Next",
+  "teams_extra_season": "Season",
+  "teams_extra_round": "Round",
+  "teams_extra_remaining": "remaining",
+  "teams_extra_done": "completed",
+  "teams_extra_upcoming": "Upcoming races",
+  "teams_extra_today": "today",
+  "teams_extra_track": "Track",
+  "teams_extra_weather_credit": "Open-Meteo"
 }

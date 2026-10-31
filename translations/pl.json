@@ -80,6 +80,7 @@
   "api_docs_teams_desc": "Generuj obraz BMP pokazujący wszystkie zespoły F1 z kierowcami, zdjęciami i punktami mistrzostw w trybach 1bit, B/W/R, B/W/R/Y lub Spectra 6.",
   "api_docs_display_desc": "Tryb wyjścia wyświetlacza",
   "api_docs_teams_year_desc": "Rok sezonu dla danych zespołów",
+  "api_docs_teams_extra_desc": "Opcjonalny panel: none (domyślnie), timeline, countdown, weather, flags, combo, track. Używa lokalnych danych sezonu i pogody z pamięci podręcznej; niedostępne panele są pomijane.",
   "api_docs_teams_json_desc": "Pobierz wszystkie zespoły z kierowcami i punktami dla sezonu (JSON)",
   "api_docs_standings_leader_desc": "Pobierz aktualnych liderów mistrzostw (kierowca i konstruktor)",
   "nav_home": "Strona główna",
@@ -189,6 +190,30 @@
     "weatherRaceDayLabel": "Dzień wyścigu",
     "weatherTooltipText": "Aktywuje się 14 dni przed wyścigiem",
     "displayLabel": "Wyświetlacz",
+    "teamsExtra": {
+      "label": "Panel w wolnym miejscu",
+      "options": {
+        "none": "Brak",
+        "timeline": "Oś czasu",
+        "countdown": "Odliczanie",
+        "weather": "Pogoda",
+        "flags": "Flagi",
+        "combo": "Połączenie",
+        "track": "Tor"
+      },
+      "hints": {
+        "none": "Wolne miejsce pozostaje puste.",
+        "timeline": "Postęp sezonu z rozegranymi i nadchodzącymi wyścigami.",
+        "countdown": "Dni do następnego weekendu wyścigowego.",
+        "weather": "Zapisana prognoza dla miejsca następnego wyścigu.",
+        "flags": "Flagi krajów nadchodzących wyścigów.",
+        "combo": "Odliczanie i najbliższe wyścigi razem.",
+        "track": "Kontur toru następnego wyścigu."
+      },
+      "weatherNote": "Dane pogodowe od Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "Grafika torów CC BY 4.0, zobacz",
+      "creditsLink": "Źródła i licencje"
+    },
     "searchPlaceholder": "SZUKAJ...",
     "noResults": "Brak wyników",
     "detectedLabel": "WYKRYTO",
@@ -320,7 +345,7 @@
     "licences": "Jules Roy (ROY Jules): CC BY 4.0. Autorzy i licencje Commons są podani dla każdego pliku. Licencja grafiki jest oddzielna od licencji kodu; nasze adaptacje obrysów CC0 używają CC BY 4.0.",
     "dataTitle": "Dane i inne źródła",
     "raceChange": "Wybór, formatowanie i konwersja strefy czasowej.",
-    "weatherChange": "Wybór pól i zaokrąglanie.",
+    "weatherChange": "Wybór pól, zaokrąglenie i modyfikacja wartości; wyświetlane również w panelu Pogoda na ekranie zespołów.",
     "wikiChange": "Wybrane komórki tabeli, znormalizowany JSON i poprawki. Nie zapisano pierwotnej wersji importu.",
     "flags": "Flagi z domeny publicznej; zmiana rozmiaru i kolorów.",
     "hosting": "samodzielnie hostowana platforma, na której działa i jest wdrażana ta usługa.",
@@ -330,7 +355,7 @@
     "original": "Plik oryginalny",
     "underlying": "Źródło pierwotne",
     "adapted": "Adaptacja grafiki",
-    "adaptation": "Wybrany obrys przekształcony, obrócony, pokolorowany i ozdobiony przez InkyCloud. Wysokość i kolorowe odcinki są dekoracyjne.",
+    "adaptation": "Wybrany obrys przekształcony, obrócony, pokolorowany i ozdobiony przez InkyCloud. Wysokość i kolorowe odcinki są dekoracyjne. Dla e-ink przekonwertowano do 1 bitu lub ograniczonej palety kolorów, przycięto i zmniejszono.",
     "metadata": "Metadane i suma kontrolna oryginału",
     "licenceText": "Tekst licencji",
     "dataLicences": "Licencje danych",
@@ -348,5 +373,14 @@
     "circuitWikiIntro": "Długość toru i rekord okrążenia pochodzą z infoboksu tych wersji artykułów angielskiej Wikipedii:",
     "circuitWikiChange": "Dane pobrane z infoboksu, jednostki przeliczone."
   },
-  "privacy_off": "Zbieranie danych o użyciu i wydajności przeglądarki jest wyłączone w tej instalacji."
+  "privacy_off": "Zbieranie danych o użyciu i wydajności przeglądarki jest wyłączone w tej instalacji.",
+  "teams_extra_next": "Następny",
+  "teams_extra_season": "Sezon",
+  "teams_extra_round": "Runda",
+  "teams_extra_remaining": "pozostało",
+  "teams_extra_done": "rozegrano",
+  "teams_extra_upcoming": "Nadchodzące wyścigi",
+  "teams_extra_today": "dzisiaj",
+  "teams_extra_track": "Tor",
+  "teams_extra_weather_credit": "Open-Meteo"
 }

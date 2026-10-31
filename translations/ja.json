@@ -80,6 +80,7 @@
   "api_docs_teams_desc": "1bit、B/W/R、B/W/R/Y、または Spectra 6 出力モードで、すべての F1 チーム、ドライバー、写真、チャンピオンシップポイントを表示する BMP 画像を生成します。",
   "api_docs_display_desc": "ディスプレイ出力モード",
   "api_docs_teams_year_desc": "チームデータのシーズン年",
+  "api_docs_teams_extra_desc": "追加パネル：none（既定）、timeline、countdown、weather、flags、combo、track。ローカルのシーズンデータとキャッシュ済みの天気のみを使用し、利用できない場合は表示しません。",
   "api_docs_teams_json_desc": "シーズンの全チーム・ドライバー・ポイントを取得（JSON）",
   "api_docs_standings_leader_desc": "現在のチャンピオンシップ首位（ドライバーとコンストラクター）を取得",
   "nav_home": "ホーム",
@@ -189,6 +190,30 @@
     "weatherRaceDayLabel": "レース当日",
     "weatherTooltipText": "レース14日前から有効",
     "displayLabel": "ディスプレイ",
+    "teamsExtra": {
+      "label": "空きスペースのパネル",
+      "options": {
+        "none": "なし",
+        "timeline": "タイムライン",
+        "countdown": "カウントダウン",
+        "weather": "天気",
+        "flags": "国旗",
+        "combo": "組み合わせ",
+        "track": "サーキット"
+      },
+      "hints": {
+        "none": "空きスペースを空白のままにします。",
+        "timeline": "終了したラウンドと今後のラウンドでシーズンの進行を表示。",
+        "countdown": "次のレースウィークエンドまでの日数。",
+        "weather": "次のレース開催地のキャッシュされた天気予報。",
+        "flags": "今後のレース開催国の国旗。",
+        "combo": "カウントダウンと次のレースをまとめて表示。",
+        "track": "次のレースのサーキットの輪郭。"
+      },
+      "weatherNote": "気象データ提供: Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "サーキット画像 CC BY 4.0、詳細は",
+      "creditsLink": "クレジット"
+    },
     "searchPlaceholder": "検索...",
     "noResults": "結果なし",
     "detectedLabel": "検出済み",
@@ -320,7 +345,7 @@
     "licences": "Jules Roy（ROY Jules）の素材は CC BY 4.0 です。Commons の作者とライセンスはファイルごとに記載しています。画像とコードのライセンスは別です。CC0 の輪郭を使った独自の加工画像は CC BY 4.0 で公開します。",
     "dataTitle": "データとその他の出典",
     "raceChange": "選択、整形、タイムゾーン変換。",
-    "weatherChange": "項目の選択と丸め処理。",
+    "weatherChange": "項目を選択し、値を丸めて加工しています。チーム画面の天気パネルにも表示されます。",
     "wikiChange": "表のセルの選択、JSON 正規化、修正。元の取り込み時の版は記録されていません。",
     "flags": "パブリックドメインの国旗。サイズと色を変更。",
     "hosting": "このサービスのホスティングとデプロイに使用しているセルフホスト型プラットフォーム。",
@@ -330,7 +355,7 @@
     "original": "元のファイル",
     "underlying": "元となった出典",
     "adapted": "加工画像",
-    "adaptation": "InkyCloud が輪郭を選択、変換、回転、配色、装飾しました。高さと色分けは装飾です。",
+    "adaptation": "InkyCloud が輪郭を選択、変換、回転、配色、装飾しました。高さと色分けは装飾です。e-ink 用に 1 ビットまたは限られたカラーパレットへ変換し、トリミングして縮小しています。",
     "metadata": "メタデータと元ファイルのチェックサム",
     "licenceText": "ライセンス本文",
     "dataLicences": "データのライセンス",
@@ -348,5 +373,14 @@
     "circuitWikiIntro": "コース全長とラップレコードは、以下の英語版 Wikipedia 記事の版の情報ボックスから取得しています：",
     "circuitWikiChange": "情報ボックスから抽出し、単位を換算しています。"
   },
-  "privacy_off": "この環境では利用状況とブラウザ性能の収集は無効です。"
+  "privacy_off": "この環境では利用状況とブラウザ性能の収集は無効です。",
+  "teams_extra_next": "次戦",
+  "teams_extra_season": "シーズン",
+  "teams_extra_round": "ラウンド",
+  "teams_extra_remaining": "残り",
+  "teams_extra_done": "終了",
+  "teams_extra_upcoming": "今後のレース",
+  "teams_extra_today": "今日",
+  "teams_extra_track": "コース",
+  "teams_extra_weather_credit": "Open-Meteo"
 }

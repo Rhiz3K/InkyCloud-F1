@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the optional `extra` parameter to `/teams.bmp` and `/preview/configure/teams.png`
+  (`none`, `timeline`, `countdown`, `weather`, `flags`, `combo`, `track`; default `none`
+  keeps the image unchanged) that fills the empty bottom-right slot with season progress,
+  a day-only countdown, cached Open-Meteo weather, upcoming race flags or codes, a combined
+  view, or the next circuit with its CC BY 4.0 credit. The slot stays empty when there is
+  no upcoming race. The teams configurator gets a picker with live preview in all 13
+  languages; `/credits` and `DATA_LICENSES.txt` describe the new weather and track uses.
+
 - Add /credits entries for Swagger UI and ReDoc in all 13 languages.
 
 - Credits page now credits Coolify (https://coolify.io), the self-hosted platform used

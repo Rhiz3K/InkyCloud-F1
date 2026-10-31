@@ -8,6 +8,7 @@ import logging
 from email.utils import formatdate
 from io import BytesIO
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
@@ -17,9 +18,14 @@ from app.paths import ASSETS_DIR
 from app.services.artifact_metadata import calendar_identity, read_artifact_metadata
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
-from app.services.image_keys import get_configure_preview_filename, get_preview_filename
+from app.services.image_keys import (
+    get_configure_preview_filename,
+    get_preview_filename,
+    get_teams_image_key,
+)
 from app.services.renderers import COLOR_DISPLAYS, create_renderer
-from app.services.teams_service import TeamsService, get_default_teams_year
+from app.services.teams_extra import TeamsExtra, TeamsExtraContext, build_teams_extra_context
+from app.services.teams_service import TeamsService, get_default_teams_year, is_teams_data_cacheable
 from app.services.track_catalog import (
     DEFAULT_TRACK_OPTIONS,
     TrackAccent,
@@ -200,11 +206,19 @@ async def _render_configure_calendar(
     )
 
 
-def _build_teams_preview_png(lang: str, display: str, teams_data, full_size: bool) -> bytes:
+def _build_teams_preview_png(
+    lang: str,
+    display: str,
+    teams_data,
+    full_size: bool,
+    *,
+    extra: TeamsExtra = TeamsExtra.NONE,
+    extra_context: TeamsExtraContext | None = None,
+) -> bytes:
     """Construct the renderer, render, and convert to PNG — all in the worker thread."""
     translator = get_translator(lang)
     renderer = create_renderer(display, translator, lang)
-    bmp_data = renderer.render_teams_drivers(teams_data)
+    bmp_data = renderer.render_teams_drivers(teams_data, extra, extra_context)
     return bmp_to_png(
         bmp_data,
         width=400,
@@ -231,6 +245,52 @@ async def _render_teams_preview(
         BytesIO(png_data),
         media_type="image/png",
         headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
+    )
+
+
+async def _render_teams_extra_preview(
+    request: Request, lang: str, display: str, extra: TeamsExtra, ctx: TeamsExtraContext
+) -> Response:
+    """Cache a full-size panel preview under its day/weather token."""
+    from app.routes.images import _singleflight
+
+    key = "preview:" + get_teams_image_key(
+        lang, ctx.season, display=display, extra=extra, extra_context=ctx
+    )
+
+    async def produce() -> tuple[bytes, str]:
+        """Render and cache only complete teams data."""
+        async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
+            data = await TeamsService().get_teams_and_drivers(ctx.season)
+        content = await run_render(
+            functools.partial(
+                _build_teams_preview_png,
+                lang,
+                display,
+                data,
+                True,
+                extra=extra,
+                extra_context=ctx,
+            )
+        )
+        artifact = (content, strong_etag(content))
+        if is_teams_data_cacheable(data):
+            get_bmp_cache()[key] = artifact
+        return artifact
+
+    artifact = get_bmp_cache().get(key)
+    if artifact is None:
+        artifact = await _singleflight(key, produce)
+    content, etag = artifact
+    unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
+    return Response(
+        content=b"" if unchanged else content,
+        status_code=304 if unchanged else 200,
+        media_type=None if unchanged else "image/png",
+        headers={
+            "ETag": etag,
+            "Cache-Control": "no-cache" if key in get_bmp_cache() else "no-store",
+        },
     )
 
 
@@ -277,6 +337,10 @@ async def get_configure_preview_png(
     request: Request,
     lang: str = Query(default="en"),
     weather_type: str = Query(default="off"),
+    extra: Annotated[
+        TeamsExtra,
+        Query(description="Teams panel: none, timeline, countdown, weather, flags, combo, track"),
+    ] = TeamsExtra.NONE,
     display: str = Query(default="1bit"),
     track_style: TrackStyle = TrackStyle.RELIEF,
     track_source: TrackSource = TrackSource.JULES,
@@ -299,6 +363,14 @@ async def get_configure_preview_png(
     safe_lang = _ALLOWED_LANGS.get(lang, "en")
     safe_weather = allowed_weather.get(weather_type, "off")
     safe_display = allowed_display.get(display, "1bit")
+
+    if safe_screen == "teams" and extra != TeamsExtra.NONE:
+        ctx = build_teams_extra_context(extra, get_default_teams_year())
+        if ctx is not None:
+            enforce_rate_limit(
+                request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
+            )
+            return await _render_teams_extra_preview(request, safe_lang, safe_display, extra, ctx)
 
     filename = get_configure_preview_filename(
         safe_screen,

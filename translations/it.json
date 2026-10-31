@@ -80,6 +80,7 @@
   "api_docs_teams_desc": "Genera un'immagine BMP con tutti i team di F1, i loro piloti, le foto e i punti in campionato nelle modalità di output 1bit, B/W/R, B/W/R/Y o Spectra 6.",
   "api_docs_display_desc": "Modalità di output del display",
   "api_docs_teams_year_desc": "Anno della stagione per i dati dei team",
+  "api_docs_teams_extra_desc": "Pannello facoltativo: none (predefinito), timeline, countdown, weather, flags, combo, track. Usa dati locali della stagione e meteo in cache; i pannelli non disponibili vengono omessi.",
   "api_docs_teams_json_desc": "Ottieni tutti i team con piloti e punti per una stagione (JSON)",
   "api_docs_standings_leader_desc": "Ottieni gli attuali leader del campionato (pilota e costruttore)",
   "nav_home": "Home",
@@ -189,6 +190,30 @@
     "weatherRaceDayLabel": "Giorno gara",
     "weatherTooltipText": "Si attiva 14 giorni prima della gara",
     "displayLabel": "Display",
+    "teamsExtra": {
+      "label": "Pannello nello spazio libero",
+      "options": {
+        "none": "Nessuno",
+        "timeline": "Cronologia",
+        "countdown": "Conto alla rovescia",
+        "weather": "Meteo",
+        "flags": "Bandiere",
+        "combo": "Combinato",
+        "track": "Circuito"
+      },
+      "hints": {
+        "none": "Lo spazio libero resta vuoto.",
+        "timeline": "Avanzamento della stagione con gare passate e future.",
+        "countdown": "Giorni al prossimo weekend di gara.",
+        "weather": "Previsioni in cache per la sede della prossima gara.",
+        "flags": "Bandiere dei paesi delle prossime gare.",
+        "combo": "Conto alla rovescia e prossime gare insieme.",
+        "track": "Tracciato del circuito della prossima gara."
+      },
+      "weatherNote": "Dati meteo di Open-Meteo.com (CC BY 4.0)",
+      "trackNote": "Grafica dei circuiti CC BY 4.0, vedi",
+      "creditsLink": "Crediti"
+    },
     "searchPlaceholder": "CERCA...",
     "noResults": "Nessun risultato",
     "detectedLabel": "RILEVATO",
@@ -320,7 +345,7 @@
     "licences": "Jules Roy (ROY Jules): CC BY 4.0. Autori e licenze di Commons sono indicati per ogni file. La licenza grafica è distinta da quella del codice; i nostri adattamenti di contorni CC0 usano CC BY 4.0.",
     "dataTitle": "Dati e altre fonti",
     "raceChange": "Selezione, formattazione e conversione del fuso orario.",
-    "weatherChange": "Campi selezionati e arrotondamenti.",
+    "weatherChange": "Campi selezionati, valori arrotondati e modificati; mostrati anche nel pannello Meteo della schermata delle scuderie.",
     "wikiChange": "Celle selezionate, JSON normalizzato e correzioni. La revisione originale importata non è stata registrata.",
     "flags": "Bandiere di pubblico dominio; ridimensionate e ricolorate.",
     "hosting": "piattaforma self-hosted usata per ospitare e distribuire questo servizio.",
@@ -330,7 +355,7 @@
     "original": "File originale",
     "underlying": "Fonte originale",
     "adapted": "Opera adattata",
-    "adaptation": "Contorno selezionato, trasformato, ruotato, ricolorato e decorato da InkyCloud. Altezza e sezioni colorate sono decorative.",
+    "adaptation": "Contorno selezionato, trasformato, ruotato, ricolorato e decorato da InkyCloud. Altezza e sezioni colorate sono decorative. Per l'e-ink convertito a 1 bit o a una tavolozza di colori limitata, ritagliato e ridimensionato.",
     "metadata": "Metadati e checksum dell’originale",
     "licenceText": "Testo della licenza",
     "dataLicences": "Licenze dei dati",
@@ -348,5 +373,14 @@
     "circuitWikiIntro": "Lunghezza del circuito e record sul giro provengono dall'infobox di queste versioni di voci della Wikipedia in inglese:",
     "circuitWikiChange": "Dati estratti dall'infobox, unità convertite."
   },
-  "privacy_off": "La raccolta di utilizzo e prestazioni del browser è disattivata in questa installazione."
+  "privacy_off": "La raccolta di utilizzo e prestazioni del browser è disattivata in questa installazione.",
+  "teams_extra_next": "Prossima",
+  "teams_extra_season": "Stagione",
+  "teams_extra_round": "Round",
+  "teams_extra_remaining": "rimanenti",
+  "teams_extra_done": "disputate",
+  "teams_extra_upcoming": "Prossime gare",
+  "teams_extra_today": "oggi",
+  "teams_extra_track": "Circuito",
+  "teams_extra_weather_credit": "Open-Meteo"
 }
