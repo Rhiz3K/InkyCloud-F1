@@ -341,7 +341,12 @@
     "catalogue": "Alle Stile, Akzente und Strecken",
     "apiAuthors": "Urheber und Lizenzen",
     "apiParameters": "Dieselben Parameter track_style, track_source, track_accent",
-    "history": "Urheber / Versionsgeschichte"
+    "history": "Urheber / Versionsgeschichte",
+    "jolpicaTerms": "Nutzungsbedingungen",
+    "nonCommercial": "nur nicht-kommerzielle Nutzung",
+    "circuitJolpica": "Das Jahr des ersten Grand Prix auf der Strecke und die geplante Rundenzahl werden aus den Jolpica-Rennergebnissen abgeleitet.",
+    "circuitWikiIntro": "Streckenlänge und Rundenrekord stammen aus der Infobox dieser Versionen englischer Wikipedia-Artikel:",
+    "circuitWikiChange": "Angaben aus der Infobox übernommen, Einheiten umgerechnet."
   },
   "privacy_off": "Nutzungs- und Browserleistungsmessung sind in dieser Bereitstellung deaktiviert."
 }

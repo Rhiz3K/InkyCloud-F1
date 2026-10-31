@@ -54,7 +54,10 @@ namespaces = true
 
 [tool.setuptools.package-data]
 "app" = [
-    "assets/circuits_data.json",
+    "assets/circuits_jolpica.json",
+    "assets/circuits_jolpica.json.license",
+    "assets/circuits_wikipedia.json",
+    "assets/circuits_wikipedia.json.license",
     "assets/asset-register.json",
     "assets/licenses/*",
     "assets/licenses/**/*",

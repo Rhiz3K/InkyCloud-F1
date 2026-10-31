@@ -1,12 +1,33 @@
 {
   "schema": 1,
   "assets": {
-    "circuits_data.json": {
-      "sha256": "9f7cb33d36c2b5b578a94651c682d34ecf89cecd824c42b7eb9a650472438bb4",
-      "license": "CC-BY-NC-SA-4.0 AND LicenseRef-Legacy-Circuit-Facts-Unverified",
-      "author": "Jolpica-F1 / Ergast contributors; legacy F1.com factual metadata",
+    "circuits_jolpica.json": {
+      "sha256": "9cb3809f49be27b855c851f176aab03418496bcedbf5a94d0e614f851f19c449",
+      "license": "CC-BY-NC-SA-4.0",
+      "author": "Jolpica-F1 / Ergast contributors",
       "source": "/static/licenses/DATA_LICENSES.txt",
-      "reviewed_on": "2026-09-15"
+      "reviewed_on": "2026-10-31"
+    },
+    "circuits_jolpica.json.license": {
+      "sha256": "d9bf6798bd863f6c8043132c68c2e054738139cfe88f03faddb6076f34449a5b",
+      "license": "CC-BY-NC-SA-4.0",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "source": "/static/licenses/DATA_LICENSES.txt",
+      "reviewed_on": "2026-10-31"
+    },
+    "circuits_wikipedia.json": {
+      "sha256": "b56c1ec278ed3e1ba6e9a6d2f66527998ed1997f093019a3226398317853e643",
+      "license": "CC-BY-SA-4.0",
+      "author": "Wikipedia contributors",
+      "source": "/static/licenses/DATA_LICENSES.txt",
+      "reviewed_on": "2026-10-31"
+    },
+    "circuits_wikipedia.json.license": {
+      "sha256": "bd0bb240293001b8df46a067f666cd26b50a0675b6249c6033ef600a6eccc323",
+      "license": "CC-BY-SA-4.0",
+      "author": "Wikipedia contributors",
+      "source": "/static/licenses/DATA_LICENSES.txt",
+      "reviewed_on": "2026-10-31"
     },
     "css/input.css": {
       "sha256": "84067b3d7ba6e1e14288b7ac569897ad7627d25e4d0eb7932f4a0f9f0f3cf9ea",
@@ -1278,7 +1299,7 @@
       "reviewed_on": "2026-09-09"
     },
     "licenses/DATA_LICENSES.txt": {
-      "sha256": "afbdcc8ee3e2cb326131db7a5654ae6e0cd83bfde33179cb03ce1a2d1a43a914",
+      "sha256": "3204015627e9360b69a4619df5d363bca4755a0db15ce5ba9b5980b48d5800cc",
       "license": "Third-party notices; see file",
       "author": "Original authors named in each notice",
       "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",

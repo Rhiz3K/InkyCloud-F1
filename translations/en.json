@@ -341,7 +341,12 @@
     "catalogue": "All styles, accents and circuits",
     "apiAuthors": "Authors and licences",
     "apiParameters": "The same track_style, track_source, track_accent parameters",
-    "history": "Authors / history"
+    "history": "Authors / history",
+    "jolpicaTerms": "Terms of use",
+    "nonCommercial": "non-commercial use only",
+    "circuitJolpica": "Circuit first Grand Prix year and planned lap count are derived from Jolpica race results.",
+    "circuitWikiIntro": "Circuit length and lap record come from the infobox of these English Wikipedia article revisions:",
+    "circuitWikiChange": "Facts extracted from the infobox, units converted."
   },
   "privacy_off": "Usage and browser performance collection are disabled on this deployment."
 }

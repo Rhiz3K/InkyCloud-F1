@@ -1,24 +1,22 @@
 # Coolify Deployment Guide
 
-Coolify should deploy the immutable GHCR release image, not rebuild the repository. Generic
-configuration and operations are documented in [`SELF-HOSTING.md`](./SELF-HOSTING.md); this file
-contains only Coolify-specific steps.
+Production Coolify builds the repository Dockerfile from Git branch `main`. Every merge to
+`main` automatically builds and deploys production; there is no separate promotion step.
+Merges therefore need the maintainer's approval. Generic configuration and operations are in
+[`SELF-HOSTING.md`](./SELF-HOSTING.md).
 
 ## Create the resource
 
-1. In Coolify, create a resource from a Docker image.
-2. Set the image to `ghcr.io/rhiz3k/inkycloud-f1:vX.Y.Z`.
+1. In Coolify, create an application from the public Git repository
+   `https://github.com/Rhiz3K/InkyCloud-F1`.
+2. Select branch `main` (`git_branch: main`) and the Dockerfile build pack
+   (`build_pack: dockerfile`), using the repository `Dockerfile`.
 3. Expose container port `8000`.
 4. Add persistent storage with destination `/app/data`.
-5. Import the values from [`.env.example`](./.env.example), adjust them for production, and set
-   `SITE_URL` to the final HTTPS apex URL.
-6. Keep the replica count at one and deploy.
-
-Use an exact `vX.Y.Z` tag in production. `latest` is useful for a preview environment but removes
-the deployment's explicit rollback identity.
-
-If the GHCR package is private, add registry credentials with package read permission in
-Coolify. Public packages require no registry secret.
+5. Import values from [`.env.example`](./.env.example) and adjust them for production. Set
+   `APP_ENV=production`, `OPERATOR_NAME`, and `PRIVACY_CONTACT_EMAIL`; set `SITE_URL` to the
+   final HTTPS apex URL.
+6. Keep one replica, enable automatic deployments from `main`, and deploy.
 
 ## Persistent storage
 
@@ -55,8 +53,9 @@ or secondary-variant failures return HTTP 200 with top-level status `degraded`; 
 liveness and must not be used for deployment readiness.
 
 The first deployment also refreshes upstream data before generating every localized variant.
-Retain the image's five-minute start period and three retries so this valid cold start remains in
-the `starting` state; `/health/ready` still exposes its detailed 503 response during that window.
+Retain the Dockerfile `HEALTHCHECK` with its five-minute start period and three retries so this
+valid cold start remains in the `starting` state; `/health/ready` still exposes its detailed 503
+response during that window.
 
 ## Configuration
 
@@ -70,41 +69,40 @@ Important operational rules:
 - `/app/data` persistent storage is mandatory
 - `STATS_RETENTION_DAYS=400` retains the full 365-day dashboard
 - `BACKUP_ENABLED=true` requires a valid S3 target and cron schedule
-- the image runs with `APP_ENV=production` and refuses to start unless `OPERATOR_NAME` and
-  `PRIVACY_CONTACT_EMAIL` are set (the data controller identity on the privacy page); the
-  `.env.example` value `APP_ENV=development` overrides this, so set `APP_ENV=production` or drop
-  that line when importing
+- the Dockerfile sets `APP_ENV=production`; the production validator refuses startup unless
+  `OPERATOR_NAME` and `PRIVACY_CONTACT_EMAIL` are set (the data controller identity on the privacy
+  page); the `.env.example` value `APP_ENV=development` overrides this, so set `APP_ENV=production`
+  or drop that line when importing
 - `PRIVACY_MAIL_RETENTION_DAYS` (default 365) is the period, stated on the privacy page, for
   which e-mails to the privacy contact are kept after the request is closed
 
-## Release deployment
+## Releases
 
-Every `vX.Y.Z` Git tag publishes these GHCR tags:
+Open a PR titled "Release vX.Y.Z" that moves the Unreleased notes to a new version heading in
+`CHANGELOG.md` and bumps `version` in `pyproject.toml`; see
+[`CONTRIBUTING.md`](./CONTRIBUTING.md#pull-request-process). After merge,
+`.github/workflows/release.yml` creates the GitHub release and `vX.Y.Z` tag. The tag then runs
+the `publish-container` job, publishing `ghcr.io/rhiz3k/inkycloud-f1` tags `vX.Y.Z`,
+`sha-<short-commit>` and `latest` with SBOM and provenance.
 
-- `vX.Y.Z`
-- `sha-<short-commit>`
-- `latest`
+The GHCR image is an optional self-hosting artifact and is not used by production Coolify.
+The release PR merge deploys production just like every other merge to `main`.
 
-The release image includes an SBOM and provenance attestation. To upgrade, change the image tag
-in Coolify from the current version to the new version, pull, and redeploy. Confirm
-`/health/ready`, a calendar BMP, a teams BMP, and the statistics page before removing any backup.
+Do not create tags by hand. A manual tag newer than `CHANGELOG.md` makes
+`python -m app.utils.release_validation` fail with
+"Latest CHANGELOG version must not be older than the latest git tag".
+
+After deployment, confirm `/health/ready`, a calendar BMP, a teams BMP, and the statistics page
+before removing any backup.
 
 ## Rollback
 
-Rollback does not require a rebuild:
+Take an S3 backup before an upgrade or rollback because migrations are versioned; an older
+application version may not be able to use a newer schema.
 
-1. Change the image tag back to the previous `vX.Y.Z` value.
-2. Redeploy the resource.
-3. Verify `/health/ready` and logs.
-
-For a Docker host outside Coolify, the equivalent one-command rollback is:
-
-```bash
-F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:vPREVIOUS docker compose up -d --no-build
-```
-
-Database migrations are versioned, but take an S3 backup before every upgrade so data can be
-restored if an older application version cannot use a future schema.
+Revert the offending change on `main` through a PR; merging automatically rebuilds and redeploys
+production. Alternatively, use Coolify's redeploy/rollback of an earlier deployment from its
+deployment history if that build is still available on the host. Verify `/health/ready` and logs.
 
 ## Backup commands
 
@@ -121,10 +119,10 @@ fails startup visibly.
 
 ## Troubleshooting
 
-### Image cannot be pulled
+### Build fails
 
-Confirm the lowercase image name, exact tag, package visibility, and registry credentials. A
-GitHub token used for a private package needs `read:packages`.
+Check the Coolify build log, the repository `Dockerfile`, and `uv.lock` / `requirements.lock`
+for the failing build step.
 
 ### Readiness remains unhealthy
 
@@ -146,5 +144,25 @@ as `degraded`; readiness turns 503 only when no usable core generation remains f
 
 ### Source changes are not visible
 
-Coolify is pulling a release artifact. Source commits appear only after a new release tag builds
-and publishes a new image; changing the tag is the deployment action.
+Check that the change is merged to `main` and the latest Coolify deployment has finished and is
+healthy. Every merge triggers a Dockerfile build and production deployment.
+
+## Optional: deploy the GHCR release image
+
+Self-hosters can use Docker Compose per [`SELF-HOSTING.md`](./SELF-HOSTING.md), or create their
+own Coolify resource:
+
+1. Create a resource from a Docker image.
+2. Set the image to `ghcr.io/rhiz3k/inkycloud-f1:vX.Y.Z`, using an exact version tag.
+3. Configure port `8000`, persistent storage `/app/data`, one replica, and the production
+   environment values described above.
+4. Add registry credentials with package read permission only if the package is private.
+   Public packages require no registry secret.
+5. Deploy and verify `/health/ready` and logs.
+
+To upgrade or roll back, take an S3 backup first, change the image tag to the desired exact
+`vX.Y.Z` version, pull, and redeploy. Version tags provide explicit rollback targets; `latest`
+follows the newest release.
+
+If the image cannot be pulled, confirm the lowercase image name, exact tag, package visibility,
+and registry credentials. A GitHub token used for a private package needs `read:packages`.

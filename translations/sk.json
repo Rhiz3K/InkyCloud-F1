@@ -341,7 +341,12 @@
     "catalogue": "Všetky štýly, farby a trate",
     "apiAuthors": "Autori a licencie",
     "apiParameters": "Rovnaké parametre track_style, track_source, track_accent",
-    "history": "Autori / história"
+    "history": "Autori / história",
+    "jolpicaTerms": "Podmienky používania",
+    "nonCommercial": "iba na nekomerčné použitie",
+    "circuitJolpica": "Rok prvej Grand Prix na okruhu a plánovaný počet kôl sú odvodené z výsledkov pretekov Jolpica.",
+    "circuitWikiIntro": "Dĺžka okruhu a rekord kola pochádzajú z infoboxu týchto revízií článkov anglickej Wikipédie:",
+    "circuitWikiChange": "Údaje prevzaté z infoboxu, jednotky prepočítané."
   },
   "privacy_off": "Zber používania a výkonu prehliadača je na tomto nasadení vypnutý."
 }
