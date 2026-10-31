@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Make the home page fit short laptop screens without changing it where it already fits.
+  Desktop viewports from 1024 px wide that are at least 983 px tall keep the production
+  layout pixel for pixel; the only change is that the unofficial-project notice sits on one
+  line (12 px, or 11 px between 1024 and 1079 px wide). Shorter desktop viewports get
+  graduated compaction through `max-height` media queries, each step only as much as the
+  height needs: up to 982 px tighter vertical spacing; up to 901 px also three-column home
+  Credits (style and content unchanged; the shared credit rows and the mobile menu are
+  untouched); up to 821 px also smaller white caption areas under the card previews; up to
+  703 px also a narrower card grid (780 px instead of 900 px) and the tightest spacing. The
+  heading stays visible and the page fits without vertical scrolling in all 13 languages
+  from 1024×640 upwards (content ends at 633 px at most at 1024×640). Below 1024 px and on
+  phones the page is unchanged from production. Rebuilding `tailwind.min.css` also emits the
+  `list-disc`/`pl-6` classes already used by the Wikipedia circuit list on `/credits`.
 - Circuit facts now come from English Wikipedia infoboxes (length, lap record; CC BY-SA 4.0,
   revision-pinned) and Jolpica (first Grand Prix, planned laps; CC BY-NC-SA 4.0), stored in
   two separately licensed files and refreshed only by the manual `scripts/fetch_circuits.py`.
