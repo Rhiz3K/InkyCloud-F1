@@ -78,6 +78,7 @@
   "api_docs_json_api": "JSON API",
   "api_docs_back_to_app": "返回应用",
   "api_docs_teams_desc": "生成 BMP 图片，以 1bit、B/W/R、B/W/R/Y 或 Spectra 6 输出模式显示所有 F1 车队、车手、照片和积分。",
+  "api_docs_teams_credits": "图片署名与许可（赛道图稿 CC BY 4.0，Open-Meteo 天气数据 CC BY 4.0）：参见 Credits。响应还包含带 rel=\"license\" 的 Link 标头。",
   "api_docs_display_desc": "显示输出模式",
   "api_docs_teams_year_desc": "车队数据的赛季年份",
   "api_docs_teams_extra_desc": "可选面板：none（默认）、timeline、countdown、weather、flags、combo、track。仅使用本地赛季数据和缓存天气；不可用时不显示面板。",
@@ -190,6 +191,7 @@
     "weatherRaceDayLabel": "比赛日",
     "weatherTooltipText": "比赛前 14 天启用",
     "displayLabel": "显示",
+    "imageCreditsNote": "图片署名与许可：",
     "teamsExtra": {
       "label": "空位面板",
       "options": {

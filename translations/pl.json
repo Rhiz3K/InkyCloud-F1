@@ -78,6 +78,7 @@
   "api_docs_json_api": "JSON API",
   "api_docs_back_to_app": "Powrót do aplikacji",
   "api_docs_teams_desc": "Generuj obraz BMP pokazujący wszystkie zespoły F1 z kierowcami, zdjęciami i punktami mistrzostw w trybach 1bit, B/W/R, B/W/R/Y lub Spectra 6.",
+  "api_docs_teams_credits": "Atrybucja i licencje obrazu (grafiki torów CC BY 4.0, pogoda Open-Meteo CC BY 4.0): zobacz Credits. Odpowiedzi zawierają też nagłówek Link z rel=\"license\".",
   "api_docs_display_desc": "Tryb wyjścia wyświetlacza",
   "api_docs_teams_year_desc": "Rok sezonu dla danych zespołów",
   "api_docs_teams_extra_desc": "Opcjonalny panel: none (domyślnie), timeline, countdown, weather, flags, combo, track. Używa lokalnych danych sezonu i pogody z pamięci podręcznej; niedostępne panele są pomijane.",
@@ -190,6 +191,7 @@
     "weatherRaceDayLabel": "Dzień wyścigu",
     "weatherTooltipText": "Aktywuje się 14 dni przed wyścigiem",
     "displayLabel": "Wyświetlacz",
+    "imageCreditsNote": "Atrybucja i licencje obrazu:",
     "teamsExtra": {
       "label": "Panel w wolnym miejscu",
       "options": {

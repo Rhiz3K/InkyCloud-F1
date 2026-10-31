@@ -78,6 +78,7 @@
   "api_docs_json_api": "API JSON",
   "api_docs_back_to_app": "Retour à l'app",
   "api_docs_teams_desc": "Générez une image BMP affichant toutes les équipes de F1 avec leurs pilotes, photos et points au championnat dans les modes 1bit, B/W/R, B/W/R/Y ou Spectra 6.",
+  "api_docs_teams_credits": "Attribution et licences de l'image (tracés des circuits CC BY 4.0, météo Open-Meteo CC BY 4.0) : voir Credits. Les réponses comportent aussi un en-tête Link avec rel=\"license\".",
   "api_docs_display_desc": "Mode de sortie de l'écran",
   "api_docs_teams_year_desc": "Année de saison pour les données des équipes",
   "api_docs_teams_extra_desc": "Panneau facultatif : none (par défaut), timeline, countdown, weather, flags, combo, track. Utilise les données locales de la saison et la météo en cache ; les panneaux indisponibles sont masqués.",
@@ -190,6 +191,7 @@
     "weatherRaceDayLabel": "Jour de course",
     "weatherTooltipText": "S'active 14 jours avant la course",
     "displayLabel": "Affichage",
+    "imageCreditsNote": "Attribution et licences de l'image :",
     "teamsExtra": {
       "label": "Panneau dans l'emplacement libre",
       "options": {

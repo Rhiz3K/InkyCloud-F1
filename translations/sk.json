@@ -78,6 +78,7 @@
   "api_docs_json_api": "JSON API",
   "api_docs_back_to_app": "Späť do aplikácie",
   "api_docs_teams_desc": "Generovanie BMP obrázka so všetkými F1 tímami, ich jazdcami, fotkami a bodmi v šampionáte v režimoch 1bit, B/W/R, B/W/R/Y alebo Spectra 6.",
+  "api_docs_teams_credits": "Atribúcia a licencie obrázka (kresby tratí CC BY 4.0, počasie Open-Meteo CC BY 4.0): pozri Credits. Odpovede obsahujú aj hlavičku Link s rel=\"license\".",
   "api_docs_display_desc": "Výstupný režim pre displej",
   "api_docs_teams_year_desc": "Rok sezóny pre tímové dáta",
   "api_docs_teams_extra_desc": "Voliteľný panel: none (predvolené), timeline, countdown, weather, flags, combo, track. Používa miestne údaje sezóny a počasie z vyrovnávacej pamäte; nedostupný panel sa nezobrazí.",
@@ -190,6 +191,7 @@
     "weatherRaceDayLabel": "Deň pretekov",
     "weatherTooltipText": "Aktivuje sa 14 dní pred pretekmi",
     "displayLabel": "Displej",
+    "imageCreditsNote": "Atribúcia a licencie obrázka:",
     "teamsExtra": {
       "label": "Panel vo voľnom mieste",
       "options": {

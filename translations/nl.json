@@ -78,6 +78,7 @@
   "api_docs_json_api": "JSON API",
   "api_docs_back_to_app": "Terug naar app",
   "api_docs_teams_desc": "Genereer een BMP-afbeelding met alle F1-teams, hun coureurs, foto's en kampioenschapspunten in 1bit-, B/W/R-, B/W/R/Y- of Spectra 6-uitvoermodus.",
+  "api_docs_teams_credits": "Bronvermelding en licenties van de afbeelding (circuittekeningen CC BY 4.0, weergegevens van Open-Meteo CC BY 4.0): zie Credits. Antwoorden bevatten ook een Link-header met rel=\"license\".",
   "api_docs_display_desc": "Uitvoermodus van het display",
   "api_docs_teams_year_desc": "Seizoensjaar voor teamdata",
   "api_docs_teams_extra_desc": "Optioneel paneel: none (standaard), timeline, countdown, weather, flags, combo, track. Gebruikt lokale seizoensgegevens en weer uit de cache; niet-beschikbare panelen worden weggelaten.",
@@ -190,6 +191,7 @@
     "weatherRaceDayLabel": "Racedag",
     "weatherTooltipText": "Wordt 14 dagen voor de race geactiveerd",
     "displayLabel": "Scherm",
+    "imageCreditsNote": "Bronvermelding en licenties van de afbeelding:",
     "teamsExtra": {
       "label": "Paneel in lege plek",
       "options": {

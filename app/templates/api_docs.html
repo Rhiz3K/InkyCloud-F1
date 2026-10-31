@@ -462,6 +462,10 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         teams with their drivers, photos, and championship points in 1bit,
         B/W/R, B/W/R/Y, or Spectra 6 output modes.") }}
       </p>
+      {% set teams_credits = t.get("api_docs_teams_credits", "Image attribution and licences (track artwork CC BY 4.0, Open-Meteo weather CC BY 4.0): see Credits. Responses also carry a Link header with rel=\"license\".").partition("Credits") %}
+      <p class="text-sm mb-4">
+        {{ teams_credits[0] }}{% if teams_credits[1] %}<a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}">Credits</a>{{ teams_credits[2] }}{% else %} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}">Credits</a>{% endif %}
+      </p>
 
       <!-- Parameters -->
       <h3

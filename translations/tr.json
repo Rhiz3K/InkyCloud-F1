@@ -78,6 +78,7 @@
   "api_docs_json_api": "JSON API",
   "api_docs_back_to_app": "Uygulamaya Dön",
   "api_docs_teams_desc": "1bit, B/W/R, B/W/R/Y veya Spectra 6 çıktı modlarında tüm F1 takımlarını, sürücülerini, fotoğraflarını ve şampiyona puanlarını gösteren bir BMP görseli oluşturun.",
+  "api_docs_teams_credits": "Görsel atıfları ve lisansları (pist çizimleri CC BY 4.0, Open-Meteo hava durumu CC BY 4.0): Credits sayfasına bakın. Yanıtlar ayrıca rel=\"license\" içeren bir Link başlığı taşır.",
   "api_docs_display_desc": "Ekran çıktı modu",
   "api_docs_teams_year_desc": "Takım verileri için sezon yılı",
   "api_docs_teams_extra_desc": "İsteğe bağlı panel: none (varsayılan), timeline, countdown, weather, flags, combo, track. Yerel sezon verilerini ve önbellekteki hava durumunu kullanır; kullanılamayan paneller gösterilmez.",
@@ -190,6 +191,7 @@
     "weatherRaceDayLabel": "Yarış günü",
     "weatherTooltipText": "Yarıştan 14 gün önce etkinleşir",
     "displayLabel": "Ekran",
+    "imageCreditsNote": "Görsel atıfları ve lisansları:",
     "teamsExtra": {
       "label": "Boş alandaki panel",
       "options": {

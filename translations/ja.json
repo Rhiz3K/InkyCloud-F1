@@ -78,6 +78,7 @@
   "api_docs_json_api": "JSON API",
   "api_docs_back_to_app": "アプリに戻る",
   "api_docs_teams_desc": "1bit、B/W/R、B/W/R/Y、または Spectra 6 出力モードで、すべての F1 チーム、ドライバー、写真、チャンピオンシップポイントを表示する BMP 画像を生成します。",
+  "api_docs_teams_credits": "画像の帰属表示とライセンス（サーキット図 CC BY 4.0、Open-Meteo 天気データ CC BY 4.0）：Credits を参照してください。レスポンスには rel=\"license\" の Link ヘッダーも含まれます。",
   "api_docs_display_desc": "ディスプレイ出力モード",
   "api_docs_teams_year_desc": "チームデータのシーズン年",
   "api_docs_teams_extra_desc": "追加パネル：none（既定）、timeline、countdown、weather、flags、combo、track。ローカルのシーズンデータとキャッシュ済みの天気のみを使用し、利用できない場合は表示しません。",
@@ -190,6 +191,7 @@
     "weatherRaceDayLabel": "レース当日",
     "weatherTooltipText": "レース14日前から有効",
     "displayLabel": "ディスプレイ",
+    "imageCreditsNote": "画像の帰属表示とライセンス：",
     "teamsExtra": {
       "label": "空きスペースのパネル",
       "options": {
