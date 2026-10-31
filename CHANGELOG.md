@@ -17,14 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Make the home page fit one laptop screen while keeping the production design: at 1024×640
-  the cards, Credits and the unofficial-project notice now fit without vertical scrolling in
-  all 13 languages (document height 640 px instead of 977 px; content ends at ≤ 631 px). The
-  "Choose your screen type" heading is visually hidden with `sr-only` but stays an `h1` for
-  screen readers; translations are unchanged. Card layout, previews and styling stay as
-  before; only the white caption areas are smaller (less padding, smaller title and
-  description text), the card grid is narrower (780 px instead of 900 px) and the vertical
-  spacing around the grid, Credits and notice is tighter. The Credits style and content are
-  unchanged, only their spacing is reduced; on mobile the page still scrolls. Rebuilding
+  the heading, cards, Credits and the unofficial-project notice now fit without vertical
+  scrolling in all 13 languages (document height 640 px instead of 977 px; content ends at
+  633 px at most). Card layout, previews and styling stay as before; only the white caption
+  areas are smaller (less padding, smaller title and description text), the card grid is
+  narrower (780 px instead of 900 px) and the vertical spacing around the heading, grid,
+  Credits and notice is tighter. From 1024 px the home Credits use three columns instead of
+  two (style and content unchanged; the shared credit rows and the mobile menu are
+  untouched) and the notice fits on one line with slightly smaller text. Below 1024 px the
+  Credits keep two columns (one on phones) and the page still scrolls on mobile. Rebuilding
   `tailwind.min.css` also emits the `list-disc`/`pl-6` classes already used by the Wikipedia
   circuit list on `/credits`.
 - Circuit facts now come from English Wikipedia infoboxes (length, lap record; CC BY-SA 4.0,
