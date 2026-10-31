@@ -161,17 +161,16 @@ def draw_teams_extra(
             height=17,
             size=12 if extra == TeamsExtra.WEATHER or two_rows else 16,
         )
-    drawers = {
-        TeamsExtra.TIMELINE: _draw_timeline,
-        TeamsExtra.COUNTDOWN: _draw_countdown,
-        TeamsExtra.COMBO: _draw_countdown,
-        TeamsExtra.WEATHER: _draw_weather,
-        TeamsExtra.FLAGS: _draw_flags,
-        TeamsExtra.TRACK: _draw_track,
-    }
-    drawers[extra](
-        panel, draw, theme, ctx, extra, display=display, translator=translator, lang=lang
-    )
+    if extra == TeamsExtra.TIMELINE:
+        _draw_timeline(panel, draw, theme, ctx, translator=translator, lang=lang)
+    elif extra in (TeamsExtra.COUNTDOWN, TeamsExtra.COMBO):
+        _draw_countdown(panel, draw, theme, ctx, extra, translator=translator, lang=lang)
+    elif extra == TeamsExtra.WEATHER:
+        _draw_weather(panel, draw, theme, ctx, translator=translator, lang=lang)
+    elif extra == TeamsExtra.FLAGS:
+        _draw_flags(panel, draw, theme, ctx, display=display)
+    elif extra == TeamsExtra.TRACK:
+        _draw_track(panel, draw, theme, ctx, display=display, translator=translator, lang=lang)
     image.paste(panel, (0, 0))
 
 
@@ -189,9 +188,7 @@ def _draw_timeline(
     draw: ImageDraw.ImageDraw,
     theme: RenderTheme,
     ctx: TeamsExtraContext,
-    extra: TeamsExtra,
     *,
-    display: str,
     translator: dict,
     lang: str,
 ) -> None:
@@ -246,7 +243,6 @@ def _draw_countdown(
     ctx: TeamsExtraContext,
     extra: TeamsExtra,
     *,
-    display: str,
     translator: dict,
     lang: str,
 ) -> None:
@@ -332,9 +328,7 @@ def _draw_weather(
     draw: ImageDraw.ImageDraw,
     theme: RenderTheme,
     ctx: TeamsExtraContext,
-    extra: TeamsExtra,
     *,
-    display: str,
     translator: dict,
     lang: str,
 ) -> None:
@@ -378,11 +372,8 @@ def _draw_flags(
     draw: ImageDraw.ImageDraw,
     theme: RenderTheme,
     ctx: TeamsExtraContext,
-    extra: TeamsExtra,
     *,
     display: str,
-    translator: dict,
-    lang: str,
 ) -> None:
     """Draw the flags card body inside the clipped panel."""
     width, height = panel.size
@@ -422,7 +413,6 @@ def _draw_track(
     draw: ImageDraw.ImageDraw,
     theme: RenderTheme,
     ctx: TeamsExtraContext,
-    extra: TeamsExtra,
     *,
     display: str,
     translator: dict,

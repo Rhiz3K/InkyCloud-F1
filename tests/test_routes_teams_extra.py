@@ -22,7 +22,7 @@ def routes(monkeypatch):
     """Mount isolated routes with deterministic data and no external fetching."""
     get_bmp_cache().clear()
     images._singleflight_tasks.clear()
-    monkeypatch.setattr(WeatherService, "_get_cached", lambda key: WeatherData(20.0, 1, 10))
+    monkeypatch.setattr(WeatherService, "get_cached_value", lambda key: WeatherData(20.0, 1, 10))
     monkeypatch.setattr(images, "record_api_call", MagicMock())
     for module in (images, previews):
         monkeypatch.setattr(module, "enforce_rate_limit", MagicMock())

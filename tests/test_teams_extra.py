@@ -101,7 +101,7 @@ def test_weather_cache_only(monkeypatch):
     weather = WeatherData(23, 1, 10)
     cached = Mock(return_value=weather)
     fallback = Mock(return_value=weather)
-    monkeypatch.setattr(WeatherService, "_get_cached", cached)
+    monkeypatch.setattr(WeatherService, "get_cached_value", cached)
     monkeypatch.setattr(extras, "get_cached_circuit_weather", fallback)
     assert build_teams_extra_context(TeamsExtra.WEATHER, 2026, now=NOW).weather == weather
     fallback.assert_not_called()
@@ -583,3 +583,12 @@ def test_short_timeline_matches_original(ctx, round_count):
         lang="en",
     )
     assert actual.tobytes() == expected.tobytes()
+
+
+@pytest.mark.parametrize("cached_value", [None, WeatherData(23, 1, 10)])
+def test_public_weather_cache_accessor(monkeypatch, cached_value):
+    """The public cache-only accessor preserves the existing lookup result and key."""
+    cached = Mock(return_value=cached_value)
+    monkeypatch.setattr(WeatherService, "_get_cached", cached)
+    assert WeatherService.get_cached_value("race-key") is cached_value
+    cached.assert_called_once_with("race-key")

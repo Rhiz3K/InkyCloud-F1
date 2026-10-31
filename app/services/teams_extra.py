@@ -100,7 +100,7 @@ def build_teams_extra_context(
     if extra == TeamsExtra.WEATHER:
         location = circuit.Location
         if location.lat is not None and location.long is not None:
-            weather = WeatherService._get_cached(
+            weather = WeatherService.get_cached_value(
                 _race_weather_cache_key(float(location.lat), float(location.long), start)
             )
         weather = weather or get_cached_circuit_weather(circuit_id)
