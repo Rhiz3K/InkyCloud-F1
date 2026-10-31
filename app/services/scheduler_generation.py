@@ -383,7 +383,7 @@ def _parse_race_datetime_utc(race_data: dict) -> datetime | None:
         return None
 
     dt_str = race_session.get("datetime")
-    if not dt_str:
+    if not dt_str or len(str(dt_str)) == 10:
         return None
 
     try:

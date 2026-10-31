@@ -419,7 +419,7 @@ async def test_get_season_races_handles_null_circuit_and_missing_time(monkeypatc
     assert races[0]["circuit_id"] == ""
     assert races[0]["circuit_name"] == ""
     assert races[0]["country"] == ""
-    assert races[0]["datetime"] == "2026-03-08T12:00:00+00:00"
+    assert races[0]["datetime"] == "2026-03-08"
 
 
 @pytest.mark.asyncio
@@ -438,7 +438,7 @@ async def test_get_season_races_uses_default_time_for_explicit_null(monkeypatch)
     races = await service.get_season_races(2026)
 
     assert len(races) == 1
-    assert races[0]["datetime"] == "2026-03-08T12:00:00+00:00"
+    assert races[0]["datetime"] == "2026-03-08"
 
 
 # Extended validation and fallback coverage for the F1 data service.
@@ -546,11 +546,12 @@ def test_merge_static_cancelled_races_skips_active_duplicates_and_handles_loader
         assert service._merge_static_cancelled_races(2026, live) == live
 
 
-def test_convert_race_times_uses_default_time_and_skips_invalid_datetimes():
+def test_convert_race_times_preserves_unknown_time_and_skips_invalid_datetimes():
     service = f1.F1Service(timezone_name="UTC")
     default_time = service._convert_race_times(_race(race_time=None))
     assert default_time["schedule"][-1]["name"] == "Race"
-    assert default_time["datetime"].endswith("+00:00")
+    assert default_time["datetime"] == default_time["date"]
+    assert default_time["time"] is None
 
     invalid = service._convert_race_times(
         _race(
@@ -926,3 +927,24 @@ def test_historical_loader_handles_missing_malformed_and_file_errors():
         assert f1.F1Service.get_historical_from_static("test").is_new_track is True
     with patch("app.services.f1_service.load_circuits_data", side_effect=RuntimeError("failed")):
         assert f1.F1Service.get_historical_from_static("test").is_new_track is True
+
+
+@pytest.mark.asyncio
+async def test_get_race_by_round_preserves_unknown_session_times(sepang_2017_payload):
+    service = F1Service(timezone="UTC")
+    response = MockResponse({"MRData": {"RaceTable": {"Races": [sepang_2017_payload]}}})
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=AsyncMock(return_value=response)),
+    ):
+        race = await service.get_race_by_round(2017, 15)
+        assert await service.get_race_by_round(2017, 15) == race
+
+    assert race["race_name"] == "Malaysian Grand Prix"
+    assert [(event["name"], event["datetime"]) for event in race["schedule"]] == [
+        ("FP1", "2017-09-29"),
+        ("FP2", "2017-09-29"),
+        ("FP3", "2017-09-30"),
+        ("Qualifying", "2017-09-30"),
+        ("Race", "2017-10-01T07:00:00+00:00"),
+    ]

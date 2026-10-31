@@ -38,6 +38,7 @@ from app.services.weather_service import get_weather_context
 from app.state import BmpArtifact, get_bmp_cache, record_api_call
 from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
+from app.utils.f1_season import race_selection_error
 from app.utils.race_times import convert_race_times_to_timezone
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.timezones import is_valid_timezone, normalize_timezone
@@ -484,7 +485,7 @@ def _get_pregenerated_calendar_path(
     identity = (
         expected_identity
         if expected_identity is not None
-        else calendar_identity(F1Service().get_next_race_from_static())
+        else calendar_identity(F1Service(timezone_name=target_tz).get_next_race_from_static())
     )
     return path if path is not None and artifact_matches(path, identity) else None
 
@@ -764,6 +765,13 @@ async def get_calendar_bmp(
         return response
 
     selected_race = _get_race_data_from_static(f1_service, year, race_round, race_key)
+    if (
+        selected_race is None
+        and year is not None
+        and race_round is not None
+        and race_selection_error(year, race_round) is None
+    ):
+        selected_race = await f1_service.get_race_by_round(year, race_round)
     identity = calendar_identity(selected_race, track_options)
     cache_key = f"{identity}|" + _get_cache_key(
         lang, year, race_round, race_key, tz, weather, weather_type, display

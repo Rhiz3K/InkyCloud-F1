@@ -21,7 +21,7 @@ from app.utils.f1_season import (
     MIN_F1_SEASON,
     get_current_f1_season,
     get_max_supported_f1_season,
-    is_supported_f1_season,
+    race_selection_error,
 )
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.standings_metadata import TEAM_ID_MAP, get_driver_number
@@ -64,8 +64,8 @@ def _matches_round(race: dict, round_num: int) -> bool:
 
 def _require_supported_f1_season(year: int) -> None:
     """Raise HTTP 422 when a requested season falls outside supported bounds."""
-    if not is_supported_f1_season(year):
-        raise HTTPException(status_code=422, detail="Unsupported F1 season")
+    if error := race_selection_error(year, 1):
+        raise HTTPException(status_code=422, detail=error)
 
 
 def normalize_perf_page_path(page_path: str) -> str:
@@ -610,9 +610,8 @@ async def get_race_detail(
 ) -> dict:
     """Return details for a single race round."""
     enforce_rate_limit(request, bucket="f1_data_api", limit=config.DATA_API_RATE_LIMIT_PER_MINUTE)
-    _require_supported_f1_season(year)
-    if not 1 <= round_num <= 30:
-        raise HTTPException(status_code=422, detail="Invalid race round")
+    if error := race_selection_error(year, round_num):
+        raise HTTPException(status_code=422, detail=error)
     static_races = f1_service.get_all_races_from_static(year)
     race = next(
         (item for item in static_races if _matches_round(item, round_num)),

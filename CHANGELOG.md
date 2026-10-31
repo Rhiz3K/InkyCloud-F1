@@ -34,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   builds the Dockerfile from Git `main`, every merge to `main` deploys, releases go through a
   "Release vX.Y.Z" PR; the GHCR image is documented as an optional self-hosting artifact.
 
+### Fixed
+
+- Validate calendar remote race lookups with the same season and round bounds as the race API.
+
+- Let calendar.bmp fall back to remote race data for seasons without static data.
+
+- Fix historical race details and calendar images for sessions without times, returning unknown session times as null and showing them as "–".
+
 ### Removed
 
 - Remove the optional Umami integration (server-side hourly summaries), its

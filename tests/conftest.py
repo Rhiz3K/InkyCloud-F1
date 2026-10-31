@@ -44,3 +44,24 @@ def _cleanup_test_dir():
 
 # Register cleanup to run when tests finish
 atexit.register(_cleanup_test_dir)
+
+
+@pytest.fixture
+def sepang_2017_payload():
+    """Historical Jolpica race with dates but no session times."""
+    return {
+        "season": "2017",
+        "round": "15",
+        "raceName": "Malaysian Grand Prix",
+        "Circuit": {
+            "circuitId": "sepang",
+            "circuitName": "Sepang International Circuit",
+            "Location": {"locality": "Kuala Lumpur", "country": "Malaysia"},
+        },
+        "date": "2017-10-01",
+        "time": "07:00:00Z",
+        "FirstPractice": {"date": "2017-09-29"},
+        "SecondPractice": {"date": "2017-09-29"},
+        "ThirdPractice": {"date": "2017-09-30"},
+        "Qualifying": {"date": "2017-09-30"},
+    }
