@@ -297,3 +297,152 @@ def test_invalid_values_warn_with_circuit_id(capsys):
         "warning: americas: Wikipedia: missing or invalid lap record; keeping previous value",
         "warning: americas: Jolpica: invalid first_grand_prix; keeping previous value",
     ]
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("www.evil.example", False),
+        ("evil.com", False),
+        ("A.Kimi", False),
+        ("A. Kimi Antonelli", True),
+        ("Carlos Sainz Jr.", True),
+        ("Sergio Pérez", True),
+        ("Jean-Éric Vergne", True),
+        ("O'Neil", True),
+    ],
+)
+def test_driver_dots(name, expected):
+    """Reject domain-like dots while preserving initials and supported names."""
+    assert fc.valid_driver(name) is expected
+
+
+@pytest.mark.parametrize(
+    "field,previous",
+    [("fastest_lap_time", "1:00.000"), ("number_of_laps", 50), ("number_of_laps", "50")],
+)
+@pytest.mark.parametrize("use_baseline", [False, True])
+def test_additional_jump_guards(field, previous, use_baseline):
+    """Guard valid existing and baseline times and integer or string lap counts."""
+    prior = {"monza": {field: previous}}
+    baseline = prior if use_baseline else None
+    old = {} if use_baseline else prior
+    with pytest.raises(ValueError, match=f"monza: {field} jump exceeds 5%"):
+        fc.build_outputs(
+            old if field == "fastest_lap_time" else {},
+            old if field == "number_of_laps" else {},
+            wiki,
+            jolpica,
+            only=["monza"],
+            baseline=baseline,
+        )
+
+
+@pytest.mark.parametrize(
+    "field,previous,new,convert",
+    [
+        ("fastest_lap_time", "1:00.000", "1:03.000", lambda v: int(v[0]) * 60 + float(v[2:])),
+        ("number_of_laps", "60", 63, float),
+        ("number_of_laps", 60, 57, float),
+    ],
+)
+def test_jump_exact_boundary(field, previous, new, convert):
+    """Allow exact five-percent changes including decreases."""
+    fc.check_jump("monza", field, previous, new, convert)
+
+
+@pytest.mark.parametrize(
+    "title,redirects",
+    [
+        (None, []),
+        ("Autodromo Actual", []),
+        ("Monza Circuit", [{"from": "Alias", "to": "Monza Circuit"}]),
+    ],
+)
+def test_resolved_title(title, redirects, capsys):
+    """Record resolved titles and warn on either title changes or redirect metadata."""
+
+    def fetch(url):
+        """Return optional resolved title and redirect metadata."""
+        payload = wiki(url)
+        if title is not None:
+            payload["query"]["pages"][0]["title"] = title
+        payload["query"]["redirects"] = redirects
+        return payload
+
+    output, _ = fc.build_outputs({}, {}, fetch, jolpica, only=["monza"])
+    actual = title or "Monza Circuit"
+    for entry in output["monza"]["_provenance"]["fields"].values():
+        assert entry["title"] == actual
+        assert (
+            entry["source"]
+            == f"https://en.wikipedia.org/w/index.php?title={actual.replace(' ', '_')}&oldid=42"
+        )
+    assert ("redirected to" in capsys.readouterr().err) is bool(
+        redirects or title == "Autodromo Actual"
+    )
+
+
+@pytest.mark.parametrize("title", [None, "", " ", "a" * 256, "Bad\nTitle", "Bad\x7fTitle"])
+def test_invalid_resolved_title(title):
+    """Reject unsafe resolved titles rather than storing them in provenance."""
+    payload = wiki("")
+    payload["query"]["pages"][0]["title"] = title
+    with pytest.raises(ValueError, match="invalid Wikipedia title"):
+        fc.wikipedia_revision(payload, "Monza Circuit")
+
+
+def test_total_deadline(monkeypatch):
+    """Reject a response whose streamed chunks exceed the total deadline."""
+    ticks = iter([0.0, float(fc.TOTAL_DEADLINE) + 0.001])
+    monkeypatch.setattr(fc.time, "monotonic", lambda: next(ticks))
+    with httpx.Client(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={}))
+    ) as client:
+        with pytest.raises(ValueError, match="request exceeded total deadline"):
+            fc.fetch_json(client, "https://example.org/")
+
+
+@pytest.mark.parametrize("field", ["fastest_lap_time", "number_of_laps", None])
+def test_cli_new_values_and_guard_failures(tmp_path, monkeypatch, capsys, field):
+    """Print baseline-aware NEW summaries and avoid both writes on new guard failures."""
+    wp, jp, bp = (tmp_path / name for name in ("wiki.json", "jolpica.json", "baseline.json"))
+    prior_wiki, prior_jolpica = empty(), empty()
+    if field == "fastest_lap_time":
+        prior_wiki["monza"][field] = "1:00.000"
+    elif field == "number_of_laps":
+        prior_jolpica["monza"][field] = 50
+    baseline = empty()
+    baseline["monza"]["circuit_length"] = "5.278km"
+    for path, records in ((wp, prior_wiki), (jp, prior_jolpica), (bp, baseline)):
+        path.write_text(json.dumps(records))
+    before = wp.read_bytes(), jp.read_bytes()
+
+    def fetch(self, url):
+        """Serve source fixtures without requests or pacing."""
+        return wiki(url) if "wikipedia.org" in url else jolpica(url)
+
+    monkeypatch.setattr(fc.PacedFetcher, "__call__", fetch)
+    result = fc.main(
+        [
+            "--only",
+            "monza",
+            "--wikipedia-out",
+            str(wp),
+            "--jolpica-out",
+            str(jp),
+            "--baseline",
+            str(bp),
+        ]
+        + ([] if field else ["--dry-run"])
+    )
+    assert result == (1 if field else 0)
+    assert (wp.read_bytes(), jp.read_bytes()) == before
+    captured = capsys.readouterr()
+    if field:
+        assert f"{field} jump exceeds 5%" in captured.err
+    else:
+        assert "Wikipedia NEW monza.fastest_lap_time: None -> '1:20.901'" in captured.out
+        assert "Wikipedia NEW monza.circuit_length" not in captured.out
+        assert "New values (no previous value, jump guard not applied): 5" in captured.out
+        assert "Jolpica monza.number_of_laps = 70" in captured.out

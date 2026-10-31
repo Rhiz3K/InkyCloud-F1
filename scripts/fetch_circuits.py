@@ -53,6 +53,7 @@ CIRCUITS = (
 FIELDS = ("circuit_length", "fastest_lap_time", "fastest_lap_driver", "fastest_lap_year")
 USER_AGENT = "InkyCloud-F1-data/1.0 (https://f1.inkycloud.click; privacy@inkycloud.click)"
 LIMIT = 2 * 1024 * 1024
+TOTAL_DEADLINE = 60
 BASE = "https://api.jolpi.ca/ergast/f1"
 METHOD_FIRST = "season of the first race with a classified winner at this circuit in Jolpica"
 METHOD_LAPS = (
@@ -195,6 +196,10 @@ def valid_driver(value: Any) -> bool:
     """Check the display-safe driver alphabet and both length constraints."""
     if not isinstance(value, str) or not value.strip() or len(value) > 64:
         return False
+    if any(
+        a.isalpha() and b == "." and c.isalpha() for a, b, c in zip(value, value[1:], value[2:])
+    ):
+        return False
     return len(value.split()[-1]) <= 20 and all(
         "A" <= c <= "Z"
         or "a" <= c <= "z"
@@ -269,9 +274,11 @@ def extract_wikipedia_facts(text: str, current_year: int, circuit_id: str) -> di
 
 
 def fetch_json(client: httpx.Client, url: str) -> Any:
-    """Fetch bounded HTTPS JSON without redirects or alternate deserializers."""
+    """Fetch bounded HTTPS JSON; a blocked read caps worst case at deadline + 20 s."""
     if urlsplit(url).scheme != "https":
         raise ValueError("HTTPS required")
+    started = time.monotonic()
+    # The httpx 20 s read timeout still bounds any single blocked read.
     with client.stream(
         "GET", url, headers={"User-Agent": USER_AGENT}, follow_redirects=False, timeout=20
     ) as response:
@@ -279,6 +286,8 @@ def fetch_json(client: httpx.Client, url: str) -> Any:
             raise ValueError(f"HTTP {response.status_code}")
         body = bytearray()
         for chunk in response.iter_bytes():
+            if time.monotonic() - started > TOTAL_DEADLINE:
+                raise ValueError("request exceeded total deadline")
             if len(body) + len(chunk) > LIMIT:
                 raise ValueError("response exceeds 2 MiB")
             body.extend(chunk)
@@ -303,17 +312,40 @@ class PacedFetcher:
         return fetch_json(self.client, url)
 
 
-def wikipedia_revision(payload: Any) -> tuple[str, int]:
-    """Validate the latest-revision envelope, ignoring returned article titles."""
+def wikipedia_revision(payload: Any, requested_title: str) -> tuple[str, int, str]:
+    """Validate the latest revision and resolved title, falling back when absent."""
     pages = payload["query"]["pages"]
-    if not isinstance(pages, list) or len(pages) != 1:
+    if not isinstance(pages, list) or len(pages) != 1 or not isinstance(pages[0], dict):
         raise ValueError("invalid Wikipedia pages")
+    title = pages[0].get("title", requested_title)
+    if (
+        not isinstance(title, str)
+        or not title.strip()
+        or len(title) > 255
+        or any(ord(c) < 32 or 127 <= ord(c) <= 159 for c in title)
+    ):
+        raise ValueError("invalid Wikipedia title")
     revision = pages[0]["revisions"][0]
     revid = revision["revid"]
     content = revision["slots"]["main"]["content"]
     if type(revid) is not int or revid <= 0 or not isinstance(content, str):
         raise ValueError("invalid revision")
-    return content, revid
+    return content, revid, title
+
+
+def previous_value(record: dict[str, Any], baseline: dict[str, Any], field: str) -> Any:
+    """Prefer an existing non-null value, otherwise use the baseline."""
+    value = record.get(field)
+    return baseline.get(field) if value is None else value
+
+
+def check_jump(
+    cid: str, field: str, previous: Any, new: Any, to_number: Callable[[Any], float]
+) -> None:
+    """Reject changes over 5 percent after the caller validates the previous value."""
+    old_number = to_number(previous)
+    if abs(to_number(new) - old_number) > old_number * 0.05 + 1e-12:
+        raise ValueError(f"{cid}: {field} jump exceeds 5%")
 
 
 def races(payload: Any) -> tuple[int, list[Any]]:
@@ -338,7 +370,7 @@ def build_outputs(
     baseline: dict[str, Any] | None = None,
     today: date | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Build both datasets without mutations or writes; raise on any length jump."""
+    """Build both datasets without mutations or writes; reject guarded value jumps."""
     today = today or date.today()
     wiki = {cid: copy.deepcopy(old_wiki.get(cid, {})) for cid, _, _ in CIRCUITS}
     jolpica = {cid: copy.deepcopy(old_jolpica.get(cid, {})) for cid, _, _ in CIRCUITS}
@@ -380,28 +412,29 @@ def build_outputs(
                     },
                 )
             )
-            text, revid = wikipedia_revision(fetch_wikipedia(url))
+            payload = fetch_wikipedia(url)
+            text, revid, actual = wikipedia_revision(payload, title)
+            if actual != title or payload["query"].get("redirects"):
+                warn(
+                    f"{cid}: Wikipedia: '{title}' redirected to '{actual}'; recording actual title"
+                )
             facts = extract_wikipedia_facts(text, today.year, cid)
         except (httpx.HTTPError, ValueError, KeyError, TypeError, IndexError) as exc:
             warn(f"{cid}: Wikipedia: {exc}; keeping previous value")
         else:
-            previous = record.get("circuit_length") or (baseline or {}).get(cid, {}).get(
-                "circuit_length"
-            )
-            length = facts.get("circuit_length")
-            if (
-                length
-                and valid_length(previous)
-                and abs(float(length[:-2]) - float(previous[:-2]))
-                > float(previous[:-2]) * 0.05 + 1e-12
+            for field, validator, convert in (
+                ("circuit_length", valid_length, lambda v: float(v[:-2])),
+                ("fastest_lap_time", valid_time, lambda v: int(v[0]) * 60 + float(v[2:])),
             ):
-                raise ValueError(f"{cid}: circuit_length jump exceeds 5%")
+                previous = previous_value(record, (baseline or {}).get(cid, {}), field)
+                if field in facts and validator(previous):
+                    check_jump(cid, field, previous, facts[field], convert)
             for field, value in facts.items():
                 record[field] = value
                 record["_provenance"]["fields"][field] = {
                     "source": "https://en.wikipedia.org/w/index.php?title="
-                    f"{quote(title.replace(' ', '_'), safe='')}&oldid={revid}",
-                    "title": title,
+                    f"{quote(actual.replace(' ', '_'), safe='')}&oldid={revid}",
+                    "title": actual,
                     "revid": revid,
                     "retrieved_on": today.isoformat(),
                 }
@@ -420,6 +453,9 @@ def build_outputs(
             warn(f"{cid}: Jolpica: {exc}; keeping previous value")
         else:
             target = jolpica[cid]
+            previous = previous_value(target, (baseline or {}).get(cid, {}), "number_of_laps")
+            if type(previous) in (int, str) and valid_laps(str(previous)):
+                check_jump(cid, "number_of_laps", previous, laps, float)
             provenance = target.setdefault("_provenance", {})
             fields = provenance.setdefault("fields", {})
             for field, output_value, source, method in (
@@ -476,16 +512,25 @@ def main(argv: list[str] | None = None) -> int:
             wiki, jolpica = build_outputs(
                 old_wiki, old_jolpica, fetch, fetch, only=args.only, baseline=baseline
             )
+        new_values = []
         for label, old, new, fields in (
             ("Wikipedia", old_wiki, wiki, FIELDS),
             ("Jolpica", old_jolpica, jolpica, ("first_grand_prix", "number_of_laps")),
         ):
             for cid in new:
                 for field in fields:
-                    print(
-                        f"{label} {cid}.{field}: {old.get(cid, {}).get(field)!r}"
-                        f" -> {new[cid].get(field)!r}"
+                    previous = previous_value(
+                        old.get(cid, {}), (baseline or {}).get(cid, {}), field
                     )
+                    value = new[cid].get(field)
+                    is_new = previous is None and value is not None
+                    if is_new:
+                        new_values.append(f"{label} {cid}.{field} = {value!r}")
+                    marker = " NEW" if is_new else ""
+                    print(f"{label}{marker} {cid}.{field}: {previous!r} -> {value!r}")
+        print(f"New values (no previous value, jump guard not applied): {len(new_values)}")
+        for line in new_values:
+            print(line)
         if not args.dry_run:
             for path, data in ((args.wikipedia_out, wiki), (args.jolpica_out, jolpica)):
                 atomic_write_bytes_sync(
