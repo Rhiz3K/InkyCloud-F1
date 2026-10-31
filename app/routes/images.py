@@ -315,7 +315,7 @@ def _teams_response(
     cache_status: str | None = None,
 ) -> Response:
     """Apply the shared teams response and call-record epilogue."""
-    return _bmp_response(
+    response = _bmp_response(
         request,
         content=content,
         etag=etag,
@@ -331,6 +331,9 @@ def _teams_response(
             status_code=status,
         ),
     )
+
+    response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
+    return response
 
 
 def _normalize_weather_type(weather_type: str) -> str:

@@ -105,20 +105,6 @@ def _flag(theme: RenderTheme, iso2: str | None) -> Image.Image | None:
     return None
 
 
-def _credit(
-    ctx: TeamsExtraContext, translator: dict, draw: ImageDraw.ImageDraw, lang: str, width: int
-) -> str:
-    """Choose the full translated credit or the required compact licensing line."""
-    label = translator.get("teams_extra_track", "Track")
-    credit = ctx.track_credit or "Track: CC BY 4.0"
-    credit = label + credit.removeprefix("Track")
-    font = load_ui_font(lang, 12, bold=True)
-    if draw.textbbox((0, 0), credit, font=font)[2] <= width:
-        return credit
-    license_label = credit.rsplit(", ", 1)[-1] if ", " in credit else "CC BY 4.0"
-    return f"{label} {license_label}, /credits"
-
-
 def draw_teams_extra(
     image: Image.Image,
     draw: ImageDraw.ImageDraw,
@@ -143,11 +129,23 @@ def draw_teams_extra(
     )
     round_label = translator.get("teams_extra_round", "Round")
     title = _race_line(ctx, translator, draw, lang, width - 10)
+    two_rows = extra == TeamsExtra.TIMELINE and _timeline_two_rows(draw, ctx, lang, width)
+    title_width = width - 10
+    if extra == TeamsExtra.WEATHER:
+        credit = translator.get("teams_extra_weather_credit", "Open-Meteo")
+        bounds = draw.textbbox((0, 0), credit, font=load_ui_font(lang, 12, bold=True))
+        title_width -= int(bounds[2] - bounds[0]) + 8
+        title = _race_line(ctx, translator, draw, lang, title_width)
     if extra == TeamsExtra.TIMELINE:
         title = (
             f"{translator.get('teams_extra_season', 'Season')} {ctx.season} · "
             f"{round_label} {ctx.next_round}/{ctx.total_rounds}"
         )
+        if two_rows:
+            prefix = f"{round_label} {ctx.next_round}/{ctx.total_rounds} · "
+            font = load_ui_font(lang, 12, bold=True)
+            prefix_width = int(draw.textlength(prefix, font=font))
+            title = prefix + _race_line(ctx, translator, draw, lang, width - 10 - prefix_width)
     elif extra == TeamsExtra.FLAGS:
         title = translator.get("teams_extra_upcoming", "Upcoming races")
     if extra not in (TeamsExtra.COUNTDOWN, TeamsExtra.COMBO, TeamsExtra.TRACK):
@@ -157,11 +155,11 @@ def draw_teams_extra(
             title,
             5,
             4,
-            width - 10,
+            title_width,
             theme.team_header_text_fill,
             lang,
             height=17,
-            size=12 if extra == TeamsExtra.WEATHER else 16,
+            size=12 if extra == TeamsExtra.WEATHER or two_rows else 16,
         )
     drawers = {
         TeamsExtra.TIMELINE: _draw_timeline,
@@ -175,6 +173,15 @@ def draw_teams_extra(
         panel, draw, theme, ctx, extra, display=display, translator=translator, lang=lang
     )
     image.paste(panel, (0, 0))
+
+
+def _timeline_two_rows(
+    draw: ImageDraw.ImageDraw, ctx: TeamsExtraContext, lang: str, width: int
+) -> bool:
+    """Reserve three pixels on each side of the widest round number."""
+    font = load_ui_font(lang, 12, bold=True)
+    widest = max(draw.textbbox((0, 0), str(i), font=font)[2] for i in range(10, 100))
+    return (width - 2) // max(1, len(ctx.rounds)) < widest + 6
 
 
 def _draw_timeline(
@@ -191,12 +198,17 @@ def _draw_timeline(
     """Draw the timeline card body inside the clipped panel."""
     width, height = panel.size
     count = max(1, len(ctx.rounds))
+    two_rows = _timeline_two_rows(draw, ctx, lang, width)
+    per_row = (count + 1) // 2 if two_rows else count
     for index, race in enumerate(ctx.rounds):
-        x = 1 + index * (width - 2) // count
-        right = 1 + (index + 1) * (width - 2) // count
+        row, column = divmod(index, per_row)
+        top = 24 + row * (height - 27) // 2 if two_rows else 25
+        bottom = 24 + (row + 1) * (height - 27) // 2 if two_rows else 43
+        x = 1 + column * (width - 2) // per_row
+        right = 1 + (column + 1) * (width - 2) // per_row
         active = race.round == ctx.next_round
         draw.rectangle(
-            (x, 25, right - 1, 43),
+            (x, top, right - 1, bottom),
             fill=theme.team_header_fill if active else theme.colors.WHITE,
             outline=theme.team_outline_fill,
         )
@@ -204,14 +216,16 @@ def _draw_timeline(
             draw,
             str(race.round),
             x + 1,
-            25,
+            top,
             right - x - 2,
             theme.team_header_text_fill if active else theme.text_fill,
             lang,
             size=12,
-            height=19,
+            height=bottom - top + 1,
             centered=True,
         )
+    if two_rows:
+        return
     _text(
         draw,
         _race_line(ctx, translator, draw, lang, width - 10),
@@ -328,35 +342,34 @@ def _draw_weather(
     width, height = panel.size
     weather = ctx.weather
     assert weather is not None
-    font = load_weather_icon_font(28, logger, load_brand_font)
-    draw.text((8, 23), weather.icon, font=font, fill=theme.text_fill)
-    draw.text((149, 23), RAINDROP_ICON, font=font, fill=theme.text_fill)
-    icon_right = 8 + int(draw.textbbox((0, 0), weather.icon, font=font)[2])
-    temperature_x = max(47, icon_right + 6)
-    _text(
-        draw,
-        weather.temp_display,
-        temperature_x,
-        28,
-        143 - temperature_x,
-        theme.accent_fill,
-        lang,
-        size=25,
-        height=28,
-    )
-    _text(draw, weather.precip_display, 180, 28, 100, theme.text_fill, lang, size=25, height=28)
+    icon_font = load_weather_icon_font(28, logger, load_brand_font)
+    text_font = load_ui_font(lang, 25, bold=True)
+    parts = [
+        (weather.icon, icon_font, theme.text_fill, 6),
+        (weather.temp_display, text_font, theme.accent_fill, 16),
+        (RAINDROP_ICON, icon_font, theme.text_fill, 4),
+        (weather.precip_display, text_font, theme.text_fill, 0),
+    ]
+    boxes = [draw.textbbox((0, 0), text, font=font) for text, font, _, _ in parts]
+    group_width = sum(box[2] - box[0] + part[3] for part, box in zip(parts, boxes, strict=True))
+    x = (width - group_width) // 2
+    for (text, font, fill, gap), box in zip(parts, boxes, strict=True):
+        y = 23 + (height - 3 - 23 - (box[3] - box[1])) // 2
+        draw.text((x - box[0], y - box[1]), text, font=font, fill=fill)
+        x += box[2] - box[0] + gap
     credit = translator.get("teams_extra_weather_credit", "Open-Meteo")
-    credit_width = int(draw.textlength(credit, font=load_ui_font(lang, 12, bold=True)))
+    box = draw.textbbox((0, 0), credit, font=load_ui_font(lang, 12, bold=True))
+    credit_width = int(box[2] - box[0])
     _text(
         draw,
         credit,
         width - credit_width - 5,
-        height - 16,
+        4,
         credit_width,
-        theme.text_fill,
+        theme.team_header_text_fill,
         lang,
         size=12,
-        height=13,
+        height=17,
     )
 
 
@@ -417,40 +430,43 @@ def _draw_track(
 ) -> None:
     """Draw the track card body inside the clipped panel."""
     width, height = panel.size
+    lines = [(ctx.race_name, 16), (ctx.circuit_name, 12), (_date_time(ctx, translator), 12)]
+    bounds = [
+        draw.textbbox((0, 0), text, font=load_ui_font(lang, size, bold=True))
+        for text, size in lines
+    ]
+    text_width = min(max(int(box[2] - box[0]) for box in bounds), width - 10 - 8 - 120)
+    line_heights = [int(box[3] - box[1]) for box in bounds]
+    y = (height - sum(line_heights) - 4) // 2
+    for (text, size), line_height in zip(lines, line_heights, strict=True):
+        _text(
+            draw,
+            text,
+            5,
+            y,
+            text_width,
+            theme.text_fill,
+            lang,
+            size=size,
+            min_size=size,
+            height=line_height,
+        )
+        y += line_height + 2
+    left, top, right, bottom = 5 + text_width + 8, 3, width - 4, height - 4
+    box_width, box_height = right - left, bottom - top
     try:
         track = render_track_image(
-            {"circuit": {"circuitId": ctx.circuit_id}}, width=220, height=100, display=display
+            {"circuit": {"circuitId": ctx.circuit_id}}, width=240, height=110, display=display
         )
         if track is not None:
             track = (
-                prepare_mono_track_image(track, 106, 50, logger)
+                prepare_mono_track_image(track, box_width, box_height, logger)
                 if display == "1bit"
-                else prepare_color_track_image(track, 106, 50)
+                else prepare_color_track_image(track, box_width, box_height)
             )
-            panel.paste(track.convert(panel.mode), (3, 5))
+            panel.paste(
+                track.convert(panel.mode),
+                (left + (box_width - track.width) // 2, top + (box_height - track.height) // 2),
+            )
     except OSError, ValueError, RuntimeError:
         logger.warning("Unable to render teams extra track %s", ctx.circuit_id, exc_info=True)
-    _text(draw, ctx.race_name, 116, 3, width - 122, theme.text_fill, lang, size=16, height=14)
-    _text(draw, ctx.circuit_name, 116, 17, width - 122, theme.text_fill, lang, size=12, height=13)
-    _text(
-        draw,
-        _date_time(ctx, translator),
-        116,
-        32,
-        width - 122,
-        theme.text_fill,
-        lang,
-        size=12,
-        height=13,
-    )
-    _text(
-        draw,
-        _credit(ctx, translator, draw, lang, width - 122),
-        116,
-        height - 15,
-        width - 122,
-        theme.text_fill,
-        lang,
-        size=12,
-        height=13,
-    )

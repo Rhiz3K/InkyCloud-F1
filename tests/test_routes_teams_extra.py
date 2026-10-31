@@ -168,3 +168,32 @@ async def test_preview_incomplete_data_is_not_cached(routes, monkeypatch):
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
     assert not get_bmp_cache()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("extra", ["none", "track"])
+async def test_license_headers(routes, extra, monkeypatch):
+    """Keep license links on fresh and conditional BMP and configure responses."""
+    monkeypatch.setattr(images.config, "SITE_URL", "https://f1.inkycloud.click/")
+    expected = '<https://f1.inkycloud.click/credits>; rel="license"'
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        for path in ("/teams.bmp", "/preview/configure/teams.png"):
+            response = await client.get(path, params={"extra": extra})
+            assert response.status_code == 200
+            assert response.headers["Link"] == expected
+            if path == "/teams.bmp" or extra == "track":
+                conditional = await client.get(
+                    path,
+                    params={"extra": extra},
+                    headers={"If-None-Match": response.headers["etag"]},
+                )
+                assert conditional.status_code == 304
+                assert conditional.headers["Link"] == expected
+        monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
+        monkeypatch.setattr(
+            images,
+            "_render_calendar_artifact",
+            AsyncMock(return_value=(b"calendar", '"calendar"')),
+        )
+        calendar = await client.get("/calendar.bmp")
+        assert 'rel="license"' not in calendar.headers.get("Link", "")

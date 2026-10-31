@@ -39,7 +39,6 @@ def test_context(ctx):
     assert ctx.rounds[0].iso2 == "au"
     assert ctx.days_left == 2
     assert len(ctx.rounds) == sum(bool(r.round) for r in F1Service.get_season_from_static(2026))
-    assert ctx.track_credit.startswith("Track: ")
     with pytest.raises(FrozenInstanceError):
         ctx.rounds[0].done = True
 
@@ -170,9 +169,7 @@ def test_panel_languages_and_credits(ctx, lang, extra, monkeypatch):
         lang=lang,
     )
     if extra == TeamsExtra.TRACK:
-        assert image.crop((4, 46, 389, 59)).getextrema() == (0, 1)
-        credit = panels._credit(context, get_translator(lang), ImageDraw.Draw(image), lang, 384)
-        assert "CC BY" in credit
+        assert image.crop((5, 9, 260, 51)).getextrema() == (0, 1)
     assert (
         panels._countdown(context, get_translator(lang), lang)
         == get_translator(lang)["teams_extra_today"]
@@ -180,7 +177,7 @@ def test_panel_languages_and_credits(ctx, lang, extra, monkeypatch):
 
 
 def test_missing_flags_and_track(ctx, monkeypatch, tmp_path):
-    """Missing colour flags fall back to code boxes and track failures retain credit."""
+    """Missing colour flags fall back to code boxes and track failures retain text."""
     renderer = create_renderer("spectra6", {}, "en")
     theme = replace(renderer.theme, flags_directories=lambda: tmp_path)
     assert panels._flag(theme, None) is None
@@ -213,15 +210,7 @@ def test_missing_flags_and_track(ctx, monkeypatch, tmp_path):
         translator={},
         lang="en",
     )
-    assert ImageChops.invert(image.crop((5, 46, 389, 59))).getbbox() is not None
-    assert "/credits" in panels._credit(
-        replace(ctx, track_credit="Track: " + "x" * 200 + ", CC BY 4.0"),
-        {},
-        ImageDraw.Draw(image),
-        "en",
-        384,
-    )
-    assert panels._credit(replace(ctx, track_credit=None), {}, ImageDraw.Draw(image), "en", 384)
+    assert ImageChops.invert(image.crop((5, 9, 260, 51))).getbbox() is not None
 
 
 def test_cancelled_and_fallback_codes(monkeypatch):
@@ -238,7 +227,6 @@ def test_cancelled_and_fallback_codes(monkeypatch):
     context = build_teams_extra_context(TeamsExtra.WEATHER, 2026, now=NOW)
     assert context.total_rounds == 1
     assert context.rounds[0].code == "MAL"
-    assert context.track_credit is None
 
 
 def test_completed_rounds_and_real_colour_flags(ctx, monkeypatch, tmp_path):
@@ -378,12 +366,15 @@ def test_upcoming_flags_and_track_resolution(ctx, display, monkeypatch):
 
 @pytest.mark.parametrize("lang", ["cs", "ja", "de"])
 @pytest.mark.parametrize("display", ["1bit", "spectra6"])
-def test_panel_content_geometry(ctx, lang, display, monkeypatch):
+@pytest.mark.parametrize("round_count", [23, 24])
+def test_panel_content_geometry(ctx, lang, display, monkeypatch, round_count):
     """Keep digits separated, flags centred, and weather text clear of its icon."""
     renderer = create_renderer(display, get_translator(lang), lang)
     context = replace(
         ctx,
-        rounds=tuple(replace(ctx.rounds[0], round=i, done=i < 20) for i in range(1, 25)),
+        rounds=tuple(
+            replace(ctx.rounds[0], round=i, done=i < 20) for i in range(1, round_count + 1)
+        ),
         next_round=20,
         weather=WeatherData(26, 2, 1),
     )
@@ -415,18 +406,24 @@ def test_panel_content_geometry(ctx, lang, display, monkeypatch):
         return image
 
     render(TeamsExtra.TIMELINE)
-    digits = labels[1:25]
+    digits = labels[1 : round_count + 1]
     for index, (text, box, font) in enumerate(digits):
-        left = 1 + index * 392 // 24
-        right = 1 + (index + 1) * 392 // 24
+        left = 1 + (index % 12) * 392 // 12
+        right = 1 + (index % 12 + 1) * 392 // 12
         assert text == str(index + 1)
         assert font.size >= 12
         assert abs((box[0] + box[2]) - (left + right)) <= 1
-        if index:
+        assert box[0] >= left + 1
+        assert box[2] <= right - 2
+        top = 24 + (index // 12) * 34 // 2
+        bottom = 24 + (index // 12 + 1) * 34 // 2
+        assert box[1] >= top + 1
+        assert box[3] <= bottom - 1
+        if index % 12:
             assert box[0] - digits[index - 1][1][2] >= 2
 
     image = render(TeamsExtra.FLAGS)
-    cell = 386 // 5
+    cell = 386 // (round_count - 19)
     for index, (_, box, font) in enumerate(labels[1:]):
         left = 4 + index * cell
         assert abs((box[0] + box[2]) - (2 * left + cell - 2)) <= 1
@@ -444,4 +441,143 @@ def test_panel_content_geometry(ctx, lang, display, monkeypatch):
         assert image.getpixel((6, 27)) == (255, 255, 255)
 
     render(TeamsExtra.WEATHER)
-    assert labels[3][1][0] - labels[1][1][2] >= 6
+    assert labels[2][1][0] - labels[1][1][2] >= 6
+    body = labels[1:5]
+    assert abs(body[0][1][0] + body[-1][1][2] - 394) <= 2
+    assert labels[-1][0] == get_translator(lang)["teams_extra_weather_credit"]
+    assert labels[-1][1][3] <= 22
+    assert labels[0][1][2] + 8 <= labels[-1][1][0]
+    assert labels[-1][1][2] == 389
+    for _, box, _ in body:
+        assert 4 <= box[0] < box[2] <= 390
+        assert 23 <= box[1] < box[3] <= 58
+        assert abs(box[1] + box[3] - 81) <= 2
+
+
+@pytest.mark.parametrize("display", ["1bit", "bwr", "bwry", "spectra6"])
+@pytest.mark.parametrize("lang", ["en", "ja"])
+def test_track_text_and_map_geometry(ctx, display, lang, monkeypatch):
+    """Place a prepared map centrally to the right of exactly three text labels."""
+    labels = []
+    pasted = []
+    original_text = ImageDraw.ImageDraw.text
+    original_paste = Image.Image.paste
+
+    def text(draw, xy, value, *args, **kwargs):
+        """Measure actual text ink at the final draw position."""
+        labels.append((value, draw.textbbox(xy, value, font=kwargs["font"])))
+        return original_text(draw, xy, value, *args, **kwargs)
+
+    def paste(image, source, box=None, mask=None):
+        """Capture map dimensions independently of panel compositing."""
+        if source.size != image.size:
+            pasted.append((source.size, box))
+        return original_paste(image, source, box, mask)
+
+    monkeypatch.setattr(ImageDraw.ImageDraw, "text", text)
+    monkeypatch.setattr(Image.Image, "paste", paste)
+    monkeypatch.setattr(
+        panels, "render_track_image", Mock(return_value=Image.new("RGB", (240, 110), "black"))
+    )
+    image = Image.new("RGB", (394, 61), "white")
+    theme = create_renderer(display, {}, lang).theme
+    panels.draw_teams_extra(
+        image,
+        ImageDraw.Draw(image),
+        theme,
+        ctx,
+        TeamsExtra.TRACK,
+        display=display,
+        translator={},
+        lang=lang,
+    )
+    assert [label for label, _ in labels] == [
+        ctx.race_name,
+        ctx.circuit_name,
+        panels._date_time(ctx, {}),
+    ]
+    assert all(box[0] == 5 for _, box in labels)
+    assert abs(labels[0][1][1] + labels[-1][1][3] - 61) <= 3
+    font_draw = ImageDraw.Draw(image)
+    column = min(
+        max(
+            font_draw.textbbox((0, 0), label, font=panels.load_ui_font(lang, size, bold=True))[2]
+            for label, size in zip(
+                [ctx.race_name, ctx.circuit_name, panels._date_time(ctx, {})],
+                [16, 12, 12],
+                strict=True,
+            )
+        ),
+        256,
+    )
+    (map_width, map_height), (x, y) = pasted[0]
+    assert x >= max(box[2] for _, box in labels) + 8
+    assert abs(2 * x + map_width - (5 + column + 8 + 390)) <= 1
+    assert abs(2 * y + map_height - (3 + 57)) <= 1
+    assert x + map_width <= 390 and y + map_height <= 57
+
+
+def test_short_timeline_matches_original(ctx):
+    """Keep a ten-round season pixel-identical to the original one-row layout."""
+    context = replace(ctx, rounds=ctx.rounds[:10], total_rounds=10)
+    theme = create_renderer("1bit", {}, "en").theme
+    expected = Image.new("1", (394, 61), 1)
+    draw = ImageDraw.Draw(expected)
+    draw.fontmode = "1"
+    draw.rectangle((0, 0, 393, 60), fill=theme.colors.WHITE, outline=theme.team_outline_fill)
+    draw.rectangle((1, 1, 392, 22), fill=theme.team_header_fill)
+    panels._text(
+        draw,
+        "Season 2026 · Round 1/10",
+        5,
+        4,
+        384,
+        theme.team_header_text_fill,
+        "en",
+        height=17,
+        size=16,
+    )
+    for index, race in enumerate(context.rounds):
+        left = 1 + index * 392 // 10
+        right = 1 + (index + 1) * 392 // 10
+        active = race.round == context.next_round
+        draw.rectangle(
+            (left, 25, right - 1, 43),
+            fill=theme.team_header_fill if active else theme.colors.WHITE,
+            outline=theme.team_outline_fill,
+        )
+        panels._text(
+            draw,
+            str(race.round),
+            left + 1,
+            25,
+            right - left - 2,
+            theme.team_header_text_fill if active else theme.text_fill,
+            "en",
+            size=12,
+            height=19,
+            centered=True,
+        )
+    panels._text(
+        draw,
+        panels._race_line(context, {}, draw, "en", 384),
+        5,
+        47,
+        384,
+        theme.text_fill,
+        "en",
+        size=12,
+        height=12,
+    )
+    actual = Image.new("1", (394, 61), 1)
+    panels.draw_teams_extra(
+        actual,
+        ImageDraw.Draw(actual),
+        theme,
+        context,
+        TeamsExtra.TIMELINE,
+        display="1bit",
+        translator={},
+        lang="en",
+    )
+    assert actual.tobytes() == expected.tobytes()

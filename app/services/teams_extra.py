@@ -11,7 +11,6 @@ from app.models import Race
 from app.services.circuit_metadata import COUNTRY_MAP, canonical_circuit_id
 from app.services.f1_service import F1Service
 from app.services.renderer_assets import get_country_flag_iso_code
-from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, track_credit
 from app.services.weather_service import (
     WeatherData,
     WeatherService,
@@ -57,7 +56,6 @@ class TeamsExtraContext:
     start_local: datetime
     days_left: int
     weather: WeatherData | None
-    track_credit: str | None
 
 
 _CODES = dict(
@@ -106,11 +104,6 @@ def build_teams_extra_context(
                 _race_weather_cache_key(float(location.lat), float(location.long), start)
             )
         weather = weather or get_cached_circuit_weather(circuit_id)
-    credit = (
-        track_credit(circuit_id, DEFAULT_TRACK_OPTIONS.source)
-        if extra == TeamsExtra.TRACK
-        else None
-    )
     rounds = tuple(
         RoundInfo(
             int(r.round or 0),
@@ -134,7 +127,6 @@ def build_teams_extra_context(
         start.astimezone(zone),
         max(0, (start.astimezone(zone).date() - local_today).days),
         weather,
-        f"Track: {credit['author']}, {credit['license_label']}" if credit else None,
     )
 
 
