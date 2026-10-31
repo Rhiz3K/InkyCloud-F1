@@ -180,6 +180,15 @@ def fit_team_driver_name(
     return clamp_text(draw, display_name, font, max_width - left_bearing), font
 
 
+def _centre_driver_glyphs(bbox, driver_y: int, driver_row_height: int) -> tuple[int, int, int]:
+    """Return text y, box top and box height centred on the glyphs within a driver row."""
+    glyph_h = bbox[3] - bbox[1]
+    pad_y = max(0, min(3, (driver_row_height - 1 - glyph_h) // 2))
+    box_h = int(glyph_h) + 2 * pad_y
+    box_top = driver_y + (driver_row_height - 1 - box_h) // 2
+    return box_top + pad_y - bbox[1], box_top, box_h
+
+
 def draw_team_driver_row(
     draw: ImageDraw.ImageDraw,
     image: Image.Image,
@@ -211,7 +220,6 @@ def draw_team_driver_row(
 
     display_name = format_team_driver_display_name_fn(name)
     center_y = driver_y + driver_row_height // 2
-    driver_small_y = get_text_y_fn(draw, small_font, driver_row_height, driver_y)
 
     photo_y = center_y - photo_size // 2
     draw_driver_photo_fn(
@@ -236,32 +244,32 @@ def draw_team_driver_row(
     driver_pts = format_points_fn(driver.points)
     pos_text = f"P{driver.position}" if driver.position else "—"
     pts_x = right_align_x_fn(draw, driver_pts, pts_right_x, small_font)
-    draw.text((pts_x, driver_small_y), driver_pts, fill=text_fill, font=small_font)
+    pts_bbox = draw.textbbox((0, 0), driver_pts, font=small_font)
+    pts_y, _, _ = _centre_driver_glyphs(pts_bbox, driver_y, driver_row_height)
+    draw.text((pts_x, pts_y), driver_pts, fill=text_fill, font=small_font)
 
-    if driver.position and driver.position <= 4:
-        pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
+    pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
+    pos_y, badge_y, badge_h = _centre_driver_glyphs(pos_bbox, driver_y, driver_row_height)
+
+    if driver.position and driver.position <= 3:
         pos_w = pos_bbox[2] - pos_bbox[0]
-        pos_h = pos_bbox[3] - pos_bbox[1]
-        badge_pad_y = 3
         badge_w = int(pos_w) + badge_pad_x * 2
-        badge_h = int(pos_h) + badge_pad_y * 2
         badge_x = driver_pos_x - badge_pad_x
-        badge_y = driver_y + (driver_row_height - badge_h) // 2
         badge_fill, badge_text_fill = badge_colors_fn(driver.position)
         draw.rectangle(
-            [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h)],
+            [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h - 1)],
             fill=badge_fill,
             outline=badge_outline_fill,
         )
         draw.text(
-            (badge_x + badge_pad_x, badge_y + badge_pad_y - pos_bbox[1]),
+            (badge_x + badge_pad_x, pos_y),
             pos_text,
             fill=badge_text_fill,
             font=small_font,
         )
         return
 
-    draw.text((driver_pos_x, driver_small_y), pos_text, fill=text_fill, font=small_font)
+    draw.text((driver_pos_x, pos_y), pos_text, fill=text_fill, font=small_font)
 
 
 def draw_team_row(
