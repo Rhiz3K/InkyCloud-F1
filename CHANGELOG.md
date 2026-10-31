@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Circuit facts now come from English Wikipedia infoboxes (length, lap record; CC BY-SA 4.0,
+  revision-pinned) and Jolpica (first Grand Prix, planned laps; CC BY-NC-SA 4.0), stored in
+  two separately licensed files and refreshed only by the manual `scripts/fetch_circuits.py`.
+  The formula1.com-derived `circuits_data.json` is removed; `/credits` lists the sources.
 - Extend the privacy policy with GDPR sections for the data controller, legal basis
   (Art. 6), configured retention periods and data subject rights, with visible
   placeholders until the operator name and privacy contact are configured.

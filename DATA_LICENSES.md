@@ -1,13 +1,14 @@
 # Data and artwork licences
 
-The MIT software licence does not cover the datasets and artwork bundled with the
-application. A generated calendar is a collection of separately licensed material;
+The MIT licence covers the source code only. It does not cover the datasets and artwork
+bundled with the application. A generated calendar is a collection of separately licensed material;
 source notices do not grant rights to unrelated third-party content or trademarks.
 
 | Material | Source / authors | Licence and changes |
 | --- | --- | --- |
 | Calendars, race results, standings, live API/cache snapshots | [Jolpica-F1 / Ergast contributors](https://github.com/jolpica/jolpica-f1) | [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). Selected fields, normalization, formatting, timezone conversion, retained cancelled races. [Terms](https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md), reviewed 2026-09-09. |
-| Supplementary circuit facts: length, laps, distance, first GP and lap record | Legacy project snapshot linked per circuit in `circuits_data.json`; upstream F1.com import. Current Madring values manually checked against the [2026 event page](https://www.formula1.com/en/racing/2026/spain) on 2026-09-11. | `LicenseRef-Legacy-Circuit-Facts-Unverified`: no open licence or written database redistribution permission is recorded. The original import revision was not recorded. Jolpica's licence applies to the historical results, not these supplementary fields. |
+| Circuit facts: length and lap record (time, driver, year) | [Wikipedia contributors](https://en.wikipedia.org/), English Wikipedia circuit articles; the exact article revision (`oldid`) of every value is in `app/assets/circuits_wikipedia.json` and listed on `/credits` | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Facts extracted from the article infobox, wiki markup removed, units converted (length formatted in km). Stored separately in `circuits_wikipedia.json` (REUSE notice `circuits_wikipedia.json.license`). |
+| Circuit facts: first Grand Prix season and planned lap count | [Jolpica-F1 / Ergast contributors](https://github.com/jolpica/jolpica-f1), [Jolpica F1 API](https://api.jolpi.ca/ergast/f1/) | [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), non-commercial use only, [Terms](https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md). First season with a classified winner at the circuit; planned laps = most frequent winner lap count over the last five races. Stored with the historical podiums in `circuits_jolpica.json` (REUSE notice `circuits_jolpica.json.license`); lap records are never derived from Jolpica. |
 | 2025 team technical/entry table | [Wikipedia contributors, 2025 Formula One World Championship](https://en.wikipedia.org/wiki/2025_Formula_One_World_Championship); [author history](https://en.wikipedia.org/w/index.php?title=2025_Formula_One_World_Championship&action=history) | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Selected table cells, normalized JSON, manual corrections. Original import revision was not recorded; no retrospective revision is asserted. |
 | 2026 team technical/entry table | [Wikipedia contributors, 2026 Formula One World Championship](https://en.wikipedia.org/wiki/2026_Formula_One_World_Championship); [author history](https://en.wikipedia.org/w/index.php?title=2026_Formula_One_World_Championship&action=history) | CC BY-SA 4.0, same extraction changes and original revision limitation as above. |
 | Weather | [Open-Meteo](https://open-meteo.com/) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Rounded temperatures, selected times/fields, converted precipitation display. Free API use is noncommercial and subject to [separate limits](https://open-meteo.com/en/terms). |
@@ -29,10 +30,13 @@ earlier Git history and previously released artifacts may still contain them, as
 history is not rewritten. Original project branding is retained as described above; a
 successful asset inventory check verifies the recorded files and hashes, not legal
 permission to use every item.
-Supplementary facts are available for the 25 circuits in the legacy snapshot; Sepang
-remains an additional artwork circuit without these facts. Missing records are not
-invented. Each circuit's `_provenance.scope` limits the Jolpica notice to `historical`;
-`_provenance.supplementary` records the separate factual source and its unresolved rights.
+Circuit facts come from two separately licensed files that are combined only when an
+image is rendered: `circuits_wikipedia.json` (CC BY-SA 4.0) and `circuits_jolpica.json`
+(CC BY-NC-SA 4.0). Every value carries `_provenance` with its source URL, licence and,
+for Wikipedia, the article revision. They are refreshed only by the manual
+`scripts/fetch_circuits.py`, whose output is reviewed and committed; nothing is fetched
+at runtime. The former formula1.com-derived circuit facts and their unverified licence
+marker have been removed. Missing or invalid values are left empty, not invented.
 The old F1 scraper remains retired. Sporting history continues to refresh from Jolpica.
 
 Old public release assets, Git history and remote caches are separate migration work;

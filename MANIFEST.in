@@ -5,7 +5,10 @@ include EXAMPLES.md
 include CHANGELOG.md
 recursive-include translations *.json
 recursive-include app *.py
-include app/assets/circuits_data.json
+include app/assets/circuits_jolpica.json
+include app/assets/circuits_jolpica.json.license
+include app/assets/circuits_wikipedia.json
+include app/assets/circuits_wikipedia.json.license
 recursive-include app/assets/css *
 recursive-include app/assets/favicon *
 recursive-include app/assets/flags *

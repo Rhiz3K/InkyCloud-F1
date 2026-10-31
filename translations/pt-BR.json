@@ -341,7 +341,12 @@
     "catalogue": "Todos os estilos, cores e circuitos",
     "apiAuthors": "Autores e licenças",
     "apiParameters": "Os mesmos parâmetros track_style, track_source, track_accent",
-    "history": "Autores / histórico"
+    "history": "Autores / histórico",
+    "jolpicaTerms": "Termos de uso",
+    "nonCommercial": "somente uso não comercial",
+    "circuitJolpica": "O ano do primeiro Grand Prix no circuito e o número de voltas previsto são obtidos dos resultados de corridas da Jolpica.",
+    "circuitWikiIntro": "A extensão do circuito e o recorde da volta vêm da infobox destas revisões de artigos da Wikipédia em inglês:",
+    "circuitWikiChange": "Dados extraídos da infobox, unidades convertidas."
   },
   "privacy_off": "A coleta de uso e desempenho do navegador está desativada nesta instalação."
 }

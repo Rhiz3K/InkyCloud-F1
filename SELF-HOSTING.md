@@ -66,7 +66,9 @@ The default paths are:
 
 - SQLite: `/app/data/f1.db`
 - pregenerated BMPs: `/app/data/images`
-- mutable circuit history: `/app/data/circuits_data.json`
+- mutable circuit history: `/app/data/circuits_jolpica.json`
+
+History is migrated once from a legacy `circuits_data.json`, copying only historical results.
 
 Mount the common `/app/data` root, including when custom paths are nested below it. Readiness
 rejects a container path under `/app/data` when that root is not a real mount, and performs a

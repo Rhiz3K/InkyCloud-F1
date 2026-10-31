@@ -1,7 +1,7 @@
 {
   "albert_park": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1996",
+    "number_of_laps": 58,
     "historical": {
       "season": 2026,
       "updated_at": "2026-07-05",
@@ -59,13 +59,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/albert_park/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/albert_park/results/1.json?limit=5&offset=24",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "shanghai": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2004",
+    "number_of_laps": 56,
     "historical": {
       "season": 2026,
       "updated_at": "2026-07-05",
@@ -123,13 +134,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/shanghai/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/shanghai/results/1.json?limit=5&offset=14",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "suzuka": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1987",
+    "number_of_laps": 53,
     "historical": {
       "season": 2026,
       "updated_at": "2026-07-05",
@@ -187,13 +209,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/suzuka/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/suzuka/results/1.json?limit=5&offset=31",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "bahrain": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2004",
+    "number_of_laps": 57,
     "historical": {
       "season": 2025,
       "updated_at": "2026-07-05",
@@ -251,13 +284,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/bahrain/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/bahrain/results/1.json?limit=5&offset=17",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "jeddah": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2021",
+    "number_of_laps": 50,
     "historical": {
       "season": 2025,
       "updated_at": "2026-07-05",
@@ -315,13 +359,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/jeddah/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/jeddah/results/1.json?limit=5&offset=0",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "miami": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2022",
+    "number_of_laps": 57,
     "historical": {
       "season": 2026,
       "updated_at": "2026-05-04",
@@ -379,13 +434,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/miami/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/miami/results/1.json?limit=5&offset=0",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "villeneuve": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1978",
+    "number_of_laps": 70,
     "historical": {
       "season": 2026,
       "updated_at": "2026-07-05",
@@ -443,13 +509,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/villeneuve/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/villeneuve/results/1.json?limit=5&offset=40",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "monaco": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1950",
+    "number_of_laps": 78,
     "historical": {
       "season": 2026,
       "updated_at": "2026-07-05",
@@ -507,13 +584,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/monaco/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/monaco/results/1.json?limit=5&offset=67",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "catalunya": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1991",
+    "number_of_laps": 66,
     "historical": {
       "season": 2026,
       "updated_at": "2026-07-05",
@@ -571,13 +659,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/catalunya/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/catalunya/results/1.json?limit=5&offset=31",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "red_bull_ring": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1970",
+    "number_of_laps": 71,
     "historical": {
       "season": 2026,
       "updated_at": "2026-07-05",
@@ -635,13 +734,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/red_bull_ring/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/red_bull_ring/results/1.json?limit=5&offset=35",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "silverstone": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1950",
+    "number_of_laps": 52,
     "historical": {
       "season": 2026,
       "updated_at": "2026-07-05",
@@ -699,13 +809,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/silverstone/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/silverstone/results/1.json?limit=5&offset=56",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "spa": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1950",
+    "number_of_laps": 44,
     "historical": {
       "season": 2025,
       "updated_at": "2026-03-30",
@@ -763,13 +884,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/spa/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/spa/results/1.json?limit=5&offset=54",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "hungaroring": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1986",
+    "number_of_laps": 70,
     "historical": {
       "season": 2025,
       "updated_at": "2026-03-30",
@@ -827,13 +959,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/hungaroring/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/hungaroring/results/1.json?limit=5&offset=36",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "zandvoort": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1952",
+    "number_of_laps": 72,
     "historical": {
       "season": 2025,
       "updated_at": "2026-03-30",
@@ -891,13 +1034,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/zandvoort/results/1.json?limit=5&offset=31",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "monza": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1950",
+    "number_of_laps": 53,
     "historical": {
       "season": 2025,
       "updated_at": "2026-07-05",
@@ -955,13 +1109,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/monza/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/monza/results/1.json?limit=5&offset=71",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "madring": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2026",
+    "number_of_laps": 57,
     "historical": null,
     "_provenance": {
       "source": "https://api.jolpi.ca/ergast/f1/",
@@ -970,13 +1135,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/madring/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/madring/results/1.json?limit=5&offset=0",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "baku": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2016",
+    "number_of_laps": 51,
     "historical": {
       "season": 2025,
       "updated_at": "2026-07-05",
@@ -1034,13 +1210,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/baku/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/baku/results/1.json?limit=5&offset=5",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "marina_bay": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2008",
+    "number_of_laps": 62,
     "historical": {
       "season": 2025,
       "updated_at": "2026-07-05",
@@ -1098,13 +1285,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/marina_bay/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/marina_bay/results/1.json?limit=5&offset=12",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "americas": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2012",
+    "number_of_laps": 56,
     "historical": {
       "season": 2025,
       "updated_at": "2026-03-30",
@@ -1162,13 +1360,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/americas/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/americas/results/1.json?limit=5&offset=9",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "rodriguez": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1963",
+    "number_of_laps": 71,
     "historical": {
       "season": 2025,
       "updated_at": "2026-07-05",
@@ -1226,13 +1435,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/rodriguez/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/rodriguez/results/1.json?limit=5&offset=20",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "interlagos": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1973",
+    "number_of_laps": 71,
     "historical": {
       "season": 2025,
       "updated_at": "2026-07-05",
@@ -1290,13 +1510,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/interlagos/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/interlagos/results/1.json?limit=5&offset=37",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "las_vegas": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2023",
+    "number_of_laps": 50,
     "historical": {
       "season": 2025,
       "updated_at": "2025-12-22",
@@ -1354,13 +1585,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/vegas/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/vegas/results/1.json?limit=5&offset=0",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "losail": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2021",
+    "number_of_laps": 57,
     "historical": {
       "season": 2025,
       "updated_at": "2026-07-05",
@@ -1418,13 +1660,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/losail/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/losail/results/1.json?limit=5&offset=0",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "yas_marina": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "2009",
+    "number_of_laps": 58,
     "historical": {
       "season": 2025,
       "updated_at": "2026-07-05",
@@ -1482,13 +1735,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/yas_marina/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/yas_marina/results/1.json?limit=5&offset=12",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "imola": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1980",
+    "number_of_laps": 63,
     "historical": {
       "season": 2025,
       "updated_at": "2026-07-05",
@@ -1546,13 +1810,24 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/imola/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/imola/results/1.json?limit=5&offset=27",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   },
   "sepang": {
-    "first_grand_prix": null,
-    "number_of_laps": null,
+    "first_grand_prix": "1999",
+    "number_of_laps": 56,
     "historical": null,
     "_provenance": {
       "source": "https://api.jolpi.ca/ergast/f1/",
@@ -1561,8 +1836,19 @@
       "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
       "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
       "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
-      "scope": "historical",
-      "fields": {}
+      "scope": "historical, first_grand_prix, number_of_laps",
+      "fields": {
+        "first_grand_prix": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/sepang/results/1.json?limit=1",
+          "method": "season of the first race with a classified winner at this circuit in Jolpica",
+          "retrieved_on": "2026-10-31"
+        },
+        "number_of_laps": {
+          "source": "https://api.jolpi.ca/ergast/f1/circuits/sepang/results/1.json?limit=5&offset=15",
+          "method": "most frequent winner lap count over the last 5 races at this circuit (tie: highest); planned distance, not shortened races",
+          "retrieved_on": "2026-10-31"
+        }
+      }
     }
   }
 }
