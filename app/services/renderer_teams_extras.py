@@ -178,10 +178,10 @@ def draw_teams_extra(
 def _timeline_two_rows(
     draw: ImageDraw.ImageDraw, ctx: TeamsExtraContext, lang: str, width: int
 ) -> bool:
-    """Reserve three pixels on each side of the widest round number."""
+    """Keep one clear pixel between the widest round number and each one-pixel outline."""
     font = load_ui_font(lang, 12, bold=True)
     widest = max(draw.textbbox((0, 0), str(i), font=font)[2] for i in range(10, 100))
-    return (width - 2) // max(1, len(ctx.rounds)) < widest + 6
+    return (width - 2) // max(1, len(ctx.rounds)) < widest + 4
 
 
 def _draw_timeline(

@@ -366,7 +366,7 @@ def test_upcoming_flags_and_track_resolution(ctx, display, monkeypatch):
 
 @pytest.mark.parametrize("lang", ["cs", "ja", "de"])
 @pytest.mark.parametrize("display", ["1bit", "spectra6"])
-@pytest.mark.parametrize("round_count", [23, 24])
+@pytest.mark.parametrize("round_count", [22, 23, 24])
 def test_panel_content_geometry(ctx, lang, display, monkeypatch, round_count):
     """Keep digits separated, flags centred, and weather text clear of its icon."""
     renderer = create_renderer(display, get_translator(lang), lang)
@@ -407,19 +407,20 @@ def test_panel_content_geometry(ctx, lang, display, monkeypatch, round_count):
 
     render(TeamsExtra.TIMELINE)
     digits = labels[1 : round_count + 1]
+    per_row = (round_count + 1) // 2
     for index, (text, box, font) in enumerate(digits):
-        left = 1 + (index % 12) * 392 // 12
-        right = 1 + (index % 12 + 1) * 392 // 12
+        left = 1 + (index % per_row) * 392 // per_row
+        right = 1 + (index % per_row + 1) * 392 // per_row
         assert text == str(index + 1)
         assert font.size >= 12
         assert abs((box[0] + box[2]) - (left + right)) <= 1
         assert box[0] >= left + 1
         assert box[2] <= right - 2
-        top = 24 + (index // 12) * 34 // 2
-        bottom = 24 + (index // 12 + 1) * 34 // 2
+        top = 24 + (index // per_row) * 34 // 2
+        bottom = 24 + (index // per_row + 1) * 34 // 2
         assert box[1] >= top + 1
         assert box[3] <= bottom - 1
-        if index % 12:
+        if index % per_row:
             assert box[0] - digits[index - 1][1][2] >= 2
 
     image = render(TeamsExtra.FLAGS)
@@ -517,9 +518,10 @@ def test_track_text_and_map_geometry(ctx, display, lang, monkeypatch):
     assert x + map_width <= 390 and y + map_height <= 57
 
 
-def test_short_timeline_matches_original(ctx):
-    """Keep a ten-round season pixel-identical to the original one-row layout."""
-    context = replace(ctx, rounds=ctx.rounds[:10], total_rounds=10)
+@pytest.mark.parametrize("round_count", [10, 20, 21])
+def test_short_timeline_matches_original(ctx, round_count):
+    """Keep fitting seasons pixel-identical to the original one-row layout."""
+    context = replace(ctx, rounds=ctx.rounds[:round_count], total_rounds=round_count)
     theme = create_renderer("1bit", {}, "en").theme
     expected = Image.new("1", (394, 61), 1)
     draw = ImageDraw.Draw(expected)
@@ -528,7 +530,7 @@ def test_short_timeline_matches_original(ctx):
     draw.rectangle((1, 1, 392, 22), fill=theme.team_header_fill)
     panels._text(
         draw,
-        "Season 2026 · Round 1/10",
+        f"Season 2026 · Round 1/{round_count}",
         5,
         4,
         384,
@@ -538,8 +540,8 @@ def test_short_timeline_matches_original(ctx):
         size=16,
     )
     for index, race in enumerate(context.rounds):
-        left = 1 + index * 392 // 10
-        right = 1 + (index + 1) * 392 // 10
+        left = 1 + index * 392 // round_count
+        right = 1 + (index + 1) * 392 // round_count
         active = race.round == context.next_round
         draw.rectangle(
             (left, 25, right - 1, 43),

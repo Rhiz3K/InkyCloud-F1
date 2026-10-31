@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   view, or the next circuit map centred right of the text without an on-image credit.
   Track attribution is on `/credits` and in the `Link rel="license"` header of `/teams.bmp`
   and the teams configure preview. Weather is centred with the Open-Meteo credit in the
-  header; timeline switches to two rows for seasons over 20 rounds. The slot stays empty
+  header; timeline switches to two rows for seasons with 22 or more rounds. The slot stays empty
   when there is no upcoming race. The teams configurator gets a picker with live preview in all 13
   languages; `/credits` and `DATA_LICENSES.txt` describe the new weather and track uses.
 
