@@ -92,6 +92,9 @@ class Config(BaseSettings):
         validation_alias=AliasChoices("APP_PORT", "PORT"),
         description="Port the app listens on",
     )
+    CSP_ENFORCE: bool = Field(
+        False, description="Enforce the site CSP instead of reporting violations only"
+    )
     DEBUG: bool = Field(False, description="Enable debug logging")
     SITE_URL: str = Field(
         "http://localhost:8000",

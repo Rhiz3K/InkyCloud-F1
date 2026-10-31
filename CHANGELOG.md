@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add /credits entries for Swagger UI and ReDoc in all 13 languages.
+
 - Credits page now credits Coolify (https://coolify.io), the self-hosted platform used
   to host and deploy the service, in all 13 languages.
 
@@ -30,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove the optional Umami integration (server-side hourly summaries), its
   configuration (`UMAMI_*`, `ANALYTICS_HOSTNAME`) and credits entry.
 - Remove the `HETZNER_DPA_CONFIRMED` setting and its public deployment check.
+
+### Security
+
+- Add a CSP with a per-request nonce (Report-Only by default; `CSP_ENFORCE` enables enforcement).
+- Set HTML Cache-Control to no-cache unless explicitly specified.
+- Extend HSTS with includeSubDomains and disable the Uvicorn Server header.
+- Serve /docs and /redoc from locally vendored Swagger UI 5.34.1 and ReDoc 2.5.4
+  with enforcing CSP, the site's own favicon, and no CDN or Google Fonts.
 
 ## [1.3.3] - 2026-10-30
 

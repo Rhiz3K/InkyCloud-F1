@@ -349,7 +349,7 @@ def test_language_root_redirect_is_relative_and_hsts_on_https():
 
     assert response.status_code == 301
     assert response.headers["location"] == "/cs/"
-    assert response.headers["strict-transport-security"] == "max-age=31536000"
+    assert response.headers["strict-transport-security"] == "max-age=31536000; includeSubDomains"
 
 
 def test_www_host_redirects_to_canonical_apex():
@@ -360,7 +360,7 @@ def test_www_host_redirects_to_canonical_apex():
 
     assert response.status_code == 308
     assert response.headers["location"] == "https://example.test/stats?range=7d"
-    assert response.headers["strict-transport-security"] == "max-age=31536000"
+    assert response.headers["strict-transport-security"] == "max-age=31536000; includeSubDomains"
 
 
 def test_responses_include_baseline_security_headers():
@@ -1146,7 +1146,7 @@ def test_homepage_screen_type_cards():
     assert "Calendar" in html or "Kalendář" in html
     assert "Teams" in html or "Týmy" in html
     assert f"/preview/calendar.png?lang=en&amp;v={APP_VERSION}" in html
-    assert "this.src = '/calendar.bmp?lang=en&amp;weather=false'" in html
+    assert 'data-fallback-src="/calendar.bmp?lang=en&amp;weather=false"' in html
 
 
 def test_calendar_preview_renders_dynamically_before_pregeneration(tmp_path, monkeypatch):
@@ -1257,10 +1257,10 @@ def test_configure_calendar_contains_color_display_options():
     html = response.text
     assert 'id="displayBwrBtn"' in html
     assert 'id="displayBwrBtnMobile"' in html
-    assert "setDisplayType('bwr')" in html
+    assert "data-on-click=\"setDisplayType\" data-args='[\"bwr\"]'" in html
     assert 'id="displayBwryBtn"' in html
     assert 'id="displayBwryBtnMobile"' in html
-    assert "setDisplayType('bwry')" in html
+    assert "data-on-click=\"setDisplayType\" data-args='[\"bwry\"]'" in html
 
 
 def test_configure_calendar_mobile_timezone_selector():
@@ -2386,7 +2386,7 @@ async def test_security_middleware_redirects_www_with_query_and_sets_https_heade
 
     headers = dict(messages[0]["headers"])
     assert headers[b"location"] == b"https://example.test/path?a=1"
-    assert headers[b"strict-transport-security"] == b"max-age=31536000"
+    assert headers[b"strict-transport-security"] == b"max-age=31536000; includeSubDomains"
 
     messages.clear()
     scope = _http_scope("/path", scheme="http", host="example.test")

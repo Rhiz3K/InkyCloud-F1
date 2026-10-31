@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import mimetypes
+import secrets
 from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +24,7 @@ from app.config import VALID_LANGUAGES, config
 from app.paths import ASSETS_DIR
 from app.routes.api import router as api_router
 from app.routes.credits import router as credits_router
+from app.routes.docs import router as docs_router
 from app.routes.health import router as health_router
 from app.routes.images import router as images_router
 from app.routes.pages import router as pages_router
@@ -30,6 +32,7 @@ from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
 from app.routes.tracks import router as tracks_router
 from app.services.circuit_data import ensure_runtime_circuits_data
+from app.services.csp import DOCS_PATHS, build_csp
 from app.services.database import close_shared_database, get_database
 from app.services.http_client import close_shared_http_clients
 from app.services.legal import AttributionMiddleware, scrub_error_event
@@ -219,6 +222,8 @@ app = FastAPI(
     version=APP_VERSION,
     lifespan=lifespan,
     redirect_slashes=False,
+    docs_url=None,
+    redoc_url=None,
 )
 
 
@@ -270,11 +275,14 @@ class SecurityHeadersMiddleware:
             await self.app(scope, receive, send)
             return
 
+        nonce = secrets.token_urlsafe(16)
+        scope.setdefault("state", {})["csp_nonce"] = nonce
         headers = Headers(scope=scope)
         host = headers.get("host", "").split(":", 1)[0].lower()
         canonical_host = urlparse(str(config.SITE_URL)).hostname or ""
         scheme = scope.get("scheme", "http")
         path = scope.get("path", "")
+        policy_path = path.removeprefix(scope.get("root_path", ""))
         query_string = scope.get("query_string", b"").decode()
 
         def add_security_headers(response_headers: MutableHeaders) -> None:
@@ -283,8 +291,17 @@ class SecurityHeadersMiddleware:
             response_headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
             response_headers["X-Frame-Options"] = "DENY"
             response_headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+            if response_headers.get("content-type", "").startswith("text/html"):
+                response_headers.setdefault("Cache-Control", "no-cache")
+                enforcing = config.CSP_ENFORCE or policy_path in DOCS_PATHS
+                header = (
+                    "Content-Security-Policy"
+                    if enforcing
+                    else "Content-Security-Policy-Report-Only"
+                )
+                response_headers[header] = build_csp(nonce, redoc=policy_path == "/redoc")
             if scheme == "https":
-                response_headers["Strict-Transport-Security"] = "max-age=31536000"
+                response_headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
         if host == f"www.{canonical_host}":
             target = f"{str(config.SITE_URL).rstrip('/')}{path}"
@@ -370,6 +387,7 @@ app.mount("/static", LicensedStaticFiles(directory=ASSETS_DIR), name="static")
 
 # Routers - order matters! More specific routes first
 app.include_router(previews_router)  # /preview/* must be before pages (/{lang}/* patterns)
+app.include_router(docs_router)
 app.include_router(seo_router)
 app.include_router(health_router)
 app.include_router(api_router)
