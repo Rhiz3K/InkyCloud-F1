@@ -236,7 +236,7 @@ def test_credits_route_renders_with_wikipedia_context(monkeypatch):
     from fastapi.testclient import TestClient
 
     from app.main import app
-    from app.routes import credits
+    from app.routes import credits as credits_route
 
     expected = [
         {
@@ -246,8 +246,8 @@ def test_credits_route_renders_with_wikipedia_context(monkeypatch):
             "history_url": "https://example.com/history",
         }
     ]
-    monkeypatch.setattr(credits, "wikipedia_circuit_credits", lambda: expected)
-    render = credits.templates.TemplateResponse
+    monkeypatch.setattr(credits_route, "wikipedia_circuit_credits", lambda: expected)
+    render = credits_route.templates.TemplateResponse
     contexts = []
 
     def capture(request, name, context):
@@ -255,7 +255,7 @@ def test_credits_route_renders_with_wikipedia_context(monkeypatch):
         contexts.append(context)
         return render(request, name, context)
 
-    monkeypatch.setattr(credits.templates, "TemplateResponse", capture)
+    monkeypatch.setattr(credits_route.templates, "TemplateResponse", capture)
     response = TestClient(app).get("/credits")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]

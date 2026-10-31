@@ -113,7 +113,7 @@ def load_circuits_data(runtime_path: Path | None = None) -> dict:
 
 def wikipedia_circuit_credits() -> list[dict]:
     """List unique pinned Wikipedia revisions with links to their contributor history."""
-    credits = {}
+    revisions = {}
     for record in load_wikipedia_data().values():
         provenance = record.get("_provenance")
         if not isinstance(provenance, dict) or not isinstance(provenance.get("fields"), dict):
@@ -129,7 +129,7 @@ def wikipedia_circuit_credits() -> list[dict]:
                 or not url.startswith("https://en.wikipedia.org/w/index.php?title=")
             ):
                 continue
-            credits[title, revid] = {
+            revisions[title, revid] = {
                 "title": title,
                 "revid": revid,
                 "url": url,
@@ -138,7 +138,7 @@ def wikipedia_circuit_credits() -> list[dict]:
                     f"{quote(title, safe='')}&action=history"
                 ),
             }
-    return sorted(credits.values(), key=lambda credit: (credit["title"], credit["revid"]))
+    return sorted(revisions.values(), key=lambda credit: (credit["title"], credit["revid"]))
 
 
 def ensure_runtime_circuits_data() -> Path:
