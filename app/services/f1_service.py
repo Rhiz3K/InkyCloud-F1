@@ -29,6 +29,7 @@ from app.services.http_client import get_shared_http_client
 from app.utils.async_locks import KeyedLoopLockRegistry, get_keyed_loop_lock
 from app.utils.http import fetch_with_retry
 from app.utils.jolpica import get_jolpica_pacer
+from app.utils.race_times import today_in_timezone
 from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone, normalize_timezone
 
 logger = logging.getLogger(__name__)
@@ -387,7 +388,7 @@ class F1Service:
             "time": race_dt.strftime("%H:%M") if race_dt else None,
             "is_past": race_dt < now
             if race_dt
-            else (not race.time and race.date < now.date().isoformat()),
+            else (not race.time and race.date < today_in_timezone(self.timezone_str).isoformat()),
             "circuit_id": race.Circuit.circuitId,
             "circuit_name": race.Circuit.circuitName,
             "country": race.Circuit.Location.country,
@@ -486,7 +487,9 @@ class F1Service:
                         "date": race_date_str,
                         "datetime": dt_local.isoformat() if dt_local else (race_date_str or None),
                         "time": dt_local.strftime("%H:%M") if dt_local else None,
-                        "is_past": is_past if dt_local else race_date_str < now.date().isoformat(),
+                        "is_past": is_past
+                        if dt_local
+                        else race_date_str < today_in_timezone(self.timezone_str).isoformat(),
                         "is_cancelled": self._is_cancelled_race(race),
                     }
                 )
@@ -602,7 +605,7 @@ class F1Service:
 
                     # Parse race datetime
                     if not race.time:
-                        if race.date >= now.date().isoformat():
+                        if race.date >= today_in_timezone(self.timezone_str).isoformat():
                             return self._convert_race_times(race)
                         race_order = (race.date, "24:00")
                         if latest_completed is None or race_order > latest_completed[0]:
@@ -640,7 +643,7 @@ class F1Service:
                         continue
                     if not race.time:
                         race_order = (race.date, "24:00")
-                        completed = race.date < now.date().isoformat()
+                        completed = race.date < today_in_timezone(self.timezone_str).isoformat()
                     else:
                         race_dt = datetime.fromisoformat(
                             f"{race.date}T{race.time}".replace("Z", "+00:00")

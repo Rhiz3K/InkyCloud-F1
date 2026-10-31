@@ -11,6 +11,7 @@ from PIL import Image, ImageDraw
 from app.services.font_utils import fit_ui_font
 from app.services.renderer_assets import _load_image_copy
 from app.services.renderer_text import clamp_text
+from app.utils.race_times import today_in_timezone
 
 
 def _countdown_plural_category(value: int, lang_code: str) -> str:
@@ -143,7 +144,12 @@ def _find_race_datetime(schedule: Sequence, datetime_cls):
 
 
 def _resolve_countdown_status(
-    *, is_cancelled: bool, race_dt, datetime_cls, translator: Mapping[str, str]
+    *,
+    is_cancelled: bool,
+    race_dt,
+    datetime_cls,
+    translator: Mapping[str, str],
+    timezone_name: str | None = None,
 ) -> tuple[str | None, timedelta | None]:
     """Resolve a cancelled/live/completed label or a future-race delta."""
     if is_cancelled:
@@ -152,7 +158,7 @@ def _resolve_countdown_status(
         return None, None
 
     if isinstance(race_dt, date) and not isinstance(race_dt, datetime):
-        days = (race_dt - datetime_cls.now().date()).days
+        days = (race_dt - today_in_timezone(timezone_name)).days
         if days < 0:
             return translator.get("race_completed", "COMPLETED"), None
         if days == 0:
@@ -285,6 +291,7 @@ def draw_countdown_box(
         race_dt=race_dt,
         datetime_cls=datetime_cls,
         translator=translator,
+        timezone_name=race_data.get("timezone"),
     )
 
     if status_text:

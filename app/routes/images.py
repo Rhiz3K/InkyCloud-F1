@@ -485,7 +485,7 @@ def _get_pregenerated_calendar_path(
     identity = (
         expected_identity
         if expected_identity is not None
-        else calendar_identity(F1Service().get_next_race_from_static())
+        else calendar_identity(F1Service(timezone_name=target_tz).get_next_race_from_static())
     )
     return path if path is not None and artifact_matches(path, identity) else None
 
