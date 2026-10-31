@@ -281,3 +281,13 @@ Read [data licences](DATA_LICENSES.md), [third-party notices](THIRD_PARTY_NOTICE
 and [data collection](docs/data-collection.md). There is no third-party analytics.
 The default profile retains aggregate operational statistics.
 Commercial deployments must independently resolve the noncommercial data conditions.
+
+### Vendored third-party files
+
+`app/assets/vendor/` is NOT under the project MIT licence. Licences are bundled
+next to the files:
+
+- swagger-ui-dist 5.34.1: https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz
+  (tarball SHA-256 `8e7286de0230e431fc8a5a75490d28117af3d0c306413b6f9e17f7bb55045fb6`).
+- redoc 2.5.4: https://registry.npmjs.org/redoc/-/redoc-2.5.4.tgz
+  (tarball SHA-256 `44922df4d0eb45c1b066c09ec251e6bd9bd7ded16bc69e87613337b9d911a56e`).

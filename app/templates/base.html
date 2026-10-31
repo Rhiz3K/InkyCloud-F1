@@ -95,7 +95,7 @@
       href="/static/favicon/apple-touch-icon.png?v={{ asset_version }}"
     />
     <link rel="manifest" href="/static/favicon/site.webmanifest?v={{ asset_version }}" />
-    <style>
+    <style nonce="{{ request.state.csp_nonce }}">
       @font-face {
         font-family: "Space Mono";
         src: url("/static/fonts/SpaceMono-Regular.ttf") format("truetype");
@@ -146,7 +146,7 @@
     <div
       id="mobileNavOverlay"
       class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden"
-      onclick="closeMobileNav()"
+      data-on-click="closeMobileNav"
     ></div>
     <div
       id="mobileNavMenu"
@@ -159,7 +159,7 @@
           >{{ nav.nav_menu }}</span
         >
         <button
-          onclick="closeMobileNav()"
+          data-on-click="closeMobileNav"
           aria-label="Close menu"
           class="p-1 hover:bg-white hover:text-black transition-colors"
         >
@@ -178,7 +178,7 @@
           </svg>
         </button>
       </div>
-      <nav class="flex flex-col p-4" style="height: calc(100% - 57px)">
+      <nav class="flex flex-col p-4 h-[calc(100%-57px)]">
         <div class="space-y-2">
         <a
           href="{{ lang_url('/') }}"
@@ -222,7 +222,7 @@
       </nav>
     </div>
 
-    <script>
+    <script nonce="{{ request.state.csp_nonce }}">
       window.MINIMAL_DATA_MODE = {{ minimal_data_mode | tojson }};
       window.PERF_SAMPLE_RATE = {{ perf_sample_rate | tojson }};
       window.SERVER_LANGUAGE_CODES = {{ supported_language_codes | tojson }};

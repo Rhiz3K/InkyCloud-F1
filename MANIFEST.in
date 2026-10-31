@@ -30,3 +30,4 @@ include THIRD_PARTY_NOTICES.md
 include TRACK_ARTWORK.md
 include app/assets/asset-register.json
 recursive-include app/assets/licenses *
+recursive-include app/assets/vendor *

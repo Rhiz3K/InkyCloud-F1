@@ -11,7 +11,7 @@
 ] %}
 {% macro rows(start=0, end=none) %}
 {% for key, links in credit_entries[start:end] %}
-<div class="credit-row" data-credit="{{ key }}" style="display: grid; grid-template-columns: 92px minmax(0, 1fr); column-gap: 10px; align-items: baseline">
+<div class="credit-row grid grid-cols-[92px_minmax(0,1fr)] gap-x-[10px] items-baseline" data-credit="{{ key }}">
   <span class="text-[10px] tracking-wider text-gray-500">{{ t.credits_labels[key] }}</span>
   <div class="min-w-0">
     {% for name, url in links %}{% if not loop.first %}{{ '+' if key == 'hosting' else '&' }}{% endif %}
@@ -23,7 +23,7 @@
 {% endfor %}
 {% endmacro %}
 {% macro track_row() %}
-<div class="home-credits-tracks" data-credit="tracks" style="grid-column: 1 / -1; display: grid; grid-template-columns: 92px minmax(0, 1fr); column-gap: 10px; align-items: baseline">
+<div class="home-credits-tracks col-[1/-1] grid grid-cols-[92px_minmax(0,1fr)] gap-x-[10px] items-baseline" data-credit="tracks">
   <span class="text-[10px] tracking-wider text-gray-500">{{ t.credits_labels.tracks }}</span>
   <a href="{{ lang_url('/credits') }}" class="min-w-0 hover:text-racing-red">Jules Roy &amp; Wikimedia Commons</a>
 </div>

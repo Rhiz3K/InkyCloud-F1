@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
+import {readdirSync, readFileSync} from "node:fs";
 import vm from "node:vm";
 import {test} from "node:test";
 
@@ -91,6 +91,91 @@ for (const [protocol, suffix] of [["http:", ";SameSite=Lax"], ["https:", ";SameS
     });
 }
 
+// Runs common.js with the given globals defined first, as inline page scripts run
+// before the deferred common.js; window is the global object, as in browsers.
+function runCommonWithGlobals(globals) {
+    const listeners = {};
+    const sandbox = {location: {pathname: "/"}, navigator: {}, console: {error() {}},
+        document: {addEventListener(type, fn) {listeners[type] = fn;}}, ...globals};
+    sandbox.window = sandbox;
+    const ctx = vm.createContext(sandbox);
+    vm.runInContext(common, ctx);
+    return {ctx, listeners};
+}
+
+function declaredClick(attrs) {
+    const element = {getAttribute(name) {return attrs[name] ?? null;}};
+    const target = {closest(selector) {return selector === "[data-on-click]" ? element : null;}};
+    return {element, event: {type: "click", target}};
+}
+
+test("declared data-on-click handlers run in order with the element as this", () => {
+    const calls = [];
+    const {listeners} = runCommonWithGlobals({notFn: 42,
+        setDisplayType(...args) {calls.push(["setDisplayType", this, args]);},
+        switchTab(...args) {calls.push(["switchTab", this, args]);}});
+    assert.deepEqual(Object.keys(listeners).sort(), ["DOMContentLoaded", "change", "click", "error", "input"]);
+    const {element, event} = declaredClick({
+        "data-on-click": "setDisplayType selectRaceMobile switchTab notFn toString", "data-args": "[\"x\"]",
+    });
+    listeners.click(event);
+    assert.equal(calls.length, 2);
+    assert.deepEqual(calls.map(([name, self, args]) => [name, self === element, args]),
+        [["setDisplayType", true, ["x"]], ["switchTab", true, ["x"]]]);
+    listeners.change({type: "change", target: event.target});
+    listeners.click({type: "click", target: {closest() {return null;}}});
+    assert.equal(calls.length, 2);
+});
+
+test("declared handlers never call names outside the allowlist", () => {
+    const calls = [];
+    const spy = (name) => (...args) => {calls.push([name, args]);};
+    const {listeners} = runCommonWithGlobals({
+        fetch: spy("fetch"), open: spy("open"), eval: spy("eval"), notAllowlisted: spy("notAllowlisted"),
+    });
+    const {event} = declaredClick({
+        "data-on-click": "fetch open eval notAllowlisted constructor __proto__ hasOwnProperty",
+        "data-args": "[\"https://attacker.example/\", \"_blank\"]",
+    });
+    assert.doesNotThrow(() => listeners.click(event));
+    assert.deepEqual(calls, []);
+});
+
+test("reassigning a page handler after common.js loaded does not change what is dispatched", () => {
+    const calls = [];
+    const {ctx, listeners} = runCommonWithGlobals({setDisplayType(type) {calls.push(["original", type]);}});
+    assert.equal(vm.runInContext("Object.isFrozen(HANDLERS)", ctx), true);
+    ctx.window.setDisplayType = (type) => {calls.push(["replaced", type]);};
+    ctx.window.switchTab = (type) => {calls.push(["late", type]);};
+    listeners.click(declaredClick({"data-on-click": "setDisplayType switchTab", "data-args": "[\"bwr\"]"}).event);
+    assert.deepEqual(calls, [["original", "bwr"]]);
+});
+
+function htmlFiles(dir) {
+    return readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
+        const path = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) return htmlFiles(path);
+        return entry.name.endsWith(".html") ? [path] : [];
+    });
+}
+
+test("HANDLERS allowlists every data-on-* name used in templates", () => {
+    const used = new Set();
+    for (const file of htmlFiles("app/templates")) {
+        const html = readFileSync(file, "utf8");
+        for (const match of html.matchAll(/data-on-(?:click|change|input)=(?:"([^"]*)"|'([^']*)')/g)) {
+            for (const name of (match[1] ?? match[2]).split(/\s+/)) {
+                if (name) used.add(name);
+            }
+        }
+    }
+    assert.ok(used.size > 0);
+    // Define every used name as a page function so only the allowlist decides membership.
+    const {ctx} = runCommonWithGlobals(Object.fromEntries([...used].map((name) => [name, () => {}])));
+    const allowed = vm.runInContext("Object.keys(HANDLERS)", ctx);
+    assert.deepEqual([...used].filter((name) => !allowed.includes(name)), []);
+});
+
 // Top-level functions in configure.html's inline script are 2-space indented and end with "  }".
 function templateFunction(template, name) {
     const start = template.indexOf(`\n  function ${name}(`);
@@ -98,9 +183,20 @@ function templateFunction(template, name) {
     return template.slice(start, template.indexOf("\n  }\n", start) + 4);
 }
 
+// Returns the rendered HTML plus the swatch elements the renderer coloured via CSSOM.
 function renderSeasonLeader(leaderTeam) {
     const template = readFileSync("app/templates/configure.html", "utf8");
-    const container = {innerHTML: ""};
+    const swatches = [];
+    const container = {
+        innerHTML: "",
+        querySelectorAll(selector) {
+            assert.equal(selector, "[data-team-color]");
+            for (const [, teamColor] of this.innerHTML.matchAll(/data-team-color="([^"]*)"/g)) {
+                swatches.push({dataset: {teamColor}, style: {}});
+            }
+            return swatches;
+        },
+    };
     const ctx = vm.createContext({
         uiText: {currentSeason: "Current"}, currentTeamsSeason: 2026, availableTeamsSeasons: [2026],
         selectedTeamsYear: null, leaderData: {2026: {has_data: true, leader_team: leaderTeam, leader_driver: {number: 1, code: "VER"}}},
@@ -110,7 +206,7 @@ function renderSeasonLeader(leaderTeam) {
         vm.runInContext(templateFunction(template, name), ctx);
     }
     ctx.renderTeamsSeasonButtons();
-    return container.innerHTML;
+    return {html: container.innerHTML, swatches};
 }
 
 test("season leaders reference no team logo images", () => {
@@ -119,9 +215,11 @@ test("season leaders reference no team logo images", () => {
 
 test("valid hex team colour renders a swatch with that background", () => {
     for (const color of ["#3671C6", "#ff8000"]) {
-        const html = renderSeasonLeader({name: "Red Bull", color});
-        assert.equal(html.split("background-color").length - 1, 1);
-        assert.ok(html.includes(`style="background-color: ${color}" aria-hidden="true"`));
+        const {html, swatches} = renderSeasonLeader({name: "Red Bull", color});
+        assert.equal(html.split("data-team-color").length - 1, 1);
+        assert.ok(html.includes(`data-team-color="${color}" aria-hidden="true"`));
+        assert.ok(!html.includes("style="));
+        assert.deepEqual(swatches.map((el) => el.style.backgroundColor), [color]);
         assert.ok(html.includes(">Red Bull</span>"));
     }
 });
@@ -129,26 +227,99 @@ test("valid hex team colour renders a swatch with that background", () => {
 for (const color of [undefined, null, "", "#fff", "red", "#12345g", "#ffffff\n", "red;background:url(x)",
     "#ffffff;background:url(x)", "#fff\" onload=\"alert(1)", "#ffffff\" onload=\"alert(1)"]) {
     test(`missing or unsafe team colour ${JSON.stringify(color)} renders no swatch`, () => {
-        const html = renderSeasonLeader({name: "Ferrari", color});
+        const {html, swatches} = renderSeasonLeader({name: "Ferrari", color});
+        assert.ok(!html.includes("data-team-color"));
         assert.ok(!html.includes("background-color"));
         assert.ok(!html.includes("aria-hidden"));
         assert.ok(!html.includes("onload"));
         assert.ok(!html.includes("url("));
+        assert.deepEqual(swatches, []);
         assert.ok(html.includes(">Ferrari</span>"));
     });
 }
 
 test("team name containing HTML stays escaped next to the swatch", () => {
-    const html = renderSeasonLeader({name: "<img src=x onerror=\"alert(1)\">", color: "#E8002D"});
+    const {html, swatches} = renderSeasonLeader({name: "<img src=x onerror=\"alert(1)\">", color: "#E8002D"});
     assert.ok(!html.includes("<img"));
     assert.ok(html.includes("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;"));
-    assert.ok(html.includes("style=\"background-color: #E8002D\""));
+    assert.ok(html.includes("data-team-color=\"#E8002D\""));
+    assert.deepEqual(swatches.map((el) => el.style.backgroundColor), ["#E8002D"]);
 });
 
 test("missing leader team falls back to a dash without a swatch", () => {
-    const html = renderSeasonLeader(undefined);
+    const {html} = renderSeasonLeader(undefined);
+    assert.ok(!html.includes("data-team-color"));
     assert.ok(!html.includes("background-color"));
     assert.ok(html.includes("truncate\">-</span>"));
+});
+
+// Runs common.js with a fake document whose querySelectorAll serves the given elements.
+function runCommonWithElements(elements, readyState) {
+    const listeners = {};
+    const document = {
+        readyState,
+        addEventListener(type, fn, capture) {listeners[type] = {fn, capture};},
+        querySelectorAll(selector) {return elements[selector] || [];},
+    };
+    const ctx = vm.createContext({window: {location: {pathname: "/"}}, navigator: {}, document});
+    vm.runInContext(common, ctx);
+    return {ctx, listeners};
+}
+
+for (const readyState of [undefined, "loading", "interactive"]) {
+    test(`declared widths are applied once the DOM is ready (readyState ${readyState})`, () => {
+        const bars = ["max(2px, 12.5%)", "0", "40%"].map((width) => ({dataset: {width}, style: {}}));
+        const {listeners} = runCommonWithElements({"[data-width]": bars}, readyState);
+        const deferred = readyState !== "interactive";
+        assert.equal("DOMContentLoaded" in listeners, deferred);
+        assert.deepEqual(bars.map((el) => el.style.width), deferred ? [undefined, undefined, undefined] : ["max(2px, 12.5%)", "0", "40%"]);
+        if (deferred) listeners.DOMContentLoaded.fn();
+        assert.deepEqual(bars.map((el) => el.style.width), ["max(2px, 12.5%)", "0", "40%"]);
+    });
+}
+
+test("applyDeclaredWidths only touches the given root", () => {
+    const inside = {dataset: {width: "25%"}, style: {}};
+    const {ctx} = runCommonWithElements({}, "loading");
+    ctx.applyDeclaredWidths({querySelectorAll(selector) {return selector === "[data-width]" ? [inside] : [];}});
+    assert.equal(inside.style.width, "25%");
+});
+
+function fakeImage(fallbackSrc, extra = {}) {
+    return {tagName: "IMG", dataset: fallbackSrc === undefined ? {} : {fallbackSrc}, src: "/preview/a.png",
+        getAttribute(name) {return name === "src" ? this.src : null;}, ...extra};
+}
+
+test("failed images switch to their fallback exactly once", () => {
+    const {listeners} = runCommonWithElements({}, "loading");
+    assert.equal(listeners.error.capture, true);
+    const img = fakeImage("/static/images/fallback.png");
+    listeners.error.fn({target: img});
+    assert.equal(img.src, "/static/images/fallback.png");
+    img.src = "/static/images/fallback.png?broken";
+    listeners.error.fn({target: img});
+    assert.equal(img.src, "/static/images/fallback.png?broken");
+    const plain = fakeImage(undefined);
+    listeners.error.fn({target: plain});
+    assert.equal(plain.src, "/preview/a.png");
+    const script = {...fakeImage("/x.png"), tagName: "SCRIPT"};
+    listeners.error.fn({target: script});
+    assert.equal(script.src, "/preview/a.png");
+    listeners.error.fn({target: null});
+});
+
+test("images that failed before the deferred script ran fall back on DOMContentLoaded", () => {
+    const failed = fakeImage("/fb.png", {complete: true, naturalWidth: 0});
+    const loaded = fakeImage("/fb.png", {complete: true, naturalWidth: 800});
+    const pending = fakeImage("/fb.png", {complete: false, naturalWidth: 0});
+    const alreadyFallback = fakeImage("/fb.png", {complete: true, naturalWidth: 0, src: "/fb.png"});
+    const {listeners} = runCommonWithElements({"img[data-fallback-src]": [failed, loaded, pending, alreadyFallback]}, "loading");
+    listeners.DOMContentLoaded.fn();
+    assert.equal(failed.src, "/fb.png");
+    assert.equal(failed.dataset.fallbackApplied, "true");
+    assert.equal(loaded.src, "/preview/a.png");
+    assert.equal(pending.src, "/preview/a.png");
+    assert.equal(alreadyFallback.dataset.fallbackApplied, undefined);
 });
 
 test("explicit localized URL is not overridden by a stale preference", () => {

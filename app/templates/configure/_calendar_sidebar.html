@@ -6,7 +6,7 @@
   >
   <select
     id="tzSelectMobile"
-    onchange="selectTimezoneMobile()"
+    data-on-change="selectTimezoneMobile"
     class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm"
   ></select>
 </div>
@@ -22,7 +22,7 @@
       id="tzSearch"
       placeholder="SEARCH..."
       class="flex-1 min-w-0 px-2 py-1 text-xs bg-white border-2 border-black focus:outline-none focus:bg-racing-red focus:text-white placeholder-gray-400"
-      oninput="onTzSearch()"
+      data-on-input="onTzSearch"
     />
   </div>
   <div
@@ -30,56 +30,56 @@
     id="tzContinents"
   >
     <button
-      onclick="filterTzContinent('ALL')"
+      data-on-click="filterTzContinent" data-args='["ALL"]'
       data-continent="ALL"
       class="tz-filter-btn active whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       ALL
     </button>
     <button
-      onclick="filterTzContinent('DETECTED')"
+      data-on-click="filterTzContinent" data-args='["DETECTED"]'
       data-continent="DETECTED"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       DETECTED
     </button>
     <button
-      onclick="filterTzContinent('EUROPE')"
+      data-on-click="filterTzContinent" data-args='["EUROPE"]'
       data-continent="EUROPE"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       EUROPE
     </button>
     <button
-      onclick="filterTzContinent('AMERICA')"
+      data-on-click="filterTzContinent" data-args='["AMERICA"]'
       data-continent="AMERICA"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       AMERICA
     </button>
     <button
-      onclick="filterTzContinent('ASIA')"
+      data-on-click="filterTzContinent" data-args='["ASIA"]'
       data-continent="ASIA"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       ASIA
     </button>
     <button
-      onclick="filterTzContinent('AFRICA')"
+      data-on-click="filterTzContinent" data-args='["AFRICA"]'
       data-continent="AFRICA"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       AFRICA
     </button>
     <button
-      onclick="filterTzContinent('OCEANIA')"
+      data-on-click="filterTzContinent" data-args='["OCEANIA"]'
       data-continent="OCEANIA"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
       OCEANIA
     </button>
     <button
-      onclick="filterTzContinent('OTHER')"
+      data-on-click="filterTzContinent" data-args='["OTHER"]'
       data-continent="OTHER"
       class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
     >
@@ -96,16 +96,13 @@
       type="checkbox"
       id="weatherToggle"
       checked
-      onchange="
-        updateWeatherTypeAvailability();
-        updatePreview();
-      "
+      data-on-change="updateWeatherTypeAvailability updatePreview"
       class="hidden"
     />
     <div class="flex gap-1" id="weatherTypeContainer">
       <button
         type="button"
-        onclick="setWeatherType('off')"
+        data-on-click="setWeatherType" data-args='["off"]'
         id="weatherOffBtn"
         class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
       >
@@ -113,7 +110,7 @@
       </button>
       <button
         type="button"
-        onclick="setWeatherType('current')"
+        data-on-click="setWeatherType" data-args='["current"]'
         id="weatherCurrentBtn"
         class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
       >
@@ -121,7 +118,7 @@
       </button>
       <button
         type="button"
-        onclick="setWeatherType('race_day')"
+        data-on-click="setWeatherType" data-args='["race_day"]'
         id="weatherRaceDayBtn"
         class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
         data-weather-tooltip-trigger
@@ -147,7 +144,7 @@
     <div class="grid grid-cols-4 gap-1" id="displayTypeContainer">
       <button
         type="button"
-        onclick="setDisplayType('1bit')"
+        data-on-click="setDisplayType" data-args='["1bit"]'
         id="display1bitBtn"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-black text-white"
       >
@@ -155,7 +152,7 @@
       </button>
       <button
         type="button"
-        onclick="setDisplayType('bwr')"
+        data-on-click="setDisplayType" data-args='["bwr"]'
         id="displayBwrBtn"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
       >
@@ -163,7 +160,7 @@
       </button>
       <button
         type="button"
-        onclick="setDisplayType('bwry')"
+        data-on-click="setDisplayType" data-args='["bwry"]'
         id="displayBwryBtn"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
       >
@@ -171,7 +168,7 @@
       </button>
       <button
         type="button"
-        onclick="setDisplayType('spectra6')"
+        data-on-click="setDisplayType" data-args='["spectra6"]'
         id="displaySpectra6Btn"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
       >
@@ -192,7 +189,7 @@
   <div class="grid grid-cols-3 gap-1">
     <button
       type="button"
-      onclick="setWeatherType('off')"
+      data-on-click="setWeatherType" data-args='["off"]'
       id="weatherOffBtnMobile"
       class="weather-type-btn-mobile min-w-0 px-2 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
     >
@@ -200,7 +197,7 @@
     </button>
     <button
       type="button"
-      onclick="setWeatherType('current')"
+      data-on-click="setWeatherType" data-args='["current"]'
       id="weatherCurrentBtnMobile"
       class="weather-type-btn-mobile min-w-0 px-2 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
     >
@@ -208,7 +205,7 @@
     </button>
     <button
       type="button"
-      onclick="setWeatherType('race_day')"
+      data-on-click="setWeatherType" data-args='["race_day"]'
       id="weatherRaceDayBtnMobile"
       class="weather-type-btn-mobile min-w-0 px-2 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-racing-red text-white"
       data-weather-tooltip-trigger
@@ -226,7 +223,7 @@
   <div class="grid grid-cols-4 gap-1">
     <button
       type="button"
-      onclick="setDisplayType('1bit')"
+      data-on-click="setDisplayType" data-args='["1bit"]'
       id="display1bitBtnMobile"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-black text-white"
     >
@@ -234,7 +231,7 @@
     </button>
     <button
       type="button"
-      onclick="setDisplayType('bwr')"
+      data-on-click="setDisplayType" data-args='["bwr"]'
       id="displayBwrBtnMobile"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
     >
@@ -242,7 +239,7 @@
     </button>
     <button
       type="button"
-      onclick="setDisplayType('bwry')"
+      data-on-click="setDisplayType" data-args='["bwry"]'
       id="displayBwryBtnMobile"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
     >
@@ -250,7 +247,7 @@
     </button>
     <button
       type="button"
-      onclick="setDisplayType('spectra6')"
+      data-on-click="setDisplayType" data-args='["spectra6"]'
       id="displaySpectra6BtnMobile"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
     >
@@ -266,7 +263,7 @@
   >
   <select
     id="raceSelectMobile"
-    onchange="selectRaceMobile()"
+    data-on-change="selectRaceMobile"
     class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm"
   >
     <option value="">{{ t.get('next_race', 'Next Race') }}</option>

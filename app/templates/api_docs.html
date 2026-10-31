@@ -37,7 +37,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
   content="{{ site_url }}/static/images/og-preview.png"
 />
 {% endblock %} {% block head %}
-<style>
+<style nonce="{{ request.state.csp_nonce }}">
   .api-docs-content {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -288,7 +288,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
       <!-- Try it -->
       <div class="flex flex-wrap gap-3">
         <button
-          onclick="tryCalendarBmp()"
+          data-on-click="tryCalendarBmp"
           class="px-4 py-2 bg-racing-red text-white border-2 border-black shadow-neo font-bold uppercase tracking-wider hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center gap-2"
         >
           <svg
@@ -344,7 +344,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
       <div class="flex gap-1 mb-4" role="tablist">
         <button
           class="tab-btn px-4 py-2 text-sm font-bold uppercase active"
-          onclick="switchTab('curl')"
+          data-on-click="switchTab"
+          data-args='["curl"]'
           role="tab"
           aria-selected="true"
           data-tab="curl"
@@ -353,7 +354,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         </button>
         <button
           class="tab-btn px-4 py-2 text-sm font-bold uppercase bg-white"
-          onclick="switchTab('python')"
+          data-on-click="switchTab"
+          data-args='["python"]'
           role="tab"
           aria-selected="false"
           data-tab="python"
@@ -362,7 +364,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         </button>
         <button
           class="tab-btn px-4 py-2 text-sm font-bold uppercase bg-white"
-          onclick="switchTab('javascript')"
+          data-on-click="switchTab"
+          data-args='["javascript"]'
           role="tab"
           aria-selected="false"
           data-tab="javascript"
@@ -375,7 +378,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
       <div id="tab-curl" class="tab-content active">
         <div class="code-block p-4 relative">
           <button
-            onclick="copyCode('curl')"
+            data-on-click="copyCode"
+            data-args='["curl"]'
             class="copy-btn absolute top-2 right-2 px-2 py-1 bg-gray-700 text-white text-xs font-bold uppercase border border-gray-600"
           >
             {{ t.get("api_docs_copy", "Copy") }}
@@ -387,7 +391,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
       <div id="tab-python" class="tab-content">
         <div class="code-block p-4 relative">
           <button
-            onclick="copyCode('python')"
+            data-on-click="copyCode"
+            data-args='["python"]'
             class="copy-btn absolute top-2 right-2 px-2 py-1 bg-gray-700 text-white text-xs font-bold uppercase border border-gray-600"
           >
             {{ t.get("api_docs_copy", "Copy") }}
@@ -399,7 +404,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
       <div id="tab-javascript" class="tab-content">
         <div class="code-block p-4 relative">
           <button
-            onclick="copyCode('javascript')"
+            data-on-click="copyCode"
+            data-args='["javascript"]'
             class="copy-btn absolute top-2 right-2 px-2 py-1 bg-gray-700 text-white text-xs font-bold uppercase border border-gray-600"
           >
             {{ t.get("api_docs_copy", "Copy") }}
@@ -564,7 +570,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
       <!-- Try it -->
       <div class="flex flex-wrap gap-3">
         <button
-          onclick="tryTeamsBmp()"
+          data-on-click="tryTeamsBmp"
           class="px-4 py-2 bg-racing-red text-white border-2 border-black shadow-neo font-bold uppercase tracking-wider hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center gap-2"
         >
           <svg
@@ -633,7 +639,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           </p>
           <div class="flex gap-2">
             <button
-              onclick="tryEndpoint('/api/teams/2026', 'result-teams')"
+              data-on-click="tryEndpoint"
+              data-args='["/api/teams/2026", "result-teams"]'
               class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors"
             >
               {{ t.get("api_docs_try_it", "Try it") }}
@@ -662,7 +669,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           <p class="text-xs mb-3"><code>/api/standings/leader/{year}</code></p>
           <div class="flex gap-2">
             <button
-              onclick="tryEndpoint('/api/standings/leader', 'result-leader')"
+              data-on-click="tryEndpoint"
+              data-args='["/api/standings/leader", "result-leader"]'
               class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors"
             >
               {{ t.get("api_docs_try_it", "Try it") }}
@@ -687,7 +695,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           <p class="text-sm mb-3">{{ races_desc }}</p>
           <div class="flex gap-2">
             <button
-              onclick="tryEndpoint('/api/races/2026', 'result-races')"
+              data-on-click="tryEndpoint"
+              data-args='["/api/races/2026", "result-races"]'
               class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors"
             >
               {{ t.get("api_docs_try_it", "Try it") }}
@@ -712,7 +721,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           <p class="text-sm mb-3">{{ race_desc }}</p>
           <div class="flex gap-2">
             <button
-              onclick="tryEndpoint('/api/race/2026/1', 'result-race')"
+              data-on-click="tryEndpoint"
+              data-args='["/api/race/2026/1", "result-race"]'
               class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors"
             >
               {{ t.get("api_docs_try_it", "Try it") }}
@@ -737,7 +747,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           <p class="text-sm mb-3">{{ t.stats_disabled if minimal_data_mode else stats_desc }}</p>
           <div class="flex gap-2">
             <button
-              onclick="tryEndpoint('/api/stats', 'result-stats')"
+              data-on-click="tryEndpoint"
+              data-args='["/api/stats", "result-stats"]'
               class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors"
             >
               {{ t.get("api_docs_try_it", "Try it") }}
@@ -784,7 +795,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           <p class="text-sm mb-3">{{ health_desc }}</p>
           <div class="flex gap-2">
             <button
-              onclick="tryEndpoint('/health', 'result-health')"
+              data-on-click="tryEndpoint"
+              data-args='["/health", "result-health"]'
               class="px-3 py-1 bg-racing-red text-white text-sm font-bold uppercase border-2 border-black hover:bg-black transition-colors"
             >
               {{ t.get("api_docs_try_it", "Try it") }}
@@ -827,7 +839,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
 </main>
 
 <!-- Image Preview Modal -->
-<div id="imageModal" class="modal" onclick="closeModal(event)">
+<div id="imageModal" class="modal">
   <div class="modal-backdrop"></div>
   <div class="modal-content bg-white border-4 border-black p-2 shadow-neo">
     <img
@@ -838,7 +850,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
     />
     <div class="text-center mt-2">
       <button
-        onclick="closeModalBtn()"
+        data-on-click="closeModalBtn"
         class="px-4 py-2 bg-black text-white font-bold uppercase text-sm hover:bg-racing-red transition-colors"
       >
         {{ close_btn }}
@@ -847,7 +859,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
   </div>
 </div>
 {% endblock %} {% block scripts %}
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
   const currentUiLang = {{ ui_lang | tojson }};
   const copyText = '{{ t.get("api_docs_copy", "Copy") }}';
   const copiedText = '{{ t.get("api_docs_copied", "Copied!") }}';
@@ -930,6 +942,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
   }
 
   // Keyboard navigation for modal
+  document.getElementById("imageModal").addEventListener("click", closeModal);
+
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
       document.getElementById("imageModal").classList.remove("active");

@@ -54,7 +54,7 @@ bg-black
   <div
     class="h-full box-border {{ ranked_bar_class(index0, total_items) }} {{ ranked_bar_outline_class(index0, total_items) }}"
     data-testid="stats-fill-bar"
-    style="width: {% if fill_pct > 0 %}max(2px, {{ fill_pct }}%){% else %}0{% endif %}"
+    data-width="{% if fill_pct > 0 %}max(2px, {{ fill_pct }}%){% else %}0{% endif %}"
   ></div>
 </div>
 {%- endmacro %} {% macro breakdown_scope(text) -%}
@@ -63,9 +63,8 @@ bg-black
 <p class="text-gray-500 text-sm">{{ t.get("stats_no_data", "No data") }}</p>
 {%- endmacro %} {% macro breakdown_summary(pct) -%}
 <span
-  class="flex-shrink-0 text-right font-mono text-xs"
+  class="flex-shrink-0 text-right font-mono text-xs w-[4.5rem]"
   data-testid="stats-row-summary"
-  style="width: 4.5rem"
   >{{ pct }}%</span
 >
 {%- endmacro
@@ -348,7 +347,7 @@ bg-black
       <div class="flex items-center gap-3">
         <span class="w-12 text-xs font-bold uppercase">MIN</span>
         <div class="flex-1 h-6 bg-gray-200 border border-black">
-          <div class="h-full bg-white" style="width: {{ min_pct }}%"></div>
+          <div class="h-full bg-white" data-width="{{ min_pct }}%"></div>
         </div>
         <span class="w-20 text-right font-mono text-sm"
           >{{ stats.min_response_ms | int }} ms</span
@@ -357,7 +356,7 @@ bg-black
       <div class="flex items-center gap-3">
         <span class="w-12 text-xs font-bold uppercase">AVG</span>
         <div class="flex-1 h-6 bg-gray-200 border border-black">
-          <div class="h-full bg-black" style="width: {{ avg_pct }}%"></div>
+          <div class="h-full bg-black" data-width="{{ avg_pct }}%"></div>
         </div>
         <span class="w-20 text-right font-mono text-sm"
           >{{ stats.avg_response_ms | int }} ms</span
@@ -366,7 +365,7 @@ bg-black
       <div class="flex items-center gap-3">
         <span class="w-12 text-xs font-bold uppercase">MAX</span>
         <div class="flex-1 h-6 bg-gray-200 border border-black">
-          <div class="h-full bg-racing-red" style="width: 100%"></div>
+          <div class="h-full bg-racing-red w-full"></div>
         </div>
         <span class="w-20 text-right font-mono text-sm"
           >{{ stats.max_response_ms | int }} ms</span
@@ -432,8 +431,7 @@ bg-black
       length %} {% for display_stat in stats.display_types %} {% set display_pct =
       calc_percent(display_stat.count, display_total) %}
       <div class="flex items-center gap-3 mb-2">
-        <span class="flex-shrink-0 text-xs font-bold uppercase"
-          style="width: 6rem"
+        <span class="flex-shrink-0 text-xs font-bold uppercase w-24"
           >{{ display_stat.display_label }}</span
         >
         {{ breakdown_fill(display_pct, loop.index0, display_item_count) }}
@@ -455,8 +453,7 @@ bg-black
       length %} {% for display_stat in stats.teams_display_types %} {% set display_pct =
       calc_percent(display_stat.count, teams_display_total) %}
       <div class="flex items-center gap-3 mb-2">
-        <span class="flex-shrink-0 text-xs font-bold uppercase"
-          style="width: 6rem"
+        <span class="flex-shrink-0 text-xs font-bold uppercase w-24"
           >{{ display_stat.display_label }}</span
         >
         {{ breakdown_fill(display_pct, loop.index0, teams_display_item_count) }}

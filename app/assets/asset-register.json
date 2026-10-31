@@ -44,11 +44,11 @@
       "reviewed_on": "2026-09-09"
     },
     "css/tailwind.min.css": {
-      "sha256": "999df4d0f2b1c6e0fad0464e98e0510b5b61748651f646c563dd74e42bace37f",
+      "sha256": "dd7269e99af38d62c0115c4f5bcfd3c29d8124535b800486cfc5f1307c4762f1",
       "license": "MIT",
       "author": "InkyCloud contributors",
       "source": "https://github.com/Rhiz3K/InkyCloud-F1",
-      "reviewed_on": "2026-09-11"
+      "reviewed_on": "2026-10-31"
     },
     "favicon/apple-touch-icon.png": {
       "sha256": "7e7f922bf7f77cf20908f24fca0c65c84904f4ee63685a178b113d6cce483da6",
@@ -1278,11 +1278,11 @@
       "provenance_note": "Original project text layout with Titillium Web (SIL OFL 1.1)."
     },
     "js/common.js": {
-      "sha256": "7287d0f910f1205c4e3fe4b05d219b28456f1f5ad35d2c64ccfff7a9b4e4e5ca",
+      "sha256": "a116e9a1329ef9a0266a9ced1dec6e5257ae2d3ed37b08e5d857e4596ba4c791",
       "license": "MIT",
       "author": "InkyCloud contributors",
       "source": "https://github.com/Rhiz3K/InkyCloud-F1",
-      "reviewed_on": "2026-10-30"
+      "reviewed_on": "2026-10-31"
     },
     "js/perf-metrics.js": {
       "sha256": "3e022738c07f352df0590c4e06051228101c383060b00e1b1e527de71c0ee82d",
@@ -1341,7 +1341,7 @@
       "reviewed_on": "2026-09-09"
     },
     "licenses/THIRD_PARTY_NOTICES.txt": {
-      "sha256": "b65740b4248881c46fbdc2e04a7c73a51ec3ad64ef2cf6b30f5471aeb5794c44",
+      "sha256": "33b1101b3545099e1757a60e6ef5ad56b3cfd61ac07200ac70498b02c5f910f3",
       "license": "Third-party notices; see file",
       "author": "Original authors named in each notice",
       "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
@@ -2874,6 +2874,78 @@
       "source": "https://github.com/GoogleChrome/web-vitals/tree/v6.2.1",
       "reviewed_on": "2026-09-11",
       "provenance_note": "Pinned npm web-vitals 6.2.1 standard build, hosted locally; source map link removed. Apache-2.0 notice distributed alongside."
+    },
+    "vendor/redoc-2.5.4/LICENSE": {
+      "sha256": "d3026d549cf68ab7355bcfa85877bf8f845b3334a7efbfdc63936432fb34ff0e",
+      "license": "MIT",
+      "author": "Redocly Inc. / ReDoc contributors",
+      "source": "https://registry.npmjs.org/redoc/-/redoc-2.5.4.tgz",
+      "reviewed_on": "2026-10-31",
+      "provenance_note": "Pinned npm redoc 2.5.4 (tarball SHA-256 44922df4d0eb45c1b066c09ec251e6bd9bd7ded16bc69e87613337b9d911a56e), file copied byte-identical, hosted locally for /redoc. Not covered by the project MIT licence."
+    },
+    "vendor/redoc-2.5.4/redoc.standalone.js": {
+      "sha256": "dcaf76612bc4a3fbcc923a8966dee2f6146a5f32e5ce1b6f02dd60cbbf89500b",
+      "license": "MIT",
+      "author": "Redocly Inc. / ReDoc contributors",
+      "source": "https://registry.npmjs.org/redoc/-/redoc-2.5.4.tgz",
+      "reviewed_on": "2026-10-31",
+      "provenance_note": "Pinned npm redoc 2.5.4 (tarball SHA-256 44922df4d0eb45c1b066c09ec251e6bd9bd7ded16bc69e87613337b9d911a56e), file copied byte-identical, hosted locally for /redoc. Not covered by the project MIT licence."
+    },
+    "vendor/redoc-2.5.4/redoc.standalone.js.LICENSE.txt": {
+      "sha256": "eed602ec32e00b2b9df1984fbcc26a687b1b3193ec01961389c4b8439e6edf73",
+      "license": "MIT",
+      "author": "Redocly Inc. / ReDoc contributors",
+      "source": "https://registry.npmjs.org/redoc/-/redoc-2.5.4.tgz",
+      "reviewed_on": "2026-10-31",
+      "provenance_note": "Pinned npm redoc 2.5.4 (tarball SHA-256 44922df4d0eb45c1b066c09ec251e6bd9bd7ded16bc69e87613337b9d911a56e), file copied byte-identical, hosted locally for /redoc. Not covered by the project MIT licence."
+    },
+    "vendor/swagger-ui-5.34.1/LICENSE": {
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "license": "Apache-2.0",
+      "author": "SmartBear Software Inc. / Swagger UI contributors",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz",
+      "reviewed_on": "2026-10-31",
+      "provenance_note": "Pinned npm swagger-ui-dist 5.34.1 (tarball SHA-256 8e7286de0230e431fc8a5a75490d28117af3d0c306413b6f9e17f7bb55045fb6), file copied byte-identical, hosted locally for /docs. Not covered by the project MIT licence."
+    },
+    "vendor/swagger-ui-5.34.1/NOTICE": {
+      "sha256": "0d20d1adef18aee3f40dd258172155521ce702ac445cb5f7b7d60ed32dad2fb2",
+      "license": "Apache-2.0",
+      "author": "SmartBear Software Inc. / Swagger UI contributors",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz",
+      "reviewed_on": "2026-10-31",
+      "provenance_note": "Pinned npm swagger-ui-dist 5.34.1 (tarball SHA-256 8e7286de0230e431fc8a5a75490d28117af3d0c306413b6f9e17f7bb55045fb6), file copied byte-identical, hosted locally for /docs. Not covered by the project MIT licence."
+    },
+    "vendor/swagger-ui-5.34.1/oauth2-redirect.js": {
+      "sha256": "a5c8a34e09e49737382cc5019446eec7c3db3461963fc5bfe448361d3c5549e9",
+      "license": "Apache-2.0",
+      "author": "SmartBear Software Inc. / Swagger UI contributors",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz",
+      "reviewed_on": "2026-10-31",
+      "provenance_note": "Pinned npm swagger-ui-dist 5.34.1 (tarball SHA-256 8e7286de0230e431fc8a5a75490d28117af3d0c306413b6f9e17f7bb55045fb6), file copied byte-identical, hosted locally for /docs. Not covered by the project MIT licence."
+    },
+    "vendor/swagger-ui-5.34.1/swagger-ui-bundle.js": {
+      "sha256": "36eeb4d5640b9c036b1d0f854499af1cceebbdb260b790a03a18be5e8488fbf5",
+      "license": "Apache-2.0",
+      "author": "SmartBear Software Inc. / Swagger UI contributors",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz",
+      "reviewed_on": "2026-10-31",
+      "provenance_note": "Pinned npm swagger-ui-dist 5.34.1 (tarball SHA-256 8e7286de0230e431fc8a5a75490d28117af3d0c306413b6f9e17f7bb55045fb6), file copied byte-identical, hosted locally for /docs. Not covered by the project MIT licence."
+    },
+    "vendor/swagger-ui-5.34.1/swagger-ui-bundle.js.LICENSE.txt": {
+      "sha256": "37eb6e7e59aed57b2c1acf076574b818ea07b74265717e0bd67b59e0baf9abbb",
+      "license": "Apache-2.0",
+      "author": "SmartBear Software Inc. / Swagger UI contributors",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz",
+      "reviewed_on": "2026-10-31",
+      "provenance_note": "Pinned npm swagger-ui-dist 5.34.1 (tarball SHA-256 8e7286de0230e431fc8a5a75490d28117af3d0c306413b6f9e17f7bb55045fb6), file copied byte-identical, hosted locally for /docs. Not covered by the project MIT licence."
+    },
+    "vendor/swagger-ui-5.34.1/swagger-ui.css": {
+      "sha256": "c3cfe8248c4b0b89673600fb829924eafbac6de4bc4b2b06f5f5243483074d0a",
+      "license": "Apache-2.0",
+      "author": "SmartBear Software Inc. / Swagger UI contributors",
+      "source": "https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz",
+      "reviewed_on": "2026-10-31",
+      "provenance_note": "Pinned npm swagger-ui-dist 5.34.1 (tarball SHA-256 8e7286de0230e431fc8a5a75490d28117af3d0c306413b6f9e17f7bb55045fb6), file copied byte-identical, hosted locally for /docs. Not covered by the project MIT licence."
     }
   }
 }

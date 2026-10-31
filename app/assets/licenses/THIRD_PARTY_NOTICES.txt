@@ -22,6 +22,11 @@ artifacts may still contain the logos.
   MIT OR Apache-2.0; licence texts and available native dependency notices are bundled.
 - Web Vitals 6.2.1: Google LLC, Apache-2.0. Standard build hosted locally;
   `app/assets/licenses/web-vitals-LICENSE.txt`. No attribution build or external CDN.
+- Swagger UI 5.34.1 (npm swagger-ui-dist): SmartBear Software Inc., Apache License 2.0;
+  full LICENSE and NOTICE in app/assets/vendor/swagger-ui-5.34.1/, served at /docs,
+  no external CDN.
+- ReDoc 2.5.4 (npm redoc, standalone bundle): Redocly Inc., MIT; LICENSE in
+  app/assets/vendor/redoc-2.5.4/, served at /redoc, no external CDN or Google Fonts.
 - Python dependencies: pinned name, version, source and complete installed distribution
   notices under `app/assets/licenses/dependencies.json` and `licenses/dependencies/`.
   Installed wheels and the Docker image also retain their original `.dist-info` notices.

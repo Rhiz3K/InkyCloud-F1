@@ -34,7 +34,7 @@
   content="{{ site_url }}/static/images/og-preview.png"
 />
 {% endblock %} {% block head %}
-<style>
+<style nonce="{{ request.state.csp_nonce }}">
   .changelog-page {
     min-width: 0;
     overflow-wrap: anywhere;

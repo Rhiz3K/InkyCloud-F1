@@ -204,6 +204,128 @@ function formatRaceDate(value) {
     return `${match[3]}.${match[2]}.`;
 }
 
+// Page handlers are top-level function declarations in nonce'd inline scripts
+// (configure.html, configure/_*.html, api_docs.html). This file is loaded with
+// defer, so it runs only after every inline page script has executed; the
+// snapshot below therefore sees them, and later reassignment of window.X does
+// not change what is dispatched.
+const PAGE_HANDLER_NAMES = [
+    "closeModalBtn",
+    "copyCode",
+    "switchTab",
+    "tryCalendarBmp",
+    "tryEndpoint",
+    "tryTeamsBmp",
+    "copyUrl",
+    "filterTzContinent",
+    "onTzSearch",
+    "refreshPreview",
+    "selectRaceFromList",
+    "selectRaceMobile",
+    "selectTeamsSeason",
+    "selectTimezoneMobile",
+    "selectYearMobile",
+    "setDisplayType",
+    "setWeatherType",
+    "toggleSidebar",
+    "updatePreview",
+    "updateWeatherTypeAvailability",
+];
+
+/** Frozen allowlist of the only functions data-on-* attributes may call. */
+const HANDLERS = Object.freeze(Object.fromEntries([
+    ["toggleMobileMenu", toggleMobileMenu],
+    ["switchUiLanguage", switchUiLanguage],
+    ["closeMobileNav", closeMobileNav],
+    ...PAGE_HANDLER_NAMES
+        .filter((name) => typeof globalThis[name] === "function")
+        .map((name) => [name, globalThis[name]]),
+]));
+
+/**
+ * CSP-safe replacement for inline on* attributes. An element may declare
+ * data-on-click / data-on-change / data-on-input="setWeatherType updatePreview"
+ * (names from the HANDLERS allowlist, called in order) and optional
+ * data-args='["x", 2]' (JSON array passed to every listed function). Each
+ * function is called as HANDLERS[name].apply(element, args). Names not in
+ * HANDLERS are ignored; there is no fallback to window.
+ * @param {Event} event - Delegated click, change or input event
+ */
+function dispatchDeclaredHandler(event) {
+    const attr = "data-on-" + event.type;
+    const target = event.target;
+    const element = target && typeof target.closest === "function" ? target.closest("[" + attr + "]") : null;
+    if (!element) return;
+    let args = [];
+    const rawArgs = element.getAttribute("data-args");
+    if (rawArgs) {
+        try {
+            const parsed = JSON.parse(rawArgs);
+            if (Array.isArray(parsed)) args = parsed;
+        } catch (err) {
+            console.error("Invalid data-args:", err);
+        }
+    }
+    for (const name of (element.getAttribute(attr) || "").split(/\s+/)) {
+        if (Object.hasOwn(HANDLERS, name)) HANDLERS[name].apply(element, args);
+    }
+}
+
+for (const type of ["click", "change", "input"]) {
+    document.addEventListener(type, dispatchDeclaredHandler);
+}
+
+/**
+ * CSP-safe replacement for inline style="width: ..." attributes: copies each
+ * data-width value (a full CSS width such as "12.5%" or "max(2px, 3%)") to
+ * the element's style via CSSOM.
+ * @param {ParentNode} [root=document] - Subtree to scan
+ */
+function applyDeclaredWidths(root) {
+    for (const el of (root || document).querySelectorAll("[data-width]")) {
+        el.style.width = el.dataset.width;
+    }
+}
+
+/**
+ * CSP-safe replacement for inline onerror image fallbacks: swaps an
+ * <img data-fallback-src> to its fallback once, so a failing fallback never loops.
+ * @param {Element} img - Image that failed to load
+ */
+function applyImageFallback(img) {
+    if (!img || img.tagName !== "IMG") return;
+    const fallback = img.dataset.fallbackSrc;
+    if (!fallback || img.dataset.fallbackApplied) return;
+    img.dataset.fallbackApplied = "true";
+    img.src = fallback;
+}
+
+// Image error events do not bubble, so listen in the capture phase.
+document.addEventListener("error", (event) => applyImageFallback(event.target), true);
+
+/**
+ * Fall back images that already failed before this deferred script ran.
+ * @param {ParentNode} [root=document] - Subtree to scan
+ */
+function applyFallbackToFailedImages(root) {
+    for (const img of (root || document).querySelectorAll("img[data-fallback-src]")) {
+        if (img.complete && img.naturalWidth === 0 && img.getAttribute("src") !== img.dataset.fallbackSrc) {
+            applyImageFallback(img);
+        }
+    }
+}
+
+function initDeclaredPresentation() {
+    applyDeclaredWidths(document);
+    applyFallbackToFailedImages(document);
+}
+
+if (!document.readyState || document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDeclaredPresentation);
+} else {
+    initDeclaredPresentation();
+}
+
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
 }

@@ -2,3 +2,5 @@
 # Their original formatting is not governed by this project's whitespace style.
 artwork/open-tracks/sources/** -text -whitespace
 app/assets/licenses/** -text -whitespace
+# Preserve vendored software and licence notices byte-for-byte.
+app/assets/vendor/** -text -whitespace

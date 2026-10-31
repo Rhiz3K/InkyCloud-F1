@@ -75,6 +75,8 @@ namespaces = true
     "assets/js/*",
     "assets/seasons/*",
     "assets/track_art/*",
+    "assets/vendor/*",
+    "assets/vendor/**/*",
     "templates/*.html",
     "templates/**/*.html",
 ]
