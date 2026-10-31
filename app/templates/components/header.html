@@ -6,7 +6,7 @@
     <div class="flex items-center gap-2 md:gap-4 min-w-0 mr-3">
       <button
         id="mobileMenuBtn"
-        onclick="toggleMobileMenu()"
+        data-on-click="toggleMobileMenu"
         aria-label="{{ nav.get('nav_menu', 'Menu') }}"
         class="lg:hidden flex-shrink-0 p-2 border-2 border-black shadow-neo active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all bg-white text-black"
       >
@@ -82,7 +82,7 @@
       <div class="relative ml-auto flex justify-end w-12 md:ml-0 md:block md:w-auto">
         <select
           id="uiLangSwitch"
-          onchange="switchUiLanguage()"
+          data-on-change="switchUiLanguage"
           aria-label="{{ nav.get('nav_language', 'Language') }}"
           class="block w-full appearance-none bg-white border-2 border-black px-0 md:px-3 py-1 cursor-pointer text-center md:text-left hover:bg-racing-red hover:text-white transition-colors focus:outline-none shadow-neo-sm md:w-auto"
         >

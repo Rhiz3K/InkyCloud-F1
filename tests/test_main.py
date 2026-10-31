@@ -591,7 +591,7 @@ def test_header_contains_language_switcher():
     response = client.get("/")
     html = response.text
     assert 'id="uiLangSwitch"' in html
-    assert "switchUiLanguage()" in html
+    assert 'data-on-change="switchUiLanguage"' in html
 
 
 def test_header_contains_nav_links():
@@ -827,7 +827,7 @@ def test_api_docs_html_contains_language_switcher():
     response = client.get("/api/docs/html")
     html = response.text
     assert 'id="uiLangSwitch"' in html
-    assert "switchUiLanguage()" in html
+    assert 'data-on-change="switchUiLanguage"' in html
 
 
 def test_stats_dashboard_returns_html():
