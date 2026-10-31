@@ -1,0 +1,1568 @@
+{
+  "albert_park": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2026,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:18.518"
+        },
+        {
+          "pos": 2,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:18.811"
+        },
+        {
+          "pos": 3,
+          "code": "HAD",
+          "name": "Hadjar",
+          "team": "Red Bull",
+          "time": "1:19.303"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:23:06.801"
+        },
+        {
+          "pos": 2,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "+2.974"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+15.519"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "shanghai": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2026,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:32.064"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:32.286"
+        },
+        {
+          "pos": 3,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:32.415"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:33:15.607"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+5.515"
+        },
+        {
+          "pos": 3,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "+25.267"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "suzuka": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2026,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:28.778"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:29.076"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:29.132"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:28:03.403"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+13.722"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+15.270"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "bahrain": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:29.841"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:30.009"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:30.175"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:35:39.435"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+15.499"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+16.273"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "jeddah": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:27.294"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:27.304"
+        },
+        {
+          "pos": 3,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:27.407"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:21:06.758"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+2.843"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+8.104"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "miami": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2026,
+      "updated_at": "2026-05-04",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:27.798"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:27.964"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:28.143"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:33:19.273"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+3.264"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+27.092"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "villeneuve": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2026,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:12.578"
+        },
+        {
+          "pos": 2,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:12.646"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:12.729"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:28:15.758"
+        },
+        {
+          "pos": 2,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "+10.768"
+        },
+        {
+          "pos": 3,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+11.276"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "monaco": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2026,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:12.051"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:12.094"
+        },
+        {
+          "pos": 3,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:12.279"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "2:23:31.243"
+        },
+        {
+          "pos": 2,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "+6.271"
+        },
+        {
+          "pos": 3,
+          "code": "GAS",
+          "name": "Gasly",
+          "team": "Alpine F1 Team",
+          "time": "+20.369"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "catalunya": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2026,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:14.679"
+        },
+        {
+          "pos": 2,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:14.743"
+        },
+        {
+          "pos": 3,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:14.998"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:32:28.105"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+19.561"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+23.719"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "red_bull_ring": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2026,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:06.113"
+        },
+        {
+          "pos": 2,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:06.349"
+        },
+        {
+          "pos": 3,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:06.408"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:26:37.979"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+1.611"
+        },
+        {
+          "pos": 3,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "+1.986"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "silverstone": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2026,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:28.111"
+        },
+        {
+          "pos": 2,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:28.286"
+        },
+        {
+          "pos": 3,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:28.458"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:27:11.335"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+0.427"
+        },
+        {
+          "pos": 3,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "+0.772"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "spa": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-03-30",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:40.562"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:40.647"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:40.900"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:25:22.601"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+3.415"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+20.185"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "hungaroring": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-03-30",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:15.372"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:15.398"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:15.413"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:35:21.231"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+0.698"
+        },
+        {
+          "pos": 3,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+21.916"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "zandvoort": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-03-30",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:08.662"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:08.674"
+        },
+        {
+          "pos": 3,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:08.925"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:38:29.849"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+1.271"
+        },
+        {
+          "pos": 3,
+          "code": "HAD",
+          "name": "Hadjar",
+          "team": "RB F1 Team",
+          "time": "+3.233"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "monza": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:18.792"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:18.869"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:18.982"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:13:24.325"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+19.207"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+21.351"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "madring": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": null,
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "baku": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:41.117"
+        },
+        {
+          "pos": 2,
+          "code": "SAI",
+          "name": "Sainz",
+          "team": "Williams",
+          "time": "1:41.595"
+        },
+        {
+          "pos": 3,
+          "code": "LAW",
+          "name": "Lawson",
+          "team": "RB F1 Team",
+          "time": "1:41.707"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:33:26.408"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+14.609"
+        },
+        {
+          "pos": 3,
+          "code": "SAI",
+          "name": "Sainz",
+          "team": "Williams",
+          "time": "+19.199"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "marina_bay": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:29.158"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:29.340"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:29.524"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:40:22.367"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+5.430"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+6.066"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "americas": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-03-30",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:32.510"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:32.801"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:32.807"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:34:00.161"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+7.959"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+15.373"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "rodriguez": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:15.586"
+        },
+        {
+          "pos": 2,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:15.848"
+        },
+        {
+          "pos": 3,
+          "code": "HAM",
+          "name": "Hamilton",
+          "team": "Ferrari",
+          "time": "1:15.938"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:37:58.574"
+        },
+        {
+          "pos": 2,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "+30.324"
+        },
+        {
+          "pos": 3,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+31.049"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "interlagos": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:09.511"
+        },
+        {
+          "pos": 2,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:09.685"
+        },
+        {
+          "pos": 3,
+          "code": "LEC",
+          "name": "Leclerc",
+          "team": "Ferrari",
+          "time": "1:09.805"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:32:01.596"
+        },
+        {
+          "pos": 2,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "+10.388"
+        },
+        {
+          "pos": 3,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "+10.750"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "las_vegas": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2025-12-22",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:47.934"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:48.257"
+        },
+        {
+          "pos": 4,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:48.803"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:21:08.429"
+        },
+        {
+          "pos": 2,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "+23.546"
+        },
+        {
+          "pos": 3,
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "+30.488"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "losail": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:19.387"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:19.495"
+        },
+        {
+          "pos": 3,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:19.651"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:24:38.241"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+7.995"
+        },
+        {
+          "pos": 3,
+          "code": "SAI",
+          "name": "Sainz",
+          "team": "Williams",
+          "time": "+22.665"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "yas_marina": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:22.207"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "1:22.408"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:22.437"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:26:07.469"
+        },
+        {
+          "pos": 2,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+12.594"
+        },
+        {
+          "pos": 3,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+16.572"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "imola": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": {
+      "season": 2025,
+      "updated_at": "2026-07-05",
+      "qualifying": [
+        {
+          "pos": 1,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "1:14.670"
+        },
+        {
+          "pos": 2,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:14.704"
+        },
+        {
+          "pos": 3,
+          "code": "RUS",
+          "name": "Russell",
+          "team": "Mercedes",
+          "time": "1:14.807"
+        }
+      ],
+      "race": [
+        {
+          "pos": 1,
+          "code": "VER",
+          "name": "Verstappen",
+          "team": "Red Bull",
+          "time": "1:31:33.199"
+        },
+        {
+          "pos": 2,
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+6.109"
+        },
+        {
+          "pos": 3,
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+12.956"
+        }
+      ]
+    },
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  },
+  "sepang": {
+    "first_grand_prix": null,
+    "number_of_laps": null,
+    "historical": null,
+    "_provenance": {
+      "source": "https://api.jolpi.ca/ergast/f1/",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "license": "CC-BY-NC-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "terms": "https://github.com/jolpica/jolpica-f1/blob/main/TERMS.md",
+      "changes": "Selected fields; historical podium tables from the Jolpica refresher; first Grand Prix season and planned lap count derived by scripts/fetch_circuits.py",
+      "scope": "historical",
+      "fields": {}
+    }
+  }
+}
