@@ -246,7 +246,7 @@ F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:vX.Y.Z docker compose up -d --no-build
 
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** — choose the correct deployment path
 - **[SELF-HOSTING.md](./SELF-HOSTING.md)** — Docker, operations, backups, and development
-- **[COOLIFY.md](./COOLIFY.md)** — image-based Coolify deployment and rollback
+- **[COOLIFY.md](./COOLIFY.md)** — Coolify Dockerfile build from `main`, releases and rollback
 - **[.env.example](./.env.example)** — canonical environment-variable reference
 - **[scripts/README.md](./scripts/README.md)** — maintenance and unified asset CLI
 - **[BMP_PROCESSING.md](./BMP_PROCESSING.md)** — source-art and runtime BMP pipeline

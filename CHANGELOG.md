@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   described only on the privacy page.
 - Teams screen: remove the team abbreviation badges; driver names use the freed width
   and shrink or ellipsize to fit.
+- Deployment docs (COOLIFY.md, DEPLOYMENT.md) now describe the actual production path: Coolify
+  builds the Dockerfile from Git `main`, every merge to `main` deploys, releases go through a
+  "Release vX.Y.Z" PR; the GHCR image is documented as an optional self-hosting artifact.
 
 ### Removed
 
