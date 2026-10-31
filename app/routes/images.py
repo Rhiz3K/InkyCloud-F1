@@ -764,6 +764,8 @@ async def get_calendar_bmp(
         return response
 
     selected_race = _get_race_data_from_static(f1_service, year, race_round, race_key)
+    if selected_race is None and year is not None and race_round is not None:
+        selected_race = await f1_service.get_race_by_round(year, race_round)
     identity = calendar_identity(selected_race, track_options)
     cache_key = f"{identity}|" + _get_cache_key(
         lang, year, race_round, race_key, tz, weather, weather_type, display

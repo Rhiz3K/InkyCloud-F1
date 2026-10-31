@@ -926,3 +926,24 @@ def test_historical_loader_handles_missing_malformed_and_file_errors():
         assert f1.F1Service.get_historical_from_static("test").is_new_track is True
     with patch("app.services.f1_service.load_circuits_data", side_effect=RuntimeError("failed")):
         assert f1.F1Service.get_historical_from_static("test").is_new_track is True
+
+
+@pytest.mark.asyncio
+async def test_get_race_by_round_defaults_missing_session_times(sepang_2017_payload):
+    service = F1Service(timezone="UTC")
+    response = MockResponse({"MRData": {"RaceTable": {"Races": [sepang_2017_payload]}}})
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch("app.services.f1_service.fetch_with_retry", new=AsyncMock(return_value=response)),
+    ):
+        race = await service.get_race_by_round(2017, 15)
+        assert await service.get_race_by_round(2017, 15) == race
+
+    assert race["race_name"] == "Malaysian Grand Prix"
+    assert [(event["name"], event["datetime"]) for event in race["schedule"]] == [
+        ("FP1", "2017-09-29T12:00:00+00:00"),
+        ("FP2", "2017-09-29T12:00:00+00:00"),
+        ("FP3", "2017-09-30T12:00:00+00:00"),
+        ("Qualifying", "2017-09-30T12:00:00+00:00"),
+        ("Race", "2017-10-01T07:00:00+00:00"),
+    ]

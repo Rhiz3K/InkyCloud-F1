@@ -8,11 +8,13 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from httpx import ASGITransport, AsyncClient
 from starlette.requests import Request
 
 from app.models import TeamEntry, TeamsData
 from app.routes import images
+from app.services import f1_service as f1
 from app.services.artifact_metadata import calendar_identity, write_artifact_metadata
 from app.services.image_keys import get_teams_image_key
 from app.services.weather_service import WeatherData
@@ -702,3 +704,65 @@ async def test_singleflight_shields_producer_from_cancelled_waiter():
     release.set()
     assert await producer_task == (b"bmp", strong_etag(b"bmp"))
     assert "cancelled-waiter" not in images._singleflight_tasks
+
+
+@pytest.mark.asyncio
+async def test_calendar_historical_sessions_without_times(sepang_2017_payload):
+    f1._reset_remote_caches_for_tests()
+    response_payload = MagicMock()
+    response_payload.json.return_value = {"MRData": {"RaceTable": {"Races": [sepang_2017_payload]}}}
+    application = FastAPI()
+    application.include_router(images.router)
+    application.dependency_overrides[images.get_f1_service] = lambda: f1.F1Service(timezone="UTC")
+    get_bmp_cache().clear()
+    with (
+        patch("app.services.f1_service.get_shared_http_client", return_value=object()),
+        patch(
+            "app.services.f1_service.fetch_with_retry",
+            new=AsyncMock(return_value=response_payload),
+        ) as fetch,
+        patch("app.routes.images.enforce_rate_limit"),
+        patch("app.routes.images._get_pregenerated_calendar_path", return_value=None),
+        patch("app.routes.images._record_calendar_api_call"),
+        patch("app.routes.images._render_calendar_bytes", return_value=b"calendar") as render,
+        patch("app.routes.images._render_error_bytes", return_value=b"error") as error,
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=application), base_url="http://test"
+        ) as client:
+            response = await client.get("/calendar.bmp?year=2017&round=15&weather=false")
+    assert response.status_code == 200
+    assert response.content == b"calendar"
+    race = render.call_args.args[2]
+    assert race["race_name"] == "Malaysian Grand Prix"
+    assert race["circuit"]["circuitId"] == "sepang"
+    assert len(race["schedule"]) == 5
+    fetch.assert_awaited_once()
+    assert fetch.call_args.args[1].endswith("/2017/15.json")
+    error.assert_not_called()
+    f1._reset_remote_caches_for_tests()
+
+
+@pytest.mark.asyncio
+async def test_calendar_historical_remote_race_missing():
+    application = FastAPI()
+    application.include_router(images.router)
+    with (
+        patch(
+            "app.routes.images.F1Service.get_race_by_round", new=AsyncMock(return_value=None)
+        ) as lookup,
+        patch("app.routes.images.enforce_rate_limit"),
+        patch("app.routes.images._record_calendar_api_call"),
+        patch("app.routes.images._render_calendar_bytes") as render,
+        patch("app.routes.images._render_error_bytes", return_value=b"error") as error,
+    ):
+        async with AsyncClient(
+            transport=ASGITransport(app=application), base_url="http://test"
+        ) as client:
+            response = await client.get("/calendar.bmp?year=2017&round=15&weather=false")
+    lookup.assert_awaited_once_with(2017, 15)
+    assert response.status_code == 200
+    assert response.content == b"error"
+    assert response.headers["Cache-Control"] == "no-store"
+    error.assert_called_once_with("1bit", "en", "Failed to fetch race data")
+    render.assert_not_called()

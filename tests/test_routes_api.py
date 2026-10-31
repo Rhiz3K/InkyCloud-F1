@@ -6,11 +6,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import FastAPI, HTTPException
+from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 from starlette.requests import Request
 
 from app.models import PerfMetricsPayload, TeamEntry, TeamsData
 from app.routes import api, images, previews, tracks
+from app.services import f1_service as f1
 
 
 def _request(headers: dict[str, str] | None = None) -> Request:
@@ -329,3 +331,30 @@ async def test_standings_leader_returns_full_empty_and_failure_payloads():
         "leader_driver": None,
         "has_data": False,
     }
+
+
+@pytest.mark.asyncio
+async def test_historical_race_detail_without_session_times(sepang_2017_payload):
+    service = f1.F1Service(timezone="UTC")
+    application = FastAPI()
+    application.include_router(api.router)
+    application.dependency_overrides[api.get_f1_service] = lambda: service
+    response = SimpleNamespace(
+        json=lambda: {"MRData": {"RaceTable": {"Races": [sepang_2017_payload]}}}
+    )
+    f1._reset_remote_caches_for_tests()
+    try:
+        with (
+            patch.object(service, "get_all_races_from_static", return_value=[]),
+            patch.object(f1, "get_shared_http_client", return_value=object()),
+            patch.object(f1, "fetch_with_retry", new=AsyncMock(return_value=response)),
+            patch("app.routes.api.enforce_rate_limit"),
+        ):
+            async with AsyncClient(
+                transport=ASGITransport(app=application), base_url="http://test"
+            ) as client:
+                result = await client.get("/api/race/2017/15")
+        assert result.status_code == 200
+        assert len(result.json()["schedule"]) == 5
+    finally:
+        f1._reset_remote_caches_for_tests()

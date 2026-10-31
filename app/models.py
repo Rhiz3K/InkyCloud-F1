@@ -86,7 +86,7 @@ class RaceSession(BaseModel):
     """Race session timing information."""
 
     date: str
-    time: str
+    time: Optional[str] = None
 
 
 class Race(BaseModel):

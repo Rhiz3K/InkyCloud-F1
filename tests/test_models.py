@@ -5,7 +5,7 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from app.models import PerfMetricsPayload, ScheduleEvent
+from app.models import F1Response, PerfMetricsPayload, Race, RaceSession, ScheduleEvent
 
 
 def test_schedule_event_accepts_legacy_datetime_alias():
@@ -51,3 +51,12 @@ def test_perf_metrics_payload_accepts_site_relative_paths(page_path):
 def test_perf_metrics_payload_rejects_non_site_paths(page_path):
     with pytest.raises(ValidationError):
         PerfMetricsPayload(page_path=page_path)
+
+
+def test_race_accepts_sessions_without_times(sepang_2017_payload):
+    race = Race(**sepang_2017_payload)
+    assert race.FirstPractice.time is None
+    assert RaceSession(date="2017-09-29", time=None).time is None
+    assert RaceSession(date="2017-09-29", time="03:00:00Z").time == "03:00:00Z"
+    response = F1Response(MRData={"RaceTable": {"Races": [sepang_2017_payload]}})
+    assert response.race == race
