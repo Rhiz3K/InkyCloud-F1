@@ -913,6 +913,7 @@ def test_team_position_badges_fit_rows_and_centre_glyphs(inverted, positions):
     glyph_tops = []
     boxes = []
     for index, position in enumerate(positions):
+        draw.reset_mock()
         driver_y = 10 + index * row_height
         driver = SimpleNamespace(
             name="Test Driver", driver_number=None, points=0, position=position
@@ -957,7 +958,22 @@ def test_team_position_badges_fit_rows_and_centre_glyphs(inverted, positions):
         outer_h = glyph_h + 2 * pad_y
         expected_top = driver_y + (row_height - 1 - outer_h) // 2
         assert ink[1] == expected_top + pad_y
-        if position <= 4:
+        points_call = draw.text.call_args_list[-2]
+        assert points_call.args[1] == str(driver.points)
+        assert points_call.args[0][0] == 370
+        points_mask = Image.new("L", image.size)
+        ImageDraw.Draw(points_mask).text(
+            points_call.args[0], points_call.args[1], font=font, fill=255
+        )
+        points_ink = points_mask.getbbox()
+        assert points_ink is not None
+        points_bbox = draw.textbbox((0, 0), str(driver.points), font=font)
+        points_h = points_bbox[3] - points_bbox[1]
+        points_pad_y = max(0, min(3, (row_height - 1 - points_h) // 2))
+        points_box_h = points_h + 2 * points_pad_y
+        points_box_top = driver_y + (row_height - 1 - points_box_h) // 2
+        assert points_ink[1] == points_box_top + points_pad_y
+        if position <= 3:
             (left, top), (right, bottom) = draw.rectangle.call_args.args[0]
             boxes.append((top, bottom))
             assert left == 315
@@ -965,9 +981,12 @@ def test_team_position_badges_fit_rows_and_centre_glyphs(inverted, positions):
             assert driver_y <= top <= bottom <= driver_y + row_height - 2
             assert bottom - top + 1 == outer_h
             assert ink[1] - top == bottom - (ink[3] - 1) == pad_y
+        else:
+            draw.rectangle.assert_not_called()
+            assert text_call.kwargs["fill"] == "black"
 
     assert glyph_tops[0] == glyph_tops[1]
-    upper_bottom = boxes[0][1]
+    upper_bottom = boxes[0][1] if boxes else 10 + glyph_tops[0] + glyph_h - 1
     lower_column = image.crop((315, 27, 355, 44))
     ink_rows = [
         y + 27
