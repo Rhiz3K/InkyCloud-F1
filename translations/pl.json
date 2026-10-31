@@ -341,7 +341,12 @@
     "catalogue": "Wszystkie style, kolory i tory",
     "apiAuthors": "Autorzy i licencje",
     "apiParameters": "Te same parametry track_style, track_source, track_accent",
-    "history": "Autorzy / historia"
+    "history": "Autorzy / historia",
+    "jolpicaTerms": "Warunki korzystania",
+    "nonCommercial": "wyłącznie do użytku niekomercyjnego",
+    "circuitJolpica": "Rok pierwszego Grand Prix na torze i planowana liczba okrążeń pochodzą z wyników wyścigów Jolpica.",
+    "circuitWikiIntro": "Długość toru i rekord okrążenia pochodzą z infoboksu tych wersji artykułów angielskiej Wikipedii:",
+    "circuitWikiChange": "Dane pobrane z infoboksu, jednostki przeliczone."
   },
   "privacy_off": "Zbieranie danych o użyciu i wydajności przeglądarki jest wyłączone w tej instalacji."
 }

@@ -341,7 +341,12 @@
     "catalogue": "所有风格、颜色和赛道",
     "apiAuthors": "作者与许可",
     "apiParameters": "相同的 track_style、track_source、track_accent 参数",
-    "history": "作者及历史记录"
+    "history": "作者及历史记录",
+    "jolpicaTerms": "使用条款",
+    "nonCommercial": "仅限非商业用途",
+    "circuitJolpica": "赛道首次举办大奖赛的年份和计划圈数来自 Jolpica 比赛结果。",
+    "circuitWikiIntro": "赛道长度和单圈纪录取自以下英文 Wikipedia 条目修订版本的信息框：",
+    "circuitWikiChange": "数据摘自信息框，单位已换算。"
   },
   "privacy_off": "本部署已关闭使用情况和浏览器性能收集。"
 }

@@ -341,7 +341,12 @@
     "catalogue": "Tüm stiller, renkler ve pistler",
     "apiAuthors": "Yazarlar ve lisanslar",
     "apiParameters": "Aynı track_style, track_source, track_accent parametreleri",
-    "history": "Yazarlar / geçmiş"
+    "history": "Yazarlar / geçmiş",
+    "jolpicaTerms": "Kullanım koşulları",
+    "nonCommercial": "yalnızca ticari olmayan kullanım",
+    "circuitJolpica": "Pistteki ilk Grand Prix yılı ve planlanan tur sayısı Jolpica yarış sonuçlarından türetilir.",
+    "circuitWikiIntro": "Pist uzunluğu ve tur rekoru, şu İngilizce Wikipedia madde sürümlerinin bilgi kutusundan alınmıştır:",
+    "circuitWikiChange": "Bilgiler bilgi kutusundan alındı, birimler dönüştürüldü."
   },
   "privacy_off": "Bu kurulumda kullanım ve tarayıcı performansı toplama kapalıdır."
 }

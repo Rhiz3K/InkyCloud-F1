@@ -341,7 +341,12 @@
     "catalogue": "すべてのスタイル、色、コース",
     "apiAuthors": "作者とライセンス",
     "apiParameters": "共通の track_style、track_source、track_accent パラメーター",
-    "history": "作者・履歴"
+    "history": "作者・履歴",
+    "jolpicaTerms": "利用規約",
+    "nonCommercial": "非営利目的での利用に限る",
+    "circuitJolpica": "サーキットで初めてグランプリが開催された年と予定周回数は、Jolpica のレース結果から算出しています。",
+    "circuitWikiIntro": "コース全長とラップレコードは、以下の英語版 Wikipedia 記事の版の情報ボックスから取得しています：",
+    "circuitWikiChange": "情報ボックスから抽出し、単位を換算しています。"
   },
   "privacy_off": "この環境では利用状況とブラウザ性能の収集は無効です。"
 }

@@ -86,7 +86,7 @@ _SVERIO PaperBoard 7.5" GDEM075F52 four-color 800×480 ePaper (black/white/yello
 - **Race Status States** — Upcoming countdown, `IN PROGRESS` / `PROBÍHÁ`, `COMPLETED` / `DOKONČEN`, and cancelled race handling
 - **Optional Weather Overlay** — Current, race-day forecast, and historical race-time weather on the calendar screen
 - **Historical Results** — Previous year's podium for each circuit
-- **Track Info** — Licensed circuit map plus circuit length, lap count, first Grand Prix and lap record where available; data sources and rights notes are kept separately
+- **Track Info** — Licensed circuit map plus circuit length and lap record (Wikipedia, CC BY-SA 4.0) and first Grand Prix and planned lap count (Jolpica, CC BY-NC-SA 4.0) where available; the two datasets are stored separately and combined only when rendering
 - **Display-Specific Track Art** — reviewed Jules Roy and Commons outlines in all four display palettes, without F1 raster fallbacks
 - **Interactive configure flow** — Localized `/configure/calendar` and `/configure/teams` pages with pregenerated previews, direct BMP URLs, weather/display switching, and season leaders sidebar
 - **SEO-friendly public pages** — Canonical URLs, hreflang alternates, `robots.txt`, and a localized `sitemap.xml` without synthetic daily `lastmod` churn
@@ -207,8 +207,9 @@ core readiness available and marks generation degraded. Preview metadata sidecar
 PNG to the current race and source BMP and preserve the source's six-hour freshness limit;
 missing or stale configure previews fall back to rendering the requested BMP.
 
-The persistent circuit snapshot takes current metadata and new circuits from the bundled
-release, while retaining newer historical results and runtime-only circuits. Startup migrates
+The persistent circuit history file (`circuits_jolpica.json`, Jolpica data only) takes current
+facts and new circuits from the bundled release, while retaining newer historical results
+and runtime-only circuits. Startup migrates
 old individual usage records into hourly totals and removes their identifiers from the active
 SQLite database, including when image scheduling is disabled. Sport data and weather quotas
 remain. Previously deleted statistics cannot be recovered by changing flags.
@@ -274,7 +275,8 @@ Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelin
 
 ## Rights and privacy
 
-Software is MIT; this does not relicense data, map artwork, fonts or dependencies.
+The MIT licence covers the source code only; it does not relicense data, map artwork, fonts
+or dependencies.
 Read [data licences](DATA_LICENSES.md), [third-party notices](THIRD_PARTY_NOTICES.md)
 and [data collection](docs/data-collection.md). There is no third-party analytics.
 The default profile retains aggregate operational statistics.

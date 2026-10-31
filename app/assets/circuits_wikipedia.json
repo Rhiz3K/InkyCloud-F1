@@ -1,0 +1,990 @@
+{
+  "albert_park": {
+    "circuit_length": "5.278km",
+    "fastest_lap_time": "1:19.813",
+    "fastest_lap_driver": "Charles Leclerc",
+    "fastest_lap_year": "2024",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Albert_Park_Circuit&oldid=1375373118",
+          "title": "Albert Park Circuit",
+          "revid": 1375373118,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Albert_Park_Circuit&oldid=1375373118",
+          "title": "Albert Park Circuit",
+          "revid": 1375373118,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Albert_Park_Circuit&oldid=1375373118",
+          "title": "Albert Park Circuit",
+          "revid": 1375373118,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Albert_Park_Circuit&oldid=1375373118",
+          "title": "Albert Park Circuit",
+          "revid": 1375373118,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "shanghai": {
+    "circuit_length": "5.451km",
+    "fastest_lap_time": "1:32.238",
+    "fastest_lap_driver": "Michael Schumacher",
+    "fastest_lap_year": "2004",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Shanghai_International_Circuit&oldid=1382528868",
+          "title": "Shanghai International Circuit",
+          "revid": 1382528868,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Shanghai_International_Circuit&oldid=1382528868",
+          "title": "Shanghai International Circuit",
+          "revid": 1382528868,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Shanghai_International_Circuit&oldid=1382528868",
+          "title": "Shanghai International Circuit",
+          "revid": 1382528868,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Shanghai_International_Circuit&oldid=1382528868",
+          "title": "Shanghai International Circuit",
+          "revid": 1382528868,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "suzuka": {
+    "circuit_length": "5.807km",
+    "fastest_lap_time": "1:30.965",
+    "fastest_lap_driver": "Andrea Kimi Antonelli",
+    "fastest_lap_year": "2025",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Suzuka_Circuit&oldid=1382078509",
+          "title": "Suzuka Circuit",
+          "revid": 1382078509,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Suzuka_Circuit&oldid=1382078509",
+          "title": "Suzuka Circuit",
+          "revid": 1382078509,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Suzuka_Circuit&oldid=1382078509",
+          "title": "Suzuka Circuit",
+          "revid": 1382078509,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Suzuka_Circuit&oldid=1382078509",
+          "title": "Suzuka Circuit",
+          "revid": 1382078509,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "bahrain": {
+    "circuit_length": "5.412km",
+    "fastest_lap_time": "1:31.447",
+    "fastest_lap_driver": "Pedro de la Rosa",
+    "fastest_lap_year": "2005",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Bahrain_International_Circuit&oldid=1382357208",
+          "title": "Bahrain International Circuit",
+          "revid": 1382357208,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Bahrain_International_Circuit&oldid=1382357208",
+          "title": "Bahrain International Circuit",
+          "revid": 1382357208,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Bahrain_International_Circuit&oldid=1382357208",
+          "title": "Bahrain International Circuit",
+          "revid": 1382357208,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Bahrain_International_Circuit&oldid=1382357208",
+          "title": "Bahrain International Circuit",
+          "revid": 1382357208,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "jeddah": {
+    "circuit_length": "6.174km",
+    "fastest_lap_time": "1:30.734",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2021",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Jeddah_Corniche_Circuit&oldid=1378679869",
+          "title": "Jeddah Corniche Circuit",
+          "revid": 1378679869,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Jeddah_Corniche_Circuit&oldid=1378679869",
+          "title": "Jeddah Corniche Circuit",
+          "revid": 1378679869,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Jeddah_Corniche_Circuit&oldid=1378679869",
+          "title": "Jeddah Corniche Circuit",
+          "revid": 1378679869,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Jeddah_Corniche_Circuit&oldid=1378679869",
+          "title": "Jeddah Corniche Circuit",
+          "revid": 1378679869,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "miami": {
+    "circuit_length": "5.412km",
+    "fastest_lap_time": "1:29.708",
+    "fastest_lap_driver": "Max Verstappen",
+    "fastest_lap_year": "2023",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Miami_International_Autodrome&oldid=1379329992",
+          "title": "Miami International Autodrome",
+          "revid": 1379329992,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Miami_International_Autodrome&oldid=1379329992",
+          "title": "Miami International Autodrome",
+          "revid": 1379329992,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Miami_International_Autodrome&oldid=1379329992",
+          "title": "Miami International Autodrome",
+          "revid": 1379329992,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Miami_International_Autodrome&oldid=1379329992",
+          "title": "Miami International Autodrome",
+          "revid": 1379329992,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "villeneuve": {
+    "circuit_length": "4.361km",
+    "fastest_lap_time": "1:13.078",
+    "fastest_lap_driver": "Valtteri Bottas",
+    "fastest_lap_year": "2019",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_Gilles_Villeneuve&oldid=1378679562",
+          "title": "Circuit Gilles Villeneuve",
+          "revid": 1378679562,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_Gilles_Villeneuve&oldid=1378679562",
+          "title": "Circuit Gilles Villeneuve",
+          "revid": 1378679562,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_Gilles_Villeneuve&oldid=1378679562",
+          "title": "Circuit Gilles Villeneuve",
+          "revid": 1378679562,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_Gilles_Villeneuve&oldid=1378679562",
+          "title": "Circuit Gilles Villeneuve",
+          "revid": 1378679562,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "monaco": {
+    "circuit_length": "3.337km",
+    "fastest_lap_time": "1:12.909",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2021",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Monaco&oldid=1375539650",
+          "title": "Circuit de Monaco",
+          "revid": 1375539650,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Monaco&oldid=1375539650",
+          "title": "Circuit de Monaco",
+          "revid": 1375539650,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Monaco&oldid=1375539650",
+          "title": "Circuit de Monaco",
+          "revid": 1375539650,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Monaco&oldid=1375539650",
+          "title": "Circuit de Monaco",
+          "revid": 1375539650,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "catalunya": {
+    "circuit_length": "4.657km",
+    "fastest_lap_time": "1:15.743",
+    "fastest_lap_driver": "Oscar Piastri",
+    "fastest_lap_year": "2025",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Barcelona-Catalunya&oldid=1381886086",
+          "title": "Circuit de Barcelona-Catalunya",
+          "revid": 1381886086,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Barcelona-Catalunya&oldid=1381886086",
+          "title": "Circuit de Barcelona-Catalunya",
+          "revid": 1381886086,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Barcelona-Catalunya&oldid=1381886086",
+          "title": "Circuit de Barcelona-Catalunya",
+          "revid": 1381886086,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Barcelona-Catalunya&oldid=1381886086",
+          "title": "Circuit de Barcelona-Catalunya",
+          "revid": 1381886086,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "red_bull_ring": {
+    "circuit_length": "4.326km",
+    "fastest_lap_time": "1:07.924",
+    "fastest_lap_driver": "Oscar Piastri",
+    "fastest_lap_year": "2025",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Red_Bull_Ring&oldid=1382193324",
+          "title": "Red Bull Ring",
+          "revid": 1382193324,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Red_Bull_Ring&oldid=1382193324",
+          "title": "Red Bull Ring",
+          "revid": 1382193324,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Red_Bull_Ring&oldid=1382193324",
+          "title": "Red Bull Ring",
+          "revid": 1382193324,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Red_Bull_Ring&oldid=1382193324",
+          "title": "Red Bull Ring",
+          "revid": 1382193324,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "silverstone": {
+    "circuit_length": "5.891km",
+    "fastest_lap_time": "1:27.097",
+    "fastest_lap_driver": "Max Verstappen",
+    "fastest_lap_year": "2020",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Silverstone_Circuit&oldid=1381275258",
+          "title": "Silverstone Circuit",
+          "revid": 1381275258,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Silverstone_Circuit&oldid=1381275258",
+          "title": "Silverstone Circuit",
+          "revid": 1381275258,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Silverstone_Circuit&oldid=1381275258",
+          "title": "Silverstone Circuit",
+          "revid": 1381275258,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Silverstone_Circuit&oldid=1381275258",
+          "title": "Silverstone Circuit",
+          "revid": 1381275258,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "spa": {
+    "circuit_length": "7.004km",
+    "fastest_lap_time": "1:44.701",
+    "fastest_lap_driver": "Sergio Pérez",
+    "fastest_lap_year": "2024",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Spa-Francorchamps&oldid=1376830316",
+          "title": "Circuit de Spa-Francorchamps",
+          "revid": 1376830316,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Spa-Francorchamps&oldid=1376830316",
+          "title": "Circuit de Spa-Francorchamps",
+          "revid": 1376830316,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Spa-Francorchamps&oldid=1376830316",
+          "title": "Circuit de Spa-Francorchamps",
+          "revid": 1376830316,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_de_Spa-Francorchamps&oldid=1376830316",
+          "title": "Circuit de Spa-Francorchamps",
+          "revid": 1376830316,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "hungaroring": {
+    "circuit_length": "4.381km",
+    "fastest_lap_time": "1:16.627",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2020",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Hungaroring&oldid=1376830353",
+          "title": "Hungaroring",
+          "revid": 1376830353,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Hungaroring&oldid=1376830353",
+          "title": "Hungaroring",
+          "revid": 1376830353,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Hungaroring&oldid=1376830353",
+          "title": "Hungaroring",
+          "revid": 1376830353,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Hungaroring&oldid=1376830353",
+          "title": "Hungaroring",
+          "revid": 1376830353,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "zandvoort": {
+    "circuit_length": "4.259km",
+    "fastest_lap_time": "1:11.097",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2021",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_Zandvoort&oldid=1382536385",
+          "title": "Circuit Zandvoort",
+          "revid": 1382536385,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_Zandvoort&oldid=1382536385",
+          "title": "Circuit Zandvoort",
+          "revid": 1382536385,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_Zandvoort&oldid=1382536385",
+          "title": "Circuit Zandvoort",
+          "revid": 1382536385,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_Zandvoort&oldid=1382536385",
+          "title": "Circuit Zandvoort",
+          "revid": 1382536385,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "monza": {
+    "circuit_length": "5.793km",
+    "fastest_lap_time": "1:20.901",
+    "fastest_lap_driver": "Lando Norris",
+    "fastest_lap_year": "2025",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Monza_Circuit&oldid=1381603220",
+          "title": "Monza Circuit",
+          "revid": 1381603220,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Monza_Circuit&oldid=1381603220",
+          "title": "Monza Circuit",
+          "revid": 1381603220,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Monza_Circuit&oldid=1381603220",
+          "title": "Monza Circuit",
+          "revid": 1381603220,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Monza_Circuit&oldid=1381603220",
+          "title": "Monza Circuit",
+          "revid": 1381603220,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "madring": {
+    "circuit_length": "5.414km",
+    "fastest_lap_time": "1:35.587",
+    "fastest_lap_driver": "George Russell",
+    "fastest_lap_year": "2026",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Madring&oldid=1380446375",
+          "title": "Madring",
+          "revid": 1380446375,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Madring&oldid=1380446375",
+          "title": "Madring",
+          "revid": 1380446375,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Madring&oldid=1380446375",
+          "title": "Madring",
+          "revid": 1380446375,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Madring&oldid=1380446375",
+          "title": "Madring",
+          "revid": 1380446375,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "baku": {
+    "circuit_length": "6.003km",
+    "fastest_lap_time": "1:43.009",
+    "fastest_lap_driver": "Charles Leclerc",
+    "fastest_lap_year": "2019",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Baku_City_Circuit&oldid=1371902663",
+          "title": "Baku City Circuit",
+          "revid": 1371902663,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Baku_City_Circuit&oldid=1371902663",
+          "title": "Baku City Circuit",
+          "revid": 1371902663,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Baku_City_Circuit&oldid=1371902663",
+          "title": "Baku City Circuit",
+          "revid": 1371902663,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Baku_City_Circuit&oldid=1371902663",
+          "title": "Baku City Circuit",
+          "revid": 1371902663,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "marina_bay": {
+    "circuit_length": "4.927km",
+    "fastest_lap_time": "1:33.808",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2025",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Marina_Bay_Street_Circuit&oldid=1379736858",
+          "title": "Marina Bay Street Circuit",
+          "revid": 1379736858,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Marina_Bay_Street_Circuit&oldid=1379736858",
+          "title": "Marina Bay Street Circuit",
+          "revid": 1379736858,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Marina_Bay_Street_Circuit&oldid=1379736858",
+          "title": "Marina Bay Street Circuit",
+          "revid": 1379736858,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Marina_Bay_Street_Circuit&oldid=1379736858",
+          "title": "Marina Bay Street Circuit",
+          "revid": 1379736858,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "americas": {
+    "circuit_length": "5.513km",
+    "fastest_lap_time": "1:36.169",
+    "fastest_lap_driver": "Charles Leclerc",
+    "fastest_lap_year": "2019",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_of_the_Americas&oldid=1381855951",
+          "title": "Circuit of the Americas",
+          "revid": 1381855951,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_of_the_Americas&oldid=1381855951",
+          "title": "Circuit of the Americas",
+          "revid": 1381855951,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_of_the_Americas&oldid=1381855951",
+          "title": "Circuit of the Americas",
+          "revid": 1381855951,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Circuit_of_the_Americas&oldid=1381855951",
+          "title": "Circuit of the Americas",
+          "revid": 1381855951,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "rodriguez": {
+    "circuit_length": "4.304km",
+    "fastest_lap_time": "1:17.774",
+    "fastest_lap_driver": "Valtteri Bottas",
+    "fastest_lap_year": "2021",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Aut%C3%B3dromo_Hermanos_Rodr%C3%ADguez&oldid=1382131314",
+          "title": "Autódromo Hermanos Rodríguez",
+          "revid": 1382131314,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Aut%C3%B3dromo_Hermanos_Rodr%C3%ADguez&oldid=1382131314",
+          "title": "Autódromo Hermanos Rodríguez",
+          "revid": 1382131314,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Aut%C3%B3dromo_Hermanos_Rodr%C3%ADguez&oldid=1382131314",
+          "title": "Autódromo Hermanos Rodríguez",
+          "revid": 1382131314,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Aut%C3%B3dromo_Hermanos_Rodr%C3%ADguez&oldid=1382131314",
+          "title": "Autódromo Hermanos Rodríguez",
+          "revid": 1382131314,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "interlagos": {
+    "circuit_length": "4.309km",
+    "fastest_lap_time": "1:10.540",
+    "fastest_lap_driver": "Valtteri Bottas",
+    "fastest_lap_year": "2018",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Interlagos_Circuit&oldid=1376829933",
+          "title": "Interlagos Circuit",
+          "revid": 1376829933,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Interlagos_Circuit&oldid=1376829933",
+          "title": "Interlagos Circuit",
+          "revid": 1376829933,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Interlagos_Circuit&oldid=1376829933",
+          "title": "Interlagos Circuit",
+          "revid": 1376829933,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Interlagos_Circuit&oldid=1376829933",
+          "title": "Interlagos Circuit",
+          "revid": 1376829933,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "las_vegas": {
+    "circuit_length": "6.201km",
+    "fastest_lap_time": "1:33.365",
+    "fastest_lap_driver": "Max Verstappen",
+    "fastest_lap_year": "2025",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Las_Vegas_Strip_Circuit&oldid=1376988769",
+          "title": "Las Vegas Strip Circuit",
+          "revid": 1376988769,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Las_Vegas_Strip_Circuit&oldid=1376988769",
+          "title": "Las Vegas Strip Circuit",
+          "revid": 1376988769,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Las_Vegas_Strip_Circuit&oldid=1376988769",
+          "title": "Las Vegas Strip Circuit",
+          "revid": 1376988769,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Las_Vegas_Strip_Circuit&oldid=1376988769",
+          "title": "Las Vegas Strip Circuit",
+          "revid": 1376988769,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "losail": {
+    "circuit_length": "5.419km",
+    "fastest_lap_time": "1:22.384",
+    "fastest_lap_driver": "Lando Norris",
+    "fastest_lap_year": "2024",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Lusail_International_Circuit&oldid=1382602076",
+          "title": "Lusail International Circuit",
+          "revid": 1382602076,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Lusail_International_Circuit&oldid=1382602076",
+          "title": "Lusail International Circuit",
+          "revid": 1382602076,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Lusail_International_Circuit&oldid=1382602076",
+          "title": "Lusail International Circuit",
+          "revid": 1382602076,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Lusail_International_Circuit&oldid=1382602076",
+          "title": "Lusail International Circuit",
+          "revid": 1382602076,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "yas_marina": {
+    "circuit_length": "5.281km",
+    "fastest_lap_time": "1:25.637",
+    "fastest_lap_driver": "Kevin Magnussen",
+    "fastest_lap_year": "2024",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Yas_Marina_Circuit&oldid=1376818246",
+          "title": "Yas Marina Circuit",
+          "revid": 1376818246,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Yas_Marina_Circuit&oldid=1376818246",
+          "title": "Yas Marina Circuit",
+          "revid": 1376818246,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Yas_Marina_Circuit&oldid=1376818246",
+          "title": "Yas Marina Circuit",
+          "revid": 1376818246,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Yas_Marina_Circuit&oldid=1376818246",
+          "title": "Yas Marina Circuit",
+          "revid": 1376818246,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "imola": {
+    "circuit_length": "4.909km",
+    "fastest_lap_time": "1:15.484",
+    "fastest_lap_driver": "Lewis Hamilton",
+    "fastest_lap_year": "2020",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Imola_Circuit&oldid=1378298958",
+          "title": "Imola Circuit",
+          "revid": 1378298958,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Imola_Circuit&oldid=1378298958",
+          "title": "Imola Circuit",
+          "revid": 1378298958,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Imola_Circuit&oldid=1378298958",
+          "title": "Imola Circuit",
+          "revid": 1378298958,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Imola_Circuit&oldid=1378298958",
+          "title": "Imola Circuit",
+          "revid": 1378298958,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  },
+  "sepang": {
+    "circuit_length": "5.543km",
+    "fastest_lap_time": "1:34.080",
+    "fastest_lap_driver": "Sebastian Vettel",
+    "fastest_lap_year": "2017",
+    "_provenance": {
+      "author": "Wikipedia contributors",
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "changes": "Facts extracted from the article infobox (length_km, record_time, record_driver, record_year); wiki markup removed; length formatted in km",
+      "fields": {
+        "circuit_length": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Sepang_International_Circuit&oldid=1381853043",
+          "title": "Sepang International Circuit",
+          "revid": 1381853043,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_time": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Sepang_International_Circuit&oldid=1381853043",
+          "title": "Sepang International Circuit",
+          "revid": 1381853043,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_driver": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Sepang_International_Circuit&oldid=1381853043",
+          "title": "Sepang International Circuit",
+          "revid": 1381853043,
+          "retrieved_on": "2026-10-31"
+        },
+        "fastest_lap_year": {
+          "source": "https://en.wikipedia.org/w/index.php?title=Sepang_International_Circuit&oldid=1381853043",
+          "title": "Sepang International Circuit",
+          "revid": 1381853043,
+          "retrieved_on": "2026-10-31"
+        }
+      }
+    }
+  }
+}

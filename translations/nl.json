@@ -341,7 +341,12 @@
     "catalogue": "Alle stijlen, kleuren en circuits",
     "apiAuthors": "Makers en licenties",
     "apiParameters": "Dezelfde parameters track_style, track_source, track_accent",
-    "history": "Makers / geschiedenis"
+    "history": "Makers / geschiedenis",
+    "jolpicaTerms": "Gebruiksvoorwaarden",
+    "nonCommercial": "alleen niet-commercieel gebruik",
+    "circuitJolpica": "Het jaar van de eerste Grand Prix op het circuit en het geplande aantal ronden zijn afgeleid van de raceresultaten van Jolpica.",
+    "circuitWikiIntro": "Circuitlengte en ronderecord komen uit de infobox van deze versies van Engelstalige Wikipedia-artikelen:",
+    "circuitWikiChange": "Gegevens uit de infobox overgenomen, eenheden omgerekend."
   },
   "privacy_off": "Gebruiks- en browserprestatiemeting zijn in deze installatie uitgeschakeld."
 }
