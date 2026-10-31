@@ -51,20 +51,30 @@ block og_tags %}
 {% endblock %} {% block content %}
 <style nonce="{{ request.state.csp_nonce }}">
   .home-credits-desktop {
-    display: grid;
-    grid-template-columns: repeat(2, max-content);
+    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
-    align-items: start;
-    gap: 8px 24px;
+    align-items: baseline;
+    gap: 4px 18px;
+    max-width: 100%;
   }
 
-  @media (max-width: 639px) {
-    .home-credits-desktop {
-      grid-template-columns: minmax(0, max-content);
-    }
+  .home-credits-desktop .credit-row,
+  .home-credits-desktop .home-credits-tracks {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 6px;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .home-credits-desktop .credit-row > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 </style>
-<main class="flex-1 flex flex-col items-center px-4 py-5 lg:py-6">
+<main class="flex-1 flex flex-col items-center px-4 py-3 lg:py-3">
   <div class="w-full max-w-4xl flex flex-col items-center">
     <h1
       class="sr-only"
@@ -73,7 +83,7 @@ block og_tags %}
     </h1>
 
     <div
-      class="w-full max-w-[760px] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 lg:gap-6 mb-8"
+      class="w-full max-w-[760px] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 lg:gap-6 mb-3"
     >
       {% for screen in screen_types %}
       <a
@@ -106,21 +116,23 @@ block og_tags %}
             class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"
           ></div>
         </div>
-        <div class="p-3 flex-1 flex flex-col">
-          <h2
-            class="text-lg font-bold uppercase tracking-wider mb-1 group-hover:text-racing-red transition-colors"
-          >
-            {{ t.get(screen.name_key, screen.id) }}
-          </h2>
-          <p class="text-sm text-gray-600 flex-1">
-            {{ t.get(screen.desc_key, '') }}
-          </p>
-          <div class="mt-3 flex items-center justify-between">
-            <span class="text-xs font-bold uppercase text-gray-600"
+        <div class="px-3 py-2 flex-1 flex flex-col">
+          <div class="flex items-baseline justify-between gap-2">
+            <h2
+              class="min-w-0 text-base leading-tight font-bold uppercase tracking-wide group-hover:text-racing-red transition-colors"
+            >
+              {{ t.get(screen.name_key, screen.id) }}
+            </h2>
+            <span class="shrink-0 whitespace-nowrap text-[10px] font-bold uppercase text-gray-600"
               >800x480 1-BIT</span
             >
+          </div>
+          <div class="mt-0.5 flex flex-1 items-end justify-between gap-2">
+            <p class="min-w-0 flex-1 self-start text-xs leading-snug text-gray-600">
+              {{ t.get(screen.desc_key, '') }}
+            </p>
             <span
-              class="px-3 py-1 bg-black text-white text-xs font-bold uppercase group-hover:bg-racing-red transition-colors"
+              class="shrink-0 whitespace-nowrap px-2 py-0.5 bg-black text-white text-xs font-bold uppercase group-hover:bg-racing-red transition-colors"
             >
               {{ t.get('home_configure', 'Configure') }} &rarr;
             </span>
@@ -130,18 +142,18 @@ block og_tags %}
       {% endfor %}
     </div>
 
-    <div id="credits" class="home-credits-section w-full max-w-3xl pt-4">
-      <h3 class="text-sm font-bold uppercase tracking-widest mb-4 text-center">
+    <div id="credits" class="home-credits-section w-full max-w-3xl pt-1">
+      <h3 class="text-xs font-bold uppercase tracking-widest mb-1.5 text-center">
         Credits
       </h3>
       {% from 'components/credit_rows.html' import rows, track_row with context %}
-      <div class="home-credits-desktop text-left text-xs text-gray-700">
-        <div class="flex flex-col gap-[8px]">{{ rows(0, 5) }}</div>
-        <div class="flex flex-col gap-[8px]">{{ rows(5) }}</div>
+      <div class="home-credits-desktop text-left text-xs leading-snug text-gray-700">
+        {{ rows(0, 5) }}
+        {{ rows(5) }}
         {{ track_row() }}
       </div>
     </div>
-    <p id="unofficial-notice" class="[text-wrap:balance] w-full max-w-4xl mt-6 text-xs leading-relaxed text-gray-600 text-center">{{ t.unofficial_notice }}</p>
+    <p id="unofficial-notice" class="[text-wrap:balance] w-full max-w-4xl mt-3 text-[11px] leading-snug text-gray-600 text-center">{{ t.unofficial_notice }}</p>
   </div>
 </main>
 {% endblock %}
