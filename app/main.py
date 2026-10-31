@@ -301,7 +301,9 @@ class SecurityHeadersMiddleware:
                 )
                 response_headers[header] = build_csp(nonce, redoc=policy_path == "/redoc")
             if scheme == "https":
-                response_headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+                response_headers["Strict-Transport-Security"] = (
+                    "max-age=31536000; includeSubDomains"
+                )
 
         if host == f"www.{canonical_host}":
             target = f"{str(config.SITE_URL).rstrip('/')}{path}"

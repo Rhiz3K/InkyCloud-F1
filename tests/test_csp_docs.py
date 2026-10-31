@@ -41,9 +41,10 @@ def test_page_markup_uses_nonce_csp(path):
     response = client.get(path)
     assert response.status_code == (404 if path == "/missing-csp-test-page" else 200)
     assert response.headers["content-type"].startswith("text/html")
-    policy = response.headers.get("content-security-policy") or response.headers[
-        "content-security-policy-report-only"
-    ]
+    policy = (
+        response.headers.get("content-security-policy")
+        or response.headers["content-security-policy-report-only"]
+    )
     nonce = _nonce(policy)
     markup = response.text
     # header.html is intentionally untouched in this PR and blocks CSP enforce mode.

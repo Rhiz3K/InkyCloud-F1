@@ -1257,10 +1257,10 @@ def test_configure_calendar_contains_color_display_options():
     html = response.text
     assert 'id="displayBwrBtn"' in html
     assert 'id="displayBwrBtnMobile"' in html
-    assert "data-on-click=\"setDisplayType\" data-args='[\"bwr\"]'" in html
+    assert 'data-on-click="setDisplayType" data-args=\'["bwr"]\'' in html
     assert 'id="displayBwryBtn"' in html
     assert 'id="displayBwryBtnMobile"' in html
-    assert "data-on-click=\"setDisplayType\" data-args='[\"bwry\"]'" in html
+    assert 'data-on-click="setDisplayType" data-args=\'["bwry"]\'' in html
 
 
 def test_configure_calendar_mobile_timezone_selector():
