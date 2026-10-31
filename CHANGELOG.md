@@ -16,16 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Make the home page a one-pager on laptop screens: at 1024×640 the whole page (cards,
-  Credits and the unofficial-project notice) now fits without vertical scrolling (document
-  height 640 px instead of 977 px; content ends at ≤ 545 px in all languages). The card grid
-  is narrower (760 px instead of 900 px) with smaller paddings, gaps and margins; card
-  captions are compact (title and the 800x480 label on one row, smaller description text,
-  the Configure button beside the description); the home Credits are laid out as inline
-  label + link pairs on about three lines instead of six rows, with all attributions and
-  links kept. The "Choose your screen type" heading is now visually hidden with `sr-only` in
-  all languages but stays an `h1` for screen readers; translations are unchanged. Texts,
-  links and behaviour are unchanged; on mobile the page still scrolls. Rebuilding
+- Make the home page fit one laptop screen while keeping the production design: at 1024×640
+  the cards, Credits and the unofficial-project notice now fit without vertical scrolling in
+  all 13 languages (document height 640 px instead of 977 px; content ends at ≤ 631 px). The
+  "Choose your screen type" heading is visually hidden with `sr-only` but stays an `h1` for
+  screen readers; translations are unchanged. Card layout, previews and styling stay as
+  before; only the white caption areas are smaller (less padding, smaller title and
+  description text), the card grid is narrower (780 px instead of 900 px) and the vertical
+  spacing around the grid, Credits and notice is tighter. The Credits style and content are
+  unchanged, only their spacing is reduced; on mobile the page still scrolls. Rebuilding
   `tailwind.min.css` also emits the `list-disc`/`pl-6` classes already used by the Wikipedia
   circuit list on `/credits`.
 - Circuit facts now come from English Wikipedia infoboxes (length, lap record; CC BY-SA 4.0,
