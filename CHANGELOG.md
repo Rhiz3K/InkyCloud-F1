@@ -17,10 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Make the home page screen cards more compact on laptop screens: narrower card grid
-  (760 px instead of 900 px), smaller paddings, gaps and heading margins, so both cards
-  fit fully within a 1024×640 viewport (card bottom at 520 px instead of 606 px). Texts,
-  links and behaviour are unchanged. Rebuilding `tailwind.min.css` also emits the
-  `list-disc`/`pl-6` classes already used by the Wikipedia circuit list on `/credits`.
+  (760 px instead of 900 px), smaller paddings, gaps and margins, so both cards fit fully
+  within a 1024×640 viewport (card bottom at 452 px instead of 606 px). The "Choose your
+  screen type" heading is now visually hidden with `sr-only` in all languages but stays an
+  `h1` for screen readers; translations are unchanged. Texts, links and behaviour are
+  unchanged. Rebuilding `tailwind.min.css` also emits the `list-disc`/`pl-6` classes already
+  used by the Wikipedia circuit list on `/credits`.
 - Circuit facts now come from English Wikipedia infoboxes (length, lap record; CC BY-SA 4.0,
   revision-pinned) and Jolpica (first Grand Prix, planned laps; CC BY-NC-SA 4.0), stored in
   two separately licensed files and refreshed only by the manual `scripts/fetch_circuits.py`.
