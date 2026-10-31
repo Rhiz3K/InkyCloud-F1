@@ -47,16 +47,21 @@ def test_page_markup_uses_nonce_csp(path):
     )
     nonce = _nonce(policy)
     markup = response.text
-    # header.html is intentionally untouched in this PR and blocks CSP enforce mode.
-    # Exclude only its two known handlers; any other inline handler must fail.
-    for handler in (' onclick="toggleMobileMenu()"', ' onchange="switchUiLanguage()"'):
-        markup = markup.replace(handler, "", 1)
     assert not re.search(r"\son[a-z]+\s*=", markup)
     assert 'style="' not in markup
     soup = BeautifulSoup(response.text, "html.parser")
     for tag in soup.find_all(["script", "style"]):
         if tag.name == "style" or not tag.has_attr("src"):
             assert tag.get("nonce") == nonce
+
+
+def test_header_template_has_no_inline_handlers():
+    """Keep header.html free of inline handlers and wired via data-on-* attributes."""
+    header = Path(__file__).resolve().parent.parent / "app/templates/components/header.html"
+    source = header.read_text(encoding="utf-8")
+    assert not re.search(r"\son[a-z]+\s*=", source, re.IGNORECASE)
+    assert 'data-on-click="toggleMobileMenu"' in source
+    assert 'data-on-change="switchUiLanguage"' in source
 
 
 @pytest.mark.parametrize("enforce", [False, True])
