@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
+import {readdirSync, readFileSync} from "node:fs";
 import vm from "node:vm";
 import {test} from "node:test";
 
@@ -91,26 +91,89 @@ for (const [protocol, suffix] of [["http:", ";SameSite=Lax"], ["https:", ";SameS
     });
 }
 
-test("declared data-on-click handlers run in order with the element as this", () => {
-    const listeners = {}, calls = [];
-    const element = {
-        getAttribute(name) {return {"data-on-click": "a missing b notFn", "data-args": "[\"x\"]"}[name] ?? null;},
-    };
-    const child = {closest(selector) {return selector === "[data-on-click]" ? element : null;}};
-    const ctx = vm.createContext({
-        window: {location: {pathname: "/"}, notFn: 42,
-            a(...args) {calls.push(["a", this, args]);}, b(...args) {calls.push(["b", this, args]);}},
-        navigator: {}, console: {error() {}},
-        document: {addEventListener(type, fn) {listeners[type] = fn;}},
-    });
+// Runs common.js with the given globals defined first, as inline page scripts run
+// before the deferred common.js; window is the global object, as in browsers.
+function runCommonWithGlobals(globals) {
+    const listeners = {};
+    const sandbox = {location: {pathname: "/"}, navigator: {}, console: {error() {}},
+        document: {addEventListener(type, fn) {listeners[type] = fn;}}, ...globals};
+    sandbox.window = sandbox;
+    const ctx = vm.createContext(sandbox);
     vm.runInContext(common, ctx);
+    return {ctx, listeners};
+}
+
+function declaredClick(attrs) {
+    const element = {getAttribute(name) {return attrs[name] ?? null;}};
+    const target = {closest(selector) {return selector === "[data-on-click]" ? element : null;}};
+    return {element, event: {type: "click", target}};
+}
+
+test("declared data-on-click handlers run in order with the element as this", () => {
+    const calls = [];
+    const {listeners} = runCommonWithGlobals({notFn: 42,
+        setDisplayType(...args) {calls.push(["setDisplayType", this, args]);},
+        switchTab(...args) {calls.push(["switchTab", this, args]);}});
     assert.deepEqual(Object.keys(listeners).sort(), ["DOMContentLoaded", "change", "click", "error", "input"]);
-    listeners.click({type: "click", target: child});
+    const {element, event} = declaredClick({
+        "data-on-click": "setDisplayType selectRaceMobile switchTab notFn toString", "data-args": "[\"x\"]",
+    });
+    listeners.click(event);
     assert.equal(calls.length, 2);
-    assert.deepEqual(calls.map(([name, self, args]) => [name, self === element, args]), [["a", true, ["x"]], ["b", true, ["x"]]]);
-    listeners.change({type: "change", target: child});
+    assert.deepEqual(calls.map(([name, self, args]) => [name, self === element, args]),
+        [["setDisplayType", true, ["x"]], ["switchTab", true, ["x"]]]);
+    listeners.change({type: "change", target: event.target});
     listeners.click({type: "click", target: {closest() {return null;}}});
     assert.equal(calls.length, 2);
+});
+
+test("declared handlers never call names outside the allowlist", () => {
+    const calls = [];
+    const spy = (name) => (...args) => {calls.push([name, args]);};
+    const {listeners} = runCommonWithGlobals({
+        fetch: spy("fetch"), open: spy("open"), eval: spy("eval"), notAllowlisted: spy("notAllowlisted"),
+    });
+    const {event} = declaredClick({
+        "data-on-click": "fetch open eval notAllowlisted constructor __proto__ hasOwnProperty",
+        "data-args": "[\"https://attacker.example/\", \"_blank\"]",
+    });
+    assert.doesNotThrow(() => listeners.click(event));
+    assert.deepEqual(calls, []);
+});
+
+test("reassigning a page handler after common.js loaded does not change what is dispatched", () => {
+    const calls = [];
+    const {ctx, listeners} = runCommonWithGlobals({setDisplayType(type) {calls.push(["original", type]);}});
+    assert.equal(vm.runInContext("Object.isFrozen(HANDLERS)", ctx), true);
+    ctx.window.setDisplayType = (type) => {calls.push(["replaced", type]);};
+    ctx.window.switchTab = (type) => {calls.push(["late", type]);};
+    listeners.click(declaredClick({"data-on-click": "setDisplayType switchTab", "data-args": "[\"bwr\"]"}).event);
+    assert.deepEqual(calls, [["original", "bwr"]]);
+});
+
+function htmlFiles(dir) {
+    return readdirSync(dir, {withFileTypes: true}).flatMap((entry) => {
+        const path = `${dir}/${entry.name}`;
+        if (entry.isDirectory()) return htmlFiles(path);
+        return entry.name.endsWith(".html") ? [path] : [];
+    });
+}
+
+test("HANDLERS allowlists every data-on-* name used in templates", () => {
+    const used = new Set();
+    for (const file of htmlFiles("app/templates")) {
+        const html = readFileSync(file, "utf8");
+        for (const match of html.matchAll(/data-on-(?:click|change|input)=(?:"([^"]*)"|'([^']*)')/g)) {
+            for (const name of (match[1] ?? match[2]).split(/\s+/)) {
+                if (name) used.add(name);
+            }
+        }
+    }
+    assert.ok(used.size > 0);
+    // Define every used name as a page function so only the allowlist decides membership.
+    const {ctx} = runCommonWithGlobals(Object.fromEntries([...used].map((name) => [name, () => {}])));
+    const allowed = vm.runInContext("Object.keys(HANDLERS)", ctx);
+    assert.deepEqual([...used].filter((name) => !allowed.includes(name)), []);
 });
 
 // Top-level functions in configure.html's inline script are 2-space indented and end with "  }".
