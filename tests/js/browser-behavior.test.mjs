@@ -390,12 +390,14 @@ for (const overrides of [{MINIMAL_DATA_MODE: true}, {PERF_SAMPLE_RATE: 0}, {PERF
 function teamsUrlContext(state = {}) {
     const template = readFileSync("app/templates/configure.html", "utf8");
     const replaced = [];
-    const buttons = ["none", "weather", "track"].map((extra) => {
-        const classes = new Set(extra === "none" ? ["bg-black", "text-white"] : ["bg-white"]);
+    // Minimal <select>: assigning an unknown value deselects (selectedIndex -1), like the DOM.
+    const selects = ["desktop", "mobile"].map((variant) => {
+        const options = ["none", "timeline", "countdown", "weather", "flags", "combo", "track"]
+            .map((value) => ({value, dataset: {hint: `hint-${value}-${variant}`}}));
         return {
-            dataset: {extra, hint: `hint-${extra}`}, attrs: {},
-            setAttribute(name, value) {this.attrs[name] = value;},
-            classList: {toggle(name, on) {if (on) classes.add(name); else classes.delete(name);}, has: (name) => classes.has(name)},
+            options, selectedIndex: 0,
+            get value() {return this.selectedIndex >= 0 ? options[this.selectedIndex].value : "";},
+            set value(v) {this.selectedIndex = options.findIndex((o) => o.value === v);},
         };
     });
     const notes = {".teams-extra-hint": [{textContent: ""}]};
@@ -409,17 +411,17 @@ function teamsUrlContext(state = {}) {
             history: {replaceState(_s, _t, url) {replaced.push(String(url)); ctx.window.location.href = String(url);}}},
         document: {
             getElementById() {return null;},
-            querySelectorAll(selector) {return selector === ".teams-extra-btn, .teams-extra-btn-mobile" ? buttons : notes[selector] || [];},
+            querySelectorAll(selector) {return selector === ".teams-extra-select" ? selects : notes[selector] || [];},
         },
         updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
         TEAMS_EXTRA_OPTIONS: ["none", "timeline", "countdown", "weather", "flags", "combo", "track"],
         currentScreenType: "teams", currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none", ...state,
     });
-    for (const name of ["getCurrentSeason", "getApiUrl", "canUsePrerenderedPreview", "getPreviewUrl", "setTeamsExtra"]) {
+    for (const name of ["getCurrentSeason", "getApiUrl", "canUsePrerenderedPreview", "getPreviewUrl", "setTeamsExtra", "selectTeamsExtra"]) {
         vm.runInContext(templateFunction(template, name), ctx);
     }
-    return {ctx, replaced, buttons, notes};
+    return {ctx, replaced, selects, notes};
 }
 
 test("teams URLs stay byte-identical when the extra panel is none", () => {
@@ -443,22 +445,22 @@ for (const extra of ["timeline", "countdown", "weather", "flags", "combo", "trac
     });
 }
 
-test("setTeamsExtra updates state, buttons, notes and the page URL", () => {
-    const {ctx, replaced, buttons, notes} = teamsUrlContext();
+test("setTeamsExtra updates state, selects, notes and the page URL", () => {
+    const {ctx, replaced, selects, notes} = teamsUrlContext();
     ctx.setTeamsExtra("weather");
     assert.equal(ctx.currentTeamsExtra, "weather");
     assert.equal(ctx.previewUpdates, 1);
     assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?extra=weather"]);
-    assert.deepEqual(buttons.map((b) => b.attrs["aria-pressed"]), ["false", "true", "false"]);
-    assert.equal(buttons[1].classList.has("bg-black"), true);
-    assert.equal(buttons[0].classList.has("bg-black"), false);
-    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-weather");
+    assert.deepEqual(selects.map((s) => s.value), ["weather", "weather"]);
+    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-weather-mobile");
     assert.equal(notes[".teams-extra-note-weather"][0].classList.has("hidden"), false);
     assert.equal(notes[".teams-extra-note-track"][0].classList.has("hidden"), true);
     assert.match(ctx.getApiUrl(), /&extra=weather$/);
 
     ctx.setTeamsExtra("bogus");
     assert.equal(ctx.currentTeamsExtra, "none");
+    assert.deepEqual(selects.map((s) => s.value), ["none", "none"]);
+    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-none-mobile");
     assert.equal(replaced.at(-1), "https://racing.example.org/configure/teams");
     assert.equal(notes[".teams-extra-note-weather"][0].classList.has("hidden"), true);
     assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?year=2026");
@@ -467,4 +469,16 @@ test("setTeamsExtra updates state, buttons, notes and the page URL", () => {
     assert.equal(ctx.previewUpdates, 2);
     assert.equal(replaced.length, 2);
     assert.equal(notes[".teams-extra-note-track"][0].classList.has("hidden"), false);
+    assert.deepEqual(selects.map((s) => s.value), ["track", "track"]);
+});
+
+test("selectTeamsExtra applies the changed select's this.value", () => {
+    const {ctx, replaced, selects, notes} = teamsUrlContext();
+    selects[0].value = "combo";
+    ctx.selectTeamsExtra.call(selects[0]);
+    assert.equal(ctx.currentTeamsExtra, "combo");
+    assert.deepEqual(selects.map((s) => s.value), ["combo", "combo"]);
+    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-combo-mobile");
+    assert.equal(ctx.previewUpdates, 1);
+    assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?extra=combo"]);
 });

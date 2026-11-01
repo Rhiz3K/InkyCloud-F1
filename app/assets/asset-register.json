@@ -44,7 +44,7 @@
       "reviewed_on": "2026-09-09"
     },
     "css/tailwind.min.css": {
-      "sha256": "e90cc37ec0e546a1aa8dc5023c2b5b4eb28bd3c8829864fd6349f319e3f1e31d",
+      "sha256": "72fa940ee1671465344c7901bbd1298b024e31730a1ead982e833701d6c5894a",
       "license": "MIT",
       "author": "InkyCloud contributors",
       "source": "https://github.com/Rhiz3K/InkyCloud-F1",
@@ -1278,7 +1278,7 @@
       "provenance_note": "Original project text layout with Titillium Web (SIL OFL 1.1)."
     },
     "js/common.js": {
-      "sha256": "f475d9cf5b4c96b90dc85091498184489209ae3da87ee24ee2ed1571694d4b86",
+      "sha256": "a1fe475414750957f8f61d8e3931d9142944058c95207f678aa98b5d6f368a23",
       "license": "MIT",
       "author": "InkyCloud contributors",
       "source": "https://github.com/Rhiz3K/InkyCloud-F1",

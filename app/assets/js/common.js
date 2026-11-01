@@ -222,6 +222,7 @@ const PAGE_HANDLER_NAMES = [
     "refreshPreview",
     "selectRaceFromList",
     "selectRaceMobile",
+    "selectTeamsExtra",
     "selectTeamsSeason",
     "selectTimezoneMobile",
     "selectYearMobile",

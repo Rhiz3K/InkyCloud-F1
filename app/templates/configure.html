@@ -1848,15 +1848,10 @@ block content %}
     }
 
     let hint = "";
-    document.querySelectorAll(".teams-extra-btn, .teams-extra-btn-mobile").forEach((btn) => {
-      const active = btn.dataset.extra === extra;
-      if (active) hint = btn.dataset.hint || "";
-      btn.setAttribute("aria-pressed", active ? "true" : "false");
-      btn.classList.toggle("bg-black", active);
-      btn.classList.toggle("text-white", active);
-      btn.classList.toggle("bg-white", !active);
-      btn.classList.toggle("hover:bg-black", !active);
-      btn.classList.toggle("hover:text-white", !active);
+    document.querySelectorAll(".teams-extra-select").forEach((select) => {
+      select.value = extra;
+      const option = select.options[select.selectedIndex];
+      if (option) hint = option.dataset.hint || "";
     });
     document.querySelectorAll(".teams-extra-hint").forEach((el) => {
       el.textContent = hint;
@@ -1869,6 +1864,14 @@ block content %}
     });
 
     if (refresh) updatePreview();
+  }
+
+  /**
+   * Change handler for the teams extra-panel selects; `this` is the select
+   * (bound by dispatchDeclaredHandler).
+   */
+  function selectTeamsExtra() {
+    setTeamsExtra(this.value);
   }
 
   function setDisplayType(type, refresh = true) {

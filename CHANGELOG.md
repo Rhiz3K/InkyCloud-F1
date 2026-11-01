@@ -17,8 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Track attribution is on `/credits` and in the `Link rel="license"` header of `/teams.bmp`
   and the teams configure preview. Weather is centred with the Open-Meteo credit in the
   header; timeline switches to two rows for seasons with 22 or more rounds. The slot stays empty
-  when there is no upcoming race. The teams configurator gets a picker with live preview in all 13
-  languages; `/credits` and `DATA_LICENSES.txt` describe the new weather and track uses.
+  when there is no upcoming race. The teams configurator gets a labelled dropdown (native `<select>`,
+  desktop and mobile) with live preview in all 13 languages; `/credits` and `DATA_LICENSES.txt` describe the new weather and track uses.
 
 - Add /credits entries for Swagger UI and ReDoc in all 13 languages.
 
