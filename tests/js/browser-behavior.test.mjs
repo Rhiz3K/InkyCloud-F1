@@ -482,3 +482,35 @@ test("selectTeamsExtra applies the changed select's this.value", () => {
     assert.equal(ctx.previewUpdates, 1);
     assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?extra=combo"]);
 });
+
+test("a change on data-on-change=selectTeamsExtra reaches setTeamsExtra via the delegated dispatcher", () => {
+    const calls = [];
+    // Compile the real page handler so its setTeamsExtra lookup hits the spy.
+    const selectTeamsExtra = vm.runInNewContext(
+        `${templateFunction(readFileSync("app/templates/configure.html", "utf8"), "selectTeamsExtra")}\nselectTeamsExtra`,
+        {setTeamsExtra(...args) {calls.push(args);}});
+    const {listeners} = runCommonWithGlobals({selectTeamsExtra});
+    const select = {value: "track", getAttribute(name) {return name === "data-on-change" ? "selectTeamsExtra" : null;}};
+    const target = {closest(selector) {return selector === "[data-on-change]" ? select : null;}};
+    listeners.change({type: "change", target});
+    assert.deepEqual(calls, [["track"]]);
+    listeners.click({type: "click", target});
+    assert.deepEqual(calls, [["track"]]);
+});
+
+test("?extra=track initialises both selects and the hint without refreshing the preview", () => {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const initLine = 'if (currentScreenType === "teams") setTeamsExtra(currentTeamsExtra, false);';
+    assert.ok(template.includes(`\n    ${initLine}\n`));
+    const {ctx, replaced, selects, notes} = teamsUrlContext({URLSearchParams});
+    ctx.window.location.search = "?extra=track";
+    vm.runInContext(templateFunction(template, "initTrackOptions"), ctx);
+    ctx.initTrackOptions();
+    vm.runInContext(initLine, ctx);
+    assert.equal(ctx.currentTeamsExtra, "track");
+    assert.deepEqual(selects.map((s) => s.value), ["track", "track"]);
+    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-track-mobile");
+    assert.equal(notes[".teams-extra-note-track"][0].classList.has("hidden"), false);
+    assert.equal(ctx.previewUpdates, 0);
+    assert.deepEqual(replaced, []);
+});
