@@ -1,5 +1,7 @@
 """Helpers for deterministic pregenerated image keys."""
 
+from app.services.teams_extra import TeamsExtra, TeamsExtraContext, teams_extra_cache_token
+
 
 def get_display_suffix(display: str) -> str:
     """Return the filename/key suffix for a display variant."""
@@ -32,9 +34,18 @@ def get_calendar_image_key(
     return key
 
 
-def get_teams_image_key(lang: str, year: int, *, display: str = "1bit") -> str:
+def get_teams_image_key(
+    lang: str,
+    year: int,
+    *,
+    display: str = "1bit",
+    extra: TeamsExtra = TeamsExtra.NONE,
+    extra_context: TeamsExtraContext | None = None,
+) -> str:
     """Build a deterministic key for generated teams variants."""
-    return f"teams_{year}_{lang}{get_display_suffix(display)}"
+    return f"teams_{year}_{lang}{get_display_suffix(display)}" + teams_extra_cache_token(
+        extra, extra_context
+    )
 
 
 def get_preview_filename(screen_type: str, lang: str) -> str:

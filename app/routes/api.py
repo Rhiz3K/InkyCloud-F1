@@ -14,6 +14,7 @@ from app.services.f1_service import F1Service
 from app.services.private_stats import canonical_page
 from app.services.renderer_text import get_team_color_hex
 from app.services.renderers import DISPLAY_TYPES
+from app.services.teams_extra import TeamsExtra
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.track_catalog import TrackAccent, TrackSource, TrackStyle
 from app.state import get_bmp_cache
@@ -288,6 +289,15 @@ async def api_info() -> dict:
                     f"({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT})"
                 ),
                 "parameters": {
+                    "extra": {
+                        "type": "string",
+                        "description": "Optional teams panel; local data and cached weather only. "
+                        "Unavailable panels fall back to none.",
+                        "values": [extra.value for extra in TeamsExtra],
+                        "default": "none",
+                        "example": "?extra=countdown",
+                        "optional": True,
+                    },
                     "lang": {
                         "type": "string",
                         "description": "Language code for teams text",
@@ -362,6 +372,12 @@ async def api_info() -> dict:
                         "type": "string",
                         "default": "off",
                         "values": ["off", "current", "race", "race_day"],
+                    },
+                    "extra": {
+                        "type": "string",
+                        "description": "Optional teams panel; applies only to teams",
+                        "default": "none",
+                        "values": [extra.value for extra in TeamsExtra],
                     },
                     **track_parameters,
                 },

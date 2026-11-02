@@ -385,3 +385,152 @@ for (const overrides of [{MINIMAL_DATA_MODE: true}, {PERF_SAMPLE_RATE: 0}, {PERF
         assert.equal(posts.length, 0);
     });
 }
+
+// Loads configure.html's teams URL builders into a sandbox with the given state.
+function teamsUrlContext(state = {}) {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const replaced = [];
+    // Minimal <select>: assigning an unknown value deselects (selectedIndex -1), like the DOM.
+    const selects = ["desktop", "mobile"].map((variant) => {
+        const options = ["none", "countdown", "flags", "track", "weather"]
+            .map((value) => ({value, dataset: {hint: `hint-${value}-${variant}`}}));
+        return {
+            options, selectedIndex: 0,
+            get value() {return this.selectedIndex >= 0 ? options[this.selectedIndex].value : "";},
+            set value(v) {this.selectedIndex = options.findIndex((o) => o.value === v);},
+        };
+    });
+    const notes = {".teams-extra-hint": [{textContent: ""}]};
+    for (const selector of [".teams-extra-note-weather", ".teams-extra-note-track"]) {
+        const classes = new Set(["hidden"]);
+        notes[selector] = [{classList: {toggle(name, on) {if (on) classes.add(name); else classes.delete(name);}, has: (name) => classes.has(name)}}];
+    }
+    const ctx = vm.createContext({
+        URL,
+        window: {location: {origin: "https://racing.example.org", href: "https://racing.example.org/configure/teams"},
+            history: {replaceState(_s, _t, url) {replaced.push(String(url)); ctx.window.location.href = String(url);}}},
+        document: {
+            getElementById() {return null;},
+            querySelectorAll(selector) {return selector === ".teams-extra-select" ? selects : notes[selector] || [];},
+        },
+        updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
+        TEAMS_EXTRA_OPTIONS: ["none", "countdown", "flags", "track", "weather"],
+        currentScreenType: "teams", currentUiLang: "en", currentDisplayType: "1bit",
+        currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none", ...state,
+    });
+    for (const name of ["getCurrentSeason", "getApiUrl", "canUsePrerenderedPreview", "getPreviewUrl", "setTeamsExtra", "selectTeamsExtra"]) {
+        vm.runInContext(templateFunction(template, name), ctx);
+    }
+    return {ctx, replaced, selects, notes};
+}
+
+test("teams URLs stay byte-identical when the extra panel is none", () => {
+    const {ctx} = teamsUrlContext();
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?year=2026");
+    assert.equal(ctx.canUsePrerenderedPreview(), true);
+    assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/preview/configure/teams.png");
+    ctx.currentUiLang = "cs";
+    ctx.currentDisplayType = "bwr";
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?lang=cs&year=2026&display=bwr");
+    assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/preview/configure/teams.png?lang=cs&display=bwr");
+});
+
+for (const extra of ["countdown", "flags", "track", "weather"]) {
+    test(`teams extra=${extra} is in the API URL and uses the dynamic PNG preview`, () => {
+        const {ctx} = teamsUrlContext({currentTeamsExtra: extra, currentDisplayType: "spectra6"});
+        const api = `https://racing.example.org/teams.bmp?year=2026&display=spectra6&extra=${extra}`;
+        assert.equal(ctx.getApiUrl(), api);
+        assert.equal(ctx.canUsePrerenderedPreview(), true);
+        assert.equal(ctx.getPreviewUrl(), `https://racing.example.org/preview/configure/teams.png?display=spectra6&extra=${extra}`);
+    });
+}
+
+test("setTeamsExtra updates state, selects, notes and the page URL", () => {
+    const {ctx, replaced, selects, notes} = teamsUrlContext();
+    ctx.setTeamsExtra("weather");
+    assert.equal(ctx.currentTeamsExtra, "weather");
+    assert.equal(ctx.previewUpdates, 1);
+    assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?extra=weather"]);
+    assert.deepEqual(selects.map((s) => s.value), ["weather", "weather"]);
+    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-weather-mobile");
+    assert.equal(notes[".teams-extra-note-weather"][0].classList.has("hidden"), false);
+    assert.equal(notes[".teams-extra-note-track"][0].classList.has("hidden"), true);
+    assert.match(ctx.getApiUrl(), /&extra=weather$/);
+
+    ctx.setTeamsExtra("bogus");
+    assert.equal(ctx.currentTeamsExtra, "none");
+    assert.deepEqual(selects.map((s) => s.value), ["none", "none"]);
+    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-none-mobile");
+    assert.equal(replaced.at(-1), "https://racing.example.org/configure/teams");
+    assert.equal(notes[".teams-extra-note-weather"][0].classList.has("hidden"), true);
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?year=2026");
+
+    ctx.setTeamsExtra("track", false);
+    assert.equal(ctx.previewUpdates, 2);
+    assert.equal(replaced.length, 2);
+    assert.equal(notes[".teams-extra-note-track"][0].classList.has("hidden"), false);
+    assert.deepEqual(selects.map((s) => s.value), ["track", "track"]);
+});
+
+test("selectTeamsExtra applies the changed select's this.value", () => {
+    const {ctx, replaced, selects, notes} = teamsUrlContext();
+    selects[0].value = "flags";
+    ctx.selectTeamsExtra.call(selects[0]);
+    assert.equal(ctx.currentTeamsExtra, "flags");
+    assert.deepEqual(selects.map((s) => s.value), ["flags", "flags"]);
+    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-flags-mobile");
+    assert.equal(ctx.previewUpdates, 1);
+    assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?extra=flags"]);
+});
+
+test("a change on data-on-change=selectTeamsExtra reaches setTeamsExtra via the delegated dispatcher", () => {
+    const calls = [];
+    // Compile the real page handler so its setTeamsExtra lookup hits the spy.
+    const selectTeamsExtra = vm.runInNewContext(
+        `${templateFunction(readFileSync("app/templates/configure.html", "utf8"), "selectTeamsExtra")}\nselectTeamsExtra`,
+        {setTeamsExtra(...args) {calls.push(args);}});
+    const {listeners} = runCommonWithGlobals({selectTeamsExtra});
+    const select = {value: "track", getAttribute(name) {return name === "data-on-change" ? "selectTeamsExtra" : null;}};
+    const target = {closest(selector) {return selector === "[data-on-change]" ? select : null;}};
+    listeners.change({type: "change", target});
+    assert.deepEqual(calls, [["track"]]);
+    listeners.click({type: "click", target});
+    assert.deepEqual(calls, [["track"]]);
+});
+
+test("?extra=track initialises both selects and the hint without refreshing the preview", () => {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const initLine = 'if (currentScreenType === "teams") setTeamsExtra(currentTeamsExtra, false);';
+    assert.ok(template.includes(`\n    ${initLine}\n`));
+    const {ctx, replaced, selects, notes} = teamsUrlContext({URLSearchParams});
+    ctx.window.location.search = "?extra=track";
+    vm.runInContext(templateFunction(template, "initTrackOptions"), ctx);
+    ctx.initTrackOptions();
+    vm.runInContext(initLine, ctx);
+    assert.equal(ctx.currentTeamsExtra, "track");
+    assert.deepEqual(selects.map((s) => s.value), ["track", "track"]);
+    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-track-mobile");
+    assert.equal(notes[".teams-extra-note-track"][0].classList.has("hidden"), false);
+    assert.equal(ctx.previewUpdates, 0);
+    assert.deepEqual(replaced, []);
+});
+
+for (const legacy of ["timeline", "combo"]) {
+    test(`legacy ${legacy} links initialise the consolidated countdown`, () => {
+        const {ctx, selects} = teamsUrlContext({URLSearchParams});
+        ctx.window.location.search = `?extra=${legacy}`;
+        const template = readFileSync("app/templates/configure.html", "utf8");
+        vm.runInContext(templateFunction(template, "initTrackOptions"), ctx);
+        ctx.initTrackOptions();
+        ctx.setTeamsExtra(ctx.currentTeamsExtra, false);
+        assert.equal(ctx.currentTeamsExtra, "countdown");
+        assert.deepEqual(selects.map(s => s.value), ["countdown", "countdown"]);
+        assert.match(ctx.getApiUrl(), /extra=countdown$/);
+    });
+}
+
+test("historical teams still use the year-specific BMP preview", () => {
+    const {ctx} = teamsUrlContext({selectedTeamsYear: 2025, currentTeamsExtra: "track"});
+    assert.equal(ctx.canUsePrerenderedPreview(), false);
+    assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/teams.bmp?year=2025&extra=track");
+});

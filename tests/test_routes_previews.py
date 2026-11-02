@@ -182,7 +182,7 @@ async def test_configure_preview_route_covers_files_fallback_and_dynamic_teams(t
     assert error.value.status_code == 404
 
     fallback.unlink()
-    dynamic = AsyncMock(return_value=SimpleNamespace(media_type="image/png"))
+    dynamic = AsyncMock(return_value=previews.Response(b"png", media_type="image/png"))
     with (
         patch("app.routes.previews.config.IMAGES_PATH", str(tmp_path)),
         patch("app.routes.previews.enforce_rate_limit"),
@@ -190,6 +190,8 @@ async def test_configure_preview_route_covers_files_fallback_and_dynamic_teams(t
     ):
         response = await previews.get_configure_preview_png("teams", request, display="bwr")
     assert response.media_type == "image/png"
+    assert response.body == b"png"
+    assert response.headers["Link"].endswith('/credits>; rel="license"')
 
     dynamic.side_effect = RuntimeError("failed")
     with (

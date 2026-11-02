@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the optional `extra` parameter to `/teams.bmp` and `/preview/configure/teams.png`
+  (`none`, `countdown`, `flags`, `track`, `weather`; default `none` keeps the image unchanged).
+  The empty bottom-right slot offers a compact countdown with race name, local start and
+  three-state season progress; the next three races with dates and colour flags (codes on
+  1-bit); a clean circuit map in a fixed column alongside larger text; or cached Open-Meteo
+  weather. Previous `timeline` and `combo` URLs select the consolidated countdown.
+  Track attribution is on `/credits` and in the `Link rel="license"` response header.
+  Weather keeps the visible Open-Meteo credit and uses only the existing cache.
+  The slot stays empty when no upcoming race or free grid slot is available.
+  The desktop and mobile configurators offer the five choices in all 13 languages and
+  use the dynamic PNG preview for extras in the current season.
+
 - Add /credits entries for Swagger UI and ReDoc in all 13 languages.
 
 - Credits page now credits Coolify (https://coolify.io), the self-hosted platform used
@@ -54,6 +66,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Let calendar.bmp fall back to remote race data for seasons without static data.
 
 - Fix historical race details and calendar images for sessions without times, returning unknown session times as null and showing them as "–".
+
+- Keep teams screen position badges inside their driver rows with a blank row between
+  positions, and vertically centre badge and plain position glyphs consistently.
+- Vertically centre teams screen driver points using their own glyph bounds, and show
+  position badges only for P1–P3, with P4 drawn as plain text.
 
 ### Removed
 

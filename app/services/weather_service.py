@@ -375,6 +375,14 @@ class WeatherService:
         )
 
     @staticmethod
+    def get_cached_value(key: str) -> Optional[WeatherData]:
+        """Read fresh in-memory weather only, without fetching or refreshing data.
+
+        Expired entries are evicted by the existing cache lookup.
+        """
+        return WeatherService._get_cached(key)
+
+    @staticmethod
     def _get_cached(key: str) -> Optional[WeatherData]:
         """Return a fresh cached weather response and evict expired entries."""
         if key in _weather_cache:
