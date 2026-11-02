@@ -234,3 +234,63 @@ def test_configurator_exposes_only_five_localized_choices(lang):
         assert all(
             option.get_text(strip=True) and option["data-hint"].strip() for option in options
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["empty", "timeout", "service", "render"])
+@pytest.mark.parametrize("fallback", ["cached", "dynamic", "unavailable"])
+async def test_extra_preview_failures_use_ordinary_fallback(
+    routes, monkeypatch, caplog, failure, fallback
+):
+    """Reject empty/failed panel output and fall back without double rate charging."""
+    data = TeamsData(season=2026, teams=[])
+    service = AsyncMock(return_value=data)
+    if failure == "timeout":
+        service.side_effect = TimeoutError("teams enrichment timed out")
+    elif failure == "service":
+        service.side_effect = RuntimeError("teams service unavailable")
+    elif failure == "render":
+        service.return_value = TeamsData(season=2026, teams=[TeamEntry(constructor_name="Ferrari")])
+    monkeypatch.setattr(previews.TeamsService, "get_teams_and_drivers", service)
+    render = MagicMock(side_effect=ValueError("panel renderer failed"))
+    monkeypatch.setattr(previews, "_build_teams_preview_png", render)
+    cached = AsyncMock(
+        return_value=previews.Response(b"cached-teams", media_type="image/png")
+        if fallback == "cached"
+        else None
+    )
+    monkeypatch.setattr(previews, "_cached_preview_response", cached)
+    ordinary = AsyncMock(return_value=previews.Response(b"ordinary-teams", media_type="image/png"))
+    if fallback == "unavailable":
+        ordinary.side_effect = RuntimeError("ordinary preview unavailable")
+    monkeypatch.setattr(previews, "_render_teams_preview", ordinary)
+
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        response = await client.get("/preview/configure/teams.png?extra=countdown")
+
+    if fallback == "unavailable":
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Configure preview not generated yet"
+    else:
+        assert response.status_code == 200
+        assert response.content == (b"cached-teams" if fallback == "cached" else b"ordinary-teams")
+        assert response.headers["content-type"] == "image/png"
+        assert response.headers["Link"] == (
+            f'<{previews.config.SITE_URL.rstrip("/")}/credits>; rel="license"'
+        )
+    if fallback == "cached":
+        ordinary.assert_not_awaited()
+    else:
+        ordinary.assert_awaited_once_with("en", "1bit", full_size=True)
+    service.assert_awaited_once_with(2026)
+    cached.assert_awaited_once()
+    if failure == "render":
+        render.assert_called_once()
+    else:
+        render.assert_not_called()
+    assert "Dynamic teams extra preview failed" in caplog.text
+    if failure == "empty":
+        assert "No teams data available for preview season 2026" in caplog.text
+    previews.enforce_rate_limit.assert_called_once()
+    assert not get_bmp_cache()
+    assert not images._singleflight_tasks

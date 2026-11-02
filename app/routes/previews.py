@@ -262,6 +262,8 @@ async def _render_teams_extra_preview(
         """Render and cache only complete teams data."""
         async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
             data = await TeamsService().get_teams_and_drivers(ctx.season)
+        if not data.teams:
+            raise RuntimeError(f"No teams data available for preview season {ctx.season}")
         content = await run_render(
             functools.partial(
                 _build_teams_preview_png,
@@ -367,17 +369,23 @@ async def get_configure_preview_png(
     safe_weather = allowed_weather.get(weather_type, "off")
     safe_display = allowed_display.get(display, "1bit")
 
+    teams_preview_rate_checked = False
     if safe_screen == "teams" and extra != TeamsExtra.NONE:
         ctx = build_teams_extra_context(extra, get_default_teams_year())
         if ctx is not None:
             enforce_rate_limit(
                 request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
             )
-            response = await _render_teams_extra_preview(
-                request, safe_lang, safe_display, extra, ctx
-            )
-            response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
-            return response
+            teams_preview_rate_checked = True
+            try:
+                response = await _render_teams_extra_preview(
+                    request, safe_lang, safe_display, extra, ctx
+                )
+            except Exception as exc:
+                logger.warning("Dynamic teams extra preview failed: %s", exc)
+            else:
+                response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
+                return response
 
     filename = get_configure_preview_filename(
         safe_screen,
@@ -414,9 +422,10 @@ async def get_configure_preview_png(
             logger.warning("Dynamic calendar configure preview failed: %s", exc)
 
     if safe_screen == "teams":
-        enforce_rate_limit(
-            request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
-        )
+        if not teams_preview_rate_checked:
+            enforce_rate_limit(
+                request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
+            )
         try:
             response = await _render_teams_preview(
                 safe_lang,
