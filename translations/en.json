@@ -81,7 +81,7 @@
   "api_docs_teams_credits": "Image attribution and licences (track artwork CC BY 4.0, Open-Meteo weather CC BY 4.0): see Credits. Responses also carry a Link header with rel=\"license\".",
   "api_docs_display_desc": "Display output mode",
   "api_docs_teams_year_desc": "Season year for team data",
-  "api_docs_teams_extra_desc": "Optional panel: none (default), timeline, countdown, weather, flags, combo, track. Uses local season data and cached weather only; unavailable panels fall back to none.",
+  "api_docs_teams_extra_desc": "Optional panel: none (default), countdown, flags, track, weather. Uses local season data and cached weather only; unavailable panels fall back to none.",
   "api_docs_teams_json_desc": "Get all teams with drivers and points for a season (JSON)",
   "api_docs_standings_leader_desc": "Get current championship leaders (driver and constructor)",
   "nav_home": "Home",
@@ -196,21 +196,17 @@
       "label": "Panel in empty slot",
       "options": {
         "none": "None",
-        "timeline": "Timeline",
         "countdown": "Countdown",
         "weather": "Weather",
-        "flags": "Flags",
-        "combo": "Combo",
+        "flags": "Next 3 races",
         "track": "Track"
       },
       "hints": {
         "none": "Leave the empty slot blank.",
-        "timeline": "Season progress with past and upcoming rounds.",
-        "countdown": "Days until the next race weekend.",
+        "countdown": "Days until the next race start, date, time and season progress.",
         "weather": "Cached forecast for the next race venue.",
-        "flags": "Flags of the upcoming race countries.",
-        "combo": "Countdown and next races together.",
-        "track": "Outline of the next race circuit."
+        "flags": "The next three races with dates; flags on colour displays.",
+        "track": "Circuit map, race name, date and start time."
       },
       "weatherNote": "Weather data by Open-Meteo.com (CC BY 4.0)",
       "trackNote": "Track art CC BY 4.0, see",

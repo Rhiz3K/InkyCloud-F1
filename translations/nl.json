@@ -81,7 +81,7 @@
   "api_docs_teams_credits": "Bronvermelding en licenties van de afbeelding (circuittekeningen CC BY 4.0, weergegevens van Open-Meteo CC BY 4.0): zie Credits. Antwoorden bevatten ook een Link-header met rel=\"license\".",
   "api_docs_display_desc": "Uitvoermodus van het display",
   "api_docs_teams_year_desc": "Seizoensjaar voor teamdata",
-  "api_docs_teams_extra_desc": "Optioneel paneel: none (standaard), timeline, countdown, weather, flags, combo, track. Gebruikt lokale seizoensgegevens en weer uit de cache; niet-beschikbare panelen worden weggelaten.",
+  "api_docs_teams_extra_desc": "Optioneel paneel: none (standaard), countdown, flags, track, weather. Gebruikt lokale seizoensgegevens en weer uit de cache; niet-beschikbare panelen worden weggelaten.",
   "api_docs_teams_json_desc": "Alle teams met coureurs en punten voor een seizoen ophalen (JSON)",
   "api_docs_standings_leader_desc": "Huidige kampioenschapsleiders ophalen (coureur en constructeur)",
   "nav_home": "Home",
@@ -196,21 +196,17 @@
       "label": "Paneel in lege plek",
       "options": {
         "none": "Geen",
-        "timeline": "Tijdlijn",
         "countdown": "Aftellen",
         "weather": "Weer",
-        "flags": "Vlaggen",
-        "combo": "Combinatie",
+        "flags": "Volgende 3 races",
         "track": "Circuit"
       },
       "hints": {
         "none": "De lege plek blijft leeg.",
-        "timeline": "Seizoensverloop met verreden en komende races.",
-        "countdown": "Dagen tot het volgende raceweekend.",
+        "countdown": "Dagen tot de volgende racestart, datum, tijd en seizoensvoortgang.",
         "weather": "Opgeslagen weersverwachting voor de volgende racelocatie.",
-        "flags": "Vlaggen van de landen van de komende races.",
-        "combo": "Aftellen en volgende races samen.",
-        "track": "Omtrek van het circuit van de volgende race."
+        "flags": "De volgende drie races met datums; vlaggen op kleurenschermen.",
+        "track": "Circuitkaart, racenaam, datum en starttijd."
       },
       "weatherNote": "Weergegevens door Open-Meteo.com (CC BY 4.0)",
       "trackNote": "Circuitafbeeldingen CC BY 4.0, zie",

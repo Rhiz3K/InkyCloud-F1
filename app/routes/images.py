@@ -892,7 +892,10 @@ async def get_teams_bmp(
     year: int | None = Query(default=None, description="Season year"),
     extra: Annotated[
         TeamsExtra,
-        Query(description="Teams panel: none, timeline, countdown, weather, flags, combo, track"),
+        Query(
+            description="Teams panel: none, countdown, flags (next 3 races), track, weather; "
+            "timeline/combo alias countdown"
+        ),
     ] = TeamsExtra.NONE,
     display: str = Query(
         default="1bit",

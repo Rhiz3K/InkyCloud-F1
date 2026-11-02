@@ -339,7 +339,10 @@ async def get_configure_preview_png(
     weather_type: str = Query(default="off"),
     extra: Annotated[
         TeamsExtra,
-        Query(description="Teams panel: none, timeline, countdown, weather, flags, combo, track"),
+        Query(
+            description="Teams panel: none, countdown, flags (next 3 races), track, weather; "
+            "timeline/combo alias countdown"
+        ),
     ] = TeamsExtra.NONE,
     display: str = Query(default="1bit"),
     track_style: TrackStyle = TrackStyle.RELIEF,

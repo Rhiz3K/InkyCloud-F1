@@ -81,7 +81,7 @@
   "api_docs_teams_credits": "Attribution et licences de l'image (tracés des circuits CC BY 4.0, météo Open-Meteo CC BY 4.0) : voir Credits. Les réponses comportent aussi un en-tête Link avec rel=\"license\".",
   "api_docs_display_desc": "Mode de sortie de l'écran",
   "api_docs_teams_year_desc": "Année de saison pour les données des équipes",
-  "api_docs_teams_extra_desc": "Panneau facultatif : none (par défaut), timeline, countdown, weather, flags, combo, track. Utilise les données locales de la saison et la météo en cache ; les panneaux indisponibles sont masqués.",
+  "api_docs_teams_extra_desc": "Panneau facultatif : none (par défaut), countdown, flags, track, weather. Utilise les données locales de la saison et la météo en cache ; les panneaux indisponibles sont masqués.",
   "api_docs_teams_json_desc": "Obtenir toutes les équipes avec pilotes et points pour une saison (JSON)",
   "api_docs_standings_leader_desc": "Obtenir les leaders actuels du championnat (pilote et constructeur)",
   "nav_home": "Accueil",
@@ -196,21 +196,17 @@
       "label": "Panneau dans l'emplacement libre",
       "options": {
         "none": "Aucun",
-        "timeline": "Chronologie",
         "countdown": "Compte à rebours",
         "weather": "Météo",
-        "flags": "Drapeaux",
-        "combo": "Combiné",
+        "flags": "3 prochaines courses",
         "track": "Circuit"
       },
       "hints": {
         "none": "L'emplacement libre reste vide.",
-        "timeline": "Avancement de la saison avec courses passées et à venir.",
-        "countdown": "Jours restants avant le prochain week-end de course.",
+        "countdown": "Jours avant la prochaine course, date, heure et progression de la saison.",
         "weather": "Prévisions en cache pour le lieu de la prochaine course.",
-        "flags": "Drapeaux des pays des prochaines courses.",
-        "combo": "Compte à rebours et prochaines courses ensemble.",
-        "track": "Tracé du circuit de la prochaine course."
+        "flags": "Les trois prochaines courses avec dates ; drapeaux sur les écrans couleur.",
+        "track": "Tracé du circuit, nom de la course, date et heure du départ."
       },
       "weatherNote": "Données météo par Open-Meteo.com (CC BY 4.0)",
       "trackNote": "Illustrations des circuits CC BY 4.0, voir",

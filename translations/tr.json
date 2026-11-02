@@ -81,7 +81,7 @@
   "api_docs_teams_credits": "Görsel atıfları ve lisansları (pist çizimleri CC BY 4.0, Open-Meteo hava durumu CC BY 4.0): Credits sayfasına bakın. Yanıtlar ayrıca rel=\"license\" içeren bir Link başlığı taşır.",
   "api_docs_display_desc": "Ekran çıktı modu",
   "api_docs_teams_year_desc": "Takım verileri için sezon yılı",
-  "api_docs_teams_extra_desc": "İsteğe bağlı panel: none (varsayılan), timeline, countdown, weather, flags, combo, track. Yerel sezon verilerini ve önbellekteki hava durumunu kullanır; kullanılamayan paneller gösterilmez.",
+  "api_docs_teams_extra_desc": "İsteğe bağlı panel: none (varsayılan), countdown, flags, track, weather. Yerel sezon verilerini ve önbellekteki hava durumunu kullanır; kullanılamayan paneller gösterilmez.",
   "api_docs_teams_json_desc": "Bir sezon için tüm takımları sürücüler ve puanlarla birlikte getir (JSON)",
   "api_docs_standings_leader_desc": "Güncel şampiyona liderlerini getir (sürücü ve takım)",
   "nav_home": "Ana Sayfa",
@@ -196,21 +196,17 @@
       "label": "Boş alandaki panel",
       "options": {
         "none": "Yok",
-        "timeline": "Zaman çizelgesi",
         "countdown": "Geri sayım",
         "weather": "Hava durumu",
-        "flags": "Bayraklar",
-        "combo": "Kombine",
+        "flags": "Sonraki 3 yarış",
         "track": "Pist"
       },
       "hints": {
         "none": "Boş alan boş bırakılır.",
-        "timeline": "Geçmiş ve gelecek yarışlarla sezon ilerlemesi.",
-        "countdown": "Bir sonraki yarış hafta sonuna kalan gün sayısı.",
+        "countdown": "Sonraki yarışın başlangıcına kalan gün, tarih, saat ve sezon ilerlemesi.",
         "weather": "Bir sonraki yarış yeri için önbelleğe alınmış tahmin.",
-        "flags": "Yaklaşan yarış ülkelerinin bayrakları.",
-        "combo": "Geri sayım ve sonraki yarışlar bir arada.",
-        "track": "Bir sonraki yarış pistinin taslağı."
+        "flags": "Tarihleriyle sonraki üç yarış; renkli ekranlarda bayraklar.",
+        "track": "Pist haritası, yarış adı, tarih ve başlangıç saati."
       },
       "weatherNote": "Hava durumu verileri: Open-Meteo.com (CC BY 4.0)",
       "trackNote": "Pist görselleri CC BY 4.0, bkz.",

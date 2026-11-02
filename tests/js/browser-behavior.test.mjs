@@ -392,7 +392,7 @@ function teamsUrlContext(state = {}) {
     const replaced = [];
     // Minimal <select>: assigning an unknown value deselects (selectedIndex -1), like the DOM.
     const selects = ["desktop", "mobile"].map((variant) => {
-        const options = ["none", "timeline", "countdown", "weather", "flags", "combo", "track"]
+        const options = ["none", "countdown", "flags", "track", "weather"]
             .map((value) => ({value, dataset: {hint: `hint-${value}-${variant}`}}));
         return {
             options, selectedIndex: 0,
@@ -414,7 +414,7 @@ function teamsUrlContext(state = {}) {
             querySelectorAll(selector) {return selector === ".teams-extra-select" ? selects : notes[selector] || [];},
         },
         updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
-        TEAMS_EXTRA_OPTIONS: ["none", "timeline", "countdown", "weather", "flags", "combo", "track"],
+        TEAMS_EXTRA_OPTIONS: ["none", "countdown", "flags", "track", "weather"],
         currentScreenType: "teams", currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none", ...state,
     });
@@ -435,13 +435,13 @@ test("teams URLs stay byte-identical when the extra panel is none", () => {
     assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/preview/configure/teams.png?lang=cs&display=bwr");
 });
 
-for (const extra of ["timeline", "countdown", "weather", "flags", "combo", "track"]) {
-    test(`teams extra=${extra} is in the API URL and forces the live preview`, () => {
+for (const extra of ["countdown", "flags", "track", "weather"]) {
+    test(`teams extra=${extra} is in the API URL and uses the dynamic PNG preview`, () => {
         const {ctx} = teamsUrlContext({currentTeamsExtra: extra, currentDisplayType: "spectra6"});
         const api = `https://racing.example.org/teams.bmp?year=2026&display=spectra6&extra=${extra}`;
         assert.equal(ctx.getApiUrl(), api);
-        assert.equal(ctx.canUsePrerenderedPreview(), false);
-        assert.equal(ctx.getPreviewUrl(), api);
+        assert.equal(ctx.canUsePrerenderedPreview(), true);
+        assert.equal(ctx.getPreviewUrl(), `https://racing.example.org/preview/configure/teams.png?display=spectra6&extra=${extra}`);
     });
 }
 
@@ -474,13 +474,13 @@ test("setTeamsExtra updates state, selects, notes and the page URL", () => {
 
 test("selectTeamsExtra applies the changed select's this.value", () => {
     const {ctx, replaced, selects, notes} = teamsUrlContext();
-    selects[0].value = "combo";
+    selects[0].value = "flags";
     ctx.selectTeamsExtra.call(selects[0]);
-    assert.equal(ctx.currentTeamsExtra, "combo");
-    assert.deepEqual(selects.map((s) => s.value), ["combo", "combo"]);
-    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-combo-mobile");
+    assert.equal(ctx.currentTeamsExtra, "flags");
+    assert.deepEqual(selects.map((s) => s.value), ["flags", "flags"]);
+    assert.equal(notes[".teams-extra-hint"][0].textContent, "hint-flags-mobile");
     assert.equal(ctx.previewUpdates, 1);
-    assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?extra=combo"]);
+    assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?extra=flags"]);
 });
 
 test("a change on data-on-change=selectTeamsExtra reaches setTeamsExtra via the delegated dispatcher", () => {
@@ -513,4 +513,24 @@ test("?extra=track initialises both selects and the hint without refreshing the 
     assert.equal(notes[".teams-extra-note-track"][0].classList.has("hidden"), false);
     assert.equal(ctx.previewUpdates, 0);
     assert.deepEqual(replaced, []);
+});
+
+for (const legacy of ["timeline", "combo"]) {
+    test(`legacy ${legacy} links initialise the consolidated countdown`, () => {
+        const {ctx, selects} = teamsUrlContext({URLSearchParams});
+        ctx.window.location.search = `?extra=${legacy}`;
+        const template = readFileSync("app/templates/configure.html", "utf8");
+        vm.runInContext(templateFunction(template, "initTrackOptions"), ctx);
+        ctx.initTrackOptions();
+        ctx.setTeamsExtra(ctx.currentTeamsExtra, false);
+        assert.equal(ctx.currentTeamsExtra, "countdown");
+        assert.deepEqual(selects.map(s => s.value), ["countdown", "countdown"]);
+        assert.match(ctx.getApiUrl(), /extra=countdown$/);
+    });
+}
+
+test("historical teams still use the year-specific BMP preview", () => {
+    const {ctx} = teamsUrlContext({selectedTeamsYear: 2025, currentTeamsExtra: "track"});
+    assert.equal(ctx.canUsePrerenderedPreview(), false);
+    assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/teams.bmp?year=2025&extra=track");
 });

@@ -81,7 +81,7 @@
   "api_docs_teams_credits": "Bildnachweise und Lizenzen (Streckengrafiken CC BY 4.0, Open-Meteo-Wetterdaten CC BY 4.0): siehe Credits. Antworten enthalten außerdem einen Link-Header mit rel=\"license\".",
   "api_docs_display_desc": "Ausgabemodus des Displays",
   "api_docs_teams_year_desc": "Saisonjahr für Teamdaten",
-  "api_docs_teams_extra_desc": "Optionales Panel: none (Standard), timeline, countdown, weather, flags, combo, track. Verwendet lokale Saisondaten und zwischengespeichertes Wetter; nicht verfügbare Panels werden ausgeblendet.",
+  "api_docs_teams_extra_desc": "Optionales Panel: none (Standard), countdown, flags, track, weather. Verwendet lokale Saisondaten und zwischengespeichertes Wetter; nicht verfügbare Panels werden ausgeblendet.",
   "api_docs_teams_json_desc": "Alle Teams mit Fahrern und Punkten für eine Saison abrufen (JSON)",
   "api_docs_standings_leader_desc": "Aktuelle Meisterschaftsführende abrufen (Fahrer und Konstrukteur)",
   "nav_home": "Start",
@@ -196,21 +196,17 @@
       "label": "Panel im freien Platz",
       "options": {
         "none": "Keins",
-        "timeline": "Zeitleiste",
         "countdown": "Countdown",
         "weather": "Wetter",
-        "flags": "Flaggen",
-        "combo": "Kombi",
+        "flags": "Nächste 3 Rennen",
         "track": "Strecke"
       },
       "hints": {
         "none": "Der freie Platz bleibt leer.",
-        "timeline": "Saisonverlauf mit vergangenen und kommenden Rennen.",
-        "countdown": "Tage bis zum nächsten Rennwochenende.",
+        "countdown": "Tage bis zum nächsten Rennstart, Datum, Uhrzeit und Saisonfortschritt.",
         "weather": "Gespeicherte Vorhersage für den nächsten Rennort.",
-        "flags": "Flaggen der kommenden Rennländer.",
-        "combo": "Countdown und nächste Rennen zusammen.",
-        "track": "Umriss der nächsten Rennstrecke."
+        "flags": "Die nächsten drei Rennen mit Datum; Flaggen auf Farbdisplays.",
+        "track": "Streckenkarte, Rennname, Datum und Startzeit."
       },
       "weatherNote": "Wetterdaten von Open-Meteo.com (CC BY 4.0)",
       "trackNote": "Streckengrafik CC BY 4.0, siehe",

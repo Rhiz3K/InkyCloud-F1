@@ -23,12 +23,17 @@ class TeamsExtra(StrEnum):
     """Available optional panel contents."""
 
     NONE = "none"
-    TIMELINE = "timeline"
     COUNTDOWN = "countdown"
-    WEATHER = "weather"
     FLAGS = "flags"
-    COMBO = "combo"
     TRACK = "track"
+    WEATHER = "weather"
+
+    @classmethod
+    def _missing_(cls, value: object) -> "TeamsExtra | None":
+        """Keep previously copied timeline/combo URLs on the consolidated countdown."""
+        if value in ("timeline", "combo"):
+            return cls.COUNTDOWN
+        return None
 
 
 @dataclass(frozen=True)
@@ -111,7 +116,7 @@ def build_teams_extra_context(
                 canonical_circuit_id(r.Circuit.circuitId), r.Circuit.Location.country[:3].upper()
             ),
             get_country_flag_iso_code(r.Circuit.Location.country, COUNTRY_MAP) or None,
-            date.fromisoformat(r.date),
+            _start(r).astimezone(zone).date(),
             _start(r) <= now,
         )
         for r in races

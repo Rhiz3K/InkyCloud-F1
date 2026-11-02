@@ -81,7 +81,7 @@
   "api_docs_teams_credits": "Atribuce a licence obrázku (kresby tratí CC BY 4.0, počasí Open-Meteo CC BY 4.0): viz Credits. Odpovědi obsahují i hlavičku Link s rel=\"license\".",
   "api_docs_display_desc": "Režim výstupu pro displej",
   "api_docs_teams_year_desc": "Rok sezóny pro data týmů",
-  "api_docs_teams_extra_desc": "Volitelný panel: none (výchozí), timeline, countdown, weather, flags, combo, track. Používá místní data sezóny a počasí z mezipaměti; nedostupný panel se nezobrazí.",
+  "api_docs_teams_extra_desc": "Volitelný panel: none (výchozí), countdown, flags, track, weather. Používá místní data sezóny a počasí z mezipaměti; nedostupný panel se nezobrazí.",
   "api_docs_teams_json_desc": "Získat všechny týmy s jezdci a body pro sezónu (JSON)",
   "api_docs_standings_leader_desc": "Získat aktuální lídry šampionátu (jezdec a konstruktér)",
   "nav_home": "Domů",
@@ -196,21 +196,17 @@
       "label": "Panel ve volném místě",
       "options": {
         "none": "Žádný",
-        "timeline": "Časová osa",
         "countdown": "Odpočet",
         "weather": "Počasí",
-        "flags": "Vlajky",
-        "combo": "Kombinace",
+        "flags": "Další 3 závody",
         "track": "Trať"
       },
       "hints": {
         "none": "Volné místo zůstane prázdné.",
-        "timeline": "Průběh sezóny s odjetými a nadcházejícími závody.",
-        "countdown": "Počet dní do dalšího závodního víkendu.",
+        "countdown": "Dny do startu dalšího závodu, datum, čas a průběh sezóny.",
         "weather": "Uložená předpověď pro místo dalšího závodu.",
-        "flags": "Vlajky zemí nadcházejících závodů.",
-        "combo": "Odpočet a nejbližší závody dohromady.",
-        "track": "Obrys okruhu dalšího závodu."
+        "flags": "Tři nejbližší závody s daty; vlajky na barevných displejích.",
+        "track": "Mapa okruhu, název závodu, datum a čas startu."
       },
       "weatherNote": "Data o počasí od Open-Meteo.com (CC BY 4.0)",
       "trackNote": "Grafika tratí CC BY 4.0, viz",

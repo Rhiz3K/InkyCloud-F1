@@ -197,3 +197,40 @@ async def test_license_headers(routes, extra, monkeypatch):
         )
         calendar = await client.get("/calendar.bmp")
         assert 'rel="license"' not in calendar.headers.get("Link", "")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("legacy", ["timeline", "combo"])
+@pytest.mark.parametrize("path", ["/teams.bmp", "/preview/configure/teams.png"])
+async def test_legacy_panel_urls_share_countdown_output_and_cache(routes, legacy, path):
+    """Old links select the new countdown without duplicate cache entries or 422s."""
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        canonical = await client.get(path, params={"extra": "countdown"})
+        old = await client.get(path, params={"extra": legacy})
+    assert canonical.status_code == old.status_code == 200
+    assert canonical.content == old.content
+    assert canonical.headers["etag"] == old.headers["etag"]
+
+
+@pytest.mark.parametrize(
+    "lang", ["cs", "de", "en", "es", "fr", "it", "ja", "nl", "pl", "pt-BR", "sk", "tr", "zh-CN"]
+)
+def test_configurator_exposes_only_five_localized_choices(lang):
+    """Both real selects offer the same five translated labels and hints."""
+    from bs4 import BeautifulSoup
+
+    from app.services.i18n import get_translator
+    from app.web.templates import templates
+
+    rendered = templates.env.get_template("configure/_teams_sidebar.html").render(
+        t=get_translator(lang), lang_url=lambda path: path
+    )
+    soup = BeautifulSoup(rendered, "html.parser")
+    selects = soup.select(".teams-extra-select")
+    assert len(selects) == 2
+    for select in selects:
+        options = select.select("option")
+        assert [option["value"] for option in options] == [extra.value for extra in TeamsExtra]
+        assert all(
+            option.get_text(strip=True) and option["data-hint"].strip() for option in options
+        )

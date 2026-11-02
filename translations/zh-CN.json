@@ -81,7 +81,7 @@
   "api_docs_teams_credits": "图片署名与许可（赛道图稿 CC BY 4.0，Open-Meteo 天气数据 CC BY 4.0）：参见 Credits。响应还包含带 rel=\"license\" 的 Link 标头。",
   "api_docs_display_desc": "显示输出模式",
   "api_docs_teams_year_desc": "车队数据的赛季年份",
-  "api_docs_teams_extra_desc": "可选面板：none（默认）、timeline、countdown、weather、flags、combo、track。仅使用本地赛季数据和缓存天气；不可用时不显示面板。",
+  "api_docs_teams_extra_desc": "可选面板：none（默认）、countdown、flags、track、weather。仅使用本地赛季数据和缓存天气；不可用时不显示面板。",
   "api_docs_teams_json_desc": "获取某赛季所有车队及车手和积分（JSON）",
   "api_docs_standings_leader_desc": "获取当前锦标赛领先者（车手和车队）",
   "nav_home": "首页",
@@ -196,21 +196,17 @@
       "label": "空位面板",
       "options": {
         "none": "无",
-        "timeline": "时间线",
         "countdown": "倒计时",
         "weather": "天气",
-        "flags": "国旗",
-        "combo": "组合",
+        "flags": "接下来3场比赛",
         "track": "赛道"
       },
       "hints": {
         "none": "空位保持空白。",
-        "timeline": "显示已完成和即将进行的分站的赛季进度。",
-        "countdown": "距下一个比赛周末的天数。",
+        "countdown": "距离下一场正赛的天数、日期、开始时间和赛季进度。",
         "weather": "下一站比赛地点的缓存天气预报。",
-        "flags": "即将举行比赛的国家国旗。",
-        "combo": "倒计时与接下来的比赛合并显示。",
-        "track": "下一站赛道的轮廓。"
+        "flags": "接下来三场比赛及日期；彩色屏幕显示国旗。",
+        "track": "赛道图、比赛名称、日期和开始时间。"
       },
       "weatherNote": "天气数据来自 Open-Meteo.com (CC BY 4.0)",
       "trackNote": "赛道图形 CC BY 4.0，详见",

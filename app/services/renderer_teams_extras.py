@@ -17,6 +17,7 @@ from app.services.renderer_assets import prepare_color_track_image, prepare_mono
 from app.services.renderer_calendar import _countdown_plural_category
 from app.services.renderer_theme import Fill, RenderTheme
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext
+from app.services.track_catalog import TrackOptions, TrackStyle
 from app.services.track_renderer import render_track_image
 from app.services.weather_service import RAINDROP_ICON
 
@@ -99,7 +100,7 @@ def _flag(theme: RenderTheme, iso2: str | None) -> Image.Image | None:
         for extension in ("bmp", "png"):
             try:
                 with Image.open(directory / f"{iso2}.{extension}") as source:
-                    return source.convert("RGB").resize((30, 17), Image.Resampling.NEAREST)
+                    return source.convert("RGB").resize((36, 22), Image.Resampling.BOX)
             except OSError, ValueError:
                 continue
     return None
@@ -127,28 +128,11 @@ def draw_teams_extra(
     draw.rectangle(
         (0, 0, width - 1, height - 1), fill=theme.colors.WHITE, outline=theme.team_outline_fill
     )
-    round_label = translator.get("teams_extra_round", "Round")
-    title = _race_line(ctx, translator, draw, lang, width - 10)
-    two_rows = extra == TeamsExtra.TIMELINE and _timeline_two_rows(draw, ctx, lang, width)
-    title_width = width - 10
     if extra == TeamsExtra.WEATHER:
         credit = translator.get("teams_extra_weather_credit", "Open-Meteo")
         bounds = draw.textbbox((0, 0), credit, font=load_ui_font(lang, 12, bold=True))
-        title_width -= int(bounds[2] - bounds[0]) + 8
+        title_width = width - 18 - int(bounds[2] - bounds[0])
         title = _race_line(ctx, translator, draw, lang, title_width)
-    if extra == TeamsExtra.TIMELINE:
-        title = (
-            f"{translator.get('teams_extra_season', 'Season')} {ctx.season} · "
-            f"{round_label} {ctx.next_round}/{ctx.total_rounds}"
-        )
-        if two_rows:
-            prefix = f"{round_label} {ctx.next_round}/{ctx.total_rounds} · "
-            font = load_ui_font(lang, 12, bold=True)
-            prefix_width = int(draw.textlength(prefix, font=font))
-            title = prefix + _race_line(ctx, translator, draw, lang, width - 10 - prefix_width)
-    elif extra == TeamsExtra.FLAGS:
-        title = translator.get("teams_extra_upcoming", "Upcoming races")
-    if extra not in (TeamsExtra.COUNTDOWN, TeamsExtra.COMBO, TeamsExtra.TRACK):
         draw.rectangle((1, 1, width - 2, 22), fill=theme.team_header_fill)
         _text(
             draw,
@@ -159,14 +143,11 @@ def draw_teams_extra(
             theme.team_header_text_fill,
             lang,
             height=17,
-            size=12 if extra == TeamsExtra.WEATHER or two_rows else 16,
+            size=12,
         )
-    if extra == TeamsExtra.TIMELINE:
-        _draw_timeline(panel, draw, theme, ctx, translator=translator, lang=lang)
-    elif extra in (TeamsExtra.COUNTDOWN, TeamsExtra.COMBO):
-        _draw_countdown(panel, draw, theme, ctx, extra, translator=translator, lang=lang)
-    elif extra == TeamsExtra.WEATHER:
         _draw_weather(panel, draw, theme, ctx, translator=translator, lang=lang)
+    elif extra == TeamsExtra.COUNTDOWN:
+        _draw_countdown(panel, draw, theme, ctx, translator=translator, lang=lang)
     elif extra == TeamsExtra.FLAGS:
         _draw_flags(panel, draw, theme, ctx, display=display)
     elif extra == TeamsExtra.TRACK:
@@ -174,152 +155,70 @@ def draw_teams_extra(
     image.paste(panel, (0, 0))
 
 
-def _timeline_two_rows(
-    draw: ImageDraw.ImageDraw, ctx: TeamsExtraContext, lang: str, width: int
-) -> bool:
-    """Keep one clear pixel between the widest round number and each one-pixel outline."""
-    font = load_ui_font(lang, 12, bold=True)
-    widest = max(draw.textbbox((0, 0), str(i), font=font)[2] for i in range(10, 100))
-    return (width - 2) // max(1, len(ctx.rounds)) < widest + 4
-
-
-def _draw_timeline(
-    panel: Image.Image,
-    draw: ImageDraw.ImageDraw,
-    theme: RenderTheme,
-    ctx: TeamsExtraContext,
-    *,
-    translator: dict,
-    lang: str,
-) -> None:
-    """Draw the timeline card body inside the clipped panel."""
-    width, height = panel.size
-    count = max(1, len(ctx.rounds))
-    two_rows = _timeline_two_rows(draw, ctx, lang, width)
-    per_row = (count + 1) // 2 if two_rows else count
-    for index, race in enumerate(ctx.rounds):
-        row, column = divmod(index, per_row)
-        top = 24 + row * (height - 27) // 2 if two_rows else 25
-        bottom = 24 + (row + 1) * (height - 27) // 2 if two_rows else 43
-        x = 1 + column * (width - 2) // per_row
-        right = 1 + (column + 1) * (width - 2) // per_row
-        active = race.round == ctx.next_round
-        draw.rectangle(
-            (x, top, right - 1, bottom),
-            fill=theme.team_header_fill if active else theme.colors.WHITE,
-            outline=theme.team_outline_fill,
-        )
-        _text(
-            draw,
-            str(race.round),
-            x + 1,
-            top,
-            right - x - 2,
-            theme.team_header_text_fill if active else theme.text_fill,
-            lang,
-            size=12,
-            height=bottom - top + 1,
-            centered=True,
-        )
-    if two_rows:
-        return
-    _text(
-        draw,
-        _race_line(ctx, translator, draw, lang, width - 10),
-        5,
-        47,
-        width - 10,
-        theme.text_fill,
-        lang,
-        size=12,
-        height=12,
-    )
-
-
 def _draw_countdown(
     panel: Image.Image,
     draw: ImageDraw.ImageDraw,
     theme: RenderTheme,
     ctx: TeamsExtraContext,
-    extra: TeamsExtra,
     *,
     translator: dict,
     lang: str,
 ) -> None:
-    """Draw the countdown card body inside the clipped panel."""
+    """Prioritise the next race and start alongside a compact day countdown."""
     width, height = panel.size
-    combo = extra == TeamsExtra.COMBO
-    split = 148
-    draw.rectangle((3, 3, split, height - 4), fill=theme.team_header_fill)
+    split = 112
+    draw.rectangle((4, 4, split, height - 5), fill=theme.team_header_fill)
     _text(
         draw,
         _countdown(ctx, translator, lang),
         9,
-        10,
-        split - 15,
+        7,
+        split - 14,
         theme.team_header_text_fill,
         lang,
         size=28,
-        height=30,
+        min_size=14,
+        height=height - 14,
+        centered=True,
     )
-    if combo:
-        _text(
-            draw,
-            ctx.race_name,
-            9,
-            43,
-            split - 15,
-            theme.team_header_text_fill,
-            lang,
-            size=12,
-            height=13,
-        )
-        done = sum(r.done for r in ctx.rounds)
-        detail = (
-            f"{translator.get('teams_extra_remaining', 'remaining')}: "
-            f"{ctx.total_rounds - done} · {done}/{ctx.total_rounds} "
-            f"{translator.get('teams_extra_done', 'completed')}"
-        )
-        _text(draw, detail, split + 9, 8, width - split - 15, theme.text_fill, lang, size=12)
-        for i, race in enumerate([r for r in ctx.rounds if not r.done][:5]):
-            x = split + 9 + i * 44
-            active = race.round == ctx.next_round
-            draw.rectangle(
-                (x, 31, x + 37, 54),
-                fill=theme.team_header_fill if active else theme.colors.WHITE,
-                outline=theme.team_outline_fill,
-            )
-            _text(
-                draw,
-                str(race.round),
-                x + 9,
-                36,
-                30,
-                theme.team_header_text_fill if active else theme.text_fill,
-                lang,
-                size=16,
-            )
-    else:
-        _text(
-            draw,
-            ctx.race_name,
-            split + 9,
-            9,
-            width - split - 15,
-            theme.text_fill,
-            lang,
-            size=20,
-            height=23,
-        )
-        _text(
-            draw,
-            _date_time(ctx, translator),
-            split + 9,
-            38,
-            width - split - 15,
-            theme.text_fill,
-            lang,
-            size=14,
+    left = split + 9
+    text_width = width - left - 5
+    _text(
+        draw,
+        ctx.race_name,
+        left,
+        5,
+        text_width,
+        theme.text_fill,
+        lang,
+        size=20,
+        min_size=16,
+        height=22,
+    )
+    _text(
+        draw,
+        _date_time(ctx, translator),
+        left,
+        30,
+        text_width,
+        theme.text_fill,
+        lang,
+        size=16,
+        min_size=14,
+        height=18,
+    )
+    # Distinct monochrome states: filled past, taller next, outlined future.
+    count = max(1, len(ctx.rounds))
+    for index, race in enumerate(ctx.rounds):
+        x = left + index * text_width // count
+        right = left + (index + 1) * text_width // count - 3
+        active = race.round == ctx.next_round
+        draw.rectangle(
+            (x, 50 if active else 53, max(x, right), 57),
+            fill=theme.accent_fill
+            if active
+            else (theme.text_fill if race.done else theme.colors.WHITE),
+            outline=theme.team_outline_fill,
         )
 
 
@@ -377,34 +276,51 @@ def _draw_flags(
 ) -> None:
     """Draw the flags card body inside the clipped panel."""
     width, height = panel.size
-    rounds = [r for r in ctx.rounds if not r.done and r.round >= ctx.next_round][:6]
-    cell = (width - 8) // max(1, len(rounds))
+    rounds = [r for r in ctx.rounds if not r.done and r.round >= ctx.next_round][:3]
+    # Keep the same cell size at the end of the season instead of stretching one flag.
+    cell = (width - 8) // 3
+    start = (width - len(rounds) * cell) // 2
     for i, race in enumerate(rounds):
-        x = 4 + i * cell
+        x = start + i * cell
         active = race.round == ctx.next_round
         inverted = active and display == "1bit"
         foreground = theme.team_header_text_fill if inverted else theme.text_fill
         draw.rectangle(
-            (x, 25, x + cell - 3, height - 4),
+            (x, 4, x + cell - 4, height - 5),
             fill=theme.team_header_fill if inverted else theme.colors.WHITE,
             outline=theme.accent_fill if active else theme.team_outline_fill,
             width=2 if active else 1,
         )
         flag = _flag(theme, race.iso2) if display != "1bit" else None
         if flag is not None:
-            panel.paste(flag.convert(panel.mode), (x + (cell - 2 - 30) // 2, 28))
+            panel.paste(flag.convert(panel.mode), (x + 10, 8))
+        code_left = x + 52 if flag is not None else x + 4
+        code_width = cell - 60 if flag is not None else cell - 12
         _text(
             draw,
             race.code,
-            x + 3,
-            47 if flag is not None else 28,
-            cell - 8,
+            code_left,
+            7,
+            code_width,
             foreground,
             "en",
-            size=12 if flag is not None else 26,
-            height=height - 51 if flag is not None else height - 35,
+            size=22 if display != "1bit" else 26,
+            min_size=22,
+            height=24,
             centered=True,
-            min_size=12 if flag is not None else 14,
+        )
+        _text(
+            draw,
+            race.date.strftime("%d.%m."),
+            x + 4,
+            35,
+            cell - 12,
+            foreground,
+            "en",
+            size=16,
+            min_size=16,
+            height=19,
+            centered=True,
         )
 
 
@@ -420,15 +336,15 @@ def _draw_track(
 ) -> None:
     """Draw the track card body inside the clipped panel."""
     width, height = panel.size
-    lines = [(ctx.race_name, 16), (ctx.circuit_name, 12), (_date_time(ctx, translator), 12)]
-    bounds = [
-        draw.textbbox((0, 0), text, font=load_ui_font(lang, size, bold=True))
-        for text, size in lines
-    ]
-    text_width = min(max(int(box[2] - box[0]) for box in bounds), width - 10 - 8 - 120)
-    line_heights = [int(box[3] - box[1]) for box in bounds]
-    y = (height - sum(line_heights) - 4) // 2
-    for (text, size), line_height in zip(lines, line_heights, strict=True):
+    # Stable columns and baselines keep the map from moving with each circuit name.
+    map_width, map_height = 120, height - 8
+    map_left = width - map_width - 4
+    text_width = map_left - 13
+    for text, size, y, line_height in (
+        (ctx.race_name, 18, 5, 20),
+        (ctx.circuit_name, 14, 25, 17),
+        (_date_time(ctx, translator), 14, 43, 15),
+    ):
         _text(
             draw,
             text,
@@ -441,22 +357,22 @@ def _draw_track(
             min_size=size,
             height=line_height,
         )
-        y += line_height + 2
-    left, top, right, bottom = 5 + text_width + 8, 3, width - 4, height - 4
-    box_width, box_height = right - left, bottom - top
     try:
+        # The artwork renderer requires at least 64px in both axes; use a clean
+        # outline at 2x and the shared stroke-preserving downsampler for this slot.
         track = render_track_image(
-            {"circuit": {"circuitId": ctx.circuit_id}}, width=240, height=110, display=display
+            {"circuit": {"circuitId": ctx.circuit_id}},
+            width=map_width * 2,
+            height=map_height * 2,
+            display=display,
+            options=TrackOptions(style=TrackStyle.CLEAN),
         )
         if track is not None:
             track = (
-                prepare_mono_track_image(track, box_width, box_height, logger)
+                prepare_mono_track_image(track, map_width, map_height, logger)
                 if display == "1bit"
-                else prepare_color_track_image(track, box_width, box_height)
+                else prepare_color_track_image(track, map_width, map_height)
             )
-            panel.paste(
-                track.convert(panel.mode),
-                (left + (box_width - track.width) // 2, top + (box_height - track.height) // 2),
-            )
+            panel.paste(track.convert(panel.mode), (map_left, 4))
     except OSError, ValueError, RuntimeError:
         logger.warning("Unable to render teams extra track %s", ctx.circuit_id, exc_info=True)

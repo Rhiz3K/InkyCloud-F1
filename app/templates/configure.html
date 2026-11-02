@@ -497,7 +497,7 @@ block content %}
   let activeContinent = "ALL";
   let selectedTeamsYear = null;
   let leaderData = {};
-  const TEAMS_EXTRA_OPTIONS = ["none", "timeline", "countdown", "weather", "flags", "combo", "track"];
+  const TEAMS_EXTRA_OPTIONS = ["none", "countdown", "flags", "track", "weather"];
   let currentTeamsExtra = "none";
 
   function initScreenTypeVisibility() {
@@ -1046,7 +1046,8 @@ block content %}
     const query = new URLSearchParams(window.location.search);
     const display = query.get("display");
     if (["1bit", "bwr", "bwry", "spectra6"].includes(display)) currentDisplayType = display;
-    const extra = query.get("extra");
+    let extra = query.get("extra");
+    if (extra === "timeline" || extra === "combo") extra = "countdown";
     if (TEAMS_EXTRA_OPTIONS.includes(extra)) currentTeamsExtra = extra;
     for (const field of ["style", "source", "accent"]) {
       const control = document.getElementById(`track-${field}`);
@@ -1070,8 +1071,8 @@ block content %}
       const isDefaultTz = !selectedTz || selectedTz === defaultTimezone;
       return !selectedYear && !selectedRound && !selectedRaceKey && isDefaultTz;
     } else if (currentScreenType === "teams") {
-      // Pre-rendered teams previews only exist for the default (empty) slot.
-      return selectedTeamsYear === getCurrentSeason() && currentTeamsExtra === "none";
+      // The PNG endpoint renders optional panels on demand for the current season.
+      return selectedTeamsYear === getCurrentSeason();
     }
     return false;
   }
@@ -1838,6 +1839,7 @@ block content %}
   }
 
   function setTeamsExtra(extra, refresh = true) {
+    if (extra === "timeline" || extra === "combo") extra = "countdown";
     if (!TEAMS_EXTRA_OPTIONS.includes(extra)) extra = "none";
     currentTeamsExtra = extra;
     if (refresh) {

@@ -198,7 +198,7 @@ def test_missing_flags_and_track(ctx, monkeypatch, tmp_path):
         translator={},
         lang="en",
     )
-    assert image.getpixel((4, 25)) != (255, 255, 255)
+    assert image.getpixel((5, 25)) != (255, 255, 255)
     monkeypatch.setattr(panels, "render_track_image", Mock(side_effect=ValueError("bad map")))
     panels.draw_teams_extra(
         image,
@@ -230,14 +230,14 @@ def test_cancelled_and_fallback_codes(monkeypatch):
 
 
 def test_completed_rounds_and_real_colour_flags(ctx, monkeypatch, tmp_path):
-    """Render completed timeline digits and upcoming colour flags without strikes."""
+    """Render season progress and upcoming colour flags without strikes."""
     first = replace(ctx.rounds[0], done=True, iso2="xx")
     second = replace(ctx.rounds[1], iso2="xx")
     context = replace(ctx, rounds=(first, second), next_round=2)
     renderer = create_renderer("spectra6", {}, "en")
     Image.new("RGB", (30, 17), "red").save(tmp_path / "xx.bmp")
     theme = replace(renderer.theme, flags_directories=lambda: tmp_path)
-    for extra in (TeamsExtra.TIMELINE, TeamsExtra.FLAGS, TeamsExtra.COMBO):
+    for extra in (TeamsExtra.COUNTDOWN, TeamsExtra.FLAGS):
         image = Image.new("RGB", (394, 61), "white")
         panels.draw_teams_extra(
             image,
@@ -320,7 +320,7 @@ def test_local_start_and_long_race_line(ctx, lang):
 
 @pytest.mark.parametrize("display", ["1bit", "bwr", "bwry", "spectra6"])
 def test_upcoming_flags_and_track_resolution(ctx, display, monkeypatch):
-    """Exclude completed flags and request track artwork at twice the fitted size."""
+    """Show three upcoming dates and fit clean artwork into a fixed map column."""
     renderer = create_renderer(display, {}, "en")
     context = replace(
         ctx, next_round=2, rounds=(replace(ctx.rounds[0], done=True), *ctx.rounds[1:])
@@ -346,7 +346,8 @@ def test_upcoming_flags_and_track_resolution(ctx, display, monkeypatch):
         lang="en",
     )
     assert ctx.rounds[0].code not in texts
-    assert [r.code for r in context.rounds[1:7]] == texts[1:]
+    assert [r.code for r in context.rounds[1:4]] == texts[::2]
+    assert [r.date.strftime("%d.%m.") for r in context.rounds[1:4]] == texts[1::2]
     track = Mock(return_value=Image.new("RGB", (220, 100), "white"))
     monkeypatch.setattr(panels, "render_track_image", track)
     panels.draw_teams_extra(
@@ -359,8 +360,9 @@ def test_upcoming_flags_and_track_resolution(ctx, display, monkeypatch):
         translator={},
         lang="en",
     )
-    assert track.call_args.kwargs["width"] >= 212
-    assert track.call_args.kwargs["height"] >= 100
+    assert track.call_args.kwargs["width"] == 240
+    assert track.call_args.kwargs["height"] == 106
+    assert track.call_args.kwargs["options"].style == "clean"
     assert panels._date_time(context, {}) in texts
 
 
@@ -368,7 +370,7 @@ def test_upcoming_flags_and_track_resolution(ctx, display, monkeypatch):
 @pytest.mark.parametrize("display", ["1bit", "spectra6"])
 @pytest.mark.parametrize("round_count", [22, 23, 24])
 def test_panel_content_geometry(ctx, lang, display, monkeypatch, round_count):
-    """Keep digits separated, flags centred, and weather text clear of its icon."""
+    """Keep weather text centred and clear of its icon and attribution."""
     renderer = create_renderer(display, get_translator(lang), lang)
     context = replace(
         ctx,
@@ -405,42 +407,6 @@ def test_panel_content_geometry(ctx, lang, display, monkeypatch, round_count):
         )
         return image
 
-    render(TeamsExtra.TIMELINE)
-    digits = labels[1 : round_count + 1]
-    per_row = (round_count + 1) // 2
-    for index, (text, box, font) in enumerate(digits):
-        left = 1 + (index % per_row) * 392 // per_row
-        right = 1 + (index % per_row + 1) * 392 // per_row
-        assert text == str(index + 1)
-        assert font.size >= 12
-        assert abs((box[0] + box[2]) - (left + right)) <= 1
-        assert box[0] >= left + 1
-        assert box[2] <= right - 2
-        top = 24 + (index // per_row) * 34 // 2
-        bottom = 24 + (index // per_row + 1) * 34 // 2
-        assert box[1] >= top + 1
-        assert box[3] <= bottom - 1
-        if index % per_row:
-            assert box[0] - digits[index - 1][1][2] >= 2
-
-    image = render(TeamsExtra.FLAGS)
-    cell = 386 // (round_count - 19)
-    for index, (_, box, font) in enumerate(labels[1:]):
-        left = 4 + index * cell
-        assert abs((box[0] + box[2]) - (2 * left + cell - 2)) <= 1
-        assert box[3] <= 56
-        if display == "1bit":
-            assert font.size >= 14
-            assert abs(box[1] + box[3] - 82) <= 1
-        else:
-            assert box[1] >= 47
-            flag_left = left + (cell - 2 - 30) // 2
-            assert image.getpixel((flag_left, 28)) == (255, 0, 0)
-            assert image.getpixel((flag_left + 29, 44)) == (255, 0, 0)
-    if display == "spectra6":
-        assert image.getpixel((5, 26)) == renderer.theme.accent_fill
-        assert image.getpixel((6, 27)) == (255, 255, 255)
-
     render(TeamsExtra.WEATHER)
     assert labels[2][1][0] - labels[1][1][2] >= 6
     body = labels[1:5]
@@ -458,7 +424,7 @@ def test_panel_content_geometry(ctx, lang, display, monkeypatch, round_count):
 @pytest.mark.parametrize("display", ["1bit", "bwr", "bwry", "spectra6"])
 @pytest.mark.parametrize("lang", ["en", "ja"])
 def test_track_text_and_map_geometry(ctx, display, lang, monkeypatch):
-    """Place a prepared map centrally to the right of exactly three text labels."""
+    """Keep three text lines clear of the fixed, native-size map column."""
     labels = []
     pasted = []
     original_text = ImageDraw.ImageDraw.text
@@ -478,7 +444,7 @@ def test_track_text_and_map_geometry(ctx, display, lang, monkeypatch):
     monkeypatch.setattr(ImageDraw.ImageDraw, "text", text)
     monkeypatch.setattr(Image.Image, "paste", paste)
     monkeypatch.setattr(
-        panels, "render_track_image", Mock(return_value=Image.new("RGB", (240, 110), "black"))
+        panels, "render_track_image", Mock(return_value=Image.new("RGB", (120, 53), "black"))
     )
     image = Image.new("RGB", (394, 61), "white")
     theme = create_renderer(display, {}, lang).theme
@@ -498,91 +464,86 @@ def test_track_text_and_map_geometry(ctx, display, lang, monkeypatch):
         panels._date_time(ctx, {}),
     ]
     assert all(box[0] == 5 for _, box in labels)
-    assert abs(labels[0][1][1] + labels[-1][1][3] - 61) <= 3
-    font_draw = ImageDraw.Draw(image)
-    column = min(
-        max(
-            font_draw.textbbox((0, 0), label, font=panels.load_ui_font(lang, size, bold=True))[2]
-            for label, size in zip(
-                [ctx.race_name, ctx.circuit_name, panels._date_time(ctx, {})],
-                [16, 12, 12],
-                strict=True,
-            )
-        ),
-        256,
-    )
+    assert all(box[2] <= 262 for _, box in labels)
+    assert all(4 <= box[1] < box[3] <= 59 for _, box in labels)
     (map_width, map_height), (x, y) = pasted[0]
+    assert (map_width, map_height, x, y) == (120, 53, 270, 4)
     assert x >= max(box[2] for _, box in labels) + 8
-    assert abs(2 * x + map_width - (5 + column + 8 + 390)) <= 1
-    assert abs(2 * y + map_height - (3 + 57)) <= 1
-    assert x + map_width <= 390 and y + map_height <= 57
 
 
-@pytest.mark.parametrize("round_count", [10, 20, 21])
-def test_short_timeline_matches_original(ctx, round_count):
-    """Keep fitting seasons pixel-identical to the original one-row layout."""
-    context = replace(ctx, rounds=ctx.rounds[:round_count], total_rounds=round_count)
-    theme = create_renderer("1bit", {}, "en").theme
-    expected = Image.new("1", (394, 61), 1)
-    draw = ImageDraw.Draw(expected)
-    draw.fontmode = "1"
-    draw.rectangle((0, 0, 393, 60), fill=theme.colors.WHITE, outline=theme.team_outline_fill)
-    draw.rectangle((1, 1, 392, 22), fill=theme.team_header_fill)
-    panels._text(
-        draw,
-        f"Season 2026 · Round 1/{round_count}",
-        5,
-        4,
-        384,
-        theme.team_header_text_fill,
-        "en",
-        height=17,
-        size=16,
-    )
-    for index, race in enumerate(context.rounds):
-        left = 1 + index * 392 // round_count
-        right = 1 + (index + 1) * 392 // round_count
-        active = race.round == context.next_round
-        draw.rectangle(
-            (left, 25, right - 1, 43),
-            fill=theme.team_header_fill if active else theme.colors.WHITE,
-            outline=theme.team_outline_fill,
-        )
-        panels._text(
-            draw,
-            str(race.round),
-            left + 1,
-            25,
-            right - left - 2,
-            theme.team_header_text_fill if active else theme.text_fill,
-            "en",
-            size=12,
-            height=19,
-            centered=True,
-        )
-    panels._text(
-        draw,
-        panels._race_line(context, {}, draw, "en", 384),
-        5,
-        47,
-        384,
-        theme.text_fill,
-        "en",
-        size=12,
-        height=12,
-    )
-    actual = Image.new("1", (394, 61), 1)
+@pytest.mark.parametrize("legacy", ["timeline", "combo"])
+def test_legacy_panel_values_select_countdown(legacy):
+    """Previously copied URLs remain valid without keeping redundant UI variants."""
+    assert TeamsExtra(legacy) == TeamsExtra.COUNTDOWN
+    assert {extra.value for extra in TeamsExtra} == {
+        "none",
+        "countdown",
+        "flags",
+        "track",
+        "weather",
+    }
+
+
+@pytest.mark.parametrize("display", ["1bit", "spectra6"])
+@pytest.mark.parametrize("round_count", [10, 21, 23, 24])
+def test_countdown_progress_distinguishes_three_states(ctx, display, round_count):
+    """Past, next and future rounds have distinct ink even without colour."""
+    rounds = tuple(replace(ctx.rounds[0], round=i, done=i < 2) for i in range(1, round_count + 1))
+    context = replace(ctx, rounds=rounds, next_round=2, total_rounds=round_count)
+    theme = create_renderer(display, {}, "en").theme
+    image = Image.new("1" if display == "1bit" else "RGB", (394, 61), "white")
     panels.draw_teams_extra(
-        actual,
-        ImageDraw.Draw(actual),
+        image,
+        ImageDraw.Draw(image),
         theme,
         context,
-        TeamsExtra.TIMELINE,
+        TeamsExtra.COUNTDOWN,
+        display=display,
+        translator={},
+        lang="en",
+    )
+    image = image.convert("RGB")
+    past_x = 121 + 2
+    next_x = 121 + 268 // round_count + 2
+    future_x = 121 + 2 * 268 // round_count + 2
+    assert image.getpixel((past_x, 55)) == (0, 0, 0)
+    assert image.getpixel((next_x, 52)) == ((0, 0, 0) if display == "1bit" else theme.accent_fill)
+    assert image.getpixel((future_x, 55)) == (255, 255, 255)
+    assert image.getpixel((past_x, 51)) == (255, 255, 255)
+
+
+@pytest.mark.parametrize("remaining", [1, 2, 3])
+def test_upcoming_cells_keep_size_and_dates_at_season_end(ctx, remaining, monkeypatch):
+    """Late-season cards stay compact and show a date for every remaining race."""
+    context = replace(ctx, rounds=ctx.rounds[-remaining:], next_round=ctx.rounds[-remaining].round)
+    image = Image.new("1", (394, 61), 1)
+    theme = create_renderer("1bit", {}, "en").theme
+    texts = []
+    original = panels._text
+
+    def record(draw, text, *args, **kwargs):
+        """Retain actual drawing while recording the labels for each card."""
+        texts.append(text)
+        return original(draw, text, *args, **kwargs)
+
+    monkeypatch.setattr(panels, "_text", record)
+    panels.draw_teams_extra(
+        image,
+        ImageDraw.Draw(image),
+        theme,
+        context,
+        TeamsExtra.FLAGS,
         display="1bit",
         translator={},
         lang="en",
     )
-    assert actual.tobytes() == expected.tobytes()
+    assert texts == [
+        value for race in context.rounds for value in (race.code, race.date.strftime("%d.%m."))
+    ]
+    image = image.convert("RGB")
+    if remaining == 1:
+        assert image.getpixel((10, 30)) == (255, 255, 255)
+        assert image.getpixel((380, 30)) == (255, 255, 255)
 
 
 @pytest.mark.parametrize("cached_value", [None, WeatherData(23, 1, 10)])
@@ -592,3 +553,116 @@ def test_public_weather_cache_accessor(monkeypatch, cached_value):
     monkeypatch.setattr(WeatherService, "_get_cached", cached)
     assert WeatherService.get_cached_value("race-key") is cached_value
     cached.assert_called_once_with("race-key")
+
+
+@pytest.mark.parametrize(
+    "lang", ["cs", "de", "en", "es", "fr", "it", "ja", "nl", "pl", "pt-BR", "sk", "tr", "zh-CN"]
+)
+@pytest.mark.parametrize("extra", [TeamsExtra.COUNTDOWN, TeamsExtra.FLAGS, TeamsExtra.TRACK])
+@pytest.mark.parametrize("display", ["1bit", "spectra6"])
+def test_redesigned_text_stays_inside_panel(ctx, lang, extra, display, monkeypatch):
+    """Long names and CJK glyphs stay clear of borders, adjacent lines and maps."""
+    labels = []
+    original = ImageDraw.ImageDraw.text
+
+    def record(draw, xy, text, *args, **kwargs):
+        """Capture ink bounds after fitting, shortening and optical positioning."""
+        labels.append((text, draw.textbbox(xy, text, font=kwargs["font"])))
+        return original(draw, xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(ImageDraw.ImageDraw, "text", record)
+    monkeypatch.setattr(panels, "render_track_image", Mock(return_value=None))
+    context = replace(
+        ctx,
+        race_name=(
+            "非常に長いグランプリ名称 " if lang in ("ja", "zh-CN") else "Very long Grand Prix name "
+        )
+        * 5,
+        circuit_name="Autódromo Hermanos Rodríguez " * 4,
+    )
+    renderer = create_renderer(display, get_translator(lang), lang)
+    image = Image.new("1" if display == "1bit" else "RGB", (394, 61), "white")
+    panels.draw_teams_extra(
+        image,
+        ImageDraw.Draw(image),
+        renderer.theme,
+        context,
+        extra,
+        display=display,
+        translator=get_translator(lang),
+        lang=lang,
+    )
+    for _, box in labels:
+        assert 3 <= box[0] < box[2] <= 390
+        assert 4 <= box[1] < box[3] <= 59
+    if extra == TeamsExtra.COUNTDOWN:
+        assert labels[1][1][2] <= 389
+        assert labels[1][1][3] < labels[2][1][1]
+        assert labels[2][0].endswith(context.start_local.strftime("%H:%M"))
+        assert labels[2][1][3] <= 49
+    elif extra == TeamsExtra.TRACK:
+        assert all(box[2] <= 262 for _, box in labels)
+        assert all(a[1][3] < b[1][1] for a, b in zip(labels, labels[1:]))
+    else:
+        assert len(labels) == 6
+        assert all(labels[i][1][3] < labels[i + 1][1][1] for i in (0, 2, 4))
+
+
+@pytest.mark.parametrize("display", ["1bit", "spectra6"])
+def test_real_track_artwork_is_visible_in_fixed_map_column(ctx, display):
+    """Catch fitting failures that would otherwise silently leave the map blank."""
+    renderer = create_renderer(display, {}, "en")
+    image = Image.new("1" if display == "1bit" else "RGB", (394, 61), "white")
+    panels.draw_teams_extra(
+        image,
+        ImageDraw.Draw(image),
+        renderer.theme,
+        ctx,
+        TeamsExtra.TRACK,
+        display=display,
+        translator={},
+        lang="en",
+    )
+    assert ImageChops.invert(image.convert("RGB").crop((270, 4, 390, 57))).getbbox() is not None
+
+
+@pytest.mark.parametrize("days_left", [0, 1, 2, 123])
+@pytest.mark.parametrize("lang", ["cs", "fr", "ja", "zh-CN"])
+def test_countdown_labels_fit_compact_block(ctx, days_left, lang, monkeypatch):
+    """Today, plural forms and three-digit counts fit without crossing the split."""
+    boxes = []
+    original = ImageDraw.ImageDraw.text
+
+    def record(draw, xy, text, *args, **kwargs):
+        """Record final glyph bounds, including long translated today labels."""
+        boxes.append(draw.textbbox(xy, text, font=kwargs["font"]))
+        return original(draw, xy, text, *args, **kwargs)
+
+    monkeypatch.setattr(ImageDraw.ImageDraw, "text", record)
+    image = Image.new("1", (394, 61), 1)
+    panels.draw_teams_extra(
+        image,
+        ImageDraw.Draw(image),
+        create_renderer("1bit", {}, lang).theme,
+        replace(ctx, days_left=days_left),
+        TeamsExtra.COUNTDOWN,
+        display="1bit",
+        translator=get_translator(lang),
+        lang=lang,
+    )
+    left, top, right, bottom = boxes[0]
+    assert 9 <= left < right <= 107
+    assert 7 <= top < bottom <= 54
+    assert abs(left + right - 116) <= 1
+
+
+def test_upcoming_dates_follow_display_timezone(monkeypatch):
+    """A UTC evening race after local midnight uses the same date in A and C."""
+    race = F1Service.get_season_from_static(2026)[0].model_copy(deep=True)
+    race.date, race.time = "2026-03-08", "23:00:00Z"
+    monkeypatch.setattr(
+        F1Service, "get_season_from_static", lambda year: [race] if year == 2026 else []
+    )
+    context = build_teams_extra_context(TeamsExtra.FLAGS, 2026, now=NOW)
+    assert context.rounds[0].date == context.start_local.date()
+    assert context.rounds[0].date.day == 9

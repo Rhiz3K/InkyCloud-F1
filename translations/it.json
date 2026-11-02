@@ -81,7 +81,7 @@
   "api_docs_teams_credits": "Attribuzione e licenze dell'immagine (grafiche dei circuiti CC BY 4.0, meteo Open-Meteo CC BY 4.0): vedi Credits. Le risposte includono anche un header Link con rel=\"license\".",
   "api_docs_display_desc": "Modalità di output del display",
   "api_docs_teams_year_desc": "Anno della stagione per i dati dei team",
-  "api_docs_teams_extra_desc": "Pannello facoltativo: none (predefinito), timeline, countdown, weather, flags, combo, track. Usa dati locali della stagione e meteo in cache; i pannelli non disponibili vengono omessi.",
+  "api_docs_teams_extra_desc": "Pannello facoltativo: none (predefinito), countdown, flags, track, weather. Usa dati locali della stagione e meteo in cache; i pannelli non disponibili vengono omessi.",
   "api_docs_teams_json_desc": "Ottieni tutti i team con piloti e punti per una stagione (JSON)",
   "api_docs_standings_leader_desc": "Ottieni gli attuali leader del campionato (pilota e costruttore)",
   "nav_home": "Home",
@@ -196,21 +196,17 @@
       "label": "Pannello nello spazio libero",
       "options": {
         "none": "Nessuno",
-        "timeline": "Cronologia",
         "countdown": "Conto alla rovescia",
         "weather": "Meteo",
-        "flags": "Bandiere",
-        "combo": "Combinato",
+        "flags": "Prossime 3 gare",
         "track": "Circuito"
       },
       "hints": {
         "none": "Lo spazio libero resta vuoto.",
-        "timeline": "Avanzamento della stagione con gare passate e future.",
-        "countdown": "Giorni al prossimo weekend di gara.",
+        "countdown": "Giorni alla prossima gara, data, ora e avanzamento della stagione.",
         "weather": "Previsioni in cache per la sede della prossima gara.",
-        "flags": "Bandiere dei paesi delle prossime gare.",
-        "combo": "Conto alla rovescia e prossime gare insieme.",
-        "track": "Tracciato del circuito della prossima gara."
+        "flags": "Le prossime tre gare con le date; bandiere sugli schermi a colori.",
+        "track": "Mappa del circuito, nome della gara, data e ora di partenza."
       },
       "weatherNote": "Dati meteo di Open-Meteo.com (CC BY 4.0)",
       "trackNote": "Grafica dei circuiti CC BY 4.0, vedi",

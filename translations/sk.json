@@ -81,7 +81,7 @@
   "api_docs_teams_credits": "Atribúcia a licencie obrázka (kresby tratí CC BY 4.0, počasie Open-Meteo CC BY 4.0): pozri Credits. Odpovede obsahujú aj hlavičku Link s rel=\"license\".",
   "api_docs_display_desc": "Výstupný režim pre displej",
   "api_docs_teams_year_desc": "Rok sezóny pre tímové dáta",
-  "api_docs_teams_extra_desc": "Voliteľný panel: none (predvolené), timeline, countdown, weather, flags, combo, track. Používa miestne údaje sezóny a počasie z vyrovnávacej pamäte; nedostupný panel sa nezobrazí.",
+  "api_docs_teams_extra_desc": "Voliteľný panel: none (predvolené), countdown, flags, track, weather. Používa miestne údaje sezóny a počasie z vyrovnávacej pamäte; nedostupný panel sa nezobrazí.",
   "api_docs_teams_json_desc": "Získať všetky tímy s jazdcami a bodmi pre sezónu (JSON)",
   "api_docs_standings_leader_desc": "Získať aktuálnych lídrov šampionátu (jazdec a konštruktér)",
   "nav_home": "Domov",
@@ -196,21 +196,17 @@
       "label": "Panel vo voľnom mieste",
       "options": {
         "none": "Žiadny",
-        "timeline": "Časová os",
         "countdown": "Odpočet",
         "weather": "Počasie",
-        "flags": "Vlajky",
-        "combo": "Kombinácia",
+        "flags": "Ďalšie 3 preteky",
         "track": "Trať"
       },
       "hints": {
         "none": "Voľné miesto zostane prázdne.",
-        "timeline": "Priebeh sezóny s odjazdenými a nadchádzajúcimi pretekmi.",
-        "countdown": "Počet dní do ďalšieho pretekárskeho víkendu.",
+        "countdown": "Dni do štartu ďalších pretekov, dátum, čas a priebeh sezóny.",
         "weather": "Uložená predpoveď pre miesto ďalších pretekov.",
-        "flags": "Vlajky krajín nadchádzajúcich pretekov.",
-        "combo": "Odpočet a najbližšie preteky spolu.",
-        "track": "Obrys okruhu ďalších pretekov."
+        "flags": "Tri najbližšie preteky s dátumami; vlajky na farebných displejoch.",
+        "track": "Mapa okruhu, názov pretekov, dátum a čas štartu."
       },
       "weatherNote": "Údaje o počasí od Open-Meteo.com (CC BY 4.0)",
       "trackNote": "Grafika tratí CC BY 4.0, pozri",

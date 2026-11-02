@@ -10,15 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add the optional `extra` parameter to `/teams.bmp` and `/preview/configure/teams.png`
-  (`none`, `timeline`, `countdown`, `weather`, `flags`, `combo`, `track`; default `none`
-  keeps the image unchanged) that fills the empty bottom-right slot with season progress,
-  a day-only countdown, cached Open-Meteo weather, upcoming race flags or codes, a combined
-  view, or the next circuit map centred right of the text without an on-image credit.
-  Track attribution is on `/credits` and in the `Link rel="license"` header of `/teams.bmp`
-  and the teams configure preview. Weather is centred with the Open-Meteo credit in the
-  header; timeline switches to two rows for seasons with 22 or more rounds. The slot stays empty
-  when there is no upcoming race. The teams configurator gets a labelled dropdown (native `<select>`,
-  desktop and mobile) with live preview in all 13 languages; `/credits` and `DATA_LICENSES.txt` describe the new weather and track uses.
+  (`none`, `countdown`, `flags`, `track`, `weather`; default `none` keeps the image unchanged).
+  The empty bottom-right slot offers a compact countdown with race name, local start and
+  three-state season progress; the next three races with dates and colour flags (codes on
+  1-bit); a clean circuit map in a fixed column alongside larger text; or cached Open-Meteo
+  weather. Previous `timeline` and `combo` URLs select the consolidated countdown.
+  Track attribution is on `/credits` and in the `Link rel="license"` response header.
+  Weather keeps the visible Open-Meteo credit and uses only the existing cache.
+  The slot stays empty when no upcoming race or free grid slot is available.
+  The desktop and mobile configurators offer the five choices in all 13 languages and
+  use the dynamic PNG preview for extras in the current season.
 
 - Add /credits entries for Swagger UI and ReDoc in all 13 languages.
 

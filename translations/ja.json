@@ -81,7 +81,7 @@
   "api_docs_teams_credits": "画像の帰属表示とライセンス（サーキット図 CC BY 4.0、Open-Meteo 天気データ CC BY 4.0）：Credits を参照してください。レスポンスには rel=\"license\" の Link ヘッダーも含まれます。",
   "api_docs_display_desc": "ディスプレイ出力モード",
   "api_docs_teams_year_desc": "チームデータのシーズン年",
-  "api_docs_teams_extra_desc": "追加パネル：none（既定）、timeline、countdown、weather、flags、combo、track。ローカルのシーズンデータとキャッシュ済みの天気のみを使用し、利用できない場合は表示しません。",
+  "api_docs_teams_extra_desc": "追加パネル：none（既定）、countdown、flags、track、weather。ローカルのシーズンデータとキャッシュ済みの天気のみを使用し、利用できない場合は表示しません。",
   "api_docs_teams_json_desc": "シーズンの全チーム・ドライバー・ポイントを取得（JSON）",
   "api_docs_standings_leader_desc": "現在のチャンピオンシップ首位（ドライバーとコンストラクター）を取得",
   "nav_home": "ホーム",
@@ -196,21 +196,17 @@
       "label": "空きスペースのパネル",
       "options": {
         "none": "なし",
-        "timeline": "タイムライン",
         "countdown": "カウントダウン",
         "weather": "天気",
-        "flags": "国旗",
-        "combo": "組み合わせ",
+        "flags": "次の3レース",
         "track": "サーキット"
       },
       "hints": {
         "none": "空きスペースを空白のままにします。",
-        "timeline": "終了したラウンドと今後のラウンドでシーズンの進行を表示。",
-        "countdown": "次のレースウィークエンドまでの日数。",
+        "countdown": "次の決勝までの日数、日付、開始時刻、シーズンの進行状況。",
         "weather": "次のレース開催地のキャッシュされた天気予報。",
-        "flags": "今後のレース開催国の国旗。",
-        "combo": "カウントダウンと次のレースをまとめて表示。",
-        "track": "次のレースのサーキットの輪郭。"
+        "flags": "次の3レースと日付。カラー画面では国旗も表示。",
+        "track": "サーキット図、レース名、日付、開始時刻。"
       },
       "weatherNote": "気象データ提供: Open-Meteo.com (CC BY 4.0)",
       "trackNote": "サーキット画像 CC BY 4.0、詳細は",

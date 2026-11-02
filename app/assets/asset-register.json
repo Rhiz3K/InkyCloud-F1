@@ -1299,11 +1299,11 @@
       "reviewed_on": "2026-09-09"
     },
     "licenses/DATA_LICENSES.txt": {
-      "sha256": "b716196c215392bba30ac1081bff78d32742c1f2be44f449223922bfd491c776",
+      "sha256": "2006338dc19a91b80a08e157d329aa98234dd20050a822a3e7382299d002e2f0",
       "license": "Third-party notices; see file",
       "author": "Original authors named in each notice",
       "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
-      "reviewed_on": "2026-10-31"
+      "reviewed_on": "2026-11-01"
     },
     "licenses/InkyCloud-MIT.txt": {
       "sha256": "95dd815d873a58f559a363720a51a5788cf27fb0d2626fb8ba953c2dd8ed7f78",
