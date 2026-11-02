@@ -1,0 +1,67 @@
+{
+  "baseline": "b89fb29bd1dd372aa05480b17b5c2d8088212121",
+  "after": "working tree after approved A/C/D redesign",
+  "working_diff_sha256": "3bce6b6cf564c77c0376816c0c988cb14666dabbae9d1771504fa733c7b0c54a",
+  "verified_pairs": 90,
+  "outside_slot_identical": true,
+  "none_and_weather_identical": true,
+  "scenario_utc": {
+    "main": "2026-10-31T11:15:00+00:00",
+    "early": "2026-03-06T12:00:00+00:00",
+    "today": "2026-11-01T11:15:00+00:00",
+    "finale": "2026-12-05T12:00:00+00:00"
+  },
+  "weather_fixture": {
+    "temperature_c": 25.6,
+    "weather_code": 2,
+    "precipitation_probability": 1
+  },
+  "notes": [
+    "Static bundled 2026 team data; points 0, not live standings.",
+    "No physical e-ink verification.",
+    "No application source or PR edits made to generate images."
+  ],
+  "comparison_sheets": [
+    {
+      "file": "comparisons/v3_before_after_countdown.png",
+      "sha256": "504199d68cb03cff70ff04e8d336aaadbbb0f205a524b59eb0ed831cdd199869"
+    },
+    {
+      "file": "comparisons/v3_before_after_flags.png",
+      "sha256": "9dc362c2819a3f75af73a9c36948362cf0ceff03560f1c7f762596fcdd400d3b"
+    },
+    {
+      "file": "comparisons/v3_before_after_today.png",
+      "sha256": "2be311d5a1a7f48f088a4650b67ad64fff8494c0332467e46e04b9748fa906c3"
+    },
+    {
+      "file": "comparisons/v3_before_after_track.png",
+      "sha256": "991118b8eae955189dce216973b19df40597e02283e6f998a1fed63c1e825e20"
+    },
+    {
+      "file": "comparisons/v3_before_after_weather.png",
+      "sha256": "7411ac2c0a0eeb360de61f32a5d75854e02a95c25bd3902ba51c261c3677dd54"
+    },
+    {
+      "file": "comparisons/v3_full_1bit_cs.png",
+      "sha256": "ffa0d0f260102559c733cdb0d1c67a10818b91829abdef991de9271ec478b473"
+    },
+    {
+      "file": "comparisons/v3_full_spectra6_cs.png",
+      "sha256": "dda978f930b224af14ffab7bf0c1816d9d79a5c787cf235eaa08e66908315089"
+    },
+    {
+      "file": "comparisons/v3_slot_cs.png",
+      "sha256": "3f87e4431d416d15591077e72361ec2b1b2081a58023c25ac45cc6d19a7e20d9"
+    },
+    {
+      "file": "comparisons/v3_slot_de.png",
+      "sha256": "7ac2ffbe9fbd3b11ef44ff02af498c796bdbe039aca16301fcf349b701c3e81d"
+    },
+    {
+      "file": "comparisons/v3_slot_ja.png",
+      "sha256": "bd2a06b5da06cc643b55122443b3fe7b97b8598a9d6b5576ac7bc8da36c24c46"
+    }
+  ],
+  "after_commit": "cc84099c245447c52bdf64a2ca4647b68376ba47"
+}
