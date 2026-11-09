@@ -61,6 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refresh locked runtime dependencies to versions with CPython 3.15 wheels: lxml 6.1.3,
+  httptools 0.9.0, markupsafe 3.0.4, pydantic 2.14.3 / pydantic-core 2.50.4 and uvloop 0.23.0.
+  The resolver also updates typing-extensions to 4.16.0 and typing-inspection to 0.4.5,
+  allowing the Docker image to move to Python 3.15 (Dependabot PR #171).
+
 - Validate calendar remote race lookups with the same season and round bounds as the race API.
 
 - Let calendar.bmp fall back to remote race data for seasons without static data.
