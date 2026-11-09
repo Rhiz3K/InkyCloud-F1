@@ -8,7 +8,8 @@ the reservation records its owning task.
 
 Every admission takes the global permit before a variant permit and releases
 in the opposite order. Both waits share one deadline, so the total wait is at
-most ``RENDER_SLOT_WAIT_SECONDS``.
+most ``RENDER_SLOT_WAIT_SECONDS``. Cancelling the request does not free the
+permit while its worker thread is still running.
 """
 
 from __future__ import annotations
@@ -16,11 +17,12 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from concurrent.futures import Future
 from contextlib import asynccontextmanager
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 
 from fastapi import HTTPException
 
@@ -42,6 +44,10 @@ class _Reservation:
 
 
 _reservation: ContextVar[_Reservation | None] = ContextVar("render_reservation", default=None)
+_inflight: ContextVar[list[Future[Any]] | None] = ContextVar("render_inflight", default=None)
+_inflight_owner: ContextVar[asyncio.Task[object] | None] = ContextVar(
+    "render_inflight_owner", default=None
+)
 
 
 def reset_render_limits_for_tests() -> None:
@@ -67,6 +73,54 @@ def _semaphore(name: str, limit: int) -> asyncio.Semaphore:
     semaphore = asyncio.Semaphore(limit)
     _gates[name] = (limit, loop, semaphore)
     return semaphore
+
+
+def render_jobs() -> list[Future[Any]] | None:
+    """Return workers tracked for this task's render slot, ignoring a copied parent slot."""
+    if _inflight_owner.get() is not asyncio.current_task():
+        return None
+    return _inflight.get()
+
+
+def _attach_inflight() -> tuple[
+    list[Future[Any]],
+    Token[list[Future[Any]] | None] | None,
+    Token[asyncio.Task[object] | None] | None,
+]:
+    """Reuse this task's in-flight list, or start one for the acquiring slot."""
+    existing = render_jobs()
+    if existing is not None:
+        return existing, None, None
+    created: list[Future[Any]] = []
+    return created, _inflight.set(created), _inflight_owner.set(asyncio.current_task())
+
+
+def _release_after(
+    futures: list[Future[Any]],
+    release: Callable[[], None],
+    loop: asyncio.AbstractEventLoop,
+) -> None:
+    """Release permits now, or when every still-running worker finishes."""
+    pending = [future for future in futures if not future.done()]
+    if not pending:
+        release()
+        return
+    remaining = len(pending)
+
+    def _finished(_future: Future[Any]) -> None:
+        """Count one worker from whichever thread completed it."""
+
+        def _step() -> None:
+            """Release once the last deferred worker has finished."""
+            nonlocal remaining
+            remaining -= 1
+            if remaining == 0:
+                release()
+
+        loop.call_soon_threadsafe(_step)
+
+    for future in pending:
+        future.add_done_callback(_finished)
 
 
 def _owned_reservation() -> _Reservation | None:
@@ -117,7 +171,9 @@ async def render_slot(*, variant: bool = False) -> AsyncIterator[None]:
         return
 
     global_limit, variant_limit, timeout = _current_limits()
-    deadline = asyncio.get_running_loop().time() + timeout
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    inflight, list_token, owner_token = _attach_inflight()
     acquired_global: asyncio.Semaphore | None = None
     acquired_variant: asyncio.Semaphore | None = None
     try:
@@ -140,7 +196,18 @@ async def render_slot(*, variant: bool = False) -> AsyncIterator[None]:
         finally:
             _reservation.reset(token)
     finally:
-        if acquired_variant is not None:
-            acquired_variant.release()
-        if acquired_global is not None:
-            acquired_global.release()
+        pending = list(inflight)
+        if list_token is not None:
+            _inflight.reset(list_token)
+        if owner_token is not None:
+            _inflight_owner.reset(owner_token)
+
+        def release() -> None:
+            """Return whichever permits this slot managed to acquire."""
+            if acquired_variant is not None:
+                acquired_variant.release()
+            if acquired_global is not None:
+                acquired_global.release()
+
+        if acquired_global is not None or acquired_variant is not None:
+            _release_after(pending, release, loop)

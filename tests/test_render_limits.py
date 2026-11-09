@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+from concurrent.futures import Future
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from io import BytesIO
@@ -20,9 +22,10 @@ from app.services.teams_extra import TeamsExtra, build_teams_extra_context
 from app.services.weather_service import WeatherData, WeatherService
 from app.state import get_bmp_cache, get_bmp_variant_cache
 from app.utils import render_limit
+from app.utils.async_tasks import run_render
 from app.utils.etag import strong_etag
 from app.utils.rate_limit import _reset_rate_limit_state_for_tests
-from app.utils.render_limit import render_slot, reset_render_limits_for_tests
+from app.utils.render_limit import render_jobs, render_slot, reset_render_limits_for_tests
 
 _NOW = datetime(2026, 5, 1, 12, tzinfo=UTC)
 
@@ -607,6 +610,99 @@ async def test_error_bmp_waits_for_a_render_slot(routes, monkeypatch):
     assert response.status_code == 503
     assert response.headers["retry-after"] == "1"
     assert response.content[:2] != b"BM"
+
+
+@pytest.mark.asyncio
+async def test_run_render_outside_a_slot_returns_the_worker_result():
+    """A render with no slot is not tracked and still returns the worker result."""
+    assert await run_render(lambda: b"plain") == b"plain"
+    assert render_jobs() is None
+
+
+@pytest.mark.asyncio
+async def test_cancelled_render_keeps_its_permit_until_the_worker_finishes(monkeypatch):
+    """Disconnecting a tracks or preview render does not free the permit early."""
+    _configure_limits(monkeypatch, global_limit=1, variant_limit=1, wait=0.3)
+    started = threading.Event()
+    release_worker = threading.Event()
+
+    def work() -> bytes:
+        started.set()
+        release_worker.wait(timeout=5)
+        return b"done"
+
+    async def render() -> bytes:
+        async with render_slot(variant=True):
+            return await run_render(work)
+
+    task = asyncio.create_task(render())
+    follower: asyncio.Task[None] | None = None
+    try:
+        while not started.is_set():
+            await asyncio.sleep(0.01)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert render_limit._gates["global"][2]._value == 0
+        assert render_limit._gates["variant"][2]._value == 0
+
+        entered = asyncio.Event()
+
+        async def next_render() -> None:
+            async with render_slot():
+                entered.set()
+
+        follower = asyncio.create_task(next_render())
+        await asyncio.sleep(0.05)
+        assert not entered.is_set()
+        release_worker.set()
+        await asyncio.wait_for(entered.wait(), timeout=2)
+        await follower
+        assert render_limit._gates["global"][2]._value == 1
+        assert render_limit._gates["variant"][2]._value == 1
+    finally:
+        release_worker.set()
+        if follower is not None and not follower.done():
+            follower.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await follower
+
+
+@pytest.mark.asyncio
+async def test_child_worker_is_not_charged_to_the_parent_slot(monkeypatch):
+    """A child task's render is not stored on the permit list copied from its parent."""
+    _configure_limits(monkeypatch, global_limit=1, variant_limit=1, wait=0.05)
+
+    async def child() -> bytes:
+        assert render_jobs() is None
+        return await run_render(lambda: b"child")
+
+    async with render_slot():
+        assert render_jobs() == []
+        assert await asyncio.create_task(child()) == b"child"
+        assert render_jobs() == []
+
+
+def test_permit_release_waits_for_every_tracked_worker():
+    """A slot with two workers stays held until the later one finishes."""
+    loop = asyncio.new_event_loop()
+    first: Future[object] = Future()
+    second: Future[object] = Future()
+    released = asyncio.Event()
+
+    async def drive() -> None:
+        render_limit._release_after([first, second], released.set, loop)
+        first.set_result(None)
+        await asyncio.sleep(0)
+        assert not released.is_set()
+        second.set_result(None)
+        await asyncio.sleep(0)
+        assert released.is_set()
+
+    try:
+        loop.run_until_complete(drive())
+    finally:
+        loop.close()
 
 
 @pytest.mark.asyncio

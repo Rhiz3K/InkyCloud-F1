@@ -13,6 +13,7 @@ from typing import Any, TypeVar
 import sentry_sdk
 
 from app.config import config
+from app.utils.render_limit import render_jobs
 
 logger = logging.getLogger(__name__)
 _background_tasks: set[asyncio.Task[Any]] = set()
@@ -38,9 +39,21 @@ async def run_render(func: Callable[[], T]) -> T:
     The callable should CONSTRUCT the renderer inside itself, not just call render_*:
     renderer __init__ loads fonts into a per-thread cache, so building it on the event
     loop and rendering in a worker would share FreeTypeFont objects across threads.
+
+    The await is shielded. Cancelling the caller does not cancel the worker thread;
+    a surrounding render slot keeps its permit until that thread finishes.
     """
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(_get_render_executor(), func)
+    executor_future = _get_render_executor().submit(func)
+    inflight = render_jobs()
+    if inflight is not None:
+        inflight.append(executor_future)
+    async_future = asyncio.wrap_future(executor_future, loop=loop)
+    try:
+        return await asyncio.shield(async_future)
+    finally:
+        if inflight is not None and executor_future.done():
+            inflight.remove(executor_future)
 
 
 def shutdown_render_executor(*, wait: bool = True) -> None:

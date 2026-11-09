@@ -36,8 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   above the global cap). If a slot does not open in time the response is HTTP 503
   with `Retry-After` set to that whole wait. Global and variant permits are
   taken in that order and share one deadline. A failed render's error image
-  uses the same limit, and concurrent waiters share one error render. Cached
-  images do not wait. Image bytes, rate limits, and response headers
+  uses the same limit, and concurrent waiters share one error render.
+  Cancelling a request does not free its permit while the worker thread is
+  still rendering. Cached images do not wait. Image bytes, rate limits, and
+  response headers
   (including `Link rel="license"`) are unchanged.
 
 - Make the home page fit short laptop screens without changing it where it already fits.
