@@ -230,7 +230,7 @@ arrangements for your own deployment.
 
 ## Self-Hosting
 
-Production, CI, and local development use **Python 3.14**. Released containers are published to
+Production, CI, and local development use **Python 3.15**. Released containers are published to
 GHCR with immutable version and commit tags, an SBOM, and provenance.
 
 ### Quick Docker Start

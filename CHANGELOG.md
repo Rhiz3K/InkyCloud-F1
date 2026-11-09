@@ -28,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Run production, CI, and local development on Python 3.15.2. Both Docker stages pin
+  `python:3.15-slim` by digest. Bump the locked packages that have no CPython 3.15 wheel
+  at the previous pin: lxml 6.1.3, httptools 0.9.0, uvloop 0.23.0, MarkupSafe 3.0.4,
+  pydantic 2.14.3 with pydantic-core 2.50.4, typing-extensions 4.16.0, and
+  typing-inspection 0.4.5. Development installs also move to numpy 2.5.4, SciPy 1.18.1,
+  scikit-learn 1.9.1, and librt 0.16.0. PyYAML stays at 6.0.3, which still has no
+  cp315 wheel; the image builder installs that sdist with the existing gcc and libc6-dev
+  packages.
 - Make the home page fit short laptop screens without changing it where it already fits.
   Desktop viewports from 1024 px wide that are at least 983 px tall keep the production
   layout pixel for pixel; the only change is that the unofficial-project notice sits on one
