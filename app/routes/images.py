@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Annotated
 
 import sentry_sdk
+from cachetools import TTLCache
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 
@@ -37,12 +38,13 @@ from app.services.track_catalog import (
 )
 from app.services.track_renderer import attribution_headers
 from app.services.weather_service import get_weather_context
-from app.state import BmpArtifact, get_bmp_cache, record_api_call
+from app.state import BmpArtifact, get_bmp_cache, get_bmp_variant_cache, record_api_call
 from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
 from app.utils.f1_season import race_selection_error
 from app.utils.race_times import convert_race_times_to_timezone
 from app.utils.rate_limit import enforce_rate_limit
+from app.utils.render_limit import render_slot
 from app.utils.timezones import is_valid_timezone, normalize_timezone
 
 from .deps import get_f1_service
@@ -638,6 +640,13 @@ async def _render_calendar(
     return (bmp_data, race_data, True)
 
 
+def _teams_image_cache(extra: TeamsExtra) -> TTLCache[str, BmpArtifact]:
+    """Keep plain teams dashboards in the main cache and extra panels in the variant cache."""
+    if extra == TeamsExtra.NONE:
+        return get_bmp_cache()
+    return get_bmp_variant_cache()
+
+
 async def _render_calendar_artifact(
     *,
     cache_key: str,
@@ -654,23 +663,24 @@ async def _render_calendar_artifact(
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
 ) -> BmpArtifact:
     """Render/hash one calendar miss and cache the pair only when complete."""
-    bmp_data, _race_data, is_cacheable = await _render_calendar(
-        f1_service=f1_service,
-        lang=lang,
-        year=year,
-        race_round=race_round,
-        race_key=race_key,
-        target_tz=target_tz,
-        weather=weather,
-        weather_type=weather_type,
-        display=display,
-        selected_race=selected_race,
-        track_options=track_options,
-    )
-    artifact = (bmp_data, strong_etag(bmp_data))
-    if is_cacheable:
-        get_bmp_cache()[cache_key] = artifact
-    return artifact
+    async with render_slot():
+        bmp_data, _race_data, is_cacheable = await _render_calendar(
+            f1_service=f1_service,
+            lang=lang,
+            year=year,
+            race_round=race_round,
+            race_key=race_key,
+            target_tz=target_tz,
+            weather=weather,
+            weather_type=weather_type,
+            display=display,
+            selected_race=selected_race,
+            track_options=track_options,
+        )
+        artifact = (bmp_data, strong_etag(bmp_data))
+        if is_cacheable:
+            get_bmp_cache()[cache_key] = artifact
+        return artifact
 
 
 async def _render_teams_artifact(
@@ -683,21 +693,27 @@ async def _render_teams_artifact(
     extra_context: TeamsExtraContext | None = None,
 ) -> BmpArtifact:
     """Fetch, render, and hash one teams miss, caching only a complete dashboard."""
-    async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
-        teams_data = await TeamsService().get_teams_and_drivers(year)
-    bmp_data = await run_render(
-        functools.partial(
-            _render_teams_bytes, display, lang, teams_data, extra=extra, extra_context=extra_context
+    async with render_slot(variant=extra != TeamsExtra.NONE):
+        async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
+            teams_data = await TeamsService().get_teams_and_drivers(year)
+        bmp_data = await run_render(
+            functools.partial(
+                _render_teams_bytes,
+                display,
+                lang,
+                teams_data,
+                extra=extra,
+                extra_context=extra_context,
+            )
         )
-    )
-    artifact = (bmp_data, strong_etag(bmp_data))
-    if is_teams_data_cacheable(teams_data):
-        get_bmp_cache()[cache_key] = artifact
-    elif teams_data.teams:
-        logger.warning("Teams standings incomplete for %s; serving but not caching", year)
-    else:
-        logger.warning("Teams data empty for %s; serving but not caching", year)
-    return artifact
+        artifact = (bmp_data, strong_etag(bmp_data))
+        if is_teams_data_cacheable(teams_data):
+            _teams_image_cache(extra)[cache_key] = artifact
+        elif teams_data.teams:
+            logger.warning("Teams standings incomplete for %s; serving but not caching", year)
+        else:
+            logger.warning("Teams data empty for %s; serving but not caching", year)
+        return artifact
 
 
 @router.get("/calendar.bmp")
@@ -870,6 +886,8 @@ async def get_calendar_bmp(
             cache_control=CALENDAR_BMP_CACHE_CONTROL if is_cacheable else "no-store",
             cache_status="MISS",
         )
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("Error generating calendar: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:
@@ -942,7 +960,7 @@ async def get_teams_bmp(
         cache_key = get_teams_image_key(
             lang, year, display=display, extra=effective, extra_context=ctx
         )
-        cached_artifact = get_bmp_cache().get(cache_key)
+        cached_artifact = _teams_image_cache(effective).get(cache_key)
         if cached_artifact is not None:
             return respond(*cached_artifact, cache_status="HIT")
 
@@ -977,6 +995,8 @@ async def get_teams_bmp(
         )
         return respond(*artifact, cache_status="MISS")
 
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.error("Error generating teams: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:

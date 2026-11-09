@@ -46,6 +46,10 @@ def test_config_defaults():
     assert config.JOLPICA_BURST_CAPACITY == 6
     assert config.JOLPICA_MAX_RETRIES == 6
     assert config.HISTORICAL_REFRESH_TIMEOUT_SECONDS == 5400
+    assert config.BMP_VARIANT_CACHE_MAXSIZE == 64
+    assert config.RENDER_CONCURRENCY == 4
+    assert config.RENDER_VARIANT_CONCURRENCY == 2
+    assert config.RENDER_SLOT_WAIT_SECONDS == 5.0
 
 
 def test_privacy_infrastructure_defaults():
@@ -213,6 +217,25 @@ def test_config_ignores_display_dimension_overrides(field_name, value, expected)
     config = config_module.Config(_env_file=None, **{field_name: value})
 
     assert getattr(config, field_name) == expected
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid", "valid", "expected_valid"),
+    [
+        ("BMP_VARIANT_CACHE_MAXSIZE", "0", "32", 32),
+        ("RENDER_CONCURRENCY", "none", "8", 8),
+        ("RENDER_VARIANT_CONCURRENCY", "-1", "3", 3),
+        ("RENDER_SLOT_WAIT_SECONDS", "0", "2.5", 2.5),
+    ],
+)
+def test_render_guard_settings_reject_invalid_values(field_name, invalid, valid, expected_valid):
+    """Invalid render-cache and concurrency settings fall back to the safe default."""
+    default = config_module.Config.model_fields[field_name].default
+    rejected = config_module.Config(_env_file=None, **{field_name: invalid})
+    accepted = config_module.Config(_env_file=None, **{field_name: valid})
+
+    assert getattr(rejected, field_name) == default
+    assert getattr(accepted, field_name) == expected_valid
 
 
 def test_config_invalid_env_falls_back(monkeypatch):

@@ -22,8 +22,14 @@ BMP_CACHE_TTL_SECONDS = 3600
 BmpArtifact = tuple[bytes, str]
 
 # Cover all localized display/weather variants without immediate LRU churn.
+# Teams extra panels and extra previews live in a second cache so a burst of those
+# variants cannot evict the calendar and plain teams entries stored here.
 _bmp_cache: TTLCache[str, BmpArtifact] = TTLCache(
     maxsize=BMP_CACHE_MAXSIZE,
+    ttl=BMP_CACHE_TTL_SECONDS,
+)
+_bmp_variant_cache: TTLCache[str, BmpArtifact] = TTLCache(
+    maxsize=config.BMP_VARIANT_CACHE_MAXSIZE,
     ttl=BMP_CACHE_TTL_SECONDS,
 )
 
@@ -36,14 +42,34 @@ _aggregate_calls: OrderedDict[tuple, dict] = OrderedDict()
 
 
 def clear_bmp_cache() -> None:
-    """Remove every generated BMP entry from the process-local cache."""
+    """Remove generated images from the main cache and the extra/preview cache."""
     _bmp_cache.clear()
+    _bmp_variant_cache.clear()
     logger.info("BMP cache cleared")
 
 
 def get_bmp_cache() -> TTLCache[str, BmpArtifact]:
-    """Return the shared generated-BMP cache instance."""
+    """Return the cache of calendar images and plain teams dashboards."""
     return _bmp_cache
+
+
+def get_bmp_variant_cache() -> TTLCache[str, BmpArtifact]:
+    """Return the cache of teams extra panels and extra preview images.
+
+    The configured maximum is applied on read. Shrinking keeps the newest entries
+    and drops the rest. The time-to-live stays aligned with the main cache.
+    """
+    global _bmp_variant_cache
+    maxsize = config.BMP_VARIANT_CACHE_MAXSIZE
+    current = _bmp_variant_cache
+    if current.maxsize == maxsize:
+        return current
+    retained = list(current.items())[-maxsize:]
+    rebuilt: TTLCache[str, BmpArtifact] = TTLCache(maxsize=maxsize, ttl=BMP_CACHE_TTL_SECONDS)
+    for key, value in retained:
+        rebuilt[key] = value
+    _bmp_variant_cache = rebuilt
+    return rebuilt
 
 
 def record_api_call(

@@ -2,9 +2,11 @@ import pytest
 
 from app.state import (
     BMP_CACHE_MAXSIZE,
+    BMP_CACHE_TTL_SECONDS,
     clear_bmp_cache,
     get_and_clear_api_calls_buffer,
     get_bmp_cache,
+    get_bmp_variant_cache,
     record_api_call,
 )
 from app.utils.etag import strong_etag
@@ -13,9 +15,11 @@ from app.utils.etag import strong_etag
 @pytest.fixture(autouse=True)
 def reset_state():
     get_bmp_cache().clear()
+    get_bmp_variant_cache().clear()
     get_and_clear_api_calls_buffer()
     yield
     get_bmp_cache().clear()
+    get_bmp_variant_cache().clear()
     get_and_clear_api_calls_buffer()
 
 
@@ -30,11 +34,15 @@ class TestBmpCache:
     @staticmethod
     def test_clear_bmp_cache():
         cache = get_bmp_cache()
+        variants = get_bmp_variant_cache()
         cache["test_key"] = (b"test_data", strong_etag(b"test_data"))
+        variants["extra"] = (b"extra", strong_etag(b"extra"))
         assert len(cache) == 1
+        assert len(variants) == 1
 
         clear_bmp_cache()
         assert len(cache) == 0
+        assert len(variants) == 0
 
     @staticmethod
     def test_bmp_cache_set_and_get():
@@ -47,6 +55,37 @@ class TestBmpCache:
     def test_bmp_cache_capacity_covers_localized_variants():
         # 13 languages x 4 display modes x 3 weather modes = 156 base variants.
         assert BMP_CACHE_MAXSIZE >= 156
+
+    @staticmethod
+    def test_variant_cache_is_smaller_and_uses_the_main_ttl(monkeypatch):
+        cache = get_bmp_variant_cache()
+
+        assert cache is get_bmp_variant_cache()
+        assert cache.maxsize == 64
+        assert cache.ttl == BMP_CACHE_TTL_SECONDS
+        assert cache.maxsize < BMP_CACHE_MAXSIZE
+
+        monkeypatch.setattr("app.state.config.BMP_VARIANT_CACHE_MAXSIZE", 128)
+        grown = get_bmp_variant_cache()
+        assert grown is not cache
+        assert grown.maxsize == 128
+        assert len(grown) == 0
+
+    @staticmethod
+    def test_variant_cache_eviction_does_not_touch_main_entries(monkeypatch):
+        main = get_bmp_cache()
+        main["calendar"] = (b"calendar", strong_etag(b"calendar"))
+        variant = get_bmp_variant_cache()
+        for name in (b"a", b"b", b"c"):
+            variant[name.decode()] = (name, strong_etag(name))
+
+        monkeypatch.setattr("app.state.config.BMP_VARIANT_CACHE_MAXSIZE", 1)
+        shrunk = get_bmp_variant_cache()
+
+        assert shrunk is not variant
+        assert list(shrunk) == ["c"]
+        assert main["calendar"] == (b"calendar", strong_etag(b"calendar"))
+        assert len(main) == 1
 
 
 class TestApiCallsBuffer:

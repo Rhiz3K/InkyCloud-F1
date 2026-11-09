@@ -34,11 +34,12 @@ from app.services.track_catalog import (
     TrackStyle,
 )
 from app.services.track_renderer import attribution_headers
-from app.state import get_bmp_cache
+from app.state import get_bmp_cache, get_bmp_variant_cache
 from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, strong_etag
 from app.utils.image_conversion import bmp_to_png
 from app.utils.rate_limit import enforce_rate_limit
+from app.utils.render_limit import render_slot
 
 router = APIRouter()
 _ALLOWED_LANGS = {lang: lang for lang in LANGUAGE_CODES}
@@ -116,24 +117,25 @@ async def _render_calendar_preview(
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
 ) -> StreamingResponse:
     """Render the next race when startup has not produced a calendar preview yet."""
-    f1_service = F1Service()
-    race_data = f1_service.get_next_race_from_static()
-    if not race_data:
-        raise RuntimeError("No race data available for calendar preview")
+    async with render_slot():
+        f1_service = F1Service()
+        race_data = f1_service.get_next_race_from_static()
+        if not race_data:
+            raise RuntimeError("No race data available for calendar preview")
 
-    circuit_id = race_data.get("circuit", {}).get("circuitId", "")
-    historical_data = F1Service.get_historical_from_static(circuit_id)
-    png_data = await run_render(
-        functools.partial(
-            _build_calendar_preview_png,
-            lang,
-            display,
-            race_data,
-            historical_data,
-            full_size,
-            track_options,
+        circuit_id = race_data.get("circuit", {}).get("circuitId", "")
+        historical_data = F1Service.get_historical_from_static(circuit_id)
+        png_data = await run_render(
+            functools.partial(
+                _build_calendar_preview_png,
+                lang,
+                display,
+                race_data,
+                historical_data,
+                full_size,
+                track_options,
+            )
         )
-    )
     return StreamingResponse(
         BytesIO(png_data),
         media_type="image/png",
@@ -187,11 +189,12 @@ async def _render_configure_calendar(
                 track_options=options,
             ),
         )
-    content = await run_render(
-        functools.partial(
-            bmp_to_png, artifact[0], full_size=True, preserve_color=display in COLOR_DISPLAYS
+    async with render_slot():
+        content = await run_render(
+            functools.partial(
+                bmp_to_png, artifact[0], full_size=True, preserve_color=display in COLOR_DISPLAYS
+            )
         )
-    )
     etag = strong_etag(content)
     unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
     return Response(
@@ -231,16 +234,17 @@ async def _render_teams_preview(
     lang: str, display: str = "1bit", *, full_size: bool
 ) -> StreamingResponse:
     """Render a dynamic Teams PNG when no pregenerated preview is available."""
-    season = get_default_teams_year()
-    teams_service = TeamsService()
-    async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
-        teams_data = await teams_service.get_teams_and_drivers(season)
-    if not teams_data.teams:
-        raise RuntimeError(f"No teams data available for preview season {season}")
+    async with render_slot():
+        season = get_default_teams_year()
+        teams_service = TeamsService()
+        async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
+            teams_data = await teams_service.get_teams_and_drivers(season)
+        if not teams_data.teams:
+            raise RuntimeError(f"No teams data available for preview season {season}")
 
-    png_data = await run_render(
-        functools.partial(_build_teams_preview_png, lang, display, teams_data, full_size)
-    )
+        png_data = await run_render(
+            functools.partial(_build_teams_preview_png, lang, display, teams_data, full_size)
+        )
     return StreamingResponse(
         BytesIO(png_data),
         media_type="image/png",
@@ -259,28 +263,29 @@ async def _render_teams_extra_preview(
     )
 
     async def produce() -> tuple[bytes, str]:
-        """Render and cache only complete teams data."""
-        async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
-            data = await TeamsService().get_teams_and_drivers(ctx.season)
-        if not data.teams:
-            raise RuntimeError(f"No teams data available for preview season {ctx.season}")
-        content = await run_render(
-            functools.partial(
-                _build_teams_preview_png,
-                lang,
-                display,
-                data,
-                True,
-                extra=extra,
-                extra_context=ctx,
+        """Render and cache only complete teams data in the variant cache."""
+        async with render_slot(variant=True):
+            async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
+                data = await TeamsService().get_teams_and_drivers(ctx.season)
+            if not data.teams:
+                raise RuntimeError(f"No teams data available for preview season {ctx.season}")
+            content = await run_render(
+                functools.partial(
+                    _build_teams_preview_png,
+                    lang,
+                    display,
+                    data,
+                    True,
+                    extra=extra,
+                    extra_context=ctx,
+                )
             )
-        )
-        artifact = (content, strong_etag(content))
-        if is_teams_data_cacheable(data):
-            get_bmp_cache()[key] = artifact
-        return artifact
+            artifact = (content, strong_etag(content))
+            if is_teams_data_cacheable(data):
+                get_bmp_variant_cache()[key] = artifact
+            return artifact
 
-    artifact = get_bmp_cache().get(key)
+    artifact = get_bmp_variant_cache().get(key)
     if artifact is None:
         artifact = await _singleflight(key, produce)
     content, etag = artifact
@@ -291,7 +296,7 @@ async def _render_teams_extra_preview(
         media_type=None if unchanged else "image/png",
         headers={
             "ETag": etag,
-            "Cache-Control": "no-cache" if key in get_bmp_cache() else "no-store",
+            "Cache-Control": "no-cache" if key in get_bmp_variant_cache() else "no-store",
         },
     )
 
@@ -327,6 +332,8 @@ async def get_preview_png(
     enforce_rate_limit(request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
     try:
         return await _render_dynamic_preview(safe_screen, safe_lang, full_size=False)
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.warning("Dynamic %s homepage preview failed: %s", safe_screen, exc)
 
@@ -381,6 +388,8 @@ async def get_configure_preview_png(
                 response = await _render_teams_extra_preview(
                     request, safe_lang, safe_display, extra, ctx
                 )
+            except HTTPException:
+                raise
             except Exception as exc:
                 logger.warning("Dynamic teams extra preview failed: %s", exc)
             else:
@@ -418,6 +427,8 @@ async def get_configure_preview_png(
             return await _render_configure_calendar(
                 request, safe_lang, safe_display, safe_weather, options
             )
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.warning("Dynamic calendar configure preview failed: %s", exc)
 
@@ -434,6 +445,8 @@ async def get_configure_preview_png(
             )
             response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
             return response
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.warning("Dynamic teams configure preview failed: %s", exc)
 
