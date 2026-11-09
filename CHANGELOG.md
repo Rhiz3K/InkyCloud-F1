@@ -34,8 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (default 5) for one of `RENDER_CONCURRENCY` slots (default 4). Extra panels and
   extra previews are also capped by `RENDER_VARIANT_CONCURRENCY` (default 2, never
   above the global cap). If a slot does not open in time the response is HTTP 503
-  with `Retry-After`. Cached images do not wait. Image bytes, rate limits, and
-  response headers (including `Link rel="license"`) are unchanged.
+  with `Retry-After` set to that whole wait. Global and variant permits are
+  taken in that order and share one deadline. A failed render's error image
+  uses the same limit, and concurrent waiters share one error render. Cached
+  images do not wait. Image bytes, rate limits, and response headers
+  (including `Link rel="license"`) are unchanged.
 
 - Make the home page fit short laptop screens without changing it where it already fits.
   Desktop viewports from 1024 px wide that are at least 983 px tall keep the production

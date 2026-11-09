@@ -144,15 +144,11 @@ async def test_nested_slots_do_not_deadlock_and_timeouts_release_permits(monkeyp
     """Reentering a slot does not take a second permit, and a timeout does not leak one."""
     _configure_limits(monkeypatch, global_limit=1, variant_limit=1, wait=0.05)
 
-    async with render_slot():
-        async with render_slot():
-            async with render_slot(variant=True):
-                pass
+    async with render_slot(), render_slot(), render_slot(variant=True):
+        pass
 
-    async with render_slot(variant=True):
-        async with render_slot(variant=True):
-            async with render_slot():
-                pass
+    async with render_slot(variant=True), render_slot(variant=True), render_slot():
+        pass
 
     with pytest.raises(RuntimeError, match="render failed"):
         async with render_slot():
@@ -338,15 +334,17 @@ async def test_busy_global_pool_returns_503_without_replacing_image_routes(route
     _configure_limits(monkeypatch, global_limit=1, variant_limit=1, wait=0.05)
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
 
-    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
-        async with _occupy_slot():
-            responses = {
-                "calendar": await client.get("/calendar.bmp", params={"weather": "false"}),
-                "teams": await client.get("/teams.bmp"),
-                "home": await client.get("/preview/calendar.png"),
-                "configure-calendar": await client.get("/preview/configure/calendar.png"),
-                "configure-teams": await client.get("/preview/configure/teams.png"),
-            }
+    async with (
+        AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client,
+        _occupy_slot(),
+    ):
+        responses = {
+            "calendar": await client.get("/calendar.bmp", params={"weather": "false"}),
+            "teams": await client.get("/teams.bmp"),
+            "home": await client.get("/preview/calendar.png"),
+            "configure-calendar": await client.get("/preview/configure/calendar.png"),
+            "configure-teams": await client.get("/preview/configure/teams.png"),
+        }
 
     for name, response in responses.items():
         assert response.status_code == 503, name
@@ -363,11 +361,13 @@ async def test_busy_variant_pool_rejects_extras_and_still_serves_calendar(routes
     monkeypatch.setattr(previews, "run_render", AsyncMock(return_value=b"panel-png"))
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
 
-    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
-        async with _occupy_slot(variant=True):
-            extra = await client.get("/teams.bmp", params={"extra": "flags", "lang": "de"})
-            preview = await client.get("/preview/configure/teams.png", params={"extra": "track"})
-            calendar = await client.get("/calendar.bmp", params={"weather": "false"})
+    async with (
+        AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client,
+        _occupy_slot(variant=True),
+    ):
+        extra = await client.get("/teams.bmp", params={"extra": "flags", "lang": "de"})
+        preview = await client.get("/preview/configure/teams.png", params={"extra": "track"})
+        calendar = await client.get("/calendar.bmp", params={"weather": "false"})
 
     assert extra.status_code == preview.status_code == 503
     assert extra.headers["retry-after"] == preview.headers["retry-after"] == "1"
@@ -384,9 +384,11 @@ async def test_extra_preview_overload_does_not_render_the_ordinary_fallback(rout
     ordinary = AsyncMock(return_value=previews.Response(b"ordinary", media_type="image/png"))
     monkeypatch.setattr(previews, "_render_teams_preview", ordinary)
 
-    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
-        async with _occupy_slot(variant=True):
-            response = await client.get("/preview/configure/teams.png", params={"extra": "weather"})
+    async with (
+        AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client,
+        _occupy_slot(variant=True),
+    ):
+        response = await client.get("/preview/configure/teams.png", params={"extra": "weather"})
 
     assert response.status_code == 503
     assert response.headers["retry-after"] == "1"
@@ -403,13 +405,208 @@ async def test_track_export_returns_503_when_render_slots_are_full(monkeypatch):
     app = FastAPI()
     app.include_router(tracks.router)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        async with _occupy_slot():
-            response = await client.get("/api/tracks/albert_park.png")
+    async with (
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+        _occupy_slot(),
+    ):
+        response = await client.get("/api/tracks/albert_park.png")
 
     assert response.status_code == 503
     assert response.headers["retry-after"] == "1"
     assert response.json()["detail"] == "Rendering is busy; retry shortly"
+
+
+@pytest.mark.asyncio
+async def test_variant_permit_is_taken_only_after_the_global_permit(monkeypatch):
+    """A nested upgrade cannot deadlock with a request that still needs the global permit."""
+    _configure_limits(monkeypatch, global_limit=1, variant_limit=1, wait=0.4)
+    holding_global = asyncio.Event()
+    holding_variant = asyncio.Event()
+    release_upgrade = asyncio.Event()
+
+    contender_waiting = asyncio.Event()
+
+    async def upgrade() -> None:
+        async with render_slot():
+            holding_global.set()
+            await contender_waiting.wait()
+            async with render_slot(variant=True):
+                holding_variant.set()
+                await release_upgrade.wait()
+
+    async def contend() -> str:
+        async with render_slot(variant=True):
+            return "entered"
+
+    upgrade_task = asyncio.create_task(upgrade())
+    await holding_global.wait()
+    contender = asyncio.create_task(contend())
+    global_gate = render_limit._gates["global"][2]
+    for _ in range(50):
+        if global_gate._waiters:
+            break
+        await asyncio.sleep(0.01)
+    else:
+        raise AssertionError("contender did not wait for the global permit")
+    contender_waiting.set()
+    await asyncio.wait_for(holding_variant.wait(), timeout=0.2)
+    release_upgrade.set()
+    await upgrade_task
+    assert await asyncio.wait_for(contender, timeout=0.5) == "entered"
+
+
+@pytest.mark.asyncio
+async def test_child_task_does_not_reuse_parent_render_permit(monkeypatch):
+    """A task created inside a slot must take its own permit."""
+    _configure_limits(monkeypatch, global_limit=1, variant_limit=1, wait=0.05)
+    entered = asyncio.Event()
+
+    async def child() -> None:
+        async with render_slot():
+            entered.set()
+
+    async with render_slot():
+        task = asyncio.create_task(child())
+        with pytest.raises(TimeoutError):
+            await asyncio.wait_for(entered.wait(), timeout=0.2)
+        with pytest.raises(HTTPException) as error:
+            await task
+        assert error.value.status_code == 503
+        assert error.value.headers is not None
+        assert error.value.headers["Retry-After"] == "1"
+
+    async with render_slot():
+        pass
+
+
+@pytest.mark.asyncio
+async def test_two_permit_wait_shares_one_deadline(monkeypatch):
+    """Global and variant waits share one budget, and Retry-After reports that budget."""
+    wait = 1.1
+    _configure_limits(monkeypatch, global_limit=2, variant_limit=1, wait=wait)
+    release_plain = asyncio.Event()
+    release_variant = asyncio.Event()
+    plain_ready = asyncio.Event()
+    variant_ready = asyncio.Event()
+
+    async def hold_plain() -> None:
+        async with render_slot():
+            plain_ready.set()
+            await release_plain.wait()
+
+    async def hold_variant() -> None:
+        async with render_slot(variant=True):
+            variant_ready.set()
+            await release_variant.wait()
+
+    plain_task = asyncio.create_task(hold_plain())
+    variant_task = asyncio.create_task(hold_variant())
+    await plain_ready.wait()
+    await variant_ready.wait()
+
+    async def contend() -> None:
+        async with render_slot(variant=True):
+            return None
+
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    contender = asyncio.create_task(contend())
+    await asyncio.sleep(0.25)
+    release_plain.set()
+    acquired_global = False
+    for _ in range(50):
+        if render_limit._gates["global"][2]._value == 0:
+            acquired_global = True
+            break
+        await asyncio.sleep(0.01)
+    assert acquired_global
+    with pytest.raises(HTTPException) as error:
+        await contender
+    elapsed = loop.time() - started
+
+    assert error.value.headers is not None
+    assert error.value.headers["Retry-After"] == "2"
+    assert 0.9 < elapsed < 1.6
+    assert render_limit._gates["global"][2]._value == 1
+    release_variant.set()
+    await plain_task
+    await variant_task
+
+
+@pytest.mark.asyncio
+async def test_failed_render_waiters_share_one_limited_error_image(routes, monkeypatch):
+    """Waiters of one failed render share a single error image, which also takes a slot."""
+    release = asyncio.Event()
+    started = asyncio.Event()
+    both_calendar = asyncio.Event()
+    second_error = asyncio.Event()
+    error_renders = 0
+    calendar_entries = 0
+    error_entries = 0
+    original_singleflight = images._singleflight
+
+    async def counting(key, producer):
+        nonlocal calendar_entries, error_entries
+        key_text = str(key)
+        if key_text.startswith("error:"):
+            error_entries += 1
+            if error_entries >= 2:
+                second_error.set()
+        elif key_text.startswith("calendar:"):
+            calendar_entries += 1
+            if calendar_entries >= 2:
+                both_calendar.set()
+        return await original_singleflight(key, producer)
+
+    async def render(func):
+        nonlocal error_renders
+        if getattr(func, "func", None) is images._render_error_bytes:
+            error_renders += 1
+            await second_error.wait()
+            return b"BMerror"
+        started.set()
+        await release.wait()
+        raise RuntimeError("calendar failed")
+
+    monkeypatch.setattr(images, "run_render", render)
+    monkeypatch.setattr(images, "_singleflight", counting)
+    monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
+
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        first = asyncio.create_task(client.get("/calendar.bmp", params={"weather": "false"}))
+        await started.wait()
+        second = asyncio.create_task(client.get("/calendar.bmp", params={"weather": "false"}))
+        await asyncio.wait_for(both_calendar.wait(), timeout=1)
+        release.set()
+        first_response, second_response = await asyncio.gather(first, second)
+
+    assert error_renders == 1
+    assert error_entries == 2
+    assert first_response.status_code == second_response.status_code == 200
+    assert first_response.content == second_response.content == b"BMerror"
+    assert first_response.headers["cache-control"] == "no-store"
+    assert second_response.headers["cache-control"] == "no-store"
+    assert not images._singleflight_tasks
+
+
+@pytest.mark.asyncio
+async def test_error_bmp_waits_for_a_render_slot(routes, monkeypatch):
+    """The error-image fallback cannot bypass a full render pool."""
+    _configure_limits(monkeypatch, global_limit=1, variant_limit=1, wait=0.05)
+    monkeypatch.setattr(
+        images, "_render_calendar_artifact", AsyncMock(side_effect=RuntimeError("fail"))
+    )
+    monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
+
+    async with (
+        AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client,
+        _occupy_slot(),
+    ):
+        response = await client.get("/calendar.bmp", params={"weather": "false"})
+
+    assert response.status_code == 503
+    assert response.headers["retry-after"] == "1"
+    assert response.content[:2] != b"BM"
 
 
 @pytest.mark.asyncio

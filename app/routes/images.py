@@ -588,6 +588,21 @@ def _render_error_bytes(display: str, lang: str, message: str) -> bytes:
     return renderer.render_error(message)
 
 
+async def _render_error_artifact(display: str, lang: str, message: str) -> BmpArtifact:
+    """Render one error BMP inside the shared render limit."""
+    async with render_slot():
+        bmp_data = await run_render(functools.partial(_render_error_bytes, display, lang, message))
+    return bmp_data, strong_etag(bmp_data)
+
+
+async def _shared_error_artifact(display: str, lang: str, message: str) -> BmpArtifact:
+    """Share one in-flight error image across waiters of a failed render."""
+    return await _singleflight(
+        f"error:{display}:{lang}:{message}",
+        functools.partial(_render_error_artifact, display, lang, message),
+    )
+
+
 async def _render_calendar(
     *,
     f1_service: F1Service,
@@ -886,18 +901,16 @@ async def get_calendar_bmp(
             cache_control=CALENDAR_BMP_CACHE_CONTROL if is_cacheable else "no-store",
             cache_status="MISS",
         )
-    except HTTPException:
-        raise
     except Exception as exc:
+        if isinstance(exc, HTTPException):
+            raise
         logger.error("Error generating calendar: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:
             sentry_sdk.capture_exception(exc)
-        bmp_data = await run_render(
-            functools.partial(_render_error_bytes, display, lang, "Temporary rendering error")
-        )
+        bmp_data, etag = await _shared_error_artifact(display, lang, "Temporary rendering error")
         return respond(
             bmp_data,
-            strong_etag(bmp_data),
+            etag,
             cache_control="no-store",
             cache_status=None,
         )
@@ -995,19 +1008,17 @@ async def get_teams_bmp(
         )
         return respond(*artifact, cache_status="MISS")
 
-    except HTTPException:
-        raise
     except Exception as exc:
+        if isinstance(exc, HTTPException):
+            raise
         logger.error("Error generating teams: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:
             sentry_sdk.capture_exception(exc)
-        bmp_data = await run_render(
-            functools.partial(_render_error_bytes, display, lang, "Temporary rendering error")
-        )
+        bmp_data, etag = await _shared_error_artifact(display, lang, "Temporary rendering error")
         return _teams_response(
             request,
             content=bmp_data,
-            etag=strong_etag(bmp_data),
+            etag=etag,
             start_time=start_time,
             lang=lang,
             display=display,

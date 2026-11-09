@@ -332,9 +332,9 @@ async def get_preview_png(
     enforce_rate_limit(request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
     try:
         return await _render_dynamic_preview(safe_screen, safe_lang, full_size=False)
-    except HTTPException:
-        raise
     except Exception as exc:
+        if isinstance(exc, HTTPException):
+            raise
         logger.warning("Dynamic %s homepage preview failed: %s", safe_screen, exc)
 
     raise HTTPException(status_code=404, detail="Preview not generated yet")
@@ -388,9 +388,9 @@ async def get_configure_preview_png(
                 response = await _render_teams_extra_preview(
                     request, safe_lang, safe_display, extra, ctx
                 )
-            except HTTPException:
-                raise
             except Exception as exc:
+                if isinstance(exc, HTTPException):
+                    raise
                 logger.warning("Dynamic teams extra preview failed: %s", exc)
             else:
                 response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
@@ -427,9 +427,9 @@ async def get_configure_preview_png(
             return await _render_configure_calendar(
                 request, safe_lang, safe_display, safe_weather, options
             )
-        except HTTPException:
-            raise
         except Exception as exc:
+            if isinstance(exc, HTTPException):
+                raise
             logger.warning("Dynamic calendar configure preview failed: %s", exc)
 
     if safe_screen == "teams":
@@ -445,9 +445,9 @@ async def get_configure_preview_png(
             )
             response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
             return response
-        except HTTPException:
-            raise
         except Exception as exc:
+            if isinstance(exc, HTTPException):
+                raise
             logger.warning("Dynamic teams configure preview failed: %s", exc)
 
     raise HTTPException(status_code=404, detail="Configure preview not generated yet")

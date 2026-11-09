@@ -2,8 +2,13 @@
 
 Cache hits must not call :func:`render_slot`. The permit is taken inside the
 singleflight producer, not by each waiting request, and it is held until that
-render finishes. Nested calls on the same task reuse permits the task already
-holds so a render cannot deadlock on its own slot.
+render finishes. Nested calls on the same task reuse permits that task already
+holds. A child task does not inherit them: ``asyncio`` copies the context, so
+the reservation records its owning task.
+
+Every admission takes the global permit before a variant permit and releases
+in the opposite order. Both waits share one deadline, so the total wait is at
+most ``RENDER_SLOT_WAIT_SECONDS``.
 """
 
 from __future__ import annotations
@@ -15,6 +20,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
+from typing import cast
 
 from fastapi import HTTPException
 
@@ -28,8 +34,9 @@ _gates: dict[str, _Gate] = {}
 
 @dataclass(frozen=True)
 class _Reservation:
-    """Render permits held by the current task."""
+    """Render permits held by one task."""
 
+    owner: asyncio.Task[object]
     global_semaphore: asyncio.Semaphore
     variant_semaphore: asyncio.Semaphore | None
 
@@ -62,54 +69,78 @@ def _semaphore(name: str, limit: int) -> asyncio.Semaphore:
     return semaphore
 
 
-async def _acquire(semaphore: asyncio.Semaphore, timeout: float) -> None:
-    """Take one permit, or reject the render when the wait expires."""
+def _owned_reservation() -> _Reservation | None:
+    """Return this task's reservation, ignoring one copied onto a child task."""
+    held = _reservation.get()
+    if held is None or held.owner is not asyncio.current_task():
+        return None
+    return held
+
+
+def _retry_after(wait_seconds: float) -> str:
+    """Return the whole configured wait as a positive Retry-After value."""
+    return str(max(1, math.ceil(wait_seconds)))
+
+
+def _busy(wait_seconds: float) -> HTTPException:
+    """Build the 503 returned when the shared wait budget runs out."""
+    logger.warning("Uncached image render waited %.1fs without a free slot", wait_seconds)
+    return HTTPException(
+        status_code=503,
+        detail="Rendering is busy; retry shortly",
+        headers={"Retry-After": _retry_after(wait_seconds)},
+    )
+
+
+async def _acquire(semaphore: asyncio.Semaphore, deadline: float, wait_seconds: float) -> None:
+    """Take one permit before the shared deadline, or reject the render."""
+    remaining = deadline - asyncio.get_running_loop().time()
     try:
-        await asyncio.wait_for(semaphore.acquire(), timeout)
+        await asyncio.wait_for(semaphore.acquire(), max(0.0, remaining))
     except TimeoutError:
-        logger.warning("Uncached image render waited %.1fs without a free slot", timeout)
-        raise HTTPException(
-            status_code=503,
-            detail="Rendering is busy; retry shortly",
-            headers={"Retry-After": str(max(1, math.ceil(timeout)))},
-        ) from None
+        raise _busy(wait_seconds) from None
 
 
 @asynccontextmanager
 async def render_slot(*, variant: bool = False) -> AsyncIterator[None]:
     """Wait for permission to render one uncached image.
 
-    ``variant`` also takes a permit from the smaller extra/preview pool. When
-    that pool, or the global pool, does not open before
-    ``RENDER_SLOT_WAIT_SECONDS``, this raises HTTP 503 with ``Retry-After``.
+    ``variant`` also takes a permit from the smaller extra/preview pool, and
+    only after the global permit. When the pools do not open before
+    ``RENDER_SLOT_WAIT_SECONDS``, this raises HTTP 503 with ``Retry-After``
+    set to that whole budget.
     """
-    held = _reservation.get()
-    if held is not None and (not variant or held.variant_semaphore is not None):
+    held = _owned_reservation()
+    needs_variant = variant and (held is None or held.variant_semaphore is None)
+    if held is not None and not needs_variant:
         yield
         return
 
     global_limit, variant_limit, timeout = _current_limits()
-    acquired_variant: asyncio.Semaphore | None = None
+    deadline = asyncio.get_running_loop().time() + timeout
     acquired_global: asyncio.Semaphore | None = None
+    acquired_variant: asyncio.Semaphore | None = None
     try:
-        if variant:
-            variant_semaphore = _semaphore("variant", variant_limit)
-            await _acquire(variant_semaphore, timeout)
-            acquired_variant = variant_semaphore
         if held is None:
             global_semaphore = _semaphore("global", global_limit)
-            await _acquire(global_semaphore, timeout)
+            await _acquire(global_semaphore, deadline, timeout)
             acquired_global = global_semaphore
-            reservation = _Reservation(global_semaphore, acquired_variant)
+            reserved_global = global_semaphore
         else:
-            reservation = _Reservation(held.global_semaphore, acquired_variant)
+            reserved_global = held.global_semaphore
+        if needs_variant:
+            variant_semaphore = _semaphore("variant", variant_limit)
+            await _acquire(variant_semaphore, deadline, timeout)
+            acquired_variant = variant_semaphore
+        owner = cast(asyncio.Task[object], asyncio.current_task())
+        reservation = _Reservation(owner, reserved_global, acquired_variant)
         token = _reservation.set(reservation)
         try:
             yield
         finally:
             _reservation.reset(token)
     finally:
-        if acquired_global is not None:
-            acquired_global.release()
         if acquired_variant is not None:
             acquired_variant.release()
+        if acquired_global is not None:
+            acquired_global.release()
