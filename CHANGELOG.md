@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scikit-learn 1.9.1, and librt 0.16.0. PyYAML stays at 6.0.3, which still has no
   cp315 wheel; the image builder installs that sdist with the existing gcc and libc6-dev
   packages.
+- Bump pip-api to 0.0.35 so the dependency audit runs on Python 3.15. 0.0.34 vendors
+  a pyparsing that imports `sre_constants`, which 3.15 removed. pip-audit stays at 2.10.1.
 - Make the home page fit short laptop screens without changing it where it already fits.
   Desktop viewports from 1024 px wide that are at least 983 px tall keep the production
   layout pixel for pixel; the only change is that the unofficial-project notice sits on one
