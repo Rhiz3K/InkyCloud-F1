@@ -207,6 +207,15 @@ core readiness available and marks generation degraded. Preview metadata sidecar
 PNG to the current race and source BMP and preserve the source's six-hour freshness limit;
 missing or stale configure previews fall back to rendering the requested BMP.
 
+Calendar images and plain teams dashboards share a 512-entry, one-hour process cache.
+Teams `extra` panels and extra previews use a separate cache (`BMP_VARIANT_CACHE_MAXSIZE`,
+default 64, same one-hour lifetime) so those variants cannot evict the common images.
+Uncached renders admit at most `RENDER_CONCURRENCY` at a time (default 4) and wait up to
+`RENDER_SLOT_WAIT_SECONDS` (default 5) for a slot. Extra panels and extra previews are
+also limited by `RENDER_VARIANT_CONCURRENCY` (default 2, and never higher than the global
+cap). A full wait returns HTTP 503 with `Retry-After`. Cached image responses do not wait
+and are not counted against those slots. The per-minute image rate limit is unchanged.
+
 The persistent circuit history file (`circuits_jolpica.json`, Jolpica data only) takes current
 facts and new circuits from the bundled release, while retaining newer historical results
 and runtime-only circuits. Startup migrates

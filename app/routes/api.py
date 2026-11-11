@@ -17,7 +17,7 @@ from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_extra import TeamsExtra
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.track_catalog import TrackAccent, TrackSource, TrackStyle
-from app.state import get_bmp_cache
+from app.state import get_bmp_cache, get_bmp_variant_cache
 from app.utils.f1_season import (
     MIN_F1_SEASON,
     get_current_f1_season,
@@ -179,7 +179,11 @@ async def api_info() -> dict:
             "data_api_requests": config.DATA_API_RATE_LIMIT_PER_MINUTE,
             "statistics_reads": config.STATS_RATE_LIMIT_PER_MINUTE,
             "performance_posts": config.PERF_METRICS_RATE_LIMIT_PER_MINUTE,
+            "render_concurrency": config.RENDER_CONCURRENCY,
+            "render_variant_concurrency": config.RENDER_VARIANT_CONCURRENCY,
+            "render_slot_wait_seconds": config.RENDER_SLOT_WAIT_SECONDS,
             "exceeded_response": "429 with Retry-After header",
+            "overloaded_response": "503 with Retry-After; cached images do not wait",
         },
         "description": (
             f"Generate {config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} BMP images "
@@ -548,6 +552,8 @@ async def get_stats(request: Request) -> dict:
         },
         "cache_size": len(get_bmp_cache()),
         "cache_max_size": get_bmp_cache().maxsize,
+        "variant_cache_size": len(get_bmp_variant_cache()),
+        "variant_cache_max_size": get_bmp_variant_cache().maxsize,
     }
 
 

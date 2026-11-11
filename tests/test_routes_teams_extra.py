@@ -11,7 +11,7 @@ from app.models import TeamEntry, TeamsData
 from app.routes import images, previews
 from app.services.teams_extra import TeamsExtra, build_teams_extra_context, teams_extra_cache_token
 from app.services.weather_service import WeatherData, WeatherService
-from app.state import get_bmp_cache
+from app.state import get_bmp_cache, get_bmp_variant_cache
 from app.utils.etag import strong_etag
 
 _NOW = datetime(2026, 5, 1, 12, tzinfo=UTC)
@@ -21,6 +21,7 @@ _NOW = datetime(2026, 5, 1, 12, tzinfo=UTC)
 def routes(monkeypatch):
     """Mount isolated routes with deterministic data and no external fetching."""
     get_bmp_cache().clear()
+    get_bmp_variant_cache().clear()
     images._singleflight_tasks.clear()
     monkeypatch.setattr(WeatherService, "get_cached_value", lambda key: WeatherData(20.0, 1, 10))
     monkeypatch.setattr(images, "record_api_call", MagicMock())
@@ -47,6 +48,7 @@ def routes(monkeypatch):
     app.include_router(previews.router)
     yield app
     get_bmp_cache().clear()
+    get_bmp_variant_cache().clear()
     images._singleflight_tasks.clear()
 
 
@@ -82,7 +84,8 @@ async def test_panels_render_unique_token_and_ignore_pregeneration(routes, extra
     images._get_pregenerated_teams_path.assert_not_called()
     ctx = build_teams_extra_context(extra, 2026, now=_NOW)
     token = teams_extra_cache_token(extra, ctx)
-    assert token and any(token in key for key in get_bmp_cache())
+    assert token and any(token in key for key in get_bmp_variant_cache())
+    assert all(token not in key for key in get_bmp_cache())
     # no-cache requires revalidation even across the next local midnight.
     assert response.headers["cache-control"] == "no-cache"
 
@@ -100,6 +103,7 @@ async def test_historical_and_finished_seasons_share_none(routes, monkeypatch):
             assert extra.headers["etag"] == plain.headers["etag"]
             assert extra.headers["x-cache"] == "HIT"
     assert all("_x" not in key for key in get_bmp_cache())
+    assert not get_bmp_variant_cache()
 
 
 @pytest.mark.asyncio
@@ -143,7 +147,8 @@ async def test_extra_preview_cache_and_conditional_request(routes, monkeypatch):
     assert render.call_args.kwargs["extra"] == TeamsExtra.COUNTDOWN
     assert render.call_args.kwargs["extra_context"].days_left >= 0
     previews._cached_preview_response.assert_not_called()
-    assert any("preview:" in key and "_xcountdown_" in key for key in get_bmp_cache())
+    assert any("preview:" in key and "_xcountdown_" in key for key in get_bmp_variant_cache())
+    assert not any(key.startswith("preview:") for key in get_bmp_cache())
 
 
 @pytest.mark.asyncio
@@ -168,6 +173,7 @@ async def test_preview_incomplete_data_is_not_cached(routes, monkeypatch):
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
     assert not get_bmp_cache()
+    assert not get_bmp_variant_cache()
 
 
 @pytest.mark.asyncio
@@ -293,4 +299,5 @@ async def test_extra_preview_failures_use_ordinary_fallback(
         assert "No teams data available for preview season 2026" in caplog.text
     previews.enforce_rate_limit.assert_called_once()
     assert not get_bmp_cache()
+    assert not get_bmp_variant_cache()
     assert not images._singleflight_tasks
