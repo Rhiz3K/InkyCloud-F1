@@ -31,7 +31,9 @@ def routes(monkeypatch):
         monkeypatch.setattr(
             module,
             "build_teams_extra_context",
-            lambda extra, year: build_teams_extra_context(extra, year, now=_NOW),
+            lambda extra, year, **kwargs: build_teams_extra_context(
+                extra, year, now=_NOW, **kwargs
+            ),
         )
         monkeypatch.setattr(module, "is_teams_data_cacheable", lambda data: True)
     monkeypatch.setattr(
@@ -96,7 +98,9 @@ async def test_historical_and_finished_seasons_share_none(routes, monkeypatch):
     async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
         for year in (2025, 2026):
             if year == 2026:
-                monkeypatch.setattr(images, "build_teams_extra_context", lambda extra, year: None)
+                monkeypatch.setattr(
+                    images, "build_teams_extra_context", lambda extra, year, **kwargs: None
+                )
             plain = await client.get("/teams.bmp", params={"year": year})
             extra = await client.get("/teams.bmp", params={"year": year, "extra": "timeline"})
             assert extra.content == plain.content
@@ -154,7 +158,7 @@ async def test_extra_preview_cache_and_conditional_request(routes, monkeypatch):
 @pytest.mark.asyncio
 async def test_preview_unavailable_context_uses_none_path(routes, monkeypatch):
     """An unavailable panel preserves the ordinary preview file response."""
-    monkeypatch.setattr(previews, "build_teams_extra_context", lambda extra, year: None)
+    monkeypatch.setattr(previews, "build_teams_extra_context", lambda extra, year, **kwargs: None)
     render = AsyncMock(return_value=previews.Response(b"ordinary"))
     monkeypatch.setattr(previews, "_cached_preview_response", render)
     async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
@@ -301,3 +305,177 @@ async def test_extra_preview_failures_use_ordinary_fallback(
     assert not get_bmp_cache()
     assert not get_bmp_variant_cache()
     assert not images._singleflight_tasks
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["/teams.bmp", "/preview/configure/teams.png"])
+@pytest.mark.parametrize("extra", ["none", "countdown"])
+async def test_invalid_timezone_rejected_even_without_panel(routes, path, extra):
+    """Both image endpoints validate timezone input before rendering any panel."""
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        response = await client.get(path, params={"extra": extra, "tz": "Invalid/Zone"})
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Invalid timezone: Invalid/Zone"}
+    assert not get_bmp_cache()
+    assert not get_bmp_variant_cache()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("extra", ["none", "countdown"])
+async def test_timezone_ignored_for_plain_and_unavailable_context(routes, monkeypatch, extra):
+    """Plain dashboards share bytes, headers, disk lookup and main-cache keys with tz."""
+    if extra == "countdown":
+        monkeypatch.setattr(images, "build_teams_extra_context", lambda *args, **kwargs: None)
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        await client.get("/teams.bmp", params={"extra": extra})
+        baseline = await client.get("/teams.bmp", params={"extra": extra})
+        shifted = await client.get(
+            "/teams.bmp", params={"extra": extra, "tz": "America/Los_Angeles"}
+        )
+        conditional = await client.get(
+            "/teams.bmp",
+            params={"extra": extra, "tz": "America/Los_Angeles"},
+            headers={"If-None-Match": baseline.headers["etag"]},
+        )
+    assert baseline.status_code == shifted.status_code == 200
+    assert baseline.content == shifted.content
+    for header in ("etag", "cache-control", "x-cache", "link", "content-type", "content-length"):
+        assert baseline.headers[header] == shifted.headers[header]
+    assert conditional.status_code == 304
+    assert conditional.headers["etag"] == baseline.headers["etag"]
+    assert set(get_bmp_cache()) == {"teams_2026_en"}
+    assert not get_bmp_variant_cache()
+    images._get_pregenerated_teams_path.assert_called_once_with(
+        lang="en", year=2026, display="1bit"
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("extra", ["countdown", "flags", "track", "weather"])
+async def test_timezone_panels_render_and_cache_separately(routes, monkeypatch, extra):
+    """Each visible dated panel uses local pixels and a separate variant cache key."""
+    from app.config import config
+    from app.services.f1_service import F1Service
+    from app.services.image_keys import get_teams_image_key
+
+    race = F1Service.get_season_from_static(2026)[0].model_copy(deep=True)
+    race.date, race.time = "2026-05-03", "23:00:00Z"
+    monkeypatch.setattr(
+        F1Service, "get_season_from_static", lambda year: [race] if year == 2026 else []
+    )
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        default = await client.get("/teams.bmp", params={"extra": extra})
+        explicit = await client.get(
+            "/teams.bmp", params={"extra": extra, "tz": config.DEFAULT_TIMEZONE}
+        )
+        shifted = await client.get(
+            "/teams.bmp", params={"extra": extra, "tz": "America/Los_Angeles"}
+        )
+        repeated = await client.get(
+            "/teams.bmp", params={"extra": extra, "tz": "America/Los_Angeles"}
+        )
+    assert default.status_code == explicit.status_code == shifted.status_code == 200
+    assert default.content == explicit.content
+    assert default.headers["etag"] == explicit.headers["etag"]
+    assert explicit.headers["x-cache"] == repeated.headers["x-cache"] == "HIT"
+    assert default.content != shifted.content == repeated.content
+    assert default.headers["etag"] != shifted.headers["etag"]
+    for zone, response in ((None, default), ("America/Los_Angeles", shifted)):
+        context = build_teams_extra_context(TeamsExtra(extra), 2026, now=_NOW, timezone_name=zone)
+        key = get_teams_image_key("en", 2026, extra=TeamsExtra(extra), extra_context=context)
+        assert get_bmp_variant_cache()[key] == (response.content, response.headers["etag"])
+    assert len(get_bmp_variant_cache()) == 2
+    assert not get_bmp_cache()
+    images._get_pregenerated_teams_path.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["/teams.bmp", "/preview/configure/teams.png"])
+async def test_timezone_aliases_share_route_cache(routes, path):
+    """Both routes normalize aliases before constructing the panel snapshot and key."""
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        canonical = await client.get(path, params={"extra": "track", "tz": "Asia/Kolkata"})
+        alias = await client.get(path, params={"extra": "track", "tz": "Asia/Calcutta"})
+    assert canonical.status_code == alias.status_code == 200
+    assert canonical.content == alias.content
+    assert canonical.headers["etag"] == alias.headers["etag"]
+    assert len(get_bmp_variant_cache()) == 1
+    assert "Asia_Kolkata" in next(iter(get_bmp_variant_cache()))
+
+
+@pytest.mark.asyncio
+async def test_preview_timezone_reaches_renderer_and_cache(routes, monkeypatch):
+    """PNG rendering receives the requested local start and stores a timezone variant."""
+    render = MagicMock(return_value=b"panel-png")
+    monkeypatch.setattr(previews, "_build_teams_preview_png", render)
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        response = await client.get(
+            "/preview/configure/teams.png",
+            params={"extra": "countdown", "tz": "America/Los_Angeles"},
+        )
+    assert response.status_code == 200
+    context = render.call_args.kwargs["extra_context"]
+    assert context.timezone_name == "America/Los_Angeles"
+    assert context == build_teams_extra_context(
+        TeamsExtra.COUNTDOWN, 2026, now=_NOW, timezone_name="America/Los_Angeles"
+    )
+    assert len(get_bmp_variant_cache()) == 1
+    assert "America_Los_Angeles" in next(iter(get_bmp_variant_cache()))
+    previews._cached_preview_response.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("extra", ["none", "countdown"])
+async def test_preview_timezone_ignored_for_plain_fallback(routes, monkeypatch, extra):
+    """A valid timezone preserves plain preview filenames, content and headers."""
+    monkeypatch.setattr(previews, "build_teams_extra_context", lambda *args, **kwargs: None)
+    cached = AsyncMock(return_value=previews.Response(b"plain", headers={"ETag": '"plain"'}))
+    monkeypatch.setattr(previews, "_cached_preview_response", cached)
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        default = await client.get("/preview/configure/teams.png", params={"extra": extra})
+        shifted = await client.get(
+            "/preview/configure/teams.png",
+            params={"extra": extra, "tz": "America/Los_Angeles"},
+        )
+    assert default.content == shifted.content == b"plain"
+    assert default.headers == shifted.headers
+    assert cached.await_args_list[0].args[0] == cached.await_args_list[1].args[0]
+    assert not get_bmp_variant_cache()
+
+
+@pytest.mark.asyncio
+async def test_plain_timezone_uses_pregenerated_file(routes, monkeypatch, tmp_path):
+    """Timezone input preserves disk serving and conditional headers for plain teams."""
+    from app.services.artifact_metadata import write_artifact_metadata
+
+    content = b"pregenerated-teams"
+    path = tmp_path / "teams_2026_en.bmp"
+    path.write_bytes(content)
+    await write_artifact_metadata(path, content, "teams:2026")
+    lookup = MagicMock(return_value=path)
+    monkeypatch.setattr(images, "_get_pregenerated_teams_path", lookup)
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        default = await client.get("/teams.bmp?extra=none")
+        shifted = await client.get("/teams.bmp?extra=none&tz=America/Los_Angeles")
+        default_conditional = await client.get(
+            "/teams.bmp?extra=none",
+            headers={"If-None-Match": default.headers["etag"]},
+        )
+        conditional = await client.get(
+            "/teams.bmp?extra=none&tz=America/Los_Angeles",
+            headers={"If-None-Match": default.headers["etag"]},
+        )
+    assert default.content == shifted.content == content
+    assert default.headers == shifted.headers
+    assert default.headers["x-cache"] == "MISS"
+    assert conditional.status_code == default_conditional.status_code == 304
+    assert conditional.content == default_conditional.content == b""
+    assert conditional.headers["etag"] == default.headers["etag"]
+    assert conditional.headers == default_conditional.headers
+    assert lookup.call_count == 4
+    assert all(
+        call.kwargs == {"lang": "en", "year": 2026, "display": "1bit"}
+        for call in lookup.call_args_list
+    )
+    assert not get_bmp_cache()
+    assert not get_bmp_variant_cache()

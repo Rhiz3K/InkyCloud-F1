@@ -44,7 +44,9 @@ def routes(monkeypatch):
         monkeypatch.setattr(
             module,
             "build_teams_extra_context",
-            lambda extra, year: build_teams_extra_context(extra, year, now=_NOW),
+            lambda extra, year, **kwargs: build_teams_extra_context(
+                extra, year, now=_NOW, **kwargs
+            ),
         )
         monkeypatch.setattr(module, "is_teams_data_cacheable", lambda data: True)
     monkeypatch.setattr(

@@ -17,6 +17,7 @@ from app.services.weather_service import (
     _race_weather_cache_key,
     get_cached_circuit_weather,
 )
+from app.utils.timezones import normalize_timezone
 
 
 class TeamsExtra(StrEnum):
@@ -61,6 +62,9 @@ class TeamsExtraContext:
     start_local: datetime
     days_left: int
     weather: WeatherData | None
+    timezone_name: str = config.DEFAULT_TIMEZONE
+    # Preserve the legacy day token when the weather panel has nothing to draw.
+    default_today: date | None = None
 
 
 _CODES = dict(
@@ -81,13 +85,18 @@ def _start(race: Race) -> datetime:
 
 
 def build_teams_extra_context(
-    extra: TeamsExtra, season: int, *, now: datetime | None = None
+    extra: TeamsExtra,
+    season: int,
+    *,
+    now: datetime | None = None,
+    timezone_name: str | None = None,
 ) -> TeamsExtraContext | None:
     """Build a panel snapshot from bundled seasons and existing memory caches only."""
     if extra == TeamsExtra.NONE:
         return None
     now = now or datetime.now(UTC)
-    zone = ZoneInfo(config.DEFAULT_TIMEZONE)
+    timezone_name = normalize_timezone(timezone_name or config.DEFAULT_TIMEZONE)
+    zone = ZoneInfo(timezone_name)
     local_today = now.astimezone(zone).date()
     races = sorted((r for r in F1Service.get_season_from_static(season) if r.round), key=_start)
     if not races:
@@ -132,6 +141,8 @@ def build_teams_extra_context(
         start.astimezone(zone),
         max(0, (start.astimezone(zone).date() - local_today).days),
         weather,
+        timezone_name,
+        now.astimezone(ZoneInfo(config.DEFAULT_TIMEZONE)).date(),
     )
 
 
@@ -141,9 +152,15 @@ def teams_extra_cache_token(extra: TeamsExtra, ctx: TeamsExtraContext | None) ->
         return ""
     # Derive the snapshot's local today, keeping injected clocks deterministic.
     today = ctx.start_local.date() - timedelta(days=ctx.days_left)
+    if extra == TeamsExtra.WEATHER and ctx.weather is None and ctx.default_today is not None:
+        today = ctx.default_today
     token = f"_x{extra}_{today:%Y%m%d}_r{ctx.next_round}"
     if extra == TeamsExtra.WEATHER and ctx.weather is not None:
         wx = ctx.weather
         values = (round(wx.temperature_c), wx.weather_code, wx.precip_display)
         token += "_" + sha256(repr(values).encode()).hexdigest()[:10]
+    if normalize_timezone(ctx.timezone_name) != normalize_timezone(config.DEFAULT_TIMEZONE) and (
+        extra != TeamsExtra.WEATHER or ctx.weather is not None
+    ):
+        token += f"_{normalize_timezone(ctx.timezone_name).replace('/', '_')}"
     return token

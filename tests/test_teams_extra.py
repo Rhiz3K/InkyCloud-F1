@@ -666,3 +666,84 @@ def test_upcoming_dates_follow_display_timezone(monkeypatch):
     context = build_teams_extra_context(TeamsExtra.FLAGS, 2026, now=NOW)
     assert context.rounds[0].date == context.start_local.date()
     assert context.rounds[0].date.day == 9
+
+
+@pytest.mark.parametrize("now_hour, expected_days", [(12, (3, 2)), (23, (2, 2))])
+def test_context_uses_requested_timezone(monkeypatch, now_hour, expected_days):
+    """Local race dates and today's date both follow the requested IANA zone."""
+    race = F1Service.get_season_from_static(2026)[0].model_copy(deep=True)
+    race.date, race.time = "2026-03-08", "23:00:00Z"
+    monkeypatch.setattr(
+        F1Service, "get_season_from_static", lambda year: [race] if year == 2026 else []
+    )
+    now = datetime(2026, 3, 6, now_hour, tzinfo=UTC)
+    prague, la = (
+        build_teams_extra_context(TeamsExtra.COUNTDOWN, 2026, now=now, timezone_name=zone)
+        for zone in ("Europe/Prague", "America/Los_Angeles")
+    )
+    assert prague.timezone_name == "Europe/Prague"
+    assert la.timezone_name == "America/Los_Angeles"
+    assert prague.start_local.isoformat() == "2026-03-09T00:00:00+01:00"
+    assert la.start_local.isoformat() == "2026-03-08T16:00:00-07:00"
+    assert prague.rounds[0].date == prague.start_local.date()
+    assert la.rounds[0].date == la.start_local.date()
+    assert (prague.days_left, la.days_left) == expected_days
+
+
+@pytest.mark.parametrize("extra", list(TeamsExtra))
+@pytest.mark.parametrize("weather", [None, WeatherData(20, 1, 10)])
+def test_timezone_cache_tokens_preserve_existing_keys(ctx, extra, weather):
+    """Only drawn non-default panels add a safe timezone suffix to existing keys."""
+    from app.config import config
+
+    default = replace(ctx, weather=weather)
+    explicit = replace(default, timezone_name=config.DEFAULT_TIMEZONE)
+    shifted = replace(default, timezone_name="America/Los_Angeles")
+    token = teams_extra_cache_token(extra, default)
+    key = get_teams_image_key("en", 2026, extra=extra, extra_context=default)
+    assert teams_extra_cache_token(extra, explicit) == token
+    assert get_teams_image_key("en", 2026, extra=extra, extra_context=explicit) == key
+    expected = "" if extra == TeamsExtra.NONE else f"_x{extra}_20260306_r1"
+    if extra == TeamsExtra.WEATHER and weather is not None:
+        from hashlib import sha256
+
+        expected += "_" + sha256(repr((20, 1, weather.precip_display)).encode()).hexdigest()[:10]
+    assert token == expected
+    assert key == f"teams_2026_en{expected}"
+    drawn = extra != TeamsExtra.NONE and (extra != TeamsExtra.WEATHER or weather is not None)
+    suffix = "_America_Los_Angeles" if drawn else ""
+    assert teams_extra_cache_token(extra, shifted) == token + suffix
+    assert get_teams_image_key("en", 2026, extra=extra, extra_context=shifted) == key + suffix
+
+
+def test_empty_weather_timezone_keeps_default_day_token(monkeypatch):
+    """An undrawn weather panel keeps its legacy key even across local midnight."""
+    monkeypatch.setattr(WeatherService, "get_cached_value", lambda key: None)
+    monkeypatch.setattr(extras, "get_cached_circuit_weather", lambda circuit: None)
+    now = datetime(2026, 3, 6, 23, 30, tzinfo=UTC)
+    default = build_teams_extra_context(TeamsExtra.WEATHER, 2026, now=now)
+    shifted = build_teams_extra_context(
+        TeamsExtra.WEATHER, 2026, now=now, timezone_name="America/Los_Angeles"
+    )
+    assert default.weather is shifted.weather is None
+    assert teams_extra_cache_token(TeamsExtra.WEATHER, default) == "_xweather_20260307_r1"
+    assert teams_extra_cache_token(TeamsExtra.WEATHER, shifted) == "_xweather_20260307_r1"
+    # Older manually constructed snapshots have no default-zone date stored.
+    assert (
+        teams_extra_cache_token(TeamsExtra.WEATHER, replace(default, default_today=None))
+        == "_xweather_20260307_r1"
+    )
+
+
+def test_context_normalizes_timezone_aliases(monkeypatch):
+    """Legacy IANA aliases use the same context and keys as their canonical names."""
+    alias = build_teams_extra_context(
+        TeamsExtra.TRACK, 2026, now=NOW, timezone_name="Asia/Calcutta"
+    )
+    canonical = build_teams_extra_context(
+        TeamsExtra.TRACK, 2026, now=NOW, timezone_name="Asia/Kolkata"
+    )
+    assert alias == canonical
+    assert alias.timezone_name == "Asia/Kolkata"
+    monkeypatch.setattr(extras.config, "DEFAULT_TIMEZONE", "Asia/Calcutta")
+    assert teams_extra_cache_token(TeamsExtra.TRACK, alias) == "_xtrack_20260306_r1"

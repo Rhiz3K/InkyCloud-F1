@@ -1,3 +1,4 @@
+{% import "configure/_timezone_picker.html" as tz_picker %}
 {% set tx = t.configure.teamsExtra %}
 {% set teams_extra_options = ["none", "countdown", "flags", "track", "weather"] %}
 <div class="hidden lg:flex flex-1 flex-col min-h-0">
@@ -62,6 +63,12 @@
     <p class="teams-extra-note-weather hidden mt-2 text-xs text-gray-600">{{ tx.weatherNote }}</p>
     <p class="teams-extra-note-track hidden mt-2 text-xs text-gray-600">{{ tx.trackNote }} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ tx.creditsLink }}</a></p>
   </div>
+
+  <!-- Timezone - Desktop: shown by setTeamsExtra() only for extra panels that show a time or date.
+       The wrapper is toggled between 'hidden' and 'flex' so it is hidden on lg+ too. -->
+  <div id="teamsTzDesktopWrapper" class="teams-tz-wrapper hidden flex-1 flex-col" data-shown-class="flex">
+    {% call tz_picker.desktop() %}{% endcall %}
+  </div>
 </div>
 
 <!-- Teams extra panel (empty slot) - Mobile -->
@@ -84,6 +91,11 @@
   <p class="teams-extra-hint mt-2 text-xs text-gray-600" aria-live="polite">{{ tx.hints.none }}</p>
   <p class="teams-extra-note-weather hidden mt-2 text-xs text-gray-600">{{ tx.weatherNote }}</p>
   <p class="teams-extra-note-track hidden mt-2 text-xs text-gray-600">{{ tx.trackNote }} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ tx.creditsLink }}</a></p>
+</div>
+
+<!-- Timezone - Mobile: shown by setTeamsExtra() only for extra panels that show a time or date -->
+<div id="teamsTzMobileWrapper" class="teams-tz-wrapper hidden">
+  {{ tz_picker.mobile() }}
 </div>
 
 <!-- Display Type - Mobile -->

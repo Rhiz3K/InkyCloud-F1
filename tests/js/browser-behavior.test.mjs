@@ -386,8 +386,18 @@ for (const overrides of [{MINIMAL_DATA_MODE: true}, {PERF_SAMPLE_RATE: 0}, {PERF
     });
 }
 
+// Minimal element whose classList behaves like DOMTokenList for toggle/contains.
+function fakeClassElement(initial, dataset = {}) {
+    const classes = new Set(initial);
+    return {dataset, classList: {
+        toggle(name, on) {if (on) classes.add(name); else classes.delete(name);},
+        contains: (name) => classes.has(name),
+    }};
+}
+
 // Loads configure.html's teams URL builders into a sandbox with the given state.
-function teamsUrlContext(state = {}) {
+// `tz` is the value of the hidden #tz input; undefined means the input is absent.
+function teamsUrlContext(state = {}, {tz} = {}) {
     const template = readFileSync("app/templates/configure.html", "utf8");
     const replaced = [];
     // Minimal <select>: assigning an unknown value deselects (selectedIndex -1), like the DOM.
@@ -405,12 +415,19 @@ function teamsUrlContext(state = {}) {
         const classes = new Set(["hidden"]);
         notes[selector] = [{classList: {toggle(name, on) {if (on) classes.add(name); else classes.delete(name);}, has: (name) => classes.has(name)}}];
     }
+    // Mirrors _teams_sidebar.html: mobile wrapper toggles "hidden"; the desktop one swaps hidden<->flex.
+    const tzWrappers = {
+        mobile: fakeClassElement(["teams-tz-wrapper", "hidden"]),
+        desktop: fakeClassElement(["teams-tz-wrapper", "hidden", "flex-1", "flex-col"], {shownClass: "flex"}),
+    };
+    notes[".teams-tz-wrapper"] = [tzWrappers.mobile, tzWrappers.desktop];
+    const tzInput = tz === undefined ? null : {value: tz};
     const ctx = vm.createContext({
         URL,
         window: {location: {origin: "https://racing.example.org", href: "https://racing.example.org/configure/teams"},
             history: {replaceState(_s, _t, url) {replaced.push(String(url)); ctx.window.location.href = String(url);}}},
         document: {
-            getElementById() {return null;},
+            getElementById(id) {return id === "tz" ? tzInput : null;},
             querySelectorAll(selector) {return selector === ".teams-extra-select" ? selects : notes[selector] || [];},
         },
         updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
@@ -418,10 +435,20 @@ function teamsUrlContext(state = {}) {
         currentScreenType: "teams", currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none", ...state,
     });
-    for (const name of ["getCurrentSeason", "getApiUrl", "canUsePrerenderedPreview", "getPreviewUrl", "setTeamsExtra", "selectTeamsExtra"]) {
+    for (const name of ["getCurrentSeason", "getApiUrl", "canUsePrerenderedPreview", "getPreviewUrl", "setTeamsExtra",
+        "selectTeamsExtra", "teamsExtraUsesTz", "getTeamsTz", "updateTeamsTzVisibility"]) {
         vm.runInContext(templateFunction(template, name), ctx);
     }
-    return {ctx, replaced, selects, notes};
+    return {ctx, replaced, selects, notes, tzInput, tzWrappers};
+}
+
+function tzPickerVisible({mobile, desktop}) {
+    const mobileShown = !mobile.classList.contains("hidden");
+    const desktopShown = !desktop.classList.contains("hidden") && desktop.classList.contains("flex");
+    const desktopHidden = desktop.classList.contains("hidden") && !desktop.classList.contains("flex");
+    assert.equal(mobileShown, desktopShown, "mobile and desktop pickers must agree");
+    assert.ok(desktopShown || desktopHidden, "desktop wrapper must not be both hidden and flex");
+    return mobileShown;
 }
 
 test("teams URLs stay byte-identical when the extra panel is none", () => {
@@ -528,6 +555,58 @@ for (const legacy of ["timeline", "combo"]) {
         assert.match(ctx.getApiUrl(), /extra=countdown$/);
     });
 }
+
+const NY_TZ = "tz=America%2FNew_York";
+
+test("teams extra=none never adds tz, even with a picked timezone", () => {
+    const {ctx} = teamsUrlContext({}, {tz: "America/New_York"});
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?year=2026");
+    assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/preview/configure/teams.png");
+    assert.ok(!ctx.getApiUrl().includes("tz="));
+    assert.ok(!ctx.getPreviewUrl().includes("tz="));
+});
+
+for (const extra of ["countdown", "flags", "track", "weather"]) {
+    test(`teams extra=${extra} adds the picked tz to the API and preview URLs`, () => {
+        const {ctx} = teamsUrlContext({currentTeamsExtra: extra}, {tz: "America/New_York"});
+        assert.equal(ctx.getApiUrl(), `https://racing.example.org/teams.bmp?year=2026&extra=${extra}&${NY_TZ}`);
+        assert.equal(ctx.getPreviewUrl(), `https://racing.example.org/preview/configure/teams.png?extra=${extra}&${NY_TZ}`);
+    });
+
+    test(`teams extra=${extra} with an empty tz input adds no tz param`, () => {
+        const {ctx} = teamsUrlContext({currentTeamsExtra: extra}, {tz: ""});
+        assert.equal(ctx.getApiUrl(), `https://racing.example.org/teams.bmp?year=2026&extra=${extra}`);
+        assert.equal(ctx.getPreviewUrl(), `https://racing.example.org/preview/configure/teams.png?extra=${extra}`);
+    });
+}
+
+test("setTeamsExtra shows the tz picker only for timed panels and keeps the tz", () => {
+    const {ctx, tzWrappers} = teamsUrlContext({}, {tz: "America/New_York"});
+    assert.equal(tzPickerVisible(tzWrappers), false);
+
+    ctx.setTeamsExtra("countdown");
+    assert.equal(tzPickerVisible(tzWrappers), true);
+    assert.equal(ctx.getApiUrl(), `https://racing.example.org/teams.bmp?year=2026&extra=countdown&${NY_TZ}`);
+
+    ctx.setTeamsExtra("none");
+    assert.equal(tzPickerVisible(tzWrappers), false);
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?year=2026");
+    assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/preview/configure/teams.png");
+
+    ctx.setTeamsExtra("countdown");
+    assert.equal(tzPickerVisible(tzWrappers), true);
+    assert.equal(ctx.getApiUrl(), `https://racing.example.org/teams.bmp?year=2026&extra=countdown&${NY_TZ}`);
+    assert.equal(ctx.getPreviewUrl(), `https://racing.example.org/preview/configure/teams.png?extra=countdown&${NY_TZ}`);
+});
+
+test("legacy timeline extra maps to countdown and shows the tz picker", () => {
+    const {ctx, selects, tzWrappers} = teamsUrlContext({}, {tz: "America/New_York"});
+    ctx.setTeamsExtra("timeline");
+    assert.equal(ctx.currentTeamsExtra, "countdown");
+    assert.deepEqual(selects.map((s) => s.value), ["countdown", "countdown"]);
+    assert.equal(tzPickerVisible(tzWrappers), true);
+    assert.equal(ctx.getApiUrl(), `https://racing.example.org/teams.bmp?year=2026&extra=countdown&${NY_TZ}`);
+});
 
 test("historical teams still use the year-specific BMP preview", () => {
     const {ctx} = teamsUrlContext({selectedTeamsYear: 2025, currentTeamsExtra: "track"});

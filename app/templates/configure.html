@@ -523,7 +523,8 @@ block content %}
       if (elements.rightPanelTeams)
         elements.rightPanelTeams.classList.add("hidden");
     } else if (isTeams) {
-      if (elements.mobileTz) elements.mobileTz.classList.add("hidden");
+      // The teams timezone picker sits in .teams-tz-wrapper elements whose visibility
+      // follows the extra panel (see updateTeamsTzVisibility), so mobileTz stays as rendered.
       if (elements.mobileRace) elements.mobileRace.classList.add("hidden");
       if (elements.mobileYear) elements.mobileYear.classList.remove("hidden");
       if (elements.rightPanelCalendar)
@@ -1016,9 +1017,35 @@ block content %}
         params.push(`display=${currentDisplayType}`);
       }
       if (currentTeamsExtra !== "none") params.push(`extra=${currentTeamsExtra}`);
+      const teamsTz = getTeamsTz();
+      if (teamsTz) params.push(`tz=${encodeURIComponent(teamsTz)}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     }
+  }
+
+  /** Teams extra panels that print a time or date and therefore honour `tz`. */
+  function teamsExtraUsesTz(extra) {
+    return ["countdown", "flags", "track", "weather"].includes(extra);
+  }
+
+  /**
+   * Timezone for teams URLs: the picked zone (hidden #tz input, as on calendar), but only
+   * while the selected extra panel shows a time or date; "" otherwise (e.g. extra=none).
+   */
+  function getTeamsTz() {
+    if (!teamsExtraUsesTz(currentTeamsExtra)) return "";
+    return document.getElementById("tz")?.value || "";
+  }
+
+  /** Shows the teams timezone picker (mobile and desktop) only for timed extra panels. */
+  function updateTeamsTzVisibility() {
+    const show = teamsExtraUsesTz(currentTeamsExtra);
+    document.querySelectorAll(".teams-tz-wrapper").forEach((wrapper) => {
+      wrapper.classList.toggle("hidden", !show);
+      const shownClass = wrapper.dataset.shownClass;
+      if (shownClass) wrapper.classList.toggle(shownClass, show);
+    });
   }
 
   function sortRacesWithCancelledLast(races) {
@@ -1071,7 +1098,9 @@ block content %}
       const isDefaultTz = !selectedTz || selectedTz === defaultTimezone;
       return !selectedYear && !selectedRound && !selectedRaceKey && isDefaultTz;
     } else if (currentScreenType === "teams") {
-      // The PNG endpoint renders optional panels on demand for the current season.
+      // The PNG endpoint renders optional panels on demand for the current season, so an
+      // extra panel with any tz (passed through by getPreviewUrl) is always rendered live;
+      // extra=none never carries tz and keeps using the pre-rendered image.
       return selectedTeamsYear === getCurrentSeason();
     }
     return false;
@@ -1102,6 +1131,8 @@ block content %}
       if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
       if (currentDisplayType !== "1bit") params.push(`display=${currentDisplayType}`);
       if (currentTeamsExtra !== "none") params.push(`extra=${currentTeamsExtra}`);
+      const teamsTz = getTeamsTz();
+      if (teamsTz) params.push(`tz=${encodeURIComponent(teamsTz)}`);
       if (params.length > 0) url += `?${params.join("&")}`;
       return url;
     }
@@ -1574,13 +1605,14 @@ block content %}
       });
   }
 
-  function selectTimezone(tz) {
+  function selectTimezone(tz, refresh = true) {
     tz = normalizeTimezone(tz);
     selectedTz = tz;
-    document.getElementById("tz").value = tz;
+    const tzInput = document.getElementById("tz");
+    if (tzInput) tzInput.value = tz;
     renderTzList();
     syncMobileTzSelect();
-    updatePreview();
+    if (refresh) updatePreview();
   }
 
   function selectTimezoneMobile() {
@@ -1658,22 +1690,23 @@ block content %}
     syncMobileTzSelect();
   }
 
-  function initTimezone() {
+  // refresh=false selects the zone without loading a preview (teams: startApp loads it).
+  function initTimezone(refresh = true) {
     try {
       browserTz = normalizeTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
       if (browserTz) {
         // Always try to select browser TZ first
-        selectTimezone(browserTz);
+        selectTimezone(browserTz, refresh);
       } else {
-        selectTimezone(defaultTimezone);
+        selectTimezone(defaultTimezone, refresh);
       }
     } catch (e) {
       console.error("Timezone detection failed:", e);
-      selectTimezone(defaultTimezone);
+      selectTimezone(defaultTimezone, refresh);
     }
 
     // Force URL update to match selected timezone immediately
-    if (document.getElementById("tz").value) {
+    if (document.getElementById("tz")?.value) {
       updateUrlDisplay();
     }
     populateMobileTzSelect();
@@ -1864,6 +1897,7 @@ block content %}
     document.querySelectorAll(".teams-extra-note-track").forEach((el) => {
       el.classList.toggle("hidden", extra !== "track");
     });
+    updateTeamsTzVisibility();
 
     if (refresh) updatePreview();
   }
@@ -1996,6 +2030,9 @@ block content %}
       initTimezone();
     } else if (currentScreenType === "teams") {
       initTeamsPanel();
+      // Picker is always initialised (selection survives extra=none); tz only reaches the
+      // URL/preview while a timed extra panel is selected (getTeamsTz).
+      initTimezone(false);
     }
 
     updateUrlDisplay();

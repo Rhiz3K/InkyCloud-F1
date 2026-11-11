@@ -383,3 +383,16 @@ async def test_race_detail_rejects_invalid_selection_before_lookup(year, round_n
     assert error.value.detail == detail
     service.get_all_races_from_static.assert_not_called()
     service.get_race_by_round.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_teams_timezone_documentation():
+    """Both teams image contracts describe the timezone scope and validation."""
+    documentation = (await api.api_info())["endpoints"]
+    for path in ("/teams.bmp", "/preview/configure/{screen_type}.png"):
+        parameter = documentation[path]["parameters"]["tz"]
+        assert parameter["default"] == api.config.DEFAULT_TIMEZONE
+        assert parameter["optional"] is True
+        assert "400" in parameter["description"]
+        for panel in ("countdown", "flags", "track", "weather"):
+            assert panel in parameter["description"]
