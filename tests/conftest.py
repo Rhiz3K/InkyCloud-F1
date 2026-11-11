@@ -46,6 +46,21 @@ def _cleanup_test_dir():
 atexit.register(_cleanup_test_dir)
 
 
+@pytest.fixture(autouse=True)
+def _reset_image_render_guards():
+    """Keep image caches and render slots from leaking between tests."""
+    from app.state import get_bmp_cache, get_bmp_variant_cache
+    from app.utils.render_limit import reset_render_limits_for_tests
+
+    get_bmp_cache().clear()
+    get_bmp_variant_cache().clear()
+    reset_render_limits_for_tests()
+    yield
+    get_bmp_cache().clear()
+    get_bmp_variant_cache().clear()
+    reset_render_limits_for_tests()
+
+
 @pytest.fixture
 def sepang_2017_payload():
     """Historical Jolpica race with dates but no session times."""

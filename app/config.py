@@ -202,6 +202,39 @@ class Config(BaseSettings):
     IMAGE_RATE_LIMIT_PER_MINUTE: int = Field(
         120, gt=0, description="Per-IP BMP requests allowed per minute"
     )
+    BMP_VARIANT_CACHE_MAXSIZE: int = Field(
+        64,
+        gt=0,
+        description=(
+            "In-process entries for teams extra panels and extra previews. Kept separate "
+            "from the 512-entry calendar and plain-teams cache so variant bursts cannot "
+            "evict those images. Entries expire after one hour"
+        ),
+    )
+    RENDER_CONCURRENCY: int = Field(
+        4,
+        gt=0,
+        description=(
+            "Maximum uncached image renders in flight. Two workers draw pixels; four "
+            "admissions leave room to fetch data. Further requests wait"
+        ),
+    )
+    RENDER_VARIANT_CONCURRENCY: int = Field(
+        2,
+        gt=0,
+        description=(
+            "Maximum uncached teams-extra and extra-preview renders. Capped by "
+            "RENDER_CONCURRENCY so those variants cannot take every render slot"
+        ),
+    )
+    RENDER_SLOT_WAIT_SECONDS: float = Field(
+        5.0,
+        gt=0,
+        description=(
+            "Seconds an uncached render waits for a free slot before HTTP 503 with "
+            "Retry-After. Cached images do not wait"
+        ),
+    )
     PERF_METRICS_RATE_LIMIT_PER_MINUTE: int = Field(
         30,
         gt=0,
@@ -323,6 +356,9 @@ class Config(BaseSettings):
         "WEATHER_ENRICHMENT_TIMEOUT_SECONDS",
         "TEAMS_ENRICHMENT_TIMEOUT_SECONDS",
         "IMAGE_RATE_LIMIT_PER_MINUTE",
+        "BMP_VARIANT_CACHE_MAXSIZE",
+        "RENDER_CONCURRENCY",
+        "RENDER_VARIANT_CONCURRENCY",
         "PERF_METRICS_RATE_LIMIT_PER_MINUTE",
         "DATA_API_RATE_LIMIT_PER_MINUTE",
         "STATS_RATE_LIMIT_PER_MINUTE",
@@ -358,10 +394,10 @@ class Config(BaseSettings):
             pass
         return _warn_invalid(info.field_name, value, default, "must be a positive integer")
 
-    @field_validator("JOLPICA_MIN_REQUEST_INTERVAL", mode="before")
+    @field_validator("JOLPICA_MIN_REQUEST_INTERVAL", "RENDER_SLOT_WAIT_SECONDS", mode="before")
     @classmethod
     def validate_positive_float(cls, value: object, info: ValidationInfo) -> float:
-        """Validate and coerce a configured request interval into a positive float."""
+        """Validate and coerce a configured positive float, or return the field default."""
         if info.field_name is None:
             return 2.0
         default: float = cls.model_fields[info.field_name].default

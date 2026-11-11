@@ -28,6 +28,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Keep calendar and plain teams images in the 512-entry cache, and store teams `extra`
+  panels and extra previews in a separate 64-entry cache (`BMP_VARIANT_CACHE_MAXSIZE`,
+  same one-hour lifetime). Uncached renders wait up to `RENDER_SLOT_WAIT_SECONDS`
+  (default 5) for one of `RENDER_CONCURRENCY` slots (default 4). Extra panels and
+  extra previews are also capped by `RENDER_VARIANT_CONCURRENCY` (default 2, never
+  above the global cap). If a slot does not open in time the response is HTTP 503
+  with `Retry-After` set to that whole wait. Global and variant permits are
+  taken in that order and share one deadline. A failed render's error image
+  uses the same limit, and concurrent waiters share one error render.
+  Cancelling a request does not free its permit while the worker thread is
+  still rendering. Cached images do not wait. Image bytes, rate limits, and
+  response headers
+  (including `Link rel="license"`) are unchanged.
+
 - Make the home page fit short laptop screens without changing it where it already fits.
   Desktop viewports from 1024 px wide that are at least 983 px tall keep the production
   layout pixel for pixel; the only change is that the unofficial-project notice sits on one

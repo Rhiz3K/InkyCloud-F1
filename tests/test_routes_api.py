@@ -97,6 +97,10 @@ async def test_api_documentation_reports_operator_configuration(monkeypatch):
     assert documentation["statistics"]["enabled"] is False
     assert documentation["statistics"]["performance_sample_rate"] == 0
     assert documentation["rate_limits"]["image_requests"] == 15
+    assert documentation["rate_limits"]["render_concurrency"] == 4
+    assert documentation["rate_limits"]["render_variant_concurrency"] == 2
+    assert documentation["rate_limits"]["render_slot_wait_seconds"] == 5.0
+    assert documentation["rate_limits"]["overloaded_response"].startswith("503")
     assert "private-token" not in str(documentation)
 
 

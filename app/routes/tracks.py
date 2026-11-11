@@ -30,6 +30,7 @@ from app.utils.async_tasks import run_render
 from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
 from app.utils.etag import if_none_match_matches, strong_etag
 from app.utils.rate_limit import enforce_rate_limit
+from app.utils.render_limit import render_slot
 
 router = APIRouter(prefix="/api/tracks", tags=["Track artwork"])
 type TrackDisplay = Literal["1bit", "bwr", "bwry", "spectra6"]
@@ -89,7 +90,10 @@ async def get_track_image(
         raise HTTPException(status_code=404, detail="No reviewed circuit outline")
     enforce_rate_limit(request, bucket="track_art", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
     options = TrackOptions(track_style, track_source, track_accent)
-    content = await run_render(partial(_render_export, circuit_id, image_format, display, options))
+    async with render_slot():
+        content = await run_render(
+            partial(_render_export, circuit_id, image_format, display, options)
+        )
     etag = strong_etag(content)
     unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
     media_type = {"svg": "image/svg+xml", "png": "image/png", "bmp": "image/bmp"}[image_format]

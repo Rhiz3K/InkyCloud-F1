@@ -1081,6 +1081,8 @@ def test_api_stats_endpoint_returns_correct_structure():
     assert "requests" in data
     assert "cache_size" in data
     assert "cache_max_size" in data
+    assert data["variant_cache_max_size"] == 64
+    assert isinstance(data["variant_cache_size"], int)
 
     # Check requests structure (new format)
     requests = data["requests"]
