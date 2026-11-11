@@ -7,7 +7,7 @@ defaults, and comments.
 
 ## Requirements
 
-- Docker Engine with Docker Compose v2, or Python 3.14 and `uv` for development
+- Docker Engine with Docker Compose v2, or Python 3.15 and `uv` for development
 - one persistent volume for `/app/data`
 - one application replica
 - outbound HTTPS access to the F1 and optional weather APIs
@@ -56,7 +56,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-The multi-stage Dockerfile uses Python 3.14, installs the hash-locked production dependencies,
+The multi-stage Dockerfile uses Python 3.15, installs the hash-locked production dependencies,
 and runs as a non-root user. Editable source artwork under `artwork/` is excluded; only runtime
 assets are copied into the image.
 
@@ -186,7 +186,7 @@ Manual commands and the weekly artwork procedure are listed in
 Use the same interpreter and lock as CI and production:
 
 ```bash
-uv python install 3.14
+uv python install 3.15
 uv sync --locked --group dev
 cp .env.example .env
 DATABASE_PATH=./data/f1.db IMAGES_PATH=./data/images uv run uvicorn app.main:app --reload

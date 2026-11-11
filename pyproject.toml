@@ -7,12 +7,12 @@ authors = [
     { name = "Rhiz3K" },
 ]
 license = "MIT"
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 classifiers = [
     "Framework :: FastAPI",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
 ]
 dependencies = [
     "fastapi>=0.104.0",
@@ -32,7 +32,9 @@ dependencies = [
     "boto3>=1.35.0",
     "markdown>=3.5.0",
     "beautifulsoup4>=4.14.3",
-    "lxml>=6.1.0",
+    # 6.1.2 is the first release with CPython 3.15 wheels. 6.1.1 has to build
+    # against libxml2/libxslt, which the production image does not install.
+    "lxml>=6.1.2",
     "resvg-py>=0.3.3,<1",
 ]
 
@@ -87,7 +89,7 @@ namespaces = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py314"
+target-version = "py315"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
@@ -98,7 +100,7 @@ ignore = []
 "app/main.py" = ["E501"]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.15"
 files = ["app"]
 ignore_missing_imports = true
 explicit_package_bases = true
@@ -128,14 +130,16 @@ dev = [
     "httpx2>=2.5.0",
     "interrogate>=1.7.0",
     "mypy>=1.19.1",
-    "numpy>=2.4.0",
+    # 2.4.6 has no CPython 3.15 wheel.
+    "numpy>=2.5.2",
     "pip-audit>=2.10.0",
     "pytest>=9.0.3",
     "pytest-asyncio>=0.21.0",
     "pytest-codspeed>=4.3.0",
     "pytest-cov>=4.1.0",
     "ruff>=0.14.10",
-    "scikit-learn>=1.8.0",
+    # 1.9.0 has no CPython 3.15 wheel.
+    "scikit-learn>=1.9.1",
     "svgelements==1.9.6",
     "types-aiofiles>=25.1.0.20251011",
     "types-cachetools>=6.2.0.20251022",

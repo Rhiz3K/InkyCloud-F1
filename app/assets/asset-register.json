@@ -1369,11 +1369,11 @@
       "reviewed_on": "2026-09-09"
     },
     "licenses/dependencies.json": {
-      "sha256": "d8dc90d9e7047d580882130e2747e264072ae26bdc1dff7f0ef3a88f855cfca5",
+      "sha256": "5ffe25c06d21a51a8dd741a3a3e2f6bd30d45f6bcd9de13e871d4efbcc5dc676",
       "license": "Third-party notices; see file",
       "author": "Original authors named in each notice",
       "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
-      "reviewed_on": "2026-09-09"
+      "reviewed_on": "2026-11-09"
     },
     "licenses/dependencies/aiofiles--licenses--LICENSE": {
       "sha256": "cb5e8e7e5f4a3988e1063c142c60dc2df75605f4c46515e776e3aca6df976e14",
@@ -1565,11 +1565,11 @@
       "reviewed_on": "2026-09-09"
     },
     "licenses/dependencies/lxml--licenses--LICENSES.txt": {
-      "sha256": "41d49dd406aa0e1548a6d5f21a30d6bf638b3cd96eb7289dd348d83ed2e40392",
+      "sha256": "388fa99f3bde4447cd5a4cbb114037be026854db6cfe89e112691c1d8abdcf3c",
       "license": "Third-party notices; see file",
       "author": "Original authors named in each notice",
       "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
-      "reviewed_on": "2026-09-09"
+      "reviewed_on": "2026-11-09"
     },
     "licenses/dependencies/markdown--licenses--LICENSE.md": {
       "sha256": "7ba4eb6d10b32b2d11dce13821340351cdbbb30ba8ccc67841db2ffd86e79aca",

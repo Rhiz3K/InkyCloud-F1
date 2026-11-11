@@ -10,7 +10,7 @@ by your environment.
 | --- | --- | --- |
 | Docker or Docker Compose | [SELF-HOSTING.md](./SELF-HOSTING.md) | GHCR image or local source build |
 | Coolify | [COOLIFY.md](./COOLIFY.md) | Dockerfile build from Git `main` |
-| Local development | [SELF-HOSTING.md](./SELF-HOSTING.md#local-development) | Python 3.14 + locked `uv` environment |
+| Local development | [SELF-HOSTING.md](./SELF-HOSTING.md#local-development) | Python 3.15 + locked `uv` environment |
 
 The production deployment (Coolify) builds the Dockerfile from Git `main`; every merge to `main`
 is a production deploy. Every release also publishes `ghcr.io/rhiz3k/inkycloud-f1:vX.Y.Z` (plus
