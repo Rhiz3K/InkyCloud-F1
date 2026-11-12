@@ -99,6 +99,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
+  `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
+  from `requires-python = ">=3.15"`, so the pinned ruff behaves as before.
+
 - Configurator accessibility (issue #178): timezone entries are buttons reachable by
   keyboard (one Tab stop, arrow/Home/End keys, focus kept after selecting); the weather,
   display, and continent buttons expose `aria-pressed` in named groups; the hidden weather
