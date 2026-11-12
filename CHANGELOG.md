@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the optional IANA `tz` parameter to `/teams.bmp` and `/preview/configure/teams.png`.
+  It sets the timezone for the race start, the day countdown, and the round dates in the
+  `countdown`, `flags`, `track`, and `weather` panels; without it they keep using
+  `DEFAULT_TIMEZONE` and render exactly as before. Invalid values return HTTP 400, as on
+  `/calendar.bmp`. With `extra=none`, or when no panel is drawn, `tz` is ignored and the
+  plain image, its pregenerated file, and its cache entry are shared. A non-default zone
+  adds a timezone part to the extra panel's variant-cache key only.
+  The Teams configurator shows the timezone picker (desktop and mobile) only while one of
+  those four panels is selected, and only then adds `tz` to the image and preview URLs.
+
 - Add the optional `extra` parameter to `/teams.bmp` and `/preview/configure/teams.png`
   (`none`, `countdown`, `flags`, `track`, `weather`; default `none` keeps the image unchanged).
   The empty bottom-right slot offers a compact countdown with race name, local start and

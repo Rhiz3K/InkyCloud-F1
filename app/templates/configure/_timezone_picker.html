@@ -1,0 +1,104 @@
+{#
+  Shared timezone picker for the configurator sidebars.
+  Import with: {% import "configure/_timezone_picker.html" as tz_picker %}
+  - tz_picker.mobile(): mobile <select> (#mobileTzContainer, lg:hidden)
+  - tz_picker.desktop(): desktop search/filters/list (#desktopTzContainer, hidden lg:flex)
+    plus the hidden #tz input. Content passed via {% call %} is rendered at the end of
+    the desktop container (the calendar sidebar puts its weather/display controls there).
+  Each macro must be rendered at most once per page so element ids stay unique.
+#}
+{% macro mobile() %}
+<!-- Timezone - Mobile -->
+<div class="lg:hidden p-3 border-b-2 border-black" id="mobileTzContainer">
+  <label class="block text-xs font-bold uppercase mb-2" id="tzLabelMobile" for="tzSelectMobile"
+    >Timezone</label
+  >
+  <select
+    id="tzSelectMobile"
+    data-on-change="selectTimezoneMobile"
+    class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm"
+  ></select>
+</div>
+{% endmacro %}
+
+{% macro desktop() %}
+<!-- Timezone - Desktop (hidden on mobile via 'hidden', shown on lg+ via 'lg:flex') -->
+<div id="desktopTzContainer" class="hidden lg:flex flex-1 flex-col min-h-[280px] shrink-0">
+  <div
+    class="px-3 py-2 border-b-2 border-black bg-gray-50 flex-shrink-0 flex items-center justify-between gap-2"
+  >
+    <label class="text-xs font-bold uppercase" id="tzLabel" for="tzSearch">Timezone</label>
+    <input
+      type="text"
+      id="tzSearch"
+      placeholder="SEARCH..."
+      class="flex-1 min-w-0 px-2 py-1 text-xs bg-white border-2 border-black focus:outline-none focus:bg-racing-red focus:text-white placeholder-gray-400"
+      data-on-input="onTzSearch"
+    />
+  </div>
+  <div
+    class="px-2 py-1.5 border-b-2 border-black bg-white flex-shrink-0 flex flex-wrap items-center gap-1"
+    id="tzContinents"
+  >
+    <button
+      data-on-click="filterTzContinent" data-args='["ALL"]'
+      data-continent="ALL"
+      class="tz-filter-btn active whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      ALL
+    </button>
+    <button
+      data-on-click="filterTzContinent" data-args='["DETECTED"]'
+      data-continent="DETECTED"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      DETECTED
+    </button>
+    <button
+      data-on-click="filterTzContinent" data-args='["EUROPE"]'
+      data-continent="EUROPE"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      EUROPE
+    </button>
+    <button
+      data-on-click="filterTzContinent" data-args='["AMERICA"]'
+      data-continent="AMERICA"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      AMERICA
+    </button>
+    <button
+      data-on-click="filterTzContinent" data-args='["ASIA"]'
+      data-continent="ASIA"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      ASIA
+    </button>
+    <button
+      data-on-click="filterTzContinent" data-args='["AFRICA"]'
+      data-continent="AFRICA"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      AFRICA
+    </button>
+    <button
+      data-on-click="filterTzContinent" data-args='["OCEANIA"]'
+      data-continent="OCEANIA"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      OCEANIA
+    </button>
+    <button
+      data-on-click="filterTzContinent" data-args='["OTHER"]'
+      data-continent="OTHER"
+      class="tz-filter-btn whitespace-nowrap px-2 py-0.5 border-2 border-black text-[9px] font-bold uppercase shadow-neo-sm hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none"
+    >
+      OTHER
+    </button>
+  </div>
+  <div id="tzList" class="flex-1 overflow-y-auto text-xs p-2 space-y-0.5"></div>
+  {% if caller %}{{ caller() }}{% endif %}
+</div>
+<input type="hidden" id="tz" value="" />
+{% endmacro %}

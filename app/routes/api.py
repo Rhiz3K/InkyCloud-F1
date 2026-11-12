@@ -134,6 +134,11 @@ async def api_info() -> dict:
         "default": config.DEFAULT_TIMEZONE,
         "optional": True,
     }
+    teams_timezone_parameter = {
+        **timezone_parameter,
+        "description": "IANA timezone; applies only to teams extra panels showing a time or date: "
+        "countdown, flags, track, weather. An invalid timezone returns 400.",
+    }
     track_parameters = {
         "track_style": {
             "type": "string",
@@ -293,6 +298,7 @@ async def api_info() -> dict:
                     f"({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT})"
                 ),
                 "parameters": {
+                    "tz": teams_timezone_parameter,
                     "extra": {
                         "type": "string",
                         "description": "Optional teams panel; local data and cached weather only. "
@@ -365,6 +371,7 @@ async def api_info() -> dict:
                 "description": "Full-size browser preview of the next race or default teams "
                 "season; weather and track options apply only to calendar",
                 "parameters": {
+                    "tz": teams_timezone_parameter,
                     "screen_type": {
                         "type": "string",
                         "in": "path",

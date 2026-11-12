@@ -1335,15 +1335,22 @@ def test_configure_teams_display_menu_matches_calendar_variants():
     ]
 
 
-def test_configure_teams_no_timezone_selector():
-    """Test configure teams page omits timezone controls entirely."""
+def test_configure_teams_timezone_selector_is_initially_hidden():
+    """Teams timezone controls start hidden until a timed extra panel is selected."""
     response = client.get("/configure/teams")
     html = response.text
-    assert 'id="mobileTzContainer"' not in html
-    assert 'id="desktopTzContainer"' not in html
-    assert 'id="tzSelectMobile"' not in html
-    assert 'id="tzSearch"' not in html
-    assert 'id="tz"' not in html
+    soup = BeautifulSoup(html, "html.parser")
+    for wrapper_id, control_ids in (
+        ("teamsTzDesktopWrapper", ("desktopTzContainer", "tzSearch", "tzList")),
+        ("teamsTzMobileWrapper", ("mobileTzContainer", "tzSelectMobile")),
+    ):
+        wrappers = soup.find_all(id=wrapper_id)
+        assert len(wrappers) == 1
+        wrapper = cast(Tag, wrappers[0])
+        assert "hidden" in wrapper.get("class", [])
+        for control_id in control_ids:
+            assert wrapper.find(id=control_id) is not None
+    assert len(soup.find_all(id="tz")) == 1
     assert 'id="mobileYearContainer"' in html
     assert "Season Leaders" in html
     assert 'id="rightPanelCalendar"' not in html
@@ -1396,20 +1403,24 @@ def test_configure_calendar_display_menu_is_compact_and_reordered():
     ]
 
 
-def test_configure_teams_urls_do_not_include_timezone_params():
-    """Teams configure JS should not add timezone to API or preview URLs."""
+def test_configure_teams_urls_gate_timezone_params_on_extra_panel():
+    """Both teams URL builders use the timezone only for timed extra panels."""
     response = client.get("/configure/teams")
     html = response.text
 
     api_url_block = html.split("function getApiUrl() {", 1)[1].split(
-        "function sortRacesWithCancelledLast", 1
+        "function teamsExtraUsesTz", 1
     )[0]
     teams_api_branch = api_url_block.split("} else {", 1)[1]
     assert "`${window.location.origin}/teams.bmp`" in teams_api_branch
     assert "params.push(`year=${selectedTeamsYear}`)" in teams_api_branch
     assert "params.push(`lang=${currentUiLang}`)" in teams_api_branch
     assert "params.push(`display=${currentDisplayType}`)" in teams_api_branch
-    assert "params.push(`tz=" not in teams_api_branch
+    assert "const teamsTz = getTeamsTz();" in teams_api_branch
+    assert "if (teamsTz) params.push(`tz=${encodeURIComponent(teamsTz)}`);" in teams_api_branch
+    assert 'getElementById("tz")' not in teams_api_branch
+    assert "selectedTz" not in teams_api_branch
+    assert teams_api_branch.count("params.push(`tz=") == 1
 
     preview_url_block = html.split("function getPreviewUrl() {", 1)[1].split(
         "async function loadRaces()", 1
@@ -1423,7 +1434,15 @@ def test_configure_teams_urls_do_not_include_timezone_params():
     )
     assert "params.push(`lang=${currentUiLang}`)" in teams_preview_branch
     assert "params.push(`display=${currentDisplayType}`)" in teams_preview_branch
-    assert "tz=" not in teams_preview_branch
+    assert "const teamsTz = getTeamsTz();" in teams_preview_branch
+    assert "if (teamsTz) params.push(`tz=${encodeURIComponent(teamsTz)}`);" in teams_preview_branch
+    assert 'getElementById("tz")' not in teams_preview_branch
+    assert "selectedTz" not in teams_preview_branch
+    assert teams_preview_branch.count("params.push(`tz=") == 1
+
+    teams_tz_helper = html.split("function getTeamsTz() {", 1)[1].split("\n  }", 1)[0]
+    assert 'if (!teamsExtraUsesTz(currentTeamsExtra)) return "";' in teams_tz_helper
+    assert 'return document.getElementById("tz")?.value || "";' in teams_tz_helper
 
 
 def test_teams_configure_preview_route_supports_display_variants(

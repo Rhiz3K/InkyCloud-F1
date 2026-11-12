@@ -921,6 +921,12 @@ async def get_teams_bmp(
     request: Request,
     lang: str = Query(default="en", description=f"Language code ({', '.join(LANGUAGE_CODES)})"),
     year: int | None = Query(default=None, description="Season year"),
+    tz: Annotated[
+        str | None,
+        Query(
+            description="IANA timezone for extra panels; defaults to the server's DEFAULT_TIMEZONE"
+        ),
+    ] = None,
     extra: Annotated[
         TeamsExtra,
         Query(
@@ -943,6 +949,9 @@ async def get_teams_bmp(
     enforce_rate_limit(request, bucket="teams_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
     lang = _normalize_lang(lang)
     display = _normalize_display(display)
+
+    _validate_timezone_param(tz)
+    tz = normalize_timezone(tz) if tz else None
 
     try:
         if year is None:
@@ -968,7 +977,11 @@ async def get_teams_bmp(
                 cache_status=cache_status,
             )
 
-        ctx = build_teams_extra_context(extra, year) if extra != TeamsExtra.NONE else None
+        ctx = (
+            build_teams_extra_context(extra, year, timezone_name=tz)
+            if extra != TeamsExtra.NONE
+            else None
+        )
         effective = extra if ctx is not None else TeamsExtra.NONE
         cache_key = get_teams_image_key(
             lang, year, display=display, extra=effective, extra_context=ctx

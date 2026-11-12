@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response, Streamin
 
 from app.config import LANGUAGE_CODES, config
 from app.paths import ASSETS_DIR
+from app.routes.images import _validate_timezone_param
 from app.services.artifact_metadata import calendar_identity, read_artifact_metadata
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
@@ -40,6 +41,7 @@ from app.utils.etag import if_none_match_matches, strong_etag
 from app.utils.image_conversion import bmp_to_png
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.render_limit import render_slot
+from app.utils.timezones import normalize_timezone
 
 router = APIRouter()
 _ALLOWED_LANGS = {lang: lang for lang in LANGUAGE_CODES}
@@ -345,6 +347,10 @@ async def get_configure_preview_png(
     screen_type: str,
     request: Request,
     lang: str = Query(default="en"),
+    tz: Annotated[
+        str | None,
+        Query(description="IANA timezone for teams extra panels; defaults to DEFAULT_TIMEZONE"),
+    ] = None,
     weather_type: str = Query(default="off"),
     extra: Annotated[
         TeamsExtra,
@@ -377,8 +383,10 @@ async def get_configure_preview_png(
     safe_display = allowed_display.get(display, "1bit")
 
     teams_preview_rate_checked = False
+    _validate_timezone_param(tz)
+    tz = normalize_timezone(tz) if tz else None
     if safe_screen == "teams" and extra != TeamsExtra.NONE:
-        ctx = build_teams_extra_context(extra, get_default_teams_year())
+        ctx = build_teams_extra_context(extra, get_default_teams_year(), timezone_name=tz)
         if ctx is not None:
             enforce_rate_limit(
                 request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
