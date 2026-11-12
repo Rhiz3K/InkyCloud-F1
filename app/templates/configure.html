@@ -1495,7 +1495,7 @@ block content %}
   function createTzOption(tz, className, html, onSelect) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `tz-item w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-racing-red ${className}`;
+    button.className = `tz-item w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black ${className}`;
     button.dataset.tz = tz;
     button.tabIndex = -1;
     button.setAttribute("aria-pressed", String(tz === selectedTz));
