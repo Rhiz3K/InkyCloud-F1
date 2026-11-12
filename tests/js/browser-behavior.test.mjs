@@ -534,3 +534,141 @@ test("historical teams still use the year-specific BMP preview", () => {
     assert.equal(ctx.canUsePrerenderedPreview(), false);
     assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/teams.bmp?year=2025&extra=track");
 });
+
+function timezoneControls({query = "", browserTz = "Europe/Prague"} = {}) {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const elements = {};
+    const document = {
+        activeElement: null,
+        getElementById(id) {return elements[id] || null;},
+        querySelector() {return null;},
+        createElement(tagName) {
+            return {
+                tagName, dataset: {}, attributes: {},
+                setAttribute(name, value) {this.attributes[name] = String(value);},
+                getAttribute(name) {return this.attributes[name];},
+                focus() {document.activeElement = this;},
+            };
+        },
+    };
+    const container = elements.tzList = {
+        children: [],
+        set innerHTML(value) {this.children = [];},
+        appendChild(child) {this.children.push(child);},
+        contains(element) {return this.children.includes(element);},
+        querySelectorAll() {return this.children.filter((child) => child.dataset.timezone);},
+    };
+    elements.tzSearch = {value: query, focus() {document.activeElement = this;}};
+    elements.tz = {value: ""};
+    let previewTimezone, mobileTimezone;
+    const ctx = vm.createContext({
+        currentScreenType: "calendar", currentUiLang: "en", currentDisplayType: "1bit",
+        selectedYear: null, selectedRaceKey: null, appendTrackParams() {},
+        window: {location: {origin: "https://racing.example.org"}},
+        document, selectedTz: "Europe/Prague", browserTz, activeContinent: "ALL",
+        allTimezones: ["Europe/Prague", "Europe/London", "Asia/Tokyo"],
+        popularTz: [{offset: 0, zones: ["Europe/Prague", "Europe/London"]}],
+        uiText: {filterLabels: {}, noResults: "No results", detectedLabel: "Detected"},
+        normalizeTimezone: (tz) => tz, getUtcOffsetNum: () => 0,
+        formatOffset: () => "UTC", formatTzDisplay: (tz) => tz, escapeHtml: (value) => value,
+        syncMobileTzSelect() {mobileTimezone = ctx.selectedTz;},
+        updatePreview() {previewTimezone = new URL(ctx.getApiUrl()).searchParams.get("tz");},
+    });
+    for (const name of ["getApiUrl", "renderTzList", "selectTimezone"]) {
+        vm.runInContext(templateFunction(template, name), ctx);
+    }
+    ctx.renderTzList();
+    return {ctx, document, elements, container, output: () => ({previewTimezone, mobileTimezone})};
+}
+
+for (const query of ["", "London", "Tokyo"]) {
+    test(`time zone selection keeps focus and synchronizes preview and mobile selection (${query || "grouped"})`, () => {
+        const controls = timezoneControls({query});
+        const {container, document, elements} = controls;
+        const zone = query === "Tokyo" ? "Asia/Tokyo" : "Europe/London";
+        const choice = container.children.find((child) => child.innerHTML?.includes(zone.split("/")[1]));
+        choice.focus();
+        choice.onclick();
+        assert.equal(elements.tz.value, zone);
+        assert.deepEqual(controls.output(), {previewTimezone: zone, mobileTimezone: zone});
+        if (query === "Tokyo") {
+            assert.equal(document.activeElement, elements.tzSearch);
+        } else {
+            assert.notEqual(document.activeElement, choice);
+            assert.equal(document.activeElement.dataset.timezone, zone);
+            assert.equal(document.activeElement.getAttribute("aria-pressed"), "true");
+        }
+    });
+}
+
+test("detected time zone retains focus after selection, without moving focus on initialization", () => {
+    const {ctx, container, document, elements} = timezoneControls();
+    assert.equal(document.activeElement, null);
+    const detected = container.children.find((child) => child.innerHTML?.includes("Detected"));
+    detected.focus();
+    detected.onclick();
+    assert.notEqual(document.activeElement, detected);
+    assert.ok(document.activeElement.innerHTML.includes("Detected"));
+    assert.equal(elements.tz.value, "Europe/Prague");
+    ctx.renderTzList();
+    assert.equal(document.activeElement.dataset.timezone, "Europe/Prague");
+});
+
+function weatherControls() {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const elements = {};
+    for (const mode of ["Off", "Current", "RaceDay"]) {
+        for (const suffix of ["", "Mobile"]) {
+            elements[`weather${mode}Btn${suffix}`] = {
+                attributes: {}, classList: {add() {}, remove() {}},
+                setAttribute(name, value) {this.attributes[name] = String(value);},
+                getAttribute(name) {return this.attributes[name];},
+                removeAttribute(name) {delete this.attributes[name];},
+            };
+        }
+    }
+    elements.weatherToggle = {checked: true};
+    elements.weatherRaceDayRadio = {checked: true};
+    const currentRadio = {checked: false};
+    let previewMode;
+    const ctx = vm.createContext({
+        currentWeatherType: "race_day", available: true,
+        document: {getElementById: (id) => elements[id], querySelector: () => currentRadio},
+        isWeatherTooltipDisabledState: (btn) => btn.getAttribute("aria-disabled") === "true",
+        isRaceDayWeatherAvailable: () => ctx.available,
+        updatePreview() {previewMode = ctx.currentWeatherType;},
+    });
+    for (const name of ["setWeatherType", "updateWeatherTypeAvailability"]) {
+        vm.runInContext(templateFunction(template, name), ctx);
+    }
+    return {ctx, elements, currentRadio, previewMode: () => previewMode};
+}
+
+for (const mode of ["off", "current", "race_day"]) {
+    test(`weather ${mode} synchronizes desktop, mobile, internal state and preview`, () => {
+        const {ctx, elements, currentRadio, previewMode} = weatherControls();
+        ctx.setWeatherType(mode);
+        for (const [name, value] of [["Off", "off"], ["Current", "current"], ["RaceDay", "race_day"]]) {
+            for (const suffix of ["", "Mobile"]) {
+                assert.equal(elements[`weather${name}Btn${suffix}`].getAttribute("aria-pressed"), String(mode === value));
+            }
+        }
+        assert.equal(elements.weatherToggle.checked, mode !== "off");
+        if (mode === "current") assert.equal(currentRadio.checked, true);
+        assert.equal(previewMode(), mode);
+    });
+}
+
+test("unavailable race-day weather falls back to current and rejects re-selection", () => {
+    const {ctx, elements, previewMode} = weatherControls();
+    ctx.available = false;
+    ctx.updateWeatherTypeAvailability();
+    ctx.setWeatherType("race_day");
+    assert.equal(ctx.currentWeatherType, "current");
+    assert.equal(previewMode(), "current");
+    for (const suffix of ["", "Mobile"]) {
+        assert.equal(elements[`weatherCurrentBtn${suffix}`].getAttribute("aria-pressed"), "true");
+        assert.equal(elements[`weatherRaceDayBtn${suffix}`].getAttribute("aria-pressed"), "false");
+        assert.equal(elements[`weatherRaceDayBtn${suffix}`].getAttribute("aria-disabled"), "true");
+    }
+});

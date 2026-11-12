@@ -36,6 +36,12 @@ F1.InkyCloud.click{% endblock %} {% block meta_description %}<meta
   content="{{ site_url }}/static/images/og-preview.png"
 />
 {% endblock %} {% block head %}
+<style nonce="{{ request.state.csp_nonce }}">
+  .tz-item:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -2px;
+  }
+</style>
 <script type="application/ld+json" nonce="{{ request.state.csp_nonce }}">
   {
     "@context": "https://schema.org",
@@ -112,7 +118,7 @@ block content %}
         </svg>
         {{ t.get('home_back', 'Back') }}
       </a>
-      <h2
+      <h1
         class="font-bold uppercase tracking-widest text-sm flex items-center gap-2"
       >
         <svg
@@ -131,7 +137,7 @@ block content %}
         {% if screen_type == 'calendar' %}{{ t.get('screen_calendar_name',
         'Calendar') }}{% else %}{{ t.get('screen_teams_name', 'Teams') }}{%
         endif %}
-      </h2>
+      </h1>
     </div>
 
     <!-- Screen Type Selector -->
@@ -310,11 +316,11 @@ block content %}
         <!-- Controls -->
         <div class="w-full max-w-[800px] mt-6 flex flex-col sm:flex-row gap-3">
           <div class="flex-1 flex gap-0 relative shadow-neo">
-            <div
+            <label for="apiUrl"
               class="bg-black text-white px-3 py-2 text-xs font-bold uppercase flex items-center justify-center border-l-2 border-t-2 border-b-2 border-black"
             >
               URL
-            </div>
+            </label>
             <input
               type="text"
               id="apiUrl"
@@ -1487,8 +1493,11 @@ block content %}
       }
 
       results.forEach((tz) => {
-        const div = document.createElement("div");
-        div.className = `tz-item px-2 py-0.5 cursor-pointer border-b border-gray-100 hover:bg-black hover:text-white ${tz === selectedTz ? "bg-racing-red text-white font-bold" : ""}`;
+        const div = document.createElement("button");
+        div.type = "button";
+        div.dataset.timezone = tz;
+        div.setAttribute("aria-pressed", String(tz === selectedTz));
+        div.className = `tz-item w-full text-left px-2 py-0.5 cursor-pointer border-b border-gray-100 hover:bg-black hover:text-white ${tz === selectedTz ? "bg-racing-red text-white font-bold" : ""}`;
         div.innerHTML = `<span class="opacity-70 w-14 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(tz))}</span> ${formatTzDisplay(tz)}`;
         div.onclick = () => {
           document.getElementById("tzSearch").value = "";
@@ -1501,8 +1510,12 @@ block content %}
 
     // Browser detected timezone (always show)
     if (browserTz) {
-      const browserDiv = document.createElement("div");
-      browserDiv.className = `tz-item px-2 py-1 cursor-pointer hover:bg-black hover:text-white flex items-center border-b-4 border-black mb-0.5 ${browserTz === selectedTz ? "bg-racing-red text-white" : "bg-white"}`;
+      const browserDiv = document.createElement("button");
+      browserDiv.type = "button";
+      browserDiv.dataset.timezone = browserTz;
+      browserDiv.dataset.timezoneSource = "detected";
+      browserDiv.setAttribute("aria-pressed", String(browserTz === selectedTz));
+      browserDiv.className = `tz-item w-full text-left px-2 py-1 cursor-pointer hover:bg-black hover:text-white flex items-center border-b-4 border-black mb-0.5 ${browserTz === selectedTz ? "bg-racing-red text-white" : "bg-white"}`;
       browserDiv.innerHTML = `<span class="mr-1">📍</span><span class="opacity-70 w-12 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(browserTz))}</span> <span class="font-bold">${escapeHtml(uiText.detectedLabel)}</span>`;
       browserDiv.onclick = () => selectTimezone(browserTz);
       container.appendChild(browserDiv);
@@ -1564,8 +1577,11 @@ block content %}
       .forEach((region) => {
         addHeader(region);
         regions[region].forEach(({ tz, offset }) => {
-          const div = document.createElement("div");
-          div.className = `tz-item px-2 py-0.5 cursor-pointer border-b border-gray-100 hover:bg-black hover:text-white ${tz === selectedTz ? "bg-racing-red text-white" : ""}`;
+          const div = document.createElement("button");
+          div.type = "button";
+          div.dataset.timezone = tz;
+          div.setAttribute("aria-pressed", String(tz === selectedTz));
+          div.className = `tz-item w-full text-left px-2 py-0.5 cursor-pointer border-b border-gray-100 hover:bg-black hover:text-white ${tz === selectedTz ? "bg-racing-red text-white" : ""}`;
           const city = tz.split("/").slice(1).join(" / ").replace(/_/g, " ");
           div.innerHTML = `<span class="opacity-70 w-14 inline-block text-[10px] font-mono">${formatOffset(offset)}</span> ${city}`;
           div.onclick = () => selectTimezone(tz);
@@ -1578,7 +1594,17 @@ block content %}
     tz = normalizeTimezone(tz);
     selectedTz = tz;
     document.getElementById("tz").value = tz;
+    const container = document.getElementById("tzList");
+    const focused = document.activeElement;
+    const restoreFocus = container?.contains(focused);
     renderTzList();
+    if (restoreFocus) {
+      const replacement = Array.from(container.querySelectorAll("[data-timezone]")).find(
+        (button) => button.dataset.timezone === focused.dataset.timezone &&
+          button.dataset.timezoneSource === focused.dataset.timezoneSource,
+      );
+      (replacement || document.getElementById("tzSearch")).focus();
+    }
     syncMobileTzSelect();
     updatePreview();
   }
@@ -1740,6 +1766,7 @@ block content %}
 
     allBtns.forEach((btn) => {
       if (btn) {
+        btn.setAttribute("aria-pressed", "false");
         btn.classList.remove("bg-racing-red", "text-white", "bg-black");
         btn.classList.add("bg-white");
       }
@@ -1764,6 +1791,7 @@ block content %}
       weatherToggle.checked = false;
       offBtns.forEach((btn) => {
         if (btn) {
+          btn.setAttribute("aria-pressed", "true");
           btn.classList.remove("bg-white");
           btn.classList.add("bg-black", "text-white");
         }
@@ -1773,6 +1801,7 @@ block content %}
       if (currentRadio) currentRadio.checked = true;
       currentBtns.forEach((btn) => {
         if (btn) {
+          btn.setAttribute("aria-pressed", "true");
           btn.classList.remove("bg-white");
           btn.classList.add("bg-racing-red", "text-white");
         }
@@ -1782,6 +1811,7 @@ block content %}
       if (raceDayRadio) raceDayRadio.checked = true;
       raceDayBtns.forEach((btn) => {
         if (btn) {
+          btn.setAttribute("aria-pressed", "true");
           btn.classList.remove("bg-white");
           btn.classList.add("bg-racing-red", "text-white");
         }
