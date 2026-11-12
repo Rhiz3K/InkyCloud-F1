@@ -40,8 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `/calendar.bmp` and `/teams.bmp` served from a scheduler-pregenerated file now send
   `X-Cache: PREGENERATED` instead of `MISS`, so `MISS` only means the image was rendered for
-  that request. `HIT` and `REVALIDATED` are unchanged; the file is still not copied into the
-  in-process cache, so a newer pregenerated file is never masked.
+  that request. `HIT` and `REVALIDATED` are unchanged. Caching is unchanged too: the file is
+  still not copied into the in-process cache, which the scheduler clears after each
+  generation run.
 
 - Run production, CI, and local development on Python 3.15.2. Both Docker stages pin
   `python:3.15-slim` by digest. Bump the locked packages that have no CPython 3.15 wheel
