@@ -54,7 +54,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
 </style>
 {% endblock %} {% block content %}
 <!-- Main Content -->
-<main class="api-docs-content flex-1 py-8 px-4">
+<main id="main-content" tabindex="-1" class="api-docs-content flex-1 py-8 px-4">
   <div class="max-w-4xl mx-auto">
     <!-- Title & Intro -->
     <div class="bg-white border-2 border-black shadow-neo p-6 md:p-8 mb-6">
@@ -78,10 +78,10 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
 
     <!-- Main Endpoint: /calendar.bmp -->
     <div class="bg-white border-2 border-black shadow-neo p-6 md:p-8 mb-6">
-      <div class="flex items-center gap-3 mb-4">
+      <h2 class="flex items-center gap-3 mb-4">
         <span class="px-2 py-1 bg-black text-white text-xs font-bold">GET</span>
         <code class="text-lg font-mono">/calendar.bmp</code>
-      </div>
+      </h2>
       <p class="text-sm mb-4">{{ calendar_desc }}</p>
       <p class="text-sm mb-4">{{ t.get("api_docs_selection_note", "Without year plus round or race_key, the next race is selected. Copy round or race_key from /api/races/{year}. Exception: race_key without year returns HTTP 400.") }}</p>
       <div class="border-2 border-black p-3 mb-4 text-sm space-y-2">
@@ -453,10 +453,10 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
 
     <!-- Teams BMP Endpoint -->
     <div class="bg-white border-2 border-black shadow-neo p-6 md:p-8 mb-6">
-      <div class="flex items-center gap-3 mb-4">
+      <h2 class="flex items-center gap-3 mb-4">
         <span class="px-2 py-1 bg-black text-white text-xs font-bold">GET</span>
         <code class="text-lg font-mono">/teams.bmp</code>
-      </div>
+      </h2>
       <p class="text-sm mb-4">
         {{ t.get("api_docs_teams_desc", "Generate a BMP image showing all F1
         teams with their drivers, photos, and championship points in 1bit,

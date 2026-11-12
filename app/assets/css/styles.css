@@ -176,3 +176,8 @@ button.control-btn:active {
         grid-column: 1 / -1;
     }
 }
+
+/* The skip link focuses <main> programmatically; it is not an interactive control. */
+main[tabindex="-1"]:focus {
+    outline: none;
+}

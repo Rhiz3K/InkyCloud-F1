@@ -153,6 +153,9 @@ unchanged image returns `304 Not Modified` with an empty body. Persist the ETag 
 because an ESP32 commonly sleeps between polls. A changed race, weather view, language, timezone,
 or renderer output returns `200` with a new ETag. Teams deliberately use `Cache-Control: no-cache`,
 which permits conditional revalidation without accepting a stale response.
+The diagnostic `X-Cache` header reports where an image came from: `HIT` (in-process cache),
+`PREGENERATED` (scheduler-written file on disk), `REVALIDATED` (`304` for a matching ETag), or
+`MISS` (rendered for this request).
 
 ---
 

@@ -467,7 +467,7 @@ async def test_plain_timezone_uses_pregenerated_file(routes, monkeypatch, tmp_pa
         )
     assert default.content == shifted.content == content
     assert default.headers == shifted.headers
-    assert default.headers["x-cache"] == "MISS"
+    assert default.headers["x-cache"] == "PREGENERATED"
     assert conditional.status_code == default_conditional.status_code == 304
     assert conditional.content == default_conditional.content == b""
     assert conditional.headers["etag"] == default.headers["etag"]

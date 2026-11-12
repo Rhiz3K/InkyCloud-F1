@@ -112,7 +112,7 @@ block content %}
         </svg>
         {{ t.get('home_back', 'Back') }}
       </a>
-      <h2
+      <h1
         class="font-bold uppercase tracking-widest text-sm flex items-center gap-2"
       >
         <svg
@@ -131,7 +131,7 @@ block content %}
         {% if screen_type == 'calendar' %}{{ t.get('screen_calendar_name',
         'Calendar') }}{% else %}{{ t.get('screen_teams_name', 'Teams') }}{%
         endif %}
-      </h2>
+      </h1>
     </div>
 
     <!-- Screen Type Selector -->
@@ -191,7 +191,7 @@ block content %}
     </div>
   </div>
 
-  <main class="flex-1 flex flex-row overflow-hidden relative">
+  <main id="main-content" tabindex="-1" class="flex-1 flex flex-row overflow-hidden relative">
     <!-- Center Panel - Preview -->
     <div
       class="flex-1 flex flex-col min-w-0 bg-racing-paper p-4 lg:p-6 overflow-y-auto"
@@ -310,11 +310,12 @@ block content %}
         <!-- Controls -->
         <div class="w-full max-w-[800px] mt-6 flex flex-col sm:flex-row gap-3">
           <div class="flex-1 flex gap-0 relative shadow-neo">
-            <div
+            <label
+              for="apiUrl"
               class="bg-black text-white px-3 py-2 text-xs font-bold uppercase flex items-center justify-center border-l-2 border-t-2 border-b-2 border-black"
             >
               URL
-            </div>
+            </label>
             <input
               type="text"
               id="apiUrl"
@@ -696,7 +697,9 @@ block content %}
   function filterTzContinent(continent) {
     activeContinent = continent;
     document.querySelectorAll(".tz-filter-btn").forEach((btn) => {
-      btn.classList.toggle("active", btn.dataset.continent === continent);
+      const isActive = btn.dataset.continent === continent;
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-pressed", String(isActive));
     });
     // Clear search when filtering by continent
     if (activeContinent !== "ALL" && activeContinent !== "DETECTED") {
@@ -1484,6 +1487,49 @@ block content %}
     renderTzList();
   }
 
+  /**
+   * Builds one timezone entry as a native button so it is focusable and activates with
+   * Enter/Space. Entries start outside the tab order; renderTzList makes one of them the
+   * list's single Tab stop and onTzListKeydown moves focus between them with arrow keys.
+   */
+  function createTzOption(tz, className, html, onSelect) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `tz-item w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-racing-red ${className}`;
+    button.dataset.tz = tz;
+    button.tabIndex = -1;
+    button.setAttribute("aria-pressed", String(tz === selectedTz));
+    button.innerHTML = html;
+    button.addEventListener("click", onSelect);
+    return button;
+  }
+
+  /** Makes the selected entry (or the first one) the timezone list's only Tab stop. */
+  function setTzListTabStop(container) {
+    const items = Array.from(container.querySelectorAll(".tz-item"));
+    const tabStop = items.find((item) => item.dataset.tz === selectedTz) || items[0];
+    if (tabStop) tabStop.tabIndex = 0;
+    return tabStop || null;
+  }
+
+  /** Arrow/Home/End keyboard navigation between timezone entries (WAI-ARIA toolbar pattern). */
+  function onTzListKeydown(event) {
+    const container = event.currentTarget;
+    const items = Array.from(container.querySelectorAll(".tz-item"));
+    const index = items.indexOf(event.target);
+    if (index === -1) return;
+    let next = index;
+    if (event.key === "ArrowDown") next = Math.min(index + 1, items.length - 1);
+    else if (event.key === "ArrowUp") next = Math.max(index - 1, 0);
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = items.length - 1;
+    else return;
+    event.preventDefault();
+    items[index].tabIndex = -1;
+    items[next].tabIndex = 0;
+    items[next].focus();
+  }
+
   function renderTzList() {
     const container = document.getElementById("tzList");
     const searchInput = document.getElementById("tzSearch");
@@ -1518,28 +1564,38 @@ block content %}
       }
 
       results.forEach((tz) => {
-        const div = document.createElement("div");
-        div.className = `tz-item px-2 py-0.5 cursor-pointer border-b border-gray-100 hover:bg-black hover:text-white ${tz === selectedTz ? "bg-racing-red text-white font-bold" : ""}`;
-        div.innerHTML = `<span class="opacity-70 w-14 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(tz))}</span> ${formatTzDisplay(tz)}`;
-        div.onclick = () => {
-          document.getElementById("tzSearch").value = "";
-          selectTimezone(tz);
-        };
-        container.appendChild(div);
+        container.appendChild(
+          createTzOption(
+            tz,
+            `block px-2 py-0.5 cursor-pointer border-b border-gray-100 hover:bg-black hover:text-white ${tz === selectedTz ? "bg-racing-red text-white font-bold" : ""}`,
+            `<span class="opacity-70 w-14 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(tz))}</span> ${formatTzDisplay(tz)}`,
+            () => {
+              document.getElementById("tzSearch").value = "";
+              selectTimezone(tz);
+            },
+          ),
+        );
       });
+      setTzListTabStop(container);
       return;
     }
 
     // Browser detected timezone (always show)
     if (browserTz) {
-      const browserDiv = document.createElement("div");
-      browserDiv.className = `tz-item px-2 py-1 cursor-pointer hover:bg-black hover:text-white flex items-center border-b-4 border-black mb-0.5 ${browserTz === selectedTz ? "bg-racing-red text-white" : "bg-white"}`;
-      browserDiv.innerHTML = `<span class="mr-1">📍</span><span class="opacity-70 w-12 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(browserTz))}</span> <span class="font-bold">${escapeHtml(uiText.detectedLabel)}</span>`;
-      browserDiv.onclick = () => selectTimezone(browserTz);
-      container.appendChild(browserDiv);
+      container.appendChild(
+        createTzOption(
+          browserTz,
+          `px-2 py-1 cursor-pointer hover:bg-black hover:text-white flex items-center border-b-4 border-black mb-0.5 ${browserTz === selectedTz ? "bg-racing-red text-white" : "bg-white"}`,
+          `<span class="mr-1" aria-hidden="true">📍</span><span class="opacity-70 w-12 inline-block text-[10px] font-mono">${formatOffset(getUtcOffsetNum(browserTz))}</span> <span class="font-bold">${escapeHtml(uiText.detectedLabel)}</span>`,
+          () => selectTimezone(browserTz),
+        ),
+      );
     }
 
-    if (activeContinent === "DETECTED" && !query) return;
+    if (activeContinent === "DETECTED" && !query) {
+      setTzListTabStop(container);
+      return;
+    }
 
     // Group timezones by region
     const regions = {};
@@ -1595,14 +1651,18 @@ block content %}
       .forEach((region) => {
         addHeader(region);
         regions[region].forEach(({ tz, offset }) => {
-          const div = document.createElement("div");
-          div.className = `tz-item px-2 py-0.5 cursor-pointer border-b border-gray-100 hover:bg-black hover:text-white ${tz === selectedTz ? "bg-racing-red text-white" : ""}`;
           const city = tz.split("/").slice(1).join(" / ").replace(/_/g, " ");
-          div.innerHTML = `<span class="opacity-70 w-14 inline-block text-[10px] font-mono">${formatOffset(offset)}</span> ${city}`;
-          div.onclick = () => selectTimezone(tz);
-          container.appendChild(div);
+          container.appendChild(
+            createTzOption(
+              tz,
+              `block px-2 py-0.5 cursor-pointer border-b border-gray-100 hover:bg-black hover:text-white ${tz === selectedTz ? "bg-racing-red text-white" : ""}`,
+              `<span class="opacity-70 w-14 inline-block text-[10px] font-mono">${formatOffset(offset)}</span> ${city}`,
+              () => selectTimezone(tz),
+            ),
+          );
         });
       });
+    setTzListTabStop(container);
   }
 
   function selectTimezone(tz, refresh = true) {
@@ -1610,7 +1670,14 @@ block content %}
     selectedTz = tz;
     const tzInput = document.getElementById("tz");
     if (tzInput) tzInput.value = tz;
+    // Re-rendering replaces the focused entry; keep keyboard focus inside the picker.
+    const tzList = document.getElementById("tzList");
+    const listHadFocus = Boolean(tzList && tzList.contains(document.activeElement));
     renderTzList();
+    if (listHadFocus) {
+      const tabStop = setTzListTabStop(tzList);
+      (tabStop || document.getElementById("tzSearch"))?.focus();
+    }
     syncMobileTzSelect();
     if (refresh) updatePreview();
   }
@@ -1711,6 +1778,7 @@ block content %}
     }
     populateMobileTzSelect();
     renderTzList();
+    document.getElementById("tzList")?.addEventListener("keydown", onTzListKeydown);
   }
 
   let nextRaceDate = null;
@@ -1775,6 +1843,7 @@ block content %}
       if (btn) {
         btn.classList.remove("bg-racing-red", "text-white", "bg-black");
         btn.classList.add("bg-white");
+        btn.setAttribute("aria-pressed", "false");
       }
     });
 
@@ -1799,6 +1868,7 @@ block content %}
         if (btn) {
           btn.classList.remove("bg-white");
           btn.classList.add("bg-black", "text-white");
+          btn.setAttribute("aria-pressed", "true");
         }
       });
     } else if (type === "current") {
@@ -1808,6 +1878,7 @@ block content %}
         if (btn) {
           btn.classList.remove("bg-white");
           btn.classList.add("bg-racing-red", "text-white");
+          btn.setAttribute("aria-pressed", "true");
         }
       });
     } else if (type === "race_day") {
@@ -1817,6 +1888,7 @@ block content %}
         if (btn) {
           btn.classList.remove("bg-white");
           btn.classList.add("bg-racing-red", "text-white");
+          btn.setAttribute("aria-pressed", "true");
         }
       });
     }
@@ -1938,6 +2010,7 @@ block content %}
           "text-black",
         );
         btn.classList.add("bg-white");
+        btn.setAttribute("aria-pressed", "false");
       }
     });
 
@@ -1963,6 +2036,7 @@ block content %}
         if (btn) {
           btn.classList.remove("bg-white");
           btn.classList.add("bg-black", "text-white");
+          btn.setAttribute("aria-pressed", "true");
         }
       });
     } else if (type === "spectra6") {
@@ -1970,6 +2044,7 @@ block content %}
         if (btn) {
           btn.classList.remove("bg-white");
           btn.classList.add("bg-black", "text-white");
+          btn.setAttribute("aria-pressed", "true");
         }
       });
     } else if (type === "bwr") {
@@ -1977,6 +2052,7 @@ block content %}
         if (btn) {
           btn.classList.remove("bg-white");
           btn.classList.add("bg-racing-red", "text-white");
+          btn.setAttribute("aria-pressed", "true");
         }
       });
     } else if (type === "bwry") {
@@ -1984,6 +2060,7 @@ block content %}
         if (btn) {
           btn.classList.remove("bg-white");
           btn.classList.add("bg-black", "text-white");
+          btn.setAttribute("aria-pressed", "true");
         }
       });
     }

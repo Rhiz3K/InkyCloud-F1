@@ -4,20 +4,22 @@
 {% call tz_picker.desktop() %}
   <div class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50" id="weatherContainer">
     <div class="mb-1.5 flex items-center gap-1">
-      <label class="text-xs font-bold uppercase" id="weatherLabel">Weather</label>
+      <span class="text-xs font-bold uppercase" id="weatherLabel">Weather</span>
     </div>
     <input
       type="checkbox"
       id="weatherToggle"
       checked
+      aria-labelledby="weatherLabel"
       data-on-change="updateWeatherTypeAvailability updatePreview"
       class="hidden"
     />
-    <div class="flex gap-1" id="weatherTypeContainer">
+    <div class="flex gap-1" id="weatherTypeContainer" role="group" aria-labelledby="weatherLabel">
       <button
         type="button"
         data-on-click="setWeatherType" data-args='["off"]'
         id="weatherOffBtn"
+        aria-pressed="false"
         class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
       >
         OFF
@@ -26,6 +28,7 @@
         type="button"
         data-on-click="setWeatherType" data-args='["current"]'
         id="weatherCurrentBtn"
+        aria-pressed="false"
         class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
       >
         <span id="weatherCurrentLabel">Current</span>
@@ -34,13 +37,21 @@
         type="button"
         data-on-click="setWeatherType" data-args='["race_day"]'
         id="weatherRaceDayBtn"
+        aria-pressed="true"
         class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-racing-red text-white"
         data-weather-tooltip-trigger
       >
         <span id="weatherRaceDayText">Race day</span>
       </button>
     </div>
-    <input type="radio" name="weatherType" value="current" class="hidden" />
+    <input
+      type="radio"
+      name="weatherType"
+      value="current"
+      class="hidden"
+      id="weatherCurrentRadio"
+      aria-labelledby="weatherCurrentLabel"
+    />
     <input
       type="radio"
       name="weatherType"
@@ -48,18 +59,20 @@
       checked
       class="hidden"
       id="weatherRaceDayRadio"
+      aria-labelledby="weatherRaceDayText"
     />
   </div>
 
   <div class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50" id="displayContainer">
-    <label class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
-      >Display</label
+    <span class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
+      >Display</span
     >
-    <div class="grid grid-cols-4 gap-1" id="displayTypeContainer">
+    <div class="grid grid-cols-4 gap-1" id="displayTypeContainer" role="group" aria-labelledby="displayLabel">
       <button
         type="button"
         data-on-click="setDisplayType" data-args='["1bit"]'
         id="display1bitBtn"
+        aria-pressed="true"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-black text-white"
       >
         B/W
@@ -68,6 +81,7 @@
         type="button"
         data-on-click="setDisplayType" data-args='["bwr"]'
         id="displayBwrBtn"
+        aria-pressed="false"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
       >
         B/W/R
@@ -76,6 +90,7 @@
         type="button"
         data-on-click="setDisplayType" data-args='["bwry"]'
         id="displayBwryBtn"
+        aria-pressed="false"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
       >
         B/W/R/Y
@@ -84,6 +99,7 @@
         type="button"
         data-on-click="setDisplayType" data-args='["spectra6"]'
         id="displaySpectra6Btn"
+        aria-pressed="false"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
       >
         6C
@@ -95,15 +111,16 @@
 <!-- Weather - Mobile -->
 <div class="lg:hidden p-3 border-b-2 border-black bg-gray-50" id="mobileWeatherContainer">
   <div class="mb-2 flex items-center gap-1">
-    <label class="block text-xs font-bold uppercase" id="weatherLabelMobile"
-      >Weather</label
+    <span class="block text-xs font-bold uppercase" id="weatherLabelMobile"
+      >Weather</span
     >
   </div>
-  <div class="grid grid-cols-3 gap-1">
+  <div class="grid grid-cols-3 gap-1" role="group" aria-labelledby="weatherLabelMobile">
     <button
       type="button"
       data-on-click="setWeatherType" data-args='["off"]'
       id="weatherOffBtnMobile"
+      aria-pressed="false"
       class="weather-type-btn-mobile min-w-0 px-2 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
     >
       OFF
@@ -112,6 +129,7 @@
       type="button"
       data-on-click="setWeatherType" data-args='["current"]'
       id="weatherCurrentBtnMobile"
+      aria-pressed="false"
       class="weather-type-btn-mobile min-w-0 px-2 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
     >
       Current
@@ -120,6 +138,7 @@
       type="button"
       data-on-click="setWeatherType" data-args='["race_day"]'
       id="weatherRaceDayBtnMobile"
+      aria-pressed="true"
       class="weather-type-btn-mobile min-w-0 px-2 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-racing-red text-white"
       data-weather-tooltip-trigger
     >
@@ -130,14 +149,15 @@
 
 <!-- Display Type - Mobile -->
 <div class="lg:hidden p-3 border-b-2 border-black bg-gray-50" id="mobileDisplayContainer">
-  <label class="block text-xs font-bold uppercase mb-2" id="displayLabelMobile"
-    >Display</label
+  <span class="block text-xs font-bold uppercase mb-2" id="displayLabelMobile"
+    >Display</span
   >
-  <div class="grid grid-cols-4 gap-1">
+  <div class="grid grid-cols-4 gap-1" role="group" aria-labelledby="displayLabelMobile">
     <button
       type="button"
       data-on-click="setDisplayType" data-args='["1bit"]'
       id="display1bitBtnMobile"
+      aria-pressed="true"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-black text-white"
     >
       B/W
@@ -146,6 +166,7 @@
       type="button"
       data-on-click="setDisplayType" data-args='["bwr"]'
       id="displayBwrBtnMobile"
+      aria-pressed="false"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
     >
       B/W/R
@@ -154,6 +175,7 @@
       type="button"
       data-on-click="setDisplayType" data-args='["bwry"]'
       id="displayBwryBtnMobile"
+      aria-pressed="false"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
     >
       B/W/R/Y
@@ -162,6 +184,7 @@
       type="button"
       data-on-click="setDisplayType" data-args='["spectra6"]'
       id="displaySpectra6BtnMobile"
+      aria-pressed="false"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
     >
       6C

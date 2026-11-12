@@ -37,14 +37,14 @@
       "reviewed_on": "2026-09-09"
     },
     "css/styles.css": {
-      "sha256": "d6874b6aa11cdc442ab82e698af64af9bac4f51dc26cb849517456ca757a99b6",
+      "sha256": "12443add42682e3c8c24863b2ec5c9e45f903d889c929dfe065faec978138493",
       "license": "MIT",
       "author": "InkyCloud contributors",
       "source": "https://github.com/Rhiz3K/InkyCloud-F1",
       "reviewed_on": "2026-09-09"
     },
     "css/tailwind.min.css": {
-      "sha256": "70ceb75a866cb9ade304a739727517f9d69c19c3f616e36464687f97480dff35",
+      "sha256": "af064b8ebe920b081cbd61e534c484a5f0ef83852665683028d7debdbe9ddbb0",
       "license": "MIT",
       "author": "InkyCloud contributors",
       "source": "https://github.com/Rhiz3K/InkyCloud-F1",

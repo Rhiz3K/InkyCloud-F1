@@ -58,6 +58,23 @@ def test_strip_empty_unreleased_section_variants(text, expected):
 
 
 @pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("# Changelog\n\nIntro\n\n## [1.0.0]\n", "\nIntro\n\n## [1.0.0]\n"),
+        ("\n\n# Changelog\nIntro\n", "\n\nIntro\n"),
+        ("# Changelog", ""),
+        ("Intro\n# Not a title\n", "Intro\n# Not a title\n"),
+        ("## [1.0.0]\n", "## [1.0.0]\n"),
+        ("#hashtag\n", "#hashtag\n"),
+        ("", ""),
+        ("\n  \n", "\n  \n"),
+    ],
+)
+def test_strip_document_title_variants(text, expected):
+    assert pages._strip_document_title(text) == expected
+
+
+@pytest.mark.parametrize(
     "target",
     [
         "/bad\npath",

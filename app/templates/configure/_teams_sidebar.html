@@ -3,14 +3,15 @@
 {% set teams_extra_options = ["none", "countdown", "flags", "track", "weather"] %}
 <div class="hidden lg:flex flex-1 flex-col min-h-0">
   <div class="flex-shrink-0 px-2 py-1.5 border-b-2 border-black bg-gray-50" id="displayContainer">
-    <label class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
-      >Display</label
+    <span class="text-xs font-bold uppercase mb-1.5 block" id="displayLabel"
+      >Display</span
     >
-    <div class="grid grid-cols-4 gap-1" id="displayTypeContainer">
+    <div class="grid grid-cols-4 gap-1" id="displayTypeContainer" role="group" aria-labelledby="displayLabel">
       <button
         type="button"
         data-on-click="setDisplayType" data-args='["1bit"]'
         id="display1bitBtn"
+        aria-pressed="true"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-black text-white"
       >
         B/W
@@ -19,6 +20,7 @@
         type="button"
         data-on-click="setDisplayType" data-args='["bwr"]'
         id="displayBwrBtn"
+        aria-pressed="false"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
       >
         B/W/R
@@ -27,6 +29,7 @@
         type="button"
         data-on-click="setDisplayType" data-args='["bwry"]'
         id="displayBwryBtn"
+        aria-pressed="false"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-racing-red hover:text-white"
       >
         B/W/R/Y
@@ -35,6 +38,7 @@
         type="button"
         data-on-click="setDisplayType" data-args='["spectra6"]'
         id="displaySpectra6Btn"
+        aria-pressed="false"
         class="display-type-btn min-w-0 px-1 py-1 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
       >
         6C
@@ -100,14 +104,15 @@
 
 <!-- Display Type - Mobile -->
 <div class="lg:hidden p-3 border-b-2 border-black bg-gray-50" id="mobileDisplayContainer">
-  <label class="block text-xs font-bold uppercase mb-2" id="displayLabelMobile"
-    >Display</label
+  <span class="block text-xs font-bold uppercase mb-2" id="displayLabelMobile"
+    >Display</span
   >
-  <div class="grid grid-cols-4 gap-1">
+  <div class="grid grid-cols-4 gap-1" role="group" aria-labelledby="displayLabelMobile">
     <button
       type="button"
       data-on-click="setDisplayType" data-args='["1bit"]'
       id="display1bitBtnMobile"
+      aria-pressed="true"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-black text-white"
     >
       B/W
@@ -116,6 +121,7 @@
       type="button"
       data-on-click="setDisplayType" data-args='["bwr"]'
       id="displayBwrBtnMobile"
+      aria-pressed="false"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
     >
       B/W/R
@@ -124,6 +130,7 @@
       type="button"
       data-on-click="setDisplayType" data-args='["bwry"]'
       id="displayBwryBtnMobile"
+      aria-pressed="false"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-racing-red hover:text-white"
     >
       B/W/R/Y
@@ -132,6 +139,7 @@
       type="button"
       data-on-click="setDisplayType" data-args='["spectra6"]'
       id="displaySpectra6BtnMobile"
+      aria-pressed="false"
       class="display-type-btn-mobile min-w-0 px-1 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
     >
       6C

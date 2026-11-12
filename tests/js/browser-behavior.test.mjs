@@ -613,3 +613,220 @@ test("historical teams still use the year-specific BMP preview", () => {
     assert.equal(ctx.canUsePrerenderedPreview(), false);
     assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/teams.bmp?year=2025&extra=track");
 });
+
+// Minimal DOM for the desktop timezone list: elements record attributes, listeners and focus.
+function tzListContext(state = {}) {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    let focused = null;
+    const makeElement = (tag) => {
+        const attributes = {}, listeners = {};
+        const element = {
+            tagName: tag.toUpperCase(), dataset: {}, className: "", tabIndex: 0, type: "", children: [], html: "",
+            setAttribute(name, value) {attributes[name] = String(value);},
+            getAttribute(name) {return attributes[name] ?? null;},
+            addEventListener(type, handler) {listeners[type] = handler;},
+            fire(type, event = {}) {listeners[type]?.({currentTarget: element, target: element, ...event});},
+            focus() {focused = element;},
+            appendChild(child) {element.children.push(child);},
+            get innerHTML() {return element.html;},
+            set innerHTML(value) {element.html = value; element.children = [];},
+        };
+        return element;
+    };
+    const list = makeElement("div");
+    list.querySelectorAll = (selector) => {
+        assert.equal(selector, ".tz-item");
+        return list.children.filter((child) => child.className.split(/\s+/).includes("tz-item"));
+    };
+    list.contains = (element) => element === list || list.children.includes(element);
+    const search = Object.assign(makeElement("input"), {value: ""});
+    const tzInput = {value: ""};
+    const filters = ["ALL", "EUROPE"].map((continent) => {
+        const button = makeElement("button");
+        const classes = new Set(continent === "ALL" ? ["active"] : []);
+        button.dataset.continent = continent;
+        button.classList = {toggle(name, on) {if (on) classes.add(name); else classes.delete(name);}, contains: (name) => classes.has(name)};
+        return button;
+    });
+    const ctx = vm.createContext({
+        document: {
+            createElement: makeElement,
+            getElementById(id) {return {tzList: list, tzSearch: search, tz: tzInput}[id] ?? null;},
+            querySelectorAll(selector) {return selector === ".tz-filter-btn" ? filters : [];},
+            get activeElement() {return focused;},
+        },
+        uiText: {filterLabels: {}, noResults: "No results", detectedLabel: "Detected"},
+        selectedTz: "Europe/Prague", browserTz: "Europe/Prague", activeContinent: "ALL",
+        allTimezones: ["Europe/Prague", "Europe/London", "America/New_York"],
+        popularTz: [{offset: -5, zones: ["America/New_York"]}, {offset: 0, zones: ["Europe/London"]}, {offset: 1, zones: ["Europe/Prague"]}],
+        formatOffset: (offset) => `UTC${offset}`, getUtcOffsetNum: () => 0, formatTzDisplay: (tz) => tz,
+        escapeHtml: (text) => text, normalizeTimezone: (tz) => tz, syncMobileTzSelect() {},
+        updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0, ...state,
+    });
+    for (const name of ["createTzOption", "setTzListTabStop", "onTzListKeydown", "renderTzList", "selectTimezone", "filterTzContinent"]) {
+        vm.runInContext(templateFunction(template, name), ctx);
+    }
+    const items = () => list.querySelectorAll(".tz-item");
+    const keydown = (target, key) => {
+        let prevented = false;
+        ctx.onTzListKeydown({key, target, currentTarget: list, preventDefault() {prevented = true;}});
+        return prevented;
+    };
+    return {ctx, list, search, tzInput, filters, items, keydown, focused: () => focused};
+}
+
+test("timezone entries are buttons with pressed state and a single Tab stop", () => {
+    const {ctx, list, items} = tzListContext();
+    ctx.renderTzList();
+    const entries = items();
+    // Detected entry first, then AMERICA / EUROPE region groups with their headers in between.
+    assert.deepEqual(entries.map((entry) => entry.dataset.tz), ["Europe/Prague", "America/New_York", "Europe/London", "Europe/Prague"]);
+    assert.equal(list.children.length, entries.length + 2);
+    for (const entry of entries) {
+        assert.equal(entry.tagName, "BUTTON");
+        assert.equal(entry.type, "button");
+        assert.equal(entry.getAttribute("aria-pressed"), String(entry.dataset.tz === "Europe/Prague"));
+    }
+    assert.deepEqual(entries.map((entry) => entry.tabIndex), [0, -1, -1, -1]);
+});
+
+test("timezone list arrow, Home and End keys move the roving Tab stop", () => {
+    const {ctx, list, items, keydown, focused} = tzListContext();
+    ctx.renderTzList();
+    const entries = items();
+    assert.equal(keydown(entries[0], "ArrowDown"), true);
+    assert.equal(focused(), entries[1]);
+    assert.deepEqual(entries.map((entry) => entry.tabIndex), [-1, 0, -1, -1]);
+    keydown(entries[1], "End");
+    assert.equal(focused(), entries[3]);
+    keydown(entries[3], "ArrowDown");
+    assert.equal(focused(), entries[3]);
+    keydown(entries[3], "Home");
+    assert.equal(focused(), entries[0]);
+    keydown(entries[0], "ArrowUp");
+    assert.equal(focused(), entries[0]);
+    keydown(entries[0], "ArrowDown");
+    keydown(entries[1], "ArrowUp");
+    assert.equal(focused(), entries[0]);
+    assert.deepEqual(entries.map((entry) => entry.tabIndex), [0, -1, -1, -1]);
+    // Other keys (Enter/Space activate the native button) and non-entry targets are ignored.
+    assert.equal(keydown(entries[0], "Enter"), false);
+    assert.equal(keydown(list, "ArrowDown"), false);
+    assert.equal(focused(), entries[0]);
+});
+
+test("activating a timezone entry keeps keyboard focus on the new selection", () => {
+    const {ctx, items, tzInput, focused} = tzListContext();
+    ctx.renderTzList();
+    const london = items()[2];
+    london.focus();
+    london.fire("click");
+    assert.equal(ctx.selectedTz, "Europe/London");
+    assert.equal(tzInput.value, "Europe/London");
+    assert.equal(ctx.previewUpdates, 1);
+    const selected = items().find((entry) => entry.dataset.tz === "Europe/London");
+    assert.equal(focused(), selected);
+    assert.equal(selected.tabIndex, 0);
+    assert.equal(selected.getAttribute("aria-pressed"), "true");
+});
+
+test("selecting from search results falls back to the search field when the zone is not listed", () => {
+    const {ctx, search, items, focused} = tzListContext({allTimezones: ["Europe/Prague", "Europe/London", "America/New_York", "Asia/Tokyo"]});
+    search.value = "tokyo";
+    ctx.renderTzList();
+    const [tokyo] = items();
+    assert.equal(tokyo.dataset.tz, "Asia/Tokyo");
+    assert.equal(tokyo.tabIndex, 0);
+    tokyo.focus();
+    tokyo.fire("click");
+    assert.equal(search.value, "");
+    assert.equal(ctx.selectedTz, "Asia/Tokyo");
+    assert.ok(items().every((entry) => entry.dataset.tz !== "Asia/Tokyo"));
+    // Not in the grouped list: the first entry becomes the Tab stop and focus stays in the list.
+    assert.equal(focused(), items()[0]);
+});
+
+test("timezone selection from outside the list does not steal focus", () => {
+    const {ctx, search, focused} = tzListContext();
+    search.focus();
+    ctx.selectTimezone("Europe/London", false);
+    assert.equal(focused(), search);
+    assert.equal(ctx.previewUpdates, 0);
+});
+
+test("detected-only and empty timezone lists keep a valid Tab stop", () => {
+    const detected = tzListContext({activeContinent: "DETECTED"});
+    detected.ctx.renderTzList();
+    assert.deepEqual(detected.items().map((entry) => [entry.dataset.tz, entry.tabIndex]), [["Europe/Prague", 0]]);
+
+    const empty = tzListContext({browserTz: null, activeContinent: "DETECTED"});
+    empty.ctx.renderTzList();
+    assert.deepEqual(empty.items(), []);
+    assert.equal(empty.ctx.setTzListTabStop(empty.list), null);
+    empty.ctx.selectTimezone("Europe/London");
+    assert.equal(empty.focused(), null);
+
+    const noResults = tzListContext();
+    noResults.search.value = "zzz";
+    noResults.ctx.renderTzList();
+    assert.match(noResults.list.innerHTML, /No results/);
+});
+
+test("continent filters expose aria-pressed", () => {
+    const {ctx, filters} = tzListContext();
+    ctx.filterTzContinent("EUROPE");
+    assert.deepEqual(filters.map((button) => button.getAttribute("aria-pressed")), ["false", "true"]);
+    assert.deepEqual(filters.map((button) => button.classList.contains("active")), [false, true]);
+});
+
+// Weather and display option buttons: aria-pressed must follow the visual selection.
+function optionButtonsContext() {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const elements = {};
+    const element = (id) => {
+        if (!elements[id]) {
+            const classes = new Set(), attributes = {};
+            elements[id] = {
+                id, checked: false,
+                classList: {add: (...names) => names.forEach((name) => classes.add(name)), remove: (...names) => names.forEach((name) => classes.delete(name)), contains: (name) => classes.has(name)},
+                setAttribute(name, value) {attributes[name] = String(value);},
+                getAttribute(name) {return attributes[name] ?? null;},
+            };
+        }
+        return elements[id];
+    };
+    const ctx = vm.createContext({
+        URL, window: {location: {href: "https://racing.example.org/configure/calendar"}, history: {replaceState() {}}},
+        document: {getElementById: element, querySelector: () => element("weatherCurrentRadio")},
+        isWeatherTooltipDisabledState: () => false, updateWeatherTypeAvailability() {}, updatePreview() {},
+        currentWeatherType: "race_day", currentDisplayType: "1bit",
+    });
+    for (const name of ["setWeatherType", "setDisplayType"]) {
+        vm.runInContext(templateFunction(template, name), ctx);
+    }
+    const pressed = (ids) => Object.fromEntries(ids.map((id) => [id, element(id).getAttribute("aria-pressed")]));
+    return {ctx, pressed, element};
+}
+
+const WEATHER_IDS = ["weatherOffBtn", "weatherCurrentBtn", "weatherRaceDayBtn", "weatherOffBtnMobile", "weatherCurrentBtnMobile", "weatherRaceDayBtnMobile"];
+
+for (const [type, selected] of [["off", "weatherOff"], ["current", "weatherCurrent"], ["race_day", "weatherRaceDay"]]) {
+    test(`setWeatherType(${type}) marks only its desktop and mobile buttons pressed`, () => {
+        const {ctx, pressed, element} = optionButtonsContext();
+        ctx.setWeatherType(type);
+        const expected = Object.fromEntries(WEATHER_IDS.map((id) => [id, String(id.startsWith(`${selected}Btn`))]));
+        assert.deepEqual(pressed(WEATHER_IDS), expected);
+        assert.equal(element("weatherToggle").checked, type !== "off");
+    });
+}
+
+const DISPLAY_IDS = ["display1bitBtn", "displayBwrBtn", "displayBwryBtn", "displaySpectra6Btn"].flatMap((id) => [id, `${id}Mobile`]);
+
+for (const [type, selected] of [["1bit", "display1bit"], ["bwr", "displayBwr"], ["bwry", "displayBwry"], ["spectra6", "displaySpectra6"]]) {
+    test(`setDisplayType(${type}) marks only its desktop and mobile buttons pressed`, () => {
+        const {ctx, pressed} = optionButtonsContext();
+        ctx.setDisplayType(type, false);
+        const expected = Object.fromEntries(DISPLAY_IDS.map((id) => [id, String(id.startsWith(`${selected}Btn`))]));
+        assert.deepEqual(pressed(DISPLAY_IDS), expected);
+    });
+}

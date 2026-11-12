@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `/calendar.bmp` and `/teams.bmp` served from a scheduler-pregenerated file now send
+  `X-Cache: PREGENERATED` instead of `MISS`, so `MISS` only means the image was rendered for
+  that request. `HIT` and `REVALIDATED` are unchanged; the file is still not copied into the
+  in-process cache, so a newer pregenerated file is never masked.
+
 - Run production, CI, and local development on Python 3.15.2. Both Docker stages pin
   `python:3.15-slim` by digest. Bump the locked packages that have no CPython 3.15 wheel
   at the previous pin: lxml 6.1.3, httptools 0.9.0, uvloop 0.23.0, MarkupSafe 3.0.4,
@@ -93,6 +98,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Release vX.Y.Z" PR; the GHCR image is documented as an optional self-hosting artifact.
 
 ### Fixed
+
+- Configurator accessibility (issue #178): timezone entries are buttons reachable by
+  keyboard (one Tab stop, arrow/Home/End keys, focus kept after selecting); the weather,
+  display, and continent buttons expose `aria-pressed` in named groups; the hidden weather
+  inputs and the read-only API URL field have accessible names; the page heading is an `h1`.
+
+- Every page starts with a translated "Skip to content" link to `<main>`. `/changelog`
+  no longer renders a second `h1` from the Markdown title, and the endpoint titles on
+  `/api/docs/html` are `h2` headings so the outline no longer jumps from `h1` to `h3`.
 
 - Validate calendar remote race lookups with the same season and round bounds as the race API.
 
