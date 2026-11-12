@@ -140,6 +140,11 @@
   <body
     class="min-h-full bg-racing-paper flex flex-col text-black selection:bg-racing-red selection:text-white{% block body_class %}{% endblock %}"
   >
+    <a
+      href="#main-content"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-black focus:text-white focus:font-bold focus:uppercase focus:outline-none focus:ring-2 focus:ring-racing-red"
+      >{{ nav.get('nav_skip_to_content', 'Skip to content') }}</a
+    >
     {% include "components/header.html" %} {% block content %}{% endblock %}
 
     <!-- Mobile Navigation Overlay (non-home pages) -->

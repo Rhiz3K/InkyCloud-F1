@@ -56,6 +56,13 @@ router = APIRouter()
 # Revalidation also prevents day-based optional panels surviving local midnight.
 TEAMS_BMP_CACHE_CONTROL = "no-cache"
 CALENDAR_BMP_CACHE_CONTROL = "public, max-age=3600"
+# X-Cache values: HIT (in-process cache, including its 304s), PREGENERATED (scheduler-written
+# file on disk), REVALIDATED (304 against a pregenerated file's ETag) and MISS (rendered for
+# this request). Pregenerated files are not copied into the in-process cache, so serving one
+# never adds a stale entry. An earlier on-demand render can still sit in that cache, and it
+# is checked first; the scheduler clears it at the end of each generation run (or the TTL
+# expires if a run fails before that).
+PREGENERATED_CACHE_STATUS = "PREGENERATED"
 _singleflight_tasks: dict[str, asyncio.Task[BmpArtifact]] = {}
 
 
@@ -872,7 +879,7 @@ async def get_calendar_bmp(
             return respond(
                 *artifact,
                 cache_control=CALENDAR_BMP_CACHE_CONTROL,
-                cache_status="MISS",
+                cache_status=PREGENERATED_CACHE_STATUS,
             )
         logger.info("Pre-generated image disappeared before read; rendering")
 
@@ -1004,7 +1011,7 @@ async def get_teams_bmp(
             if matching_etag is not None:
                 return respond(None, matching_etag, cache_status="REVALIDATED")
             if artifact is not None:
-                return respond(*artifact, cache_status="MISS")
+                return respond(*artifact, cache_status=PREGENERATED_CACHE_STATUS)
             logger.info("Pre-generated teams image disappeared before read; rendering")
 
         artifact = await _singleflight(

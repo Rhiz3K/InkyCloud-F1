@@ -130,10 +130,23 @@ def _strip_empty_unreleased_section(changelog_text: str) -> str:
     return changelog_text[:unreleased_start] + changelog_text[first_version_start:]
 
 
+def _strip_document_title(changelog_text: str) -> str:
+    """Drop the Markdown document title; the changelog page template renders its own h1."""
+    lines = changelog_text.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if not line.strip():
+            continue
+        if line.startswith("# "):
+            return "".join(lines[:index] + lines[index + 1 :])
+        break
+    return changelog_text
+
+
 @lru_cache(maxsize=4)
 def _render_changelog_file(path_value: str, _mtime_ns: int) -> str:
     """Read and render a specific changelog file version."""
     changelog_content = Path(path_value).read_text(encoding="utf-8")
+    changelog_content = _strip_document_title(changelog_content)
     changelog_content = _strip_empty_unreleased_section(changelog_content)
     return _sanitize_rendered_html(
         markdown.markdown(

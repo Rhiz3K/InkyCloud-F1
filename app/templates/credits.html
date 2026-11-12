@@ -3,7 +3,7 @@
 {% block canonical %}<link rel="canonical" href="{{ site_url }}{{ lang_url('/credits') }}">{% endblock %}
 {% block content %}
 {% set ctext = t.credits_page %}
-<main class="flex-1 py-8 px-4">
+<main id="main-content" tabindex="-1" class="flex-1 py-8 px-4">
   <div class="max-w-4xl mx-auto bg-white border-2 border-black shadow-neo p-6 space-y-6">
     <h1 class="text-3xl font-bold">Credits</h1>
     <p>{{ ctext.intro }}</p>

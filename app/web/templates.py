@@ -156,6 +156,7 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "nav_stats": t.get("nav_stats", "Stats"),
         "nav_api": t.get("nav_api", "API"),
         "nav_menu": t.get("nav_menu", "Menu"),
+        "nav_skip_to_content": t.get("nav_skip_to_content", "Skip to content"),
         "nav_language": t.get("nav_language", "Language"),
         "nav_privacy": t.get("nav_privacy", "Privacy"),
         "nav_changelog": t.get("nav_changelog", "Changelog"),

@@ -289,7 +289,7 @@ async def test_calendar_endpoint_serves_pregenerated_file_and_error_fallback(tmp
             display="1bit",
             f1_service=f1,
         )
-    assert response.headers["x-cache"] == "MISS"
+    assert response.headers["x-cache"] == "PREGENERATED"
     assert response.body == b"pregenerated"
 
     get_bmp_cache().clear()
