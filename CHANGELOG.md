@@ -38,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update Soup Sieve to 4.0 in both dependency locks so production images use the
+  security update and the exported requirements stay in sync with `uv.lock`.
+
 - `/calendar.bmp` and `/teams.bmp` served from a scheduler-pregenerated file now send
   `X-Cache: PREGENERATED` instead of `MISS`, so `MISS` only means the image was rendered for
   that request. `HIT` and `REVALIDATED` are unchanged. Caching is unchanged too: the file is

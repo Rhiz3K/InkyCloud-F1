@@ -178,7 +178,7 @@
   },
   {
     "name": "soupsieve",
-    "version": "2.8.4",
+    "version": "4.0",
     "license": "MIT",
     "source": "Homepage, https://github.com/facelessuser/soupsieve",
     "files": [
