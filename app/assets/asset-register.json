@@ -1369,11 +1369,11 @@
       "reviewed_on": "2026-09-09"
     },
     "licenses/dependencies.json": {
-      "sha256": "5ffe25c06d21a51a8dd741a3a3e2f6bd30d45f6bcd9de13e871d4efbcc5dc676",
+      "sha256": "1de3308bbbdb62ddd5727d9e02f796e8fd212e49601d14f13bbefaa6254228d5",
       "license": "Third-party notices; see file",
       "author": "Original authors named in each notice",
       "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
-      "reviewed_on": "2026-11-09"
+      "reviewed_on": "2026-11-14"
     },
     "licenses/dependencies/aiofiles--licenses--LICENSE": {
       "sha256": "cb5e8e7e5f4a3988e1063c142c60dc2df75605f4c46515e776e3aca6df976e14",
