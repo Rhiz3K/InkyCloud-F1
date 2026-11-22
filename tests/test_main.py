@@ -1763,6 +1763,18 @@ def test_teams_bmp_default():
     assert response.content[:2] == b"BM"
 
 
+def test_auto_bmp_through_the_full_app_carries_screen_and_attribution():
+    """/auto.bmp is mounted behind the attribution middleware like the direct routes."""
+    for query in ("", "?mode=daily&tz=America/New_York&display=bwr"):
+        response = client.get(f"/auto.bmp{query}")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/bmp"
+        assert response.content[:2] == b"BM"
+        assert response.headers["x-active-screen"] in {"calendar", "teams"}
+        assert response.headers["x-data-attribution"].startswith("Jolpica-F1")
+        assert 60 <= int(response.headers["x-next-refresh-seconds"]) <= 86400
+
+
 def test_teams_bmp_with_year():
     """Test /teams.bmp with year parameter."""
     for year in [2025, 2026]:

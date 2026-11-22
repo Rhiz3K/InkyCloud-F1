@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
+import math
 import os
+import re
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -19,11 +21,19 @@ from fastapi.responses import Response
 from app.config import LANGUAGE_CODES, config
 from app.services import bmp_artifacts
 from app.services.artifact_metadata import artifact_matches, calendar_identity
+from app.services.auto_screen import (
+    ACTIVE_SCREEN_HEADER,
+    DEFAULT_LEAD_HOURS,
+    MAX_LEAD_HOURS,
+    AutoMode,
+    AutoScreen,
+    ScreenChoice,
+    choose_screen,
+)
 from app.services.f1_service import NEXT_RACE_GRACE, F1Service
 from app.services.generation_freshness import PREGENERATED_MAX_AGE_SECONDS
 from app.services.image_generation import (
     StaleSelection,
-    retrying_selection,
     selected_generation,
     with_current_selection,
 )
@@ -55,13 +65,16 @@ from app.utils.f1_season import race_selection_error
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.refresh_hint import (
     ERROR_REFRESH_SECONDS,
+    MAX_REFRESH_SECONDS,
+    MIN_REFRESH_SECONDS,
     REFRESH_HINT_HEADER,
+    SETTLE_SECONDS,
     CountdownMode,
     RefreshHint,
     calendar_refresh_hint,
     teams_refresh_hint,
 )
-from app.utils.timezones import is_valid_timezone, normalize_timezone
+from app.utils.timezones import get_timezone, is_valid_timezone, normalize_timezone
 
 from .deps import get_f1_service
 from .params import (
@@ -90,6 +103,7 @@ CALENDAR_BMP_CACHE_CONTROL = "public, max-age=3600"
 PREGENERATED_CACHE_STATUS = "PREGENERATED"
 # Panels that print a day count, a date or the next rounds, so change at local midnight.
 _DAY_BASED_TEAMS_EXTRAS = frozenset({TeamsExtra.COUNTDOWN, TeamsExtra.FLAGS, TeamsExtra.TRACK})
+_MAX_AGE_PATTERN = re.compile(r"\bmax-age=(\d+)")
 
 
 def _utc_now() -> datetime:
@@ -184,6 +198,7 @@ def _get_race_info_for_stats(
 
 def _record_calendar_api_call(
     *,
+    endpoint: str = "/calendar.bmp",
     start_time: float,
     size_bytes: int,
     lang: str,
@@ -198,7 +213,7 @@ def _record_calendar_api_call(
 ) -> None:
     """Persist a calendar API call with render metadata."""
     record_api_call(
-        "/calendar.bmp",
+        endpoint,
         (time.time() - start_time) * 1000,
         size_bytes,
         lang,
@@ -217,6 +232,7 @@ def _record_calendar_api_call(
 
 def _record_teams_api_call(
     *,
+    endpoint: str = "/teams.bmp",
     start_time: float,
     size_bytes: int,
     lang: str,
@@ -226,7 +242,7 @@ def _record_teams_api_call(
 ) -> None:
     """Persist a teams API call with the same metadata shape as calendar calls."""
     record_api_call(
-        "/teams.bmp",
+        endpoint,
         (time.time() - start_time) * 1000,
         size_bytes,
         lang,
@@ -295,6 +311,7 @@ def _calendar_response(
     cache_status: str | None,
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
     refresh_seconds: int | None = None,
+    endpoint: str = "/calendar.bmp",
 ) -> Response:
     """Apply the shared calendar response and call-record epilogue."""
     return _bmp_response(
@@ -306,6 +323,7 @@ def _calendar_response(
         cache_status=cache_status,
         refresh_seconds=refresh_seconds,
         record_call=lambda status, size: _record_calendar_api_call(
+            endpoint=endpoint,
             start_time=start_time,
             size_bytes=size,
             lang=lang,
@@ -333,6 +351,7 @@ def _teams_response(
     cache_control: str = TEAMS_BMP_CACHE_CONTROL,
     cache_status: str | None = None,
     refresh_seconds: int | None = None,
+    endpoint: str = "/teams.bmp",
 ) -> Response:
     """Apply the shared teams response and call-record epilogue."""
     response = _bmp_response(
@@ -344,6 +363,7 @@ def _teams_response(
         cache_status=cache_status,
         refresh_seconds=refresh_seconds,
         record_call=lambda status, size: _record_teams_api_call(
+            endpoint=endpoint,
             start_time=start_time,
             size_bytes=size,
             lang=lang,
@@ -566,71 +586,49 @@ def _get_race_data_from_static(
     return f1_service.get_next_race_from_static()
 
 
-@router.get("/calendar.bmp")
+_LANG_DESCRIPTION = f"Language code ({', '.join(LANGUAGE_CODES)})"
+_DISPLAY_DESCRIPTION = (
+    f"Display type: '1bit' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} monochrome), "
+    f"'spectra6' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} 6-color), "
+    f"'bwr' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red), "
+    f"or 'bwry' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red/yellow)"
+)
+_WEATHER_TYPE_DESCRIPTION = "Weather type: 'race_day' (alias 'race'), 'current', or 'off'"
+_COUNTDOWN_DESCRIPTION = (
+    "Countdown: hours (default, days and hours), days (whole days), "
+    "auto (days until 48 h before the start, then days and hours) or off (race date)"
+)
+_TEAMS_EXTRA_DESCRIPTION = (
+    "Teams panel: none, countdown, flags (next 3 races), track, weather; "
+    "timeline/combo alias countdown"
+)
+
+
 @with_current_selection
-async def get_calendar_bmp(
+async def _serve_calendar_bmp(
     request: Request,
-    lang: str = Query(default="en", description=f"Language code ({', '.join(LANGUAGE_CODES)})"),
-    year: int | None = Query(
-        default=None, description="Season year; combine with round or race_key"
-    ),
-    race_round: int | None = Query(
-        default=None,
-        description="Round from /api/races/{year}; ignored without year",
-        alias="round",
-    ),
-    race_key: str | None = Query(
-        default=None,
-        description="Race identifier from /api/races/{year}; requires year",
-        alias="race_key",
-    ),
-    tz: str | None = Query(
-        default=None, description="IANA timezone; defaults to the server's DEFAULT_TIMEZONE"
-    ),
-    weather: bool = Query(default=True, description="Show weather forecast"),
-    weather_type: str = Query(
-        default="race_day",
-        description="Weather type: 'race_day' (alias 'race'), 'current', or 'off'",
-    ),
-    display: str = Query(
-        default="1bit",
-        description=(
-            f"Display type: '1bit' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} monochrome), "
-            f"'spectra6' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} 6-color), "
-            f"'bwr' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red), "
-            f"or 'bwry' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red/yellow)"
-        ),
-    ),
-    f1_service: F1Service = Depends(get_f1_service),
-    track_style: TrackStyle = TrackStyle.RELIEF,
-    track_source: TrackSource = TrackSource.JULES,
-    track_accent: TrackAccent = TrackAccent.ALL,
-    countdown: Annotated[
-        CountdownMode,
-        Query(
-            description="Countdown: hours (default, days and hours), days (whole days), "
-            "auto (days until 48 h before the start, then days and hours) or off (race date)"
-        ),
-    ] = CountdownMode.HOURS,
-):
-    """Render the calendar endpoint for the requested display and selection."""
-    start_time = time.time()
-    track_options = TrackOptions(track_style, track_source, track_accent)
-    if not retrying_selection():
-        enforce_rate_limit(request, bucket="calendar_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
+    *,
+    f1_service: F1Service,
+    start_time: float,
+    lang: str,
+    display: str,
+    tz: str | None,
+    weather_type: str,
+    track_options: TrackOptions,
+    countdown: CountdownMode,
+    year: int | None = None,
+    race_round: int | None = None,
+    race_key: str | None = None,
+    endpoint: str = "/calendar.bmp",
+) -> Response:
+    """Serve one calendar BMP from validated, normalized inputs.
 
-    lang = normalize_lang(lang)
-    display = normalize_display(display)
-    # One canonical variant for weather=false / weather_type=off and for race / race_day.
-    weather_type = canonical_weather_type(weather_type, weather=weather)
+    Shared by ``/calendar.bmp`` and ``/auto.bmp``: the in-process caches, the pregenerated
+    files, singleflight rendering, ETag/304 handling and the error image are the same, so
+    equal parameters always produce the same bytes from the same cache entry. ``endpoint``
+    only names the route in the aggregate call statistics.
+    """
     weather = weather_type != "off"
-    tz = validate_timezone(tz)
-    validate_calendar_selection(year, race_key)
-    if year is None:
-        # Documented as ignored without year; dropping it keeps the cache key and the
-        # pregenerated-file match identical to the plain auto-selected request.
-        race_round = None
-
     # Defaults let the error path build a response even when selection itself fails.
     is_auto_selected = year is None and race_round is None and race_key is None
     actual_year, actual_round = year, race_round
@@ -667,6 +665,7 @@ async def get_calendar_bmp(
             refresh_seconds=_calendar_poll_seconds(
                 poll_hint, countdown, image_cache, cache_key, cache_status
             ),
+            endpoint=endpoint,
         )
         response.headers.update(
             attribution_headers(
@@ -786,42 +785,24 @@ async def get_calendar_bmp(
         )
 
 
-@router.get("/teams.bmp")
 @with_current_selection
-async def get_teams_bmp(
+async def _serve_teams_bmp(
     request: Request,
-    lang: str = Query(default="en", description=f"Language code ({', '.join(LANGUAGE_CODES)})"),
-    year: int | None = Query(default=None, description="Season year"),
-    tz: Annotated[
-        str | None,
-        Query(
-            description="IANA timezone for extra panels; defaults to the server's DEFAULT_TIMEZONE"
-        ),
-    ] = None,
-    extra: Annotated[
-        TeamsExtra,
-        Query(
-            description="Teams panel: none, countdown, flags (next 3 races), track, weather; "
-            "timeline/combo alias countdown"
-        ),
-    ] = TeamsExtra.NONE,
-    display: str = Query(
-        default="1bit",
-        description=(
-            f"Display type: '1bit' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} monochrome), "
-            f"'spectra6' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} 6-color), "
-            f"'bwr' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red), "
-            f"or 'bwry' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red/yellow)"
-        ),
-    ),
-):
-    """Render the teams and drivers dashboard as a BMP image."""
-    start_time = time.time()
-    if not retrying_selection():
-        enforce_rate_limit(request, bucket="teams_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
-    lang = normalize_lang(lang)
-    display = normalize_display(display)
-    tz = validate_timezone(tz)
+    *,
+    start_time: float,
+    lang: str,
+    display: str,
+    tz: str | None,
+    year: int | None,
+    extra: TeamsExtra,
+    endpoint: str = "/teams.bmp",
+) -> Response:
+    """Serve one teams BMP from validated, normalized inputs.
+
+    Shared by ``/teams.bmp`` and ``/auto.bmp`` with the same caches, pregenerated files,
+    singleflight rendering, ETag/304 handling and error image.
+    """
+
     try:
         if year is None:
             year = get_default_teams_year()
@@ -845,6 +826,7 @@ async def get_teams_bmp(
                 cache_control=cache_control,
                 cache_status=cache_status,
                 refresh_seconds=hint.seconds(_utc_now()),
+                endpoint=endpoint,
             )
 
         ctx = (
@@ -917,4 +899,221 @@ async def get_teams_bmp(
             year=year,
             cache_control="no-store",
             refresh_seconds=ERROR_REFRESH_SECONDS,
+            endpoint=endpoint,
         )
+
+
+@router.get("/calendar.bmp")
+async def get_calendar_bmp(
+    request: Request,
+    lang: str = Query(default="en", description=_LANG_DESCRIPTION),
+    year: int | None = Query(
+        default=None, description="Season year; combine with round or race_key"
+    ),
+    race_round: int | None = Query(
+        default=None,
+        description="Round from /api/races/{year}; ignored without year",
+        alias="round",
+    ),
+    race_key: str | None = Query(
+        default=None,
+        description="Race identifier from /api/races/{year}; requires year",
+        alias="race_key",
+    ),
+    tz: str | None = Query(
+        default=None, description="IANA timezone; defaults to the server's DEFAULT_TIMEZONE"
+    ),
+    weather: bool = Query(default=True, description="Show weather forecast"),
+    weather_type: str = Query(default="race_day", description=_WEATHER_TYPE_DESCRIPTION),
+    display: str = Query(default="1bit", description=_DISPLAY_DESCRIPTION),
+    f1_service: F1Service = Depends(get_f1_service),
+    track_style: TrackStyle = TrackStyle.RELIEF,
+    track_source: TrackSource = TrackSource.JULES,
+    track_accent: TrackAccent = TrackAccent.ALL,
+    countdown: Annotated[
+        CountdownMode, Query(description=_COUNTDOWN_DESCRIPTION)
+    ] = CountdownMode.HOURS,
+):
+    """Render the calendar endpoint for the requested display and selection."""
+    start_time = time.time()
+    enforce_rate_limit(request, bucket="calendar_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
+    tz = validate_timezone(tz)
+    validate_calendar_selection(year, race_key)
+    return await _serve_calendar_bmp(
+        request,
+        f1_service=f1_service,
+        start_time=start_time,
+        lang=normalize_lang(lang),
+        display=normalize_display(display),
+        tz=tz,
+        # One canonical variant for weather=false / weather_type=off and for race / race_day.
+        weather_type=canonical_weather_type(weather_type, weather=weather),
+        track_options=TrackOptions(track_style, track_source, track_accent),
+        countdown=countdown,
+        year=year,
+        # Documented as ignored without year; dropping it keeps the cache key and the
+        # pregenerated-file match identical to the plain auto-selected request.
+        race_round=race_round if year is not None else None,
+        race_key=race_key,
+    )
+
+
+@router.get("/teams.bmp")
+async def get_teams_bmp(
+    request: Request,
+    lang: str = Query(default="en", description=_LANG_DESCRIPTION),
+    year: int | None = Query(default=None, description="Season year"),
+    tz: Annotated[
+        str | None,
+        Query(
+            description="IANA timezone for extra panels; defaults to the server's DEFAULT_TIMEZONE"
+        ),
+    ] = None,
+    extra: Annotated[TeamsExtra, Query(description=_TEAMS_EXTRA_DESCRIPTION)] = TeamsExtra.NONE,
+    display: str = Query(default="1bit", description=_DISPLAY_DESCRIPTION),
+):
+    """Render the teams and drivers dashboard as a BMP image."""
+    start_time = time.time()
+    enforce_rate_limit(request, bucket="teams_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
+    return await _serve_teams_bmp(
+        request,
+        start_time=start_time,
+        lang=normalize_lang(lang),
+        display=normalize_display(display),
+        tz=validate_timezone(tz),
+        year=year,
+        extra=extra,
+    )
+
+
+def _choose_auto_screen(
+    mode: AutoMode,
+    *,
+    now: datetime,
+    f1_service: F1Service,
+    lead_hours: int,
+    tz: str | None,
+) -> ScreenChoice:
+    """Pick the /auto.bmp screen; a failing schedule lookup falls back to teams."""
+    try:
+        race = f1_service.get_next_race_from_static() if mode == AutoMode.RACE_WEEK else None
+        return choose_screen(
+            mode,
+            now=now,
+            race_data=race,
+            lead_hours=lead_hours,
+            zone=get_timezone(tz or config.DEFAULT_TIMEZONE),
+        )
+    except Exception as exc:
+        logger.error("Error choosing the auto screen: %s", exc, exc_info=True)
+        if not config.MINIMAL_DATA_MODE:
+            sentry_sdk.capture_exception(exc)
+        return ScreenChoice(AutoScreen.TEAMS)
+
+
+def _clamp_max_age(cache_control: str, max_age: int) -> str:
+    """Lower an existing ``max-age`` directive to at most ``max_age`` seconds."""
+    return _MAX_AGE_PATTERN.sub(
+        lambda match: f"max-age={min(int(match.group(1)), max_age)}", cache_control
+    )
+
+
+def _apply_auto_screen(response: Response, choice: ScreenChoice, now: datetime) -> Response:
+    """Label the active screen and keep hints and caches from outliving the next switch.
+
+    ``X-Next-Refresh-Seconds`` becomes the earlier of the screen's own hint and the switch,
+    and a shared cache may keep the image at most until the switch. The ETag stays the
+    screen's own content hash, so a 304 is only possible while the client already shows the
+    active screen.
+    """
+    response.headers[ACTIVE_SCREEN_HEADER] = choice.screen.value
+    if choice.next_switch is None:
+        return response
+    until_switch = (choice.next_switch - now).total_seconds()
+    switch_hint = max(MIN_REFRESH_SECONDS, math.ceil(until_switch) + SETTLE_SECONDS)
+    screen_hint = int(response.headers.get(REFRESH_HINT_HEADER, MAX_REFRESH_SECONDS))
+    response.headers[REFRESH_HINT_HEADER] = str(min(screen_hint, switch_hint))
+    response.headers["Cache-Control"] = _clamp_max_age(
+        response.headers["Cache-Control"], max(0, math.floor(until_switch))
+    )
+    return response
+
+
+@router.get("/auto.bmp")
+async def get_auto_bmp(
+    request: Request,
+    mode: Annotated[
+        AutoMode,
+        Query(
+            description="race_week (default): calendar from lead_hours before the first "
+            "session until the next race is selected, teams otherwise; daily: calendar on "
+            "even local days, teams on odd local days in tz"
+        ),
+    ] = AutoMode.RACE_WEEK,
+    lead_hours: Annotated[
+        int,
+        Query(
+            ge=0,
+            le=MAX_LEAD_HOURS,
+            description="Hours before the first session when race_week shows the calendar",
+        ),
+    ] = DEFAULT_LEAD_HOURS,
+    lang: str = Query(default="en", description=_LANG_DESCRIPTION),
+    tz: str | None = Query(
+        default=None,
+        description="IANA timezone for both screens and the daily switch; defaults to the "
+        "server's DEFAULT_TIMEZONE",
+    ),
+    display: str = Query(default="1bit", description=_DISPLAY_DESCRIPTION),
+    weather: bool = Query(default=True, description="Calendar: show weather forecast"),
+    weather_type: str = Query(
+        default="race_day", description=f"Calendar: {_WEATHER_TYPE_DESCRIPTION}"
+    ),
+    track_style: TrackStyle = TrackStyle.RELIEF,
+    track_source: TrackSource = TrackSource.JULES,
+    track_accent: TrackAccent = TrackAccent.ALL,
+    countdown: Annotated[
+        CountdownMode, Query(description=f"Calendar: {_COUNTDOWN_DESCRIPTION}")
+    ] = CountdownMode.HOURS,
+    extra: Annotated[
+        TeamsExtra | None,
+        Query(description=f"Teams: {_TEAMS_EXTRA_DESCRIPTION}; default countdown"),
+    ] = None,
+    year: Annotated[
+        int | None, Query(description="Teams: season year; the calendar always shows the next race")
+    ] = None,
+    f1_service: F1Service = Depends(get_f1_service),
+):
+    """Serve the calendar or the teams BMP on one URL, switching by race week or by day."""
+    start_time = time.time()
+    enforce_rate_limit(request, bucket="auto_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
+    lang = normalize_lang(lang)
+    display = normalize_display(display)
+    tz = validate_timezone(tz)
+    now = _utc_now()
+    choice = _choose_auto_screen(mode, now=now, f1_service=f1_service, lead_hours=lead_hours, tz=tz)
+    if choice.screen == AutoScreen.CALENDAR:
+        response = await _serve_calendar_bmp(
+            request,
+            f1_service=f1_service,
+            start_time=start_time,
+            lang=lang,
+            display=display,
+            tz=tz,
+            weather_type=canonical_weather_type(weather_type, weather=weather),
+            track_options=TrackOptions(track_style, track_source, track_accent),
+            countdown=countdown,
+            endpoint="/auto.bmp",
+        )
+    else:
+        response = await _serve_teams_bmp(
+            request,
+            start_time=start_time,
+            lang=lang,
+            display=display,
+            tz=tz,
+            year=year,
+            extra=TeamsExtra.COUNTDOWN if extra is None else extra,
+            endpoint="/auto.bmp",
+        )
+    return _apply_auto_screen(response, choice, now)

@@ -209,6 +209,19 @@
       },
       "batteryNote": "Počasí se obnovuje každou hodinu. Pro nejdelší výdrž baterie počasí vypněte. Délku spánku displeji určí hlavička X-Next-Refresh-Seconds."
     },
+    "autoScreen": {
+      "label": "Jedna URL pro obě obrazovky",
+      "options": {
+        "off": "Vypnuto (jen tato obrazovka)",
+        "race_week": "Závodní týden: kalendář, jinak týmy",
+        "daily": "Denně: střídat každý den"
+      },
+      "hints": {
+        "off": "URL vždy zobrazí tuto obrazovku.",
+        "race_week": "/auto.bmp ukazuje kalendář od 48 h před FP1 do konce závodu, jinak týmy s odpočtem. Ideální pro Živýobraz.eu, kde má displej jen jednu URL.",
+        "daily": "/auto.bmp střídá kalendář a týmy každý den o místní půlnoci."
+      }
+    },
     "displayLabel": "Displej",
     "imageCreditsNote": "Atribuce a licence obrázku:",
     "teamsExtra": {
@@ -410,6 +423,12 @@
   "api_docs_weather_desc": "Zapnutí nebo vypnutí překrytí s počasím",
   "api_docs_weather_type_desc": "Typ zobrazených dat o počasí",
   "api_docs_countdown_desc": "Odpočet v informačním poli: hours (dny a hodiny, výchozí), days (celé dny v tz, mění se o místní půlnoci), auto (celé dny až do 48 h před startem, pak dny a hodiny) nebo off (datum závodu místo odpočtu). Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_auto_desc": "Jedna URL, která vrací přímo BMP kalendáře nebo týmů (bez přesměrování). Hodí se pro displeje, které umí stahovat jen jednu adresu, například Živýobraz.eu nebo jednoduchý firmware ESP32.",
+  "api_docs_auto_mode_desc": "race_week: kalendář od lead_hours před první session nejbližšího závodního víkendu až do výběru dalšího závodu (4 h po startu), jinak týmy, včetně zimní přestávky a zrušených závodů. daily: kalendář v sudé a týmy v liché místní dny v tz, přepíná se o místní půlnoci. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Jen pro race_week: kolik hodin před první session (FP1) se objeví kalendář. Hodnota mimo 0–168 vrátí HTTP 422.",
+  "api_docs_auto_extra_desc": "Panel týmů na této URL; výchozí je countdown (dny do dalšího závodu). Hodnota none zobrazí samotnou mřížku.",
+  "api_docs_auto_shared_desc": "Stejné hodnoty jako u /calendar.bmp a /teams.bmp; každý parametr platí pro svou obrazovku. year volí sezónu týmů; kalendář vždy ukazuje nejbližší závod.",
+  "api_docs_auto_headers_note": "Hlavička X-Active-Screen říká, která obrazovka byla vrácena (calendar nebo teams). ETag patří aktivní obrazovce, takže 304 přijde jen tehdy, když ji displej už zobrazuje. X-Next-Refresh-Seconds ani max-age v Cache-Control nikdy nepřesáhnou další přepnutí.",
   "api_docs_calendar_desc": "Generuje F1 kalendář jako BMP obrázek (800×480) pro 1bit, 4bit B/W/R, 4bit B/W/R/Y a Spectra 6 E-Ink displeje.",
   "api_docs_eg": "např.",
   "api_docs_dimensions_label": "Rozměry",

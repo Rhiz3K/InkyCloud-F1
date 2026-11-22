@@ -47,7 +47,7 @@ def scrub_error_event(event: Any, _hint: Any = None) -> Any:
 
 
 class AttributionMiddleware:
-    """Attach source notices to calendar, teams, preview and data API exports."""
+    """Attach source notices to calendar, teams, auto, preview and data API exports."""
 
     def __init__(self, app):
         """Wrap the ASGI application without buffering response bodies."""
@@ -63,6 +63,7 @@ class AttributionMiddleware:
                 if path in {
                     "/calendar.bmp",
                     "/teams.bmp",
+                    "/auto.bmp",
                     "/api/next-race",
                     "/api/teams",
                 } or path.startswith(

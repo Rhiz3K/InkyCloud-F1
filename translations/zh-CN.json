@@ -209,6 +209,19 @@
       },
       "batteryNote": "天气每小时更新。若要最长续航，请关闭天气。显示屏的睡眠时长可参考 X-Next-Refresh-Seconds 响应头。"
     },
+    "autoScreen": {
+      "label": "两个屏幕共用一个 URL",
+      "options": {
+        "off": "关闭（仅此屏幕）",
+        "race_week": "比赛周：日历，其他时间车队",
+        "daily": "每日：每天轮换"
+      },
+      "hints": {
+        "off": "URL 始终显示此屏幕。",
+        "race_week": "/auto.bmp 从 FP1 前 48 小时到比赛结束显示日历，其他时间显示带倒计时的车队。非常适合每块屏幕只能设置一个 URL 的 Živýobraz.eu。",
+        "daily": "/auto.bmp 每天在当地午夜于日历和车队之间轮换。"
+      }
+    },
     "displayLabel": "显示",
     "imageCreditsNote": "图片署名与许可：",
     "teamsExtra": {
@@ -410,6 +423,12 @@
   "api_docs_weather_desc": "启用或禁用天气叠加层",
   "api_docs_weather_type_desc": "要渲染的天气数据类型",
   "api_docs_countdown_desc": "状态框中的倒计时：hours（天和小时，默认）、days（按 tz 的整天数，在当地午夜变化）、auto（距发车 48 小时以前只显示天数，之后显示天和小时）或 off（显示比赛日期而非倒计时）。无效值返回 HTTP 422。",
+  "api_docs_auto_desc": "一个直接返回日历或车队 BMP 的 URL（不重定向）。适用于只能轮询一个地址的显示屏，例如 Živýobraz.eu 或简单的 ESP32 固件。",
+  "api_docs_auto_mode_desc": "race_week：从下一个比赛周末第一节练习前 lead_hours 小时起显示日历，直到切换到下一场比赛（起跑后 4 小时）；其余时间显示车队，包括休赛期和取消的比赛。daily：按 tz 中的本地日期，偶数日显示日历，奇数日显示车队，在当地午夜切换。无效值返回 HTTP 422。",
+  "api_docs_auto_lead_hours_desc": "仅 race_week：在第一节练习（FP1）前多少小时开始显示日历。超出 0–168 的值返回 HTTP 422。",
+  "api_docs_auto_extra_desc": "此 URL 上的车队面板；默认为 countdown（距下一场比赛的天数）。none 只显示网格。",
+  "api_docs_auto_shared_desc": "取值与 /calendar.bmp 和 /teams.bmp 相同；每个参数作用于各自的屏幕。year 选择车队赛季；日历始终显示下一场比赛。",
+  "api_docs_auto_headers_note": "X-Active-Screen 表示返回的是哪个屏幕（calendar 或 teams）。ETag 属于当前屏幕，因此只有显示屏已在显示该屏幕时才会返回 304。X-Next-Refresh-Seconds 和 Cache-Control 的 max-age 不会超过下一次切换。",
   "api_docs_calendar_desc": "将 F1 赛历生成为 BMP 图片 (800×480)，适用于 1bit、4-bit B/W/R、4-bit B/W/R/Y 和 Spectra 6 E-Ink 显示器。",
   "api_docs_eg": "例如",
   "api_docs_dimensions_label": "尺寸",

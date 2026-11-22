@@ -209,6 +209,19 @@
       },
       "batteryNote": "Weather is refreshed every hour. For the longest battery life turn weather off. The X-Next-Refresh-Seconds header tells your display how long to sleep."
     },
+    "autoScreen": {
+      "label": "One URL for both screens",
+      "options": {
+        "off": "Off (this screen only)",
+        "race_week": "Race week: calendar, otherwise teams",
+        "daily": "Daily: alternate every day"
+      },
+      "hints": {
+        "off": "The URL always shows this screen.",
+        "race_week": "/auto.bmp shows the calendar from 48 h before FP1 until the race is over and teams with a countdown otherwise. Ideal for Živýobraz.eu, which allows one URL per display.",
+        "daily": "/auto.bmp alternates calendar and teams every day at local midnight."
+      }
+    },
     "displayLabel": "Display",
     "imageCreditsNote": "Image attribution and licences:",
     "teamsExtra": {
@@ -410,6 +423,12 @@
   "api_docs_weather_desc": "Enable or disable the weather overlay",
   "api_docs_weather_type_desc": "Which weather data variant to render",
   "api_docs_countdown_desc": "Countdown in the status box: hours (days and hours, default), days (whole days in tz, changes at local midnight), auto (whole days until 48 h before the start, then days and hours) or off (race date instead of a countdown). Invalid values return HTTP 422.",
+  "api_docs_auto_desc": "One URL that returns the calendar or the teams BMP directly (no redirect). Use it on displays that can poll only one address, such as Živýobraz.eu or simple ESP32 firmware.",
+  "api_docs_auto_mode_desc": "race_week: the calendar from lead_hours before the first session of the next race weekend until the next race is selected (4 h after the start), teams otherwise, including the off-season and cancelled races. daily: calendar on even and teams on odd local days in tz, switching at local midnight. Invalid values return HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "race_week only: how many hours before the first session (FP1) the calendar appears. Values outside 0–168 return HTTP 422.",
+  "api_docs_auto_extra_desc": "Teams panel on this URL; defaults to countdown (days to the next race). Use none for the plain grid.",
+  "api_docs_auto_shared_desc": "Same values as on /calendar.bmp and /teams.bmp; each parameter applies to its own screen. year selects the teams season; the calendar always shows the next race.",
+  "api_docs_auto_headers_note": "X-Active-Screen tells which screen was returned (calendar or teams). The ETag is that of the active screen, so a 304 is only returned while the display already shows that screen. X-Next-Refresh-Seconds and the Cache-Control max-age never reach past the next switch.",
   "api_docs_calendar_desc": "Generates F1 calendar as a BMP image (800×480) for 1bit, 4-bit B/W/R, 4-bit B/W/R/Y, and Spectra 6 E-Ink displays.",
   "api_docs_eg": "e.g.",
   "api_docs_dimensions_label": "Dimensions",

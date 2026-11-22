@@ -231,6 +231,7 @@ const PAGE_HANDLER_NAMES = [
     "filterTzContinent",
     "onTzSearch",
     "refreshPreview",
+    "selectAutoScreen",
     "selectCountdown",
     "selectRaceFromList",
     "selectRaceMobile",

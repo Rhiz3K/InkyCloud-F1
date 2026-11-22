@@ -31,6 +31,14 @@ Configure your deployed instance following [the self-hosting guide](SELF-HOSTING
    ```
 4. Done! Your E-Ink display will show the next F1 race 🏁
 
+Živýobraz.eu allows one URL per display. To get both screens on that one URL, use
+`/auto.bmp`: it shows the calendar during the race week and the teams with a countdown
+otherwise (see [One URL for Both Screens](#one-url-for-both-screens-autobmp)):
+
+```
+https://racing.example.com/auto.bmp?lang=cs&tz=Europe/Prague
+```
+
 ### URL Parameters
 
 | Parameter      | Options                          | Example                              |
@@ -61,8 +69,36 @@ https://racing.example.com/calendar.bmp?lang=en&display=spectra6
 https://racing.example.com/calendar.bmp?lang=en&weather=true&weather_type=current
 https://racing.example.com/calendar.bmp?lang=en&countdown=auto&weather=false
 https://racing.example.com/teams.bmp?lang=ja&display=spectra6
+https://racing.example.com/auto.bmp?lang=de&tz=Europe/Berlin&display=bwry
 https://racing.example.com/sk/configure/calendar
 ```
+
+### One URL for Both Screens (`/auto.bmp`)
+
+`GET /auto.bmp` returns the calendar or the teams BMP directly (no redirect), so a display that
+can poll only one address still gets both screens. It accepts the calendar and teams parameters
+above (`lang`, `tz`, `display`, `weather`, `weather_type`, `countdown`, `track_*`, `extra`,
+`year`); each applies to its own screen. `year` selects the teams season; the calendar always
+shows the next race.
+
+| Parameter    | Options                              | Example            |
+| ------------ | ------------------------------------ | ------------------ |
+| `mode`       | `race_week` (default), `daily`       | `?mode=daily`      |
+| `lead_hours` | `0`–`168` (default `48`)             | `?lead_hours=72`   |
+| `extra`      | Teams panel; default `countdown` here | `?extra=none`     |
+
+- `race_week` shows the calendar from `lead_hours` before the first session (FP1) of the next
+  race weekend until the next race is selected (4 hours after the start; for a race whose
+  start time is not published yet, the end of the local race day in `tz`). Otherwise it shows
+  the teams with the countdown panel, also in the off-season and around cancelled races.
+- `daily` alternates by the local date in `tz` (calendar on even, teams on odd days of
+  `date.toordinal()`) and switches at local midnight.
+- `X-Active-Screen: calendar|teams` names the returned screen. The bytes, `ETag`, `Link` licence
+  headers and cache entries are the same as on the direct URL with the same parameters, so a
+  `304` is only returned while the display already shows the active screen.
+  `X-Next-Refresh-Seconds` and the `Cache-Control` `max-age` never reach past the next switch.
+- Invalid `mode` or `lead_hours` values return `422`. The configurator offers the same URL under
+  "One URL for both screens".
 
 ---
 
@@ -199,6 +235,7 @@ Your deployed instance provides these endpoints:
 | ---------------------------------------- | ------------------------------------------------------- |
 | `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `countdown`, `tz`, `track_style`, `track_source`, and `track_accent` params; `X-Next-Refresh-Seconds` hint header |
 | `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`, `extra`: `none`, `countdown`, `flags`, `track`, `weather`); optional IANA `tz` applies only to countdown, flags, track, and weather panels showing a time or date (also on `/preview/configure/teams.png`); attribution/licences at `/credits` (`Link rel="license"` header) |
+| `GET /auto.bmp`                          | Calendar or teams BMP on one URL (`mode`: `race_week`, `daily`; `lead_hours` 0–168; calendar and teams params); `X-Active-Screen` header |
 | `GET /`                                  | Landing page with screen type selection                 |
 | `GET /configure/{screen}`                | Interactive localized preview/config page (calendar/teams) |
 | `GET /stats`                             | Public usage statistics dashboard                       |

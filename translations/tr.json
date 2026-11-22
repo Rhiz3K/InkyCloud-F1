@@ -209,6 +209,19 @@
       },
       "batteryNote": "Hava durumu her saat yenilenir. En uzun pil ömrü için hava durumunu kapatın. Ekranın ne kadar uyuyacağını X-Next-Refresh-Seconds başlığı belirler."
     },
+    "autoScreen": {
+      "label": "İki ekran için tek URL",
+      "options": {
+        "off": "Kapalı (yalnızca bu ekran)",
+        "race_week": "Yarış haftası: takvim, aksi halde takımlar",
+        "daily": "Günlük: her gün değiştir"
+      },
+      "hints": {
+        "off": "URL her zaman bu ekranı gösterir.",
+        "race_week": "/auto.bmp, FP1’den 48 saat önce başlayıp yarış bitene kadar takvimi, diğer zamanlarda geri sayımlı takımları gösterir. Ekran başına tek URL izin veren Živýobraz.eu için idealdir.",
+        "daily": "/auto.bmp her gün yerel gece yarısında takvim ile takımlar arasında geçiş yapar."
+      }
+    },
     "displayLabel": "Ekran",
     "imageCreditsNote": "Görsel atıfları ve lisansları:",
     "teamsExtra": {
@@ -410,6 +423,12 @@
   "api_docs_weather_desc": "Hava durumu katmanını aç veya kapat",
   "api_docs_weather_type_desc": "Hangi hava durumu verisi varyantının çizileceği",
   "api_docs_countdown_desc": "Durum kutusundaki geri sayım: hours (gün ve saat, varsayılan), days (tz içinde tam gün, yerel gece yarısı değişir), auto (başlangıçtan 48 saat öncesine kadar tam gün, sonra gün ve saat) veya off (geri sayım yerine yarış tarihi). Geçersiz değerler HTTP 422 döndürür.",
+  "api_docs_auto_desc": "Takvim veya takımlar BMP’sini doğrudan döndüren tek bir URL (yönlendirme yok). Živýobraz.eu ya da basit ESP32 yazılımı gibi yalnızca tek bir adresi sorgulayabilen ekranlar içindir.",
+  "api_docs_auto_mode_desc": "race_week: bir sonraki yarış hafta sonunun ilk seansından lead_hours önce başlayıp sonraki yarış seçilene kadar (startan 4 saat sonra) takvim, diğer zamanlarda sezon arası ve iptal edilen yarışlar dahil takımlar. daily: tz’deki yerel çift günlerde takvim, tek günlerde takımlar; geçiş yerel gece yarısında olur. Geçersiz değerler HTTP 422 döndürür.",
+  "api_docs_auto_lead_hours_desc": "Yalnızca race_week: takvimin ilk seanstan (FP1) kaç saat önce görüneceği. 0–168 dışındaki değerler HTTP 422 döndürür.",
+  "api_docs_auto_extra_desc": "Bu URL’deki takımlar paneli; varsayılan countdown (sonraki yarışa kalan gün). none yalnızca ızgarayı gösterir.",
+  "api_docs_auto_shared_desc": "/calendar.bmp ve /teams.bmp ile aynı değerler; her parametre kendi ekranına uygulanır. year takımlar sezonunu seçer; takvim her zaman sonraki yarışı gösterir.",
+  "api_docs_auto_headers_note": "X-Active-Screen hangi ekranın döndürüldüğünü belirtir (calendar veya teams). ETag etkin ekrana aittir; bu yüzden 304 yalnızca ekran onu zaten gösteriyorsa döner. X-Next-Refresh-Seconds ve Cache-Control max-age değeri hiçbir zaman bir sonraki geçişi aşmaz.",
   "api_docs_calendar_desc": "F1 takvimini BMP görseli (800×480) olarak üretir ve 1bit, 4-bit B/W/R, 4-bit B/W/R/Y ve Spectra 6 E-Ink ekranları destekler.",
   "api_docs_eg": "örn.",
   "api_docs_dimensions_label": "Boyutlar",

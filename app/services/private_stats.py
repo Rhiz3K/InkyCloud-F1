@@ -29,7 +29,7 @@ PAGES = frozenset(
         "/other",
     }
 )
-ENDPOINTS = PAGES | {"/calendar.bmp", "/teams.bmp"}
+ENDPOINTS = PAGES | {"/calendar.bmp", "/teams.bmp", "/auto.bmp"}
 TIMEZONES = available_timezones()
 METRICS = {"lcp_ms": "lcp", "cls": "cls", "fcp_ms": "fcp", "ttfb_ms": "ttfb", "inp_ms": "inp"}
 TRACK_DIMENSIONS = {
