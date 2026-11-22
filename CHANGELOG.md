@@ -166,6 +166,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A calendar, Teams or Teams-extra preview render still in flight when the scheduler clears
     the image caches no longer writes its pre-refresh bytes back into the cleared cache. It is
     served once and then rendered again from fresh data.
+  - When a Teams `extra` preview fails and the plain Teams preview is served instead, the
+    response is `Cache-Control: no-store` with `X-Preview-Fallback: plain`. The browser no
+    longer caches the panel-less image under the panel's URL.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

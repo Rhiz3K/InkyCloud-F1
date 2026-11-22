@@ -300,3 +300,69 @@ async def test_calendar_render_finishing_after_clear_is_served_but_not_cached(mo
     await task
     assert get_bmp_cache()["c6"][0] == b"old-bytes"
     clear_bmp_cache()
+
+
+# --- C9: a failed extra panel preview is not cached under the extra URL ------------------------
+
+
+@pytest.mark.asyncio
+async def test_failed_extra_preview_fallback_is_marked_no_store(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from starlette.responses import Response
+
+    from app.routes import previews
+    from tests.test_routes_images import _request
+
+    plain = Response(b"png", media_type="image/png", headers={"Cache-Control": "no-cache"})
+    monkeypatch.setattr(previews, "enforce_rate_limit", MagicMock())
+    monkeypatch.setattr(previews, "build_teams_extra_context", MagicMock(return_value=object()))
+    monkeypatch.setattr(
+        previews, "_render_teams_extra_preview", AsyncMock(side_effect=RuntimeError("boom"))
+    )
+    monkeypatch.setattr(previews, "_cached_preview_response", AsyncMock(return_value=None))
+    monkeypatch.setattr(previews, "_render_teams_preview", AsyncMock(return_value=plain))
+
+    response = await previews.get_configure_preview_png(
+        "teams",
+        _request(),
+        lang="en",
+        tz=None,
+        weather_type="off",
+        extra=TeamsExtra.COUNTDOWN,
+        display="1bit",
+    )
+
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-preview-fallback"] == "plain"
+
+
+@pytest.mark.asyncio
+async def test_failed_extra_preview_marks_pregenerated_fallback(monkeypatch):
+    from unittest.mock import AsyncMock, MagicMock
+
+    from starlette.responses import Response
+
+    from app.routes import previews
+    from tests.test_routes_images import _request
+
+    cached = Response(b"png", media_type="image/png", headers={"Cache-Control": "public"})
+    monkeypatch.setattr(previews, "enforce_rate_limit", MagicMock())
+    monkeypatch.setattr(previews, "build_teams_extra_context", MagicMock(return_value=object()))
+    monkeypatch.setattr(
+        previews, "_render_teams_extra_preview", AsyncMock(side_effect=RuntimeError("boom"))
+    )
+    monkeypatch.setattr(previews, "_cached_preview_response", AsyncMock(return_value=cached))
+
+    response = await previews.get_configure_preview_png(
+        "teams",
+        _request(),
+        lang="en",
+        tz=None,
+        weather_type="off",
+        extra=TeamsExtra.COUNTDOWN,
+        display="1bit",
+    )
+
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-preview-fallback"] == "plain"

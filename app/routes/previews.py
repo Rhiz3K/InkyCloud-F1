@@ -384,6 +384,7 @@ async def get_configure_preview_png(
     safe_display = allowed_display.get(display, "1bit")
 
     teams_preview_rate_checked = False
+    extra_failed = False
     _validate_timezone_param(tz)
     tz = normalize_timezone(tz) if tz else None
     if safe_screen == "teams" and extra != TeamsExtra.NONE:
@@ -401,6 +402,7 @@ async def get_configure_preview_png(
                 if isinstance(exc, HTTPException):
                     raise
                 logger.warning("Dynamic teams extra preview failed: %s", exc)
+                extra_failed = True
             else:
                 response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
                 return response
@@ -426,7 +428,7 @@ async def get_configure_preview_png(
             )
         if safe_screen == "teams":
             cached.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
-        return cached
+        return _mark_extra_fallback(cached) if extra_failed else cached
 
     if safe_screen == "calendar":
         enforce_rate_limit(
@@ -453,13 +455,24 @@ async def get_configure_preview_png(
                 full_size=True,
             )
             response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
-            return response
+            return _mark_extra_fallback(response) if extra_failed else response
         except Exception as exc:
             if isinstance(exc, HTTPException):
                 raise
             logger.warning("Dynamic teams configure preview failed: %s", exc)
 
     raise HTTPException(status_code=404, detail="Configure preview not generated yet")
+
+
+def _mark_extra_fallback(response: Response) -> Response:
+    """Flag a plain Teams preview served because the requested extra panel failed.
+
+    The plain image must not be cached under the extra panel's URL (the configurator would
+    keep showing it after the panel recovers), and the header lets clients tell it apart.
+    """
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Preview-Fallback"] = "plain"
+    return response
 
 
 @router.get("/preview")
