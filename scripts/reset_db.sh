@@ -2,7 +2,7 @@
 # Reset database script for F1 E-Ink Calendar
 # Usage: reset-db [option] [--force]
 #   all      - Delete entire database (default; stop the application first)
-#   stats    - Delete only api_calls and request_stats
+#   stats    - Delete usage statistics (api_calls, request_stats, api_call_totals, perf_metrics)
 #   cache    - Delete only cache_meta and generated_images
 #   info     - Show current record counts (no changes)
 #   --force  - Skip the running-instance guard for "all"
@@ -30,7 +30,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  all      - Delete entire database file (default; stop the application first)"
-    echo "  stats    - Delete only api_calls and request_stats"
+    echo "  stats    - Delete usage statistics (api_calls, request_stats, api_call_totals, perf_metrics)"
     echo "  cache    - Delete cache_meta, generated_images and BMP files"
     echo "  info     - Show current record counts (no changes)"
     echo "  --force  - Skip the running-instance guard for \"all\""
@@ -84,12 +84,21 @@ refuse_if_in_use() {
     fi
 }
 
+# Statistics tables: the legacy per-request tables plus the aggregate totals and performance
+# histograms that the default AGGREGATE_STATS_ONLY=true profile actually writes.
+STATS_TABLES=(api_calls request_stats api_call_totals perf_metrics)
+CACHE_TABLES=(cache_meta generated_images)
+
+table_exists() {
+    [ "$(run_sql "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='$1';")" = "1" ]
+}
+
 # Function to get record counts
 get_counts() {
-    echo "api_calls: $(run_sql "SELECT COUNT(*) FROM api_calls;" 2>/dev/null || echo 0)"
-    echo "request_stats: $(run_sql "SELECT COUNT(*) FROM request_stats;" 2>/dev/null || echo 0)"
-    echo "cache_meta: $(run_sql "SELECT COUNT(*) FROM cache_meta;" 2>/dev/null || echo 0)"
-    echo "generated_images: $(run_sql "SELECT COUNT(*) FROM generated_images;" 2>/dev/null || echo 0)"
+    local table
+    for table in "${STATS_TABLES[@]}" "${CACHE_TABLES[@]}"; do
+        echo "$table: $(run_sql "SELECT COUNT(*) FROM $table;" 2>/dev/null || echo 0)"
+    done
 }
 
 # Confirmation prompt
@@ -120,14 +129,21 @@ case "$SCOPE" in
     stats)
         check_db
         echo -e "${YELLOW}=== Reset Statistics ===${NC}"
-        echo "This will delete all records from api_calls and request_stats tables."
+        echo "This will delete all records from: ${STATS_TABLES[*]}."
         echo ""
         echo -e "${YELLOW}Current record counts:${NC}"
         get_counts
         echo ""
         confirm
 
-        run_sql "DELETE FROM api_calls; DELETE FROM request_stats; VACUUM;"
+        # Older databases may predate some tables; delete only from the ones that exist.
+        stats_sql=""
+        for table in "${STATS_TABLES[@]}"; do
+            if table_exists "$table"; then
+                stats_sql+="DELETE FROM $table; "
+            fi
+        done
+        run_sql "${stats_sql}VACUUM;"
 
         echo ""
         echo -e "${GREEN}Statistics reset complete.${NC}"

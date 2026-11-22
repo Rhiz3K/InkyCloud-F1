@@ -633,7 +633,12 @@ async def _render_calendar(
         return error_bmp, None, False
 
     weather_data = None
-    if weather and config.WEATHER_ENABLED and not race_data.get("is_cancelled"):
+    if (
+        weather
+        and weather_type != "off"
+        and config.WEATHER_ENABLED
+        and not race_data.get("is_cancelled")
+    ):
         _, _, weather_by_type = await get_weather_context(race_data)
         if weather_type in ("race_day", "race"):
             weather_data = weather_by_type.get("race")
@@ -789,9 +794,11 @@ async def get_calendar_bmp(
     tz = normalize_timezone(tz) if tz else None
     _validate_calendar_selection(year, race_key)
 
-    is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(
-        f1_service, year, race_round, race_key
-    )
+    # Defaults let the error path build a response even when selection itself fails.
+    is_auto_selected = year is None and race_round is None and race_key is None
+    actual_year, actual_round = year, race_round
+    actual_race_name: str | None = None
+    selected_race: dict | None = None
 
     def respond(
         content: bytes | None,
@@ -825,65 +832,70 @@ async def get_calendar_bmp(
         )
         return response
 
-    selected_race = _get_race_data_from_static(f1_service, year, race_round, race_key)
-    if (
-        selected_race is None
-        and year is not None
-        and race_round is not None
-        and race_selection_error(year, race_round) is None
-    ):
-        selected_race = await f1_service.get_race_by_round(year, race_round)
-    identity = calendar_identity(selected_race, track_options)
-    cache_key = f"{identity}|" + _get_cache_key(
-        lang, year, race_round, race_key, tz, weather, weather_type, display
-    )
-    cached_artifact = get_bmp_cache().get(cache_key)
-    if cached_artifact is not None:
-        logger.debug("Cache hit for %s", cache_key)
-        return respond(
-            *cached_artifact,
-            cache_control=CALENDAR_BMP_CACHE_CONTROL,
-            cache_status="HIT",
-        )
-
-    image_path = (
-        _get_pregenerated_calendar_path(
-            lang=lang,
-            year=year,
-            race_round=race_round,
-            race_key=race_key,
-            tz=tz,
-            display=display,
-            weather=weather,
-            weather_type=weather_type,
-            expected_identity=identity,
-        )
-        if track_options == DEFAULT_TRACK_OPTIONS
-        else None
-    )
-    if image_path is not None:
-        logger.debug("Serving pre-generated image: %s", image_path)
-        artifact, matching_etag = await _read_pregenerated_artifact(
-            image_path,
-            request.headers.get("If-None-Match"),
-            identity,
-        )
-        if matching_etag is not None:
-            return respond(
-                None,
-                matching_etag,
-                cache_control=CALENDAR_BMP_CACHE_CONTROL,
-                cache_status="REVALIDATED",
-            )
-        if artifact is not None:
-            return respond(
-                *artifact,
-                cache_control=CALENDAR_BMP_CACHE_CONTROL,
-                cache_status=PREGENERATED_CACHE_STATUS,
-            )
-        logger.info("Pre-generated image disappeared before read; rendering")
-
+    # Everything after input validation is guarded: a validated BMP request must always get
+    # an image back (error BMP on failure), never a text/plain 500 from selection or disk I/O.
     try:
+        is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(
+            f1_service, year, race_round, race_key
+        )
+        selected_race = _get_race_data_from_static(f1_service, year, race_round, race_key)
+        if (
+            selected_race is None
+            and year is not None
+            and race_round is not None
+            and race_selection_error(year, race_round) is None
+        ):
+            selected_race = await f1_service.get_race_by_round(year, race_round)
+        identity = calendar_identity(selected_race, track_options)
+        cache_key = f"{identity}|" + _get_cache_key(
+            lang, year, race_round, race_key, tz, weather, weather_type, display
+        )
+        cached_artifact = get_bmp_cache().get(cache_key)
+        if cached_artifact is not None:
+            logger.debug("Cache hit for %s", cache_key)
+            return respond(
+                *cached_artifact,
+                cache_control=CALENDAR_BMP_CACHE_CONTROL,
+                cache_status="HIT",
+            )
+
+        image_path = (
+            _get_pregenerated_calendar_path(
+                lang=lang,
+                year=year,
+                race_round=race_round,
+                race_key=race_key,
+                tz=tz,
+                display=display,
+                weather=weather,
+                weather_type=weather_type,
+                expected_identity=identity,
+            )
+            if track_options == DEFAULT_TRACK_OPTIONS
+            else None
+        )
+        if image_path is not None:
+            logger.debug("Serving pre-generated image: %s", image_path)
+            artifact, matching_etag = await _read_pregenerated_artifact(
+                image_path,
+                request.headers.get("If-None-Match"),
+                identity,
+            )
+            if matching_etag is not None:
+                return respond(
+                    None,
+                    matching_etag,
+                    cache_control=CALENDAR_BMP_CACHE_CONTROL,
+                    cache_status="REVALIDATED",
+                )
+            if artifact is not None:
+                return respond(
+                    *artifact,
+                    cache_control=CALENDAR_BMP_CACHE_CONTROL,
+                    cache_status=PREGENERATED_CACHE_STATUS,
+                )
+            logger.info("Pre-generated image disappeared before read; rendering")
+
         artifact = await _singleflight(
             f"calendar:{cache_key}",
             functools.partial(

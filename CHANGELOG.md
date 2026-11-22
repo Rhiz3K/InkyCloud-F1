@@ -105,6 +105,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Review quick wins (issue #185):
+  - `/teams.bmp` no longer returns the error image when the standings fetch is slow. Standings
+    enrichment now gets 75% of `TEAMS_ENRICHMENT_TIMEOUT_SECONDS`, so the bundled roster is
+    rendered without points (and not cached) before the overall budget runs out.
+  - Open-Meteo responses with a `null`, NaN or non-numeric current temperature are treated as
+    missing. Previously they were cached and made every weather render fail until expiry.
+    A `null` weather code or precipitation value now falls back to 0.
+  - `/calendar.bmp` returns the error BMP (`Cache-Control: no-store`) for failures during race
+    selection, cache lookup or pregenerated-file access. These used to escape as a
+    `text/plain` HTTP 500.
+  - `weather_type=off` no longer fetches weather on a cache miss. When weather enrichment
+    times out, a lookup that already finished (for example current weather) is kept instead
+    of being dropped.
+  - `reset-db stats` also clears `api_call_totals` and `perf_metrics`, the tables the default
+    `AGGREGATE_STATS_ONLY=true` profile writes, and `reset-db info` lists them. Tables missing
+    from older databases are skipped.
+
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
   from `requires-python = ">=3.15"`, so the pinned ruff behaves as before.

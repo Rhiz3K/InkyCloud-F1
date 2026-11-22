@@ -88,6 +88,14 @@ def _race_weather_cache_key(lat: float, lon: float, race_datetime: datetime) -> 
     return f"{round(lat, 2)}_{round(lon, 2)}_{_to_utc_datetime(race_datetime).isoformat()}"
 
 
+def _finite_number(value: object) -> float | None:
+    """Return a finite float for numeric provider values, otherwise None (bools excluded)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
 @dataclass
 class WeatherData:
     """Normalized weather values required by the e-ink renderers."""
@@ -191,7 +199,10 @@ class WeatherService:
 
         # Don't fabricate weather: a 200 response with a missing/partial current block must not
         # be cached and displayed as 20C/sunny. Return None so the caller falls back gracefully.
-        if "temperature_2m" not in current:
+        # An explicit null (or NaN) is as missing as an absent key; caching it would crash
+        # temp_display for every render that reads this entry until the cache expires.
+        temperature = _finite_number(current.get("temperature_2m"))
+        if temperature is None:
             logger.warning("open-meteo returned no current temperature")
             return None
 
@@ -212,10 +223,12 @@ class WeatherService:
                         break
             precip = precip_probs[idx] or 0
 
+        weather_code = _finite_number(current.get("weather_code"))
+        precip_value = _finite_number(precip)
         return WeatherData(
-            temperature_c=current["temperature_2m"],
-            weather_code=current.get("weather_code", 0),
-            precipitation_probability=precip,
+            temperature_c=temperature,
+            weather_code=int(weather_code) if weather_code is not None else 0,
+            precipitation_probability=int(precip_value) if precip_value is not None else 0,
         )
 
     async def get_race_weather(
@@ -683,6 +696,7 @@ async def _resolve_race_weather(
 
 async def _get_weather_context_unbounded(
     race_data: dict | None,
+    weather_by_type: dict[str, Optional[WeatherData]],
 ) -> tuple[
     Optional[WeatherData],
     Optional[WeatherData],
@@ -693,8 +707,10 @@ async def _get_weather_context_unbounded(
 
     Returns a tuple of (current_weather, race_weather, weather_by_type).
     weather_by_type always includes "off": None and adds "current"/"race" when data exists.
+    It is filled in place, so the bounded caller keeps whatever already resolved if the
+    remaining lookups time out.
     """
-    weather_by_type: dict[str, Optional[WeatherData]] = {"off": None}
+    weather_by_type.setdefault("off", None)
 
     if not config.WEATHER_ENABLED or not race_data:
         return None, None, weather_by_type
@@ -727,12 +743,18 @@ async def get_weather_context(
     race_data: dict | None,
 ) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
     """Bound optional weather enrichment for both scheduled and on-demand calendars."""
+    weather_by_type: dict[str, WeatherData | None] = {"off": None}
     try:
         async with asyncio.timeout(config.WEATHER_ENRICHMENT_TIMEOUT_SECONDS):
-            return await _get_weather_context_unbounded(race_data)
+            return await _get_weather_context_unbounded(race_data, weather_by_type)
     except TimeoutError:
-        logger.warning("Weather enrichment timed out; rendering without weather")
-        return None, None, {"off": None}
+        # Keep a lookup that already finished (e.g. current weather) instead of discarding it
+        # because a slower one (e.g. the race-day forecast) ran out of budget.
+        logger.warning(
+            "Weather enrichment timed out; rendering with partial weather (%s)",
+            ", ".join(key for key in weather_by_type if key != "off") or "none",
+        )
+        return weather_by_type.get("current"), weather_by_type.get("race"), weather_by_type
 
 
 # =========================================================================
