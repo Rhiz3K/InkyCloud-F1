@@ -25,6 +25,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "Sprint",
   "session_race": "Race",
+  "session_short_fp1": "VT1",
+  "session_short_fp2": "VT2",
+  "session_short_fp3": "VT3",
+  "session_short_sprintqualifying": "SQ",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "KW",
+  "session_live": "LIVE",
   "loading": "Laden...",
   "no_data": "Geen racedata beschikbaar",
   "new_track": "NIEUW CIRCUIT",
@@ -208,6 +215,17 @@
         "off": "Racedatum in plaats van aftelling; verandert alleen met de racestatus."
       },
       "batteryNote": "Het weer wordt elk uur ververst. Zet het weer uit voor de langste batterijduur. De header X-Next-Refresh-Seconds vertelt je display hoe lang het kan slapen."
+    },
+    "weekendMode": {
+      "label": "Raceweekend",
+      "options": {
+        "off": "Uit",
+        "auto": "Weekend volgen"
+      },
+      "hints": {
+        "off": "De hele week dezelfde kalender.",
+        "auto": "Tijdens het raceweekend: afgelopen sessies afgevinkt, de volgende gemarkeerd met aftelling, en de kwalificatie- en racepodia van dit weekend zodra ze beschikbaar zijn."
+      }
     },
     "autoScreen": {
       "label": "Eén URL voor beide schermen",
@@ -424,6 +442,7 @@
   "api_docs_weather_desc": "Weeroverlay in- of uitschakelen",
   "api_docs_weather_type_desc": "Welke variant van weergegevens gerenderd moet worden",
   "api_docs_countdown_desc": "Aftelling in het statusvak: hours (dagen en uren, standaard), days (hele dagen in tz, wisselt om lokale middernacht), auto (hele dagen tot 48 uur voor de start, daarna dagen en uren) of off (racedatum in plaats van aftelling). Ongeldige waarden geven HTTP 422.",
+  "api_docs_weekend_mode_desc": "Weekendmodus: off (standaard) of auto. Met auto krijgen tijdens het raceweekend (vanaf 12 uur vóór de eerste sessie) afgelopen sessies een vinkje, wordt de lopende of volgende sessie gemarkeerd en telt het statusvak af naar die sessie met de korte naam (bijv. KW: 3 u). Een sessie geldt als afgelopen vanaf de start plus een voorzichtige schatting van de duur, omdat het echte einde niet wordt gepubliceerd. De voettekst toont de kwalificatie- en racepodia van dit weekend zodra ze beschikbaar zijn (Jolpica, alleen opgevraagd in de uren na die sessies), met het seizoen boven elke kolom. Ongeldige waarden geven HTTP 422.",
   "api_docs_auto_desc": "Eén URL die direct de kalender- of teams-BMP teruggeeft (zonder doorverwijzing). Voor displays die maar één adres kunnen opvragen, zoals Živýobraz.eu of eenvoudige ESP32-firmware.",
   "api_docs_auto_mode_desc": "race_week: de kalender vanaf lead_hours voor de eerste sessie van het volgende raceweekend tot de volgende race wordt gekozen (4 uur na de start), anders de teams, ook in de winterstop en bij afgelaste races. daily: kalender op even en teams op oneven lokale dagen in tz, wisselt om lokale middernacht. Ongeldige waarden geven HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Alleen race_week: hoeveel uur voor de eerste sessie (FP1) de kalender verschijnt. Waarden buiten 0–168 geven HTTP 422.",

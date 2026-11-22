@@ -25,6 +25,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "Sprint",
   "session_race": "Race",
+  "session_short_fp1": "FP1",
+  "session_short_fp2": "FP2",
+  "session_short_fp3": "FP3",
+  "session_short_sprintqualifying": "SQ",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "Q",
+  "session_live": "LIVE",
   "loading": "Loading...",
   "no_data": "No race data available",
   "new_track": "NEW TRACK",
@@ -208,6 +215,17 @@
         "off": "Race date instead of a countdown; changes only with the race status."
       },
       "batteryNote": "Weather is refreshed every hour. For the longest battery life turn weather off. The X-Next-Refresh-Seconds header tells your display how long to sleep."
+    },
+    "weekendMode": {
+      "label": "Race weekend",
+      "options": {
+        "off": "Off",
+        "auto": "Follow the weekend"
+      },
+      "hints": {
+        "off": "The same calendar all week.",
+        "auto": "During the race weekend: finished sessions ticked, the next one marked and counted down, and this weekend's qualifying and race podiums once available."
+      }
     },
     "autoScreen": {
       "label": "One URL for both screens",
@@ -424,6 +442,7 @@
   "api_docs_weather_desc": "Enable or disable the weather overlay",
   "api_docs_weather_type_desc": "Which weather data variant to render",
   "api_docs_countdown_desc": "Countdown in the status box: hours (days and hours, default), days (whole days in tz, changes at local midnight), auto (whole days until 48 h before the start, then days and hours) or off (race date instead of a countdown). Invalid values return HTTP 422.",
+  "api_docs_weekend_mode_desc": "Weekend mode: off (default) or auto. With auto, during the race weekend (from 12 h before the first session) finished sessions get a check mark, the running or next session is marked and the status box counts down to it with its short label (e.g. Q: 3 h). A session counts as finished from its start plus a conservative duration estimate, because the real end is not published. The footer shows this weekend's qualifying and race podiums once available (Jolpica, fetched only in the hours after those sessions), with the season above each column. Invalid values return HTTP 422.",
   "api_docs_auto_desc": "One URL that returns the calendar or the teams BMP directly (no redirect). Use it on displays that can poll only one address, such as Živýobraz.eu or simple ESP32 firmware.",
   "api_docs_auto_mode_desc": "race_week: the calendar from lead_hours before the first session of the next race weekend until the next race is selected (4 h after the start), teams otherwise, including the off-season and cancelled races. daily: calendar on even and teams on odd local days in tz, switching at local midnight. Invalid values return HTTP 422.",
   "api_docs_auto_lead_hours_desc": "race_week only: how many hours before the first session (FP1) the calendar appears. Values outside 0–168 return HTTP 422.",

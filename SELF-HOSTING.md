@@ -185,7 +185,8 @@ docker compose exec f1-eink-cal reset-db stats
 docker compose exec f1-eink-cal reset-db cache
 ```
 
-`reset-db all` deletes the database file, so the application must not be running: the live
+`reset-db cache` also clears the stored race weekend podiums (`weekend_results`); restart the
+service to drop the copy held in memory. `reset-db all` deletes the database file, so the application must not be running: the live
 process keeps its connection to the unlinked file and cannot recreate the schema until it
 restarts. Stop the service and run the reset in a one-off container:
 
@@ -203,7 +204,9 @@ opened.
 ## Data updates
 
 The running scheduler refreshes completed-race historical results daily and regenerates BMPs
-hourly. Season calendar source files are maintained by the GitHub Actions workflow at
+hourly. For `weekend_mode=auto` it also fetches the current weekend's qualifying and race top
+three from Jolpica, but only in the 12 hours after each of those sessions, at most once an hour
+and until a complete podium is stored (about 2–6 requests per race weekend, none otherwise). Season calendar source files are maintained by the GitHub Actions workflow at
 `.github/workflows/update-f1-data.yml`:
 
 - weekly from March through November

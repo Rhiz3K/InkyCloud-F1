@@ -25,6 +25,13 @@
   "session_sprintqualifying": "Sprint K.",
   "session_sprint": "Sprint",
   "session_race": "Závod",
+  "session_short_fp1": "T1",
+  "session_short_fp2": "T2",
+  "session_short_fp3": "T3",
+  "session_short_sprintqualifying": "SK",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "K",
+  "session_live": "ŽIVĚ",
   "loading": "Načítání...",
   "no_data": "Data o závodech nejsou k dispozici",
   "new_track": "NOVÁ TRAŤ",
@@ -208,6 +215,17 @@
         "off": "Datum závodu místo odpočtu; mění se jen se stavem závodu."
       },
       "batteryNote": "Počasí se obnovuje každou hodinu. Pro nejdelší výdrž baterie počasí vypněte. Délku spánku displeji určí hlavička X-Next-Refresh-Seconds."
+    },
+    "weekendMode": {
+      "label": "Závodní víkend",
+      "options": {
+        "off": "Vypnuto",
+        "auto": "Sledovat víkend"
+      },
+      "hints": {
+        "off": "Stejný kalendář celý týden.",
+        "auto": "Během závodního víkendu: dokončené sessions zaškrtnuté, další zvýrazněná s odpočtem a pódium kvalifikace a závodu tohoto víkendu, jakmile je k dispozici."
+      }
     },
     "autoScreen": {
       "label": "Jedna URL pro obě obrazovky",
@@ -424,6 +442,7 @@
   "api_docs_weather_desc": "Zapnutí nebo vypnutí překrytí s počasím",
   "api_docs_weather_type_desc": "Typ zobrazených dat o počasí",
   "api_docs_countdown_desc": "Odpočet v informačním poli: hours (dny a hodiny, výchozí), days (celé dny v tz, mění se o místní půlnoci), auto (celé dny až do 48 h před startem, pak dny a hodiny) nebo off (datum závodu místo odpočtu). Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_weekend_mode_desc": "Režim víkendu: off (výchozí) nebo auto. S auto se během závodního víkendu (od 12 h před první session) dokončené sessions označí zaškrtnutím, právě probíhající nebo další session se zvýrazní a informační pole odpočítává k ní s krátkým názvem (např. K: 3 h). Session se považuje za skončenou od startu plus konzervativní odhad délky, protože skutečný konec se nezveřejňuje. Patička ukáže pódium kvalifikace a závodu tohoto víkendu, jakmile je k dispozici (Jolpica, stahuje se jen v hodinách po těchto sessions), s ročníkem nad každým sloupcem. Neplatná hodnota vrátí HTTP 422.",
   "api_docs_auto_desc": "Jedna URL, která vrací přímo BMP kalendáře nebo týmů (bez přesměrování). Hodí se pro displeje, které umí stahovat jen jednu adresu, například Živýobraz.eu nebo jednoduchý firmware ESP32.",
   "api_docs_auto_mode_desc": "race_week: kalendář od lead_hours před první session nejbližšího závodního víkendu až do výběru dalšího závodu (4 h po startu), jinak týmy, včetně zimní přestávky a zrušených závodů. daily: kalendář v sudé a týmy v liché místní dny v tz, přepíná se o místní půlnoci. Neplatná hodnota vrátí HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Jen pro race_week: kolik hodin před první session (FP1) se objeví kalendář. Hodnota mimo 0–168 vrátí HTTP 422.",

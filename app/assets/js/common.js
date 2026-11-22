@@ -236,6 +236,7 @@ const PAGE_HANDLER_NAMES = [
     "selectRaceFromList",
     "selectRaceMobile",
     "selectTeamsExtra",
+    "selectWeekendMode",
     "selectTeamsSeason",
     "selectTimezoneMobile",
     "selectYearMobile",

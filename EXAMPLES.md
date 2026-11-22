@@ -26,6 +26,18 @@ curl -sD - "http://localhost:8000/calendar.bmp?countdown=auto&weather=false" -o 
 curl "http://localhost:8000/calendar.bmp?countdown=off" -o calendar.bmp
 ```
 
+### Race Weekend Mode
+
+```bash
+# During the race weekend: finished sessions ticked, next session marked and counted down,
+# this weekend's qualifying and race podiums once Jolpica publishes them
+curl "http://localhost:8000/calendar.bmp?weekend_mode=auto&display=bwry" -o calendar.bmp
+
+# Combine with whole-day countdowns and the one-URL screen switch
+curl "http://localhost:8000/auto.bmp?weekend_mode=auto&countdown=auto&tz=Europe/Prague" \
+  -o screen.bmp
+```
+
 ### One URL for Both Screens
 
 ```bash

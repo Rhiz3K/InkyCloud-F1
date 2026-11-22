@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from PIL import Image, ImageDraw
 
@@ -51,6 +52,9 @@ from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.track_renderer import render_track_image
 from app.services.weather_service import RAINDROP_ICON, WeatherData
 from app.utils.refresh_hint import CountdownMode
+
+if TYPE_CHECKING:
+    from app.services.weekend_phase import WeekendPhase
 
 logger = logging.getLogger(__name__)
 TEXT_BASELINE_REF = "ÁŽÝgy"
@@ -379,6 +383,7 @@ class RendererBase(RendererCore):
         weather_data: WeatherData | None = None,
         weather_type: str = "",
         countdown_mode: CountdownMode = CountdownMode.HOURS,
+        weekend: WeekendPhase | None = None,
     ) -> int:
         """Draw the race-weekend schedule and return its lower boundary."""
         return draw_schedule_section(
@@ -398,9 +403,12 @@ class RendererBase(RendererCore):
             weather_data=weather_data,
             weather_type=weather_type,
             countdown_mode=countdown_mode,
+            weekend=weekend,
         )
 
-    def _draw_schedule_row(self, draw: ImageDraw.ImageDraw, y: int, event: dict) -> None:
+    def _draw_schedule_row(
+        self, draw: ImageDraw.ImageDraw, y: int, event: dict, *, mark: str | None = None
+    ) -> None:
         """Draw a localized schedule row using the shared session mapping."""
         raw_session_name = event.get("name", "")
         normalized_session_name = raw_session_name
@@ -423,6 +431,8 @@ class RendererBase(RendererCore):
             regular_text_fill=self.theme.text_fill,
             session_text_fill=self._get_session_color(normalized_session_name),
             session_text_shadow_fill=self.theme.session_shadow_fill,
+            mark=mark,
+            mark_fill=self.theme.accent_fill,
             format_schedule_session_name_fn=(
                 lambda draw_ctx, session_name, max_width: format_schedule_session_name(
                     draw_ctx, session_name, max_width, self.lang_code, self.translator
@@ -439,6 +449,7 @@ class RendererBase(RendererCore):
         weather_type: str = "",
         *,
         countdown_mode: CountdownMode = CountdownMode.HOURS,
+        weekend: WeekendPhase | None = None,
     ) -> int:
         """Draw the countdown/status box and return its bottom coordinate."""
         return draw_countdown_box(
@@ -463,6 +474,7 @@ class RendererBase(RendererCore):
             weather_data=weather_data,
             weather_type=weather_type,
             countdown_mode=countdown_mode,
+            weekend=weekend,
         )
 
     def _draw_circuit_stats(

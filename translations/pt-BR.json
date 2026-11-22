@@ -25,6 +25,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "Sprint",
   "session_race": "Corrida",
+  "session_short_fp1": "TL1",
+  "session_short_fp2": "TL2",
+  "session_short_fp3": "TL3",
+  "session_short_sprintqualifying": "SQ",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "Q",
+  "session_live": "AO VIVO",
   "loading": "Carregando...",
   "no_data": "Nenhum dado de corrida disponível",
   "new_track": "NOVO CIRCUITO",
@@ -208,6 +215,17 @@
         "off": "Data da corrida em vez da contagem; só muda com o status da corrida."
       },
       "batteryNote": "O clima é atualizado a cada hora. Para a maior duração da bateria, desligue o clima. O cabeçalho X-Next-Refresh-Seconds diz à tela quanto tempo dormir."
+    },
+    "weekendMode": {
+      "label": "Fim de semana de corrida",
+      "options": {
+        "off": "Desativado",
+        "auto": "Acompanhar o fim de semana"
+      },
+      "hints": {
+        "off": "O mesmo calendário a semana toda.",
+        "auto": "Durante o fim de semana de corrida: sessões encerradas marcadas, a próxima destacada com contagem regressiva e os pódios da classificação e da corrida deste fim de semana assim que disponíveis."
+      }
     },
     "autoScreen": {
       "label": "Uma URL para as duas telas",
@@ -424,6 +442,7 @@
   "api_docs_weather_desc": "Ativa ou desativa a sobreposição de clima",
   "api_docs_weather_type_desc": "Qual variante de dados meteorológicos renderizar",
   "api_docs_countdown_desc": "Contagem regressiva na caixa de status: hours (dias e horas, padrão), days (dias inteiros em tz, muda à meia-noite local), auto (dias inteiros até 48 h antes da largada, depois dias e horas) ou off (data da corrida em vez da contagem). Valores inválidos retornam HTTP 422.",
+  "api_docs_weekend_mode_desc": "Modo fim de semana: off (padrão) ou auto. Com auto, durante o fim de semana de corrida (a partir de 12 h antes da primeira sessão) as sessões encerradas recebem uma marca de verificação, a sessão em andamento ou a próxima é destacada e o quadro de status faz a contagem regressiva para ela com o nome curto (ex.: Q: 3 h). Uma sessão é considerada encerrada a partir do início mais uma estimativa conservadora de duração, porque o fim real não é publicado. O rodapé mostra os pódios da classificação e da corrida deste fim de semana assim que disponíveis (Jolpica, consultado apenas nas horas após essas sessões), com a temporada acima de cada coluna. Valores inválidos retornam HTTP 422.",
   "api_docs_auto_desc": "Uma URL que retorna diretamente o BMP do calendário ou das equipes (sem redirecionamento). Para telas que só conseguem consultar um endereço, como Živýobraz.eu ou um firmware ESP32 simples.",
   "api_docs_auto_mode_desc": "race_week: o calendário a partir de lead_hours antes da primeira sessão do próximo fim de semana de corrida até a próxima corrida ser selecionada (4 h após a largada); as equipes no restante do tempo, inclusive na pausa de fim de temporada e em corridas canceladas. daily: calendário nos dias locais pares e equipes nos ímpares em tz, trocando à meia-noite local. Valores inválidos retornam HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Somente race_week: quantas horas antes da primeira sessão (TL1) o calendário aparece. Valores fora de 0–168 retornam HTTP 422.",

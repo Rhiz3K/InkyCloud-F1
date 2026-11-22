@@ -25,6 +25,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "スプリント",
   "session_race": "決勝",
+  "session_short_fp1": "FP1",
+  "session_short_fp2": "FP2",
+  "session_short_fp3": "FP3",
+  "session_short_sprintqualifying": "SQ",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "予選",
+  "session_live": "進行中",
   "loading": "読み込み中...",
   "no_data": "レースデータがありません",
   "new_track": "新コース",
@@ -208,6 +215,17 @@
         "off": "カウントダウンの代わりにレース日。レースの状態が変わったときだけ変化します。"
       },
       "batteryNote": "天気は毎時更新されます。バッテリーを最も長持ちさせるには天気をオフにしてください。スリープ時間は X-Next-Refresh-Seconds ヘッダーで決められます。"
+    },
+    "weekendMode": {
+      "label": "レースウィークエンド",
+      "options": {
+        "off": "オフ",
+        "auto": "週末に合わせる"
+      },
+      "hints": {
+        "off": "一週間ずっと同じカレンダー。",
+        "auto": "レースウィークエンド中：終了したセッションにチェック、次のセッションを強調してカウントダウン、今週末の予選と決勝の表彰台を入手でき次第表示。"
+      }
     },
     "autoScreen": {
       "label": "両方の画面に 1 つの URL",
@@ -424,6 +442,7 @@
   "api_docs_weather_desc": "天気オーバーレイの有効化または無効化",
   "api_docs_weather_type_desc": "描画する天気データの種類",
   "api_docs_countdown_desc": "ステータス欄のカウントダウン: hours（日と時間、既定）、days（tz での日数のみ。現地の午前0時に変化）、auto（スタートの48時間前までは日数のみ、その後は日と時間）、off（カウントダウンの代わりにレース日）。無効な値は HTTP 422 を返します。",
+  "api_docs_weekend_mode_desc": "週末モード：off（既定）または auto。auto では、レースウィークエンド中（最初のセッションの 12 時間前から）終了したセッションにチェックが付き、進行中または次のセッションが強調され、ステータス欄はその短い名前付きでカウントダウンします（例：予選: 3 時間）。実際の終了時刻は公開されないため、セッションは開始時刻に控えめな所要時間の見積もりを加えた時点で終了とみなします。フッターには今週末の予選と決勝の表彰台を、入手でき次第表示します（Jolpica から、これらのセッション後の数時間だけ取得）。各列の上にシーズンを表示します。無効な値は HTTP 422 を返します。",
   "api_docs_auto_desc": "カレンダーまたはチームの BMP を直接返す 1 つの URL です（リダイレクトなし）。Živýobraz.eu やシンプルな ESP32 ファームウェアなど、1 つのアドレスしか取得できないディスプレイ向けです。",
   "api_docs_auto_mode_desc": "race_week: 次のレースウィークエンドの最初のセッションの lead_hours 前から、次のレースに切り替わるまで（スタートの 4 時間後）はカレンダー、それ以外はチーム（オフシーズンや中止レースを含む）。daily: tz の現地日付が偶数の日はカレンダー、奇数の日はチームを表示し、現地の午前0時に切り替えます。無効な値は HTTP 422 を返します。",
   "api_docs_auto_lead_hours_desc": "race_week のみ: 最初のセッション（FP1）の何時間前にカレンダーを表示するか。0〜168 以外の値は HTTP 422 を返します。",

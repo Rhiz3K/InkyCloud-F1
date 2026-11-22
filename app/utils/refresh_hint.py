@@ -101,6 +101,10 @@ class RefreshHint:
         changes = (*self.changes, *self.publication_changes)
         return min((change for change in changes if change >= self.now), default=None)
 
+    def with_changes(self, changes: Iterable[datetime], *, hourly: bool = False) -> RefreshHint:
+        """Return this hint with more predicted changes (and hourly data when ``hourly``)."""
+        return RefreshHint(self.now, (*self.changes, *changes), self.hourly or hourly)
+
     def cache_token(self) -> str:
         """Identify the content period, so a cached image never outlives its next change."""
         change = self.next_change

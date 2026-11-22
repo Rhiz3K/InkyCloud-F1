@@ -105,13 +105,33 @@ def draw_results_section(
     )
 
     is_new_track = historical_data is None or historical_data.is_new_track
+    blank: list = [None, None, None]
     if is_new_track:
-        season = ""
-        qualifying_results = race_results = [None, None, None]
+        season: int | str = ""
+        qualifying_results = race_results = blank
     else:
         season = historical_data.season or ""
         qualifying_results = historical_data.qualifying_results
         race_results = historical_data.race_results
+    qualifying_season = getattr(historical_data, "qualifying_season", None)
+    race_season = getattr(historical_data, "race_season", None)
+    if qualifying_season is not None:
+        qualifying_results = historical_data.qualifying_results or blank
+    if race_season is not None:
+        race_results = historical_data.race_results or blank
+    column_seasons = (qualifying_season or season, race_season or season)
+    if column_seasons[0] != column_seasons[1]:
+        # Columns from different seasons (this weekend next to last year): each title names
+        # its own season and the shared year above the flag is left out.
+        season = ""
+        qualifying_title, race_title = (
+            f"{column_season} {title}" if column_season else title
+            for column_season, title in zip(
+                column_seasons, (qualifying_title, race_title), strict=True
+            )
+        )
+    elif not is_new_track or qualifying_season is not None:
+        season = column_seasons[0]
     country = race_data.get("circuit", {}).get("country", "")
     visual_top = draw_results_header_fn(draw, image, y_start, season, country)
 
@@ -133,7 +153,7 @@ def draw_results_section(
         is_qualifying=False,
     )
 
-    if is_new_track:
+    if is_new_track and race_season is None:
         draw_new_track_message_fn(draw, y_start)
 
 

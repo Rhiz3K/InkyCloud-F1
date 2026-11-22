@@ -25,6 +25,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "冲刺赛",
   "session_race": "正赛",
+  "session_short_fp1": "一练",
+  "session_short_fp2": "二练",
+  "session_short_fp3": "三练",
+  "session_short_sprintqualifying": "SQ",
+  "session_short_sprint": "冲刺赛",
+  "session_short_qualifying": "排位赛",
+  "session_live": "进行中",
   "loading": "加载中...",
   "no_data": "暂无比赛数据",
   "new_track": "新赛道",
@@ -208,6 +215,17 @@
         "off": "显示比赛日期而非倒计时；仅随比赛状态变化。"
       },
       "batteryNote": "天气每小时更新。若要最长续航，请关闭天气。显示屏的睡眠时长可参考 X-Next-Refresh-Seconds 响应头。"
+    },
+    "weekendMode": {
+      "label": "比赛周末",
+      "options": {
+        "off": "关闭",
+        "auto": "跟随比赛周末"
+      },
+      "hints": {
+        "off": "整周显示相同的日历。",
+        "auto": "比赛周末期间：已结束的环节打勾，下一个环节突出显示并倒计时，并在可用时显示本周末排位赛和正赛的领奖台。"
+      }
     },
     "autoScreen": {
       "label": "两个屏幕共用一个 URL",
@@ -424,6 +442,7 @@
   "api_docs_weather_desc": "启用或禁用天气叠加层",
   "api_docs_weather_type_desc": "要渲染的天气数据类型",
   "api_docs_countdown_desc": "状态框中的倒计时：hours（天和小时，默认）、days（按 tz 的整天数，在当地午夜变化）、auto（距发车 48 小时以前只显示天数，之后显示天和小时）或 off（显示比赛日期而非倒计时）。无效值返回 HTTP 422。",
+  "api_docs_weekend_mode_desc": "周末模式：off（默认）或 auto。使用 auto 时，在比赛周末期间（从第一节练习前 12 小时开始），已结束的环节会打勾，正在进行或下一个环节会被突出显示，状态框以其简称倒计时（例如 排位赛: 3 小时）。由于实际结束时间不会公布，环节在开始时间加上保守的时长估计后即视为结束。页脚会在可用时显示本周末排位赛和正赛的领奖台（来自 Jolpica，仅在这些环节之后的几小时内获取），每一栏上方显示赛季。无效值返回 HTTP 422。",
   "api_docs_auto_desc": "一个直接返回日历或车队 BMP 的 URL（不重定向）。适用于只能轮询一个地址的显示屏，例如 Živýobraz.eu 或简单的 ESP32 固件。",
   "api_docs_auto_mode_desc": "race_week：从下一个比赛周末第一节练习前 lead_hours 小时起显示日历，直到切换到下一场比赛（起跑后 4 小时）；其余时间显示车队，包括休赛期和取消的比赛。daily：按 tz 中的本地日期，偶数日显示日历，奇数日显示车队，在当地午夜切换。无效值返回 HTTP 422。",
   "api_docs_auto_lead_hours_desc": "仅 race_week：在第一节练习（FP1）前多少小时开始显示日历。超出 0–168 的值返回 HTTP 422。",

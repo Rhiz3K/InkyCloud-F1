@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageFont import FreeTypeFont
@@ -26,6 +26,9 @@ from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.weather_service import WeatherData
 from app.utils.refresh_hint import CountdownMode
+
+if TYPE_CHECKING:
+    from app.services.weekend_phase import WeekendPhase
 
 logger = logging.getLogger(__name__)
 Font = FreeTypeFont | ImageFont.ImageFont
@@ -150,14 +153,24 @@ class RendererCore(ABC):
         *,
         track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
         countdown_mode: CountdownMode = CountdownMode.HOURS,
+        weekend: WeekendPhase | None = None,
     ) -> bytes:
-        """Render a calendar using the variant's immutable theme."""
+        """Render a calendar using the variant's immutable theme.
+
+        ``weekend`` (``weekend_mode=auto`` during a race weekend) marks finished and next
+        sessions and counts down to the next session; None draws the default calendar.
+        """
         image = self._new_canvas()
         draw = self._new_draw(image)
         self._draw_header(draw, image, race_data)
         self._draw_track_section(draw, image, race_data, track_options=track_options)
         schedule_bottom = self._draw_schedule_section(
-            draw, race_data, weather_data, weather_type, countdown_mode=countdown_mode
+            draw,
+            race_data,
+            weather_data,
+            weather_type,
+            countdown_mode=countdown_mode,
+            weekend=weekend,
         )
         self._draw_circuit_stats(draw, race_data, schedule_bottom)
         self._draw_results_section(draw, image, race_data, historical_data)
@@ -241,6 +254,7 @@ class RendererCore(ABC):
         weather_data: WeatherData | None = None,
         weather_type: str = "",
         countdown_mode: CountdownMode = CountdownMode.HOURS,
+        weekend: WeekendPhase | None = None,
     ) -> int:
         """Draw the race-weekend schedule and return its lower boundary."""
 

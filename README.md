@@ -52,6 +52,7 @@ https://racing.example.com/auto.bmp?lang=cs&tz=Europe/Prague
 | `weather`      | `true`, `false`                  | `?weather=false`                     |
 | `weather_type` | `race_day`, `race`, `current`, `off` | `?weather=true&weather_type=current` |
 | `countdown`    | `hours` (default), `days`, `auto`, `off` | `?countdown=auto` |
+| `weekend_mode` | `off` (default), `auto` — follow the race weekend, see [Race weekend mode](#race-weekend-mode-weekend_modeauto) | `?weekend_mode=auto` |
 | `track_style`  | 18 style identifiers from `/api/tracks`; default `relief` | `?track_style=contours` |
 | `track_source` | `jules` (default), `commons`       | `?track_source=commons`              |
 | `track_accent` | 16 accent subsets from `/api/tracks`; default `all` | `?track_accent=warm` |
@@ -68,17 +69,41 @@ https://racing.example.com/calendar.bmp?lang=en&display=bwry
 https://racing.example.com/calendar.bmp?lang=en&display=spectra6
 https://racing.example.com/calendar.bmp?lang=en&weather=true&weather_type=current
 https://racing.example.com/calendar.bmp?lang=en&countdown=auto&weather=false
+https://racing.example.com/calendar.bmp?lang=en&weekend_mode=auto&display=bwry
 https://racing.example.com/teams.bmp?lang=ja&display=spectra6
 https://racing.example.com/auto.bmp?lang=de&tz=Europe/Berlin&display=bwry
 https://racing.example.com/sk/configure/calendar
 ```
 
+### Race weekend mode (`weekend_mode=auto`)
+
+With `weekend_mode=auto` the calendar follows the race weekend, from 12 hours before the first
+session until the next race is selected (4 hours after the race start). Outside that window the
+image is the same as without the parameter.
+
+- Finished sessions get a check mark and a plain name; the running or next session gets a
+  marker. Both marks sit in the narrow gap left of the schedule dates, in every palette.
+- The status box counts down to the next session with its short name (`Q: 3 h`, `SPRINT: 19 h`,
+  `Q: LIVE` while it runs) in the chosen `countdown` mode. When the race is next, the box shows
+  the race countdown and status as usual.
+- A session counts as finished from its start plus a conservative estimate of its length
+  (practice 75 min, sprint qualifying and sprint 60 min, qualifying 90 min, race 3 h). The
+  real end time is not published, so a session can be shown as running a little longer.
+- After qualifying and after the race the footer shows this weekend's top three (for example
+  `2026 QUALIFYING` next to `2025 RACE`) once [Jolpica](https://jolpi.ca) publishes them. The
+  hourly job asks Jolpica only in the 12 hours after those two sessions, at most once an hour
+  and only until a complete top three is stored (about 2–6 requests per weekend). The default
+  calendar keeps last year's results.
+- `X-Next-Refresh-Seconds` also wakes the display at each session start and estimated end,
+  and at least hourly while new results may arrive. Invalid values return `422`. It also works
+  on `/auto.bmp` and in the configurator ("Race weekend").
+
 ### One URL for Both Screens (`/auto.bmp`)
 
 `GET /auto.bmp` returns the calendar or the teams BMP directly (no redirect), so a display that
 can poll only one address still gets both screens. It accepts the calendar and teams parameters
-above (`lang`, `tz`, `display`, `weather`, `weather_type`, `countdown`, `track_*`, `extra`,
-`year`); each applies to its own screen. `year` selects the teams season; the calendar always
+above (`lang`, `tz`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`,
+`track_*`, `extra`, `year`); each applies to its own screen. `year` selects the teams season; the calendar always
 shows the next race.
 
 | Parameter    | Options                              | Example            |
@@ -233,7 +258,7 @@ Your deployed instance provides these endpoints:
 
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
-| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `countdown`, `tz`, `track_style`, `track_source`, and `track_accent` params; `X-Next-Refresh-Seconds` hint header |
+| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`, `tz`, `track_style`, `track_source`, and `track_accent` params; `X-Next-Refresh-Seconds` hint header |
 | `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`, `extra`: `none`, `countdown`, `flags`, `track`, `weather`); optional IANA `tz` applies only to countdown, flags, track, and weather panels showing a time or date (also on `/preview/configure/teams.png`); attribution/licences at `/credits` (`Link rel="license"` header) |
 | `GET /auto.bmp`                          | Calendar or teams BMP on one URL (`mode`: `race_week`, `daily`; `lead_hours` 0–168; calendar and teams params); `X-Active-Screen` header |
 | `GET /`                                  | Landing page with screen type selection                 |

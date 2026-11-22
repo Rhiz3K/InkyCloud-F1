@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `weekend_mode=off|auto` to `/calendar.bmp`, `/auto.bmp` and
+  `/preview/configure/calendar.png`. `off` (default) keeps byte-identical output. With `auto`,
+  from 12 hours before the first session until the next race is selected, finished sessions
+  get a check mark and a plain name, the running or next session gets a marker in the gap left
+  of the schedule, and the status box counts down to the next session with its short localized
+  label (`Q: 3 h`, `SPRINT: 19 h`, `Q: LIVE`), following `countdown`. A session counts as over
+  from its start plus a conservative per-type estimate (the real end is not published). A new
+  hourly job (:50) fetches this weekend's qualifying and race top three from Jolpica only in
+  the 12 hours after each session, at most once an hour and until a complete podium is stored
+  (failed or empty answers are negative-cached, also across restarts), through the shared
+  Jolpica pacer and retry policy. Podiums are kept in a new `weekend_results` table (schema
+  version 8; `reset-db cache` clears it) and shown only with `weekend_mode=auto`, each footer
+  column with its own season (e.g. `2026 QUALIFYING` next to `2025 RACE`). The variant renders
+  on demand into the variant cache, keyed by the session phase and the stored podiums;
+  outside the weekend without podiums it shares the default image and caches.
+  `X-Next-Refresh-Seconds` also covers session starts, estimated ends and pending results.
+  Invalid values return HTTP 422. API docs, configurator ("Race weekend"), README, EXAMPLES
+  and all 13 locales are updated.
+
 - Add `GET /auto.bmp`: one URL that returns the calendar or the teams BMP directly (no
   redirect), for Živýobraz.eu and other displays that can poll only one address.
   `mode=race_week` (default) shows the calendar from `lead_hours` (0–168, default 48) before

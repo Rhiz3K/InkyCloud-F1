@@ -27,6 +27,8 @@ from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.teams_service import TeamsService, is_teams_data_cacheable
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.weather_service import get_weather_context
+from app.services.weekend_phase import WeekendMode, WeekendPhase
+from app.services.weekend_results import apply_weekend_results
 from app.state import (
     BmpArtifact,
     ImageCache,
@@ -107,6 +109,7 @@ def render_calendar_bytes(
     weather_type: str,
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
     countdown_mode: CountdownMode = CountdownMode.HOURS,
+    weekend: WeekendPhase | None = None,
 ) -> bytes:
     """Construct the renderer and render in the worker thread.
 
@@ -122,6 +125,7 @@ def render_calendar_bytes(
         weather_type,
         track_options=track_options,
         countdown_mode=countdown_mode,
+        weekend=weekend,
     )
 
 
@@ -168,10 +172,14 @@ async def render_calendar(
     display: str,
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
     countdown_mode: CountdownMode = CountdownMode.HOURS,
+    weekend_mode: WeekendMode = WeekendMode.OFF,
+    weekend: WeekendPhase | None = None,
 ) -> tuple[bytes, dict | None, bool]:
     """Render a calendar BMP for a selected race and a canonical weather type.
 
-    Returns the output, the timezone-converted race data and whether it may be cached.
+    ``weekend_mode=auto`` prefers this weekend's stored podiums in the footer and draws the
+    ``weekend`` phase. Returns the output, the timezone-converted race data and whether it
+    may be cached.
     """
     if not race_data:
         error_bmp = await run_render(
@@ -188,6 +196,8 @@ async def render_calendar(
 
     circuit_id = race_data.get("circuit", {}).get("circuitId", "")
     historical_data = F1Service.get_historical_from_static(circuit_id) if circuit_id else None
+    if weekend_mode == WeekendMode.AUTO:
+        historical_data = apply_weekend_results(historical_data, race_data)
 
     # render_calendar is CPU-bound (Pillow + pure-Python palette/packing). Run it on the render
     # executor so a cache miss doesn't block the event loop and stall in-flight requests.
@@ -202,6 +212,7 @@ async def render_calendar(
             weather_type,
             track_options,
             countdown_mode,
+            weekend,
         )
     )
     return (bmp_data, race_data, True)
@@ -217,14 +228,17 @@ async def render_calendar_artifact(
     display: str,
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
     countdown_mode: CountdownMode = CountdownMode.HOURS,
+    weekend_mode: WeekendMode = WeekendMode.OFF,
+    weekend: WeekendPhase | None = None,
 ) -> BmpArtifact:
     """Render/hash one calendar miss and cache the pair only when complete.
 
-    A non-default countdown is an opt-in variant: it renders in a variant slot and is cached
-    in the variant cache, so it can never displace the default calendars.
+    A non-default countdown or weekend mode is an opt-in variant: it renders in a variant
+    slot and is cached in the variant cache, so it can never displace the default calendars.
     """
     generation = selected_generation()
-    async with render_slot(variant=countdown_mode != CountdownMode.HOURS):
+    variant = countdown_mode != CountdownMode.HOURS or weekend_mode != WeekendMode.OFF
+    async with render_slot(variant=variant):
         require_current_selection(generation)
         bmp_data, _race_data, is_cacheable = await render_calendar(
             race_data=race_data,
@@ -234,16 +248,20 @@ async def render_calendar_artifact(
             display=display,
             track_options=track_options,
             countdown_mode=countdown_mode,
+            weekend_mode=weekend_mode,
+            weekend=weekend,
         )
         artifact = (bmp_data, strong_etag(bmp_data))
         if is_cacheable and bmp_cache_generation() == generation:
-            calendar_image_cache(countdown_mode)[cache_key] = artifact
+            calendar_image_cache(countdown_mode, weekend_mode)[cache_key] = artifact
         return artifact
 
 
-def calendar_image_cache(countdown_mode: CountdownMode) -> ImageCache:
-    """Keep default-countdown calendars in the main cache and other modes in the variant cache."""
-    if countdown_mode == CountdownMode.HOURS:
+def calendar_image_cache(
+    countdown_mode: CountdownMode, weekend_mode: WeekendMode = WeekendMode.OFF
+) -> ImageCache:
+    """Keep default calendars in the main cache and opt-in variants in the variant cache."""
+    if countdown_mode == CountdownMode.HOURS and weekend_mode == WeekendMode.OFF:
         return get_bmp_cache()
     return get_bmp_variant_cache()
 

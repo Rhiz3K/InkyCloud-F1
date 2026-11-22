@@ -25,6 +25,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "Sprint",
   "session_race": "Yarış",
+  "session_short_fp1": "A1",
+  "session_short_fp2": "A2",
+  "session_short_fp3": "A3",
+  "session_short_sprintqualifying": "SS",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "SIR",
+  "session_live": "CANLI",
   "loading": "Yükleniyor...",
   "no_data": "Yarış verisi mevcut değil",
   "new_track": "YENİ PİST",
@@ -208,6 +215,17 @@
         "off": "Geri sayım yerine yarış tarihi; yalnızca yarış durumuyla değişir."
       },
       "batteryNote": "Hava durumu her saat yenilenir. En uzun pil ömrü için hava durumunu kapatın. Ekranın ne kadar uyuyacağını X-Next-Refresh-Seconds başlığı belirler."
+    },
+    "weekendMode": {
+      "label": "Yarış hafta sonu",
+      "options": {
+        "off": "Kapalı",
+        "auto": "Hafta sonunu izle"
+      },
+      "hints": {
+        "off": "Tüm hafta aynı takvim.",
+        "auto": "Yarış hafta sonu boyunca: biten seanslar işaretli, sıradaki geri sayımla vurgulu ve bu hafta sonunun sıralama ve yarış podyumları hazır olur olmaz."
+      }
     },
     "autoScreen": {
       "label": "İki ekran için tek URL",
@@ -424,6 +442,7 @@
   "api_docs_weather_desc": "Hava durumu katmanını aç veya kapat",
   "api_docs_weather_type_desc": "Hangi hava durumu verisi varyantının çizileceği",
   "api_docs_countdown_desc": "Durum kutusundaki geri sayım: hours (gün ve saat, varsayılan), days (tz içinde tam gün, yerel gece yarısı değişir), auto (başlangıçtan 48 saat öncesine kadar tam gün, sonra gün ve saat) veya off (geri sayım yerine yarış tarihi). Geçersiz değerler HTTP 422 döndürür.",
+  "api_docs_weekend_mode_desc": "Hafta sonu modu: off (varsayılan) veya auto. auto ile yarış hafta sonu boyunca (ilk seanstan 12 saat önce başlayarak) biten seanslar işaretlenir, süren veya sıradaki seans vurgulanır ve durum kutusu kısa adıyla ona geri sayar (ör. SIR: 3 sa). Gerçek bitiş yayımlanmadığından bir seans, başlangıcına temkinli bir süre tahmini eklendiği andan itibaren bitmiş sayılır. Alt bilgi, bu hafta sonunun sıralama ve yarış podyumlarını hazır olur olmaz gösterir (Jolpica, yalnızca bu seanslardan sonraki saatlerde sorgulanır); her sütunun üzerinde sezon yer alır. Geçersiz değerler HTTP 422 döndürür.",
   "api_docs_auto_desc": "Takvim veya takımlar BMP’sini doğrudan döndüren tek bir URL (yönlendirme yok). Živýobraz.eu ya da basit ESP32 yazılımı gibi yalnızca tek bir adresi sorgulayabilen ekranlar içindir.",
   "api_docs_auto_mode_desc": "race_week: bir sonraki yarış hafta sonunun ilk seansından lead_hours önce başlayıp sonraki yarış seçilene kadar (startan 4 saat sonra) takvim, diğer zamanlarda sezon arası ve iptal edilen yarışlar dahil takımlar. daily: tz’deki yerel çift günlerde takvim, tek günlerde takımlar; geçiş yerel gece yarısında olur. Geçersiz değerler HTTP 422 döndürür.",
   "api_docs_auto_lead_hours_desc": "Yalnızca race_week: takvimin ilk seanstan (FP1) kaç saat önce görüneceği. 0–168 dışındaki değerler HTTP 422 döndürür.",

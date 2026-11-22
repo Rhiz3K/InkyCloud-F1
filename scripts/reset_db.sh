@@ -4,7 +4,7 @@
 #   all      - Delete entire database (default; stop the application first)
 #   stats    - Delete usage statistics (api_calls, request_stats, api_call_totals, perf_metrics,
 #              perf_buckets, stats_batches)
-#   cache    - Delete only cache_meta and generated_images
+#   cache    - Delete only cache_meta, generated_images and weekend_results
 #   info     - Show current record counts (no changes)
 #   --force  - Skip the running-instance guard for "all"
 set -euo pipefail
@@ -33,7 +33,7 @@ usage() {
     echo "  all      - Delete entire database file (default; stop the application first)"
     echo "  stats    - Delete usage statistics (api_calls, request_stats, api_call_totals, perf_metrics,"
     echo "             perf_buckets, stats_batches)"
-    echo "  cache    - Delete cache_meta, generated_images and BMP files"
+    echo "  cache    - Delete cache_meta, generated_images, weekend_results and BMP files"
     echo "  info     - Show current record counts (no changes)"
     echo "  --force  - Skip the running-instance guard for \"all\""
 }
@@ -90,7 +90,8 @@ refuse_if_in_use() {
 # buckets and batch ledger that the default AGGREGATE_STATS_ONLY=true profile actually writes
 # (the same set the application's own usage-data cleanup deletes).
 STATS_TABLES=(api_calls request_stats api_call_totals perf_metrics perf_buckets stats_batches)
-CACHE_TABLES=(cache_meta generated_images)
+# weekend_results holds re-fetchable podiums for weekend_mode=auto (a restart clears memory).
+CACHE_TABLES=(cache_meta generated_images weekend_results)
 
 # Succeeds only when a successful lookup finds the table. A failed lookup (e.g. SQLITE_BUSY after
 # the timeout) aborts instead of being mistaken for an absent table, which would skip it silently.
@@ -165,14 +166,20 @@ case "$SCOPE" in
     cache)
         check_db
         echo -e "${YELLOW}=== Reset Cache ===${NC}"
-        echo "This will delete cache_meta, generated_images records and BMP files."
+        echo "This will delete ${CACHE_TABLES[*]} records and BMP files."
         echo ""
         echo -e "${YELLOW}Current record counts:${NC}"
         get_counts
         echo ""
         confirm
 
-        run_sql "DELETE FROM cache_meta; DELETE FROM generated_images; VACUUM;"
+        cache_sql=""
+        for table in "${CACHE_TABLES[@]}"; do
+            if table_exists "$table"; then
+                cache_sql+="DELETE FROM $table; "
+            fi
+        done
+        run_sql "${cache_sql}VACUUM;"
         delete_bmp_files
 
         echo ""

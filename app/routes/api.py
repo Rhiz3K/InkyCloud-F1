@@ -23,6 +23,7 @@ from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_extra import TeamsExtra
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.track_catalog import TrackAccent, TrackSource, TrackStyle
+from app.services.weekend_phase import WeekendMode
 from app.state import get_bmp_cache, get_bmp_variant_cache
 from app.utils.f1_season import (
     MIN_F1_SEASON,
@@ -180,6 +181,19 @@ async def api_info() -> dict:
         "example": "?countdown=auto",
         "optional": True,
     }
+    weekend_mode_parameter = {
+        "type": "string",
+        "description": "auto: during the race weekend (from 12 h before the first session) "
+        "mark finished sessions (start plus a conservative duration estimate, the real end "
+        "is unknown), highlight the running or next session, count down to it with its short "
+        "label and show this weekend's qualifying and race podiums (from Jolpica, fetched "
+        "only after those sessions) with the season above each column. off: unchanged. "
+        "Invalid values return 422.",
+        "values": [mode.value for mode in WeekendMode],
+        "default": WeekendMode.OFF.value,
+        "example": "?weekend_mode=auto",
+        "optional": True,
+    }
     refresh_hint = (
         f"{REFRESH_HINT_HEADER} on 200 and 304: seconds until the image is next expected to "
         f"change ({MIN_REFRESH_SECONDS}-{MAX_REFRESH_SECONDS}, at most "
@@ -301,6 +315,7 @@ async def api_info() -> dict:
                         "optional": True,
                     },
                     "countdown": countdown_parameter,
+                    "weekend_mode": weekend_mode_parameter,
                 },
                 "response": {
                     "content_type": "image/bmp",
@@ -323,6 +338,7 @@ async def api_info() -> dict:
                     "/calendar.bmp?display=bwry",
                     "/calendar.bmp?display=spectra6&weather_type=current",
                     "/calendar.bmp?countdown=auto&weather=false",
+                    "/calendar.bmp?weekend_mode=auto&display=bwry",
                 ],
             },
             "/teams.bmp": {
@@ -438,6 +454,7 @@ async def api_info() -> dict:
                         "optional": True,
                     },
                     "countdown": {**countdown_parameter, "description": "Calendar only"},
+                    "weekend_mode": {**weekend_mode_parameter, "description": "Calendar only"},
                     **track_parameters,
                     "extra": {
                         "type": "string",
@@ -512,6 +529,10 @@ async def api_info() -> dict:
                     "countdown": {
                         **countdown_parameter,
                         "description": "Calendar countdown; applies only to calendar",
+                    },
+                    "weekend_mode": {
+                        **weekend_mode_parameter,
+                        "description": "Calendar weekend mode; applies only to calendar",
                     },
                     **track_parameters,
                 },
