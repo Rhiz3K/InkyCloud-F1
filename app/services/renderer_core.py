@@ -49,6 +49,10 @@ class RendererCore(ABC):
     """Own immutable theme state, rendering entry points, fonts, and asset caches."""
 
     THEME: ClassVar[RenderTheme]
+    # Anti-aliased glyph edges are blends that nearest-colour quantisation maps onto unrelated
+    # inks (Spectra 6 turned red/black text edges green, blue and yellow). Variants without a
+    # blend-aware palette mapper draw text with hard edges instead.
+    TEXT_ANTIALIAS: ClassVar[bool] = True
     _cached_driver_photos: ClassVar[dict[str, Image.Image] | None] = None
     _cached_driver_photos_key: ClassVar[tuple[str, str] | None] = None
 
@@ -147,7 +151,7 @@ class RendererCore(ABC):
     ) -> bytes:
         """Render a calendar using the variant's immutable theme."""
         image = self._new_canvas()
-        draw = ImageDraw.Draw(image)
+        draw = self._new_draw(image)
         self._draw_header(draw, image, race_data)
         self._draw_track_section(draw, image, race_data, track_options=track_options)
         schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data, weather_type)
@@ -164,7 +168,7 @@ class RendererCore(ABC):
         """Render a teams dashboard using the same themed adapter set."""
         self._ensure_teams_assets()
         image = self._new_canvas()
-        draw = ImageDraw.Draw(image)
+        draw = self._new_draw(image)
         self._draw_teams_header(draw, image, teams_data.season)
         self._draw_teams_content(image, draw, teams_data.teams)
         left, right = split_teams_for_columns(teams_data.teams)
@@ -174,7 +178,7 @@ class RendererCore(ABC):
             display = {2: "1bit", 3: "bwr", 4: "bwry", 6: "spectra6"}[len(self.colors.PALETTE)]
             draw_teams_extra(
                 panel,
-                ImageDraw.Draw(panel),
+                self._new_draw(panel),
                 self.theme,
                 extra_context,
                 extra,
@@ -188,7 +192,7 @@ class RendererCore(ABC):
     def render_error(self, error_message: str) -> bytes:
         """Render an error placeholder in the active display palette."""
         image = self._new_canvas()
-        draw = ImageDraw.Draw(image)
+        draw = self._new_draw(image)
         error_text = self.translator.get("error", "Error")
         padding = self.layout["padding"]
         draw.text(
@@ -321,6 +325,13 @@ class RendererCore(ABC):
     @abstractmethod
     def _new_canvas(self) -> Image.Image:
         """Create a blank canvas in the variant's native image mode."""
+
+    def _new_draw(self, image: Image.Image) -> ImageDraw.ImageDraw:
+        """Create a draw context honouring the variant's text anti-aliasing policy."""
+        draw = ImageDraw.Draw(image)
+        if not self.TEXT_ANTIALIAS:
+            draw.fontmode = "1"
+        return draw
 
     @abstractmethod
     def _encode_image(self, image: Image.Image) -> bytes:

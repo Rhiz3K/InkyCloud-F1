@@ -62,6 +62,7 @@ class Spectra6Renderer(RendererBase):
     """Renderer for generating six-color indexed BMP images."""
 
     THEME = SPECTRA6_THEME
+    TEXT_ANTIALIAS = False
 
     def _new_canvas(self) -> Image.Image:
         """Create an RGB composition canvas in active palette white."""

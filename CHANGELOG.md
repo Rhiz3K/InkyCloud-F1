@@ -139,6 +139,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     example, German "ABGESCHLOSSEN" with 24° / 40 % overlapped the icon by 11 px. The text
     is measured against the weather width, shrunk to at most 70 % of its size, and only then
     shortened with an ellipsis.
+  - Spectra 6 draws text without anti-aliasing. Its nearest-colour quantisation turned
+    blended glyph edges into stray green, blue and yellow pixels; a red-and-black error
+    image had 228 of them. `bwr`/`bwry` keep anti-aliased text because their palette
+    mapper already resolves edges to black, white or red.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

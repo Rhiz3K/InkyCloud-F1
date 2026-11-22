@@ -598,3 +598,34 @@ def test_finished_race_status_does_not_overlap_weather(display, lang):
     assert icon_boxes and status_boxes, (status, [t for t, _ in drawn])
     status_right = max(box[2] for box in status_boxes)
     assert status_right < icon_boxes[0][0]
+
+
+# --- A1 + E1: Spectra 6 text keeps the inks it was drawn with ----------------------------------
+
+
+def test_spectra6_error_text_uses_only_drawn_inks():
+    import io
+
+    from PIL import Image
+
+    from app.services.i18n import get_translator
+    from app.services.renderers import create_renderer
+
+    renderer = create_renderer("spectra6", get_translator("de"), "de")
+    image = Image.open(io.BytesIO(renderer.render_error("Test monochromer Schrift")))
+
+    colors = {rgb for _count, rgb in image.convert("RGB").getcolors(maxcolors=16)}
+    assert colors == {renderer.colors.WHITE, renderer.colors.BLACK, renderer.colors.RED}
+
+
+def test_only_spectra6_disables_text_antialiasing():
+    from PIL import Image
+
+    from app.services.i18n import get_translator
+    from app.services.renderers import create_renderer
+
+    modes = {}
+    for display in ("1bit", "bwr", "bwry", "spectra6"):
+        renderer = create_renderer(display, get_translator("en"), "en")
+        modes[display] = renderer._new_draw(Image.new("RGB", (4, 4))).fontmode
+    assert modes == {"1bit": "L", "bwr": "L", "bwry": "L", "spectra6": "1"}
