@@ -151,6 +151,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `focus-visible` ring, and these and the other ring-styled controls keep a visible outline
     in Windows high-contrast (forced colors) mode, which hides the ring.
 
+- Review follow-ups (issue #185):
+  - The Teams `extra` panels keep a race with an unpublished start hour on its calendar date
+    and show `–` instead of an invented `00:00` UTC start (which displayed a 14 March race as
+    13 March 19:00 in New York). Such a race stays "next" until its local day ends. An explicit
+    offset in a start time is honoured instead of being overwritten with UTC.
+
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
   from `requires-python = ">=3.15"`, so the pinned ruff behaves as before.
