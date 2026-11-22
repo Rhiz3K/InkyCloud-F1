@@ -67,3 +67,61 @@ def test_explicit_offset_is_not_overwritten_with_utc(monkeypatch):
 
     assert ctx is not None and ctx.start_time_known is True
     assert ctx.start_local == datetime(2026, 3, 14, 12, tzinfo=UTC)
+
+
+# --- C4: parameters that do not affect selection do not split the cache ------------------------
+
+
+def test_cache_key_distinguishes_zero_from_missing():
+    from app.routes.images import _get_cache_key
+
+    auto = _get_cache_key("en", None, None, None, None, True, "race_day", "1bit")
+    zero = _get_cache_key("en", 0, 0, None, None, True, "race_day", "1bit")
+    assert auto == "en:next:next:auto:default:race_day:1bit"
+    assert zero == "en:0:0:auto:default:race_day:1bit"
+
+
+@pytest.mark.asyncio
+async def test_round_without_year_uses_the_auto_selected_pregenerated_file():
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock, patch
+
+    from app.routes import images
+    from tests.test_routes_images import _request
+
+    f1 = SimpleNamespace(
+        get_next_race_from_static=MagicMock(return_value={"season": 2026, "round": 1}),
+        get_all_races_from_static=MagicMock(return_value=[]),
+    )
+    lookup = MagicMock(return_value=None)
+    calls = []
+
+    async def rendered(key, producer):
+        calls.append((key, producer.keywords))
+        return (b"bmp", '"etag"')
+
+    images.get_bmp_cache().clear()
+    with (
+        patch("app.routes.images.enforce_rate_limit"),
+        patch("app.routes.images._get_pregenerated_calendar_path", lookup),
+        patch("app.routes.images._singleflight", side_effect=rendered),
+        patch("app.routes.images._record_calendar_api_call"),
+    ):
+        await images.get_calendar_bmp(
+            _request(),
+            lang="en",
+            year=None,
+            race_round=5,
+            race_key=None,
+            tz=None,
+            weather=True,
+            weather_type="race_day",
+            display="1bit",
+            f1_service=f1,
+        )
+
+    assert lookup.call_args.kwargs["race_round"] is None
+    key, keywords = calls[0]
+    assert key.endswith("|en:next:next:auto:default:race_day:1bit")
+    assert keywords["race_round"] is None
+    images.get_bmp_cache().clear()

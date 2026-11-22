@@ -156,6 +156,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and show `–` instead of an invented `00:00` UTC start (which displayed a 14 March race as
     13 March 19:00 in New York). Such a race stays "next" until its local day ends. An explicit
     offset in a start time is honoured instead of being overwritten with UTC.
+  - `/calendar.bmp?round=N` without `year` (documented as ignored) shares the cache entry and
+    pregenerated file of the plain auto-selected request instead of forcing a fresh render.
+    Cache keys compare `year`/`round` with `None` instead of truthiness.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

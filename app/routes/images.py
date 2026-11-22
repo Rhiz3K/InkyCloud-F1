@@ -126,8 +126,11 @@ def _get_cache_key(
 ) -> str:
     """Build the cache key for calendar render variants."""
     weather_key = weather_type if weather else "no_weather"
+    # Compare with None, not truthiness: 0 is a (rejected) value, not "missing".
+    year_key = "next" if year is None else year
+    round_key = "next" if round_num is None else round_num
     return (
-        f"{lang}:{year or 'next'}:{round_num or 'next'}:{race_key or 'auto'}:"
+        f"{lang}:{year_key}:{round_key}:{race_key or 'auto'}:"
         f"{tz or 'default'}:{weather_key}:{display}"
     )
 
@@ -793,6 +796,10 @@ async def get_calendar_bmp(
     _validate_timezone_param(tz)
     tz = normalize_timezone(tz) if tz else None
     _validate_calendar_selection(year, race_key)
+    if year is None:
+        # Documented as ignored without year; dropping it keeps the cache key and the
+        # pregenerated-file match identical to the plain auto-selected request.
+        race_round = None
 
     # Defaults let the error path build a response even when selection itself fails.
     is_auto_selected = year is None and race_round is None and race_key is None
