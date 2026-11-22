@@ -27,6 +27,7 @@ from app.routes.credits import router as credits_router
 from app.routes.docs import router as docs_router
 from app.routes.health import router as health_router
 from app.routes.images import router as images_router
+from app.routes.ops import router as ops_router
 from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
@@ -435,6 +436,7 @@ app.include_router(previews_router)  # /preview/* must be before pages (/{lang}/
 app.include_router(docs_router)
 app.include_router(seo_router)
 app.include_router(health_router)
+app.include_router(ops_router)
 app.include_router(api_router)
 app.include_router(images_router)
 app.include_router(tracks_router)

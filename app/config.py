@@ -3,6 +3,7 @@
 import logging
 import math
 from functools import lru_cache
+from pathlib import Path
 from typing import Optional, TypeVar
 
 from dotenv import load_dotenv
@@ -47,6 +48,14 @@ LANGUAGE_CODES: tuple[str, ...] = (
 # Defined as module-level constant for easy import across the application
 VALID_LANGUAGES: frozenset[str] = frozenset(LANGUAGE_CODES)
 
+# Display palettes in render order; app.services.renderers maps each one to its renderer.
+DISPLAY_CODES: tuple[str, ...] = ("1bit", "bwr", "bwry", "spectra6")
+
+# Optional weather variants the scheduler can pregenerate next to the always-generated "off"
+# calendars (canonical query names; "race" is accepted as an alias of "race_day").
+PREGENERATE_WEATHER_CODES: tuple[str, ...] = ("current", "race_day")
+_WEATHER_ALIASES = {"race": "race_day"}
+
 
 T = TypeVar("T")
 
@@ -61,6 +70,43 @@ def _warn_invalid(field_name: str, raw_value: object, default: T, reason: str) -
         default,
     )
     return default
+
+
+def _parse_profile_list(
+    field_name: str, value: object, allowed: tuple[str, ...], aliases: dict[str, str]
+) -> str:
+    """Normalize a comma-separated subset of ``allowed``; empty means every value.
+
+    Unknown entries are logged and ignored like other invalid settings. When nothing valid
+    remains, the safe default (everything, as before the setting existed) is used.
+    """
+    if value is None:
+        return ""
+    raw = str(value).strip()
+    if not raw:
+        return ""
+    by_lower = {code.lower(): code for code in allowed}
+    by_lower.update({alias.lower(): code for alias, code in aliases.items()})
+    selected: set[str] = set()
+    unknown: list[str] = []
+    for token in (part.strip() for part in raw.split(",")):
+        if not token:
+            continue
+        code = by_lower.get(token.lower())
+        if code is None:
+            unknown.append(token)
+        else:
+            selected.add(code)
+    if unknown:
+        logger.warning(
+            "Ignoring unsupported %s entries %s; supported values: %s",
+            field_name,
+            unknown,
+            ", ".join(allowed),
+        )
+    if not selected:
+        return _warn_invalid(field_name, value, "", "no supported value left (empty = all)")
+    return ",".join(code for code in allowed if code in selected)
 
 
 class Config(BaseSettings):
@@ -278,6 +324,24 @@ class Config(BaseSettings):
         gt=0,
         description="Maximum wall-clock runtime for one historical refresh",
     )
+    PREGENERATE_LANGUAGES: str = Field(
+        "",
+        description=(
+            "Comma-separated languages the hourly job pregenerates (empty = all). Others are "
+            "still rendered on demand and cached in memory"
+        ),
+    )
+    PREGENERATE_DISPLAYS: str = Field(
+        "",
+        description="Comma-separated palettes the hourly job pregenerates (empty = all)",
+    )
+    PREGENERATE_WEATHER_TYPES: str = Field(
+        "",
+        description=(
+            "Comma-separated weather variants (current, race_day) pregenerated next to the "
+            "always-generated weather=off calendars (empty = both, off = none)"
+        ),
+    )
     WEATHER_ENRICHMENT_TIMEOUT_SECONDS: int = Field(15, gt=0)
     TEAMS_ENRICHMENT_TIMEOUT_SECONDS: int = Field(30, gt=0)
     STATS_RETENTION_DAYS: int = Field(
@@ -293,6 +357,13 @@ class Config(BaseSettings):
     WEATHER_ENABLED: bool = Field(True, description="Toggle weather forecast display")
     WEATHER_CACHE_MINUTES: int = Field(
         60, gt=0, description="Weather data cache duration in minutes"
+    )
+    WEATHER_PREFETCH_ALL_CIRCUITS: bool = Field(
+        True,
+        description=(
+            "Refresh current weather for every circuit of the season each hour; false keeps "
+            "only the next race (other circuits are fetched on demand)"
+        ),
     )
     OPEN_METEO_URL: str = Field(
         "https://api.open-meteo.com/v1/forecast",
@@ -310,6 +381,20 @@ class Config(BaseSettings):
         30, gt=0, description="Days to retain backups; must be positive"
     )
 
+    BACKUP_INCLUDE_DATA_FILES: bool = Field(
+        True,
+        description=(
+            "Store circuits_jolpica.json (mutable circuit history) inside each database backup"
+        ),
+    )
+    BACKUP_LOCAL_DIR: str = Field(
+        "",
+        description=(
+            "Directory for local backups and pre-restore safety snapshots (empty = a "
+            "'backups' directory next to the database)"
+        ),
+    )
+
     # S3 settings (for backup)
     S3_ENDPOINT_URL: Optional[str] = Field(default=None, description="S3-compatible endpoint URL")
     S3_ACCESS_KEY_ID: Optional[SecretStr] = Field(default=None, description="S3 access key ID")
@@ -318,6 +403,54 @@ class Config(BaseSettings):
     )
     S3_BUCKET_NAME: Optional[str] = Field(default=None, description="S3 bucket name for backups")
     S3_REGION: str = Field("auto", description="S3 region (use 'auto' for Cloudflare R2)")
+
+    @field_validator("PREGENERATE_LANGUAGES", mode="before")
+    @classmethod
+    def validate_pregenerate_languages(cls, value: object) -> str:
+        """Keep only supported language codes; empty means every language."""
+        return _parse_profile_list("PREGENERATE_LANGUAGES", value, LANGUAGE_CODES, {})
+
+    @field_validator("PREGENERATE_DISPLAYS", mode="before")
+    @classmethod
+    def validate_pregenerate_displays(cls, value: object) -> str:
+        """Keep only supported palettes; empty means every palette."""
+        return _parse_profile_list("PREGENERATE_DISPLAYS", value, DISPLAY_CODES, {})
+
+    @field_validator("PREGENERATE_WEATHER_TYPES", mode="before")
+    @classmethod
+    def validate_pregenerate_weather_types(cls, value: object) -> str:
+        """Keep only supported weather variants; ``off`` alone disables the optional ones."""
+        return _parse_profile_list(
+            "PREGENERATE_WEATHER_TYPES",
+            value,
+            ("off", *PREGENERATE_WEATHER_CODES),
+            _WEATHER_ALIASES,
+        )
+
+    @property
+    def pregenerate_languages(self) -> tuple[str, ...]:
+        """Languages the scheduler pregenerates, in the canonical order."""
+        selected = set(self.PREGENERATE_LANGUAGES.split(",")) - {""}
+        return tuple(code for code in LANGUAGE_CODES if not selected or code in selected)
+
+    @property
+    def pregenerate_displays(self) -> tuple[str, ...]:
+        """Palettes the scheduler pregenerates, in the canonical order."""
+        selected = set(self.PREGENERATE_DISPLAYS.split(",")) - {""}
+        return tuple(code for code in DISPLAY_CODES if not selected or code in selected)
+
+    @property
+    def pregenerate_weather_types(self) -> tuple[str, ...]:
+        """Optional weather variants pregenerated next to the ``off`` calendars."""
+        selected = set(self.PREGENERATE_WEATHER_TYPES.split(",")) - {""}
+        return tuple(code for code in PREGENERATE_WEATHER_CODES if not selected or code in selected)
+
+    @property
+    def backup_local_dir(self) -> Path:
+        """Directory for local backups and pre-restore safety snapshots."""
+        if self.BACKUP_LOCAL_DIR.strip():
+            return Path(self.BACKUP_LOCAL_DIR.strip()).expanduser()
+        return Path(self.DATABASE_PATH).expanduser().parent / "backups"
 
     @field_validator("APP_PORT", mode="before")
     @classmethod

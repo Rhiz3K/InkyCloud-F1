@@ -70,7 +70,9 @@ Credits indicate whether integrations are configured.
 Application/library logs and access logs are disabled; the supplied Compose setup
 discards stdout/stderr. Rate limiting uses shared 60-second counters without IP keys,
 so one busy client can affect other clients in the same process. S3 backups require
-explicit enablement, credentials and retention configuration.
+explicit enablement, credentials and retention configuration. Operator diagnostics
+(`ops status`, `GET /api/ops/status` behind `ADMIN_API_TOKEN`) contain only counts, timestamps
+and reason codes, no visitor data.
 
 Provider/proxy logs, old backups and snapshots are outside the application's
 control. Serving HTTP still involves receiving network addresses and headers.

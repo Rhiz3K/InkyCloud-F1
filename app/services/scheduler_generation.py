@@ -21,10 +21,13 @@ from app.services.artifact_metadata import (
 from app.services.database import Database, get_database
 from app.services.f1_service import F1Service
 from app.services.generation_freshness import (
+    GENERATION_REASONS_META_KEY,
     GENERATION_STATUS_DEGRADED,
     GENERATION_STATUS_META_KEY,
     GENERATION_STATUS_READY,
     GENERATION_SUCCESS_META_KEY,
+    DegradedReason,
+    encode_reasons,
 )
 from app.services.i18n import get_translator
 from app.services.image_keys import (
@@ -49,6 +52,28 @@ logger = logging.getLogger(__name__)
 SUPPORTED_LANGUAGES = list(LANGUAGE_CODES)
 _generation_locks: LoopLockRegistry = weakref.WeakKeyDictionary()
 _T = TypeVar("_T")
+
+
+def _profile_languages() -> list[str]:
+    """Languages pregenerated hourly: PREGENERATE_LANGUAGES applied to the supported set."""
+    selected = set(config.pregenerate_languages)
+    return [lang for lang in SUPPORTED_LANGUAGES if lang in selected]
+
+
+def _profile_displays() -> list[str]:
+    """Palettes pregenerated hourly: PREGENERATE_DISPLAYS applied to every display type."""
+    selected = set(config.pregenerate_displays)
+    return [display for display in DISPLAY_TYPES if display in selected]
+
+
+def _profile_weather_types(weather_by_type: dict[str, WeatherData | None]) -> list[str]:
+    """Weather variants to pregenerate: ``off`` always, others per PREGENERATE_WEATHER_TYPES."""
+    # Generation keys race-day weather as "race" (its filename token) rather than "race_day".
+    allowed = {
+        "off",
+        *("race" if kind == "race_day" else kind for kind in config.pregenerate_weather_types),
+    }
+    return [kind for kind in weather_by_type if kind in allowed]
 
 
 async def _bounded_gather(jobs: Sequence[Callable[[], Awaitable[_T]]]) -> list[_T]:
@@ -182,9 +207,9 @@ async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> No
     """
     images_dir = Path(config.IMAGES_PATH)
     images_dir.mkdir(parents=True, exist_ok=True)
-    display_types = DISPLAY_TYPES
+    display_types = _profile_displays()
 
-    for lang in SUPPORTED_LANGUAGES:
+    for lang in _profile_languages():
         calendar_written = 0
         for display_name in display_types:
             for weather_type in weather_types:
@@ -436,7 +461,7 @@ async def _generate_base_variants(
             display,
             weather_type,
         )
-        for lang in SUPPORTED_LANGUAGES
+        for lang in _profile_languages()
         for display in display_types
         for weather_type, weather_data in weather_by_type.items()
     ]
@@ -471,8 +496,8 @@ async def _generate_popular_tz_variants(
     for variant in popular_variants:
         lang = variant["lang"]
         tz = variant["tz"]
-        if lang not in SUPPORTED_LANGUAGES:
-            logger.debug("Skipping unsupported language: %s", lang)
+        if lang not in _profile_languages():
+            logger.debug("Skipping language outside the pregeneration profile: %s", lang)
             continue
 
         try:
@@ -545,12 +570,15 @@ async def _generate_teams_bmp_variants(
     *,
     images_dir: Path,
     db: Database,
+    reasons: set[DegradedReason] | None = None,
 ) -> tuple[set[Path], int]:
-    """Generate pregenerated teams BMPs for all languages and display modes.
+    """Generate pregenerated teams BMPs for the profile's languages and display modes.
 
     Returns (written paths, failure count). A failed/empty upstream fetch counts as a failure
-    so the caller skips stale pruning and keeps the previous teams BMPs in place.
+    so the caller skips stale pruning and keeps the previous teams BMPs in place; it is also
+    recorded in ``reasons`` as TEAMS_DATA_UNAVAILABLE.
     """
+    data_reasons = reasons if reasons is not None else set()
     from app.services.teams_service import (
         TeamsService,
         get_default_teams_year,
@@ -564,14 +592,20 @@ async def _generate_teams_bmp_variants(
             teams_data = await teams_service.get_teams_and_drivers(teams_year)
     except Exception as exc:
         logger.error("Error fetching teams BMP data for %d: %s", teams_year, exc, exc_info=True)
+        data_reasons.add(DegradedReason.TEAMS_DATA_UNAVAILABLE)
         return set(), 1
 
     if not teams_data.teams:
         logger.warning("Skipping teams BMP generation: no teams data for %d", teams_year)
+        data_reasons.add(DegradedReason.TEAMS_DATA_UNAVAILABLE)
         return set(), 1
     if not is_teams_data_cacheable(teams_data):
         logger.warning("Skipping teams BMP generation: standings incomplete for %d", teams_year)
+        data_reasons.add(DegradedReason.TEAMS_DATA_UNAVAILABLE)
         return set(), 1
+
+    languages = _profile_languages()
+    displays = _profile_displays()
 
     jobs = [
         functools.partial(
@@ -583,8 +617,8 @@ async def _generate_teams_bmp_variants(
             lang=lang,
             display=display,
         )
-        for lang in SUPPORTED_LANGUAGES
-        for display in DISPLAY_TYPES
+        for lang in languages
+        for display in displays
     ]
     results = await _bounded_gather(jobs)
     generated = {path for path in results if path is not None}
@@ -592,8 +626,8 @@ async def _generate_teams_bmp_variants(
 
     logger.info(
         "Generated teams BMP variants for %d languages x %d displays (%d total, %d failed)",
-        len(SUPPORTED_LANGUAGES),
-        len(DISPLAY_TYPES),
+        len(languages),
+        len(displays),
         len(generated),
         failures,
     )
@@ -632,7 +666,7 @@ async def _collect_and_generate_unlocked() -> None:
 
         # Core calendars must be ready before any optional upstream dependency is awaited.
         weather_by_type: dict[str, WeatherData | None] = {"off": None}
-        display_types = DISPLAY_TYPES
+        display_types = _profile_displays()
         logger.info(
             "Generating variants: displays=%s, weather=%s",
             display_types,
@@ -644,6 +678,7 @@ async def _collect_and_generate_unlocked() -> None:
         # pregenerated images for an hour.
         generated_paths: set[Path] = set()
         total_failures = 0
+        reasons: set[DegradedReason] = set()
 
         base_paths, base_failures = await _generate_base_variants(
             images_dir=images_dir,
@@ -655,6 +690,8 @@ async def _collect_and_generate_unlocked() -> None:
         )
         generated_paths |= base_paths
         total_failures += base_failures
+        if base_failures:
+            reasons.add(DegradedReason.CALENDAR_VARIANT_FAILED)
 
         from app.services.teams_service import get_default_teams_year
 
@@ -668,6 +705,10 @@ async def _collect_and_generate_unlocked() -> None:
 
         _, _, weather_by_type = await _load_weather_context(race_data)
         weather_degraded = _weather_context_degraded(race_data, weather_by_type)
+        if weather_degraded:
+            reasons.add(DegradedReason.WEATHER_UNAVAILABLE)
+        profile_weather = _profile_weather_types(weather_by_type)
+        weather_by_type = {key: weather_by_type[key] for key in profile_weather}
         weather_variants = {key: value for key, value in weather_by_type.items() if key != "off"}
         if weather_variants:
             weather_paths, weather_failures = await _generate_base_variants(
@@ -680,6 +721,8 @@ async def _collect_and_generate_unlocked() -> None:
             )
             generated_paths |= weather_paths
             total_failures += weather_failures
+            if weather_failures:
+                reasons.add(DegradedReason.WEATHER_VARIANT_FAILED)
 
         tz_paths, tz_failures = await _generate_popular_tz_variants(
             images_dir=images_dir,
@@ -691,12 +734,16 @@ async def _collect_and_generate_unlocked() -> None:
         )
         generated_paths |= tz_paths
         total_failures += tz_failures
+        if tz_failures:
+            reasons.add(DegradedReason.TIMEZONE_VARIANT_FAILED)
 
         teams_paths, teams_failures = await _generate_teams_bmp_variants(
-            images_dir=images_dir, db=db
+            images_dir=images_dir, db=db, reasons=reasons
         )
         generated_paths |= teams_paths
         total_failures += teams_failures
+        if teams_failures and DegradedReason.TEAMS_DATA_UNAVAILABLE not in reasons:
+            reasons.add(DegradedReason.TEAMS_VARIANT_FAILED)
 
         await generate_preview_pngs(list(weather_by_type), get_default_teams_year())
 
@@ -723,6 +770,7 @@ async def _collect_and_generate_unlocked() -> None:
                 else GENERATION_STATUS_READY
             )
             await db.set_cache_meta(GENERATION_STATUS_META_KEY, generation_status)
+            await db.set_cache_meta(GENERATION_REASONS_META_KEY, encode_reasons(reasons))
             await db.set_cache_meta(
                 GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat()
             )

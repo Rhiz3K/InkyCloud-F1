@@ -19,10 +19,80 @@ from app.services.weather_service import (
     set_cached_circuit_weather,
 )
 from app.utils.async_locks import LoopLockRegistry, get_loop_lock
+from app.utils.race_times import race_session_start
 
 logger = logging.getLogger(__name__)
 
 _weather_fetch_locks: LoopLockRegistry = weakref.WeakKeyDictionary()
+
+
+def _season_races(f1_service: F1Service) -> list[dict]:
+    """Return this season's races, or next season's late in the year when this one is empty."""
+    current_year = datetime.now(timezone.utc).year
+    return f1_service.get_all_races_from_static(
+        current_year
+    ) or f1_service.get_all_races_from_static(current_year + 1)
+
+
+def _upcoming_races(f1_service: F1Service) -> list[dict]:
+    """Return the races whose weather the small-instance profile keeps warm.
+
+    That is the selected next race (kept for a few hours after lights-out) plus the first race
+    that has not started yet, which teams weather panels show once the race has begun.
+    """
+    races: list[dict] = []
+    next_race = f1_service.get_next_race_from_static()
+    if next_race:
+        races.append(next_race)
+    now = datetime.now(timezone.utc)
+    current_year = now.year
+    upcoming = [
+        (start, race)
+        for year in (current_year, current_year + 1)
+        for race in f1_service.get_all_races_from_static(year)
+        if (start := race_session_start(race)) is not None and start > now
+    ]
+    if upcoming:
+        races.append(min(upcoming, key=lambda item: item[0])[1])
+    return races
+
+
+def _circuits_with_coordinates(races: list[dict]) -> list[dict]:
+    """Return each distinct circuit of ``races`` that has valid coordinates."""
+    seen_circuits: set[str] = set()
+    circuits_to_fetch: list[dict] = []
+
+    for race in races:
+        circuit = race.get("circuit", {})
+        circuit_id = circuit.get("circuitId")
+
+        if not circuit_id or circuit_id in seen_circuits:
+            continue
+
+        lat_str = circuit.get("lat")
+        lon_str = circuit.get("long")
+
+        if not lat_str or not lon_str:
+            logger.debug("Circuit %s missing coordinates, skipping", circuit_id)
+            continue
+
+        try:
+            latitude = float(lat_str)
+            longitude = float(lon_str)
+        except TypeError, ValueError:
+            logger.debug("Circuit %s has invalid coordinates, skipping", circuit_id)
+            continue
+
+        seen_circuits.add(circuit_id)
+        circuits_to_fetch.append(
+            {
+                "id": circuit_id,
+                "name": circuit.get("name", circuit_id),
+                "lat": latitude,
+                "lon": longitude,
+            }
+        )
+    return circuits_to_fetch
 
 
 async def _fetch_all_circuits_weather_unlocked() -> None:
@@ -31,7 +101,8 @@ async def _fetch_all_circuits_weather_unlocked() -> None:
 
     Iterates circuits from current season, fetches weather sequentially with
     1s pause, stores in cache and SQLite. Retries failed circuits up to 3x.
-    Returns immediately if weather is disabled.
+    With WEATHER_PREFETCH_ALL_CIRCUITS=false only the upcoming race circuits are refreshed;
+    other circuits are fetched on demand. Returns immediately if weather is disabled.
     """
     if not config.WEATHER_ENABLED:
         logger.debug("Weather is disabled, skipping fetch")
@@ -47,54 +118,18 @@ async def _fetch_all_circuits_weather_unlocked() -> None:
             cache_minutes=config.WEATHER_CACHE_MINUTES,
         )
 
-        # Get current F1 season
-        current_year = datetime.now(timezone.utc).year
+        if config.WEATHER_PREFETCH_ALL_CIRCUITS:
+            all_races = _season_races(f1_service)
+            if not all_races:
+                logger.warning("No races found in static data for weather fetch")
+                return
+        else:
+            all_races = _upcoming_races(f1_service)
+            if not all_races:
+                logger.warning("No upcoming race found in static data for weather fetch")
+                return
 
-        # Get all races from static data
-        all_races = f1_service.get_all_races_from_static(current_year)
-
-        if not all_races:
-            # Try next year (late in season, next year data might be available)
-            all_races = f1_service.get_all_races_from_static(current_year + 1)
-
-        if not all_races:
-            logger.warning("No races found in static data for weather fetch")
-            return
-
-        # Extract unique circuits with coordinates
-        seen_circuits: set[str] = set()
-        circuits_to_fetch: list[dict] = []
-
-        for race in all_races:
-            circuit = race.get("circuit", {})
-            circuit_id = circuit.get("circuitId")
-
-            if not circuit_id or circuit_id in seen_circuits:
-                continue
-
-            lat_str = circuit.get("lat")
-            lon_str = circuit.get("long")
-
-            if not lat_str or not lon_str:
-                logger.debug("Circuit %s missing coordinates, skipping", circuit_id)
-                continue
-
-            try:
-                latitude = float(lat_str)
-                longitude = float(lon_str)
-            except TypeError, ValueError:
-                logger.debug("Circuit %s has invalid coordinates, skipping", circuit_id)
-                continue
-
-            seen_circuits.add(circuit_id)
-            circuits_to_fetch.append(
-                {
-                    "id": circuit_id,
-                    "name": circuit.get("name", circuit_id),
-                    "lat": latitude,
-                    "lon": longitude,
-                }
-            )
+        circuits_to_fetch = _circuits_with_coordinates(all_races)
 
         logger.info("Fetching weather for %d circuits", len(circuits_to_fetch))
 

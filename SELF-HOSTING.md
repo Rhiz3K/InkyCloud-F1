@@ -110,6 +110,37 @@ write probe without blocking the event loop.
 Keep the replica count at one. Multiple replicas would run independent schedulers and caches
 against the same SQLite database.
 
+## Small instance profile
+
+By default the hourly job pregenerates every language, palette and weather variant (13 × 4 × 3
+calendars, 52 teams images and their PNG previews) and refreshes current weather for every
+circuit of the season. A Raspberry Pi or a 1-vCPU VPS that feeds one or two displays at home
+only needs a fraction of that. Limit it in `.env`:
+
+```bash
+# One Czech BWRY display: 3 calendars, 1 teams image and 4 previews per hour
+PREGENERATE_LANGUAGES=cs
+PREGENERATE_DISPLAYS=bwry
+# Optional: only the weather=off calendar (off = no current/race_day variants)
+PREGENERATE_WEATHER_TYPES=off
+# Refresh current weather only for the next race (about 1 instead of ~25 requests per hour)
+WEATHER_PREFETCH_ALL_CIRCUITS=false
+```
+
+- Values are comma-separated and case-insensitive; empty means all. Unknown entries are ignored
+  with a warning, and a list without any supported entry falls back to all.
+- `weather=off` calendars are always pregenerated because readiness depends on them.
+- Everything outside the profile keeps working: a request for another language, palette or
+  weather type is rendered on demand and cached in memory, exactly like a timezone variant.
+  The first such request costs one render.
+- With `WEATHER_PREFETCH_ALL_CIRCUITS=false`, the next race (and, during the hours after its
+  start, the following one) stays warm. A calendar for another circuit fetches its weather when
+  it is requested, within the same Open-Meteo quota.
+- Pregenerated files that fall outside a new profile are deleted after the next fully
+  successful hourly run.
+
+`ops status` (below) prints the active profile and how many files one run writes.
+
 ## Health and monitoring
 
 - `GET /health` reports process liveness and has no dependency checks.
@@ -117,12 +148,58 @@ against the same SQLite database.
   at least one core calendar BMP was generated within the last six hours. Its top-level status is
   `ready` after a complete run or `degraded` when optional weather or secondary variants failed.
 - `/api/stats` reports request totals including separate 200 and 304 status counts.
+- `ops status` inside the container explains a `degraded` or unready state with stable reason
+  codes (see [Diagnostics](#diagnostics)).
 
 The Dockerfile and Compose health checks use `/health/ready`. Initial startup remains unready
 until the first core calendar artifact is published. A partial run refreshes the marker and reports
 `degraded` when the service can still serve calendars; a run with no core output leaves the marker
 unchanged. The built-in five-minute start period accommodates the first upstream refresh and
 localized render cycle without marking a healthy cold deployment as failed.
+
+## Diagnostics
+
+The Compose file stores no logs, so a `degraded` readiness does not say why. Ask the container:
+
+```bash
+docker compose exec f1-eink-cal ops status
+docker compose exec f1-eink-cal ops status --json
+```
+
+The report reads the database read-only (it also works while the service is stopped) and
+contains no visitor statistics, file paths, hostnames, bucket names or secrets. It shows the
+overall `status` (`ready`, `degraded`, `not_ready`; exit code 0, 1, 2), the `reasons`, the last
+generation, Open-Meteo quota usage per window, the daily historical refresh (last success and
+incomplete streak), stored weekend podiums, pregenerated files on disk, the last external and
+local backup and the active pregeneration profile.
+
+Reason codes are stable and only ever added:
+
+| Code | Meaning |
+| --- | --- |
+| `database_unavailable`, `storage_unavailable` | SQLite cannot be read, or `/app/data` is not mounted or not writable |
+| `generation_starting`, `generation_invalid`, `generation_stale` | no calendar generated yet, an unreadable marker, or none within six hours (`/health/ready` reports the same states as `checks.generation.status`) |
+| `calendar_variant_failed`, `weather_variant_failed`, `timezone_variant_failed`, `teams_variant_failed` | some pregenerated images of the last run failed to render |
+| `weather_unavailable` | weather expected for the next race could not be loaded in the last run |
+| `teams_data_unavailable` | teams or standings data could not be fetched or was incomplete |
+| `generation_degraded` | a degraded run recorded by an older version, without details |
+| `weather_quota_exhausted` | an Open-Meteo window (minute, hour, day, 31 days) is used up |
+| `historical_refresh_incomplete`, `historical_refresh_overdue` | three or more incomplete daily refreshes in a row, or no successful one for two days |
+| `backup_failed` | the latest external backup failed after the last successful one |
+
+Quota, historical refresh and backup reasons appear only here; `/health/ready` stays as
+minimal as before and reports `degraded` only for generation problems.
+
+For remote monitoring, set `ADMIN_API_TOKEN` and request the same JSON (plus in-memory cache
+occupancy) over HTTP:
+
+```bash
+curl -H "Authorization: Bearer $ADMIN_API_TOKEN" https://f1.example.com/api/ops/status
+```
+
+Without `ADMIN_API_TOKEN` the endpoint answers 404; a missing or wrong token answers 401. The
+token is compared in constant time, attempts share the statistics rate limit, and responses are
+sent with `Cache-Control: no-store`. The endpoint also works with `MINIMAL_DATA_MODE=true`.
 
 ## Reverse proxy
 
@@ -171,9 +248,53 @@ docker compose exec f1-eink-cal backup now
 and steps are normalized for APScheduler. An invalid enabled backup schedule fails startup rather
 than silently disabling backups.
 
-To restore, stop the service, preserve the current `/app/data` directory, restore the selected
-SQLite backup as `/app/data/f1.db`, ensure ownership matches container UID 1000, and start the
-service. Keep the old data copy until readiness and expected statistics are verified.
+Each backup is a consistent SQLite snapshot. With `BACKUP_INCLUDE_DATA_FILES=true` (default)
+the mutable circuit history `circuits_jolpica.json` travels inside the same file (in a
+`inkycloud_backup_files` table that a restore removes again), so a restore brings back both.
+
+External backups stay off with `MINIMAL_DATA_MODE=true`. Local backups never leave the machine
+and work in every profile; they are written to `BACKUP_LOCAL_DIR` (default
+`/app/data/backups`, on the same volume, so also copy them elsewhere):
+
+```bash
+docker compose exec f1-eink-cal backup now --local
+```
+
+Local backups older than `BACKUP_RETENTION_DAYS` are removed when a new one is written.
+
+List what can be restored. `--verify` runs `PRAGMA integrity_check` on every backup (downloading
+the S3 ones to a temporary file); without it integrity shows as `unknown`:
+
+```bash
+docker compose exec f1-eink-cal backup list
+docker compose exec f1-eink-cal backup list --verify --json
+```
+
+Restore with the service stopped, in a one-off container:
+
+```bash
+docker compose stop f1-eink-cal
+docker compose run --rm --no-deps f1-eink-cal backup restore latest
+docker compose start f1-eink-cal
+```
+
+`latest` is the newest S3 backup when S3 is configured, otherwise the newest local backup; pass
+a name from `backup list` or `--source local|s3` to choose. The restore:
+
+1. copies the backup to a working file and refuses to continue unless `PRAGMA integrity_check`
+   reports `ok`;
+2. refuses a backup written by a newer schema version than the running image (`--force`
+   overrides this);
+3. refuses while the database is in use (`-wal`/`-shm` files present or the database locked);
+   `--force` is only for stale files left behind by a crash;
+4. saves the current database and circuit history as `f1_pre_restore_<timestamp>.db` in
+   `BACKUP_LOCAL_DIR`; restore that name to undo;
+5. writes the backup through SQLite's backup API, restores `circuits_jolpica.json` when the
+   backup contains it (older backups do not; the current file is kept), and runs the normal
+   schema migrations, so backups from older versions are upgraded.
+
+Add `--yes` to skip the confirmation prompt. Pregenerated images are rebuilt by the next hourly
+run. Keep the safety snapshot until readiness and expected statistics are verified.
 
 ## Database maintenance
 
@@ -246,7 +367,8 @@ scikit-learn. See [`scripts/README.md`](./scripts/README.md) for the unified CLI
 
 ### Readiness is 503
 
-Inspect the JSON body of `/health/ready` and the container logs (see
+Run `ops status` (see [Diagnostics](#diagnostics)) for reason codes, then inspect the JSON body
+of `/health/ready` and the container logs (see
 [Run the released image](#run-the-released-image) for enabling them). The response identifies database,
 storage, and generation checks separately. Generation status distinguishes `starting`, `stale`,
 and a still-servable `degraded` state. Common 503 causes are a missing `/app/data` mount,

@@ -289,6 +289,7 @@ Your deployed instance provides these endpoints:
 | `GET /sw.js`                             | Service worker script                                   |
 | `GET /health`                            | Process liveness                                        |
 | `GET /health/ready`                      | SQLite, storage, and core-generation readiness/degradation |
+| `GET /api/ops/status`                    | Operator diagnostics with reason codes; only with `ADMIN_API_TOKEN` (bearer), otherwise 404 |
 
 Statistics and their read APIs are available by default with `MINIMAL_DATA_MODE=false`
 and `AGGREGATE_STATS_ONLY=true`. They store hourly usage totals and coarse performance
