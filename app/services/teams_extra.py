@@ -102,6 +102,26 @@ def _race_over(race: Race, zone: ZoneInfo, now: datetime) -> bool:
     return session_over(race.date, race.time, zone, now)
 
 
+def points_session_starts(season: int) -> list[datetime]:
+    """Return the UTC starts of a season's points sessions (sprints and races).
+
+    A session without a published time counts from UTC midnight of its date.
+    """
+    starts = []
+    for race in F1Service.get_season_from_static(season):
+        for session in (race, race.Sprint):
+            if session is None:
+                continue
+            try:
+                starts.append(
+                    parse_session_start(session.date, session.time)
+                    or datetime.combine(date.fromisoformat(session.date), datetime.min.time(), UTC)
+                )
+            except ValueError:
+                continue
+    return sorted(starts)
+
+
 def build_teams_extra_context(
     extra: TeamsExtra,
     season: int,

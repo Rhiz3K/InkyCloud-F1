@@ -12,6 +12,7 @@
   "countdown_hours_one": "saat",
   "countdown_hours_few": "saat",
   "countdown_hours_many": "saat",
+  "countdown_today": "Bugün",
   "cancelled": "İPTAL EDİLDİ",
   "race_ongoing": "DEVAM EDİYOR",
   "race_completed": "TAMAMLANDI",
@@ -48,6 +49,7 @@
   "api_docs_race_key_desc": "/api/races/{year} kaynağından yarış tanımlayıcısı; year gerektirir",
   "api_docs_selection_note": "year ile round veya race_key birlikte belirtilmezse sıradaki yarış seçilir. round veya race_key değerini /api/races/{year} kaynağından kopyalayın. İstisna: year olmadan race_key HTTP 400 döndürür.",
   "api_docs_etag_note": "BMP yanıtları ETag içerir. Görsel değişmediyse 304 almak için If-None-Match gönderin.",
+  "api_docs_refresh_hint_note": "Takvim ve takım yanıtları (200 ve 304) X-Next-Refresh-Seconds içerir: görselin bir sonraki beklenen değişikliğine kaç saniye kaldığına dair bir ipucu (60 ile 86400 arası; saatlik yenilenen hava durumu gösterilirken en fazla 3600). Pille çalışan ekranlar bunu derin uyku süresi olarak kullanabilir; bu yalnızca bir ipucudur, bu nedenle istek yine de 304 döndürebilir.",
   "api_docs_operational_auth": "ADMIN_API_TOKEN yapılandırıldığında istatistik okuma API’leri X-Admin-Token veya Authorization: Bearer <token> gerektirir. MINIMAL_DATA_MODE=true olduğunda tüm istatistik API’leri 410 döndürür.",
   "api_docs_history_desc": "Saatlik istek geçmişi; limit: 1–720 (varsayılan 168).",
   "api_docs_perf_desc": "GET: performans özetleri; hours: 1–720 (varsayılan 24). POST: sayısal Web Vitals değerleri; ziyaretçi ve cihaz meta verileri yok sayılır.",
@@ -191,6 +193,22 @@
     "weatherCurrentLabel": "Güncel",
     "weatherRaceDayLabel": "Yarış günü",
     "weatherTooltipText": "Yarıştan 14 gün önce etkinleşir",
+    "countdown": {
+      "label": "Geri sayım",
+      "options": {
+        "hours": "Gün + saat",
+        "days": "Yalnızca gün",
+        "auto": "Otomatik (pil dostu)",
+        "off": "Kapalı (yarış tarihi)"
+      },
+      "hints": {
+        "hours": "Gün ve saat; görsel her saat değişir.",
+        "days": "Tam gün; görsel günde bir kez yerel gece yarısı değişir.",
+        "auto": "Başlangıçtan 48 saat öncesine kadar tam gün, sonra gün ve saat.",
+        "off": "Geri sayım yerine yarış tarihi; yalnızca yarış durumuyla değişir."
+      },
+      "batteryNote": "Hava durumu her saat yenilenir. En uzun pil ömrü için hava durumunu kapatın. Ekranın ne kadar uyuyacağını X-Next-Refresh-Seconds başlığı belirler."
+    },
     "displayLabel": "Ekran",
     "imageCreditsNote": "Görsel atıfları ve lisansları:",
     "teamsExtra": {
@@ -391,6 +409,7 @@
   "api_docs_calendar_display_desc": "1bit, B/W/R, B/W/R/Y veya Spectra 6 ekranlar için çıktı modu",
   "api_docs_weather_desc": "Hava durumu katmanını aç veya kapat",
   "api_docs_weather_type_desc": "Hangi hava durumu verisi varyantının çizileceği",
+  "api_docs_countdown_desc": "Durum kutusundaki geri sayım: hours (gün ve saat, varsayılan), days (tz içinde tam gün, yerel gece yarısı değişir), auto (başlangıçtan 48 saat öncesine kadar tam gün, sonra gün ve saat) veya off (geri sayım yerine yarış tarihi). Geçersiz değerler HTTP 422 döndürür.",
   "api_docs_calendar_desc": "F1 takvimini BMP görseli (800×480) olarak üretir ve 1bit, 4-bit B/W/R, 4-bit B/W/R/Y ve Spectra 6 E-Ink ekranları destekler.",
   "api_docs_eg": "örn.",
   "api_docs_dimensions_label": "Boyutlar",

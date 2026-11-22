@@ -25,6 +25,14 @@ from app.utils.f1_season import (
     race_selection_error,
 )
 from app.utils.rate_limit import enforce_rate_limit
+from app.utils.refresh_hint import (
+    ERROR_REFRESH_SECONDS,
+    HOURLY_REFRESH_SECONDS,
+    MAX_REFRESH_SECONDS,
+    MIN_REFRESH_SECONDS,
+    REFRESH_HINT_HEADER,
+    CountdownMode,
+)
 from app.utils.standings_metadata import get_driver_number
 from app.version import APP_VERSION
 
@@ -156,6 +164,23 @@ async def api_info() -> dict:
             "values": [accent.value for accent in TrackAccent],
         },
     }
+    countdown_parameter = {
+        "type": "string",
+        "description": "Countdown in the status box: hours (days and hours), days (whole days "
+        "in tz, changes at local midnight), auto (whole days until 48 h before the start, then "
+        "days and hours) or off (race date). Invalid values return 422.",
+        "values": [mode.value for mode in CountdownMode],
+        "default": CountdownMode.HOURS.value,
+        "example": "?countdown=auto",
+        "optional": True,
+    }
+    refresh_hint = (
+        f"{REFRESH_HINT_HEADER} on 200 and 304: seconds until the image is next expected to "
+        f"change ({MIN_REFRESH_SECONDS}-{MAX_REFRESH_SECONDS}, at most "
+        f"{HOURLY_REFRESH_SECONDS} while hourly refreshed weather is shown; "
+        f"{ERROR_REFRESH_SECONDS} for an error image). A hint for the client's sleep length, "
+        "not a promise that the ETag stays unchanged."
+    )
     operational_auth = {
         "required": config.ADMIN_API_TOKEN is not None,
         "description": "Public unless ADMIN_API_TOKEN is configured. Applies to GET only.",
@@ -269,6 +294,7 @@ async def api_info() -> dict:
                         "example": "?weather_type=current",
                         "optional": True,
                     },
+                    "countdown": countdown_parameter,
                 },
                 "response": {
                     "content_type": "image/bmp",
@@ -280,6 +306,7 @@ async def api_info() -> dict:
                     "cache_control": "public, max-age=3600; no-store for rendering errors",
                     "conditional_requests": "Send If-None-Match with the previous ETag for a "
                     "body-free 304 response when unchanged",
+                    "refresh_hint": refresh_hint,
                 },
                 "examples": [
                     "/calendar.bmp",
@@ -289,6 +316,7 @@ async def api_info() -> dict:
                     "/calendar.bmp?display=bwr",
                     "/calendar.bmp?display=bwry",
                     "/calendar.bmp?display=spectra6&weather_type=current",
+                    "/calendar.bmp?countdown=auto&weather=false",
                 ],
             },
             "/teams.bmp": {
@@ -342,6 +370,7 @@ async def api_info() -> dict:
                     "cache_control": "no-cache; no-store for rendering errors",
                     "conditional_requests": "Send If-None-Match with the previous ETag for a "
                     "body-free 304 response when unchanged",
+                    "refresh_hint": refresh_hint,
                 },
                 "examples": [
                     "/teams.bmp",
@@ -389,6 +418,10 @@ async def api_info() -> dict:
                         "description": "Optional teams panel; applies only to teams",
                         "default": "none",
                         "values": [extra.value for extra in TeamsExtra],
+                    },
+                    "countdown": {
+                        **countdown_parameter,
+                        "description": "Calendar countdown; applies only to calendar",
                     },
                     **track_parameters,
                 },

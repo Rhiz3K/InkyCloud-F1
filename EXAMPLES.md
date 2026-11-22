@@ -12,6 +12,20 @@ curl http://localhost:8000/calendar.bmp?lang=en -o calendar.bmp
 curl http://localhost:8000/calendar.bmp?lang=cs -o calendar.bmp
 ```
 
+### Battery-Friendly Countdown and Refresh Hint
+
+```bash
+# Whole days only: the image changes once a day at local midnight (plus race status changes)
+curl "http://localhost:8000/calendar.bmp?countdown=days&weather=false" -o calendar.bmp
+
+# Days until 48 hours before the start, then days and hours; show the refresh hint
+curl -sD - "http://localhost:8000/calendar.bmp?countdown=auto&weather=false" -o calendar.bmp \
+  | grep -i x-next-refresh-seconds
+
+# Race date instead of a countdown
+curl "http://localhost:8000/calendar.bmp?countdown=off" -o calendar.bmp
+```
+
 ### Check Health
 
 ```bash

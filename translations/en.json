@@ -12,6 +12,7 @@
   "countdown_hours_one": "hour",
   "countdown_hours_few": "hours",
   "countdown_hours_many": "hours",
+  "countdown_today": "Today",
   "cancelled": "CANCELLED",
   "race_ongoing": "IN PROGRESS",
   "race_completed": "COMPLETED",
@@ -48,6 +49,7 @@
   "api_docs_race_key_desc": "Race identifier from /api/races/{year}; requires year",
   "api_docs_selection_note": "Without year plus round or race_key, the next race is selected. Copy round or race_key from /api/races/{year}. Exception: race_key without year returns HTTP 400.",
   "api_docs_etag_note": "BMP responses include ETag. Send If-None-Match to receive 304 when the image is unchanged.",
+  "api_docs_refresh_hint_note": "Calendar and teams responses (200 and 304) include X-Next-Refresh-Seconds: a hint of how many seconds until the image is next expected to change (60 to 86400, at most 3600 while hourly refreshed weather is shown). Battery displays can use it as their deep-sleep length; it is only a hint, so a poll may still return 304.",
   "api_docs_operational_auth": "Statistics read APIs require X-Admin-Token or Authorization: Bearer <token> when ADMIN_API_TOKEN is configured. With MINIMAL_DATA_MODE=true, all statistics APIs return 410.",
   "api_docs_history_desc": "Hourly request history; limit: 1–720 (default 168).",
   "api_docs_perf_desc": "GET: performance summaries; hours: 1–720 (default 24). POST: numeric Web Vitals; visitor and device metadata are ignored.",
@@ -191,6 +193,22 @@
     "weatherCurrentLabel": "Current",
     "weatherRaceDayLabel": "Race day",
     "weatherTooltipText": "Activates 14 days before race",
+    "countdown": {
+      "label": "Countdown",
+      "options": {
+        "hours": "Days + hours",
+        "days": "Days only",
+        "auto": "Auto (battery saver)",
+        "off": "Off (race date)"
+      },
+      "hints": {
+        "hours": "Days and hours; the image changes every hour.",
+        "days": "Whole days; the image changes once a day at local midnight.",
+        "auto": "Whole days until 48 h before the start, then days and hours.",
+        "off": "Race date instead of a countdown; changes only with the race status."
+      },
+      "batteryNote": "Weather is refreshed every hour. For the longest battery life turn weather off. The X-Next-Refresh-Seconds header tells your display how long to sleep."
+    },
     "displayLabel": "Display",
     "imageCreditsNote": "Image attribution and licences:",
     "teamsExtra": {
@@ -391,6 +409,7 @@
   "api_docs_calendar_display_desc": "Output mode for 1bit, B/W/R, B/W/R/Y, or Spectra 6 displays",
   "api_docs_weather_desc": "Enable or disable the weather overlay",
   "api_docs_weather_type_desc": "Which weather data variant to render",
+  "api_docs_countdown_desc": "Countdown in the status box: hours (days and hours, default), days (whole days in tz, changes at local midnight), auto (whole days until 48 h before the start, then days and hours) or off (race date instead of a countdown). Invalid values return HTTP 422.",
   "api_docs_calendar_desc": "Generates F1 calendar as a BMP image (800×480) for 1bit, 4-bit B/W/R, 4-bit B/W/R/Y, and Spectra 6 E-Ink displays.",
   "api_docs_eg": "e.g.",
   "api_docs_dimensions_label": "Dimensions",

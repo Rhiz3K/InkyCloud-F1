@@ -12,6 +12,7 @@
   "countdown_hours_one": "hora",
   "countdown_hours_few": "horas",
   "countdown_hours_many": "horas",
+  "countdown_today": "Hoy",
   "cancelled": "CANCELADA",
   "race_ongoing": "EN CURSO",
   "race_completed": "FINALIZADA",
@@ -48,6 +49,7 @@
   "api_docs_race_key_desc": "Identificador de carrera de /api/races/{year}; requiere year",
   "api_docs_selection_note": "Sin la combinación de year y round o race_key, se selecciona la próxima carrera. Copia round o race_key de /api/races/{year}. Excepción: race_key sin year devuelve HTTP 400.",
   "api_docs_etag_note": "Las respuestas BMP incluyen ETag. Envía If-None-Match para recibir 304 cuando la imagen no haya cambiado.",
+  "api_docs_refresh_hint_note": "Las respuestas de calendario y equipos (200 y 304) incluyen X-Next-Refresh-Seconds: una indicación de cuántos segundos faltan para el próximo cambio previsto de la imagen (de 60 a 86400, como máximo 3600 mientras se muestra el tiempo actualizado cada hora). Las pantallas con batería pueden usarlo como duración del sueño profundo; es solo una indicación, así que una consulta aún puede devolver 304.",
   "api_docs_operational_auth": "Las API de lectura de estadísticas requieren X-Admin-Token o Authorization: Bearer <token> cuando ADMIN_API_TOKEN está configurado. Con MINIMAL_DATA_MODE=true, todas las API de estadísticas devuelven 410.",
   "api_docs_history_desc": "Historial de peticiones por hora; limit: 1–720 (predeterminado 168).",
   "api_docs_perf_desc": "GET: resúmenes de rendimiento; hours: 1–720 (predeterminado 24). POST: valores numéricos de Web Vitals; se ignoran los metadatos de visitantes y dispositivos.",
@@ -191,6 +193,22 @@
     "weatherCurrentLabel": "Actual",
     "weatherRaceDayLabel": "Día de carrera",
     "weatherTooltipText": "Se activa 14 días antes de la carrera",
+    "countdown": {
+      "label": "Cuenta atrás",
+      "options": {
+        "hours": "Días + horas",
+        "days": "Solo días",
+        "auto": "Auto (ahorra batería)",
+        "off": "Desactivada (fecha)"
+      },
+      "hints": {
+        "hours": "Días y horas; la imagen cambia cada hora.",
+        "days": "Días completos; la imagen cambia una vez al día a medianoche local.",
+        "auto": "Días completos hasta 48 h antes de la salida, luego días y horas.",
+        "off": "Fecha de la carrera en lugar de la cuenta atrás; solo cambia con el estado de la carrera."
+      },
+      "batteryNote": "El tiempo se actualiza cada hora. Para la máxima autonomía, desactiva el tiempo. La cabecera X-Next-Refresh-Seconds indica a la pantalla cuánto puede dormir."
+    },
     "displayLabel": "Pantalla",
     "imageCreditsNote": "Atribución y licencias de la imagen:",
     "teamsExtra": {
@@ -391,6 +409,7 @@
   "api_docs_calendar_display_desc": "Modo de salida para pantallas 1bit, B/W/R, B/W/R/Y o Spectra 6",
   "api_docs_weather_desc": "Activa o desactiva la capa del tiempo",
   "api_docs_weather_type_desc": "Qué variante de datos meteorológicos renderizar",
+  "api_docs_countdown_desc": "Cuenta atrás en el recuadro de estado: hours (días y horas, por defecto), days (días completos en tz, cambia a medianoche local), auto (días completos hasta 48 h antes de la salida, luego días y horas) u off (fecha de la carrera en lugar de la cuenta atrás). Los valores no válidos devuelven HTTP 422.",
   "api_docs_calendar_desc": "Genera un calendario de F1 como imagen BMP (800×480) para pantallas E-Ink 1bit, 4-bit B/W/R, 4-bit B/W/R/Y y Spectra 6.",
   "api_docs_eg": "p. ej.",
   "api_docs_dimensions_label": "Dimensiones",

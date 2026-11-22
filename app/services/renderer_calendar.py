@@ -10,10 +10,13 @@ from typing import Any
 from PIL import Image, ImageDraw
 from PIL.ImageFont import FreeTypeFont
 
+from app.config import config
 from app.services.font_utils import fit_ui_font
 from app.services.renderer_assets import _load_image_copy
 from app.services.renderer_text import clamp_text, text_width
 from app.utils.race_times import today_in_timezone
+from app.utils.refresh_hint import RACE_LIVE_WINDOW, CountdownMode, countdown_shows_days
+from app.utils.timezones import get_timezone
 
 
 def _shrink_font_to_width(
@@ -190,7 +193,7 @@ def _resolve_countdown_status(
     if delta.total_seconds() > 0:
         return None, delta
 
-    status_key = "race_ongoing" if now < race_dt + timedelta(hours=3) else "race_completed"
+    status_key = "race_ongoing" if now < race_dt + RACE_LIVE_WINDOW else "race_completed"
     fallback = "IN PROGRESS" if status_key == "race_ongoing" else "COMPLETED"
     return translator.get(status_key, fallback), delta
 
@@ -299,6 +302,49 @@ def _countdown_unit_labels(
     )
 
 
+def _race_date_label(race_dt, translator: Mapping[str, str]) -> str:
+    """Return the race day and local start (``countdown=off``), as the schedule rows show it."""
+    day = translator.get(f"day_{race_dt.strftime('%a').lower()}", race_dt.strftime("%a"))
+    label = f"{day} {race_dt:%d.%m.}"
+    if isinstance(race_dt, datetime):
+        label += f" {race_dt:%H:%M}"
+    return label
+
+
+def _countdown_text(
+    race_dt,
+    delta: timedelta,
+    *,
+    countdown_mode: CountdownMode,
+    timezone_name: str | None,
+    datetime_cls,
+    translator: Mapping[str, str],
+    lang_code: str,
+    weather_type: str,
+) -> str:
+    """Return the countdown for a future race in the requested ``countdown`` mode."""
+    if countdown_mode == CountdownMode.OFF:
+        return _race_date_label(race_dt, translator)
+    date_only = isinstance(race_dt, date) and not isinstance(race_dt, datetime)
+    days = delta.days
+    hours = delta.seconds // 3600
+    if not date_only and countdown_shows_days(countdown_mode, delta):
+        # Whole calendar days in the requested timezone, as on the teams countdown panel.
+        zone = get_timezone(timezone_name or config.DEFAULT_TIMEZONE)
+        days = (race_dt.astimezone(zone).date() - datetime_cls.now(zone).date()).days
+        if days <= 0:
+            return translator.get("countdown_today", "Today")
+        date_only = True
+    days_label, hours_label = _countdown_unit_labels(
+        days,
+        hours,
+        translator=translator,
+        lang_code=lang_code,
+        weather_type=weather_type,
+    )
+    return f"{days} {days_label}" if date_only else f"{days} {days_label} {hours} {hours_label}"
+
+
 def draw_countdown_box(
     draw: ImageDraw.ImageDraw,
     race_data: dict,
@@ -321,8 +367,14 @@ def draw_countdown_box(
     text_fill,
     weather_data=None,
     weather_type: str = "",
+    countdown_mode: CountdownMode = CountdownMode.HOURS,
 ) -> int:
-    """Draw the countdown/status box and return its bottom y-coordinate."""
+    """Draw the countdown/status box and return its bottom y-coordinate.
+
+    ``countdown_mode`` picks days and hours (default), whole days, days until 48 hours before
+    the start (``auto``) or the race date instead of a countdown (``off``); race statuses and
+    weather are drawn the same way in every mode.
+    """
     is_cancelled = race_data.get("is_cancelled", False)
     race_dt = _find_race_datetime(race_data.get("schedule", []), datetime_cls)
 
@@ -398,21 +450,16 @@ def draw_countdown_box(
     if delta is None or delta.total_seconds() <= 0:
         return schedule_bottom
 
-    days = delta.days
-    hours = delta.seconds // 3600
-
     flag_icon = "🏁"
-    days_label, hours_label = _countdown_unit_labels(
-        days,
-        hours,
+    countdown_str = _countdown_text(
+        race_dt,
+        delta,
+        countdown_mode=countdown_mode,
+        timezone_name=race_data.get("timezone"),
+        datetime_cls=datetime_cls,
         translator=translator,
         lang_code=lang_code,
         weather_type=weather_type,
-    )
-    countdown_str = (
-        f"{days} {days_label}"
-        if isinstance(race_dt, date) and not isinstance(race_dt, datetime)
-        else f"{days} {days_label} {hours} {hours_label}"
     )
 
     flag_bbox = draw.textbbox((0, 0), flag_icon, font=icon_small_font)
@@ -680,6 +727,7 @@ def draw_schedule_section(
     draw_countdown_box_fn,
     weather_data,
     weather_type: str,
+    countdown_mode: CountdownMode = CountdownMode.HOURS,
 ) -> int:
     """Draw the schedule title, rows, and countdown area."""
     schedule_title = translator.get("weekend_schedule", "WEEKEND SCHEDULE")
@@ -708,4 +756,6 @@ def draw_schedule_section(
         if row_y > results_y_start - 80:
             break
 
-    return draw_countdown_box_fn(draw, race_data, row_y + 10, weather_data, weather_type)
+    return draw_countdown_box_fn(
+        draw, race_data, row_y + 10, weather_data, weather_type, countdown_mode=countdown_mode
+    )

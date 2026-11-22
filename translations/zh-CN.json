@@ -12,6 +12,7 @@
   "countdown_hours_one": "小时",
   "countdown_hours_few": "小时",
   "countdown_hours_many": "小时",
+  "countdown_today": "今天",
   "cancelled": "已取消",
   "race_ongoing": "进行中",
   "race_completed": "已结束",
@@ -48,6 +49,7 @@
   "api_docs_race_key_desc": "来自 /api/races/{year} 的比赛标识符；需要 year",
   "api_docs_selection_note": "未同时指定 year 和 round 或 race_key 时，将选择下一场比赛。请从 /api/races/{year} 复制 round 或 race_key。 例外：指定 race_key 但未提供 year 时返回 HTTP 400。",
   "api_docs_etag_note": "BMP 响应包含 ETag。发送 If-None-Match，图片未更改时将收到 304。",
+  "api_docs_refresh_hint_note": "日历和车队响应（200 和 304）包含 X-Next-Refresh-Seconds：表示图片预计下次变化前还有多少秒（60 到 86400；显示每小时更新的天气时最多 3600）。电池供电的显示屏可以用它作为深度睡眠时长；这只是提示，因此请求仍可能返回 304。",
   "api_docs_operational_auth": "配置 ADMIN_API_TOKEN 后，统计读取 API 需要 X-Admin-Token 或 Authorization: Bearer <token>。设置 MINIMAL_DATA_MODE=true 时，所有统计 API 均返回 410。",
   "api_docs_history_desc": "每小时请求历史；limit：1–720（默认 168）。",
   "api_docs_perf_desc": "GET：性能汇总；hours：1–720（默认 24）。POST：Web Vitals 数值；访客和设备元数据将被忽略。",
@@ -191,6 +193,22 @@
     "weatherCurrentLabel": "当前",
     "weatherRaceDayLabel": "比赛日",
     "weatherTooltipText": "比赛前 14 天启用",
+    "countdown": {
+      "label": "倒计时",
+      "options": {
+        "hours": "天 + 小时",
+        "days": "仅天数",
+        "auto": "自动（省电）",
+        "off": "关闭（比赛日期）"
+      },
+      "hints": {
+        "hours": "天和小时；图片每小时变化。",
+        "days": "整天数；图片每天在当地午夜变化一次。",
+        "auto": "距发车 48 小时以前只显示天数，之后显示天和小时。",
+        "off": "显示比赛日期而非倒计时；仅随比赛状态变化。"
+      },
+      "batteryNote": "天气每小时更新。若要最长续航，请关闭天气。显示屏的睡眠时长可参考 X-Next-Refresh-Seconds 响应头。"
+    },
     "displayLabel": "显示",
     "imageCreditsNote": "图片署名与许可：",
     "teamsExtra": {
@@ -391,6 +409,7 @@
   "api_docs_calendar_display_desc": "适用于 1bit、B/W/R、B/W/R/Y 或 Spectra 6 显示器的输出模式",
   "api_docs_weather_desc": "启用或禁用天气叠加层",
   "api_docs_weather_type_desc": "要渲染的天气数据类型",
+  "api_docs_countdown_desc": "状态框中的倒计时：hours（天和小时，默认）、days（按 tz 的整天数，在当地午夜变化）、auto（距发车 48 小时以前只显示天数，之后显示天和小时）或 off（显示比赛日期而非倒计时）。无效值返回 HTTP 422。",
   "api_docs_calendar_desc": "将 F1 赛历生成为 BMP 图片 (800×480)，适用于 1bit、4-bit B/W/R、4-bit B/W/R/Y 和 Spectra 6 E-Ink 显示器。",
   "api_docs_eg": "例如",
   "api_docs_dimensions_label": "尺寸",

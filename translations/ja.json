@@ -12,6 +12,7 @@
   "countdown_hours_one": "時間",
   "countdown_hours_few": "時間",
   "countdown_hours_many": "時間",
+  "countdown_today": "今日",
   "cancelled": "中止",
   "race_ongoing": "進行中",
   "race_completed": "終了",
@@ -48,6 +49,7 @@
   "api_docs_race_key_desc": "/api/races/{year} のレース識別子。year が必要です",
   "api_docs_selection_note": "year と round または race_key の組み合わせを指定しない場合、次のレースが選択されます。round または race_key を /api/races/{year} からコピーしてください。 例外：year なしで race_key を指定すると HTTP 400 が返されます。",
   "api_docs_etag_note": "BMP レスポンスには ETag が含まれます。If-None-Match を送信すると、画像が変更されていない場合に 304 が返されます。",
+  "api_docs_refresh_hint_note": "カレンダーとチームのレスポンス（200 と 304）には X-Next-Refresh-Seconds が含まれます。画像が次に変わる見込みまでの秒数の目安です（60〜86400。毎時更新の天気を表示中は最大 3600）。バッテリー駆動のディスプレイはディープスリープの長さに使えます。目安のため、取得時に 304 が返ることもあります。",
   "api_docs_operational_auth": "ADMIN_API_TOKEN が設定されている場合、統計読み取り API には X-Admin-Token または Authorization: Bearer <token> が必要です。MINIMAL_DATA_MODE=true の場合、すべての統計 API が 410 を返します。",
   "api_docs_history_desc": "1 時間ごとのリクエスト履歴。limit: 1–720（デフォルト 168）。",
   "api_docs_perf_desc": "GET: パフォーマンスの概要。hours: 1–720（デフォルト 24）。POST: Web Vitals の数値。訪問者とデバイスのメタデータは無視されます。",
@@ -191,6 +193,22 @@
     "weatherCurrentLabel": "現在",
     "weatherRaceDayLabel": "レース当日",
     "weatherTooltipText": "レース14日前から有効",
+    "countdown": {
+      "label": "カウントダウン",
+      "options": {
+        "hours": "日 + 時間",
+        "days": "日数のみ",
+        "auto": "自動（省電力）",
+        "off": "オフ（レース日）"
+      },
+      "hints": {
+        "hours": "日と時間。画像は毎時変わります。",
+        "days": "日数のみ。画像は1日1回、現地の午前0時に変わります。",
+        "auto": "スタートの48時間前までは日数のみ、その後は日と時間。",
+        "off": "カウントダウンの代わりにレース日。レースの状態が変わったときだけ変化します。"
+      },
+      "batteryNote": "天気は毎時更新されます。バッテリーを最も長持ちさせるには天気をオフにしてください。スリープ時間は X-Next-Refresh-Seconds ヘッダーで決められます。"
+    },
     "displayLabel": "ディスプレイ",
     "imageCreditsNote": "画像の帰属表示とライセンス：",
     "teamsExtra": {
@@ -391,6 +409,7 @@
   "api_docs_calendar_display_desc": "1bit、B/W/R、B/W/R/Y、Spectra 6 ディスプレイ用の出力モード",
   "api_docs_weather_desc": "天気オーバーレイの有効化または無効化",
   "api_docs_weather_type_desc": "描画する天気データの種類",
+  "api_docs_countdown_desc": "ステータス欄のカウントダウン: hours（日と時間、既定）、days（tz での日数のみ。現地の午前0時に変化）、auto（スタートの48時間前までは日数のみ、その後は日と時間）、off（カウントダウンの代わりにレース日）。無効な値は HTTP 422 を返します。",
   "api_docs_calendar_desc": "F1 カレンダーを BMP 画像 (800×480) として生成し、1bit、4-bit B/W/R、4-bit B/W/R/Y、Spectra 6 の E-Ink ディスプレイに対応します。",
   "api_docs_eg": "例",
   "api_docs_dimensions_label": "サイズ",

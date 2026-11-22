@@ -12,6 +12,7 @@
   "countdown_hours_one": "Stunde",
   "countdown_hours_few": "Stunden",
   "countdown_hours_many": "Stunden",
+  "countdown_today": "Heute",
   "cancelled": "ABGESAGT",
   "race_ongoing": "LÄUFT",
   "race_completed": "ABGESCHLOSSEN",
@@ -48,6 +49,7 @@
   "api_docs_race_key_desc": "Rennkennung aus /api/races/{year}; erfordert year",
   "api_docs_selection_note": "Ohne die Kombination aus year und round oder race_key wird das nächste Rennen ausgewählt. Übernehmen Sie round oder race_key aus /api/races/{year}. Ausnahme: race_key ohne year gibt HTTP 400 zurück.",
   "api_docs_etag_note": "BMP-Antworten enthalten ETag. Senden Sie If-None-Match, um bei unverändertem Bild den Status 304 zu erhalten.",
+  "api_docs_refresh_hint_note": "Kalender- und Teams-Antworten (200 und 304) enthalten X-Next-Refresh-Seconds: einen Hinweis, in wie vielen Sekunden sich das Bild voraussichtlich als Nächstes ändert (60 bis 86400, höchstens 3600, solange stündlich aktualisiertes Wetter angezeigt wird). Akkubetriebene Displays können den Wert als Deep-Sleep-Dauer nutzen; da es nur ein Hinweis ist, kann eine Abfrage trotzdem 304 liefern.",
   "api_docs_operational_auth": "Die Lese-APIs für Statistiken erfordern X-Admin-Token oder Authorization: Bearer <token>, wenn ADMIN_API_TOKEN konfiguriert ist. Bei MINIMAL_DATA_MODE=true geben alle Statistik-APIs den Status 410 zurück.",
   "api_docs_history_desc": "Stündlicher Anfrageverlauf; limit: 1–720 (Standard 168).",
   "api_docs_perf_desc": "GET: Leistungsübersichten; hours: 1–720 (Standard 24). POST: numerische Web Vitals; Besucher- und Gerätemetadaten werden ignoriert.",
@@ -191,6 +193,22 @@
     "weatherCurrentLabel": "Aktuell",
     "weatherRaceDayLabel": "Am Renntag",
     "weatherTooltipText": "Aktiviert sich 14 Tage vor dem Rennen",
+    "countdown": {
+      "label": "Countdown",
+      "options": {
+        "hours": "Tage + Stunden",
+        "days": "Nur Tage",
+        "auto": "Auto (akkuschonend)",
+        "off": "Aus (Renndatum)"
+      },
+      "hints": {
+        "hours": "Tage und Stunden; das Bild ändert sich stündlich.",
+        "days": "Ganze Tage; das Bild ändert sich einmal täglich um lokale Mitternacht.",
+        "auto": "Ganze Tage bis 48 h vor dem Start, danach Tage und Stunden.",
+        "off": "Renndatum statt Countdown; ändert sich nur mit dem Rennstatus."
+      },
+      "batteryNote": "Das Wetter wird stündlich aktualisiert. Für die längste Akkulaufzeit das Wetter ausschalten. Der Header X-Next-Refresh-Seconds sagt dem Display, wie lange es schlafen kann."
+    },
     "displayLabel": "Display",
     "imageCreditsNote": "Bildnachweise und Lizenzen:",
     "teamsExtra": {
@@ -391,6 +409,7 @@
   "api_docs_calendar_display_desc": "Ausgabemodus für 1bit-, B/W/R-, B/W/R/Y- oder Spectra-6-Displays",
   "api_docs_weather_desc": "Wetter-Overlay aktivieren oder deaktivieren",
   "api_docs_weather_type_desc": "Welche Wetterdatenvariante gerendert werden soll",
+  "api_docs_countdown_desc": "Countdown im Statusfeld: hours (Tage und Stunden, Standard), days (ganze Tage in tz, wechselt um lokale Mitternacht), auto (ganze Tage bis 48 h vor dem Start, danach Tage und Stunden) oder off (Renndatum statt Countdown). Ungültige Werte liefern HTTP 422.",
   "api_docs_calendar_desc": "Erzeugt einen F1-Kalender als BMP-Bild (800×480) für 1bit-, 4-Bit-B/W/R-, 4-Bit-B/W/R/Y- und Spectra-6-E-Ink-Displays.",
   "api_docs_eg": "z. B.",
   "api_docs_dimensions_label": "Abmessungen",

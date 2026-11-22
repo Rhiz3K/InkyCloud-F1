@@ -8,6 +8,7 @@ from app.services import bmp_artifacts
 from app.services import teams_extra as extras
 from app.services.f1_service import F1Service
 from app.services.teams_extra import TeamsExtra, build_teams_extra_context
+from app.state import get_bmp_cache
 
 # --- B6: a date-only race keeps its calendar date in the Teams panel ---------------------------
 
@@ -101,7 +102,7 @@ async def test_round_without_year_uses_the_auto_selected_pregenerated_file():
         calls.append((key, producer.keywords))
         return (b"bmp", '"etag"')
 
-    images.get_bmp_cache().clear()
+    get_bmp_cache().clear()
     with (
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._get_pregenerated_calendar_path", lookup),
@@ -125,7 +126,7 @@ async def test_round_without_year_uses_the_auto_selected_pregenerated_file():
     key, keywords = calls[0]
     assert key.endswith("|en:next:next:auto:default:race_day:1bit")
     assert keywords["race_data"] == {"season": 2026, "round": 1}
-    images.get_bmp_cache().clear()
+    get_bmp_cache().clear()
 
 
 # --- C5: gzip and identity bodies never share a strong ETag; 304s vary on encoding -------------

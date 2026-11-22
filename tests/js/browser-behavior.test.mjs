@@ -432,6 +432,7 @@ function teamsUrlContext(state = {}, {tz} = {}) {
         },
         updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
         TEAMS_EXTRA_OPTIONS: ["none", "countdown", "flags", "track", "weather"],
+        COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
         currentScreenType: "teams", currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none", ...state,
     });
@@ -555,6 +556,96 @@ for (const legacy of ["timeline", "combo"]) {
         assert.match(ctx.getApiUrl(), /extra=countdown$/);
     });
 }
+
+// Calendar countdown mode: default "hours" never reaches a URL, other modes do.
+function calendarCountdownContext(state = {}) {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const replaced = [];
+    const hintFor = (select) => ({value: "hours", options: [], get selectedIndex() {return 0;},
+        set value(mode) {this._value = mode; this.options[0] = {dataset: {hint: `hint-${mode}-${select}`}};},
+        get value() {return this._value;}});
+    const selects = [hintFor("desktop"), hintFor("mobile")];
+    selects.forEach((select) => {select.value = "hours";});
+    const hints = [{textContent: ""}, {textContent: ""}];
+    const ctx = vm.createContext({
+        URL, URLSearchParams,
+        window: {location: {origin: "https://racing.example.org", search: "",
+            href: "https://racing.example.org/configure/calendar"},
+        history: {replaceState(_s, _t, url) {replaced.push(String(url)); ctx.window.location.href = String(url);}}},
+        document: {
+            getElementById(id) {
+                if (id === "tz") return {value: ""};
+                if (id === "weatherToggle") return {checked: true};
+                return null;
+            },
+            querySelector() {return {value: "race_day"};},
+            querySelectorAll(selector) {
+                return selector === ".countdown-select" ? selects : selector === ".countdown-hint" ? hints : [];
+            },
+        },
+        updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
+        TEAMS_EXTRA_OPTIONS: ["none", "countdown", "flags", "track", "weather"],
+        COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
+        currentScreenType: "calendar", currentUiLang: "en", currentDisplayType: "1bit", currentTeamsExtra: "none",
+        selectedYear: null, selectedRound: null, selectedRaceKey: null, selectedTz: null, defaultTimezone: "Europe/Prague",
+        ...state,
+    });
+    for (const name of ["getApiUrl", "appendTrackParams", "canUsePrerenderedPreview", "getPreviewUrl",
+        "setCountdown", "selectCountdown", "initTrackOptions"]) {
+        vm.runInContext(templateFunction(template, name), ctx);
+    }
+    return {ctx, replaced, selects, hints};
+}
+
+test("calendar URLs omit the default countdown and carry the other modes", () => {
+    const {ctx} = calendarCountdownContext();
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/calendar.bmp");
+    assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/preview/configure/calendar.png?weather_type=race");
+    for (const mode of ["days", "auto", "off"]) {
+        ctx.currentCountdown = mode;
+        assert.equal(ctx.getApiUrl(), `https://racing.example.org/calendar.bmp?countdown=${mode}`);
+        assert.equal(ctx.getPreviewUrl(),
+            `https://racing.example.org/preview/configure/calendar.png?weather_type=race&countdown=${mode}`);
+    }
+    ctx.currentDisplayType = "bwry";
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/calendar.bmp?display=bwry&countdown=off");
+});
+
+test("setCountdown syncs both selects, the hint and the page URL", () => {
+    const {ctx, replaced, selects, hints} = calendarCountdownContext();
+    ctx.setCountdown("days");
+    assert.equal(ctx.currentCountdown, "days");
+    assert.deepEqual(selects.map((s) => s.value), ["days", "days"]);
+    assert.equal(hints[0].textContent, "hint-days-mobile");
+    assert.deepEqual(replaced, ["https://racing.example.org/configure/calendar?countdown=days"]);
+    assert.equal(ctx.previewUpdates, 1);
+
+    ctx.setCountdown("bogus");
+    assert.equal(ctx.currentCountdown, "hours");
+    assert.equal(replaced.at(-1), "https://racing.example.org/configure/calendar");
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/calendar.bmp");
+
+    ctx.setCountdown("auto", false);
+    assert.equal(ctx.previewUpdates, 2);
+    assert.equal(replaced.length, 2);
+    assert.deepEqual(selects.map((s) => s.value), ["auto", "auto"]);
+});
+
+test("selectCountdown applies this.value and ?countdown= initialises the mode", () => {
+    const {ctx, selects} = calendarCountdownContext();
+    selects[1].value = "off";
+    ctx.selectCountdown.call(selects[1]);
+    assert.equal(ctx.currentCountdown, "off");
+
+    const fresh = calendarCountdownContext();
+    fresh.ctx.window.location.search = "?countdown=auto";
+    fresh.ctx.initTrackOptions();
+    assert.equal(fresh.ctx.currentCountdown, "auto");
+    fresh.ctx.window.location.search = "?countdown=weekly";
+    fresh.ctx.currentCountdown = "hours";
+    fresh.ctx.initTrackOptions();
+    assert.equal(fresh.ctx.currentCountdown, "hours");
+});
 
 const NY_TZ = "tz=America%2FNew_York";
 
