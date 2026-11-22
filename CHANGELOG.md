@@ -135,6 +135,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     is no longer reported as `ferrari`. Driver standings report the driver's current
     (last-listed) constructor, as the Teams roster does, and a malformed standings row is
     skipped instead of discarding the whole table.
+  - The calendar status or countdown text no longer runs under the weather block. For
+    example, German "ABGESCHLOSSEN" with 24° / 40 % overlapped the icon by 11 px. The text
+    is measured against the weather width, shrunk to at most 70 % of its size, and only then
+    shortened with an ellipsis.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

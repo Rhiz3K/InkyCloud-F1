@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from PIL import Image, ImageDraw
 
@@ -175,6 +176,48 @@ def _resolve_countdown_status(
     return translator.get(status_key, fallback), delta
 
 
+# Minimum horizontal gap between the left status/countdown text and the weather block.
+_COUNTDOWN_WEATHER_GAP = 8
+# Smallest scale applied to the status font before falling back to an ellipsis.
+_MIN_STATUS_FONT_RATIO = 0.7
+
+
+def _countdown_weather_width(
+    draw: ImageDraw.ImageDraw,
+    weather_data,
+    *,
+    rain_icon: str,
+    weather_icon_font,
+    text_font,
+) -> int:
+    """Measure the weather block drawn by _draw_countdown_weather."""
+    parts = (
+        (weather_data.icon, weather_icon_font),
+        (f"{weather_data.temp_display} ", text_font),
+        (rain_icon, weather_icon_font),
+        (weather_data.precip_display, text_font),
+    )
+    widths = [draw.textbbox((0, 0), text, font=font) for text, font in parts]
+    return int(sum(bbox[2] - bbox[0] for bbox in widths) + 4 + 3)
+
+
+def _fit_left_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: float) -> tuple[str, Any]:
+    """Shrink (then ellipsize) text so it ends before the weather block instead of under it."""
+    bbox = draw.textbbox((0, 0), text, font=font)
+    if bbox[2] - bbox[0] <= max_width:
+        return text, font
+    base_size = getattr(font, "size", None)
+    if base_size and hasattr(font, "font_variant"):
+        min_size = max(1, int(base_size * _MIN_STATUS_FONT_RATIO))
+        for size in range(int(base_size) - 1, min_size - 1, -1):
+            candidate = font.font_variant(size=size)
+            bbox = draw.textbbox((0, 0), text, font=candidate)
+            if bbox[2] - bbox[0] <= max_width:
+                return text, candidate
+        font = font.font_variant(size=min_size)
+    return clamp_text(draw, text, font, int(max_width)), font
+
+
 def _draw_countdown_weather(
     draw: ImageDraw.ImageDraw,
     weather_data,
@@ -296,12 +339,28 @@ def draw_countdown_box(
 
     if status_text:
         show_weather = weather_data is not None and not is_cancelled
-        status_bbox = draw.textbbox((0, 0), status_text, font=schedule_row_bold_font)
+        status_font = schedule_row_bold_font
+        if show_weather:
+            weather_w = _countdown_weather_width(
+                draw,
+                weather_data,
+                rain_icon=rain_icon,
+                weather_icon_font=weather_icon_font,
+                text_font=schedule_row_bold_font,
+            )
+            # Long localized statuses (e.g. "ABGESCHLOSSEN") ran under the weather icon.
+            status_text, status_font = _fit_left_text(
+                draw,
+                status_text,
+                schedule_row_bold_font,
+                (x_right - x_left) - 2 * padding_x - weather_w - _COUNTDOWN_WEATHER_GAP,
+            )
+        status_bbox = draw.textbbox((0, 0), status_text, font=status_font)
         status_w = status_bbox[2] - status_bbox[0]
         text_x = (
             x_left + padding_x if show_weather else x_left + ((x_right - x_left) - status_w) // 2
         )
-        draw.text((text_x, text_y), status_text, fill=text_fill, font=schedule_row_bold_font)
+        draw.text((text_x, text_y), status_text, fill=text_fill, font=status_font)
         if not show_weather:
             return int(y_bottom)
         _draw_countdown_weather(
@@ -339,7 +398,22 @@ def draw_countdown_box(
 
     flag_bbox = draw.textbbox((0, 0), flag_icon, font=icon_small_font)
     flag_w = flag_bbox[2] - flag_bbox[0]
-    countdown_bbox = draw.textbbox((0, 0), countdown_str, font=schedule_row_bold_font)
+    countdown_font = schedule_row_bold_font
+    if weather_data:
+        weather_w = _countdown_weather_width(
+            draw,
+            weather_data,
+            rain_icon=rain_icon,
+            weather_icon_font=weather_icon_font,
+            text_font=schedule_row_bold_font,
+        )
+        countdown_str, countdown_font = _fit_left_text(
+            draw,
+            countdown_str,
+            schedule_row_bold_font,
+            (x_right - x_left) - 2 * padding_x - weather_w - _COUNTDOWN_WEATHER_GAP - flag_w - 6,
+        )
+    countdown_bbox = draw.textbbox((0, 0), countdown_str, font=countdown_font)
     countdown_w = countdown_bbox[2] - countdown_bbox[0]
     total_content_w = flag_w + 6 + countdown_w
 
@@ -351,7 +425,7 @@ def draw_countdown_box(
 
     draw.text((cur_x, text_y), flag_icon, fill=text_fill, font=icon_small_font)
     cur_x += int(flag_w + 6)
-    draw.text((cur_x, text_y), countdown_str, fill=text_fill, font=schedule_row_bold_font)
+    draw.text((cur_x, text_y), countdown_str, fill=text_fill, font=countdown_font)
 
     if weather_data:
         _draw_countdown_weather(

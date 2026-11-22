@@ -565,3 +565,36 @@ async def test_constructor_standings_skip_malformed_row(monkeypatch):
         service._cache.clear()
 
     assert [s.constructor_name for s in standings] == ["Audi"]
+
+
+# --- A2 + E2: the race status never runs under the weather block -------------------------------
+
+
+@pytest.mark.parametrize("display", ["1bit", "bwr", "bwry", "spectra6"])
+@pytest.mark.parametrize("lang", ["de", "pl", "fr", "ja", "en"])
+def test_finished_race_status_does_not_overlap_weather(display, lang):
+    from PIL import ImageDraw
+
+    from app.services.f1_service import F1Service
+    from app.services.i18n import get_translator
+    from app.services.renderers import create_renderer
+
+    renderer = create_renderer(display, get_translator(lang), lang)
+    race = F1Service().get_all_races_from_static(2026)[0]  # finished: shows the status text
+    weather = WeatherData(24.0, 2, 40)
+    status = get_translator(lang).get("race_completed", "")
+    drawn: list[tuple[str, tuple]] = []
+    original = ImageDraw.ImageDraw.text
+
+    def spy(draw, xy, text, *args, **kwargs):
+        drawn.append((text, draw.textbbox(xy, text, font=kwargs.get("font"))))
+        return original(draw, xy, text, *args, **kwargs)
+
+    with patch.object(ImageDraw.ImageDraw, "text", spy):
+        renderer.render_calendar(race, weather_data=weather, weather_type="current")
+
+    icon_boxes = [box for text, box in drawn if text == weather.icon]
+    status_boxes = [box for text, box in drawn if status and text.startswith(status[:3])]
+    assert icon_boxes and status_boxes, (status, [t for t, _ in drawn])
+    status_right = max(box[2] for box in status_boxes)
+    assert status_right < icon_boxes[0][0]
