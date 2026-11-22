@@ -831,26 +831,6 @@ def test_has_weather_coordinates_validates_bounds_and_alias(circuit, expected):
     assert scheduler_generation._has_weather_coordinates({"circuit": circuit}) is expected
 
 
-@pytest.mark.parametrize(
-    ("schedule", "expected"),
-    [
-        ([], None),
-        ([{"name": "Race"}], None),
-        ([{"name": "Race", "datetime": "invalid"}], None),
-        (
-            [{"name": "Race", "datetime": "2026-07-12T14:00:00"}],
-            datetime(2026, 7, 12, 14, tzinfo=timezone.utc),
-        ),
-        (
-            [{"name": "race", "datetime": "2026-07-12T16:00:00+02:00"}],
-            datetime(2026, 7, 12, 14, tzinfo=timezone.utc),
-        ),
-    ],
-)
-def test_parse_race_datetime_utc(schedule, expected):
-    assert scheduler_generation._parse_race_datetime_utc({"schedule": schedule}) == expected
-
-
 def test_race_weather_expected_for_past_near_and_far_dates():
     now = datetime.now(timezone.utc)
 

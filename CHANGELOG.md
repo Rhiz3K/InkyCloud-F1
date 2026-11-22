@@ -188,6 +188,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     race).
   - An empty `?tz=` is treated as unset on every route. Before, `/calendar.bmp?tz=` returned
     HTTP 400, while `/teams.bmp?tz=` used the default timezone.
+  - Race times are parsed by one helper (`app/utils/race_times.py`) everywhere: the calendar,
+    the season list, the Teams panels, weather and generation. A session time without an
+    offset is read as UTC on every host. Before, the calendar and the season list read it in
+    the server's local time, so on a server in `Europe/Prague` a 13:00 race showed as 12:00
+    UTC. Weekend sessions are ordered by their actual start, so qualifying no longer appears
+    after the race when the two fall on either side of the autumn clock change.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

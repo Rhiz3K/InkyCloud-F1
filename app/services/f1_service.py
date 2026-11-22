@@ -4,8 +4,7 @@ import json
 import logging
 import re
 import weakref
-from datetime import datetime, timedelta
-from datetime import timezone as dt_timezone
+from datetime import date, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
@@ -29,7 +28,12 @@ from app.services.http_client import get_shared_http_client
 from app.utils.async_locks import KeyedLoopLockRegistry, get_keyed_loop_lock
 from app.utils.http import fetch_with_retry
 from app.utils.jolpica import get_jolpica_pacer
-from app.utils.race_times import today_in_timezone
+from app.utils.race_times import (
+    parse_session_start,
+    parse_utc_instant,
+    schedule_sort_key,
+    today_in_timezone,
+)
 from app.utils.timezones import UTC, ZoneInfoNotFoundError, get_timezone, normalize_timezone
 
 logger = logging.getLogger(__name__)
@@ -105,10 +109,8 @@ def _is_valid_remote_season_payload(payload: object | None) -> bool:
             Race.model_validate(race)
             race_date = race.get("date", "")
             if race_date:
-                race_time = race.get("time")
-                datetime.fromisoformat(
-                    (f"{race_date}T{race_time}" if race_time else race_date).replace("Z", "+00:00")
-                )
+                parse_session_start(race_date, race.get("time"))
+                date.fromisoformat(race_date)
     except AttributeError, TypeError, ValueError, ValidationError:
         return False
     return True
@@ -308,20 +310,12 @@ class F1Service:
         # Helper function to parse and convert time
         def parse_and_convert(date_str: str, time_str: Optional[str]) -> Optional[datetime]:
             """Parse date and time, convert to target timezone."""
-            if not time_str:
-                return None
-
-            # Combine date and time
-            dt_str = f"{date_str}T{time_str}"
             try:
-                # Parse as UTC
-                dt_utc = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-                # Convert to target timezone
-                dt_local = dt_utc.astimezone(self.target_tz)
-                return dt_local
+                start = parse_session_start(date_str, time_str)
             except ValueError as e:
-                logger.warning("Error parsing datetime %s: %s", dt_str, e)
+                logger.warning("Error parsing datetime %sT%s: %s", date_str, time_str, e)
                 return None
+            return start.astimezone(self.target_tz) if start else None
 
         def event_payload(name: str, date_str: str, dt: datetime | None) -> dict:
             """Keep unknown times date-only without timezone conversion."""
@@ -355,10 +349,8 @@ class F1Service:
         if race_dt or not race.time:
             schedule_events.append(event_payload("Race", race.date, race_dt))
 
-        # Stable sorting leaves date-only sessions last on their day.
-        schedule_events.sort(
-            key=lambda x: (x["date"], x["datetime"][11:] if x["time"] else "24:00")
-        )
+        # Instant order survives a DST fold; date-only sessions stay last on their day.
+        schedule_events.sort(key=schedule_sort_key)
 
         now = datetime.now(self.target_tz)
         return {
@@ -464,10 +456,9 @@ class F1Service:
                 # Parse race datetime - if parsing fails, use None
                 dt_local = None
                 is_past = False
-                if race_date_str and race_time_str:
-                    dt_str = f"{race_date_str}T{race_time_str}"
-                    dt_utc = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-                    dt_local = dt_utc.astimezone(self.target_tz)
+                start = parse_session_start(race_date_str, race_time_str) if race_date_str else None
+                if start is not None:
+                    dt_local = start.astimezone(self.target_tz)
                     is_past = dt_local < now
 
                 result.append(
@@ -590,7 +581,7 @@ class F1Service:
         Returns:
             Dictionary with race data including converted times, or None if not found
         """
-        now = datetime.now(dt_timezone.utc)
+        now = datetime.now(UTC)
         current_year = now.year
         latest_completed: tuple[tuple[str, str], Race] | None = None
 
@@ -611,11 +602,7 @@ class F1Service:
                         if latest_completed is None or race_order > latest_completed[0]:
                             latest_completed = (race_order, race)
                         continue
-                    race_time = race.time
-                    dt_str = f"{race.date}T{race_time}"
-                    race_dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
-                    if race_dt.tzinfo is None:
-                        race_dt = race_dt.replace(tzinfo=dt_timezone.utc)
+                    race_dt = parse_utc_instant(f"{race.date}T{race.time}")
 
                     # Keep the current race selected until NEXT_RACE_GRACE after lights-out, so
                     # the display doesn't flip to the next GP mid-race.
@@ -645,11 +632,7 @@ class F1Service:
                         race_order = (race.date, "24:00")
                         completed = race.date < today_in_timezone(self.timezone_str).isoformat()
                     else:
-                        race_dt = datetime.fromisoformat(
-                            f"{race.date}T{race.time}".replace("Z", "+00:00")
-                        )
-                        if race_dt.tzinfo is None:
-                            race_dt = race_dt.replace(tzinfo=dt_timezone.utc)
+                        race_dt = parse_utc_instant(f"{race.date}T{race.time}")
                         race_order = (race_dt.date().isoformat(), race_dt.time().isoformat())
                         completed = race_dt <= now
                     if completed and (latest_completed is None or race_order > latest_completed[0]):

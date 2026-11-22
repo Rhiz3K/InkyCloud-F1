@@ -13,6 +13,7 @@ from app.config import config
 from app.services.http_client import get_shared_http_client
 from app.services.weather_budget import WEATHER_BUDGET
 from app.utils.http import fetch_with_retry
+from app.utils.race_times import parse_utc_instant, race_session_start, to_utc
 
 if TYPE_CHECKING:
     from app.services.database import Database
@@ -66,13 +67,6 @@ _circuit_weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
 CIRCUIT_WEATHER_TTL_MINUTES = 120
 
 
-def _to_utc_datetime(dt: datetime) -> datetime:
-    """Normalize naive and aware datetimes to an aware UTC value."""
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
-
-
 def _current_weather_cache_key(lat: float, lon: float) -> str:
     """Cache key for current weather — single source for readers, prefetch, and warm-load."""
     return f"current_{round(lat, 2)}_{round(lon, 2)}"
@@ -85,7 +79,7 @@ def _race_weather_cache_key(lat: float, lon: float, race_datetime: datetime) -> 
     a local-offset isoformat here once made the restart warm-load populate a key the
     reader never looked up.
     """
-    return f"{round(lat, 2)}_{round(lon, 2)}_{_to_utc_datetime(race_datetime).isoformat()}"
+    return f"{round(lat, 2)}_{round(lon, 2)}_{to_utc(race_datetime).isoformat()}"
 
 
 def _finite_number(value: object) -> float | None:
@@ -241,7 +235,7 @@ class WeatherService:
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
         """Return cached, forecast, or historical weather for a race timestamp."""
-        race_datetime_utc = _to_utc_datetime(race_datetime)
+        race_datetime_utc = to_utc(race_datetime)
 
         cache_key = _race_weather_cache_key(lat, lon, race_datetime)
         cached = self._get_cached(cache_key)
@@ -291,7 +285,7 @@ class WeatherService:
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
         """Return cached or archived Open-Meteo weather for a past race."""
-        race_datetime_utc = _to_utc_datetime(race_datetime)
+        race_datetime_utc = to_utc(race_datetime)
 
         cache_key = f"historical_{round(lat, 2)}_{round(lon, 2)}_{race_datetime_utc.isoformat()}"
         cached = self._get_cached(cache_key)
@@ -365,7 +359,7 @@ class WeatherService:
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
         """Fetch and normalize archived hourly weather for a race location."""
-        race_dt_utc = _to_utc_datetime(race_datetime)
+        race_dt_utc = to_utc(race_datetime)
         race_date = race_dt_utc.strftime("%Y-%m-%d")
 
         params: dict[str, str | int | float] = {
@@ -522,7 +516,7 @@ def _build_weather_service() -> WeatherService:
     )
 
 
-def _parse_coordinate(value: str | int | float | None) -> Optional[float]:
+def parse_coordinate(value: str | int | float | None) -> Optional[float]:
     """Parse a coordinate-like value, returning ``None`` when invalid."""
     if value is None:
         return None
@@ -539,8 +533,8 @@ def _extract_circuit_context(race_data: dict) -> tuple[str, Optional[float], Opt
     circuit_id = circuit.get("circuitId") or circuit.get("circuit_id", "")
     displayed_lon = circuit.get("long") if circuit.get("long") is not None else circuit.get("lon")
 
-    lat = _parse_coordinate(circuit.get("lat"))
-    lon = _parse_coordinate(displayed_lon)
+    lat = parse_coordinate(circuit.get("lat"))
+    lon = parse_coordinate(displayed_lon)
 
     if (circuit.get("lat") is not None and lat is None) or (
         (circuit.get("long") or circuit.get("lon")) is not None and lon is None
@@ -578,7 +572,7 @@ def _match_hourly_weather(
         logger.warning("Empty weather response")
         return None
 
-    race_dt_utc = _to_utc_datetime(race_datetime)
+    race_dt_utc = to_utc(race_datetime)
     race_hour_str = race_dt_utc.strftime("%Y-%m-%dT%H:00")
 
     matched_index: Optional[int] = None
@@ -597,7 +591,7 @@ def _match_hourly_weather(
                 continue
 
             try:
-                candidate_dt = _to_utc_datetime(datetime.fromisoformat(t.replace("Z", "+00:00")))
+                candidate_dt = parse_utc_instant(t)
             except ValueError:
                 continue
 
@@ -630,27 +624,6 @@ def _hourly_weather_row(
         precipitation_probability=0 if as_amount else int(precip),
         precipitation_display_override=_format_precipitation_amount(precip) if as_amount else None,
     )
-
-
-def _extract_race_datetime(race_data: dict) -> Optional[datetime]:
-    """Extract and normalize the scheduled race-session datetime."""
-    schedule = race_data.get("schedule", [])
-    race_session = next(
-        (session for session in schedule if str(session.get("name", "")).lower() == "race"),
-        None,
-    )
-    if not race_session:
-        return None
-
-    dt_str = race_session.get("datetime")
-    if not dt_str or len(str(dt_str)) == 10:
-        return None
-
-    try:
-        return _to_utc_datetime(datetime.fromisoformat(dt_str.replace("Z", "+00:00")))
-    except ValueError:
-        logger.debug("Invalid race datetime: %s", dt_str)
-        return None
 
 
 async def _resolve_current_weather(
@@ -717,7 +690,7 @@ async def _get_weather_context_unbounded(
         return None, None, weather_by_type
 
     circuit_id, lat, lon = _extract_circuit_context(race_data)
-    race_dt = _extract_race_datetime(race_data)
+    race_dt = race_session_start(race_data)
 
     current_weather, weather_service = await _resolve_current_weather(
         circuit_id=circuit_id,
@@ -789,22 +762,9 @@ def _get_next_race_details() -> Optional[tuple[float, float, datetime]]:
         logger.warning("Invalid coordinates: lat=%s, lon=%s", lat, lon)
         return None
 
-    schedule = race_data.get("schedule", [])
-    race_session = next((s for s in schedule if s.get("name") == "Race"), None)
-
-    if not race_session:
-        logger.warning("No race session found for weather prefetch")
-        return None
-
-    race_dt_str = race_session.get("datetime")
-    if not race_dt_str or len(race_dt_str) == 10:
-        logger.warning("No race datetime for weather prefetch")
-        return None
-
-    try:
-        race_dt = datetime.fromisoformat(race_dt_str)
-    except ValueError:
-        logger.warning("Invalid race datetime: %s", race_dt_str)
+    race_dt = race_session_start(race_data)
+    if race_dt is None:
+        logger.warning("No known race start for weather prefetch")
         return None
 
     return (lat_f, lon_f, race_dt)
