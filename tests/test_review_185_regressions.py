@@ -397,3 +397,65 @@ def test_results_column_labels_rows_with_stored_position():
     )
 
     assert labels == [1, 2, 4]
+
+
+# --- B4: a historical precipitation amount survives a restart ---------------------------------
+
+
+@pytest.mark.asyncio
+async def test_precipitation_amount_survives_db_round_trip(tmp_path, monkeypatch):
+    from datetime import datetime, timezone
+
+    from app.services.database import Database
+
+    db = Database(str(tmp_path / "weather.db"))
+    race_dt = datetime(2026, 7, 12, 14, tzinfo=timezone.utc)
+    archived = WeatherData(19.0, 61, 0, precipitation_display_override="1.6mm")
+    service = MagicMock()
+    service.get_current_weather = AsyncMock(return_value=None)
+    service.get_race_weather = AsyncMock(return_value=archived)
+    monkeypatch.setattr(weather_service, "WeatherService", lambda **_: service)
+    monkeypatch.setattr(weather_service, "_get_next_race_details", lambda: (1.0, 2.0, race_dt))
+    try:
+        await weather_service.prefetch_weather_for_next_race(db)
+        weather_service._weather_cache.clear()
+
+        assert await weather_service.load_prefetched_weather_from_db(db) == 1
+        key = weather_service._race_weather_cache_key(1.0, 2.0, race_dt)
+        restored = weather_service._weather_cache[key][0]
+        assert restored.precip_display == "1.6mm"
+        assert (await weather_service.get_cached_weather_from_db(db, key)) == archived
+    finally:
+        weather_service._weather_cache.clear()
+        await db.close()
+
+
+@pytest.mark.asyncio
+async def test_weather_cache_migration_adds_precipitation_column(tmp_path):
+    from app.services.database import DATABASE_SCHEMA_VERSION, Database
+
+    path = tmp_path / "legacy.db"
+    with closing(sqlite3.connect(path)) as conn:
+        conn.execute(
+            """
+            CREATE TABLE weather_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cache_key TEXT UNIQUE NOT NULL,
+                temperature_c REAL NOT NULL,
+                weather_code INTEGER NOT NULL,
+                precipitation_probability INTEGER NOT NULL,
+                cached_at TEXT NOT NULL,
+                expires_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.commit()
+
+    db = Database(str(path))
+    try:
+        await db.save_weather_cache("k", 18.0, 3, 0, precipitation_display_override="0.4mm")
+        assert (await db.get_weather_cache("k"))[4] == "0.4mm"
+    finally:
+        await db.close()
+    with closing(sqlite3.connect(path)) as conn:
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == DATABASE_SCHEMA_VERSION

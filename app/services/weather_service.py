@@ -842,6 +842,7 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
             weather_code=race_weather.weather_code,
             precipitation_probability=race_weather.precipitation_probability,
             ttl_minutes=120,
+            precipitation_display_override=race_weather.precipitation_display_override,
         )
         logger.info("Prefetched race day weather: %s", race_weather.temp_display)
         return race_weather
@@ -849,16 +850,22 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
     return current_weather
 
 
+def _weather_from_db_row(row: tuple) -> WeatherData:
+    """Rebuild WeatherData from a weather_cache row, keeping a stored precipitation amount."""
+    temp_c, code, precip = row[:3]
+    return WeatherData(
+        temperature_c=temp_c,
+        weather_code=code,
+        precipitation_probability=precip,
+        precipitation_display_override=row[4] if len(row) > 4 else None,
+    )
+
+
 async def get_cached_weather_from_db(db: "Database", cache_key: str) -> Optional[WeatherData]:
     """Get weather from DB cache."""
     cached = await db.get_weather_cache(cache_key)
     if cached:
-        temp_c, code, precip, _cached_at = cached
-        return WeatherData(
-            temperature_c=temp_c,
-            weather_code=code,
-            precipitation_probability=precip,
-        )
+        return _weather_from_db_row(cached)
     return None
 
 
@@ -885,12 +892,8 @@ async def load_prefetched_weather_from_db(db: "Database") -> int:
         cached = await db.get_weather_cache(cache_key)
         if not cached:
             continue
-        temp_c, code, precip, cached_at_str = cached
-        data = WeatherData(
-            temperature_c=temp_c,
-            weather_code=code,
-            precipitation_probability=precip,
-        )
+        data = _weather_from_db_row(cached)
+        cached_at_str = cached[3]
         # Stamp with the ORIGINAL fetch time so the in-memory TTL measures true data age;
         # stamping "now" would serve up-to-2h-old data as fresh for another full window.
         try:

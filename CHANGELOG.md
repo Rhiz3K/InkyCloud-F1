@@ -126,6 +126,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     positions exactly 1–3, and the results footer labels rows with the stored position. The
     bundled 2025 Las Vegas qualifying (1, 2, 4) now shows `4.` instead of relabelling Russell
     as third.
+  - Historical race weather keeps its precipitation amount (for example `1.6mm`) across
+    restarts. The `weather_cache` table gains a nullable `precipitation_display_override`
+    column (schema version 7, added automatically on startup); before, the warm-load turned
+    the amount into `0%`.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

@@ -19,7 +19,7 @@ from app.utils.async_tasks import create_supervised_task
 
 logger = logging.getLogger(__name__)
 PERF_STATS_SAMPLE_LIMIT = 10_000
-DATABASE_SCHEMA_VERSION = 6
+DATABASE_SCHEMA_VERSION = 7
 
 STATS_CLEANUP_QUERIES = {
     "request_stats": "DELETE FROM request_stats WHERE timestamp < ?",
@@ -262,7 +262,8 @@ class Database:
                         weather_code INTEGER NOT NULL,
                         precipitation_probability INTEGER NOT NULL,
                         cached_at TEXT NOT NULL,
-                        expires_at TEXT NOT NULL
+                        expires_at TEXT NOT NULL,
+                        precipitation_display_override TEXT
                     );
 
                     -- Create indexes (note: idx_api_calls_race created after migrations)
@@ -345,6 +346,15 @@ class Database:
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_perf_metrics_visit "
             "ON perf_metrics(visit_id, page_path, measurement_version)"
         )
+
+        # Historical race weather shows an amount ("1.6mm") rather than a probability; without
+        # this column a restart reloaded it as "0%".
+        async with conn.execute("PRAGMA table_info(weather_cache)") as cursor:
+            weather_columns = {row[1] for row in await cursor.fetchall()}
+        if weather_columns and "precipitation_display_override" not in weather_columns:
+            await conn.execute(
+                "ALTER TABLE weather_cache ADD COLUMN precipitation_display_override TEXT"
+            )
 
         await private_stats.migrate_track_options(conn)
         await conn.execute("DROP VIEW IF EXISTS api_calls_combined")
@@ -1480,6 +1490,8 @@ class Database:
         weather_code: int,
         precipitation_probability: int,
         ttl_minutes: int = 120,
+        *,
+        precipitation_display_override: str | None = None,
     ) -> None:
         """Save weather data to database cache with TTL."""
         await self._init_db_if_needed()
@@ -1491,14 +1503,15 @@ class Database:
                 """
                 INSERT INTO weather_cache
                     (cache_key, temperature_c, weather_code, precipitation_probability,
-                     cached_at, expires_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                     cached_at, expires_at, precipitation_display_override)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(cache_key) DO UPDATE SET
                     temperature_c = excluded.temperature_c,
                     weather_code = excluded.weather_code,
                     precipitation_probability = excluded.precipitation_probability,
                     cached_at = excluded.cached_at,
-                    expires_at = excluded.expires_at
+                    expires_at = excluded.expires_at,
+                    precipitation_display_override = excluded.precipitation_display_override
                 """,
                 (
                     cache_key,
@@ -1507,12 +1520,15 @@ class Database:
                     precipitation_probability,
                     now.isoformat(),
                     expires_at.isoformat(),
+                    precipitation_display_override,
                 ),
             )
             await conn.commit()
 
-    async def get_weather_cache(self, cache_key: str) -> Optional[tuple[float, int, int, str]]:
-        """Get non-expired weather data plus its original cached_at timestamp."""
+    async def get_weather_cache(
+        self, cache_key: str
+    ) -> Optional[tuple[float, int, int, str, str | None]]:
+        """Get non-expired weather data, its original cached_at and any precipitation text."""
         await self._init_db_if_needed()
         now = datetime.now(timezone.utc).isoformat()
 
@@ -1520,7 +1536,8 @@ class Database:
             self._get_connection() as conn,
             conn.execute(
                 """
-            SELECT temperature_c, weather_code, precipitation_probability, cached_at
+            SELECT temperature_c, weather_code, precipitation_probability, cached_at,
+                   precipitation_display_override
             FROM weather_cache
             WHERE cache_key = ? AND expires_at > ?
             """,
@@ -1534,6 +1551,7 @@ class Database:
                     row["weather_code"],
                     row["precipitation_probability"],
                     row["cached_at"],
+                    row["precipitation_display_override"],
                 )
             return None
 
