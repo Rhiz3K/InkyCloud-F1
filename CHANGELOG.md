@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add an experimental `theme=light|dark` to `/calendar.bmp`, `/teams.bmp`, `/auto.bmp` and the
+  configure previews. Dark is built from the same `RenderTheme` policy, not a pixel inversion:
+  black canvas, white text, lines and outlines, while red, yellow and the Spectra 6 colours keep
+  their roles (red stays red on `bwr`, `bwry` and `spectra6`). Flags keep their colours with a
+  thin white border, the header car becomes white line art, all 18 track styles swap their
+  black and white inks (`negative` already draws on black), the 1-bit title band gets a white
+  rule and every teams `extra` panel, the results footer, the "new track" badge and the error
+  image follow the dark canvas. The default `light` is byte-identical. Dark images render on
+  demand into the variant cache with their own cache keys and ETags (never pregenerated) and
+  compose with `format`, `rotate`, `countdown`, `weekend_mode`, `weather_type` and
+  `temp_unit`. Invalid values return HTTP 422. API docs, `/api`, configurator (theme select with
+  a ghosting note), README, EXAMPLES and all 13 locales are updated. Needs checking on real
+  panels: large black areas can ghost with partial refresh.
+
 - Add `format=bmp|png` and `rotate=0|180` to `/calendar.bmp`, `/teams.bmp` and `/auto.bmp`.
   `format=png` returns a lossless PNG with exactly the same pixel indices as the BMP: Pillow
   mode `1` for `1bit` and mode `P` with exactly the panel palette for `bwr`, `bwry` and

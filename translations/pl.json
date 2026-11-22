@@ -244,6 +244,17 @@
         "daily": "/auto.bmp zmienia kalendarz i zespoły codziennie o lokalnej północy."
       }
     },
+    "theme": {
+      "label": "Motyw",
+      "options": {
+        "light": "Jasny (domyślny)",
+        "dark": "Ciemny (eksperymentalny)"
+      },
+      "hints": {
+        "light": "Czarny tekst na białym tle.",
+        "dark": "Biały tekst na czarnym tle, czerwone i żółte akcenty pozostają. Eksperymentalny: duże czarne obszary mogą na niektórych panelach pozostawiać powidoki; używaj pełnego odświeżania."
+      }
+    },
     "output": {
       "label": "Wyjście obrazu",
       "formatLabel": "Format",
@@ -477,6 +488,7 @@
   "api_docs_format_desc": "Format wyjściowy: bmp (domyślny, bez zmian) lub png. PNG jest bezstratny, z dokładnie tymi samymi indeksami pikseli i paletą panelu (bez ditheringu i dodatkowych kolorów) oraz 4–27× mniejszy; dla firmware, które dekoduje PNG. Ścieżka pozostaje .bmp; Content-Type, Content-Length i ETag opisują wysłane bajty. Nieprawidłowa wartość zwraca HTTP 422.",
   "api_docs_rotate_desc": "Obrót: 0 (domyślnie) lub 180. 180 bezstratnie odwraca obraz do góry nogami (nadal 800×480, ta sama głębia kolorów BMP) dla panelu zamontowanego odwrotnie. 90/270 nie są dostępne, bo wymagałyby układu pionowego. Nieprawidłowa wartość zwraca HTTP 422.",
   "api_docs_output_sizes": "Typowe rozmiary kalendarza z format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Każdy format i obrót ma własny ETag.",
+  "api_docs_theme_desc": "Motyw: light (domyślny) lub dark (eksperymentalny). Ciemny motyw rysuje biały tekst i linie na czarnym tle; czerwony, żółty i kolory Spectra 6 pozostają, a flagi zachowują swoje kolory. Duże czarne obszary mogą na niektórych panelach e-ink pozostawiać powidoki, dlatego zalecane jest pełne odświeżenie. Renderowany na żądanie, nigdy z wyprzedzeniem. Nieprawidłowa wartość zwraca HTTP 422.",
   "api_docs_auto_desc": "Jeden URL, który zwraca bezpośrednio BMP kalendarza lub zespołów (bez przekierowania). Dla wyświetlaczy, które mogą pobierać tylko jeden adres, np. Živýobraz.eu lub prosty firmware ESP32.",
   "api_docs_auto_mode_desc": "race_week: kalendarz od lead_hours przed pierwszą sesją najbliższego weekendu wyścigowego do wyboru kolejnego wyścigu (4 h po starcie), w pozostałym czasie zespoły, także w przerwie zimowej i przy odwołanych wyścigach. daily: kalendarz w parzyste, a zespoły w nieparzyste dni lokalne w tz, zmiana o lokalnej północy. Nieprawidłowa wartość zwraca HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Tylko race_week: ile godzin przed pierwszą sesją (FP1) pojawia się kalendarz. Wartości spoza 0–168 zwracają HTTP 422.",

@@ -128,14 +128,16 @@ def draw_teams_extra(
     draw.fontmode = "1"
     width, height = panel.size
     draw.rectangle(
-        (0, 0, width - 1, height - 1), fill=theme.colors.WHITE, outline=theme.team_outline_fill
+        (0, 0, width - 1, height - 1), fill=theme.canvas_fill, outline=theme.team_outline_fill
     )
     if extra == TeamsExtra.WEATHER:
         credit = translator.get("teams_extra_weather_credit", "Open-Meteo")
         bounds = draw.textbbox((0, 0), credit, font=load_ui_font(lang, 12, bold=True))
         title_width = width - 18 - int(bounds[2] - bounds[0])
         title = _race_line(ctx, translator, draw, lang, title_width)
-        draw.rectangle((1, 1, width - 2, 22), fill=theme.team_header_fill)
+        draw.rectangle(
+            (1, 1, width - 2, 22), fill=theme.team_header_fill, outline=theme.team_header_rule_fill
+        )
         _text(
             draw,
             title,
@@ -169,14 +171,14 @@ def _draw_countdown(
     """Prioritise the next race and start alongside a compact day countdown."""
     width, height = panel.size
     split = 112
-    draw.rectangle((4, 4, split, height - 5), fill=theme.team_header_fill)
+    draw.rectangle((4, 4, split, height - 5), fill=theme.block_fill)
     _text(
         draw,
         _countdown(ctx, translator, lang),
         9,
         7,
         split - 14,
-        theme.team_header_text_fill,
+        theme.block_text_fill,
         lang,
         size=28,
         min_size=14,
@@ -219,7 +221,7 @@ def _draw_countdown(
             (x, 50 if active else 53, max(x, right), 57),
             fill=theme.accent_fill
             if active
-            else (theme.text_fill if race.done else theme.colors.WHITE),
+            else (theme.text_fill if race.done else theme.canvas_fill),
             outline=theme.team_outline_fill,
         )
 
@@ -286,16 +288,22 @@ def _draw_flags(
         x = start + i * cell
         active = race.round == ctx.next_round
         inverted = active and display == "1bit"
-        foreground = theme.team_header_text_fill if inverted else theme.text_fill
+        foreground = theme.block_text_fill if inverted else theme.text_fill
         draw.rectangle(
             (x, 4, x + cell - 4, height - 5),
-            fill=theme.team_header_fill if inverted else theme.colors.WHITE,
+            fill=theme.block_fill if inverted else theme.canvas_fill,
             outline=theme.accent_fill if active else theme.team_outline_fill,
             width=2 if active else 1,
         )
         flag = _flag(theme, race.iso2) if display != "1bit" else None
         if flag is not None:
             panel.paste(flag.convert(panel.mode), (x + 10, 8))
+            if theme.flag_outline_fill is not None:
+                # Keeps a dark flag edge (or a black stripe) visible on the black canvas.
+                draw.rectangle(
+                    (x + 9, 7, x + 10 + flag.width, 8 + flag.height),
+                    outline=theme.flag_outline_fill,
+                )
         code_left = x + 52 if flag is not None else x + 4
         code_width = cell - 60 if flag is not None else cell - 12
         _text(
@@ -368,6 +376,7 @@ def _draw_track(
             height=map_height * 2,
             display=display,
             options=TrackOptions(style=TrackStyle.CLEAN),
+            dark=theme.dark,
         )
         if track is not None:
             track = (

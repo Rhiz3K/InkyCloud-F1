@@ -23,6 +23,11 @@ from app.services.track_geometry import FittedTrack, fit_track
 BLACK, WHITE = COLORS["black"], COLORS["white"]
 
 
+def inverts_inks(options: TrackOptions, dark: bool) -> bool:
+    """Return whether a dark-theme track swaps black and white (all styles but negative)."""
+    return dark and options.style != "negative"
+
+
 def element(
     parent: Element, tag: str, attrs: dict | None = None, text: str | None = None
 ) -> Element:
@@ -35,15 +40,22 @@ def element(
 class TrackDrawing:
     """Compose one artwork without external resources, filters or mutable global state."""
 
-    def __init__(self, geometry: FittedTrack, options: TrackOptions, display: str):
-        """Initialise native-pixel geometry and intersect the requested hardware palette."""
+    def __init__(
+        self, geometry: FittedTrack, options: TrackOptions, display: str, *, dark: bool = False
+    ):
+        """Initialise native-pixel geometry and intersect the requested hardware palette.
+
+        ``dark`` swaps the black and white inks of every layer (colour accents stay), so each
+        style keeps its contrast on a black canvas; ``negative`` already draws on black.
+        """
+        self.black, self.white = (WHITE, BLACK) if inverts_inks(options, dark) else (BLACK, WHITE)
         self.g = geometry
         self.options = options
         self.width, self.height = geometry.width, geometry.height
         self.colors = [COLORS[name] for name in effective_accents(display, options.accent)]
         self.mono = not self.colors
-        self.colors = self.colors or [BLACK]
-        self.background = BLACK if options.style == "negative" else WHITE
+        self.colors = self.colors or [self.black]
+        self.background = self.black if options.style == "negative" else self.white
         self.svg = Element("svg", {"xmlns": "http://www.w3.org/2000/svg"})
         self.defs = element(self.svg, "defs")
         self.counter = 0
@@ -83,8 +95,9 @@ class TrackDrawing:
             dy,
         )
 
-    def core(self, size: float, color: str = BLACK, halo: bool = True) -> None:
-        """Keep a continuous readable circuit line above decorative layers."""
+    def core(self, size: float, color: str | None = None, halo: bool = True) -> None:
+        """Keep a continuous readable circuit line (black ink by default) above decorations."""
+        color = self.black if color is None else color
         if halo:
             self.stroke(self.background, size + 3.2)
         self.stroke(color, size, **{"data-layer": "track"})
@@ -170,7 +183,11 @@ class TrackDrawing:
             fill = self.colors[i % len(self.colors)]
             if self.mono:
                 fill = (
-                    WHITE if i % 2 else self.pattern("dots", BLACK, 7, 1.6) if patterned else BLACK
+                    self.white
+                    if i % 2
+                    else self.pattern("dots", self.black, 7, 1.6)
+                    if patterned
+                    else self.black
                 )
             elif patterned:
                 fill = self.pattern("dots", fill, 5 + i, 1.35)
@@ -195,7 +212,7 @@ class TrackDrawing:
     def draw_poster(self) -> None:
         """Draw a bold poster outline with a displaced print layer."""
         self.stroke(
-            BLACK if self.mono else self.bands(), self.w * 1.8, self.w * 1.25, self.w * 1.45
+            self.black if self.mono else self.bands(), self.w * 1.8, self.w * 1.25, self.w * 1.45
         )
         self.core(self.w * 1.12)
 
@@ -227,7 +244,7 @@ class TrackDrawing:
         """Draw all four outline echoes, including the outermost visible stroke."""
         for ring in range(4, 0, -1):
             self.stroke(self.colors[(ring - 1) % len(self.colors)], self.w + ring * 7.1)
-            self.stroke(WHITE, self.w + ring * 7.1 - 2.6)
+            self.stroke(self.white, self.w + ring * 7.1 - 2.6)
         self.core(self.w * 0.86, halo=False)
 
     def draw_geometric(self) -> None:
@@ -240,7 +257,7 @@ class TrackDrawing:
                 "cx": w * 0.73,
                 "cy": h * 0.47,
                 "r": min(h * 0.30, w * 0.25),
-                "fill": self.pattern("hatch", BLACK, 8, 1.2)
+                "fill": self.pattern("hatch", self.black, 8, 1.2)
                 if self.mono
                 else self.colors[1 % len(self.colors)],
             },
@@ -261,7 +278,7 @@ class TrackDrawing:
             "path",
             {
                 "d": f"M{w * 0.25} {h * 0.2} L{w * 0.61} {h * 0.12} L{w * 0.51} {h * 0.4} Z",
-                "fill": WHITE if self.mono else self.colors[2 % len(self.colors)],
+                "fill": self.white if self.mono else self.colors[2 % len(self.colors)],
             },
         )
         if len(self.colors) > 3:
@@ -274,7 +291,7 @@ class TrackDrawing:
 
     def draw_blueprint(self) -> None:
         """Draw a decorative drafting grid without suggesting measured dimensions."""
-        color = BLACK if self.colors[0] == COLORS["yellow"] else self.colors[0]
+        color = self.black if self.colors[0] == COLORS["yellow"] else self.colors[0]
         element(
             self.svg,
             "rect",
@@ -287,16 +304,16 @@ class TrackDrawing:
             },
         )
         self.core(self.w * 1.2)
-        self.stroke(WHITE, self.w * 0.55)
+        self.stroke(self.white, self.w * 0.55)
         if not self.mono:
             self.stroke(self.bands(), max(1.25, self.w * 0.28))
 
     def draw_ribbon(self) -> None:
         """Keep two coloured ribbon edges separated by a white centre."""
-        self.stroke(BLACK, self.w * 2.7)
+        self.stroke(self.black, self.w * 2.7)
         if not self.mono:
             self.stroke(self.bands(), self.w * 1.95)
-        self.stroke(WHITE, self.w * 0.95)
+        self.stroke(self.white, self.w * 0.95)
 
     def separator(self, index: int, half_length: float, color: str, thickness: float) -> None:
         """Draw a short line perpendicular to a sampled decorative boundary."""
@@ -320,8 +337,8 @@ class TrackDrawing:
 
     def draw_mosaic(self) -> None:
         """Split the decorative ribbon into twelve tiles with visible separators."""
-        self.stroke(BLACK, self.w * 2.6)
-        colors = [BLACK, WHITE] if self.mono else self.colors
+        self.stroke(self.black, self.w * 2.6)
+        colors = [self.black, self.white] if self.mono else self.colors
         points, n = self.g.points, len(self.g.points)
         for i in range(12):
             section = [points[j % n] for j in range(i * n // 12, (i + 1) * n // 12 + 1)]
@@ -338,7 +355,7 @@ class TrackDrawing:
                 },
             )
         for i in range(12):
-            self.separator(i * n // 12, self.w * 1.28, BLACK, 1.5)
+            self.separator(i * n // 12, self.w * 1.28, self.black, 1.5)
 
     def draw_halftone(self) -> None:
         """Fill the outline using coloured dots instead of continuous gradients."""
@@ -347,9 +364,9 @@ class TrackDrawing:
 
     def draw_negative(self) -> None:
         """Draw white track ink on black paper with a displaced accent layer."""
-        paint = self.pattern("dots", WHITE, 5, 1.1) if self.mono else self.bands()
+        paint = self.pattern("dots", self.white, 5, 1.1) if self.mono else self.bands()
         self.stroke(paint, self.w * 2.4, self.w * 1.4, self.w * 1.3)
-        self.core(self.w * 1.1, WHITE)
+        self.core(self.w * 1.1, self.white)
 
     def draw_papercut(self) -> None:
         """Cut the original outline through offset paper sheets using luminance masks."""
@@ -383,7 +400,7 @@ class TrackDrawing:
                 shift,
             )
             fill = (
-                (WHITE if layer % 2 else BLACK)
+                (self.white if layer % 2 else self.black)
                 if self.mono
                 else self.colors[layer % len(self.colors)]
             )
@@ -396,7 +413,7 @@ class TrackDrawing:
                     "width": self.width - 13,
                     "height": self.height - 13,
                     "fill": fill,
-                    "stroke": BLACK,
+                    "stroke": self.black,
                     "stroke-width": 1.1,
                     "mask": f"url(#{identifier})",
                 },
@@ -405,11 +422,11 @@ class TrackDrawing:
 
     def draw_relief(self) -> None:
         """Extrude an isometric projection by seventeen purely decorative pixels."""
-        self.stroke(self.pattern("hatch", BLACK, 6, 1.1), self.w * 3.8, 4, 22)
+        self.stroke(self.pattern("hatch", self.black, 6, 1.1), self.w * 3.8, 4, 22)
         for z in range(17, 0, -1):
-            self.stroke(WHITE if z == 7 else BLACK, self.w * 2.6, 0, z)
-        self.stroke(BLACK, self.w * 2.7)
-        self.stroke(WHITE if self.mono else self.bands(), self.w * 1.85)
+            self.stroke(self.white if z == 7 else self.black, self.w * 2.6, 0, z)
+        self.stroke(self.black, self.w * 2.7)
+        self.stroke(self.white if self.mono else self.bands(), self.w * 1.85)
 
     def draw_typographic(self, lettering: str) -> None:
         """Interweave the curve with locally rendered, bounded circuit lettering."""
@@ -426,15 +443,18 @@ class TrackDrawing:
             "lengthAdjust": "spacingAndGlyphs",
         }
         element(
-            self.svg, "text", {**attrs, "transform": "translate(3 4)", "fill": BLACK}, lettering
+            self.svg,
+            "text",
+            {**attrs, "transform": "translate(3 4)", "fill": self.black},
+            lettering,
         )
         element(
             self.svg,
             "text",
             {
                 **attrs,
-                "fill": BLACK if self.mono else self.bands(False),
-                "stroke": WHITE,
+                "fill": self.black if self.mono else self.bands(False),
+                "stroke": self.white,
                 "stroke-width": 1.4,
                 "paint-order": "stroke",
             },
@@ -471,7 +491,7 @@ class TrackDrawing:
                     "width": w - 2 * inset,
                     "height": h - 2 * inset,
                     "fill": "none",
-                    "stroke": BLACK,
+                    "stroke": self.black,
                     "stroke-width": 1.8 if inset == 1 else 1,
                 },
             )
@@ -479,14 +499,14 @@ class TrackDrawing:
 
     def draw_stencil(self) -> None:
         """Add eight stencil bridges around an uninterrupted circuit line."""
-        self.stroke(BLACK, self.w * 4.5)
+        self.stroke(self.black, self.w * 4.5)
         if not self.mono:
             self.stroke(self.bands(), self.w * 3.75)
         for bridge in range(8):
             self.separator(
                 int((bridge / 8 + 0.035) * len(self.g.points)) % len(self.g.points),
                 self.w * 2.4,
-                WHITE,
+                self.white,
                 3.6,
             )
         self.core(self.w * 0.83)
@@ -515,7 +535,9 @@ class TrackDrawing:
         )
         group = element(self.svg, "g", {"shape-rendering": "crispEdges"})
         for x, y in outline:
-            element(group, "rect", {"x": x * 3, "y": y * 3, "width": 3, "height": 3, "fill": BLACK})
+            element(
+                group, "rect", {"x": x * 3, "y": y * 3, "width": 3, "height": 3, "fill": self.black}
+            )
         for (x, y), fraction in cells.items():
             element(
                 group,
@@ -525,7 +547,9 @@ class TrackDrawing:
                     "y": y * 3,
                     "width": 3,
                     "height": 3,
-                    "fill": WHITE if self.mono else self.colors[int(fraction * len(self.colors))],
+                    "fill": self.white
+                    if self.mono
+                    else self.colors[int(fraction * len(self.colors))],
                 },
             )
 
@@ -538,11 +562,15 @@ def build_track_svg(
     height: int = 271,
     *,
     credit_url: str = "",
+    dark: bool = False,
 ) -> bytes:
-    """Build an attributed SVG; standalone exports also carry a visible credit link."""
+    """Build an attributed SVG; standalone exports also carry a visible credit link.
+
+    ``dark`` draws the artwork for a black canvas (see ``TrackDrawing``).
+    """
     circuit_id = canonical_circuit_id(circuit_id)
     geometry = fit_track(circuit_id, options.source, options.style, width, height)
-    drawing = TrackDrawing(geometry, options, display)
+    drawing = TrackDrawing(geometry, options, display, dark=dark)
     track = {item["id"]: item for item in load_track_catalog()["tracks"]}[circuit_id]
     if options.style == "typographic":
         drawing.draw_typographic(track["lettering"])

@@ -244,6 +244,17 @@
         "daily": "/auto.bmp 每天在当地午夜于日历和车队之间轮换。"
       }
     },
+    "theme": {
+      "label": "主题",
+      "options": {
+        "light": "浅色（默认）",
+        "dark": "深色（实验性）"
+      },
+      "hints": {
+        "light": "白色背景上的黑色文字。",
+        "dark": "黑底白字，红色和黄色强调色保持不变。实验性：大面积黑色在部分屏幕上可能产生残影，请使用全刷新。"
+      }
+    },
     "output": {
       "label": "图像输出",
       "formatLabel": "格式",
@@ -477,6 +488,7 @@
   "api_docs_format_desc": "输出格式：bmp（默认，不变）或 png。PNG 为无损格式，像素索引和面板调色板完全相同（无抖动，无额外颜色），体积缩小 4–27 倍，适用于能解码 PNG 的固件。路径仍为 .bmp；Content-Type、Content-Length 和 ETag 对应实际发送的字节。无效值返回 HTTP 422。",
   "api_docs_rotate_desc": "旋转：0（默认）或 180。180 将图像无损上下颠倒（仍为 800×480，BMP 色深不变），适用于反向安装的面板。不提供 90/270，因为它们需要竖向布局。无效值返回 HTTP 422。",
   "api_docs_output_sizes": "使用 format=png 时日历的典型大小：1bit 48 KB → 约 10 KB，bwr/bwry 192 KB → 约 13 KB，spectra6 385 KB → 约 14 KB。每种格式和旋转都有自己的 ETag。",
+  "api_docs_theme_desc": "主题：light（默认）或 dark（实验性）。深色主题在黑色背景上绘制白色文字和线条；红色、黄色和 Spectra 6 颜色保持不变，国旗保留原色。大面积黑色在部分电子墨水屏上可能产生残影，建议使用全刷新。按需渲染，从不预生成。无效值返回 HTTP 422。",
   "api_docs_auto_desc": "一个直接返回日历或车队 BMP 的 URL（不重定向）。适用于只能轮询一个地址的显示屏，例如 Živýobraz.eu 或简单的 ESP32 固件。",
   "api_docs_auto_mode_desc": "race_week：从下一个比赛周末第一节练习前 lead_hours 小时起显示日历，直到切换到下一场比赛（起跑后 4 小时）；其余时间显示车队，包括休赛期和取消的比赛。daily：按 tz 中的本地日期，偶数日显示日历，奇数日显示车队，在当地午夜切换。无效值返回 HTTP 422。",
   "api_docs_auto_lead_hours_desc": "仅 race_week：在第一节练习（FP1）前多少小时开始显示日历。超出 0–168 的值返回 HTTP 422。",

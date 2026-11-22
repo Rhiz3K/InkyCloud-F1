@@ -38,6 +38,7 @@ from app.services.image_generation import (
     with_current_selection,
 )
 from app.services.image_keys import get_calendar_image_key, get_teams_image_key
+from app.services.renderer_theme import ThemeMode
 from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_extra import (
     TeamsExtra,
@@ -666,6 +667,11 @@ _ROTATE_DESCRIPTION = (
     "800x480); 90/270 are not offered because they need a portrait layout; invalid values "
     "return 422"
 )
+_THEME_DESCRIPTION = (
+    "Theme: light (default) or dark (experimental: black background, white text, red/yellow "
+    "accents and flags keep their colours; large black areas can ghost on some panels, so "
+    "prefer a full refresh); invalid values return 422"
+)
 _TEAMS_EXTRA_DESCRIPTION = (
     "Teams panel: none, countdown, flags (next 3 races), track, weather; "
     "timeline/combo alias countdown"
@@ -739,6 +745,7 @@ async def _serve_calendar_bmp(
     weekend_mode: WeekendMode = WeekendMode.OFF,
     temp_unit: TempUnit = TempUnit.C,
     output: ImageOutput = DEFAULT_IMAGE_OUTPUT,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> Response:
     """Serve one calendar BMP from validated, normalized inputs.
 
@@ -845,9 +852,13 @@ async def _serve_calendar_bmp(
         if countdown != CountdownMode.HOURS:
             # The content period keeps a cached day count from outliving local midnight.
             cache_key += f":countdown={countdown}:{hint.cache_token()}"
-        cache_key += weekend.cache_suffix(hint) + temp_unit_cache_suffix(temp_unit)
+        cache_key += (
+            weekend.cache_suffix(hint)
+            + temp_unit_cache_suffix(temp_unit)
+            + bmp_artifacts.theme_cache_suffix(theme)
+        )
         image_cache = bmp_artifacts.calendar_image_cache(
-            countdown, weekend.mode, temp_unit, weather_type
+            countdown, weekend.mode, temp_unit, weather_type, theme
         )
         cached_artifact = image_cache.get(cache_key)
         if cached_artifact is not None:
@@ -871,6 +882,7 @@ async def _serve_calendar_bmp(
                 expected_identity=identity,
             )
             if _can_serve_calendar_file(track_options, countdown, weekend.mode, temp_unit)
+            and theme == ThemeMode.LIGHT
             else None
         )
         if image_path is not None:
@@ -914,6 +926,7 @@ async def _serve_calendar_bmp(
                 weekend_mode=weekend.mode,
                 weekend=weekend.phase,
                 temp_unit=temp_unit,
+                **bmp_artifacts.theme_kwargs(theme),
             ),
         )
         is_cacheable = image_cache.get(cache_key) is artifact
@@ -931,7 +944,7 @@ async def _serve_calendar_bmp(
         if not config.MINIMAL_DATA_MODE:
             sentry_sdk.capture_exception(exc)
         bmp_data, etag = await bmp_artifacts.shared_error_artifact(
-            display, lang, "Temporary rendering error"
+            display, lang, "Temporary rendering error", **bmp_artifacts.theme_kwargs(theme)
         )
         poll_hint = None
         return await respond(
@@ -955,6 +968,7 @@ async def _serve_teams_bmp(
     endpoint: str = "/teams.bmp",
     temp_unit: TempUnit = TempUnit.C,
     output: ImageOutput = DEFAULT_IMAGE_OUTPUT,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> Response:
     """Serve one teams BMP from validated, normalized inputs.
 
@@ -1011,14 +1025,14 @@ async def _serve_teams_bmp(
         )
         cache_key = get_teams_image_key(
             lang, year, display=display, extra=effective, extra_context=ctx
-        )
-        cached_artifact = bmp_artifacts.teams_image_cache(effective).get(cache_key)
+        ) + bmp_artifacts.theme_cache_suffix(theme)
+        cached_artifact = bmp_artifacts.teams_image_cache(effective, theme).get(cache_key)
         if cached_artifact is not None:
             return await respond(*cached_artifact, cache_status="HIT")
 
         image_path = (
             _get_pregenerated_teams_path(lang=lang, year=year, display=display)
-            if effective == TeamsExtra.NONE
+            if effective == TeamsExtra.NONE and theme == ThemeMode.LIGHT
             else None
         )
         if image_path is not None:
@@ -1043,6 +1057,7 @@ async def _serve_teams_bmp(
                 display=display,
                 extra=effective,
                 extra_context=ctx,
+                **bmp_artifacts.theme_kwargs(theme),
             ),
         )
         return await respond(*artifact, cache_status="MISS")
@@ -1054,7 +1069,7 @@ async def _serve_teams_bmp(
         if not config.MINIMAL_DATA_MODE:
             sentry_sdk.capture_exception(exc)
         bmp_data, etag = await bmp_artifacts.shared_error_artifact(
-            display, lang, "Temporary rendering error"
+            display, lang, "Temporary rendering error", **bmp_artifacts.theme_kwargs(theme)
         )
         error_body, error_etag, _ = await _output_body(
             bmp_data, etag, None, display=display, output=output
@@ -1112,6 +1127,7 @@ async def get_calendar_bmp(
         OutputFormat, Query(alias="format", description=_FORMAT_DESCRIPTION)
     ] = OutputFormat.BMP,
     rotate: Annotated[Rotation, Query(description=_ROTATE_DESCRIPTION)] = Rotation.NONE,
+    theme: Annotated[ThemeMode, Query(description=_THEME_DESCRIPTION)] = ThemeMode.LIGHT,
 ):
     """Render the calendar endpoint for the requested display and selection."""
     start_time = time.time()
@@ -1137,6 +1153,7 @@ async def get_calendar_bmp(
         weekend_mode=weekend_mode,
         temp_unit=temp_unit,
         output=ImageOutput(output_format, rotate),
+        **bmp_artifacts.theme_kwargs(theme),
     )
 
 
@@ -1160,6 +1177,7 @@ async def get_teams_bmp(
         OutputFormat, Query(alias="format", description=_FORMAT_DESCRIPTION)
     ] = OutputFormat.BMP,
     rotate: Annotated[Rotation, Query(description=_ROTATE_DESCRIPTION)] = Rotation.NONE,
+    theme: Annotated[ThemeMode, Query(description=_THEME_DESCRIPTION)] = ThemeMode.LIGHT,
 ):
     """Render the teams and drivers dashboard as a BMP image."""
     start_time = time.time()
@@ -1174,6 +1192,7 @@ async def get_teams_bmp(
         extra=extra,
         temp_unit=temp_unit,
         output=ImageOutput(output_format, rotate),
+        **bmp_artifacts.theme_kwargs(theme),
     )
 
 
@@ -1287,6 +1306,7 @@ async def get_auto_bmp(
         OutputFormat, Query(alias="format", description=_FORMAT_DESCRIPTION)
     ] = OutputFormat.BMP,
     rotate: Annotated[Rotation, Query(description=_ROTATE_DESCRIPTION)] = Rotation.NONE,
+    theme: Annotated[ThemeMode, Query(description=_THEME_DESCRIPTION)] = ThemeMode.LIGHT,
     f1_service: F1Service = Depends(get_f1_service),
 ):
     """Serve the calendar or the teams BMP on one URL, switching by race week or by day."""
@@ -1320,6 +1340,7 @@ async def get_auto_bmp(
             weekend_mode=weekend_mode,
             temp_unit=temp_unit,
             output=output,
+            **bmp_artifacts.theme_kwargs(theme),
         )
     else:
         response = await _serve_teams_bmp(
@@ -1333,6 +1354,7 @@ async def get_auto_bmp(
             endpoint="/auto.bmp",
             temp_unit=temp_unit,
             output=output,
+            **bmp_artifacts.theme_kwargs(theme),
         )
     # A fresh clock reading: time spent rendering must not extend max-age past the switch.
     return _apply_auto_screen(response, choice, _utc_now())

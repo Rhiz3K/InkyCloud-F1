@@ -32,11 +32,16 @@ def draw_teams_header(
     brand_font,
     subtitle_font,
     draw_f1_logo_fn,
+    rule_fill=None,
 ) -> None:
-    """Draw the shared teams screen header layout."""
+    """Draw the shared teams screen header layout (``rule_fill`` underlines all of it)."""
     draw.rectangle([(0, 0), (split_x, header_height)], fill=left_fill)
     draw.line([(0, header_height - 1), (split_x, header_height - 1)], fill=divider_fill, width=2)
     draw.rectangle([(split_x + 1, 0), (canvas_width, header_height)], fill=right_fill)
+    if rule_fill is not None:
+        draw.line(
+            [(0, header_height - 1), (canvas_width, header_height - 1)], fill=rule_fill, width=2
+        )
 
     draw_f1_logo_fn(image, split_x, header_height)
 
@@ -291,13 +296,19 @@ def draw_team_row(
     clamp_text_fn,
     draw_team_stats_panel_fn,
     draw_team_driver_row_fn,
+    header_rule_fill=None,
 ) -> None:
-    """Draw the shared team-card layout and delegate renderer-specific row details."""
+    """Draw the shared team-card layout and delegate renderer-specific row details.
+
+    ``header_rule_fill`` outlines a header band that is as dark as the canvas (dark theme).
+    """
     _ = stats_padding
     header_height = 23
     box_y_end = y + row_height - 2
     draw.rectangle([(x_start, y), (x_end, box_y_end)], outline=outline_fill, width=1)
-    draw.rectangle([(x_start, y), (x_end, y + header_height)], fill=header_fill)
+    draw.rectangle(
+        [(x_start, y), (x_end, y + header_height)], fill=header_fill, outline=header_rule_fill
+    )
 
     header_text_y = get_text_y_fn(draw, team_font, header_height, y)
     tech_text_y = get_text_y_fn(draw, tech_font, header_height, y)

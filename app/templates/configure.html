@@ -387,6 +387,26 @@ block content %}
           </div>
           <p class="auto-screen-hint mt-1 text-xs text-gray-600" aria-live="polite">{{ auto_ui.hints.off }}</p>
         </div>
+        {# theme=dark changes the preview and the copied URL; light is the default (never in URLs). #}
+        {% set theme_ui = t.configure.theme %}
+        <div class="w-full max-w-[800px] mt-3 p-3 bg-white border-2 border-black shadow-neo-sm" id="themeContainer">
+          <label class="text-xs font-bold uppercase mb-1.5 block" id="themeLabel" for="themeSelect">{{ theme_ui.label }}</label>
+          <div class="relative">
+            <select
+              id="themeSelect"
+              data-on-change="selectTheme"
+              class="theme-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-racing-red"
+            >
+              {% for opt in ["light", "dark"] %}
+              <option value="{{ opt }}" data-hint="{{ theme_ui.hints[opt] }}">{{ theme_ui.options[opt] }}</option>
+              {% endfor %}
+            </select>
+            <svg class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="square" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+          <p class="theme-hint mt-1 text-xs text-gray-600" aria-live="polite">{{ theme_ui.hints.light }}</p>
+        </div>
         {# Output format and rotation change only the copied URL; the preview stays upright. #}
         {% set output_ui = t.configure.output %}
         <div class="w-full max-w-[800px] mt-3 p-3 bg-white border-2 border-black shadow-neo-sm" id="outputContainer">
@@ -563,6 +583,9 @@ block content %}
   let currentTempUnit = "c";
   // app/utils/refresh_hint.py WEEKEND_FORECAST_LEAD_DAYS: qualifying/sprint days before the race.
   const WEEKEND_FORECAST_LEAD_DAYS = 2;
+  // Screen theme: "light" is the default and never appears in URLs.
+  const THEME_OPTIONS = ["light", "dark"];
+  let currentTheme = "light";
   // Output encoding and rotation: the first value of each list is the default, never in URLs.
   const OUTPUT_OPTIONS = { format: ["bmp", "png"], rotate: ["0", "180"] };
   const currentOutput = { format: "bmp", rotate: "0" };
@@ -1089,6 +1112,7 @@ block content %}
       if (currentCountdown !== "hours") params.push(`countdown=${currentCountdown}`);
       if (currentWeekendMode !== "off") params.push(`weekend_mode=${currentWeekendMode}`);
       if (showWeather && currentTempUnit !== "c") params.push(`temp_unit=${currentTempUnit}`);
+      if (currentTheme !== "light") params.push(`theme=${currentTheme}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else {
@@ -1105,6 +1129,7 @@ block content %}
       if (currentTeamsExtra === "weather" && currentTempUnit !== "c") {
         params.push(`temp_unit=${currentTempUnit}`);
       }
+      if (currentTheme !== "light") params.push(`theme=${currentTheme}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     }
@@ -1214,6 +1239,36 @@ block content %}
     setAutoScreen(this.value);
   }
 
+  /**
+   * Sets the screen theme, syncing the select, its hint (dark warns about ghosting) and the
+   * page URL (the default "light" is left out), then reloads the preview.
+   */
+  function setTheme(theme, refresh = true) {
+    if (!THEME_OPTIONS.includes(theme)) theme = "light";
+    currentTheme = theme;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (theme === "light") url.searchParams.delete("theme");
+      else url.searchParams.set("theme", theme);
+      window.history.replaceState(null, "", url);
+    }
+    let hint = "";
+    document.querySelectorAll(".theme-select").forEach((select) => {
+      select.value = theme;
+      const option = select.options[select.selectedIndex];
+      if (option) hint = option.dataset.hint || "";
+    });
+    document.querySelectorAll(".theme-hint").forEach((el) => {
+      el.textContent = hint;
+    });
+    if (refresh) updatePreview();
+  }
+
+  /** Change handler for the theme select; `this` is the select (dispatchDeclaredHandler). */
+  function selectTheme() {
+    setTheme(this.value);
+  }
+
   /** Teams extra panels that print a time or date and therefore honour `tz`. */
   function teamsExtraUsesTz(extra) {
     return ["countdown", "flags", "track", "weather"].includes(extra);
@@ -1272,6 +1327,8 @@ block content %}
     if (WEEKEND_MODE_OPTIONS.includes(weekendMode)) currentWeekendMode = weekendMode;
     const autoScreen = query.get("auto");
     if (AUTO_SCREEN_OPTIONS.includes(autoScreen)) currentAutoScreen = autoScreen;
+    const theme = query.get("theme");
+    if (THEME_OPTIONS.includes(theme)) currentTheme = theme;
     const tempUnit = query.get("temp_unit");
     currentTempUnit = TEMP_UNIT_OPTIONS.includes(tempUnit) ? tempUnit : suggestedTempUnit();
     for (const [name, choices] of Object.entries(OUTPUT_OPTIONS)) {
@@ -1330,6 +1387,7 @@ block content %}
       if (currentCountdown !== "hours") params.push(`countdown=${currentCountdown}`);
       if (currentWeekendMode !== "off") params.push(`weekend_mode=${currentWeekendMode}`);
       if (finalWeather !== "off" && currentTempUnit !== "c") params.push(`temp_unit=${currentTempUnit}`);
+      if (currentTheme !== "light") params.push(`theme=${currentTheme}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else if (canUsePrerenderedPreview() && currentScreenType === "teams") {
@@ -1343,6 +1401,7 @@ block content %}
       if (currentTeamsExtra === "weather" && currentTempUnit !== "c") {
         params.push(`temp_unit=${currentTempUnit}`);
       }
+      if (currentTheme !== "light") params.push(`theme=${currentTheme}`);
       if (params.length > 0) url += `?${params.join("&")}`;
       return url;
     }
@@ -2463,6 +2522,7 @@ block content %}
     if (currentScreenType === "calendar") setWeekendMode(currentWeekendMode, false);
     setTempUnit(currentTempUnit, false);
     setAutoScreen(currentAutoScreen, false);
+    setTheme(currentTheme, false);
     for (const name of Object.keys(OUTPUT_OPTIONS)) setOutputOption(name, currentOutput[name], false);
     initializeWeatherTooltips();
     setUiLanguage(currentUiLang);

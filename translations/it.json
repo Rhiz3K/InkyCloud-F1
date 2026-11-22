@@ -244,6 +244,17 @@
         "daily": "/auto.bmp alterna calendario e squadre ogni giorno a mezzanotte locale."
       }
     },
+    "theme": {
+      "label": "Tema",
+      "options": {
+        "light": "Chiaro (predefinito)",
+        "dark": "Scuro (sperimentale)"
+      },
+      "hints": {
+        "light": "Testo nero su sfondo bianco.",
+        "dark": "Testo bianco su nero, gli accenti rossi e gialli restano. Sperimentale: le grandi aree nere possono lasciare immagini fantasma su alcuni pannelli; usa un aggiornamento completo."
+      }
+    },
     "output": {
       "label": "Uscita immagine",
       "formatLabel": "Formato",
@@ -477,6 +488,7 @@
   "api_docs_format_desc": "Formato di uscita: bmp (predefinito, invariato) o png. Il PNG è senza perdita, con esattamente gli stessi indici dei pixel e la stessa palette del pannello (niente dithering né colori aggiunti) ed è da 4 a 27 volte più piccolo, per firmware che decodificano PNG. Il percorso resta .bmp; Content-Type, Content-Length ed ETag descrivono i byte inviati. I valori non validi restituiscono HTTP 422.",
   "api_docs_rotate_desc": "Rotazione: 0 (predefinita) o 180. 180 capovolge l’immagine senza perdita (sempre 800×480, stessa profondità di colore BMP) per un pannello montato al contrario. 90/270 non sono disponibili perché richiederebbero un layout verticale. I valori non validi restituiscono HTTP 422.",
   "api_docs_output_sizes": "Dimensioni tipiche del calendario con format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Ogni formato e rotazione ha il proprio ETag.",
+  "api_docs_theme_desc": "Tema: light (predefinito) o dark (sperimentale). Il tema scuro disegna testo e linee bianche su sfondo nero; rosso, giallo e i colori Spectra 6 restano invariati e le bandiere mantengono i loro colori. Le grandi aree nere possono lasciare immagini fantasma su alcuni pannelli e-ink, quindi è consigliato un aggiornamento completo. Generato su richiesta, mai in anticipo. I valori non validi restituiscono HTTP 422.",
   "api_docs_auto_desc": "Un URL che restituisce direttamente il BMP del calendario o delle squadre (senza reindirizzamento). Per display che possono interrogare un solo indirizzo, come Živýobraz.eu o un semplice firmware ESP32.",
   "api_docs_auto_mode_desc": "race_week: il calendario da lead_hours prima della prima sessione del prossimo weekend di gara finché non viene scelta la gara successiva (4 h dopo la partenza), altrimenti le squadre, anche durante la pausa invernale e per le gare annullate. daily: calendario nei giorni locali pari e squadre in quelli dispari in tz, con cambio a mezzanotte locale. I valori non validi restituiscono HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Solo race_week: quante ore prima della prima sessione (FP1) compare il calendario. I valori fuori da 0–168 restituiscono HTTP 422.",

@@ -66,11 +66,19 @@ def draw_race_header(
     header_title_font,
     header_subtitle_font,
     draw_f1_logo_fn,
+    rule_fill=None,
 ) -> None:
-    """Draw the shared race header with logo and two-line title block."""
+    """Draw the shared race header with logo and two-line title block.
+
+    ``rule_fill`` underlines the whole header when its band is as dark as the canvas.
+    """
     draw.rectangle([(0, 0), (split_x, header_height)], fill=left_fill)
     draw.line([(0, header_height - 1), (split_x, header_height - 1)], fill=divider_fill, width=2)
     draw.rectangle([(split_x + 1, 0), (canvas_width, header_height)], fill=right_fill)
+    if rule_fill is not None:
+        draw.line(
+            [(0, header_height - 1), (canvas_width, header_height - 1)], fill=rule_fill, width=2
+        )
 
     draw_f1_logo_fn(image, split_x, header_height)
 

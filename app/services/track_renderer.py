@@ -21,7 +21,7 @@ from app.services.track_catalog import (
     track_credit,
     track_source,
 )
-from app.services.track_drawing import build_track_svg
+from app.services.track_drawing import build_track_svg, inverts_inks
 from app.utils.bmp import preserve_neutral_colors, quantize_to_palette
 
 
@@ -41,8 +41,12 @@ def render_track_png(
     credit_link: str,
     *,
     show_credit: bool = True,
+    dark: bool = False,
 ) -> bytes:
-    """Cache PNG bytes with authorship metadata and an optional visible credit row."""
+    """Cache PNG bytes with authorship metadata and an optional visible credit row.
+
+    ``dark`` (part of the cache key) draws white track ink on a black canvas.
+    """
     svg = build_track_svg(
         circuit_id,
         options,
@@ -50,6 +54,7 @@ def render_track_png(
         width,
         height - 14 if show_credit else height,
         credit_url=credit_link if show_credit else "",
+        dark=dark,
     )
     fonts = [str(ASSETS_DIR / "fonts" / "TitilliumWeb-Regular.ttf")]
     credit = track_credit(circuit_id, options.source)
@@ -67,7 +72,9 @@ def render_track_png(
         for color in ("black", "white", *effective_accents(display, options.accent))
     ]
     with Image.open(BytesIO(raw_png)) as raw:
-        rgb = preserve_neutral_colors(raw.convert("RGB"), threshold=180)
+        # Grey edges join the ink: black ink on light paper, white ink when dark swaps them.
+        threshold = 75 if inverts_inks(options, dark) else 180
+        rgb = preserve_neutral_colors(raw.convert("RGB"), threshold=threshold)
         indexed = quantize_to_palette(rgb, palette, len(palette))
     metadata = PngImagePlugin.PngInfo()
     metadata.add_itxt("Attribution", json.dumps(credit, ensure_ascii=False))
@@ -83,8 +90,13 @@ def render_track_image(
     height: int,
     display: str,
     options: TrackOptions = DEFAULT_TRACK_OPTIONS,
+    *,
+    dark: bool = False,
 ) -> Image.Image | None:
-    """Return a map without a credit row for calendars; unknown tracks get a placeholder."""
+    """Return a map without a credit row for calendars; unknown tracks get a placeholder.
+
+    ``dark`` renders the map for the dark theme's black canvas.
+    """
     circuit_id = canonical_circuit_id(race_data.get("circuit", {}).get("circuitId", ""))
     if track_source(circuit_id, options.source) is None:
         return None
@@ -96,6 +108,7 @@ def render_track_image(
         height,
         credit_url(circuit_id, options),
         show_credit=False,
+        dark=dark,
     )
     with Image.open(BytesIO(content)) as image:
         return (

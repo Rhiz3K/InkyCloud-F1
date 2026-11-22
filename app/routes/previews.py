@@ -41,6 +41,7 @@ from app.services.image_keys import (
     get_preview_filename,
     get_teams_image_key,
 )
+from app.services.renderer_theme import ThemeMode
 from app.services.renderers import COLOR_DISPLAYS, create_renderer
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext, build_teams_extra_context
 from app.services.teams_service import TeamsService, get_default_teams_year, is_teams_data_cacheable
@@ -200,6 +201,7 @@ async def _render_configure_calendar(
     countdown: CountdownMode = CountdownMode.HOURS,
     weekend_mode: WeekendMode = WeekendMode.OFF,
     temp_unit: TempUnit = TempUnit.C,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> Response:
     """Share calendar BMP caching and singleflight, then encode the matching PNG preview.
 
@@ -230,8 +232,10 @@ async def _render_configure_calendar(
         if countdown != CountdownMode.HOURS:
             key += f":countdown={countdown}:{hint.cache_token()}"
         key += weekend.cache_suffix(hint)
-    key += temp_unit_cache_suffix(temp_unit)
-    image_cache = bmp_artifacts.calendar_image_cache(countdown, weekend.mode, temp_unit, weather)
+    key += temp_unit_cache_suffix(temp_unit) + bmp_artifacts.theme_cache_suffix(theme)
+    image_cache = bmp_artifacts.calendar_image_cache(
+        countdown, weekend.mode, temp_unit, weather, theme
+    )
     artifact = image_cache.get(key)
     if artifact is None:
         artifact = await bmp_artifacts.singleflight(
@@ -249,6 +253,7 @@ async def _render_configure_calendar(
                 weekend_mode=weekend.mode,
                 weekend=weekend.phase,
                 temp_unit=temp_unit,
+                **bmp_artifacts.theme_kwargs(theme),
             ),
         )
     async with render_slot():
@@ -282,10 +287,11 @@ def _build_teams_preview_png(
     *,
     extra: TeamsExtra = TeamsExtra.NONE,
     extra_context: TeamsExtraContext | None = None,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> bytes:
     """Construct the renderer, render, and convert to PNG — all in the worker thread."""
     translator = get_translator(lang)
-    renderer = create_renderer(display, translator, lang)
+    renderer = create_renderer(display, translator, lang, **bmp_artifacts.theme_kwargs(theme))
     bmp_data = renderer.render_teams_drivers(teams_data, extra, extra_context)
     return bmp_to_png(
         bmp_data,
@@ -296,7 +302,7 @@ def _build_teams_preview_png(
 
 
 async def _render_teams_preview(
-    lang: str, display: str = "1bit", *, full_size: bool
+    lang: str, display: str = "1bit", *, full_size: bool, theme: ThemeMode = ThemeMode.LIGHT
 ) -> StreamingResponse:
     """Render a dynamic Teams PNG when no pregenerated preview is available."""
     async with render_slot():
@@ -308,7 +314,14 @@ async def _render_teams_preview(
             raise RuntimeError(f"No teams data available for preview season {season}")
 
         png_data = await run_render(
-            functools.partial(_build_teams_preview_png, lang, display, teams_data, full_size)
+            functools.partial(
+                _build_teams_preview_png,
+                lang,
+                display,
+                teams_data,
+                full_size,
+                **bmp_artifacts.theme_kwargs(theme),
+            )
         )
     return StreamingResponse(
         BytesIO(png_data),
@@ -318,11 +331,19 @@ async def _render_teams_preview(
 
 
 async def _render_teams_extra_preview(
-    request: Request, lang: str, display: str, extra: TeamsExtra, ctx: TeamsExtraContext
+    request: Request,
+    lang: str,
+    display: str,
+    extra: TeamsExtra,
+    ctx: TeamsExtraContext | None,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> Response:
-    """Cache a full-size panel preview under its day/weather token."""
-    key = "preview:" + get_teams_image_key(
-        lang, ctx.season, display=display, extra=extra, extra_context=ctx
+    """Cache a full-size panel (or plain dark) preview under its day/weather/theme token."""
+    season = ctx.season if ctx is not None else get_default_teams_year()
+    key = (
+        "preview:"
+        + get_teams_image_key(lang, season, display=display, extra=extra, extra_context=ctx)
+        + bmp_artifacts.theme_cache_suffix(theme)
     )
 
     async def produce() -> tuple[bytes, str]:
@@ -331,9 +352,9 @@ async def _render_teams_extra_preview(
         async with render_slot(variant=True):
             require_current_selection(generation)
             async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
-                data = await TeamsService().get_teams_and_drivers(ctx.season)
+                data = await TeamsService().get_teams_and_drivers(season)
             if not data.teams:
-                raise RuntimeError(f"No teams data available for preview season {ctx.season}")
+                raise RuntimeError(f"No teams data available for preview season {season}")
             content = await run_render(
                 functools.partial(
                     _build_teams_preview_png,
@@ -343,6 +364,7 @@ async def _render_teams_extra_preview(
                     True,
                     extra=extra,
                     extra_context=ctx,
+                    **bmp_artifacts.theme_kwargs(theme),
                 )
             )
             artifact = (content, strong_etag(content))
@@ -413,23 +435,36 @@ async def _try_teams_extra_preview(
     *,
     tz: str | None,
     temp_unit: TempUnit,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> tuple[Response | None, bool]:
-    """Render the requested Teams extra panel preview for the configurator.
+    """Render the requested Teams extra panel (or plain dark) preview for the configurator.
 
     Returns ``(response, False)`` on success, ``(None, False)`` when no panel applies and
     ``(None, True)`` when the panel failed after the rate limit was charged (the caller then
     serves the plain grid marked as a fallback).
     """
-    if extra == TeamsExtra.NONE:
+    dark = theme != ThemeMode.LIGHT
+    if extra == TeamsExtra.NONE and not dark:
         return None, False
-    ctx = build_teams_extra_context(
-        extra, get_default_teams_year(), timezone_name=tz, temp_unit=temp_unit
+    ctx = (
+        build_teams_extra_context(
+            extra, get_default_teams_year(), timezone_name=tz, temp_unit=temp_unit
+        )
+        if extra != TeamsExtra.NONE
+        else None
     )
-    if ctx is None:
+    if ctx is None and not dark:
         return None, False
     _charge_configure_preview(request)
     try:
-        response = await _render_teams_extra_preview(request, lang, display, extra, ctx)
+        response = await _render_teams_extra_preview(
+            request,
+            lang,
+            display,
+            extra if ctx is not None else TeamsExtra.NONE,
+            ctx,
+            **bmp_artifacts.theme_kwargs(theme),
+        )
     except Exception as exc:
         if isinstance(exc, (HTTPException, StaleSelection)):
             raise
@@ -445,11 +480,15 @@ def _has_pregenerated_configure_preview(
     countdown: CountdownMode,
     weekend_mode: WeekendMode,
     temp_unit: TempUnit,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> bool:
     """Return whether a pregenerated configure preview can match the request.
 
-    Teams previews are always pregenerated; calendar ones only with the default options.
+    Dark previews are never pregenerated; light Teams previews always are, light calendar
+    ones only with the default options.
     """
+    if theme != ThemeMode.LIGHT:
+        return False
     return (
         options == DEFAULT_TRACK_OPTIONS
         and countdown == CountdownMode.HOURS
@@ -492,6 +531,10 @@ async def get_configure_preview_png(
         TempUnit,
         Query(description="Temperature unit for calendar and teams weather: c (default) or f"),
     ] = TempUnit.C,
+    theme: Annotated[
+        ThemeMode,
+        Query(description="Theme: light (default) or dark (experimental, rendered on demand)"),
+    ] = ThemeMode.LIGHT,
 ) -> Response:
     """Serve pre-generated configure-preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
@@ -509,7 +552,7 @@ async def get_configure_preview_png(
     tz = validate_timezone(tz)
     if safe_screen == "teams":
         response, extra_failed = await _try_teams_extra_preview(
-            request, safe_lang, safe_display, extra, tz=tz, temp_unit=temp_unit
+            request, safe_lang, safe_display, extra, tz=tz, temp_unit=temp_unit, theme=theme
         )
         if response is not None:
             return response
@@ -527,7 +570,7 @@ async def get_configure_preview_png(
             configure_path, request, safe_screen, safe_weather, countdown
         )
         if _has_pregenerated_configure_preview(
-            safe_screen, options, countdown, weekend_mode, temp_unit
+            safe_screen, options, countdown, weekend_mode, temp_unit, theme
         )
         else None
     )
@@ -546,6 +589,7 @@ async def get_configure_preview_png(
                 countdown,
                 weekend_mode,
                 temp_unit,
+                **bmp_artifacts.theme_kwargs(theme),
             )
         except Exception as exc:
             if isinstance(exc, (HTTPException, StaleSelection)):
@@ -560,6 +604,7 @@ async def get_configure_preview_png(
                 safe_lang,
                 safe_display,
                 full_size=True,
+                **bmp_artifacts.theme_kwargs(theme),
             )
             response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
             return _mark_extra_fallback(response) if extra_failed else response

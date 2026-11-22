@@ -244,6 +244,17 @@
         "daily": "/auto.bmp alternates calendar and teams every day at local midnight."
       }
     },
+    "theme": {
+      "label": "Theme",
+      "options": {
+        "light": "Light (default)",
+        "dark": "Dark (experimental)"
+      },
+      "hints": {
+        "light": "Black text on a white background.",
+        "dark": "White text on black, red and yellow accents stay. Experimental: large black areas can ghost on some panels; use a full refresh."
+      }
+    },
     "output": {
       "label": "Image output",
       "formatLabel": "Format",
@@ -477,6 +488,7 @@
   "api_docs_format_desc": "Output format: bmp (default, unchanged) or png. PNG is lossless with exactly the same pixel indices and panel palette (no dithering, no extra colours) and 4–27× smaller, for firmware that decodes PNG. The path stays .bmp; Content-Type, Content-Length and ETag describe the bytes sent. Invalid values return HTTP 422.",
   "api_docs_rotate_desc": "Rotation: 0 (default) or 180. 180 turns the image upside down without loss (still 800×480, same BMP colour depth) for a panel mounted the other way round. 90/270 are not offered because they would need a portrait layout. Invalid values return HTTP 422.",
   "api_docs_output_sizes": "Typical calendar sizes with format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Every format and rotation has its own ETag.",
+  "api_docs_theme_desc": "Theme: light (default) or dark (experimental). Dark draws white text and lines on a black background; red, yellow and the Spectra 6 colours keep their roles and flags keep their colours. Large black areas can ghost on some e-ink panels, so prefer a full refresh. Rendered on demand, never pregenerated. Invalid values return HTTP 422.",
   "api_docs_auto_desc": "One URL that returns the calendar or the teams BMP directly (no redirect). Use it on displays that can poll only one address, such as Živýobraz.eu or simple ESP32 firmware.",
   "api_docs_auto_mode_desc": "race_week: the calendar from lead_hours before the first session of the next race weekend until the next race is selected (4 h after the start), teams otherwise, including the off-season and cancelled races. daily: calendar on even and teams on odd local days in tz, switching at local midnight. Invalid values return HTTP 422.",
   "api_docs_auto_lead_hours_desc": "race_week only: how many hours before the first session (FP1) the calendar appears. Values outside 0–168 return HTTP 422.",
