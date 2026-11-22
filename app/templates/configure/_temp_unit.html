@@ -1,0 +1,22 @@
+{# °C / °F switch shared by the calendar weather and the teams weather panel (temp_unit). #}
+{% macro toggle(suffix, mobile=False, extra_class="") %}
+{% set tu = t.configure.tempUnit %}
+{% if extra_class %}<div class="{{ extra_class }}">{% endif %}
+<div class="temp-unit-container flex items-center gap-1 {{ 'mt-2' if mobile else 'mt-1.5' }}" title="{{ tu.hint }}">
+  <span class="{{ 'text-xs' if mobile else 'text-[10px]' }} font-bold uppercase flex-1" id="tempUnitLabel{{ suffix }}">{{ tu.label }}</span>
+  <div class="flex gap-1" role="group" aria-labelledby="tempUnitLabel{{ suffix }}">
+    {% for unit, label in [("c", "°C"), ("f", "°F")] %}
+    <button
+      type="button"
+      data-on-click="setTempUnit" data-args='["{{ unit }}"]'
+      data-temp-unit="{{ unit }}"
+      aria-pressed="{{ 'true' if unit == 'c' else 'false' }}"
+      class="temp-unit-btn min-w-0 {{ 'px-3 py-1 text-[11px] border-2' if mobile else 'px-2 py-0.5 text-[9px] border' }} font-bold text-center border-black transition-all {{ 'bg-black text-white' if unit == 'c' else 'bg-white hover:bg-black hover:text-white' }}"
+    >
+      {{ label }}
+    </button>
+    {% endfor %}
+  </div>
+</div>
+{% if extra_class %}</div>{% endif %}
+{% endmacro %}

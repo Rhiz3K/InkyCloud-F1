@@ -357,7 +357,7 @@ class TestWeatherService:
     @staticmethod
     @pytest.mark.asyncio
     @pytest.mark.parametrize("days_ahead", [1, 11, 15])
-    async def test_get_race_weather_requests_only_race_date(monkeypatch, days_ahead):
+    async def test_get_race_weather_requests_only_the_race_weekend(monkeypatch, days_ahead):
         base_now = datetime.now(timezone.utc)
         race_dt = base_now + timedelta(days=days_ahead)
         race_hour = race_dt.strftime("%Y-%m-%dT%H:00")
@@ -402,11 +402,11 @@ class TestWeatherService:
         service = WeatherService()
         result = await service.get_race_weather(lat=52.52, lon=13.41, race_datetime=race_dt)
         assert result is not None
-        assert (
-            captured_params["start_date"]
-            == captured_params["end_date"]
-            == race_dt.date().isoformat()
-        )
+        # One request covers the race weekend (qualifying and a sprint up to two days before
+        # the race, clipped to today) instead of the intervening days: still one call unit.
+        weekend_start = max(base_now.date(), race_dt.date() - timedelta(days=2))
+        assert captured_params["start_date"] == weekend_start.isoformat()
+        assert captured_params["end_date"] == race_dt.date().isoformat()
         assert "forecast_days" not in captured_params
         assert captured_params["timezone"] == "UTC"
         assert result.temperature_c == 21.0

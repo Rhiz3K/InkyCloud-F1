@@ -12,6 +12,7 @@ from app.services.circuit_metadata import COUNTRY_MAP, canonical_circuit_id
 from app.services.f1_service import F1Service
 from app.services.renderer_assets import get_country_flag_iso_code
 from app.services.weather_service import (
+    TempUnit,
     WeatherData,
     WeatherService,
     _race_weather_cache_key,
@@ -68,6 +69,8 @@ class TeamsExtraContext:
     default_today: date | None = None
     # False for a race whose start hour is not published yet (date-only schedule entry).
     start_time_known: bool = True
+    # Unit of the weather panel's temperature; the cached weather stays in Celsius.
+    temp_unit: TempUnit = TempUnit.C
 
 
 _CODES = dict(
@@ -128,8 +131,12 @@ def build_teams_extra_context(
     *,
     now: datetime | None = None,
     timezone_name: str | None = None,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> TeamsExtraContext | None:
-    """Build a panel snapshot from bundled seasons and existing memory caches only."""
+    """Build a panel snapshot from bundled seasons and existing memory caches only.
+
+    ``temp_unit`` only changes how the weather panel draws the cached Celsius temperature.
+    """
     if extra == TeamsExtra.NONE:
         return None
     now = now or datetime.now(UTC)
@@ -185,6 +192,7 @@ def build_teams_extra_context(
         timezone_name,
         now.astimezone(ZoneInfo(config.DEFAULT_TIMEZONE)).date(),
         start_time_known=bool(upcoming.time),
+        temp_unit=temp_unit,
     )
 
 
@@ -201,6 +209,8 @@ def teams_extra_cache_token(extra: TeamsExtra, ctx: TeamsExtraContext | None) ->
         wx = ctx.weather
         values = (round(wx.temperature_c), wx.weather_code, wx.precip_display)
         token += "_" + sha256(repr(values).encode()).hexdigest()[:10]
+        if ctx.temp_unit != TempUnit.C:
+            token += f"_{ctx.temp_unit}"
     if normalize_timezone(ctx.timezone_name) != normalize_timezone(config.DEFAULT_TIMEZONE) and (
         extra != TeamsExtra.WEATHER or ctx.weather is not None
     ):

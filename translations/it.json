@@ -201,6 +201,7 @@
     "weatherLabel": "Meteo",
     "weatherCurrentLabel": "Attuale",
     "weatherRaceDayLabel": "Giorno gara",
+    "weatherWeekendLabel": "Weekend",
     "weatherTooltipText": "Si attiva 14 giorni prima della gara",
     "countdown": {
       "label": "Conto alla rovescia",
@@ -284,7 +285,11 @@
     "epaperStep1BeforeLink": "In ",
     "epaperStep1BetweenLinkAndUrl": " seleziona ",
     "epaperStep1AfterUrl": " come sorgente contenuto",
-    "epaperStep2Text": "Incolla l’URL qui sopra nel campo URL immagine"
+    "epaperStep2Text": "Incolla l’URL qui sopra nel campo URL immagine",
+    "tempUnit": {
+      "label": "Temperatura",
+      "hint": "I Fahrenheit vengono convertiti durante il disegno; dati meteo e richieste restano invariati."
+    }
   },
   "unofficial_notice": "Progetto indipendente di appassionati, senza affiliazione, approvazione o sponsorizzazione del gruppo Formula One, FIA, squadre o piloti.",
   "stats_disabled": "Le statistiche d’uso sono disattivate. Il servizio non le raccoglie in modalità minima.",
@@ -445,6 +450,9 @@
   "api_docs_weather_type_desc": "Quale variante dei dati meteo renderizzare",
   "api_docs_countdown_desc": "Conto alla rovescia nel riquadro di stato: hours (giorni e ore, predefinito), days (giorni interi in tz, cambia a mezzanotte locale), auto (giorni interi fino a 48 h prima della partenza, poi giorni e ore) oppure off (data della gara al posto del conto alla rovescia). I valori non validi restituiscono HTTP 422.",
   "api_docs_weekend_mode_desc": "Modalità weekend: off (predefinita) o auto. Con auto, durante il weekend di gara (da 12 h prima della prima sessione) le sessioni concluse ricevono un segno di spunta, la sessione in corso o la successiva viene evidenziata e il riquadro di stato mostra il conto alla rovescia con il suo nome breve (es. Q: 3 h). Una sessione si considera conclusa dal suo inizio più una stima prudente della durata, perché la fine reale non viene pubblicata. Il piè di pagina mostra i podi di qualifiche e gara di questo weekend appena disponibili (Jolpica, interrogato solo nelle ore successive a quelle sessioni), con la stagione sopra ogni colonna. I valori non validi restituiscono HTTP 422.",
+  "api_docs_weather_weekend_desc": "Weekend: una seconda riga nel riquadro di stato con la previsione per le qualifiche (e la sprint se c’è spazio) e la gara, ad es. Q 19° 60% | G 22° 10%. Una sola richiesta a Open-Meteo copre l’intero weekend, la stessa usata da race_day. Le sessioni oltre i 16 giorni di previsione o senza orario pubblicato vengono omesse; dopo il via si mostra solo il meteo della gara.",
+  "api_docs_temp_unit_desc": "Unità di temperatura: c (predefinita, Celsius) o f (Fahrenheit). Viene convertita durante il disegno dagli stessi dati in cache, senza richieste meteo aggiuntive. I valori non validi restituiscono HTTP 422.",
+  "api_docs_teams_temp_unit_desc": "Unità di temperatura del pannello meteo (extra=weather): c (predefinita) o f. I valori non validi restituiscono HTTP 422.",
   "api_docs_auto_desc": "Un URL che restituisce direttamente il BMP del calendario o delle squadre (senza reindirizzamento). Per display che possono interrogare un solo indirizzo, come Živýobraz.eu o un semplice firmware ESP32.",
   "api_docs_auto_mode_desc": "race_week: il calendario da lead_hours prima della prima sessione del prossimo weekend di gara finché non viene scelta la gara successiva (4 h dopo la partenza), altrimenti le squadre, anche durante la pausa invernale e per le gare annullate. daily: calendario nei giorni locali pari e squadre in quelli dispari in tz, con cambio a mezzanotte locale. I valori non validi restituiscono HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Solo race_week: quante ore prima della prima sessione (FP1) compare il calendario. I valori fuori da 0–168 restituiscono HTTP 422.",
@@ -466,5 +474,8 @@
   "api_docs_laskakit_step3": "Imposta l'intervallo di aggiornamento su 1-6 ore",
   "api_docs_close_btn": "Chiudi",
   "api_docs_loading_text": "Caricamento...",
-  "api_docs_error_text": "Errore"
+  "api_docs_error_text": "Errore",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "Q",
+  "weather_session_race": "G"
 }

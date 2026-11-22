@@ -527,6 +527,8 @@ block content %}
   let currentWeekendMode = "off";
   const AUTO_SCREEN_OPTIONS = ["off", "race_week", "daily"];
   let currentAutoScreen = "off";
+  const TEMP_UNIT_OPTIONS = ["c", "f"];
+  let currentTempUnit = "c";
 
   function initScreenTypeVisibility() {
     const isCalendar = currentScreenType === "calendar";
@@ -843,6 +845,17 @@ block content %}
     );
     if (weatherRaceDayBtnMobile)
       weatherRaceDayBtnMobile.textContent = t.weatherRaceDayLabel;
+    for (const id of ["weatherWeekendText", "weatherWeekendBtnMobile"]) {
+      const el = document.getElementById(id);
+      if (el && t.weatherWeekendLabel) el.textContent = t.weatherWeekendLabel;
+    }
+    if (t.tempUnit) {
+      document.querySelectorAll(".temp-unit-container").forEach((el) => {
+        el.title = t.tempUnit.hint;
+        const label = el.querySelector("span");
+        if (label) label.textContent = t.tempUnit.label;
+      });
+    }
     const weatherHoverTooltip = document.getElementById("weatherHoverTooltip");
     if (weatherHoverTooltip) weatherHoverTooltip.textContent = t.weatherTooltipText;
     const displayLabel = document.getElementById("displayLabel");
@@ -1030,14 +1043,15 @@ block content %}
       }
       if (!showWeather) {
         params.push(`weather=false`);
-      } else if (weatherType === "current") {
-        params.push(`weather_type=current`);
+      } else if (weatherType === "current" || weatherType === "weekend") {
+        params.push(`weather_type=${weatherType}`);
       }
       if (currentDisplayType !== "1bit") {
         params.push(`display=${currentDisplayType}`);
       }
       if (currentCountdown !== "hours") params.push(`countdown=${currentCountdown}`);
       if (currentWeekendMode !== "off") params.push(`weekend_mode=${currentWeekendMode}`);
+      if (showWeather && currentTempUnit !== "c") params.push(`temp_unit=${currentTempUnit}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else {
@@ -1051,6 +1065,9 @@ block content %}
       if (currentTeamsExtra !== "none") params.push(`extra=${currentTeamsExtra}`);
       const teamsTz = getTeamsTz();
       if (teamsTz) params.push(`tz=${encodeURIComponent(teamsTz)}`);
+      if (currentTeamsExtra === "weather" && currentTempUnit !== "c") {
+        params.push(`temp_unit=${currentTempUnit}`);
+      }
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     }
@@ -1172,6 +1189,8 @@ block content %}
     if (WEEKEND_MODE_OPTIONS.includes(weekendMode)) currentWeekendMode = weekendMode;
     const autoScreen = query.get("auto");
     if (AUTO_SCREEN_OPTIONS.includes(autoScreen)) currentAutoScreen = autoScreen;
+    const tempUnit = query.get("temp_unit");
+    currentTempUnit = TEMP_UNIT_OPTIONS.includes(tempUnit) ? tempUnit : suggestedTempUnit();
     for (const field of ["style", "source", "accent"]) {
       const control = document.getElementById(`track-${field}`);
       if (!control) continue;
@@ -1206,7 +1225,9 @@ block content %}
     if (canUsePrerenderedPreview() && currentScreenType === "calendar") {
       // Use pre-rendered PNG with weather_type and display parameters
       const weatherType = document.querySelector('input[name="weatherType"]:checked')?.value || "race_day";
-      const weatherParam = weatherType === "race_day" ? "race" : weatherType === "current" ? "current" : "off";
+      const weatherParam = weatherType === "race_day"
+        ? "race"
+        : ["current", "weekend"].includes(weatherType) ? weatherType : "off";
       
       // Check if weather is enabled
       const weatherToggle = document.getElementById("weatherToggle");
@@ -1221,6 +1242,7 @@ block content %}
       if (currentDisplayType !== "1bit") params.push(`display=${currentDisplayType}`);
       if (currentCountdown !== "hours") params.push(`countdown=${currentCountdown}`);
       if (currentWeekendMode !== "off") params.push(`weekend_mode=${currentWeekendMode}`);
+      if (finalWeather !== "off" && currentTempUnit !== "c") params.push(`temp_unit=${currentTempUnit}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else if (canUsePrerenderedPreview() && currentScreenType === "teams") {
@@ -1231,6 +1253,9 @@ block content %}
       if (currentTeamsExtra !== "none") params.push(`extra=${currentTeamsExtra}`);
       const teamsTz = getTeamsTz();
       if (teamsTz) params.push(`tz=${encodeURIComponent(teamsTz)}`);
+      if (currentTeamsExtra === "weather" && currentTempUnit !== "c") {
+        params.push(`temp_unit=${currentTempUnit}`);
+      }
       if (params.length > 0) url += `?${params.join("&")}`;
       return url;
     }
@@ -1926,8 +1951,9 @@ block content %}
   function setWeatherType(type) {
     const raceDayBtn = document.getElementById("weatherRaceDayBtn");
     const raceDayBtnMobile = document.getElementById("weatherRaceDayBtnMobile");
+    // The weekend forecast becomes available with the race-day forecast.
     const raceDayUnavailable =
-      type === "race_day" &&
+      (type === "race_day" || type === "weekend") &&
       (isWeatherTooltipDisabledState(raceDayBtn) ||
         isWeatherTooltipDisabledState(raceDayBtnMobile));
 
@@ -1948,6 +1974,8 @@ block content %}
       document.getElementById("weatherOffBtnMobile"),
       document.getElementById("weatherCurrentBtnMobile"),
       document.getElementById("weatherRaceDayBtnMobile"),
+      document.getElementById("weatherWeekendBtn"),
+      document.getElementById("weatherWeekendBtnMobile"),
     ];
 
     allBtns.forEach((btn) => {
@@ -1992,10 +2020,14 @@ block content %}
           btn.setAttribute("aria-pressed", "true");
         }
       });
-    } else if (type === "race_day") {
+    } else if (type === "race_day" || type === "weekend") {
       weatherToggle.checked = true;
-      if (raceDayRadio) raceDayRadio.checked = true;
-      raceDayBtns.forEach((btn) => {
+      const radio = type === "weekend" ? document.getElementById("weatherWeekendRadio") : raceDayRadio;
+      if (radio) radio.checked = true;
+      const pressed = type === "weekend"
+        ? [document.getElementById("weatherWeekendBtn"), document.getElementById("weatherWeekendBtnMobile")]
+        : raceDayBtns;
+      pressed.forEach((btn) => {
         if (btn) {
           btn.classList.remove("bg-white");
           btn.classList.add("bg-racing-red", "text-white");
@@ -2012,6 +2044,8 @@ block content %}
     const raceDayBtns = [
       document.getElementById("weatherRaceDayBtn"),
       document.getElementById("weatherRaceDayBtnMobile"),
+      document.getElementById("weatherWeekendBtn"),
+      document.getElementById("weatherWeekendBtnMobile"),
     ];
     const isRaceDayAvailable = isRaceDayWeatherAvailable();
 
@@ -2049,9 +2083,55 @@ block content %}
       }
     });
 
-    if (!isRaceDayAvailable && currentWeatherType === "race_day") {
+    if (!isRaceDayAvailable && ["race_day", "weekend"].includes(currentWeatherType)) {
       setWeatherType("current");
     }
+  }
+
+  /**
+   * Suggest °F for a browser in a US time zone, where Fahrenheit is customary, and °C
+   * everywhere else. Only the configurator's initial choice when the page URL has no
+   * temp_unit; the server default stays Celsius.
+   */
+  function suggestedTempUnit() {
+    const prefixes = ["America/Indiana/", "America/Kentucky/", "America/North_Dakota/"];
+    const zones = [
+      "America/New_York", "America/Detroit", "America/Chicago", "America/Menominee",
+      "America/Denver", "America/Boise", "America/Phoenix", "America/Los_Angeles",
+      "America/Anchorage", "America/Juneau", "America/Sitka", "America/Yakutat",
+      "America/Nome", "America/Metlakatla", "America/Adak", "Pacific/Honolulu",
+    ];
+    let zone = "";
+    try {
+      zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch (_error) {
+      zone = "";
+    }
+    const fahrenheit = zones.includes(zone) || prefixes.some((prefix) => zone.startsWith(prefix));
+    return fahrenheit ? "f" : "c";
+  }
+
+  /**
+   * Sets the temperature unit, syncing every °C/°F switch and the page URL (Celsius, the
+   * default, is left out of URLs so existing links stay unchanged).
+   */
+  function setTempUnit(unit, refresh = true) {
+    if (!TEMP_UNIT_OPTIONS.includes(unit)) unit = "c";
+    currentTempUnit = unit;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (unit === "c") url.searchParams.delete("temp_unit");
+      else url.searchParams.set("temp_unit", unit);
+      window.history.replaceState(null, "", url);
+    }
+    document.querySelectorAll(".temp-unit-btn").forEach((btn) => {
+      const active = btn.dataset.tempUnit === unit;
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+      btn.classList.toggle("bg-black", active);
+      btn.classList.toggle("text-white", active);
+      btn.classList.toggle("bg-white", !active);
+    });
+    if (refresh) updatePreview();
   }
 
   function setTeamsExtra(extra, refresh = true) {
@@ -2276,6 +2356,7 @@ block content %}
     if (currentScreenType === "teams") setTeamsExtra(currentTeamsExtra, false);
     if (currentScreenType === "calendar") setCountdown(currentCountdown, false);
     if (currentScreenType === "calendar") setWeekendMode(currentWeekendMode, false);
+    setTempUnit(currentTempUnit, false);
     setAutoScreen(currentAutoScreen, false);
     initializeWeatherTooltips();
     setUiLanguage(currentUiLang);

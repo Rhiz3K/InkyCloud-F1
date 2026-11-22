@@ -50,7 +50,8 @@ https://racing.example.com/auto.bmp?lang=cs&tz=Europe/Prague
 | `race_key`     | Specific race key from `/api/races/{year}` (requires `year`) | `?year=2026&race_key=2026-round-6-monaco-2026-06-07` |
 | `display`      | `1bit`, `bwr`, `bwry`, `spectra6` | `?display=bwry`                      |
 | `weather`      | `true`, `false`                  | `?weather=false`                     |
-| `weather_type` | `race_day`, `race`, `current`, `off` | `?weather=true&weather_type=current` |
+| `weather_type` | `race_day`, `race`, `current`, `weekend`, `off` — see [Weekend weather](#weekend-weather-and-fahrenheit) | `?weather=true&weather_type=current` |
+| `temp_unit`    | `c` (default), `f` — Fahrenheit, also for the teams weather panel | `?temp_unit=f` |
 | `countdown`    | `hours` (default), `days`, `auto`, `off` | `?countdown=auto` |
 | `weekend_mode` | `off` (default), `auto` — follow the race weekend, see [Race weekend mode](#race-weekend-mode-weekend_modeauto) | `?weekend_mode=auto` |
 | `track_style`  | 18 style identifiers from `/api/tracks`; default `relief` | `?track_style=contours` |
@@ -70,6 +71,7 @@ https://racing.example.com/calendar.bmp?lang=en&display=spectra6
 https://racing.example.com/calendar.bmp?lang=en&weather=true&weather_type=current
 https://racing.example.com/calendar.bmp?lang=en&countdown=auto&weather=false
 https://racing.example.com/calendar.bmp?lang=en&weekend_mode=auto&display=bwry
+https://racing.example.com/calendar.bmp?lang=en&tz=America/New_York&weather_type=weekend&temp_unit=f
 https://racing.example.com/teams.bmp?lang=ja&display=spectra6
 https://racing.example.com/auto.bmp?lang=de&tz=Europe/Berlin&display=bwry
 https://racing.example.com/sk/configure/calendar
@@ -98,12 +100,29 @@ image is the same as without the parameter.
   and at least hourly while new results may arrive. Invalid values return `422`. It also works
   on `/auto.bmp` and in the configurator ("Race weekend").
 
+### Weekend weather and Fahrenheit
+
+- `weather_type=weekend` adds a second line to the status box with the forecast for qualifying
+  and the race, e.g. `Q ☀ 19° 💧60% | R ☀ 22° 💧10%`, and the sprint too when it fits. One
+  [Open-Meteo](https://open-meteo.com) request covers the whole weekend (the race day and the
+  two days before it); it is the same request `race_day` makes, so both share the data and
+  the request still counts as one call in the shared quota. Sessions beyond the 16-day forecast,
+  already past or without a published start are left out, and after the race starts only the
+  race weather is shown. The countdown and session labels keep the first line.
+- `temp_unit=f` draws temperatures in Fahrenheit (`round(°C × 9/5 + 32)`) on the calendar, the
+  teams weather panel (`extra=weather`), `/auto.bmp` and the configure previews. The weather
+  data stays in Celsius, so Fahrenheit costs no extra weather requests. `c` (default) keeps the
+  previous images byte for byte. The configurator suggests °F for browsers in US time zones.
+- Both are rendered on demand and cached in the variant cache. Self-hosters can pregenerate the
+  weekend calendars with `PREGENERATE_WEATHER_TYPES=...,weekend`. Invalid `temp_unit` values
+  return `422`.
+
 ### One URL for Both Screens (`/auto.bmp`)
 
 `GET /auto.bmp` returns the calendar or the teams BMP directly (no redirect), so a display that
 can poll only one address still gets both screens. It accepts the calendar and teams parameters
 above (`lang`, `tz`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`,
-`track_*`, `extra`, `year`); each applies to its own screen. `year` selects the teams season; the calendar always
+`temp_unit`, `track_*`, `extra`, `year`); each applies to its own screen. `year` selects the teams season; the calendar always
 shows the next race.
 
 | Parameter    | Options                              | Example            |
@@ -176,7 +195,7 @@ Planned features for future releases:
 #### Content and localization
 
 - [ ] **More languages** — Additional community/localized translations beyond the current 13 supported locales
-- [ ] **Extended weather integration** — Richer race weekend weather and extra weekend details
+- [x] **Extended weather integration** — `weather_type=weekend` (qualifying, sprint and race forecast) and `temp_unit=f`
 - [ ] **Dark mode variant** — Inverted colors for different display preferences
 
 ---
@@ -238,8 +257,8 @@ length. It follows the next whole hour of a `d h` countdown, the next local midn
 requested `tz` for day counts (DST-aware), the race start and the end of the three-hour
 `IN PROGRESS` window, the switch to the next race, and for teams the next sprint or race start
 (hourly for 24 hours after one). The value is capped at `86400`, at `3600` while weather that is
-refreshed hourly is shown (`weather_type=current`, or a race-day forecast inside the 16-day
-range), never goes below `60`, includes a two-minute margin for the hourly pre-generation, and is
+refreshed hourly is shown (`weather_type=current`, or a race-day or weekend forecast inside the
+16-day range), never goes below `60`, includes a two-minute margin for the hourly pre-generation, and is
 `300` for an error image. It is a hint, not a promise: a data refresh can change the image
 earlier, and a poll can still return `304` with a new hint.
 
@@ -258,8 +277,8 @@ Your deployed instance provides these endpoints:
 
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
-| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`, `tz`, `track_style`, `track_source`, and `track_accent` params; `X-Next-Refresh-Seconds` hint header |
-| `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`, `extra`: `none`, `countdown`, `flags`, `track`, `weather`); optional IANA `tz` applies only to countdown, flags, track, and weather panels showing a time or date (also on `/preview/configure/teams.png`); attribution/licences at `/credits` (`Link rel="license"` header) |
+| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`, `temp_unit`, `tz`, `track_style`, `track_source`, and `track_accent` params; `X-Next-Refresh-Seconds` hint header |
+| `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`, `extra`: `none`, `countdown`, `flags`, `track`, `weather`; `temp_unit` for the weather panel); optional IANA `tz` applies only to countdown, flags, track, and weather panels showing a time or date (also on `/preview/configure/teams.png`); attribution/licences at `/credits` (`Link rel="license"` header) |
 | `GET /auto.bmp`                          | Calendar or teams BMP on one URL (`mode`: `race_week`, `daily`; `lead_hours` 0–168; calendar and teams params); `X-Active-Screen` header |
 | `GET /`                                  | Landing page with screen type selection                 |
 | `GET /configure/{screen}`                | Interactive localized preview/config page (calendar/teams) |

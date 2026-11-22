@@ -55,6 +55,7 @@ from app.services.track_catalog import (
     TrackStyle,
 )
 from app.services.track_renderer import attribution_headers
+from app.services.weather_service import TempUnit
 from app.services.weekend_phase import WeekendMode, select_weekend_race
 from app.services.weekend_results import weekend_context
 from app.state import (
@@ -83,6 +84,7 @@ from .params import (
     canonical_weather_type,
     normalize_display,
     normalize_lang,
+    temp_unit_cache_suffix,
     validate_calendar_selection,
     validate_timezone,
     weather_file_key,
@@ -603,7 +605,14 @@ _DISPLAY_DESCRIPTION = (
     f"'bwr' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red), "
     f"or 'bwry' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red/yellow)"
 )
-_WEATHER_TYPE_DESCRIPTION = "Weather type: 'race_day' (alias 'race'), 'current', or 'off'"
+_WEATHER_TYPE_DESCRIPTION = (
+    "Weather type: 'race_day' (alias 'race'), 'current', 'weekend' (qualifying, sprint when it "
+    "fits and race forecast from one request), or 'off'"
+)
+_TEMP_UNIT_DESCRIPTION = (
+    "Temperature unit: c (default, Celsius) or f (Fahrenheit, converted when drawing); "
+    "invalid values return 422"
+)
 _COUNTDOWN_DESCRIPTION = (
     "Countdown: hours (default, days and hours), days (whole days), "
     "auto (days until 48 h before the start, then days and hours) or off (race date)"
@@ -635,6 +644,7 @@ async def _serve_calendar_bmp(
     race_key: str | None = None,
     endpoint: str = "/calendar.bmp",
     weekend_mode: WeekendMode = WeekendMode.OFF,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> Response:
     """Serve one calendar BMP from validated, normalized inputs.
 
@@ -726,8 +736,10 @@ async def _serve_calendar_bmp(
         if countdown != CountdownMode.HOURS:
             # The content period keeps a cached day count from outliving local midnight.
             cache_key += f":countdown={countdown}:{hint.cache_token()}"
-        cache_key += weekend.cache_suffix(hint)
-        image_cache = bmp_artifacts.calendar_image_cache(countdown, weekend.mode)
+        cache_key += weekend.cache_suffix(hint) + temp_unit_cache_suffix(temp_unit)
+        image_cache = bmp_artifacts.calendar_image_cache(
+            countdown, weekend.mode, temp_unit, weather_type
+        )
         cached_artifact = image_cache.get(cache_key)
         if cached_artifact is not None:
             logger.debug("Cache hit for %s", cache_key)
@@ -752,6 +764,7 @@ async def _serve_calendar_bmp(
             if track_options == DEFAULT_TRACK_OPTIONS
             and countdown == CountdownMode.HOURS
             and weekend.mode == WeekendMode.OFF
+            and temp_unit == TempUnit.C
             else None
         )
         if image_path is not None:
@@ -790,6 +803,7 @@ async def _serve_calendar_bmp(
                 countdown_mode=countdown,
                 weekend_mode=weekend.mode,
                 weekend=weekend.phase,
+                temp_unit=temp_unit,
             ),
         )
         is_cacheable = image_cache.get(cache_key) is artifact
@@ -829,6 +843,7 @@ async def _serve_teams_bmp(
     year: int | None,
     extra: TeamsExtra,
     endpoint: str = "/teams.bmp",
+    temp_unit: TempUnit = TempUnit.C,
 ) -> Response:
     """Serve one teams BMP from validated, normalized inputs.
 
@@ -863,7 +878,7 @@ async def _serve_teams_bmp(
             )
 
         ctx = (
-            build_teams_extra_context(extra, year, timezone_name=tz)
+            build_teams_extra_context(extra, year, timezone_name=tz, temp_unit=temp_unit)
             if extra != TeamsExtra.NONE
             else None
         )
@@ -969,6 +984,7 @@ async def get_calendar_bmp(
     weekend_mode: Annotated[
         WeekendMode, Query(description=_WEEKEND_MODE_DESCRIPTION)
     ] = WeekendMode.OFF,
+    temp_unit: Annotated[TempUnit, Query(description=_TEMP_UNIT_DESCRIPTION)] = TempUnit.C,
 ):
     """Render the calendar endpoint for the requested display and selection."""
     start_time = time.time()
@@ -992,6 +1008,7 @@ async def get_calendar_bmp(
         race_round=race_round if year is not None else None,
         race_key=race_key,
         weekend_mode=weekend_mode,
+        temp_unit=temp_unit,
     )
 
 
@@ -1008,6 +1025,9 @@ async def get_teams_bmp(
     ] = None,
     extra: Annotated[TeamsExtra, Query(description=_TEAMS_EXTRA_DESCRIPTION)] = TeamsExtra.NONE,
     display: str = Query(default="1bit", description=_DISPLAY_DESCRIPTION),
+    temp_unit: Annotated[
+        TempUnit, Query(description=f"Weather panel: {_TEMP_UNIT_DESCRIPTION}")
+    ] = TempUnit.C,
 ):
     """Render the teams and drivers dashboard as a BMP image."""
     start_time = time.time()
@@ -1020,6 +1040,7 @@ async def get_teams_bmp(
         tz=validate_timezone(tz),
         year=year,
         extra=extra,
+        temp_unit=temp_unit,
     )
 
 
@@ -1126,6 +1147,9 @@ async def get_auto_bmp(
     year: Annotated[
         int | None, Query(description="Teams: season year; the calendar always shows the next race")
     ] = None,
+    temp_unit: Annotated[
+        TempUnit, Query(description=f"Calendar and teams weather panel: {_TEMP_UNIT_DESCRIPTION}")
+    ] = TempUnit.C,
     f1_service: F1Service = Depends(get_f1_service),
 ):
     """Serve the calendar or the teams BMP on one URL, switching by race week or by day."""
@@ -1156,6 +1180,7 @@ async def get_auto_bmp(
             countdown=countdown,
             endpoint="/auto.bmp",
             weekend_mode=weekend_mode,
+            temp_unit=temp_unit,
         )
     else:
         response = await _serve_teams_bmp(
@@ -1167,6 +1192,7 @@ async def get_auto_bmp(
             year=year,
             extra=TeamsExtra.COUNTDOWN if extra is None else extra,
             endpoint="/auto.bmp",
+            temp_unit=temp_unit,
         )
     # A fresh clock reading: time spent rendering must not extend max-age past the switch.
     return _apply_auto_screen(response, choice, _utc_now())

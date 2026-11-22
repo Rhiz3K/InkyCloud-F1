@@ -241,7 +241,7 @@ def _draw_weather(
     text_font = load_ui_font(lang, 25, bold=True)
     parts = [
         (weather.icon, icon_font, theme.text_fill, 6),
-        (weather.temp_display, text_font, theme.accent_fill, 16),
+        (weather.format_temp(ctx.temp_unit), text_font, theme.accent_fill, 16),
         (RAINDROP_ICON, icon_font, theme.text_fill, 4),
         (weather.precip_display, text_font, theme.text_fill, 0),
     ]

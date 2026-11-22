@@ -130,6 +130,11 @@ WEATHER_PREFETCH_ALL_CIRCUITS=false
 - Values are comma-separated and case-insensitive; empty means all. Unknown entries are ignored
   with a warning, and a list without any supported entry falls back to all.
 - `weather=off` calendars are always pregenerated because readiness depends on them.
+- Weather variants are `current`, `race_day` and `weekend`. An empty list keeps `current` and
+  `race_day`; list `weekend` explicitly (e.g. `PREGENERATE_WEATHER_TYPES=race_day,weekend`) to
+  pregenerate `weather_type=weekend` calendars and prefetch their session forecasts hourly. The
+  weekend forecast shares the race-day request, so it adds no Open-Meteo requests. Fahrenheit
+  (`temp_unit=f`) is always rendered on demand.
 - Everything outside the profile keeps working: a request for another language, palette or
   weather type is rendered on demand and cached in memory, exactly like a timezone variant.
   The first such request costs one render.

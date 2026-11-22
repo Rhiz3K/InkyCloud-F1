@@ -435,6 +435,7 @@ function teamsUrlContext(state = {}, {tz} = {}) {
         COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
         WEEKEND_MODE_OPTIONS: ["off", "auto"], currentWeekendMode: "off",
         AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
+        TEMP_UNIT_OPTIONS: ["c", "f"], currentTempUnit: "c", suggestedTempUnit: () => "c",
         currentScreenType: "teams", currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none", ...state,
     });
@@ -590,6 +591,7 @@ function calendarCountdownContext(state = {}, kind = "countdown") {
         COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
         WEEKEND_MODE_OPTIONS: ["off", "auto"], currentWeekendMode: "off",
         AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
+        TEMP_UNIT_OPTIONS: ["c", "f"], currentTempUnit: "c", suggestedTempUnit: () => "c",
         currentScreenType: "calendar", currentUiLang: "en", currentDisplayType: "1bit", currentTeamsExtra: "none",
         selectedYear: null, selectedRound: null, selectedRaceKey: null, selectedTz: null, defaultTimezone: "Europe/Prague",
         ...state,
@@ -1088,6 +1090,7 @@ function autoScreenContext(screen, state = {}) {
         COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
         WEEKEND_MODE_OPTIONS: ["off", "auto"], currentWeekendMode: "off",
         AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
+        TEMP_UNIT_OPTIONS: ["c", "f"], currentTempUnit: "c", suggestedTempUnit: () => "c",
         currentScreenType: screen, currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none",
         selectedYear: null, selectedRound: null, selectedRaceKey: null, selectedTz: null, defaultTimezone: "Europe/Prague",
@@ -1168,4 +1171,110 @@ test("setAutoScreen syncs the select, the hint, the page URL and the copied URL"
     fresh.ctx.currentAutoScreen = "off";
     fresh.ctx.initTrackOptions();
     assert.equal(fresh.ctx.currentAutoScreen, "off");
+});
+
+// Temperature unit (#185 F6): Celsius never reaches a URL, Fahrenheit only where weather is drawn.
+test("calendar URLs carry weather_type=weekend and temp_unit=f only with weather", () => {
+    const {ctx} = calendarCountdownContext({currentTempUnit: "f"});
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/calendar.bmp?temp_unit=f");
+    assert.equal(ctx.getPreviewUrl(),
+        "https://racing.example.org/preview/configure/calendar.png?weather_type=race&temp_unit=f");
+    ctx.document.querySelector = () => ({value: "weekend"});
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/calendar.bmp?weather_type=weekend&temp_unit=f");
+    assert.equal(ctx.getPreviewUrl(),
+        "https://racing.example.org/preview/configure/calendar.png?weather_type=weekend&temp_unit=f");
+    ctx.currentTempUnit = "c";
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/calendar.bmp?weather_type=weekend");
+    ctx.currentTempUnit = "f";
+    const getElementById = ctx.document.getElementById;
+    ctx.document.getElementById = (id) => (id === "weatherToggle" ? {checked: false} : getElementById(id));
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/calendar.bmp?weather=false");
+    assert.equal(ctx.getPreviewUrl(), "https://racing.example.org/preview/configure/calendar.png?weather_type=off");
+});
+
+test("teams URLs carry temp_unit=f only with the weather panel", () => {
+    const {ctx} = teamsUrlContext({currentTempUnit: "f"});
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?year=2026");
+    ctx.currentTeamsExtra = "countdown";
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?year=2026&extra=countdown");
+    ctx.currentTeamsExtra = "weather";
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/teams.bmp?year=2026&extra=weather&temp_unit=f");
+    assert.equal(ctx.getPreviewUrl(),
+        "https://racing.example.org/preview/configure/teams.png?extra=weather&temp_unit=f");
+});
+
+function tempUnitButtons() {
+    return ["c", "f", "c", "f"].map((unit) => {
+        const attrs = {};
+        return {
+            dataset: {tempUnit: unit}, attrs, classes: new Set(),
+            setAttribute(name, value) {attrs[name] = value;},
+            get classList() {
+                const set = this.classes;
+                return {toggle(name, on) {if (on) set.add(name); else set.delete(name);}};
+            },
+        };
+    });
+}
+
+test("setTempUnit syncs every switch and the page URL, ?temp_unit= initialises it", () => {
+    const {ctx, replaced} = calendarCountdownContext();
+    const buttons = tempUnitButtons();
+    ctx.document.querySelectorAll = (selector) => (selector === ".temp-unit-btn" ? buttons : []);
+    vm.runInContext(templateFunction(readFileSync("app/templates/configure.html", "utf8"), "setTempUnit"), ctx);
+    ctx.setTempUnit("f");
+    assert.equal(ctx.currentTempUnit, "f");
+    assert.deepEqual(buttons.map((b) => b.attrs["aria-pressed"]), ["false", "true", "false", "true"]);
+    assert.ok(buttons[1].classes.has("bg-black") && !buttons[1].classes.has("bg-white"));
+    assert.deepEqual(replaced, ["https://racing.example.org/configure/calendar?temp_unit=f"]);
+    assert.equal(ctx.previewUpdates, 1);
+    ctx.setTempUnit("kelvin");
+    assert.equal(ctx.currentTempUnit, "c");
+    assert.equal(replaced.at(-1), "https://racing.example.org/configure/calendar");
+    ctx.setTempUnit("f", false);
+    assert.equal(ctx.previewUpdates, 2);
+    assert.equal(replaced.length, 2);
+
+    const fresh = calendarCountdownContext({suggestedTempUnit: () => "f"});
+    fresh.ctx.window.location.search = "?temp_unit=c";
+    fresh.ctx.initTrackOptions();
+    assert.equal(fresh.ctx.currentTempUnit, "c");
+    fresh.ctx.window.location.search = "";
+    fresh.ctx.initTrackOptions();
+    assert.equal(fresh.ctx.currentTempUnit, "f");
+    fresh.ctx.window.location.search = "?temp_unit=x";
+    fresh.ctx.suggestedTempUnit = () => "c";
+    fresh.ctx.initTrackOptions();
+    assert.equal(fresh.ctx.currentTempUnit, "c");
+});
+
+test("suggestedTempUnit picks Fahrenheit only for US time zones", () => {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const suggest = (timeZone) => {
+        const ctx = vm.createContext({Intl: {DateTimeFormat: () => ({resolvedOptions: () => ({timeZone})})}});
+        vm.runInContext(templateFunction(template, "suggestedTempUnit"), ctx);
+        return ctx.suggestedTempUnit();
+    };
+    assert.equal(suggest("America/New_York"), "f");
+    assert.equal(suggest("America/Indiana/Indianapolis"), "f");
+    assert.equal(suggest("Pacific/Honolulu"), "f");
+    assert.equal(suggest("America/Sao_Paulo"), "c");
+    assert.equal(suggest("America/Toronto"), "c");
+    assert.equal(suggest("Europe/Prague"), "c");
+    assert.equal(suggest(undefined), "c");
+    const broken = vm.createContext({Intl: {DateTimeFormat() {throw new Error("no Intl");}}});
+    vm.runInContext(templateFunction(template, "suggestedTempUnit"), broken);
+    assert.equal(broken.suggestedTempUnit(), "c");
+});
+
+test("the °C/°F switches and the weekend weather button are wired to allowed handlers", () => {
+    const common = readFileSync("app/assets/js/common.js", "utf8");
+    assert.match(common, /"setTempUnit",/);
+    const macro = readFileSync("app/templates/configure/_temp_unit.html", "utf8");
+    assert.match(macro, /data-on-click="setTempUnit"/);
+    const sidebar = readFileSync("app/templates/configure/_calendar_sidebar.html", "utf8");
+    assert.equal((sidebar.match(/data-args='\["weekend"\]'/g) || []).length, 2);
+    assert.equal((sidebar.match(/temp_unit\.toggle\(/g) || []).length, 2);
+    const teams = readFileSync("app/templates/configure/_teams_sidebar.html", "utf8");
+    assert.equal((teams.match(/temp_unit\.toggle\(/g) || []).length, 2);
 });

@@ -21,6 +21,7 @@ from app.routes.params import (
     canonical_weather_type,
     normalize_display,
     normalize_lang,
+    temp_unit_cache_suffix,
     validate_timezone,
     weather_file_key,
 )
@@ -51,6 +52,7 @@ from app.services.track_catalog import (
     TrackStyle,
 )
 from app.services.track_renderer import attribution_headers
+from app.services.weather_service import TempUnit
 from app.services.weekend_phase import WeekendMode, select_weekend_race
 from app.services.weekend_results import weekend_context
 from app.state import bmp_cache_generation, get_bmp_variant_cache
@@ -173,10 +175,12 @@ async def _render_configure_calendar(
     options: TrackOptions,
     countdown: CountdownMode = CountdownMode.HOURS,
     weekend_mode: WeekendMode = WeekendMode.OFF,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> Response:
     """Share calendar BMP caching and singleflight, then encode the matching PNG preview.
 
-    ``weather`` is canonical (off/current/race_day), so the key equals the /calendar.bmp one.
+    ``weather`` is canonical (off/current/race_day/weekend), so the key equals the
+    /calendar.bmp one.
     """
     race = select_weekend_race(F1Service(), weekend_mode)
     key = (
@@ -201,7 +205,8 @@ async def _render_configure_calendar(
         if countdown != CountdownMode.HOURS:
             key += f":countdown={countdown}:{hint.cache_token()}"
         key += weekend.cache_suffix(hint)
-    image_cache = bmp_artifacts.calendar_image_cache(countdown, weekend.mode)
+    key += temp_unit_cache_suffix(temp_unit)
+    image_cache = bmp_artifacts.calendar_image_cache(countdown, weekend.mode, temp_unit, weather)
     artifact = image_cache.get(key)
     if artifact is None:
         artifact = await bmp_artifacts.singleflight(
@@ -218,6 +223,7 @@ async def _render_configure_calendar(
                 countdown_mode=countdown,
                 weekend_mode=weekend.mode,
                 weekend=weekend.phase,
+                temp_unit=temp_unit,
             ),
         )
     async with render_slot():
@@ -401,6 +407,10 @@ async def get_configure_preview_png(
         WeekendMode,
         Query(description="Calendar weekend mode: off (default) or auto"),
     ] = WeekendMode.OFF,
+    temp_unit: Annotated[
+        TempUnit,
+        Query(description="Temperature unit for calendar and teams weather: c (default) or f"),
+    ] = TempUnit.C,
 ) -> Response:
     """Serve pre-generated configure-preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
@@ -417,7 +427,9 @@ async def get_configure_preview_png(
     extra_failed = False
     tz = validate_timezone(tz)
     if safe_screen == "teams" and extra != TeamsExtra.NONE:
-        ctx = build_teams_extra_context(extra, get_default_teams_year(), timezone_name=tz)
+        ctx = build_teams_extra_context(
+            extra, get_default_teams_year(), timezone_name=tz, temp_unit=temp_unit
+        )
         if ctx is not None:
             _charge_configure_preview(request)
             try:
@@ -447,6 +459,7 @@ async def get_configure_preview_png(
             options == DEFAULT_TRACK_OPTIONS
             and countdown == CountdownMode.HOURS
             and weekend_mode == WeekendMode.OFF
+            and temp_unit == TempUnit.C
         )
         or safe_screen == "teams"
         else None
@@ -458,7 +471,14 @@ async def get_configure_preview_png(
         _charge_configure_preview(request)
         try:
             return await _render_configure_calendar(
-                request, safe_lang, safe_display, safe_weather, options, countdown, weekend_mode
+                request,
+                safe_lang,
+                safe_display,
+                safe_weather,
+                options,
+                countdown,
+                weekend_mode,
+                temp_unit,
             )
         except Exception as exc:
             if isinstance(exc, (HTTPException, StaleSelection)):

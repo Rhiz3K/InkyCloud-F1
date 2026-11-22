@@ -47,6 +47,9 @@ RACE_LIVE_WINDOW = timedelta(hours=3)
 AUTO_DAYS_THRESHOLD = timedelta(hours=48)
 # Open-Meteo forecasts cover 16 days including today (see WeatherService.get_race_weather).
 FORECAST_RANGE_DAYS = 16
+# weather_type=weekend also forecasts qualifying and a sprint, up to this many days before the
+# race day (the forecast request covers these days and the race day).
+WEEKEND_FORECAST_LEAD_DAYS = 2
 # Standings can change hourly while results and penalties arrive after a points session.
 RESULTS_WINDOW = timedelta(hours=24)
 
@@ -211,6 +214,26 @@ def _date_only_changes(
     return changes
 
 
+def _forecast_start(
+    start: datetime | None, race_day: date | None, weather_type: str
+) -> datetime | None:
+    """Return when a race-day or weekend forecast first exists, None without a race date.
+
+    A date-only race has no race-day forecast, but its weekend forecast can still show a
+    timed qualifying.
+    """
+    weekend = weather_type == "weekend"
+    if start is not None:
+        forecast_day = start.date()
+    elif weekend and race_day is not None:
+        forecast_day = race_day
+    else:
+        return None
+    lead_days = WEEKEND_FORECAST_LEAD_DAYS if weekend else 0
+    first_day = forecast_day - timedelta(days=FORECAST_RANGE_DAYS - 1 + lead_days)
+    return datetime.combine(first_day, time.min, UTC)
+
+
 def calendar_refresh_hint(
     race_data: Mapping[str, Any] | None,
     *,
@@ -223,7 +246,8 @@ def calendar_refresh_hint(
 ) -> RefreshHint:
     """Predict the next change of a calendar image.
 
-    ``weather_type`` is canonical (``off``, ``current`` or ``race_day``). ``selection_grace``
+    ``weather_type`` is canonical (``off``, ``current``, ``race_day`` or ``weekend``; the
+    weekend forecast starts with qualifying, before the race forecast). ``selection_grace``
     is how long the automatic next-race selection keeps a race after its start; None for an
     explicitly selected race.
     """
@@ -253,9 +277,7 @@ def calendar_refresh_hint(
     if weather_enabled and not cancelled and weather_type != "off":
         if weather_type == "current":
             hourly = True
-        elif start is not None:
-            first_forecast_day = start.date() - timedelta(days=FORECAST_RANGE_DAYS - 1)
-            forecast_from = datetime.combine(first_forecast_day, time.min, UTC)
+        elif (forecast_from := _forecast_start(start, race_day, weather_type)) is not None:
             if now < forecast_from:
                 changes.append(forecast_from)
             else:
