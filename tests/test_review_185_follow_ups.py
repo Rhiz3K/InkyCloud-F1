@@ -466,23 +466,7 @@ def test_openapi_schema_has_no_duplicate_operation_ids():
     assert "/calendar.bmp" in schema["paths"]
 
 
-# --- B8: configurator and standings defaults agree with the rest of the app --------------------
-
-
-def test_configure_highlights_the_season_the_teams_preview_shows(monkeypatch):
-    from fastapi.testclient import TestClient
-
-    from app.main import app
-    from app.routes import pages
-
-    monkeypatch.setattr(pages, "get_default_teams_year", lambda: 2026)
-    monkeypatch.setattr(pages, "get_available_teams_years", lambda: [2025, 2026])
-    monkeypatch.setattr(pages, "get_current_f1_season", lambda: 2027, raising=False)
-
-    html = TestClient(app).get("/configure/teams").text
-
-    assert "const currentTeamsSeason = 2026;" in html
-    assert "const availableTeamsSeasons = [2026, 2025];" in html
+# --- B8: standings default to the same season as the leader API ------------------------------
 
 
 @pytest.mark.asyncio

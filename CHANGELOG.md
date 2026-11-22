@@ -183,9 +183,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     cleared.
   - `/robots.txt` and `/sitemap.xml` are left out of the OpenAPI schema. Their combined
     GET/HEAD routes produced three duplicate-operationId warnings on every schema build.
-  - The Teams configurator highlights the same default season that `/teams.bmp` and its
-    preview use (the newest one with bundled teams data), not a season the preview cannot
-    show. Standings without an explicit year use the current F1 season, like
+  - Standings requested without an explicit year use the current F1 season, like
     `/api/standings/leader`, instead of the calendar year (which was empty before the first
     race).
   - An empty `?tz=` is treated as unset on every route. Before, `/calendar.bmp?tz=` returned
