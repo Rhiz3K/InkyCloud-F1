@@ -380,5 +380,8 @@
   "teams_extra_done": "verreden",
   "teams_extra_upcoming": "Komende races",
   "teams_extra_today": "vandaag",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Minimale modus",
+  "api_docs_open_json": "JSON openen",
+  "api_docs_teams_tz_desc": "Optionele IANA-tijdzone voor panelen met een tijd of datum: countdown, flags, track, weather. Standaard de DEFAULT_TIMEZONE van de server; genegeerd bij none of niet-beschikbare panelen. Ongeldige waarden geven HTTP 400. Ook ondersteund door /preview/configure/teams.png."
 }

@@ -380,5 +380,8 @@
   "teams_extra_done": "tamamlanan",
   "teams_extra_upcoming": "Yaklaşan yarışlar",
   "teams_extra_today": "bugün",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Asgari mod",
+  "api_docs_open_json": "JSON'u Aç",
+  "api_docs_teams_tz_desc": "Saat veya tarih gösteren paneller için isteğe bağlı IANA saat dilimi: countdown, flags, track, weather. Varsayılan, sunucunun DEFAULT_TIMEZONE değeridir; none veya kullanılamayan panellerde yok sayılır. Geçersiz değerler HTTP 400 döndürür. /preview/configure/teams.png de destekler."
 }

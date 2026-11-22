@@ -380,5 +380,8 @@
   "teams_extra_done": "rozegrano",
   "teams_extra_upcoming": "Nadchodzące wyścigi",
   "teams_extra_today": "dzisiaj",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Tryb minimalny",
+  "api_docs_open_json": "Otwórz JSON",
+  "api_docs_teams_tz_desc": "Opcjonalna strefa czasowa IANA dla paneli z godziną lub datą: countdown, flags, track, weather. Domyślnie DEFAULT_TIMEZONE serwera; ignorowana dla none i niedostępnych paneli. Nieprawidłowa wartość zwraca HTTP 400. Obsługuje ją też /preview/configure/teams.png."
 }

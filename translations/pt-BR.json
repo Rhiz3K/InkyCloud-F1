@@ -380,5 +380,8 @@
   "teams_extra_done": "disputadas",
   "teams_extra_upcoming": "Próximas corridas",
   "teams_extra_today": "hoje",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Modo mínimo",
+  "api_docs_open_json": "Abrir JSON",
+  "api_docs_teams_tz_desc": "Fuso horário IANA opcional para painéis que mostram hora ou data: countdown, flags, track, weather. O padrão é o DEFAULT_TIMEZONE do servidor; ignorado com none ou painéis indisponíveis. Valores inválidos retornam HTTP 400. Também aceito por /preview/configure/teams.png."
 }

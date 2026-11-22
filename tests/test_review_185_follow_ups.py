@@ -425,3 +425,24 @@ def test_backup_info_reports_minimal_mode_as_disabled(capsys):
     output = capsys.readouterr().out
     assert "Enabled:      False" in output
     assert "MINIMAL_DATA_MODE=true" in output
+
+
+# --- E5: every key referenced by a template exists in every locale -----------------------------
+
+
+def test_template_translation_keys_exist_in_every_locale():
+    import json
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    keys: set[str] = set()
+    for template in (root / "app" / "templates").rglob("*.html"):
+        source = template.read_text(encoding="utf-8")
+        keys |= set(re.findall(r't\.get\("([a-z0-9_]+)"', source))
+        keys |= set(re.findall(r"\bt\.([a-z][a-z0-9_]+)\b", source)) - {"get", "items", "keys"}
+
+    for locale in sorted((root / "translations").glob("*.json")):
+        translations = json.loads(locale.read_text(encoding="utf-8"))
+        missing = sorted(keys - translations.keys())
+        assert not missing, f"{locale.name}: {missing}"

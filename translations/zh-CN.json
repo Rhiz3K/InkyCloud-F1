@@ -380,5 +380,8 @@
   "teams_extra_done": "已完成",
   "teams_extra_upcoming": "即将举行的比赛",
   "teams_extra_today": "今天",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "最少数据模式",
+  "api_docs_open_json": "打开 JSON",
+  "api_docs_teams_tz_desc": "可选的 IANA 时区，用于显示时间或日期的面板：countdown、flags、track、weather。默认使用服务器的 DEFAULT_TIMEZONE；对 none 或不可用的面板无效。无效值返回 HTTP 400。/preview/configure/teams.png 同样支持。"
 }

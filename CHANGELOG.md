@@ -173,6 +173,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Monday–Sunday (before, `0-7` collapsed to Sunday only). S3 retention cleanup counts only
     the keys the store confirms as deleted and logs each per-key error. `backup-cli info`
     shows backups as disabled under `MINIMAL_DATA_MODE=true` and says why.
+  - All 13 locales gain `privacy_minimal_title` (the minimal-mode statistics page had an empty
+    heading), `api_docs_teams_tz_desc` (it was English everywhere) and `api_docs_open_json`.
+    The API docs button that opens `/api` now reads "Open JSON" instead of "Open Image".
+    A test checks that every key used by a template exists in every locale.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

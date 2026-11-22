@@ -380,5 +380,8 @@
   "teams_extra_done": "disputées",
   "teams_extra_upcoming": "Prochaines courses",
   "teams_extra_today": "aujourd’hui",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Mode minimal",
+  "api_docs_open_json": "Ouvrir le JSON",
+  "api_docs_teams_tz_desc": "Fuseau horaire IANA facultatif pour les panneaux affichant une heure ou une date : countdown, flags, track, weather. Par défaut, le DEFAULT_TIMEZONE du serveur ; ignoré pour none ou un panneau indisponible. Une valeur invalide renvoie HTTP 400. Également accepté par /preview/configure/teams.png."
 }
