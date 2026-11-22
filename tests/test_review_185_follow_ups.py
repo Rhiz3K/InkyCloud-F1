@@ -502,3 +502,22 @@ async def test_standings_default_to_the_current_f1_season(monkeypatch):
 
     assert fetch.await_args.args[0] == 2026
     service._negative_cache.clear()
+
+
+# --- C12: an empty tz query means "not set" on every image route -------------------------------
+
+
+def test_empty_tz_is_treated_as_unset(monkeypatch):
+    from unittest.mock import MagicMock
+
+    from fastapi import HTTPException
+
+    from app.routes import deps
+
+    service = MagicMock()
+    monkeypatch.setattr(deps, "F1Service", service)
+
+    deps.get_f1_service(tz="")
+    service.assert_called_once_with(timezone_name=None)
+    with pytest.raises(HTTPException):
+        deps.get_f1_service(tz="Not/AZone")

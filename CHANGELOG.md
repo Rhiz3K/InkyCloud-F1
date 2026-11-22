@@ -188,6 +188,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     show. Standings without an explicit year use the current F1 season, like
     `/api/standings/leader`, instead of the calendar year (which was empty before the first
     race).
+  - An empty `?tz=` is treated as unset on every route. Before, `/calendar.bmp?tz=` returned
+    HTTP 400, while `/teams.bmp?tz=` used the default timezone.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
