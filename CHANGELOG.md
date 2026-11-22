@@ -181,6 +181,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     appeared under UTC-12). Every entry shows the zone's live offset, so DST zones are
     labelled correctly, and the selected zone is scrolled into view after the search filter is
     cleared.
+  - `/robots.txt` and `/sitemap.xml` are left out of the OpenAPI schema. Their combined
+    GET/HEAD routes produced three duplicate-operationId warnings on every schema build.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

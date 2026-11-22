@@ -446,3 +446,21 @@ def test_template_translation_keys_exist_in_every_locale():
         translations = json.loads(locale.read_text(encoding="utf-8"))
         missing = sorted(keys - translations.keys())
         assert not missing, f"{locale.name}: {missing}"
+
+
+# --- D8: the OpenAPI schema builds without duplicate operation IDs -----------------------------
+
+
+def test_openapi_schema_has_no_duplicate_operation_ids():
+    import warnings
+
+    from app.main import app
+
+    app.openapi_schema = None
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        schema = app.openapi()
+    duplicates = [str(w.message) for w in caught if "Duplicate Operation ID" in str(w.message)]
+    assert duplicates == []
+    assert "/robots.txt" not in schema["paths"] and "/sitemap.xml" not in schema["paths"]
+    assert "/calendar.bmp" in schema["paths"]
