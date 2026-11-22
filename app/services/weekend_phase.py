@@ -97,6 +97,8 @@ class WeekendPhase:
 
 @dataclass(frozen=True)
 class _Session:
+    """One schedule row as the weekend view sees it: name, start and whether it is over."""
+
     name: str
     start: datetime | None
     over: bool
