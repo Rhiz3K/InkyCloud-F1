@@ -125,3 +125,112 @@ async def test_round_without_year_uses_the_auto_selected_pregenerated_file():
     assert key.endswith("|en:next:next:auto:default:race_day:1bit")
     assert keywords["race_round"] is None
     images.get_bmp_cache().clear()
+
+
+# --- C5: gzip and identity bodies never share a strong ETag; 304s vary on encoding -------------
+
+
+def _etag_app():
+    from starlette.applications import Starlette
+    from starlette.middleware import Middleware
+    from starlette.middleware.gzip import GZipMiddleware
+    from starlette.responses import Response
+    from starlette.routing import Route
+
+    from app.main import EncodingAwareETagMiddleware
+    from app.utils.etag import if_none_match_matches, strong_etag
+
+    body = b"BM" + bytes(4000)
+    etag = strong_etag(body)
+
+    async def image(request):
+        if if_none_match_matches(request.headers.get("If-None-Match"), etag):
+            return Response(status_code=304, headers={"ETag": etag})
+        return Response(body, media_type="image/bmp", headers={"ETag": etag})
+
+    return Starlette(
+        routes=[Route("/image.bmp", image)],
+        middleware=[
+            Middleware(EncodingAwareETagMiddleware),
+            Middleware(GZipMiddleware, minimum_size=500),
+        ],
+    ), etag
+
+
+def test_gzip_response_gets_weak_etag_and_vary():
+    from fastapi.testclient import TestClient
+
+    app, etag = _etag_app()
+    client = TestClient(app)
+
+    identity = client.get("/image.bmp", headers={"Accept-Encoding": "identity"})
+    gzipped = client.get("/image.bmp", headers={"Accept-Encoding": "gzip"})
+
+    assert identity.headers["etag"] == etag
+    assert "content-encoding" not in identity.headers
+    assert gzipped.headers["content-encoding"] == "gzip"
+    assert gzipped.headers["etag"] == f"W/{etag}"
+    for response in (identity, gzipped):
+        assert response.headers["vary"].lower().count("accept-encoding") == 1
+
+
+def test_revalidation_keeps_the_negotiated_validator():
+    from fastapi.testclient import TestClient
+
+    app, etag = _etag_app()
+    client = TestClient(app)
+
+    weak = client.get(
+        "/image.bmp", headers={"Accept-Encoding": "gzip", "If-None-Match": f"W/{etag}"}
+    )
+    strong = client.get(
+        "/image.bmp", headers={"Accept-Encoding": "identity", "If-None-Match": etag}
+    )
+
+    assert weak.status_code == strong.status_code == 304
+    assert weak.headers["etag"] == f"W/{etag}"
+    assert strong.headers["etag"] == etag
+    assert "accept-encoding" in weak.headers["vary"].lower()
+    assert "accept-encoding" in strong.headers["vary"].lower()
+
+
+def test_encoding_aware_etag_wraps_gzip_in_the_app():
+    from starlette.middleware.gzip import GZipMiddleware
+
+    from app.main import EncodingAwareETagMiddleware, app
+
+    order = [middleware.cls for middleware in app.user_middleware]
+    assert order.index(EncodingAwareETagMiddleware) < order.index(GZipMiddleware)
+
+
+@pytest.mark.asyncio
+async def test_encoding_aware_etag_extends_existing_vary_and_skips_non_http():
+    from app.main import EncodingAwareETagMiddleware
+
+    sent = []
+
+    async def downstream(scope, receive, send):
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 200,
+                "headers": [(b"etag", b'"abc"'), (b"vary", b"Cookie")],
+            }
+        )
+
+    async def collect(message):
+        sent.append(message)
+
+    middleware = EncodingAwareETagMiddleware(downstream)
+    await middleware({"type": "http", "headers": []}, None, collect)
+    headers = dict(sent[0]["headers"])
+    assert headers[b"vary"] == b"Cookie, Accept-Encoding"
+    assert headers[b"etag"] == b'"abc"'
+
+    passthrough = []
+
+    async def lifespan_app(scope, receive, send):
+        passthrough.append(scope["type"])
+
+    await EncodingAwareETagMiddleware(lifespan_app)({"type": "lifespan"}, None, collect)
+    assert passthrough == ["lifespan"]

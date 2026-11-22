@@ -159,6 +159,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `/calendar.bmp?round=N` without `year` (documented as ignored) shares the cache entry and
     pregenerated file of the plain auto-selected request instead of forcing a fresh render.
     Cache keys compare `year`/`round` with `None` instead of truthiness.
+  - Responses that carry an `ETag` now always send `Vary: Accept-Encoding` (including `304`),
+    and a gzip-encoded response or a gzip-negotiated `304` uses a weak `W/"…"` tag. Before,
+    identity and gzip bodies shared one strong validator. Clients that send the tag back
+    unchanged keep getting `304`.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
