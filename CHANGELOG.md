@@ -130,6 +130,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     restarts. The `weather_cache` table gains a nullable `precipitation_display_override`
     column (schema version 7, added automatically on startup); before, the warm-load turned
     the amount into `0%`.
+  - `/api/standings/leader` resolves `leader_team.id` with the same team mapping as the
+    renderer, so Audi and Cadillac get their ids (before, `null`) and Cadillac-Ferrari
+    is no longer reported as `ferrari`. Driver standings report the driver's current
+    (last-listed) constructor, as the Teams roster does, and a malformed standings row is
+    skipped instead of discarding the whole table.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

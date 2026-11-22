@@ -271,9 +271,8 @@ def test_team_id_and_driver_number_helpers_delegate_and_handle_unknown_team():
         assert api._get_driver_number("NOR", 2026) == 4
     number.assert_called_once_with("NOR", 2026)
 
-    with patch.dict(api.TEAM_ID_MAP, {"Ferrari": "ferrari"}, clear=True):
-        assert api._get_team_id("Scuderia Ferrari") == "ferrari"
-        assert api._get_team_id("Unknown") is None
+    assert api._get_team_id("Scuderia Ferrari") == "ferrari"
+    assert api._get_team_id("Unknown") is None
 
 
 @pytest.mark.asyncio

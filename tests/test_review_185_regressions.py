@@ -459,3 +459,109 @@ async def test_weather_cache_migration_adds_precipitation_column(tmp_path):
         await db.close()
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == DATABASE_SCHEMA_VERSION
+
+
+# --- D3 + B12: one constructor mapping; malformed standings rows don't drop the table ----------
+
+
+@pytest.mark.parametrize(
+    ("constructor", "expected"),
+    [
+        ("Audi", "audi"),
+        ("Cadillac", "cadillac"),
+        ("Cadillac-Ferrari", "cadillac"),
+        ("Haas F1 Team", "haas"),
+        ("RB F1 Team", "racing_bulls"),
+        ("Racing Bulls", "racing_bulls"),
+        ("Red Bull", "red_bull"),
+        ("Kick Sauber", "sauber"),
+        ("Alfa Romeo", "sauber"),
+        ("Unknown Racing", None),
+    ],
+)
+def test_leader_team_id_matches_renderer_team_key(constructor, expected):
+    from app.routes import api
+    from app.services.renderer_text import get_team_key
+
+    assert api._get_team_id(constructor) == expected == get_team_key(constructor)
+
+
+def _standings_response(payload: dict):
+    return SimpleNamespace(json=lambda: payload)
+
+
+@pytest.mark.asyncio
+async def test_driver_standings_skip_malformed_row_and_use_current_team(monkeypatch):
+    from app.services import standings_service
+
+    payload = {
+        "MRData": {
+            "StandingsTable": {
+                "StandingsLists": [
+                    {
+                        "round": "5",
+                        "DriverStandings": [
+                            {
+                                "position": "1",
+                                "points": "100",
+                                "wins": "3",
+                                "Driver": {"code": "LAW", "familyName": "Lawson"},
+                                "Constructors": [{"name": "RB F1 Team"}, {"name": "Red Bull"}],
+                            },
+                            {
+                                "position": "",
+                                "points": "0",
+                                "Driver": {"code": "BAD", "familyName": "Broken"},
+                            },
+                        ],
+                    }
+                ]
+            }
+        }
+    }
+    monkeypatch.setattr(
+        standings_service, "fetch_with_retry", AsyncMock(return_value=_standings_response(payload))
+    )
+    service = standings_service.StandingsService()
+    service._cache.clear()
+    service._negative_cache.clear()
+    try:
+        standings = await service.get_driver_standings(2026, limit=10)
+    finally:
+        service._cache.clear()
+
+    assert [s.driver_code for s in standings] == ["LAW"]
+    assert standings[0].constructor_name == "Red Bull"
+
+
+@pytest.mark.asyncio
+async def test_constructor_standings_skip_malformed_row(monkeypatch):
+    from app.services import standings_service
+
+    payload = {
+        "MRData": {
+            "StandingsTable": {
+                "StandingsLists": [
+                    {
+                        "round": "5",
+                        "ConstructorStandings": [
+                            {"position": "1", "points": "200", "Constructor": {"name": "Audi"}},
+                            {"position": "2", "points": "n/a", "Constructor": {"name": "Haas"}},
+                        ],
+                    }
+                ]
+            }
+        }
+    }
+    monkeypatch.setattr(
+        standings_service, "fetch_with_retry", AsyncMock(return_value=_standings_response(payload))
+    )
+    service = standings_service.StandingsService()
+    service._cache.clear()
+    service._negative_cache.clear()
+    try:
+        standings = await service.get_constructor_standings(2026, limit=10)
+    finally:
+        service._cache.clear()
+
+    assert [s.constructor_name for s in standings] == ["Audi"]
