@@ -169,6 +169,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - When a Teams `extra` preview fails and the plain Teams preview is served instead, the
     response is `Cache-Control: no-store` with `X-Preview-Fallback: plain`. The browser no
     longer caches the panel-less image under the panel's URL.
+  - `BACKUP_CRON` day-of-week ranges ending in `7` follow cron: `0-7` is every day and `1-7`
+    Monday–Sunday (before, `0-7` collapsed to Sunday only). S3 retention cleanup counts only
+    the keys the store confirms as deleted and logs each per-key error. `backup-cli info`
+    shows backups as disabled under `MINIMAL_DATA_MODE=true` and says why.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

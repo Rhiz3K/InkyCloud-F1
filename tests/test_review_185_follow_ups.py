@@ -366,3 +366,62 @@ async def test_failed_extra_preview_marks_pregenerated_fallback(monkeypatch):
 
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["x-preview-fallback"] == "plain"
+
+
+# --- C11: S3 cleanup counts confirmed deletes; CLI shows the effective backup state -----------
+
+
+def test_backup_cleanup_counts_only_confirmed_deletes(caplog):
+    from datetime import timedelta
+    from unittest.mock import MagicMock, patch
+
+    from app.services.backup import cleanup_old_backups
+
+    old = datetime.now(UTC) - timedelta(days=90)
+    client = MagicMock()
+    client.get_paginator.return_value.paginate.return_value = [
+        {"Contents": [{"Key": f"f1_backup_{i}.db", "LastModified": old} for i in range(3)]}
+    ]
+    client.delete_objects.return_value = {
+        "Deleted": [{"Key": "f1_backup_0.db"}],
+        "Errors": [
+            {"Key": "f1_backup_1.db", "Code": "AccessDenied"},
+            {"Key": "f1_backup_2.db", "Message": "slow down"},
+        ],
+    }
+    with patch("app.services.backup.config") as config, caplog.at_level("WARNING"):
+        config.MINIMAL_DATA_MODE = False
+        config.BACKUP_RETENTION_DAYS = 30
+        config.S3_BUCKET_NAME = "bucket"
+        assert cleanup_old_backups(client) == 1
+
+    assert "AccessDenied" in caplog.text and "slow down" in caplog.text
+
+    client.delete_objects.return_value = {"Errors": [{"Key": "f1_backup_1.db"}]}
+    with patch("app.services.backup.config") as config:
+        config.MINIMAL_DATA_MODE = False
+        config.BACKUP_RETENTION_DAYS = 30
+        config.S3_BUCKET_NAME = "bucket"
+        assert cleanup_old_backups(client) == 2
+
+
+def test_backup_info_reports_minimal_mode_as_disabled(capsys):
+    from unittest.mock import patch
+
+    from scripts import backup_cli
+
+    with patch("app.services.backup.config") as config:
+        config.MINIMAL_DATA_MODE = True
+        config.BACKUP_ENABLED = True
+        config.S3_ENDPOINT_URL = "https://s3.example"
+        config.S3_BUCKET_NAME = "bucket"
+        config.S3_REGION = "auto"
+        config.BACKUP_CRON = "0 3 * * *"
+        config.BACKUP_RETENTION_DAYS = 7
+        config.S3_ACCESS_KEY_ID = "a"
+        config.S3_SECRET_ACCESS_KEY = "b"
+        backup_cli.cmd_info()
+
+    output = capsys.readouterr().out
+    assert "Enabled:      False" in output
+    assert "MINIMAL_DATA_MODE=true" in output

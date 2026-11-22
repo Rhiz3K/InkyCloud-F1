@@ -40,7 +40,9 @@ def cmd_info():
     print(f"  Credentials:  {'configured' if info['credentials_configured'] else 'NOT configured'}")
     print()
 
-    if not info["enabled"]:
+    if info["minimal_data_mode"]:
+        print("Note: Backup is disabled because MINIMAL_DATA_MODE=true.")
+    elif not info["enabled"]:
         print("Note: Backup is disabled. Set BACKUP_ENABLED=true to enable.")
     elif not info["credentials_configured"]:
         print("Warning: S3 credentials are not configured.")
