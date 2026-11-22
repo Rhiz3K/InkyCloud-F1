@@ -65,6 +65,22 @@ async def singleflight(
     return await asyncio.shield(task)
 
 
+async def drain_singleflight(timeout: float = 10.0) -> None:
+    """Let shared renders still in flight at shutdown finish, cancelling any that overrun.
+
+    A producer keeps running after its last waiter disconnects (it is shielded), so without
+    this the render executor and HTTP clients could close underneath it.
+    """
+    pending = [task for task in _singleflight_tasks.values() if not task.done()]
+    if not pending:
+        return
+    _, overrun = await asyncio.wait(pending, timeout=timeout)
+    for task in overrun:
+        logger.warning("Cancelling shared render %s at shutdown", task.get_name())
+        task.cancel()
+    await asyncio.gather(*pending, return_exceptions=True)
+
+
 def maybe_convert_timezone(race_data: dict, target_tz: str) -> dict:
     """Convert cached race times only when the target timezone differs."""
     cached_tz = race_data.get("timezone", config.DEFAULT_TIMEZONE)

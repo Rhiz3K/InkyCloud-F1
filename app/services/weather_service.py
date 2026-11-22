@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Optional
 import httpx
 
 from app.config import config
+from app.services.circuit_metadata import canonical_circuit_id
 from app.services.http_client import get_shared_http_client
 from app.services.weather_budget import WEATHER_BUDGET
 from app.utils.http import fetch_with_retry
@@ -427,11 +428,13 @@ def get_cached_circuit_weather(circuit_id: str) -> Optional[WeatherData]:
     Retrieve pre-fetched weather for a circuit from the in-memory cache.
 
     Parameters:
-        circuit_id: Circuit identifier (e.g., "albert_park").
+        circuit_id: Circuit identifier (e.g., "albert_park"); provider aliases such as
+            "vegas" resolve to the same entry as the local ID.
 
     Returns:
         Cached WeatherData or None if not found.
     """
+    circuit_id = canonical_circuit_id(circuit_id)
     cached = _circuit_weather_cache.get(circuit_id)
     if cached is None:
         return None
@@ -451,7 +454,7 @@ def set_cached_circuit_weather(circuit_id: str, data: WeatherData) -> None:
         data (WeatherData): WeatherData to store; overwrites any existing entry.
     """
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=CIRCUIT_WEATHER_TTL_MINUTES)
-    _circuit_weather_cache[circuit_id] = (data, expires_at)
+    _circuit_weather_cache[canonical_circuit_id(circuit_id)] = (data, expires_at)
 
 
 def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
@@ -491,7 +494,7 @@ def load_circuit_weather_to_cache(weather_dict: dict[str, dict]) -> int:
             expires_at = fetched_at + timedelta(minutes=CIRCUIT_WEATHER_TTL_MINUTES)
             if expires_at <= datetime.now(timezone.utc):
                 continue
-            _circuit_weather_cache[circuit_id] = (weather, expires_at)
+            _circuit_weather_cache[canonical_circuit_id(circuit_id)] = (weather, expires_at)
             count += 1
         except (KeyError, TypeError, ValueError) as e:
             logger.warning("Invalid weather data for %s: %s", circuit_id, e)

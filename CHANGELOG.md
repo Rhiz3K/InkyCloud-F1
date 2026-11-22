@@ -204,6 +204,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     every other page, instead of a second 13-language dictionary in `app/web/api_docs.py`.
     The English and Czech code examples come from one template. The rendered pages are
     unchanged.
+  - Minor cleanups:
+    - Circuit weather is cached under the local circuit ID. Before, the weather scheduler stored
+      Las Vegas as `vegas` and the Teams `weather` panel looked it up as `las_vegas`.
+    - Flags come only from the country table. Malaysia maps to `my`, and a country missing from
+      the table draws no flag instead of one guessed from its first two letters (Belarus would
+      have shown Belgium's).
+    - Error images wrap the message at word boundaries over up to three lines instead of
+      cutting it at 60 characters mid-word.
+    - The calendar header's "FIA F1 World Championship" line shrinks to fit. In Japanese and
+      Chinese it ran 10 px past the right margin.
+    - Shared renders still running at shutdown get up to 10 seconds to finish before the
+      render executor and HTTP clients close; any still running after that are cancelled.
+    - The home page cards read "800x480 E-INK" instead of "800x480 1-BIT" (both screens
+      support every display mode). Font MIME types are registered in one place.
+    - SELF-HOSTING.md: the quick start uses a real release tag instead of a literal
+      `vX.Y.Z`, and explains that the Compose file's `none` logging driver hides
+      `docker compose logs` output and how to enable logs temporarily.
     `?weather_type=race` shares the `race_day` image instead of rendering it a second time.
     An unknown `lang` on the preview routes falls back to `DEFAULT_LANG`, as the BMP routes
     already did, instead of English.

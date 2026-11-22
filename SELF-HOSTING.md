@@ -14,14 +14,16 @@ defaults, and comments.
 
 ## Run the released image
 
-Copy the environment template and choose an immutable release tag:
+Copy the environment template and choose an immutable release tag. Set `F1_VERSION` to the
+newest tag on the [Releases page](https://github.com/Rhiz3K/InkyCloud-F1/releases):
 
 ```bash
 git clone https://github.com/Rhiz3K/InkyCloud-F1.git
 cd InkyCloud-F1
 cp .env.example .env
-F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:vX.Y.Z docker compose pull
-F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:vX.Y.Z docker compose up -d --no-build
+F1_VERSION=v1.3.3
+F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose pull
+F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose up -d --no-build
 ```
 
 Edit `.env` before exposing the service. At minimum, set `SITE_URL` to the public URL. The
@@ -37,9 +39,25 @@ Use these commands for normal operation:
 
 ```bash
 docker compose ps
-docker compose logs -f f1-eink-cal
 docker compose restart f1-eink-cal
 docker compose down
+```
+
+The Compose file uses the `none` logging driver, so container output is not stored and
+`docker compose logs` prints nothing. To read logs while troubleshooting, add a
+`docker-compose.override.yml` next to `docker-compose.yml`, recreate the container, and delete
+the file again afterwards:
+
+```yaml
+services:
+  f1-eink-cal:
+    logging:
+      driver: local
+```
+
+```bash
+docker compose up -d
+docker compose logs -f f1-eink-cal
 ```
 
 `docker compose down` keeps the named data volume. Do not add `--volumes` unless permanent data
@@ -210,7 +228,8 @@ scikit-learn. See [`scripts/README.md`](./scripts/README.md) for the unified CLI
 
 ### Readiness is 503
 
-Inspect the JSON body of `/health/ready` and container logs. The response identifies database,
+Inspect the JSON body of `/health/ready` and the container logs (see
+[Run the released image](#run-the-released-image) for enabling them). The response identifies database,
 storage, and generation checks separately. Generation status distinguishes `starting`, `stale`,
 and a still-servable `degraded` state. Common 503 causes are a missing `/app/data` mount,
 read-only ownership, or failure to publish any core calendar for more than six hours.

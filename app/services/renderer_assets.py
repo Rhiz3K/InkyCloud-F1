@@ -52,13 +52,12 @@ def _load_image_copy(path: Path) -> Image.Image:
 
 
 def get_country_flag_iso_code(country_name: str, country_map: dict[str, str]) -> str:
-    """Resolve a country name to the local flag asset ISO code."""
-    iso_code = country_map.get(country_name, "").lower()
-    if iso_code:
-        return iso_code
+    """Resolve a country name to the local flag asset ISO code, or "" when it is unknown.
 
-    aliases = {"UAE": "ae", "UK": "gb", "USA": "us"}
-    return aliases.get(country_name, country_name[:2].lower())
+    There is deliberately no guess from the name's first letters: "Malaysia" would become
+    "ma" (Morocco) and "Belarus" would pick Belgium's asset. An unknown country draws no flag.
+    """
+    return country_map.get(country_name, "").lower()
 
 
 def load_results_flag_image(

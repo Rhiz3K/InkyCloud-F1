@@ -36,6 +36,7 @@ COUNTRY_MAP: dict[str, str] = {
     "Hungary": "hu",
     "Italy": "it",
     "Japan": "jp",
+    "Malaysia": "my",
     "Mexico": "mx",
     "Monaco": "mc",
     "Netherlands": "nl",

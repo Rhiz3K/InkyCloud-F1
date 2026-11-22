@@ -8,11 +8,25 @@ from pathlib import Path
 from typing import Any
 
 from PIL import Image, ImageDraw
+from PIL.ImageFont import FreeTypeFont
 
 from app.services.font_utils import fit_ui_font
 from app.services.renderer_assets import _load_image_copy
-from app.services.renderer_text import clamp_text
+from app.services.renderer_text import clamp_text, text_width
 from app.utils.race_times import today_in_timezone
+
+
+def _shrink_font_to_width(
+    draw: ImageDraw.ImageDraw, text: str, font, max_width: int, min_size: int
+):
+    """Step a TrueType font down in size (same face) until the text fits ``max_width``."""
+    while (
+        isinstance(font, FreeTypeFont)
+        and font.size > min_size
+        and text_width(draw, text, font) > max_width
+    ):
+        font = font.font_variant(size=font.size - 1)
+    return font
 
 
 def _countdown_plural_category(value: int, lang_code: str) -> str:
@@ -58,6 +72,11 @@ def draw_race_header(
     text_right_padding = 15
     total_text_height = 80
     start_y = (header_height - total_text_height) // 2 - 5
+    max_text_width = canvas_width - text_x - text_right_padding
+
+    # The CJK face draws Latin wider than Titillium; keep its first line inside the margin.
+    title_font = _shrink_font_to_width(draw, line1, header_title_font, max_text_width, 24)
+    line1 = clamp_text(draw, line1, title_font, max_text_width)
 
     subtitle_font = header_subtitle_font
     subtitle_bbox = draw.textbbox((0, 0), line2, font=subtitle_font)
@@ -78,7 +97,7 @@ def draw_race_header(
         canvas_width - text_x - text_right_padding,
     )
 
-    draw.text((text_x, start_y), line1, fill=title_fill, font=header_title_font)
+    draw.text((text_x, start_y), line1, fill=title_fill, font=title_font)
     draw.text((text_x, start_y + 40), line2, fill=title_fill, font=subtitle_font)
 
 

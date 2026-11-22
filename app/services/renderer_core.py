@@ -20,7 +20,7 @@ from app.services.font_utils import (
 from app.services.renderer_assets import ASSET_CACHE_LOCK
 from app.services.renderer_teams import teams_extra_slot
 from app.services.renderer_teams_extras import draw_teams_extra
-from app.services.renderer_text import split_teams_for_columns
+from app.services.renderer_text import split_teams_for_columns, wrap_text
 from app.services.renderer_theme import RenderTheme
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
@@ -201,12 +201,17 @@ class RendererCore(ABC):
             fill=self.theme.error_title_fill,
             font=self.fonts["schedule_title"],
         )
-        draw.text(
-            (padding, padding + 50),
-            error_message[:60],
-            fill=self.theme.error_text_fill,
-            font=self.fonts["schedule_row"],
-        )
+        font = self.fonts["schedule_row"]
+        line_height = 28
+        for index, line in enumerate(
+            wrap_text(draw, error_message, font, self.width - 2 * padding, max_lines=3)
+        ):
+            draw.text(
+                (padding, padding + 50 + index * line_height),
+                line,
+                fill=self.theme.error_text_fill,
+                font=font,
+            )
         return self._encode_image(image)
 
     @abstractmethod
