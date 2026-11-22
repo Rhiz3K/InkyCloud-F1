@@ -7,35 +7,30 @@ import functools
 import logging
 import os
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 
 import sentry_sdk
-from cachetools import TTLCache
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 
-from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
+from app.config import LANGUAGE_CODES, config
+from app.services import bmp_artifacts
 from app.services.artifact_metadata import artifact_matches, calendar_identity
 from app.services.f1_service import F1Service
 from app.services.generation_freshness import PREGENERATED_MAX_AGE_SECONDS
-from app.services.i18n import get_translator
 from app.services.image_generation import (
     StaleSelection,
-    require_current_selection,
     retrying_selection,
     selected_generation,
-    selection_flight_key,
     with_current_selection,
 )
 from app.services.image_keys import get_calendar_image_key, get_teams_image_key
-from app.services.renderers import DISPLAY_TYPES, create_renderer
-from app.services.teams_extra import TeamsExtra, TeamsExtraContext, build_teams_extra_context
+from app.services.renderers import DISPLAY_TYPES
+from app.services.teams_extra import TeamsExtra, build_teams_extra_context
 from app.services.teams_service import (
-    TeamsService,
     get_default_teams_year,
-    is_teams_data_cacheable,
 )
 from app.services.track_catalog import (
     DEFAULT_TRACK_OPTIONS,
@@ -45,23 +40,26 @@ from app.services.track_catalog import (
     TrackStyle,
 )
 from app.services.track_renderer import attribution_headers
-from app.services.weather_service import get_weather_context
 from app.state import (
     BmpArtifact,
-    bmp_cache_generation,
     get_bmp_cache,
-    get_bmp_variant_cache,
     record_api_call,
 )
-from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
 from app.utils.f1_season import race_selection_error
-from app.utils.race_times import convert_race_times_to_timezone
 from app.utils.rate_limit import enforce_rate_limit
-from app.utils.render_limit import render_slot
 from app.utils.timezones import is_valid_timezone, normalize_timezone
 
 from .deps import get_f1_service
+from .params import (
+    calendar_cache_key,
+    canonical_weather_type,
+    normalize_display,
+    normalize_lang,
+    validate_calendar_selection,
+    validate_timezone,
+    weather_file_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,77 +75,6 @@ CALENDAR_BMP_CACHE_CONTROL = "public, max-age=3600"
 # is checked first; the scheduler clears it at the end of each generation run (or the TTL
 # expires if a run fails before that).
 PREGENERATED_CACHE_STATUS = "PREGENERATED"
-_singleflight_tasks: dict[str, asyncio.Task[BmpArtifact]] = {}
-
-
-async def _singleflight(
-    key: str,
-    producer: Callable[[], Awaitable[BmpArtifact]],
-) -> BmpArtifact:
-    """Share one in-flight render per key on the application's event loop.
-
-    The mapping is intentionally lock-free: routes and task cleanup access it only from the
-    same asyncio event loop. Shielding keeps the producer alive when one waiter disconnects.
-    """
-    key = selection_flight_key(key)
-    existing = _singleflight_tasks.get(key)
-    if existing is not None:
-        return await asyncio.shield(existing)
-
-    async def execute() -> BmpArtifact:
-        """Run the producer and release this key only when its own task completes."""
-        try:
-            return await producer()
-        finally:
-            if _singleflight_tasks.get(key) is asyncio.current_task():
-                _singleflight_tasks.pop(key, None)
-
-    task = asyncio.create_task(execute(), name=f"bmp-singleflight:{key}")
-    _singleflight_tasks[key] = task
-    return await asyncio.shield(task)
-
-
-def _normalize_lang(lang: str) -> str:
-    """Normalize language input to a supported locale code."""
-    return lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
-
-
-def _normalize_display(display: str) -> str:
-    """Normalize display input to a supported renderer key."""
-    return display if display in DISPLAY_TYPES else "1bit"
-
-
-def _validate_timezone_param(tz: str | None) -> None:
-    """Reject invalid timezone query values."""
-    if tz and not is_valid_timezone(tz):
-        raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
-
-
-def _validate_calendar_selection(year: int | None, race_key: str | None) -> None:
-    """Validate query combinations for explicit calendar selection."""
-    if race_key is not None and year is None:
-        raise HTTPException(status_code=400, detail="race_key requires year")
-
-
-def _get_cache_key(
-    lang: str,
-    year: int | None,
-    round_num: int | None,
-    race_key: str | None,
-    tz: str | None,
-    weather: bool,
-    weather_type: str,
-    display: str,
-) -> str:
-    """Build the cache key for calendar render variants."""
-    weather_key = weather_type if weather else "no_weather"
-    # Compare with None, not truthiness: 0 is a (rejected) value, not "missing".
-    year_key = "next" if year is None else year
-    round_key = "next" if round_num is None else round_num
-    return (
-        f"{lang}:{year_key}:{round_key}:{'auto' if race_key is None else race_key}:"
-        f"{tz or 'default'}:{weather_key}:{display}"
-    )
 
 
 def _to_round_number(round_value: str | int | None) -> int | None:
@@ -365,12 +292,6 @@ def _teams_response(
     return response
 
 
-def _normalize_weather_type(weather_type: str) -> str:
-    """Normalize weather_type to allowed values only (prevents path traversal)."""
-    allowed = {"off", "current", "race_day", "race"}
-    return weather_type if weather_type in allowed else "race_day"
-
-
 # Pre-defined whitelist of valid generated filenames (no user input in paths)
 # Serve a pregenerated file only while it is plausibly current. Generation runs hourly, so a
 # healthy file is at most ~1h old; 6h tolerates a few failed runs while bounding how long a
@@ -497,11 +418,9 @@ def _get_pregenerated_calendar_path(
 
     # Normalize inputs to allowed values; the filename is then derived solely from these
     # enum-like values plus a validated IANA timezone, so no raw user input reaches the path.
-    safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
-    safe_display = _normalize_display(display)
-    safe_weather = "off" if not weather else _normalize_weather_type(weather_type)
-    # Scheduler filenames use the "race" form for both race/race_day.
-    key_weather = "race" if safe_weather == "race_day" else safe_weather
+    safe_lang = normalize_lang(lang)
+    safe_display = normalize_display(display)
+    key_weather = weather_file_key(canonical_weather_type(weather_type, weather=weather))
 
     target_tz = normalize_timezone(tz) if tz else config.DEFAULT_TIMEZONE
     if not is_valid_timezone(target_tz):
@@ -534,8 +453,8 @@ def _get_pregenerated_teams_path(*, lang: str, year: int | None, display: str) -
     ):
         return None
 
-    safe_lang = lang if lang in VALID_LANGUAGES else config.DEFAULT_LANG
-    safe_display = _normalize_display(display)
+    safe_lang = normalize_lang(lang)
+    safe_display = normalize_display(display)
     filename = _get_valid_teams_filenames(default_year).get((safe_lang, safe_display))
     if not filename:
         return None
@@ -580,208 +499,6 @@ def _get_race_data_from_static(
         return None
 
     return f1_service.get_next_race_from_static()
-
-
-def _maybe_convert_timezone(race_data: dict, target_tz: str) -> dict:
-    """Convert cached race times only when the target timezone differs."""
-    cached_tz = race_data.get("timezone", config.DEFAULT_TIMEZONE)
-    if cached_tz == target_tz:
-        return race_data
-
-    logger.debug("Converting times from %s to %s", cached_tz, target_tz)
-    return convert_race_times_to_timezone(race_data, target_tz)
-
-
-def _render_calendar_bytes(
-    display: str,
-    lang: str,
-    race_data: dict,
-    historical_data,
-    weather_data,
-    weather_type: str,
-    track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
-) -> bytes:
-    """Construct the renderer and render in the worker thread.
-
-    Construction must happen in the SAME thread as the render: renderer __init__ loads fonts
-    into a per-thread cache, so building on the event loop would share FreeTypeFont objects
-    across render threads.
-    """
-    renderer = create_renderer(display, get_translator(lang), lang)
-    return renderer.render_calendar(
-        race_data, historical_data, weather_data, weather_type, track_options=track_options
-    )
-
-
-def _render_teams_bytes(
-    display: str,
-    lang: str,
-    teams_data,
-    *,
-    extra: TeamsExtra = TeamsExtra.NONE,
-    extra_context: TeamsExtraContext | None = None,
-) -> bytes:
-    """Construct the renderer and render the teams screen in the worker thread."""
-    renderer = create_renderer(display, get_translator(lang), lang)
-    return renderer.render_teams_drivers(teams_data, extra, extra_context)
-
-
-def _render_error_bytes(display: str, lang: str, message: str) -> bytes:
-    """Construct the renderer and render an error BMP in the worker thread."""
-    renderer = create_renderer(display, get_translator(lang), lang)
-    return renderer.render_error(message)
-
-
-async def _render_error_artifact(display: str, lang: str, message: str) -> BmpArtifact:
-    """Render one error BMP inside the shared render limit."""
-    async with render_slot():
-        bmp_data = await run_render(functools.partial(_render_error_bytes, display, lang, message))
-    return bmp_data, strong_etag(bmp_data)
-
-
-async def _shared_error_artifact(display: str, lang: str, message: str) -> BmpArtifact:
-    """Share one in-flight error image across waiters of a failed render."""
-    return await _singleflight(
-        f"error:{display}:{lang}:{message}",
-        functools.partial(_render_error_artifact, display, lang, message),
-    )
-
-
-async def _render_calendar(
-    *,
-    f1_service: F1Service,
-    lang: str,
-    year: int | None,
-    race_round: int | None,
-    race_key: str | None,
-    target_tz: str,
-    weather: bool,
-    weather_type: str,
-    display: str,
-    selected_race: dict | None = None,
-    track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
-) -> tuple[bytes, dict | None, bool]:
-    """Render a calendar BMP and return the output plus source race data."""
-    race_data = selected_race or _get_race_data_from_static(f1_service, year, race_round, race_key)
-    if not race_data:
-        error_bmp = await run_render(
-            functools.partial(_render_error_bytes, display, lang, "Failed to fetch race data")
-        )
-        return error_bmp, None, False
-
-    weather_data = None
-    if (
-        weather
-        and weather_type != "off"
-        and config.WEATHER_ENABLED
-        and not race_data.get("is_cancelled")
-    ):
-        _, _, weather_by_type = await get_weather_context(race_data)
-        if weather_type in ("race_day", "race"):
-            weather_data = weather_by_type.get("race")
-        elif weather_type == "current":
-            weather_data = weather_by_type.get("current")
-
-    race_data = _maybe_convert_timezone(race_data, target_tz)
-
-    circuit_id = race_data.get("circuit", {}).get("circuitId", "")
-    historical_data = F1Service.get_historical_from_static(circuit_id) if circuit_id else None
-
-    # render_calendar is CPU-bound (Pillow + pure-Python palette/packing). Run it on the render
-    # executor so a cache miss doesn't block the event loop and stall in-flight requests.
-    bmp_data = await run_render(
-        functools.partial(
-            _render_calendar_bytes,
-            display,
-            lang,
-            race_data,
-            historical_data,
-            weather_data,
-            weather_type,
-            track_options,
-        )
-    )
-    return (bmp_data, race_data, True)
-
-
-def _teams_image_cache(extra: TeamsExtra) -> TTLCache[str, BmpArtifact]:
-    """Keep plain teams dashboards in the main cache and extra panels in the variant cache."""
-    if extra == TeamsExtra.NONE:
-        return get_bmp_cache()
-    return get_bmp_variant_cache()
-
-
-async def _render_calendar_artifact(
-    *,
-    cache_key: str,
-    f1_service: F1Service,
-    lang: str,
-    year: int | None,
-    race_round: int | None,
-    race_key: str | None,
-    target_tz: str,
-    weather: bool,
-    weather_type: str,
-    display: str,
-    selected_race: dict | None = None,
-    track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
-) -> BmpArtifact:
-    """Render/hash one calendar miss and cache the pair only when complete."""
-    generation = selected_generation()
-    async with render_slot():
-        require_current_selection(generation)
-        bmp_data, _race_data, is_cacheable = await _render_calendar(
-            f1_service=f1_service,
-            lang=lang,
-            year=year,
-            race_round=race_round,
-            race_key=race_key,
-            target_tz=target_tz,
-            weather=weather,
-            weather_type=weather_type,
-            display=display,
-            selected_race=selected_race,
-            track_options=track_options,
-        )
-        artifact = (bmp_data, strong_etag(bmp_data))
-        if is_cacheable and bmp_cache_generation() == generation:
-            get_bmp_cache()[cache_key] = artifact
-        return artifact
-
-
-async def _render_teams_artifact(
-    *,
-    cache_key: str,
-    lang: str,
-    year: int,
-    display: str,
-    extra: TeamsExtra = TeamsExtra.NONE,
-    extra_context: TeamsExtraContext | None = None,
-) -> BmpArtifact:
-    """Fetch, render, and hash one teams miss, caching only a complete dashboard."""
-    generation = selected_generation()
-    async with render_slot(variant=extra != TeamsExtra.NONE):
-        require_current_selection(generation)
-        async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
-            teams_data = await TeamsService().get_teams_and_drivers(year)
-        bmp_data = await run_render(
-            functools.partial(
-                _render_teams_bytes,
-                display,
-                lang,
-                teams_data,
-                extra=extra,
-                extra_context=extra_context,
-            )
-        )
-        artifact = (bmp_data, strong_etag(bmp_data))
-        if is_teams_data_cacheable(teams_data) and bmp_cache_generation() == generation:
-            _teams_image_cache(extra)[cache_key] = artifact
-        elif teams_data.teams:
-            logger.warning("Teams standings incomplete for %s; serving but not caching", year)
-        else:
-            logger.warning("Teams data empty for %s; serving but not caching", year)
-        return artifact
 
 
 @router.get("/calendar.bmp")
@@ -830,12 +547,13 @@ async def get_calendar_bmp(
     if not retrying_selection():
         enforce_rate_limit(request, bucket="calendar_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
 
-    lang = _normalize_lang(lang)
-    display = _normalize_display(display)
-    weather_type = _normalize_weather_type(weather_type)
-    _validate_timezone_param(tz)
-    tz = normalize_timezone(tz) if tz else None
-    _validate_calendar_selection(year, race_key)
+    lang = normalize_lang(lang)
+    display = normalize_display(display)
+    # One canonical variant for weather=false / weather_type=off and for race / race_day.
+    weather_type = canonical_weather_type(weather_type, weather=weather)
+    weather = weather_type != "off"
+    tz = validate_timezone(tz)
+    validate_calendar_selection(year, race_key)
     if year is None:
         # Documented as ignored without year; dropping it keeps the cache key and the
         # pregenerated-file match identical to the plain auto-selected request.
@@ -887,8 +605,8 @@ async def get_calendar_bmp(
         )
         selected_race = await _select_calendar_race(f1_service, year, race_round, race_key)
         identity = calendar_identity(selected_race, track_options)
-        cache_key = f"{identity}|" + _get_cache_key(
-            lang, year, race_round, race_key, tz, weather, weather_type, display
+        cache_key = f"{identity}|" + calendar_cache_key(
+            lang, year, race_round, race_key, tz, weather_type, display
         )
         cached_artifact = get_bmp_cache().get(cache_key)
         if cached_artifact is not None:
@@ -936,21 +654,16 @@ async def get_calendar_bmp(
                 )
             logger.info("Pre-generated image disappeared before read; rendering")
 
-        artifact = await _singleflight(
+        artifact = await bmp_artifacts.singleflight(
             f"calendar:{selected_generation()}:{cache_key}",
             functools.partial(
-                _render_calendar_artifact,
+                bmp_artifacts.render_calendar_artifact,
                 cache_key=cache_key,
-                f1_service=f1_service,
+                race_data=selected_race,
                 lang=lang,
-                year=year,
-                race_round=race_round,
-                race_key=race_key,
                 target_tz=tz or config.DEFAULT_TIMEZONE,
-                weather=weather,
                 weather_type=weather_type,
                 display=display,
-                selected_race=selected_race,
                 track_options=track_options,
             ),
         )
@@ -966,7 +679,9 @@ async def get_calendar_bmp(
         logger.error("Error generating calendar: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:
             sentry_sdk.capture_exception(exc)
-        bmp_data, etag = await _shared_error_artifact(display, lang, "Temporary rendering error")
+        bmp_data, etag = await bmp_artifacts.shared_error_artifact(
+            display, lang, "Temporary rendering error"
+        )
         return respond(
             bmp_data,
             etag,
@@ -1008,11 +723,9 @@ async def get_teams_bmp(
     start_time = time.time()
     if not retrying_selection():
         enforce_rate_limit(request, bucket="teams_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
-    lang = _normalize_lang(lang)
-    display = _normalize_display(display)
-
-    _validate_timezone_param(tz)
-    tz = normalize_timezone(tz) if tz else None
+    lang = normalize_lang(lang)
+    display = normalize_display(display)
+    tz = validate_timezone(tz)
 
     try:
         if year is None:
@@ -1047,7 +760,7 @@ async def get_teams_bmp(
         cache_key = get_teams_image_key(
             lang, year, display=display, extra=effective, extra_context=ctx
         )
-        cached_artifact = _teams_image_cache(effective).get(cache_key)
+        cached_artifact = bmp_artifacts.teams_image_cache(effective).get(cache_key)
         if cached_artifact is not None:
             return respond(*cached_artifact, cache_status="HIT")
 
@@ -1068,10 +781,10 @@ async def get_teams_bmp(
                 return respond(*artifact, cache_status=PREGENERATED_CACHE_STATUS)
             logger.info("Pre-generated teams image disappeared before read; rendering")
 
-        artifact = await _singleflight(
+        artifact = await bmp_artifacts.singleflight(
             f"teams:{selected_generation()}:{cache_key}",
             functools.partial(
-                _render_teams_artifact,
+                bmp_artifacts.render_teams_artifact,
                 cache_key=cache_key,
                 lang=lang,
                 year=year,
@@ -1088,7 +801,9 @@ async def get_teams_bmp(
         logger.error("Error generating teams: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:
             sentry_sdk.capture_exception(exc)
-        bmp_data, etag = await _shared_error_artifact(display, lang, "Temporary rendering error")
+        bmp_data, etag = await bmp_artifacts.shared_error_artifact(
+            display, lang, "Temporary rendering error"
+        )
         return _teams_response(
             request,
             content=bmp_data,

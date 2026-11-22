@@ -82,10 +82,10 @@ def test_weather_prefetch_date_only():
 
 def test_image_and_preview_date_only():
     """Image cache conversion and browser previews accept date-only schedules."""
-    from app.routes.images import _maybe_convert_timezone
     from app.routes.previews import _build_calendar_preview_png
+    from app.services.bmp_artifacts import maybe_convert_timezone
 
-    data = _maybe_convert_timezone(unknown_race(), "Pacific/Kiritimati")
+    data = maybe_convert_timezone(unknown_race(), "Pacific/Kiritimati")
     assert data["schedule"] == unknown_race()["schedule"]
     assert _build_calendar_preview_png("en", "1bit", data, None, True).startswith(b"\x89PNG")
 

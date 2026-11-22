@@ -14,6 +14,8 @@ from starlette.requests import Request
 
 from app.models import TeamEntry, TeamsData
 from app.routes import images
+from app.routes.params import calendar_cache_key
+from app.services import bmp_artifacts
 from app.services import f1_service as f1
 from app.services.artifact_metadata import calendar_identity, write_artifact_metadata
 from app.services.image_keys import get_teams_image_key
@@ -46,10 +48,10 @@ def _request(headers: dict[str, str] | None = None) -> Request:
 @pytest.fixture(autouse=True)
 def clear_image_cache():
     get_bmp_cache().clear()
-    images._singleflight_tasks.clear()
+    bmp_artifacts._singleflight_tasks.clear()
     yield
     get_bmp_cache().clear()
-    images._singleflight_tasks.clear()
+    bmp_artifacts._singleflight_tasks.clear()
 
 
 def test_timezone_validation_and_round_conversion_edge_cases():
@@ -57,7 +59,7 @@ def test_timezone_validation_and_round_conversion_edge_cases():
         patch("app.routes.images.is_valid_timezone", return_value=False),
         pytest.raises(HTTPException) as error,
     ):
-        images._validate_timezone_param("Bad/Zone")
+        images.validate_timezone("Bad/Zone")
     assert error.value.status_code == 400
 
     assert images._to_round_number("") is None
@@ -187,12 +189,12 @@ def test_static_race_selection_covers_key_round_missing_and_next():
 
 def test_timezone_conversion_returns_same_or_converted_payload():
     race = {"timezone": "UTC"}
-    assert images._maybe_convert_timezone(race, "UTC") is race
+    assert bmp_artifacts.maybe_convert_timezone(race, "UTC") is race
     with patch(
-        "app.routes.images.convert_race_times_to_timezone",
+        "app.services.bmp_artifacts.convert_race_times_to_timezone",
         return_value={"timezone": "Europe/Prague"},
     ) as convert:
-        assert images._maybe_convert_timezone(race, "Europe/Prague") == {
+        assert bmp_artifacts.maybe_convert_timezone(race, "Europe/Prague") == {
             "timezone": "Europe/Prague"
         }
     convert.assert_called_once_with(race, "Europe/Prague")
@@ -208,25 +210,20 @@ async def test_render_calendar_selects_requested_weather(weather_type, expected)
         "race": WeatherData(20.0, 1, 10),
         "current": WeatherData(21.0, 2, 20),
     }
-    service = SimpleNamespace(get_next_race_from_static=MagicMock(return_value=race))
     run_render = AsyncMock(return_value=b"bmp")
     with (
         patch(
-            "app.routes.images.get_weather_context",
+            "app.services.bmp_artifacts.get_weather_context",
             new=AsyncMock(return_value=(None, None, values)),
         ),
-        patch("app.routes.images.run_render", new=run_render),
+        patch("app.services.bmp_artifacts.run_render", new=run_render),
         patch("app.routes.images.F1Service.get_historical_from_static", return_value={}),
         patch("app.routes.images.config.WEATHER_ENABLED", True),
     ):
-        result = await images._render_calendar(
-            f1_service=service,
+        result = await bmp_artifacts.render_calendar(
+            race_data=race,
             lang="en",
-            year=None,
-            race_round=None,
-            race_key=None,
             target_tz="UTC",
-            weather=True,
             weather_type=weather_type,
             display="1bit",
         )
@@ -238,23 +235,19 @@ async def test_render_calendar_selects_requested_weather(weather_type, expected)
 @pytest.mark.asyncio
 async def test_render_calendar_ignores_weather_for_off_variant():
     race = {"circuit": {}, "timezone": "UTC"}
-    service = SimpleNamespace(get_next_race_from_static=MagicMock(return_value=race))
     run_render = AsyncMock(return_value=b"bmp")
     with (
         patch(
-            "app.routes.images.get_weather_context", new=AsyncMock(return_value=(None, None, {}))
+            "app.services.bmp_artifacts.get_weather_context",
+            new=AsyncMock(return_value=(None, None, {})),
         ),
-        patch("app.routes.images.run_render", new=run_render),
+        patch("app.services.bmp_artifacts.run_render", new=run_render),
         patch("app.routes.images.config.WEATHER_ENABLED", True),
     ):
-        await images._render_calendar(
-            f1_service=service,
+        await bmp_artifacts.render_calendar(
+            race_data=race,
             lang="en",
-            year=None,
-            race_round=None,
-            race_key=None,
             target_tz="UTC",
-            weather=True,
             weather_type="off",
             display="1bit",
         )
@@ -299,7 +292,7 @@ async def test_calendar_endpoint_serves_pregenerated_file_and_error_fallback(tmp
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._get_pregenerated_calendar_path", return_value=disappeared),
         patch(
-            "app.routes.images._render_calendar",
+            "app.services.bmp_artifacts.render_calendar",
             new=AsyncMock(return_value=(b"rendered", None, False)),
         ),
         patch("app.routes.images._record_calendar_api_call"),
@@ -322,9 +315,10 @@ async def test_calendar_endpoint_serves_pregenerated_file_and_error_fallback(tmp
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._get_pregenerated_calendar_path", return_value=None),
         patch(
-            "app.routes.images._render_calendar", new=AsyncMock(side_effect=RuntimeError("failed"))
+            "app.services.bmp_artifacts.render_calendar",
+            new=AsyncMock(side_effect=RuntimeError("failed")),
         ),
-        patch("app.routes.images.run_render", new=AsyncMock(return_value=b"error")),
+        patch("app.services.bmp_artifacts.run_render", new=AsyncMock(return_value=b"error")),
         patch("app.routes.images.record_api_call"),
         patch("app.routes.images.sentry_sdk.capture_exception") as capture,
     ):
@@ -367,8 +361,8 @@ async def test_teams_endpoint_serves_cache_and_caches_complete_render():
     with (
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._get_pregenerated_teams_path", return_value=None),
-        patch("app.routes.images.TeamsService", return_value=service),
-        patch("app.routes.images.run_render", new=AsyncMock(return_value=b"rendered")),
+        patch("app.services.bmp_artifacts.TeamsService", return_value=service),
+        patch("app.services.bmp_artifacts.run_render", new=AsyncMock(return_value=b"rendered")),
         patch("app.routes.images.record_api_call"),
     ):
         await images.get_teams_bmp(request, lang="en", year=2026, display="1bit")
@@ -378,7 +372,7 @@ async def test_teams_endpoint_serves_cache_and_caches_complete_render():
 @pytest.mark.asyncio
 async def test_calendar_cached_etag_returns_empty_304():
     etag = strong_etag(b"cached")
-    cache_key = images._get_cache_key("en", None, None, None, None, True, "race_day", "1bit")
+    cache_key = calendar_cache_key("en", None, None, None, None, "race_day", "1bit")
     get_bmp_cache()[calendar_identity({"season": 2026, "round": 1}) + "|" + cache_key] = (
         b"cached",
         etag,
@@ -584,8 +578,8 @@ async def test_teams_endpoint_handles_sidecar_304_and_empty_fallback(tmp_path):
             "app.routes.images._read_pregenerated_artifact",
             new=AsyncMock(return_value=(None, None)),
         ),
-        patch("app.routes.images.TeamsService", return_value=service),
-        patch("app.routes.images.run_render", new=AsyncMock(return_value=b"empty-teams")),
+        patch("app.services.bmp_artifacts.TeamsService", return_value=service),
+        patch("app.services.bmp_artifacts.run_render", new=AsyncMock(return_value=b"empty-teams")),
         patch("app.routes.images._record_teams_api_call"),
     ):
         response = await images.get_teams_bmp(_request(), lang="en", year=2026, display="1bit")
@@ -654,8 +648,8 @@ async def test_concurrent_identical_calendar_misses_render_and_hash_once():
     with (
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._get_pregenerated_calendar_path", return_value=None),
-        patch("app.routes.images._render_calendar", new=render),
-        patch("app.routes.images.strong_etag", wraps=strong_etag) as hash_content,
+        patch("app.services.bmp_artifacts.render_calendar", new=render),
+        patch("app.services.bmp_artifacts.strong_etag", wraps=strong_etag) as hash_content,
         patch("app.routes.images._record_calendar_api_call"),
     ):
         first = asyncio.create_task(request_calendar())
@@ -669,7 +663,7 @@ async def test_concurrent_identical_calendar_misses_render_and_hash_once():
     assert hash_content.call_count == 1
     assert [response.body for response in responses] == [b"rendered", b"rendered"]
     assert responses[0].headers["etag"] == responses[1].headers["etag"]
-    assert images._singleflight_tasks == {}
+    assert bmp_artifacts._singleflight_tasks == {}
 
 
 @pytest.mark.asyncio
@@ -678,9 +672,9 @@ async def test_singleflight_propagates_failure_and_cleans_up():
         raise RuntimeError("render failed")
 
     with pytest.raises(RuntimeError, match="render failed"):
-        await images._singleflight("failed", fail)
+        await bmp_artifacts.singleflight("failed", fail)
 
-    assert "failed" not in images._singleflight_tasks
+    assert "failed" not in bmp_artifacts._singleflight_tasks
 
 
 @pytest.mark.asyncio
@@ -693,9 +687,9 @@ async def test_singleflight_shields_producer_from_cancelled_waiter():
         await release.wait()
         return b"bmp", strong_etag(b"bmp")
 
-    waiter = asyncio.create_task(images._singleflight("cancelled-waiter", produce))
+    waiter = asyncio.create_task(bmp_artifacts.singleflight("cancelled-waiter", produce))
     await started.wait()
-    producer_task = images._singleflight_tasks["cancelled-waiter"]
+    producer_task = bmp_artifacts._singleflight_tasks["cancelled-waiter"]
     waiter.cancel()
     with pytest.raises(asyncio.CancelledError):
         await waiter
@@ -703,7 +697,7 @@ async def test_singleflight_shields_producer_from_cancelled_waiter():
     assert not producer_task.cancelled()
     release.set()
     assert await producer_task == (b"bmp", strong_etag(b"bmp"))
-    assert "cancelled-waiter" not in images._singleflight_tasks
+    assert "cancelled-waiter" not in bmp_artifacts._singleflight_tasks
 
 
 @pytest.mark.asyncio
@@ -724,8 +718,10 @@ async def test_calendar_historical_sessions_without_times(sepang_2017_payload):
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._get_pregenerated_calendar_path", return_value=None),
         patch("app.routes.images._record_calendar_api_call"),
-        patch("app.routes.images._render_calendar_bytes", return_value=b"calendar") as render,
-        patch("app.routes.images._render_error_bytes", return_value=b"error") as error,
+        patch(
+            "app.services.bmp_artifacts.render_calendar_bytes", return_value=b"calendar"
+        ) as render,
+        patch("app.services.bmp_artifacts.render_error_bytes", return_value=b"error") as error,
     ):
         async with AsyncClient(
             transport=ASGITransport(app=application), base_url="http://test"
@@ -753,8 +749,8 @@ async def test_calendar_historical_remote_race_missing():
         ) as lookup,
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._record_calendar_api_call"),
-        patch("app.routes.images._render_calendar_bytes") as render,
-        patch("app.routes.images._render_error_bytes", return_value=b"error") as error,
+        patch("app.services.bmp_artifacts.render_calendar_bytes") as render,
+        patch("app.services.bmp_artifacts.render_error_bytes", return_value=b"error") as error,
     ):
         async with AsyncClient(
             transport=ASGITransport(app=application), base_url="http://test"
@@ -782,8 +778,10 @@ async def test_calendar_invalid_remote_selection_keeps_static_result(year, round
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._get_pregenerated_calendar_path", return_value=None),
         patch("app.routes.images._record_calendar_api_call"),
-        patch("app.routes.images._render_calendar_bytes", return_value=b"calendar") as render,
-        patch("app.routes.images._render_error_bytes", return_value=b"error") as error,
+        patch(
+            "app.services.bmp_artifacts.render_calendar_bytes", return_value=b"calendar"
+        ) as render,
+        patch("app.services.bmp_artifacts.render_error_bytes", return_value=b"error") as error,
     ):
         async with AsyncClient(
             transport=ASGITransport(app=application), base_url="http://test"

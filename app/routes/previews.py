@@ -13,9 +13,17 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 
-from app.config import LANGUAGE_CODES, config
+from app.config import config
 from app.paths import ASSETS_DIR
-from app.routes.images import _validate_timezone_param
+from app.routes.params import (
+    calendar_cache_key,
+    canonical_weather_type,
+    normalize_display,
+    normalize_lang,
+    validate_timezone,
+    weather_file_key,
+)
+from app.services import bmp_artifacts
 from app.services.artifact_metadata import calendar_identity, read_artifact_metadata
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
@@ -48,10 +56,8 @@ from app.utils.etag import if_none_match_matches, strong_etag
 from app.utils.image_conversion import bmp_to_png
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.render_limit import render_slot
-from app.utils.timezones import normalize_timezone
 
 router = APIRouter()
-_ALLOWED_LANGS = {lang: lang for lang in LANGUAGE_CODES}
 logger = logging.getLogger(__name__)
 _PREVIEW_CACHE_CONTROL = "public, max-age=300"
 
@@ -158,43 +164,28 @@ async def _render_calendar_preview(
 async def _render_configure_calendar(
     request: Request, lang: str, display: str, weather: str, options: TrackOptions
 ) -> Response:
-    """Share calendar BMP caching and singleflight, then encode the matching PNG preview."""
-    from app.routes.images import _get_cache_key, _render_calendar_artifact, _singleflight
+    """Share calendar BMP caching and singleflight, then encode the matching PNG preview.
 
-    service = F1Service()
-    race = service.get_next_race_from_static()
-    weather_type = "race_day" if weather == "race" else weather
+    ``weather`` is canonical (off/current/race_day), so the key equals the /calendar.bmp one.
+    """
+    race = F1Service().get_next_race_from_static()
     key = (
         calendar_identity(race, options)
         + "|"
-        + _get_cache_key(
-            lang,
-            None,
-            None,
-            None,
-            None,
-            weather != "off",
-            weather_type,
-            display,
-        )
+        + calendar_cache_key(lang, None, None, None, None, weather, display)
     )
     artifact = get_bmp_cache().get(key)
     if artifact is None:
-        artifact = await _singleflight(
+        artifact = await bmp_artifacts.singleflight(
             f"calendar:{selected_generation()}:{key}",
             functools.partial(
-                _render_calendar_artifact,
+                bmp_artifacts.render_calendar_artifact,
                 cache_key=key,
-                f1_service=service,
+                race_data=race,
                 lang=lang,
-                year=None,
-                race_round=None,
-                race_key=None,
                 target_tz=config.DEFAULT_TIMEZONE,
-                weather=weather != "off",
-                weather_type=weather_type,
+                weather_type=weather,
                 display=display,
-                selected_race=race,
                 track_options=options,
             ),
         )
@@ -265,8 +256,6 @@ async def _render_teams_extra_preview(
     request: Request, lang: str, display: str, extra: TeamsExtra, ctx: TeamsExtraContext
 ) -> Response:
     """Cache a full-size panel preview under its day/weather token."""
-    from app.routes.images import _singleflight
-
     key = "preview:" + get_teams_image_key(
         lang, ctx.season, display=display, extra=extra, extra_context=ctx
     )
@@ -298,7 +287,7 @@ async def _render_teams_extra_preview(
 
     artifact = get_bmp_variant_cache().get(key)
     if artifact is None:
-        artifact = await _singleflight(f"{selected_generation()}:{key}", produce)
+        artifact = await bmp_artifacts.singleflight(f"{selected_generation()}:{key}", produce)
     content, etag = artifact
     unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
     return Response(
@@ -332,7 +321,7 @@ async def get_preview_png(
     if not safe_screen:
         raise HTTPException(status_code=404, detail="Unknown screen type")
 
-    safe_lang = _ALLOWED_LANGS.get(lang, "en")
+    safe_lang = normalize_lang(lang)
 
     filename = get_preview_filename(safe_screen, safe_lang)
     preview_path = Path(config.IMAGES_PATH) / filename
@@ -376,25 +365,18 @@ async def get_configure_preview_png(
 ) -> Response:
     """Serve pre-generated configure-preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
-    allowed_weather = {
-        "off": "off",
-        "current": "current",
-        "race": "race",
-        "race_day": "race",
-    }
-    allowed_display = {"1bit": "1bit", "spectra6": "spectra6", "bwr": "bwr", "bwry": "bwry"}
 
     safe_screen = allowed_screens.get(screen_type)
     if not safe_screen:
         raise HTTPException(status_code=404, detail="Unknown screen type")
 
-    safe_lang = _ALLOWED_LANGS.get(lang, "en")
-    safe_weather = allowed_weather.get(weather_type, "off")
-    safe_display = allowed_display.get(display, "1bit")
+    safe_lang = normalize_lang(lang)
+    # Unknown values mean no weather here (the configurator's default), not race-day weather.
+    safe_weather = canonical_weather_type(weather_type, default="off")
+    safe_display = normalize_display(display)
 
     extra_failed = False
-    _validate_timezone_param(tz)
-    tz = normalize_timezone(tz) if tz else None
+    tz = validate_timezone(tz)
     if safe_screen == "teams" and extra != TeamsExtra.NONE:
         ctx = build_teams_extra_context(extra, get_default_teams_year(), timezone_name=tz)
         if ctx is not None:
@@ -416,7 +398,7 @@ async def get_configure_preview_png(
         safe_screen,
         safe_lang,
         display=safe_display,
-        weather=safe_weather if safe_screen == "calendar" else "off",
+        weather=weather_file_key(safe_weather) if safe_screen == "calendar" else "off",
     )
     configure_path = Path(config.IMAGES_PATH) / filename
     options = TrackOptions(track_style, track_source, track_accent)

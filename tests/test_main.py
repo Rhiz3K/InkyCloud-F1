@@ -41,6 +41,7 @@ from app.routes.images import (
     _get_race_data_from_static,
     _get_race_info_for_stats,
 )
+from app.services import bmp_artifacts
 from app.services.artifact_metadata import calendar_identity, write_artifact_metadata
 from app.services.f1_service import F1Service
 from app.services.image_keys import get_teams_image_key
@@ -1574,8 +1575,8 @@ def test_calendar_bmp_default():
 def test_calendar_bmp_executes_real_render_pipeline(monkeypatch):
     clear_bmp_cache()
     monkeypatch.setattr(images_routes, "_get_pregenerated_calendar_path", lambda **_kwargs: None)
-    render_calendar = Mock(wraps=images_routes._render_calendar_bytes)
-    monkeypatch.setattr(images_routes, "_render_calendar_bytes", render_calendar)
+    render_calendar = Mock(wraps=bmp_artifacts.render_calendar_bytes)
+    monkeypatch.setattr(bmp_artifacts, "render_calendar_bytes", render_calendar)
 
     response = client.get("/calendar.bmp?weather=false")
 
@@ -1807,8 +1808,8 @@ def test_teams_bmp_with_spectra6_display():
 def test_teams_bmp_executes_real_render_pipeline(monkeypatch):
     clear_bmp_cache()
     monkeypatch.setattr(images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: None)
-    render_teams = Mock(wraps=images_routes._render_teams_bytes)
-    monkeypatch.setattr(images_routes, "_render_teams_bytes", render_teams)
+    render_teams = Mock(wraps=bmp_artifacts.render_teams_bytes)
+    monkeypatch.setattr(bmp_artifacts, "render_teams_bytes", render_teams)
 
     response = client.get("/teams.bmp?year=2026")
 
@@ -1861,12 +1862,12 @@ def test_teams_bmp_falls_back_when_pregenerated_read_races_with_cleanup(monkeypa
     monkeypatch.setattr(
         images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: disappearing_path
     )
-    monkeypatch.setattr(images_routes, "run_render", AsyncMock(return_value=b"BMdynamic"))
+    monkeypatch.setattr(bmp_artifacts, "run_render", AsyncMock(return_value=b"BMdynamic"))
     teams_service_cls = Mock()
     teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(
         return_value=TeamsData(season=2026, teams=[], standings_complete=False)
     )
-    monkeypatch.setattr(images_routes, "TeamsService", teams_service_cls)
+    monkeypatch.setattr(bmp_artifacts, "TeamsService", teams_service_cls)
 
     response = client.get("/teams.bmp?year=2026")
 
@@ -1884,10 +1885,10 @@ def test_teams_bmp_does_not_cache_degraded_standings(monkeypatch):
     )
 
     monkeypatch.setattr(images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: None)
-    monkeypatch.setattr(images_routes, "run_render", AsyncMock(return_value=b"BMdynamic"))
+    monkeypatch.setattr(bmp_artifacts, "run_render", AsyncMock(return_value=b"BMdynamic"))
     teams_service_cls = Mock()
     teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(return_value=degraded_teams)
-    monkeypatch.setattr(images_routes, "TeamsService", teams_service_cls)
+    monkeypatch.setattr(bmp_artifacts, "TeamsService", teams_service_cls)
 
     response = client.get("/teams.bmp?year=2026")
 
@@ -1910,8 +1911,8 @@ def test_teams_bmp_redacts_internal_error_details(monkeypatch):
     teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(
         side_effect=RuntimeError("/srv/private/data.json")
     )
-    monkeypatch.setattr(images_routes, "TeamsService", teams_service_cls)
-    monkeypatch.setattr(images_routes, "_render_error_bytes", render_error)
+    monkeypatch.setattr(bmp_artifacts, "TeamsService", teams_service_cls)
+    monkeypatch.setattr(bmp_artifacts, "render_error_bytes", render_error)
 
     response = client.get("/teams.bmp?year=2026")
 

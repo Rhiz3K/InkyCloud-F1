@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import HTTPException, Query
+from fastapi import Query
 
 from app.services.f1_service import F1Service
-from app.utils.timezones import is_valid_timezone
+
+from .params import validate_timezone
 
 
 def get_f1_service(
@@ -14,6 +15,4 @@ def get_f1_service(
     """Provide an `F1Service` instance for dependency injection."""
     # An empty ?tz= means "not set", as in the route-level validation; rejecting it here made
     # /calendar.bmp?tz= a 400 while /teams.bmp?tz= used the default.
-    if tz and not is_valid_timezone(tz):
-        raise HTTPException(status_code=400, detail=f"Invalid timezone: {tz}")
-    return F1Service(timezone_name=tz or None)
+    return F1Service(timezone_name=validate_timezone(tz))

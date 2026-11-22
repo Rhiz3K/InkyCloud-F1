@@ -68,17 +68,11 @@ def test_f1_response_race_property_covers_valid_empty_and_invalid_payloads():
 
 
 def test_f1_dependency_rejects_invalid_timezone_and_builds_service():
-    with (
-        patch("app.routes.deps.is_valid_timezone", return_value=False),
-        pytest.raises(HTTPException) as error,
-    ):
+    with pytest.raises(HTTPException) as error:
         deps.get_f1_service("Bad/Zone")
     assert error.value.status_code == 400
 
-    with (
-        patch("app.routes.deps.is_valid_timezone", return_value=True),
-        patch("app.routes.deps.F1Service", spec=F1Service) as service,
-    ):
+    with patch("app.routes.deps.F1Service", spec=F1Service) as service:
         assert deps.get_f1_service("UTC") is service.return_value
     service.assert_called_once_with(timezone_name="UTC")
 

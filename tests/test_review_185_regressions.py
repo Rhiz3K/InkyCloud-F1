@@ -14,8 +14,8 @@ import pytest
 
 from app.models import TeamDriverEntry, TeamEntry, TeamsData
 from app.routes import images
+from app.services import bmp_artifacts, weather_service
 from app.services import teams_service as teams
-from app.services import weather_service
 from app.services.weather_service import WeatherData, WeatherService
 from tests.test_routes_images import _request
 
@@ -38,11 +38,11 @@ def _roster(year: int = 2026) -> TeamsData:
 def _isolated_caches():
     teams.TeamsService._shared_cache.clear()
     teams.TeamsService._negative_cache.clear()
-    images._singleflight_tasks.clear()
+    bmp_artifacts._singleflight_tasks.clear()
     yield
     teams.TeamsService._shared_cache.clear()
     teams.TeamsService._negative_cache.clear()
-    images._singleflight_tasks.clear()
+    bmp_artifacts._singleflight_tasks.clear()
 
 
 # --- C1: a stalled standings fetch must not take the bundled roster down with it ---------------
@@ -73,10 +73,12 @@ async def test_teams_artifact_renders_roster_when_only_standings_stall(monkeypat
     monkeypatch.setattr(teams.TeamsService, "_fetch_standings", stalled)
     monkeypatch.setattr(teams.config, "TEAMS_ENRICHMENT_TIMEOUT_SECONDS", 0.05)
     render = AsyncMock(return_value=b"roster-bmp")
-    monkeypatch.setattr(images, "run_render", render)
+    monkeypatch.setattr(bmp_artifacts, "run_render", render)
 
     artifact = await asyncio.wait_for(
-        images._render_teams_artifact(cache_key="teams-c1", lang="en", year=2026, display="1bit"),
+        bmp_artifacts.render_teams_artifact(
+            cache_key="teams-c1", lang="en", year=2026, display="1bit"
+        ),
         1,
     )
 
@@ -84,7 +86,7 @@ async def test_teams_artifact_renders_roster_when_only_standings_stall(monkeypat
     rendered_data = render.await_args.args[0].args[2]
     assert rendered_data.teams and rendered_data.standings_complete is False
     # Degraded output is served but never pinned in the image cache.
-    assert "teams-c1" not in images._teams_image_cache(images.TeamsExtra.NONE)
+    assert "teams-c1" not in bmp_artifacts.teams_image_cache(images.TeamsExtra.NONE)
 
 
 # --- B3: an explicit null temperature is missing data, not a value to cache --------------------
@@ -139,20 +141,15 @@ async def test_current_weather_tolerates_null_code_and_precipitation(monkeypatch
 @pytest.mark.asyncio
 async def test_off_weather_type_never_fetches_weather(monkeypatch):
     race = {"circuit": {"circuitId": "monza"}, "timezone": "UTC"}
-    service = SimpleNamespace(get_next_race_from_static=MagicMock(return_value=race))
     context = AsyncMock(return_value=(None, None, {"off": None}))
-    monkeypatch.setattr(images, "get_weather_context", context)
-    monkeypatch.setattr(images, "run_render", AsyncMock(return_value=b"bmp"))
+    monkeypatch.setattr(bmp_artifacts, "get_weather_context", context)
+    monkeypatch.setattr(bmp_artifacts, "run_render", AsyncMock(return_value=b"bmp"))
     monkeypatch.setattr(images.config, "WEATHER_ENABLED", True)
 
-    await images._render_calendar(
-        f1_service=service,
+    await bmp_artifacts.render_calendar(
+        race_data=race,
         lang="en",
-        year=None,
-        race_round=None,
-        race_key=None,
         target_tz="UTC",
-        weather=True,
         weather_type="off",
         display="1bit",
     )
@@ -192,7 +189,7 @@ async def test_calendar_selection_failure_returns_error_bmp():
             side_effect=OSError("disk unavailable"),
         ),
         patch(
-            "app.routes.images._shared_error_artifact",
+            "app.services.bmp_artifacts.shared_error_artifact",
             new=AsyncMock(return_value=(b"error-bmp", '"err"')),
         ),
         patch("app.routes.images._record_calendar_api_call"),
@@ -226,7 +223,7 @@ async def test_calendar_stats_lookup_failure_returns_error_bmp():
     with (
         patch("app.routes.images.enforce_rate_limit"),
         patch(
-            "app.routes.images._shared_error_artifact",
+            "app.services.bmp_artifacts.shared_error_artifact",
             new=AsyncMock(return_value=(b"error-bmp", '"err"')),
         ),
         patch("app.routes.images._record_calendar_api_call"),

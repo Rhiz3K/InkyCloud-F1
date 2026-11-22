@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from app.services import bmp_artifacts
 from app.services import teams_extra as extras
 from app.services.f1_service import F1Service
 from app.services.teams_extra import TeamsExtra, build_teams_extra_context
@@ -73,10 +74,10 @@ def test_explicit_offset_is_not_overwritten_with_utc(monkeypatch):
 
 
 def test_cache_key_distinguishes_zero_from_missing():
-    from app.routes.images import _get_cache_key
+    from app.routes.params import calendar_cache_key
 
-    auto = _get_cache_key("en", None, None, None, None, True, "race_day", "1bit")
-    zero = _get_cache_key("en", 0, 0, None, None, True, "race_day", "1bit")
+    auto = calendar_cache_key("en", None, None, None, None, "race_day", "1bit")
+    zero = calendar_cache_key("en", 0, 0, None, None, "race_day", "1bit")
     assert auto == "en:next:next:auto:default:race_day:1bit"
     assert zero == "en:0:0:auto:default:race_day:1bit"
 
@@ -104,7 +105,7 @@ async def test_round_without_year_uses_the_auto_selected_pregenerated_file():
     with (
         patch("app.routes.images.enforce_rate_limit"),
         patch("app.routes.images._get_pregenerated_calendar_path", lookup),
-        patch("app.routes.images._singleflight", side_effect=rendered),
+        patch("app.services.bmp_artifacts.singleflight", side_effect=rendered),
         patch("app.routes.images._record_calendar_api_call"),
     ):
         await images.get_calendar_bmp(
@@ -123,7 +124,7 @@ async def test_round_without_year_uses_the_auto_selected_pregenerated_file():
     assert lookup.call_args.kwargs["race_round"] is None
     key, keywords = calls[0]
     assert key.endswith("|en:next:next:auto:default:race_day:1bit")
-    assert keywords["race_round"] is None
+    assert keywords["race_data"] == {"season": 2026, "round": 1}
     images.get_bmp_cache().clear()
 
 
@@ -250,7 +251,6 @@ async def test_encoding_aware_etag_extends_existing_vary_and_skips_non_http():
 async def test_calendar_render_finishing_after_clear_is_served_but_not_cached(monkeypatch):
     import asyncio
 
-    from app.routes import images
     from app.state import bmp_cache_generation, clear_bmp_cache, get_bmp_cache
 
     started, release = asyncio.Event(), asyncio.Event()
@@ -260,19 +260,15 @@ async def test_calendar_render_finishing_after_clear_is_served_but_not_cached(mo
         await release.wait()
         return b"old-bytes", {}, True
 
-    monkeypatch.setattr(images, "_render_calendar", slow_render)
+    monkeypatch.setattr(bmp_artifacts, "render_calendar", slow_render)
     clear_bmp_cache()
     before = bmp_cache_generation()
     task = asyncio.create_task(
-        images._render_calendar_artifact(
+        bmp_artifacts.render_calendar_artifact(
             cache_key="c6",
-            f1_service=None,
+            race_data=None,
             lang="en",
-            year=None,
-            race_round=None,
-            race_key=None,
             target_tz="UTC",
-            weather=False,
             weather_type="off",
             display="1bit",
         )
@@ -289,15 +285,11 @@ async def test_calendar_render_finishing_after_clear_is_served_but_not_cached(mo
     release.clear()
     started.clear()
     task = asyncio.create_task(
-        images._render_calendar_artifact(
+        bmp_artifacts.render_calendar_artifact(
             cache_key="c6",
-            f1_service=None,
+            race_data=None,
             lang="en",
-            year=None,
-            race_round=None,
-            race_key=None,
             target_tz="UTC",
-            weather=False,
             weather_type="off",
             display="1bit",
         )
