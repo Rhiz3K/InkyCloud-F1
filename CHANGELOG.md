@@ -143,6 +143,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     blended glyph edges into stray green, blue and yellow pixels; a red-and-black error
     image had 228 of them. `bwr`/`bwry` keep anti-aliased text because their palette
     mapper already resolves edges to black, white or red.
+  - Keyboard access to the configurator: the closed mobile menu and the closed settings
+    drawer (below `lg`) are `inert`, so Tab no longer lands on off-screen buttons. Opening
+    moves focus into the panel, while closing (including with Escape) returns it to the menu
+    button. The timezone, season and race selects and the URL field now show a
+    `focus-visible` ring.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

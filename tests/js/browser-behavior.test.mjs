@@ -114,7 +114,7 @@ test("declared data-on-click handlers run in order with the element as this", ()
     const {listeners} = runCommonWithGlobals({notFn: 42,
         setDisplayType(...args) {calls.push(["setDisplayType", this, args]);},
         switchTab(...args) {calls.push(["switchTab", this, args]);}});
-    assert.deepEqual(Object.keys(listeners).sort(), ["DOMContentLoaded", "change", "click", "error", "input"]);
+    assert.deepEqual(Object.keys(listeners).sort(), ["DOMContentLoaded", "change", "click", "error", "input", "keydown"]);
     const {element, event} = declaredClick({
         "data-on-click": "setDisplayType selectRaceMobile switchTab notFn toString", "data-args": "[\"x\"]",
     });
@@ -830,3 +830,36 @@ for (const [type, selected] of [["1bit", "display1bit"], ["bwr", "displayBwr"], 
         assert.deepEqual(pressed(DISPLAY_IDS), expected);
     });
 }
+
+test("closed mobile nav is inert and focus moves in and back out", () => {
+    const focused = [];
+    const classList = (initial) => {
+        const set = new Set(initial);
+        return {add: (c) => set.add(c), remove: (c) => set.delete(c), contains: (c) => set.has(c)};
+    };
+    const firstButton = {focus() {focused.push("menu-close");}};
+    const menuButton = {focus() {focused.push("hamburger");}};
+    const menu = {
+        inert: true,
+        classList: classList(["-translate-x-full"]),
+        querySelector: () => firstButton,
+        contains: (node) => node === firstButton,
+    };
+    const overlay = {classList: classList(["hidden"])};
+    const elements = {mobileNavMenu: menu, mobileNavOverlay: overlay, mobileMenuBtn: menuButton};
+    const {ctx, listeners} = runCommonWithGlobals({});
+    ctx.document.getElementById = (id) => elements[id] ?? null;
+
+    ctx.openMobileNav();
+    assert.equal(menu.inert, false);
+    assert.equal(menu.classList.contains("-translate-x-full"), false);
+    ctx.document.activeElement = firstButton;
+
+    listeners.keydown({key: "Escape"});
+    assert.equal(menu.inert, true);
+    assert.equal(overlay.classList.contains("hidden"), true);
+    assert.deepEqual(focused, ["menu-close", "hamburger"]);
+
+    listeners.keydown({key: "Escape"});
+    assert.deepEqual(focused, ["menu-close", "hamburger"]);
+});

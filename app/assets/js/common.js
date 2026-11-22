@@ -180,6 +180,9 @@ function openMobileNav() {
     if (overlay && menu) {
         overlay.classList.remove("hidden");
         menu.classList.remove("-translate-x-full");
+        // The closed drawer is inert so Tab never lands on its off-screen controls.
+        menu.inert = false;
+        menu.querySelector("button, a[href]")?.focus();
     }
 }
 
@@ -190,10 +193,18 @@ function closeMobileNav() {
     const overlay = document.getElementById("mobileNavOverlay");
     const menu = document.getElementById("mobileNavMenu");
     if (overlay && menu) {
+        const hadFocus = menu.contains(document.activeElement);
         overlay.classList.add("hidden");
         menu.classList.add("-translate-x-full");
+        menu.inert = true;
+        if (hadFocus) document.getElementById("mobileMenuBtn")?.focus();
     }
 }
+
+document.addEventListener("keydown", (event) => {
+    const menu = document.getElementById("mobileNavMenu");
+    if (event.key === "Escape" && menu && !menu.inert) closeMobileNav();
+});
 
 /** Format an ISO calendar date without applying the browser's timezone. */
 function formatRaceDate(value) {

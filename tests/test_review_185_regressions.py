@@ -629,3 +629,27 @@ def test_only_spectra6_disables_text_antialiasing():
         renderer = create_renderer(display, get_translator("en"), "en")
         modes[display] = renderer._new_draw(Image.new("RGB", (4, 4))).fontmode
     assert modes == {"1bit": "L", "bwr": "L", "bwry": "L", "spectra6": "1"}
+
+
+def test_fit_left_text_shrinks_then_ellipsizes():
+    from PIL import Image, ImageDraw
+
+    from app.services.font_utils import load_ui_font
+    from app.services.renderer_calendar import _fit_left_text
+
+    draw = ImageDraw.Draw(Image.new("RGB", (200, 50)))
+    font = load_ui_font("de", 20, bold=True)
+    width = draw.textbbox((0, 0), "ABGESCHLOSSEN", font=font)[2]
+
+    text, shrunk = _fit_left_text(draw, "ABGESCHLOSSEN", font, width * 0.85)
+    assert text == "ABGESCHLOSSEN" and shrunk.size < font.size
+
+    text, smallest = _fit_left_text(draw, "ABGESCHLOSSEN", font, width * 0.4)
+    assert text.endswith("...") and smallest.size == int(font.size * 0.7)
+
+
+def test_standing_numbers_reject_non_mapping_rows():
+    from app.services.standings_service import _parse_standing_numbers
+
+    assert _parse_standing_numbers(["1", "10"]) is None
+    assert _parse_standing_numbers({"position": "2", "points": "4.5"}) == (2, 4.5, 0)
