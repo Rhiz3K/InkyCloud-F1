@@ -306,3 +306,94 @@ def test_reset_stats_tolerates_databases_missing_newer_tables(tmp_path):
     assert result.returncode == 0, result.stderr
     with closing(sqlite3.connect(database_path)) as conn:
         assert conn.execute("SELECT COUNT(*) FROM api_calls").fetchone()[0] == 0
+
+
+# --- B1: provider circuit IDs and complete podiums --------------------------------------------
+
+
+def _podium_payload(key: str, positions: list[int]) -> dict:
+    time_field = {"Q3": "1:48.000"} if key == "QualifyingResults" else {"Time": {"time": "1:30"}}
+    rows = [
+        {
+            "position": str(position),
+            "Driver": {"code": f"D{position:02d}", "familyName": f"Driver{position}"},
+            "Constructor": {"name": "Team"},
+            **time_field,
+        }
+        for position in positions
+    ]
+    return {"MRData": {"RaceTable": {"Races": [{key: rows}]}}}
+
+
+@pytest.mark.asyncio
+async def test_historical_refresh_requests_provider_circuit_id():
+    from app.services import historical_refresh as historical
+
+    empty = SimpleNamespace(json=lambda: {})
+    fetch = AsyncMock(return_value=empty)
+    with (
+        patch("app.services.historical_refresh._current_year", return_value=2026),
+        patch("app.services.historical_refresh.fetch_with_retry", new=fetch),
+    ):
+        await historical._fetch_results_with_status(object(), "las_vegas")
+
+    urls = [call.args[1] for call in fetch.await_args_list]
+    assert urls and all("/circuits/vegas/" in url for url in urls)
+
+
+@pytest.mark.asyncio
+async def test_historical_refresh_rejects_podium_missing_third_place():
+    from app.services import historical_refresh as historical
+
+    gap = SimpleNamespace(json=lambda: _podium_payload("QualifyingResults", [1, 2, 4]))
+    race = SimpleNamespace(json=lambda: _podium_payload("Results", [1, 2, 3]))
+    fetch = AsyncMock(side_effect=[gap, race] * 3)
+    with (
+        patch("app.services.historical_refresh._current_year", return_value=2026),
+        patch("app.services.historical_refresh.fetch_with_retry", new=fetch),
+    ):
+        outcome = await historical._fetch_results_with_status(object(), "monza")
+
+    assert outcome.results is None
+    assert outcome.completed is False
+
+
+def test_results_column_labels_rows_with_stored_position():
+    from PIL import Image, ImageDraw, ImageFont
+
+    from app.services.renderer_results import draw_results_column
+
+    rows = [
+        SimpleNamespace(
+            position=position,
+            driver=SimpleNamespace(display_name=f"Driver{position}"),
+            constructor=SimpleNamespace(name="Team"),
+            q3_time="1:48.000",
+            time=None,
+        )
+        for position in (1, 2, 4)
+    ]
+    labels: list[int] = []
+
+    def fit(_draw, _font, _width, pos, driver, team):
+        labels.append(pos)
+        return f"{pos}. {driver} {team}"
+
+    font = ImageFont.load_default()
+    draw_results_column(
+        ImageDraw.Draw(Image.new("1", (200, 100), 1)),
+        x_start=0,
+        visual_top=0,
+        title="Q",
+        results=rows,
+        is_qualifying=True,
+        font_title=font,
+        font_row=font,
+        time_x=150,
+        row_height=12,
+        data_y_offset=2,
+        text_fill=0,
+        fit_result_text_fn=fit,
+    )
+
+    assert labels == [1, 2, 4]

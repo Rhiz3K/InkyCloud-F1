@@ -7,9 +7,19 @@ CIRCUIT_ID_MAP: dict[str, str] = {
 }
 
 
+PROVIDER_CIRCUIT_ID_MAP: dict[str, str] = {
+    local: provider for provider, local in CIRCUIT_ID_MAP.items()
+}
+
+
 def canonical_circuit_id(circuit_id: str) -> str:
     """Resolve provider aliases to the circuit IDs used by bundled data and artwork."""
     return CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
+
+
+def provider_circuit_id(circuit_id: str) -> str:
+    """Map a local circuit ID back to the Jolpica/Ergast ID used in request URLs."""
+    return PROVIDER_CIRCUIT_ID_MAP.get(circuit_id, circuit_id)
 
 
 COUNTRY_MAP: dict[str, str] = {

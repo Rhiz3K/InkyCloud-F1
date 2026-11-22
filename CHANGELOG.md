@@ -121,6 +121,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `reset-db stats` also clears `api_call_totals` and `perf_metrics`, the tables the default
     `AGGREGATE_STATS_ONLY=true` profile writes, and `reset-db info` lists them. Tables missing
     from older databases are skipped.
+  - The historical refresh requests Las Vegas from Jolpica as `vegas` (the provider ID) instead
+    of the local `las_vegas`, which never returned results. A podium is accepted only with
+    positions exactly 1–3, and the results footer labels rows with the stored position. The
+    bundled 2025 Las Vegas qualifying (1, 2, 4) now shows `4.` instead of relabelling Russell
+    as third.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
