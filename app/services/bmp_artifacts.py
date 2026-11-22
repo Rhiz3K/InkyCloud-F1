@@ -22,7 +22,7 @@ from app.services.image_generation import (
     selected_generation,
     selection_flight_key,
 )
-from app.services.renderers import create_renderer
+from app.services.renderers import create_renderer, display_palette
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.teams_service import TeamsService, is_teams_data_cacheable
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
@@ -38,6 +38,7 @@ from app.state import (
 )
 from app.utils.async_tasks import run_render
 from app.utils.etag import strong_etag
+from app.utils.image_conversion import ImageOutput, transform_bmp_output
 from app.utils.race_times import convert_race_times_to_timezone
 from app.utils.refresh_hint import CountdownMode
 from app.utils.render_limit import render_slot
@@ -338,3 +339,53 @@ async def render_teams_artifact(
         else:
             logger.warning("Teams data empty for %s; serving but not caching", year)
         return artifact
+
+
+def output_cache_key(artifact: BmpArtifact, display: str, output: ImageOutput) -> str:
+    """Key a format/rotation variant by the default artifact's content hash.
+
+    The ETag is the SHA-256 of the default bytes, so the derived bytes for one key never
+    change and a new render (or pregenerated file) gets a new key instead of a stale entry.
+    """
+    return f"output:{output.cache_token}:{display}:{artifact[1]}"
+
+
+def _transform_artifact(bmp_data: bytes, display: str, output: ImageOutput) -> BmpArtifact:
+    """Derive the variant bytes and hash them in the worker thread."""
+    content = transform_bmp_output(bmp_data, output, palette=display_palette(display))
+    return content, strong_etag(content)
+
+
+async def _render_output_artifact(
+    key: str, artifact: BmpArtifact, display: str, output: ImageOutput
+) -> BmpArtifact:
+    """Encode one format/rotation variant on the render executor and cache it."""
+    generation = selected_generation()
+    async with render_slot(variant=True):
+        derived = await run_render(
+            functools.partial(_transform_artifact, artifact[0], display, output)
+        )
+    if bmp_cache_generation() == generation:
+        get_bmp_variant_cache()[key] = derived
+    return derived
+
+
+async def output_artifact(
+    artifact: BmpArtifact, display: str, output: ImageOutput
+) -> tuple[BmpArtifact, bool]:
+    """Return the artifact in the requested format and rotation, and whether it was cached.
+
+    The default output is the artifact itself (same bytes, same ETag, no extra work). Other
+    variants are derived from the default bytes once, in a variant render slot on the render
+    executor, and kept in the variant cache, so they never displace default images.
+    """
+    if output.is_default:
+        return artifact, True
+    key = output_cache_key(artifact, display, output)
+    cached = get_bmp_variant_cache().get(key)
+    if cached is not None:
+        return cached, True
+    derived = await singleflight(
+        key, functools.partial(_render_output_artifact, key, artifact, display, output)
+    )
+    return derived, False

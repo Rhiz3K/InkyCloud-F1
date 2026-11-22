@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `format=bmp|png` and `rotate=0|180` to `/calendar.bmp`, `/teams.bmp` and `/auto.bmp`.
+  `format=png` returns a lossless PNG with exactly the same pixel indices as the BMP: Pillow
+  mode `1` for `1bit` and mode `P` with exactly the panel palette for `bwr`, `bwry` and
+  `spectra6` (no conversion to greyscale or RGB, no dithering), 4.6–27× smaller (calendar:
+  48 062 B → 10.5 KB, 192 118 B → ~13 KB, 385 078 B → 14.3 KB). `rotate=180` is a lossless
+  half turn for panels mounted upside down; the image stays 800×480 and a rotated BMP keeps the
+  default header and bit depth (1-, 4- or 8-bit). 90/270 are not offered because they need a
+  portrait layout. The default (`format=bmp&rotate=0`) is byte-identical and keeps the existing
+  caches and pregenerated files; other variants are derived from that default image once on the
+  render executor (PNG at zlib level 9, measured 27–45 ms) and kept in the variant cache under a
+  key with the format, rotation and the default image's ETag. `Content-Type`, `Content-Length`,
+  file name and `ETag` describe the bytes sent, so each variant revalidates with its own `304`;
+  the path stays `.bmp`. Invalid values return HTTP 422. API docs, configurator ("Image output",
+  the preview stays upright), README, EXAMPLES and all 13 locales are updated.
+
 - Weekend forecasts expire at each session start. Concurrent renders share validated hourly data, scheduled qualifying forecasts work before the race time is published, and finished races use archived observations.
 - Add `weather_type=weekend` and `temp_unit=c|f`. `weekend` adds a second line to the calendar
   status box with the qualifying and race forecast (`Q ☀ 19° 💧60% | R ☀ 22° 💧10%`), plus the

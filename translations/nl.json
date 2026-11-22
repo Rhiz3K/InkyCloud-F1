@@ -244,6 +244,27 @@
         "daily": "/auto.bmp wisselt elke dag om lokale middernacht tussen kalender en teams."
       }
     },
+    "output": {
+      "label": "Beelduitvoer",
+      "formatLabel": "Formaat",
+      "formatOptions": {
+        "bmp": "BMP (standaard)",
+        "png": "PNG (kleiner)"
+      },
+      "formatHints": {
+        "bmp": "Ongecomprimeerde BMP die elke e-ink-firmware kan lezen.",
+        "png": "Dezelfde pixels en kleuren, 4–27× kleinere download. Alleen voor firmware die PNG kan decoderen."
+      },
+      "rotateLabel": "Rotatie",
+      "rotateOptions": {
+        "0": "0° (standaard)",
+        "180": "180° (ondersteboven)"
+      },
+      "rotateHints": {
+        "0": "Zoals in het voorbeeld.",
+        "180": "Voor een behuizing met de connector aan de andere kant. Het voorbeeld blijft rechtop."
+      }
+    },
     "displayLabel": "Scherm",
     "imageCreditsNote": "Bronvermelding en licenties van de afbeelding:",
     "teamsExtra": {
@@ -453,6 +474,9 @@
   "api_docs_weather_weekend_desc": "Weekend: een tweede regel in het statusvak met de voorspelling voor de kwalificatie (en de sprint als die past) en de race, bijv. KW 19° 60% | R 22° 10%. Eén Open-Meteo-verzoek dekt het hele weekend, hetzelfde dat race_day gebruikt. Sessies buiten de 16-daagse voorspelling of zonder gepubliceerde tijd worden weggelaten; na de start wordt alleen het raceweer getoond.",
   "api_docs_temp_unit_desc": "Temperatuureenheid: c (standaard, Celsius) of f (Fahrenheit). Wordt bij het tekenen omgerekend uit dezelfde gecachte gegevens en kost geen extra weerverzoeken. Ongeldige waarden geven HTTP 422.",
   "api_docs_teams_temp_unit_desc": "Temperatuureenheid van het weerpaneel (extra=weather): c (standaard) of f. Ongeldige waarden geven HTTP 422.",
+  "api_docs_format_desc": "Uitvoerformaat: bmp (standaard, ongewijzigd) of png. PNG is verliesvrij met exact dezelfde pixelindices en hetzelfde schermpalet (geen dithering, geen extra kleuren) en 4–27× kleiner, voor firmware die PNG kan decoderen. Het pad blijft .bmp; Content-Type, Content-Length en ETag beschrijven de verzonden bytes. Ongeldige waarden geven HTTP 422.",
+  "api_docs_rotate_desc": "Rotatie: 0 (standaard) of 180. 180 zet het beeld verliesvrij op zijn kop (nog steeds 800×480, dezelfde BMP-kleurdiepte) voor een omgekeerd gemonteerd scherm. 90/270 worden niet aangeboden omdat die een staande lay-out nodig hebben. Ongeldige waarden geven HTTP 422.",
+  "api_docs_output_sizes": "Typische kalendergroottes met format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Elk formaat en elke rotatie heeft een eigen ETag.",
   "api_docs_auto_desc": "Eén URL die direct de kalender- of teams-BMP teruggeeft (zonder doorverwijzing). Voor displays die maar één adres kunnen opvragen, zoals Živýobraz.eu of eenvoudige ESP32-firmware.",
   "api_docs_auto_mode_desc": "race_week: de kalender vanaf lead_hours voor de eerste sessie van het volgende raceweekend tot de volgende race wordt gekozen (4 uur na de start), anders de teams, ook in de winterstop en bij afgelaste races. daily: kalender op even en teams op oneven lokale dagen in tz, wisselt om lokale middernacht. Ongeldige waarden geven HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Alleen race_week: hoeveel uur voor de eerste sessie (FP1) de kalender verschijnt. Waarden buiten 0–168 geven HTTP 422.",

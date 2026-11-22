@@ -32,6 +32,7 @@ from app.utils.f1_season import (
     get_max_supported_f1_season,
     race_selection_error,
 )
+from app.utils.image_conversion import OutputFormat, Rotation
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.refresh_hint import (
     ERROR_REFRESH_SECONDS,
@@ -206,6 +207,32 @@ async def api_info() -> dict:
         "optional": True,
     }
     weather_type_values = ["race_day", "race", "current", "weekend", "off"]
+    output_parameters = {
+        "format": {
+            "type": "string",
+            "description": "bmp: the default bytes, unchanged. png: lossless PNG with exactly "
+            "the same pixel indices and panel palette (1-bit greyscale for 1bit, indexed for "
+            "bwr/bwry/spectra6; no dithering or extra colours), about 10-15 KB instead of "
+            "48-385 KB. The path stays .bmp; Content-Type, Content-Length and ETag describe "
+            "the bytes sent. Invalid values return 422.",
+            "values": [output_format.value for output_format in OutputFormat],
+            "default": OutputFormat.BMP.value,
+            "example": "?format=png",
+            "optional": True,
+        },
+        "rotate": {
+            "type": "string",
+            "description": "180 turns the image upside down losslessly (still "
+            f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}, same BMP bit depth) for a panel "
+            "mounted with its connector on the other side. 90/270 are not offered: they need "
+            "a portrait layout. Invalid values return 422.",
+            "values": [rotation.value for rotation in Rotation],
+            "default": Rotation.NONE.value,
+            "example": "?rotate=180",
+            "optional": True,
+        },
+    }
+    output_content_type = "image/bmp; image/png with format=png"
     refresh_hint = (
         f"{REFRESH_HINT_HEADER} on 200 and 304: seconds until the image is next expected to "
         f"change ({MIN_REFRESH_SECONDS}-{MAX_REFRESH_SECONDS}, at most "
@@ -333,9 +360,10 @@ async def api_info() -> dict:
                     "countdown": countdown_parameter,
                     "weekend_mode": weekend_mode_parameter,
                     "temp_unit": temp_unit_parameter,
+                    **output_parameters,
                 },
                 "response": {
-                    "content_type": "image/bmp",
+                    "content_type": output_content_type,
                     "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
                     "color_depth": (
                         "1-bit monochrome, 4-bit indexed B/W/R, "
@@ -357,6 +385,7 @@ async def api_info() -> dict:
                     "/calendar.bmp?countdown=auto&weather=false",
                     "/calendar.bmp?weekend_mode=auto&display=bwry",
                     "/calendar.bmp?weather_type=weekend&temp_unit=f&tz=America/New_York",
+                    "/calendar.bmp?display=spectra6&format=png&rotate=180",
                 ],
             },
             "/teams.bmp": {
@@ -404,9 +433,10 @@ async def api_info() -> dict:
                         "description": "Temperature unit of the weather panel (extra=weather): "
                         "c or f. Invalid values return 422.",
                     },
+                    **output_parameters,
                 },
                 "response": {
-                    "content_type": "image/bmp",
+                    "content_type": output_content_type,
                     "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
                     "color_depth": (
                         "1-bit monochrome, 4-bit indexed B/W/R, "
@@ -424,6 +454,7 @@ async def api_info() -> dict:
                     "/teams.bmp?display=bwr",
                     "/teams.bmp?display=spectra6",
                     "/teams.bmp?extra=weather&temp_unit=f",
+                    "/teams.bmp?display=bwr&format=png",
                 ],
             },
             "/auto.bmp": {
@@ -497,9 +528,10 @@ async def api_info() -> dict:
                         "next race",
                         "optional": True,
                     },
+                    **output_parameters,
                 },
                 "response": {
-                    "content_type": "image/bmp",
+                    "content_type": output_content_type,
                     "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
                     "active_screen": f"{ACTIVE_SCREEN_HEADER}: calendar or teams",
                     "cache_control": "As the active screen; max-age never exceeds the seconds "
@@ -513,6 +545,7 @@ async def api_info() -> dict:
                     "/auto.bmp?lang=cs&tz=Europe/Prague&display=bwry",
                     "/auto.bmp?mode=daily&tz=America/New_York",
                     "/auto.bmp?lead_hours=72&extra=flags",
+                    "/auto.bmp?display=bwry&format=png&rotate=180",
                 ],
             },
             "/api": {"method": "GET", "description": "API documentation (this endpoint)"},

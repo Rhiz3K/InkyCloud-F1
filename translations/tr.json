@@ -244,6 +244,27 @@
         "daily": "/auto.bmp her gün yerel gece yarısında takvim ile takımlar arasında geçiş yapar."
       }
     },
+    "output": {
+      "label": "Görüntü çıktısı",
+      "formatLabel": "Biçim",
+      "formatOptions": {
+        "bmp": "BMP (varsayılan)",
+        "png": "PNG (daha küçük)"
+      },
+      "formatHints": {
+        "bmp": "Her e-ink yazılımının okuyabildiği sıkıştırılmamış BMP.",
+        "png": "Aynı pikseller ve renkler, 4–27 kat daha küçük indirme. Yalnızca PNG çözebilen yazılımlar için."
+      },
+      "rotateLabel": "Döndürme",
+      "rotateOptions": {
+        "0": "0° (varsayılan)",
+        "180": "180° (baş aşağı)"
+      },
+      "rotateHints": {
+        "0": "Önizlemedeki gibi.",
+        "180": "Konnektörü diğer tarafta olan bir kasa için. Önizleme düz kalır."
+      }
+    },
     "displayLabel": "Ekran",
     "imageCreditsNote": "Görsel atıfları ve lisansları:",
     "teamsExtra": {
@@ -453,6 +474,9 @@
   "api_docs_weather_weekend_desc": "Weekend: durum kutusunda sıralama (sığarsa sprint de) ve yarış tahminini gösteren ikinci bir satır, ör. SIR 19° 60% | Y 22° 10%. Tüm hafta sonu, race_day ile aynı olan tek bir Open-Meteo isteğiyle alınır. 16 günlük tahmin aralığı dışındaki veya saati açıklanmamış seanslar atlanır; yarış başladıktan sonra yalnızca yarış havası gösterilir.",
   "api_docs_temp_unit_desc": "Sıcaklık birimi: c (varsayılan, Celsius) veya f (Fahrenheit). Görsel çizilirken aynı önbellekteki verilerden dönüştürülür, ek hava durumu isteği gerekmez. Geçersiz değerler HTTP 422 döndürür.",
   "api_docs_teams_temp_unit_desc": "Hava durumu panelinin sıcaklık birimi (extra=weather): c (varsayılan) veya f. Geçersiz değerler HTTP 422 döndürür.",
+  "api_docs_format_desc": "Çıktı biçimi: bmp (varsayılan, değişmeden) veya png. PNG kayıpsızdır; piksel dizinleri ve panel paleti birebir aynıdır (titreklik/dithering ya da ek renk yok) ve 4–27 kat daha küçüktür; PNG çözebilen yazılımlar içindir. Yol .bmp olarak kalır; Content-Type, Content-Length ve ETag gönderilen baytları tanımlar. Geçersiz değerler HTTP 422 döndürür.",
+  "api_docs_rotate_desc": "Döndürme: 0 (varsayılan) veya 180. 180, ters monte edilmiş bir panel için görüntüyü kayıpsız olarak baş aşağı çevirir (yine 800×480, aynı BMP renk derinliği). 90/270 dikey bir yerleşim gerektireceği için sunulmaz. Geçersiz değerler HTTP 422 döndürür.",
+  "api_docs_output_sizes": "format=png ile tipik takvim boyutları: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Her biçim ve döndürmenin kendi ETag’i vardır.",
   "api_docs_auto_desc": "Takvim veya takımlar BMP’sini doğrudan döndüren tek bir URL (yönlendirme yok). Živýobraz.eu ya da basit ESP32 yazılımı gibi yalnızca tek bir adresi sorgulayabilen ekranlar içindir.",
   "api_docs_auto_mode_desc": "race_week: bir sonraki yarış hafta sonunun ilk seansından lead_hours önce başlayıp sonraki yarış seçilene kadar (startan 4 saat sonra) takvim, diğer zamanlarda sezon arası ve iptal edilen yarışlar dahil takımlar. daily: tz’deki yerel çift günlerde takvim, tek günlerde takımlar; geçiş yerel gece yarısında olur. Geçersiz değerler HTTP 422 döndürür.",
   "api_docs_auto_lead_hours_desc": "Yalnızca race_week: takvimin ilk seanstan (FP1) kaç saat önce görüneceği. 0–168 dışındaki değerler HTTP 422 döndürür.",
