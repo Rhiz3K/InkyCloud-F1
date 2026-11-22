@@ -16,13 +16,12 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.config import VALID_LANGUAGES, config
 from app.paths import CHANGELOG_PATH
 from app.services.database import get_database
-from app.services.teams_service import get_available_teams_years
+from app.services.teams_service import get_available_teams_years, get_default_teams_year
 from app.services.version_service import (
     get_cached_version,
     refresh_version_info,
     version_fetch_recently_failed,
 )
-from app.utils.f1_season import get_current_f1_season
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.timezones import TIMEZONE_ALIASES
 from app.web.api_docs import build_api_docs_context
@@ -341,7 +340,9 @@ async def _configure_handler(request: Request, screen_type: str, ui_lang: str) -
     context["screen_type"] = screen_type
     context["default_timezone"] = config.DEFAULT_TIMEZONE
     context["timezone_aliases"] = TIMEZONE_ALIASES
-    current_teams_season = get_current_f1_season()
+    # The same season /teams.bmp and its preview default to (newest one with bundled data), so
+    # the configurator never highlights a season the preview cannot show.
+    current_teams_season = get_default_teams_year()
     context["current_teams_season"] = current_teams_season
     context["available_teams_seasons"] = sorted(
         {current_teams_season, *get_available_teams_years()}, reverse=True

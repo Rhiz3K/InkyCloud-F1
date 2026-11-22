@@ -402,11 +402,10 @@ def test_negative_cache_evicts_expired_entry():
 async def test_driver_standings_default_invalid_and_inner_negative_cache_paths():
     service = standings.StandingsService()
     with (
-        patch("app.services.standings_service.datetime") as dt,
+        patch("app.services.standings_service.get_current_f1_season", return_value=2026),
         patch("app.services.standings_service.is_supported_f1_season", return_value=True),
         patch.object(service, "_fetch_driver_standings", new=AsyncMock(return_value=[_driver()])),
     ):
-        dt.now.return_value.year = 2026
         assert (await service.get_driver_standings())[0].driver_code == "DRV"
 
     with (
@@ -450,13 +449,12 @@ async def test_constructor_standings_default_invalid_cached_negative_and_inner_p
 
     service._negative_cache.clear()
     with (
-        patch("app.services.standings_service.datetime") as dt,
+        patch("app.services.standings_service.get_current_f1_season", return_value=2026),
         patch("app.services.standings_service.is_supported_f1_season", return_value=True),
         patch.object(
             service, "_fetch_constructor_standings", new=AsyncMock(return_value=[_constructor()])
         ),
     ):
-        dt.now.return_value.year = 2026
         assert (await service.get_constructor_standings())[0].constructor_name == "Team"
 
     with (
@@ -513,8 +511,7 @@ async def test_all_standings_default_year_and_fully_cached_snapshot():
     )
     service._set_cache(2026, "drivers", drivers)
     service._set_cache(2026, "constructors", constructors)
-    with patch("app.services.standings_service.datetime") as dt:
-        dt.now.return_value.year = 2026
+    with patch("app.services.standings_service.get_current_f1_season", return_value=2026):
         result = await service.get_all_standings()
 
     assert result.round == 3
