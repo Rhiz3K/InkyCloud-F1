@@ -82,7 +82,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         <span class="px-2 py-1 bg-black text-white text-xs font-bold">GET</span>
         <code class="text-lg font-mono">/calendar.bmp</code>
       </h2>
-      <p class="text-sm mb-4">{{ calendar_desc }}</p>
+      <p class="text-sm mb-4">{{ t.api_docs_calendar_desc }}</p>
       <p class="text-sm mb-4">{{ t.get("api_docs_selection_note", "Without year plus round or race_key, the next race is selected. Copy round or race_key from /api/races/{year}. Exception: race_key without year returns HTTP 400.") }}</p>
       <div class="border-2 border-black p-3 mb-4 text-sm space-y-2">
         <p>{{ track_ui.styleLabel }}: <code>track_style=relief</code> · {{ track_ui.sourceLabel }}: <code>track_source=jules</code> · {{ track_ui.accentLabel }}: <code>track_accent=all</code>.</p>
@@ -118,7 +118,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               </td>
               <td class="px-3 py-2">string</td>
               <td class="px-3 py-2">
-                {{ lang_desc }}
+                {{ t.api_docs_lang_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
                   {% for language in supported_languages %}<code class="bg-gray-100 px-1">{{ language.code }}</code>{% if not loop.last %}, {% endif %}{% endfor %} ({{
@@ -133,9 +133,9 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               </td>
               <td class="px-3 py-2">integer</td>
               <td class="px-3 py-2">
-                {{ year_desc }}
+                {{ t.api_docs_year_desc }}
                 <br /><span class="text-xs text-gray-500"
-                  >{{ t.get("api_docs_optional", "optional") }} — {{ eg }}
+                  >{{ t.get("api_docs_optional", "optional") }} — {{ t.api_docs_eg }}
                   <code class="bg-gray-100 px-1">2026</code></span
                 >
               </td>
@@ -146,9 +146,9 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               </td>
               <td class="px-3 py-2">integer</td>
               <td class="px-3 py-2">
-                {{ round_desc }}
+                {{ t.api_docs_round_desc }}
                 <br /><span class="text-xs text-gray-500"
-                  >{{ t.get("api_docs_optional", "optional") }} — {{ eg }}
+                  >{{ t.get("api_docs_optional", "optional") }} — {{ t.api_docs_eg }}
                   <code class="bg-gray-100 px-1">?year=2026&amp;round=5</code></span
                 >
               </td>
@@ -161,7 +161,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               <td class="px-3 py-2">
                 {{ t.get("api_docs_race_key_desc", "Stable race identifier; requires year") }}
                 <br /><span class="text-xs text-gray-500"
-                  >{{ t.get("api_docs_optional", "optional") }} — {{ eg }}
+                  >{{ t.get("api_docs_optional", "optional") }} — {{ t.api_docs_eg }}
                   <code class="bg-gray-100 px-1">2026-round-6-monaco-2026-06-07</code></span
                 >
               </td>
@@ -170,9 +170,9 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               <td class="px-3 py-2 font-mono text-racing-red font-bold">tz</td>
               <td class="px-3 py-2">string</td>
               <td class="px-3 py-2">
-                {{ tz_desc }}
+                {{ t.api_docs_tz_desc }}
                 <br /><span class="text-xs text-gray-500"
-                  >{{ t.get("api_docs_optional", "optional") }} — {{ eg }}
+                  >{{ t.get("api_docs_optional", "optional") }} — {{ t.api_docs_eg }}
                   <code class="bg-gray-100 px-1">America/New_York</code>,
                   <code class="bg-gray-100 px-1">Europe/Prague</code>
                   ({{ t.get("api_docs_default", "default") }}: <code>{{ default_timezone }}</code>)</span
@@ -185,7 +185,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               </td>
               <td class="px-3 py-2">string</td>
               <td class="px-3 py-2">
-                {{ display_desc }}
+                {{ t.api_docs_calendar_display_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
                   <code class="bg-gray-100 px-1">1bit</code>,
@@ -203,7 +203,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               </td>
               <td class="px-3 py-2">boolean</td>
               <td class="px-3 py-2">
-                {{ weather_desc }}
+                {{ t.api_docs_weather_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
                   <code class="bg-gray-100 px-1">true</code>,
@@ -218,7 +218,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               </td>
               <td class="px-3 py-2">string</td>
               <td class="px-3 py-2">
-                {{ weather_type_desc }}
+                {{ t.api_docs_weather_type_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
                   <code class="bg-gray-100 px-1">off</code>,
@@ -267,13 +267,13 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           </div>
           <div>
             <span class="text-gray-500 block text-xs uppercase"
-              >{{ dimensions_label }}</span
+              >{{ t.api_docs_dimensions_label }}</span
             >
             <code class="font-bold">800×480</code>
           </div>
           <div>
             <span class="text-gray-500 block text-xs uppercase"
-              >{{ color_depth_label }}</span
+              >{{ t.api_docs_color_depth_label }}</span
             >
             <code class="font-bold">1bit / 4-bit B/W/R / 4-bit B/W/R/Y / Spectra 6</code>
           </div>
@@ -430,22 +430,22 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         }}
       </p>
       <div class="bg-white text-black border-2 border-black p-4">
-        <p class="text-sm font-bold uppercase mb-2">{{ laskakit_title }}</p>
+        <p class="text-sm font-bold uppercase mb-2">{{ t.api_docs_laskakit_title }}</p>
         <ol class="text-sm space-y-1">
           <li class="flex items-start gap-2">
             <span class="bg-black text-white px-1.5 font-bold text-xs">1</span>
-            {{ laskakit_step1 }}
+            {{ t.api_docs_laskakit_step1 }}
           </li>
           <li class="flex items-start gap-2">
             <span class="bg-black text-white px-1.5 font-bold text-xs">2</span>
-            {{ laskakit_step2 }}:
+            {{ t.api_docs_laskakit_step2 }}:
             <code class="bg-gray-100 px-1 border border-black"
               >{{ server_url }}/calendar.bmp?lang=cs&amp;tz=Europe/Prague</code
             >
           </li>
           <li class="flex items-start gap-2">
             <span class="bg-black text-white px-1.5 font-bold text-xs">3</span>
-            {{ laskakit_step3 }}
+            {{ t.api_docs_laskakit_step3 }}
           </li>
         </ol>
       </div>
@@ -493,7 +493,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               </td>
               <td class="px-3 py-2">string</td>
               <td class="px-3 py-2">
-                {{ lang_desc }}
+                {{ t.api_docs_lang_desc }}
                 <br /><span class="text-xs text-gray-500"
                   >{{ t.get("api_docs_values", "Values") }}:
                   {% for language in supported_languages %}<code class="bg-gray-100 px-1">{{ language.code }}</code>{% if not loop.last %}, {% endif %}{% endfor %} ({{
@@ -511,7 +511,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 {{ t.get("api_docs_teams_year_desc", "Season year for team
                 data") }}
                 <br /><span class="text-xs text-gray-500"
-                  >{{ t.get("api_docs_optional", "optional") }} — {{ eg }}
+                  >{{ t.get("api_docs_optional", "optional") }} — {{ t.api_docs_eg }}
                   <code class="bg-gray-100 px-1">2026</code></span
                 >
               </td>
@@ -564,13 +564,13 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           </div>
           <div>
             <span class="text-gray-500 block text-xs uppercase"
-              >{{ dimensions_label }}</span
+              >{{ t.api_docs_dimensions_label }}</span
             >
             <code class="font-bold">800×480</code>
           </div>
           <div>
             <span class="text-gray-500 block text-xs uppercase"
-              >{{ color_depth_label }}</span
+              >{{ t.api_docs_color_depth_label }}</span
             >
             <code class="font-bold">1-bit / 4-bit / Spectra 6</code>
           </div>
@@ -706,7 +706,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             >
             <code class="font-mono">/api/races/{year}</code>
           </div>
-          <p class="text-sm mb-3">{{ races_desc }}</p>
+          <p class="text-sm mb-3">{{ t.api_docs_races_desc }}</p>
           <div class="flex gap-2">
             <button
               data-on-click="tryEndpoint"
@@ -732,7 +732,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             >
             <code class="font-mono">/api/race/{year}/{round}</code>
           </div>
-          <p class="text-sm mb-3">{{ race_desc }}</p>
+          <p class="text-sm mb-3">{{ t.api_docs_race_desc }}</p>
           <div class="flex gap-2">
             <button
               data-on-click="tryEndpoint"
@@ -758,7 +758,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             >
             <code class="font-mono">/api/stats</code>
           </div>
-          <p class="text-sm mb-3">{{ t.stats_disabled if minimal_data_mode else stats_desc }}</p>
+          <p class="text-sm mb-3">{{ t.stats_disabled if minimal_data_mode else t.api_docs_stats_desc }}</p>
           <div class="flex gap-2">
             <button
               data-on-click="tryEndpoint"
@@ -807,7 +807,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             >
             <code class="font-mono">/health</code>
           </div>
-          <p class="text-sm mb-3">{{ health_desc }}</p>
+          <p class="text-sm mb-3">{{ t.api_docs_health_desc }}</p>
           <div class="flex gap-2">
             <button
               data-on-click="tryEndpoint"
@@ -834,7 +834,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             <code class="font-mono">/api</code>
           </div>
           <p class="text-sm mb-3">
-            {{ t.get("api_docs_json_api", "JSON API") }} — {{ json_api_desc }}
+            {{ t.get("api_docs_json_api", "JSON API") }} — {{ t.api_docs_json_api_desc }}
           </p>
           <div class="flex gap-2">
             <a
@@ -868,7 +868,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         data-on-click="closeModalBtn"
         class="px-4 py-2 bg-black text-white font-bold uppercase text-sm hover:bg-racing-red transition-colors"
       >
-        {{ close_btn }}
+        {{ t.api_docs_close_btn }}
       </button>
     </div>
   </div>
@@ -878,8 +878,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
   const currentUiLang = {{ ui_lang | tojson }};
   const copyText = '{{ t.get("api_docs_copy", "Copy") }}';
   const copiedText = '{{ t.get("api_docs_copied", "Copied!") }}';
-  const loadingText = "{{ loading_text }}";
-  const errorText = "{{ error_text }}";
+  const loadingText = "{{ t.api_docs_loading_text }}";
+  const errorText = "{{ t.api_docs_error_text }}";
 
   // Tab switching
   function switchTab(tabName) {

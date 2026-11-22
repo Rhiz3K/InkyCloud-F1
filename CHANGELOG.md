@@ -200,6 +200,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Previews no longer import private helpers from the BMP router. Equivalent requests now
     share one image. `?weather=false` renders the same image as `?weather_type=off`; before,
     the countdown used the short units meant to sit beside a weather block that wasn't there.
+  - The HTML API docs read their texts from `translations/*.json` (`api_docs_*` keys) like
+    every other page, instead of a second 13-language dictionary in `app/web/api_docs.py`.
+    The English and Czech code examples come from one template. The rendered pages are
+    unchanged.
     `?weather_type=race` shares the `race_day` image instead of rendering it a second time.
     An unknown `lang` on the preview routes falls back to `DEFAULT_LANG`, as the BMP routes
     already did, instead of English.
