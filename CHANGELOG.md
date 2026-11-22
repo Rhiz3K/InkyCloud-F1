@@ -177,6 +177,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     heading), `api_docs_teams_tz_desc` (it was English everywhere) and `api_docs_open_json`.
     The API docs button that opens `/api` now reads "Open JSON" instead of "Open Image".
     A test checks that every key used by a template exists in every locale.
+  - The configurator's timezone picker lists Auckland once, with its current offset (it also
+    appeared under UTC-12). Every entry shows the zone's live offset, so DST zones are
+    labelled correctly, and the selected zone is scrolled into view after the search filter is
+    cleared.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
