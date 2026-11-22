@@ -163,6 +163,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and a gzip-encoded response or a gzip-negotiated `304` uses a weak `W/"…"` tag. Before,
     identity and gzip bodies shared one strong validator. Clients that send the tag back
     unchanged keep getting `304`.
+  - A calendar, Teams or Teams-extra preview render still in flight when the scheduler clears
+    the image caches no longer writes its pre-refresh bytes back into the cleared cache. It is
+    served once and then rendered again from fresh data.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target

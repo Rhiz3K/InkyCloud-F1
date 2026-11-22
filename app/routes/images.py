@@ -38,7 +38,13 @@ from app.services.track_catalog import (
 )
 from app.services.track_renderer import attribution_headers
 from app.services.weather_service import get_weather_context
-from app.state import BmpArtifact, get_bmp_cache, get_bmp_variant_cache, record_api_call
+from app.state import (
+    BmpArtifact,
+    bmp_cache_generation,
+    get_bmp_cache,
+    get_bmp_variant_cache,
+    record_api_call,
+)
 from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
 from app.utils.f1_season import race_selection_error
@@ -693,6 +699,7 @@ async def _render_calendar_artifact(
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
 ) -> BmpArtifact:
     """Render/hash one calendar miss and cache the pair only when complete."""
+    generation = bmp_cache_generation()
     async with render_slot():
         bmp_data, _race_data, is_cacheable = await _render_calendar(
             f1_service=f1_service,
@@ -708,7 +715,7 @@ async def _render_calendar_artifact(
             track_options=track_options,
         )
         artifact = (bmp_data, strong_etag(bmp_data))
-        if is_cacheable:
+        if is_cacheable and bmp_cache_generation() == generation:
             get_bmp_cache()[cache_key] = artifact
         return artifact
 
@@ -723,6 +730,7 @@ async def _render_teams_artifact(
     extra_context: TeamsExtraContext | None = None,
 ) -> BmpArtifact:
     """Fetch, render, and hash one teams miss, caching only a complete dashboard."""
+    generation = bmp_cache_generation()
     async with render_slot(variant=extra != TeamsExtra.NONE):
         async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
             teams_data = await TeamsService().get_teams_and_drivers(year)
@@ -737,7 +745,7 @@ async def _render_teams_artifact(
             )
         )
         artifact = (bmp_data, strong_etag(bmp_data))
-        if is_teams_data_cacheable(teams_data):
+        if is_teams_data_cacheable(teams_data) and bmp_cache_generation() == generation:
             _teams_image_cache(extra)[cache_key] = artifact
         elif teams_data.teams:
             logger.warning("Teams standings incomplete for %s; serving but not caching", year)

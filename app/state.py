@@ -50,11 +50,27 @@ _api_calls_buffer: deque = deque(maxlen=API_CALLS_BUFFER_MAXSIZE)
 _aggregate_calls: OrderedDict[tuple, dict] = OrderedDict()
 
 
+class _CacheGeneration:
+    """Counts cache clears so in-flight renders can tell their inputs went stale."""
+
+    value = 0
+
+
 def clear_bmp_cache() -> None:
     """Remove generated images from the main cache and the extra/preview cache."""
+    _CacheGeneration.value += 1
     _bmp_cache.clear()
     _variant_cache_slot.cache.clear()
     logger.info("BMP cache cleared")
+
+
+def bmp_cache_generation() -> int:
+    """Return a token that changes whenever the image caches are cleared.
+
+    A render captures it before loading data and stores its result only if the token is
+    unchanged, so bytes built from pre-refresh data cannot repopulate a freshly cleared cache.
+    """
+    return _CacheGeneration.value
 
 
 def get_bmp_cache() -> TTLCache[str, BmpArtifact]:

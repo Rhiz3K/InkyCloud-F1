@@ -234,3 +234,69 @@ async def test_encoding_aware_etag_extends_existing_vary_and_skips_non_http():
 
     await EncodingAwareETagMiddleware(lifespan_app)({"type": "lifespan"}, None, collect)
     assert passthrough == ["lifespan"]
+
+
+# --- C6: a render that straddles a cache clear does not repopulate stale bytes -----------------
+
+
+@pytest.mark.asyncio
+async def test_calendar_render_finishing_after_clear_is_served_but_not_cached(monkeypatch):
+    import asyncio
+
+    from app.routes import images
+    from app.state import bmp_cache_generation, clear_bmp_cache, get_bmp_cache
+
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def slow_render(**_kwargs):
+        started.set()
+        await release.wait()
+        return b"old-bytes", {}, True
+
+    monkeypatch.setattr(images, "_render_calendar", slow_render)
+    clear_bmp_cache()
+    before = bmp_cache_generation()
+    task = asyncio.create_task(
+        images._render_calendar_artifact(
+            cache_key="c6",
+            f1_service=None,
+            lang="en",
+            year=None,
+            race_round=None,
+            race_key=None,
+            target_tz="UTC",
+            weather=False,
+            weather_type="off",
+            display="1bit",
+        )
+    )
+    await started.wait()
+    clear_bmp_cache()  # scheduler refresh lands while the old render is in flight
+    release.set()
+    artifact = await task
+
+    assert bmp_cache_generation() == before + 1
+    assert artifact[0] == b"old-bytes"
+    assert "c6" not in get_bmp_cache()
+
+    release.clear()
+    started.clear()
+    task = asyncio.create_task(
+        images._render_calendar_artifact(
+            cache_key="c6",
+            f1_service=None,
+            lang="en",
+            year=None,
+            race_round=None,
+            race_key=None,
+            target_tz="UTC",
+            weather=False,
+            weather_type="off",
+            display="1bit",
+        )
+    )
+    await started.wait()
+    release.set()
+    await task
+    assert get_bmp_cache()["c6"][0] == b"old-bytes"
+    clear_bmp_cache()

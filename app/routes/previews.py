@@ -35,7 +35,7 @@ from app.services.track_catalog import (
     TrackStyle,
 )
 from app.services.track_renderer import attribution_headers
-from app.state import get_bmp_cache, get_bmp_variant_cache
+from app.state import bmp_cache_generation, get_bmp_cache, get_bmp_variant_cache
 from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, strong_etag
 from app.utils.image_conversion import bmp_to_png
@@ -266,6 +266,7 @@ async def _render_teams_extra_preview(
 
     async def produce() -> tuple[bytes, str]:
         """Render and cache only complete teams data in the variant cache."""
+        generation = bmp_cache_generation()
         async with render_slot(variant=True):
             async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
                 data = await TeamsService().get_teams_and_drivers(ctx.season)
@@ -283,7 +284,7 @@ async def _render_teams_extra_preview(
                 )
             )
             artifact = (content, strong_etag(content))
-            if is_teams_data_cacheable(data):
+            if is_teams_data_cacheable(data) and bmp_cache_generation() == generation:
                 get_bmp_variant_cache()[key] = artifact
             return artifact
 
