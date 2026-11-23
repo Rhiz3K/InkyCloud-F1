@@ -173,7 +173,8 @@ def test_converting_a_schedule_keeps_instant_order_across_a_dst_fold():
 def test_f1_service_reads_naive_times_as_utc_on_any_host(prague_host):
     """B9: a time without 'Z' was converted from the host's local time, not UTC."""
     data = F1Service(timezone="UTC")._convert_race_times(_fold_race("13:00:00"))
-    race = next(event for event in data["schedule"] if event["name"] == "Race")
+    race = next((event for event in data["schedule"] if event["name"] == "Race"), None)
+    assert race is not None
     assert race["datetime"] == "2026-10-25T13:00:00+00:00"
 
 
