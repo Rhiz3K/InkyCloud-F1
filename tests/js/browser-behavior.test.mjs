@@ -1251,7 +1251,7 @@ test("format=png and rotate=180 reach the copied URL but not the preview", () =>
 test("output options move to /auto.bmp with the screen settings", () => {
     const {ctx} = autoScreenContext("teams", {currentAutoScreen: "daily", currentOutput: {format: "png", rotate: "180"}});
     assert.equal(ctx.getCopyUrl(),
-        "https://racing.example.org/auto.bmp?year=2026&extra=none&mode=daily&format=png&rotate=180");
+        "https://racing.example.org/auto.bmp?year=2026&extra=none&tz=Europe%2FPrague&mode=daily&format=png&rotate=180");
 });
 
 test("setOutputOption syncs the select, the hint, the page URL and the copied URL", () => {

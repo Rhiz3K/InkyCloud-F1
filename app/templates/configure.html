@@ -404,7 +404,7 @@ block content %}
                 <select
                   id="output-{{ field }}-select"
                   data-on-change="selectOutputOption" data-args='["{{ field }}"]'
-                  class="output-{{ field }}-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-racing-red"
+                  class="output-{{ field }}-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red"
                 >
                   {% for opt in choices %}
                   <option value="{{ opt }}" data-hint="{{ hints[opt] }}">{{ options[opt] }}</option>
