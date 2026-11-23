@@ -543,3 +543,69 @@ async def test_teams_hint_on_200_304_and_error(client_app, monkeypatch):
     )
     failed = await _get(client_app, "/teams.bmp?display=bwr")
     assert failed.headers["x-next-refresh-seconds"] == str(rh.ERROR_REFRESH_SECONDS)
+
+
+@pytest.mark.asyncio
+async def test_countdown_variants_cap_http_lifetime_at_the_next_change(client_app, frozen):
+    midnight = datetime(2026, 11, 22, 23, 0, tzinfo=UTC)
+    frozen.now = midnight - timedelta(minutes=10)
+    miss = await _get(client_app, "/calendar.bmp?weather=false&countdown=days")
+    assert miss.headers["x-cache"] == "MISS"
+    assert miss.headers["cache-control"] == "public, max-age=600"
+
+    frozen.now = midnight - timedelta(minutes=4)
+    hit = await _get(client_app, "/calendar.bmp?weather=false&countdown=days")
+    assert hit.headers["x-cache"] == "HIT"
+    assert hit.headers["cache-control"] == "public, max-age=240"
+
+    # The default countdown keeps its historical header byte for byte.
+    default = await _get(client_app, "/calendar.bmp?weather=false")
+    assert default.headers["cache-control"] == images.CALENDAR_BMP_CACHE_CONTROL
+
+
+def test_max_age_is_capped_and_never_negative():
+    hint = RefreshHint(NOW, (NOW + timedelta(hours=5),))
+    assert hint.max_age(NOW) == rh.HOURLY_REFRESH_SECONDS
+    assert hint.max_age(NOW + timedelta(hours=4, minutes=59)) == 60
+    assert hint.max_age(NOW + timedelta(hours=6)) == 0
+    assert RefreshHint(NOW).max_age(NOW) == rh.HOURLY_REFRESH_SECONDS
+
+
+@pytest.mark.asyncio
+async def test_missing_race_error_image_hints_a_quick_retry(client_app):
+    service = SimpleNamespace(get_next_race_from_static=MagicMock(return_value=None))
+    client_app.dependency_overrides[get_f1_service] = lambda: service
+    response = await _get(client_app, "/calendar.bmp?weather=false&countdown=days")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    # The "failed to fetch race data" image is served without an exception, yet it is still
+    # an error image: the documented quick retry applies instead of the hourly hint.
+    assert response.headers["x-next-refresh-seconds"] == str(rh.ERROR_REFRESH_SECONDS)
+
+
+# --- Static asset URLs change with their content ------------------------------------------
+
+
+def test_static_asset_version_changes_with_file_contents(tmp_path):
+    from app.web.templates import static_asset_version
+
+    (tmp_path / "js").mkdir()
+    script = tmp_path / "js" / "common.js"
+    script.write_text("const PAGE_HANDLER_NAMES = [];")
+    before = static_asset_version("1.3.3-policy", tmp_path, ("js/common.js",))
+    script.write_text('const PAGE_HANDLER_NAMES = ["selectCountdown"];')
+    after = static_asset_version("1.3.3-policy", tmp_path, ("js/common.js",))
+    assert before.startswith("1.3.3-policy-") and after.startswith("1.3.3-policy-")
+    assert before != after
+
+
+def test_every_versioned_template_asset_feeds_the_digest():
+    import re
+    from pathlib import Path
+
+    from app.web.templates import ASSET_VERSION, VERSIONED_STATIC_ASSETS
+
+    base = (Path(__file__).resolve().parents[1] / "app" / "templates" / "base.html").read_text()
+    referenced = set(re.findall(r"/static/([\w./-]+)\?v=\{\{ asset_version \}\}", base))
+    assert referenced == set(VERSIONED_STATIC_ASSETS)
+    assert re.fullmatch(r".+-[0-9a-f]{12}", ASSET_VERSION)

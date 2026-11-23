@@ -56,6 +56,7 @@ from app.utils.refresh_hint import (
     ERROR_REFRESH_SECONDS,
     REFRESH_HINT_HEADER,
     CountdownMode,
+    RefreshHint,
     calendar_refresh_hint,
     teams_refresh_hint,
 )
@@ -93,6 +94,18 @@ _DAY_BASED_TEAMS_EXTRAS = frozenset({TeamsExtra.COUNTDOWN, TeamsExtra.FLAGS, Tea
 def _utc_now() -> datetime:
     """Return the current instant for refresh hints (a seam for tests)."""
     return datetime.now(UTC)
+
+
+def _calendar_cache_control(countdown: CountdownMode, hint: RefreshHint) -> str:
+    """Return the calendar Cache-Control; countdown variants never outlive their next change.
+
+    The default (hours) keeps its historical one-hour lifetime. A day count, ``off`` or ``auto``
+    image is keyed by its content period, so a browser or shared cache must not reuse it past
+    local midnight, the race start or the auto switch.
+    """
+    if countdown == CountdownMode.HOURS:
+        return CALENDAR_BMP_CACHE_CONTROL
+    return f"public, max-age={hint.max_age(_utc_now())}"
 
 
 def _to_round_number(round_value: str | int | None) -> int | None:
@@ -652,7 +665,8 @@ async def get_calendar_bmp(
             weather_enabled=config.WEATHER_ENABLED,
             selection_grace=NEXT_RACE_GRACE if race_round is None and race_key is None else None,
         )
-        refresh_seconds = hint.seconds()
+        # Without a race the route serves the "failed to fetch" error image: retry soon.
+        refresh_seconds = hint.seconds() if selected_race else ERROR_REFRESH_SECONDS
         cache_key = f"{identity}|" + calendar_cache_key(
             lang, year, race_round, race_key, tz, weather_type, display
         )
@@ -665,7 +679,7 @@ async def get_calendar_bmp(
             logger.debug("Cache hit for %s", cache_key)
             return respond(
                 *cached_artifact,
-                cache_control=CALENDAR_BMP_CACHE_CONTROL,
+                cache_control=_calendar_cache_control(countdown, hint),
                 cache_status="HIT",
             )
 
@@ -723,7 +737,7 @@ async def get_calendar_bmp(
         is_cacheable = image_cache.get(cache_key) is artifact
         return respond(
             *artifact,
-            cache_control=CALENDAR_BMP_CACHE_CONTROL if is_cacheable else "no-store",
+            cache_control=_calendar_cache_control(countdown, hint) if is_cacheable else "no-store",
             cache_status="MISS",
         )
     except Exception as exc:

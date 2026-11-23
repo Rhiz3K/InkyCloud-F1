@@ -17,14 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and start time instead of a countdown. Race statuses and weather are unchanged in every mode,
   and an invalid value returns HTTP 422. Non-default modes are rendered on demand into the
   variant cache (never the default cache or the hourly pregeneration), and their cache key
-  includes the next content change, so a cached day count never outlives local midnight.
+  includes the next content change, so a cached day count never outlives local midnight. Their
+  `Cache-Control` max-age is capped at that change as well, so browsers and shared caches
+  cannot reuse yesterday's image either.
   `/calendar.bmp` and `/teams.bmp` responses (200 and 304) carry a new
   `X-Next-Refresh-Seconds` header: the seconds until the image is next expected to change
   (next countdown hour, local midnight including DST, race start, end of the live window,
   next-race switch, sprint/race start for standings; 60 to 86400, at most 3600 while hourly
   weather is shown, 300 for an error image). It is a hint for the client's sleep length, not a
   promise of an unchanged ETag. The calendar configurator offers the countdown choice with a
-  battery note, and the README ESP32 example now sleeps for the hinted time.
+  battery note, and the README ESP32 example now sleeps for the hinted time. Static asset URLs
+  (`?v=`) now include a digest of the files, so a deploy that changes a script or stylesheet
+  without a version bump cannot serve returning visitors the previous copy.
 
 - Add the optional IANA `tz` parameter to `/teams.bmp` and `/preview/configure/teams.png`.
   It sets the timezone for the race start, the day countdown, and the round dates in the

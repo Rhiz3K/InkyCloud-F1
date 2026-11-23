@@ -101,6 +101,16 @@ class RefreshHint:
         change = self.next_change
         return "none" if change is None else str(int(change.timestamp()))
 
+    def max_age(self, now: datetime, limit: int = HOURLY_REFRESH_SECONDS) -> int:
+        """Return an HTTP cache lifetime (seconds) that never outlives the next change.
+
+        ``now`` is read when the response is sent, so time spent rendering is not added on top.
+        """
+        change = self.next_change
+        if change is None:
+            return limit
+        return max(0, min(limit, math.floor((change - now).total_seconds())))
+
     def seconds(self) -> int:
         """Return the hint in whole seconds, capped and floored."""
         limit = MAX_REFRESH_SECONDS
