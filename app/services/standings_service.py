@@ -169,15 +169,17 @@ class StandingsService:
             driver_standings = []
 
             for entry in standings_data.get("DriverStandings", []):
+                # Validate the row before reading any field so a non-mapping row is skipped
+                # instead of raising and discarding the whole table.
+                numbers = _parse_standing_numbers(entry)
+                if numbers is None:
+                    logger.warning("Skipping malformed driver standing for %s: %r", year, entry)
+                    continue
                 driver_data = entry.get("Driver", {})
                 constructors = entry.get("Constructors", [])
                 # Constructors are chronological; the last one is the driver's current team,
                 # matching the Teams roster rule.
                 constructor_name = constructors[-1].get("name", "") if constructors else ""
-                numbers = _parse_standing_numbers(entry)
-                if numbers is None:
-                    logger.warning("Skipping malformed driver standing for %s: %r", year, entry)
-                    continue
 
                 driver_standings.append(
                     DriverStanding(
@@ -269,13 +271,13 @@ class StandingsService:
             constructor_standings = []
 
             for entry in standings_data.get("ConstructorStandings", []):
-                constructor_data = entry.get("Constructor", {})
                 numbers = _parse_standing_numbers(entry)
                 if numbers is None:
                     logger.warning(
                         "Skipping malformed constructor standing for %s: %r", year, entry
                     )
                     continue
+                constructor_data = entry.get("Constructor", {})
 
                 constructor_standings.append(
                     ConstructorStanding(

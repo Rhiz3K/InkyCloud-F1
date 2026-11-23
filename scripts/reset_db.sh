@@ -2,7 +2,8 @@
 # Reset database script for F1 E-Ink Calendar
 # Usage: reset-db [option] [--force]
 #   all      - Delete entire database (default; stop the application first)
-#   stats    - Delete usage statistics (api_calls, request_stats, api_call_totals, perf_metrics)
+#   stats    - Delete usage statistics (api_calls, request_stats, api_call_totals, perf_metrics,
+#              perf_buckets, stats_batches)
 #   cache    - Delete only cache_meta and generated_images
 #   info     - Show current record counts (no changes)
 #   --force  - Skip the running-instance guard for "all"
@@ -30,7 +31,8 @@ usage() {
     echo ""
     echo "Options:"
     echo "  all      - Delete entire database file (default; stop the application first)"
-    echo "  stats    - Delete usage statistics (api_calls, request_stats, api_call_totals, perf_metrics)"
+    echo "  stats    - Delete usage statistics (api_calls, request_stats, api_call_totals, perf_metrics,"
+    echo "             perf_buckets, stats_batches)"
     echo "  cache    - Delete cache_meta, generated_images and BMP files"
     echo "  info     - Show current record counts (no changes)"
     echo "  --force  - Skip the running-instance guard for \"all\""
@@ -84,13 +86,22 @@ refuse_if_in_use() {
     fi
 }
 
-# Statistics tables: the legacy per-request tables plus the aggregate totals and performance
-# histograms that the default AGGREGATE_STATS_ONLY=true profile actually writes.
-STATS_TABLES=(api_calls request_stats api_call_totals perf_metrics)
+# Statistics tables: the legacy per-request tables plus the aggregate totals, performance
+# buckets and batch ledger that the default AGGREGATE_STATS_ONLY=true profile actually writes
+# (the same set the application's own usage-data cleanup deletes).
+STATS_TABLES=(api_calls request_stats api_call_totals perf_metrics perf_buckets stats_batches)
 CACHE_TABLES=(cache_meta generated_images)
 
+# Succeeds only when a successful lookup finds the table. A failed lookup (e.g. SQLITE_BUSY after
+# the timeout) aborts instead of being mistaken for an absent table, which would skip it silently.
+# The explicit exit is required: callers use this in an `if`, where `set -e` does not apply.
 table_exists() {
-    [ "$(run_sql "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='$1';")" = "1" ]
+    local count
+    if ! count="$(run_sql "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='$1';")"; then
+        echo -e "${RED}Could not check table $1; nothing was reset.${NC}" >&2
+        exit 1
+    fi
+    [ "$count" = "1" ]
 }
 
 # Function to get record counts

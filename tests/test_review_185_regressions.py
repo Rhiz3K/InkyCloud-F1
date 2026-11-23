@@ -255,7 +255,14 @@ async def test_calendar_stats_lookup_failure_returns_error_bmp():
 @pytest.mark.skipif(shutil.which("sqlite3") is None, reason="reset-db requires the sqlite3 CLI")
 def test_reset_stats_clears_aggregate_tables(tmp_path):
     database_path = tmp_path / "f1.db"
-    stats_tables = ("api_calls", "request_stats", "api_call_totals", "perf_metrics")
+    stats_tables = (
+        "api_calls",
+        "request_stats",
+        "api_call_totals",
+        "perf_metrics",
+        "perf_buckets",
+        "stats_batches",
+    )
     with closing(sqlite3.connect(database_path)) as conn:
         for table in (*stats_tables, "cache_meta", "generated_images"):
             conn.execute(f"CREATE TABLE {table} (value INTEGER)")
@@ -281,7 +288,7 @@ def test_reset_stats_clears_aggregate_tables(tmp_path):
         }
     assert all(counts[table] == 0 for table in stats_tables)
     assert counts["cache_meta"] == counts["generated_images"] == 1
-    assert "api_call_totals" in result.stdout and "perf_metrics" in result.stdout
+    assert all(table in result.stdout for table in stats_tables)
 
 
 @pytest.mark.skipif(shutil.which("sqlite3") is None, reason="reset-db requires the sqlite3 CLI")
@@ -306,6 +313,54 @@ def test_reset_stats_tolerates_databases_missing_newer_tables(tmp_path):
     assert result.returncode == 0, result.stderr
     with closing(sqlite3.connect(database_path)) as conn:
         assert conn.execute("SELECT COUNT(*) FROM api_calls").fetchone()[0] == 0
+
+
+@pytest.mark.skipif(shutil.which("sqlite3") is None, reason="reset-db requires the sqlite3 CLI")
+def test_reset_stats_aborts_when_table_lookup_fails(tmp_path):
+    """A failed existence lookup (e.g. SQLITE_BUSY) must abort, not skip the table silently."""
+    database_path = tmp_path / "f1.db"
+    with closing(sqlite3.connect(database_path)) as conn:
+        for table in ("api_calls", "perf_buckets"):
+            conn.execute(f"CREATE TABLE {table} (value INTEGER)")
+            conn.execute(f"INSERT INTO {table} VALUES (1)")
+        conn.commit()
+
+    real_sqlite = shutil.which("sqlite3")
+    shim_dir = tmp_path / "bin"
+    shim_dir.mkdir()
+    shim = shim_dir / "sqlite3"
+    # Fail only the lookup of perf_buckets, as a lock that outlives the busy timeout would.
+    shim.write_text(
+        "#!/bin/bash\n"
+        'case "${*: -1}" in\n'
+        "  *sqlite_master*perf_buckets*) echo 'Error: database is locked' >&2; exit 5 ;;\n"
+        "esac\n"
+        f'exec "{real_sqlite}" "$@"\n'
+    )
+    shim.chmod(0o755)
+
+    env = os.environ.copy()
+    env.update(
+        DATABASE_PATH=str(database_path),
+        IMAGES_PATH=str(tmp_path / "images"),
+        PATH=f"{shim_dir}{os.pathsep}{env.get('PATH', '')}",
+    )
+    result = subprocess.run(
+        ["bash", str(RESET_SCRIPT), "stats"],
+        input="y\n",
+        text=True,
+        capture_output=True,
+        check=False,
+        env=env,
+    )
+
+    assert result.returncode != 0
+    assert "Statistics reset complete" not in result.stdout
+    assert "Could not check table perf_buckets" in result.stderr
+    with closing(sqlite3.connect(database_path)) as conn:
+        # Nothing was deleted: the abort happens before the DELETE batch runs.
+        assert conn.execute("SELECT COUNT(*) FROM api_calls").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM perf_buckets").fetchone()[0] == 1
 
 
 # --- B1: provider circuit IDs and complete podiums --------------------------------------------
@@ -356,47 +411,6 @@ async def test_historical_refresh_rejects_podium_missing_third_place():
 
     assert outcome.results is None
     assert outcome.completed is False
-
-
-def test_results_column_labels_rows_with_stored_position():
-    from PIL import Image, ImageDraw, ImageFont
-
-    from app.services.renderer_results import draw_results_column
-
-    rows = [
-        SimpleNamespace(
-            position=position,
-            driver=SimpleNamespace(display_name=f"Driver{position}"),
-            constructor=SimpleNamespace(name="Team"),
-            q3_time="1:48.000",
-            time=None,
-        )
-        for position in (1, 2, 4)
-    ]
-    labels: list[int] = []
-
-    def fit(_draw, _font, _width, pos, driver, team):
-        labels.append(pos)
-        return f"{pos}. {driver} {team}"
-
-    font = ImageFont.load_default()
-    draw_results_column(
-        ImageDraw.Draw(Image.new("1", (200, 100), 1)),
-        x_start=0,
-        visual_top=0,
-        title="Q",
-        results=rows,
-        is_qualifying=True,
-        font_title=font,
-        font_row=font,
-        time_x=150,
-        row_height=12,
-        data_y_offset=2,
-        text_fill=0,
-        fit_result_text_fn=fit,
-    )
-
-    assert labels == [1, 2, 4]
 
 
 # --- B4: a historical precipitation amount survives a restart ---------------------------------
@@ -513,6 +527,14 @@ async def test_driver_standings_skip_malformed_row_and_use_current_team(monkeypa
                                 "points": "0",
                                 "Driver": {"code": "BAD", "familyName": "Broken"},
                             },
+                            None,
+                            "not-a-row",
+                            {
+                                "position": "2",
+                                "points": "80",
+                                "Driver": {"code": "HAD", "familyName": "Hadjar"},
+                                "Constructors": [{"name": "Red Bull"}],
+                            },
                         ],
                     }
                 ]
@@ -530,7 +552,8 @@ async def test_driver_standings_skip_malformed_row_and_use_current_team(monkeypa
     finally:
         service._cache.clear()
 
-    assert [s.driver_code for s in standings] == ["LAW"]
+    # Non-mapping rows (null, strings) are skipped without discarding the valid rows around them.
+    assert [s.driver_code for s in standings] == ["LAW", "HAD"]
     assert standings[0].constructor_name == "Red Bull"
 
 
@@ -545,8 +568,11 @@ async def test_constructor_standings_skip_malformed_row(monkeypatch):
                     {
                         "round": "5",
                         "ConstructorStandings": [
+                            None,
                             {"position": "1", "points": "200", "Constructor": {"name": "Audi"}},
                             {"position": "2", "points": "n/a", "Constructor": {"name": "Haas"}},
+                            ["bad", "row"],
+                            {"position": "3", "points": "90", "Constructor": {"name": "Alpine"}},
                         ],
                     }
                 ]
@@ -564,88 +590,7 @@ async def test_constructor_standings_skip_malformed_row(monkeypatch):
     finally:
         service._cache.clear()
 
-    assert [s.constructor_name for s in standings] == ["Audi"]
-
-
-# --- A2 + E2: the race status never runs under the weather block -------------------------------
-
-
-@pytest.mark.parametrize("display", ["1bit", "bwr", "bwry", "spectra6"])
-@pytest.mark.parametrize("lang", ["de", "pl", "fr", "ja", "en"])
-def test_finished_race_status_does_not_overlap_weather(display, lang):
-    from PIL import ImageDraw
-
-    from app.services.f1_service import F1Service
-    from app.services.i18n import get_translator
-    from app.services.renderers import create_renderer
-
-    renderer = create_renderer(display, get_translator(lang), lang)
-    race = F1Service().get_all_races_from_static(2026)[0]  # finished: shows the status text
-    weather = WeatherData(24.0, 2, 40)
-    status = get_translator(lang).get("race_completed", "")
-    drawn: list[tuple[str, tuple]] = []
-    original = ImageDraw.ImageDraw.text
-
-    def spy(draw, xy, text, *args, **kwargs):
-        drawn.append((text, draw.textbbox(xy, text, font=kwargs.get("font"))))
-        return original(draw, xy, text, *args, **kwargs)
-
-    with patch.object(ImageDraw.ImageDraw, "text", spy):
-        renderer.render_calendar(race, weather_data=weather, weather_type="current")
-
-    icon_boxes = [box for text, box in drawn if text == weather.icon]
-    status_boxes = [box for text, box in drawn if status and text.startswith(status[:3])]
-    assert icon_boxes and status_boxes, (status, [t for t, _ in drawn])
-    status_right = max(box[2] for box in status_boxes)
-    assert status_right < icon_boxes[0][0]
-
-
-# --- A1 + E1: Spectra 6 text keeps the inks it was drawn with ----------------------------------
-
-
-def test_spectra6_error_text_uses_only_drawn_inks():
-    import io
-
-    from PIL import Image
-
-    from app.services.i18n import get_translator
-    from app.services.renderers import create_renderer
-
-    renderer = create_renderer("spectra6", get_translator("de"), "de")
-    image = Image.open(io.BytesIO(renderer.render_error("Test monochromer Schrift")))
-
-    colors = {rgb for _count, rgb in image.convert("RGB").getcolors(maxcolors=16)}
-    assert colors == {renderer.colors.WHITE, renderer.colors.BLACK, renderer.colors.RED}
-
-
-def test_only_spectra6_disables_text_antialiasing():
-    from PIL import Image
-
-    from app.services.i18n import get_translator
-    from app.services.renderers import create_renderer
-
-    modes = {}
-    for display in ("1bit", "bwr", "bwry", "spectra6"):
-        renderer = create_renderer(display, get_translator("en"), "en")
-        modes[display] = renderer._new_draw(Image.new("RGB", (4, 4))).fontmode
-    assert modes == {"1bit": "L", "bwr": "L", "bwry": "L", "spectra6": "1"}
-
-
-def test_fit_left_text_shrinks_then_ellipsizes():
-    from PIL import Image, ImageDraw
-
-    from app.services.font_utils import load_ui_font
-    from app.services.renderer_calendar import _fit_left_text
-
-    draw = ImageDraw.Draw(Image.new("RGB", (200, 50)))
-    font = load_ui_font("de", 20, bold=True)
-    width = draw.textbbox((0, 0), "ABGESCHLOSSEN", font=font)[2]
-
-    text, shrunk = _fit_left_text(draw, "ABGESCHLOSSEN", font, width * 0.85)
-    assert text == "ABGESCHLOSSEN" and shrunk.size < font.size
-
-    text, smallest = _fit_left_text(draw, "ABGESCHLOSSEN", font, width * 0.4)
-    assert text.endswith("...") and smallest.size == int(font.size * 0.7)
+    assert [s.constructor_name for s in standings] == ["Audi", "Alpine"]
 
 
 def test_standing_numbers_reject_non_mapping_rows():
@@ -653,3 +598,28 @@ def test_standing_numbers_reject_non_mapping_rows():
 
     assert _parse_standing_numbers(["1", "10"]) is None
     assert _parse_standing_numbers({"position": "2", "points": "4.5"}) == (2, 4.5, 0)
+
+
+# --- A11y: focus rings stay visible in forced-colors mode ---------------------------------------
+
+
+def test_ring_focus_indicators_keep_a_forced_colors_outline():
+    """A ring-only focus style must not remove the outline outright.
+
+    Forced-colors mode drops box-shadow rings, so ``focus:outline-none`` (``outline-style: none``
+    in Tailwind v4) would leave no visible focus. ``focus:outline-hidden`` keeps a transparent
+    outline that forced colors paint in the system colour.
+    """
+    root = Path(__file__).resolve().parents[1] / "app"
+    # Built by concatenation: Tailwind scans the repository, and a literal class name here would
+    # add a utility to the compiled stylesheet.
+    ring, outline_none = "focus-visible:" + "ring", "focus:outline-" + "none"
+    offenders = []
+    for template in (root / "templates").rglob("*.html"):
+        for number, line in enumerate(template.read_text(encoding="utf-8").splitlines(), 1):
+            if ring in line and outline_none in line:
+                offenders.append(f"{template.relative_to(root)}:{number}")
+    assert offenders == []
+
+    css = (root / "assets" / "css" / "tailwind.min.css").read_text(encoding="utf-8")
+    assert "@media (forced-colors:active){.focus\\:outline-hidden:focus{" in css

@@ -2435,3 +2435,127 @@ def test_driver_photo_paste_adapters_apply_monochrome_and_alpha_images():
     color_photo = Image.new("RGBA", (1, 1), (255, 0, 0, 255))
     Spectra6Renderer._paste_driver_photo(color_canvas, color_photo, 1, 1)
     assert color_canvas.getpixel((1, 1)) == (255, 0, 0)
+
+
+# --- Issue #185 review: renderer regressions (stored positions, status layout, Spectra 6 text) ---
+
+
+def test_results_column_labels_rows_with_stored_position():
+    from PIL import Image, ImageDraw, ImageFont
+
+    from app.services.renderer_results import draw_results_column
+
+    rows = [
+        SimpleNamespace(
+            position=position,
+            driver=SimpleNamespace(display_name=f"Driver{position}"),
+            constructor=SimpleNamespace(name="Team"),
+            q3_time="1:48.000",
+            time=None,
+        )
+        for position in (1, 2, 4)
+    ]
+    labels: list[int] = []
+
+    def fit(_draw, _font, _width, pos, driver, team):
+        labels.append(pos)
+        return f"{pos}. {driver} {team}"
+
+    font = ImageFont.load_default()
+    draw_results_column(
+        ImageDraw.Draw(Image.new("1", (200, 100), 1)),
+        x_start=0,
+        visual_top=0,
+        title="Q",
+        results=rows,
+        is_qualifying=True,
+        font_title=font,
+        font_row=font,
+        time_x=150,
+        row_height=12,
+        data_y_offset=2,
+        text_fill=0,
+        fit_result_text_fn=fit,
+    )
+
+    assert labels == [1, 2, 4]
+
+
+# --- A2 + E2: the race status never runs under the weather block -------------------------------
+
+
+@pytest.mark.parametrize("display", ["1bit", "bwr", "bwry", "spectra6"])
+@pytest.mark.parametrize("lang", ["de", "pl", "fr", "ja", "en"])
+def test_finished_race_status_does_not_overlap_weather(display, lang):
+    from app.services.f1_service import F1Service
+    from app.services.i18n import get_translator
+    from app.services.renderers import create_renderer
+    from app.services.weather_service import WeatherData
+
+    renderer = create_renderer(display, get_translator(lang), lang)
+    race = F1Service().get_all_races_from_static(2026)[0]  # finished: shows the status text
+    weather = WeatherData(24.0, 2, 40)
+    status = get_translator(lang).get("race_completed", "")
+    drawn: list[tuple[str, tuple]] = []
+    original = ImageDraw.ImageDraw.text
+
+    def spy(draw, xy, text, *args, **kwargs):
+        drawn.append((text, draw.textbbox(xy, text, font=kwargs.get("font"))))
+        return original(draw, xy, text, *args, **kwargs)
+
+    with patch.object(ImageDraw.ImageDraw, "text", spy):
+        renderer.render_calendar(race, weather_data=weather, weather_type="current")
+
+    icon_boxes = [box for text, box in drawn if text == weather.icon]
+    status_boxes = [box for text, box in drawn if status and text.startswith(status[:3])]
+    assert icon_boxes and status_boxes, (status, [t for t, _ in drawn])
+    status_right = max(box[2] for box in status_boxes)
+    assert status_right < icon_boxes[0][0]
+
+
+# --- A1 + E1: Spectra 6 text keeps the inks it was drawn with ----------------------------------
+
+
+def test_spectra6_error_text_uses_only_drawn_inks():
+    import io
+
+    from PIL import Image
+
+    from app.services.i18n import get_translator
+    from app.services.renderers import create_renderer
+
+    renderer = create_renderer("spectra6", get_translator("de"), "de")
+    image = Image.open(io.BytesIO(renderer.render_error("Test monochromer Schrift")))
+
+    colors = {rgb for _count, rgb in image.convert("RGB").getcolors(maxcolors=16)}
+    assert colors == {renderer.colors.WHITE, renderer.colors.BLACK, renderer.colors.RED}
+
+
+def test_only_spectra6_disables_text_antialiasing():
+    from PIL import Image
+
+    from app.services.i18n import get_translator
+    from app.services.renderers import create_renderer
+
+    modes = {}
+    for display in ("1bit", "bwr", "bwry", "spectra6"):
+        renderer = create_renderer(display, get_translator("en"), "en")
+        modes[display] = renderer._new_draw(Image.new("RGB", (4, 4))).fontmode
+    assert modes == {"1bit": "L", "bwr": "L", "bwry": "L", "spectra6": "1"}
+
+
+def test_fit_left_text_shrinks_then_ellipsizes():
+    from PIL import Image, ImageDraw
+
+    from app.services.font_utils import load_ui_font
+    from app.services.renderer_calendar import _fit_left_text
+
+    draw = ImageDraw.Draw(Image.new("RGB", (200, 50)))
+    font = load_ui_font("de", 20, bold=True)
+    width = draw.textbbox((0, 0), "ABGESCHLOSSEN", font=font)[2]
+
+    text, shrunk = _fit_left_text(draw, "ABGESCHLOSSEN", font, width * 0.85)
+    assert text == "ABGESCHLOSSEN" and shrunk.size < font.size
+
+    text, smallest = _fit_left_text(draw, "ABGESCHLOSSEN", font, width * 0.4)
+    assert text.endswith("...") and smallest.size == int(font.size * 0.7)

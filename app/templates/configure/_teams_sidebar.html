@@ -53,7 +53,7 @@
       <select
         id="teamsExtraSelect"
         data-on-change="selectTeamsExtra"
-        class="teams-extra-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-racing-red"
+        class="teams-extra-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red"
       >
         {% for opt in teams_extra_options %}
         <option value="{{ opt }}" data-hint="{{ tx.hints[opt] }}">{{ tx.options[opt] }}</option>
@@ -82,7 +82,7 @@
     <select
       id="teamsExtraSelectMobile"
       data-on-change="selectTeamsExtra"
-      class="teams-extra-select w-full appearance-none bg-white border-2 border-black px-3 py-2 pr-7 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-racing-red shadow-neo-sm"
+      class="teams-extra-select w-full appearance-none bg-white border-2 border-black px-3 py-2 pr-7 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red shadow-neo-sm"
     >
       {% for opt in teams_extra_options %}
       <option value="{{ opt }}" data-hint="{{ tx.hints[opt] }}">{{ tx.options[opt] }}</option>
@@ -155,6 +155,6 @@
   <select
     id="yearSelectMobile"
     data-on-change="selectYearMobile"
-    class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-racing-red shadow-neo-sm"
+    class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red shadow-neo-sm"
   ></select>
 </div>

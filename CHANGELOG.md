@@ -118,9 +118,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `weather_type=off` no longer fetches weather on a cache miss. When weather enrichment
     times out, a lookup that already finished (for example current weather) is kept instead
     of being dropped.
-  - `reset-db stats` also clears `api_call_totals` and `perf_metrics`, the tables the default
-    `AGGREGATE_STATS_ONLY=true` profile writes, and `reset-db info` lists them. Tables missing
-    from older databases are skipped.
+  - `reset-db stats` also clears `api_call_totals`, `perf_metrics`, `perf_buckets` and
+    `stats_batches`, the tables the default `AGGREGATE_STATS_ONLY=true` profile writes, and
+    `reset-db info` lists them. Tables missing from older databases are skipped; a failed table
+    lookup (for example a database still locked after the timeout) aborts the reset.
   - The historical refresh requests Las Vegas from Jolpica as `vegas` (the provider ID) instead
     of the local `las_vegas`, which never returned results. A podium is accepted only with
     positions exactly 1–3, and the results footer labels rows with the stored position. The
@@ -147,7 +148,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     drawer (below `lg`) are `inert`, so Tab no longer lands on off-screen buttons. Opening
     moves focus into the panel, while closing (including with Escape) returns it to the menu
     button. The timezone, season and race selects and the URL field now show a
-    `focus-visible` ring.
+    `focus-visible` ring, and these and the other ring-styled controls keep a visible outline
+    in Windows high-contrast (forced colors) mode, which hides the ring.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
