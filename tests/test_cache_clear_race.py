@@ -22,6 +22,7 @@ from app.models import TeamEntry, TeamsData
 from app.routes import images, previews
 from app.routes.deps import get_f1_service
 from app.services import bmp_artifacts
+from app.services.weather_service import WeatherData
 from app.state import clear_bmp_cache, get_bmp_cache, get_bmp_variant_cache
 from app.utils.etag import strong_etag
 
@@ -514,3 +515,51 @@ async def test_teams_preview_retries_once(
 
     again = await _get(race_app, "/preview/configure/teams.png", theme="dark")
     assert again.headers["cache-control"] == ("no-cache" if cached else cache_control)
+
+
+@pytest.mark.asyncio
+async def test_teams_panel_preview_retry_rebuilds_its_context(race_app, monkeypatch):
+    """The retry draws (and caches) the panel as it is after the clear, not before it."""
+    renders = _Renders(clear_on=(1,))
+    _teams_renders(monkeypatch, renders, module=previews)
+    contexts = []
+
+    def build(extra, season, *, timezone_name=None, temp_unit=None):
+        # Each build sees the weather that is current at that moment: it changes with the
+        # cache clear, as the scheduler refreshes weather in the same run.
+        weather = WeatherData(20.0 + renders.count, 1, 10)
+        ctx = SimpleNamespace(season=season, weather=weather, tz=timezone_name, unit=temp_unit)
+        contexts.append(ctx)
+        return ctx
+
+    drawn = []
+
+    async def png(func):
+        drawn.append(func.keywords["extra_context"])
+        return f"panel-{func.keywords['extra_context'].weather.temperature_c}".encode()
+
+    monkeypatch.setattr(previews, "build_teams_extra_context", build)
+    monkeypatch.setattr(
+        previews,
+        "get_teams_image_key",
+        lambda lang, season, *, display, extra, extra_context: (
+            f"teams_{lang}_{extra}_{extra_context.weather.temperature_c}"
+        ),
+    )
+    monkeypatch.setattr(previews, "run_render", png)
+
+    response = await _get(
+        race_app,
+        "/preview/configure/teams.png",
+        extra="weather",
+        tz="America/New_York",
+        temp_unit="f",
+    )
+
+    assert response.status_code == 200
+    assert renders.count == 2
+    assert len(contexts) == 2 and drawn == contexts
+    assert response.content == b"panel-21.0"
+    # The rebuilt context keeps the requested timezone and unit.
+    assert contexts[1].tz == "America/New_York" and str(contexts[1].unit) == "f"
+    assert list(get_bmp_variant_cache()) == ["preview:teams_en_weather_21.0"]

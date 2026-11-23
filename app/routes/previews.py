@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
 from email.utils import formatdate
 from io import BytesIO
@@ -56,7 +57,7 @@ from app.services.track_renderer import attribution_headers
 from app.services.weather_service import TempUnit
 from app.services.weekend_phase import WeekendMode, select_weekend_race
 from app.services.weekend_results import weekend_context
-from app.state import get_bmp_variant_cache
+from app.state import BmpArtifact, get_bmp_variant_cache
 from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, strong_etag
 from app.utils.image_conversion import bmp_to_png
@@ -360,14 +361,53 @@ async def _render_teams_extra_preview(
     extra: TeamsExtra,
     ctx: TeamsExtraContext | None,
     theme: ThemeMode = ThemeMode.LIGHT,
+    *,
+    rebuild_context: Callable[[], TeamsExtraContext | None] | None = None,
 ) -> Response:
-    """Cache a full-size panel (or plain dark) preview under its day/weather/theme token."""
+    """Cache a full-size panel (or plain dark) preview under its day/weather/theme token.
+
+    A render that straddles an image-cache clear is retried once. ``rebuild_context`` then
+    rebuilds the panel context (weather, next race) as the clear may have refreshed it, so the
+    retry neither draws nor caches the panel from before the clear.
+    """
+    retried = False
+    while True:
+        artifact, verdict = await _teams_extra_preview_artifact(lang, display, extra, ctx, theme)
+        if verdict is bmp_artifacts.CacheVerdict.RACED and not retried:
+            retried = True
+            if rebuild_context is not None:
+                ctx = rebuild_context()
+                if ctx is None:
+                    extra = TeamsExtra.NONE
+            continue
+        break
+    content, etag = artifact
+    unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
+    return Response(
+        content=b"" if unchanged else content,
+        status_code=304 if unchanged else 200,
+        media_type=None if unchanged else "image/png",
+        headers={"ETag": etag, "Cache-Control": _TEAMS_PREVIEW_MISS_CACHE_CONTROL[verdict]},
+    )
+
+
+async def _teams_extra_preview_artifact(
+    lang: str,
+    display: str,
+    extra: TeamsExtra,
+    ctx: TeamsExtraContext | None,
+    theme: ThemeMode,
+) -> tuple[BmpArtifact, bmp_artifacts.CacheVerdict]:
+    """Return one panel preview from the variant cache or a (singleflight) render."""
     season = ctx.season if ctx is not None else get_default_teams_year()
     key = (
         "preview:"
         + get_teams_image_key(lang, season, display=display, extra=extra, extra_context=ctx)
         + bmp_artifacts.theme_cache_suffix(theme)
     )
+    artifact = get_bmp_variant_cache().get(key)
+    if artifact is not None:
+        return artifact, bmp_artifacts.CacheVerdict.CACHED
 
     async def produce() -> bmp_artifacts.RenderedArtifact:
         """Render and cache only complete, current teams data in the variant cache."""
@@ -397,27 +437,9 @@ async def _render_teams_extra_preview(
                 get_bmp_variant_cache()[key] = rendered.artifact
             return rendered
 
-    # A render that straddles an image-cache clear is retried once (the finished flight has
-    # released its key, so the retry renders with freshly loaded teams data).
-    retried = False
-    while True:
-        artifact = get_bmp_variant_cache().get(key)
-        verdict = bmp_artifacts.CacheVerdict.CACHED
-        if artifact is None:
-            rendered = await bmp_artifacts.singleflight(f"{selected_generation()}:{key}", produce)
-            artifact, verdict = rendered.artifact, rendered.verdict()
-            if verdict is bmp_artifacts.CacheVerdict.RACED and not retried:
-                retried = True
-                continue
-        break
-    content, etag = artifact
-    unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
-    return Response(
-        content=b"" if unchanged else content,
-        status_code=304 if unchanged else 200,
-        media_type=None if unchanged else "image/png",
-        headers={"ETag": etag, "Cache-Control": _TEAMS_PREVIEW_MISS_CACHE_CONTROL[verdict]},
-    )
+    # The finished flight releases its key, so a retry renders with freshly loaded data.
+    rendered = await bmp_artifacts.singleflight(f"{selected_generation()}:{key}", produce)
+    return rendered.artifact, rendered.verdict()
 
 
 async def _render_dynamic_preview(
@@ -478,13 +500,16 @@ async def _try_teams_extra_preview(
     dark = theme != ThemeMode.LIGHT
     if extra == TeamsExtra.NONE and not dark:
         return None, False
-    ctx = (
-        build_teams_extra_context(
+
+    def build_context() -> TeamsExtraContext | None:
+        """Build the panel context for the requested timezone and unit (again on a retry)."""
+        if extra == TeamsExtra.NONE:
+            return None
+        return build_teams_extra_context(
             extra, get_default_teams_year(), timezone_name=tz, temp_unit=temp_unit
         )
-        if extra != TeamsExtra.NONE
-        else None
-    )
+
+    ctx = build_context()
     if ctx is None and not dark:
         return None, False
     _charge_configure_preview(request)
@@ -496,6 +521,7 @@ async def _try_teams_extra_preview(
             extra if ctx is not None else TeamsExtra.NONE,
             ctx,
             **bmp_artifacts.theme_kwargs(theme),
+            rebuild_context=build_context,
         )
     except Exception as exc:
         if isinstance(exc, (HTTPException, StaleSelection)):
