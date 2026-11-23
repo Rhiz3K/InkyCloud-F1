@@ -2441,7 +2441,7 @@ def test_driver_photo_paste_adapters_apply_monochrome_and_alpha_images():
 
 
 def test_results_column_labels_rows_with_stored_position():
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import ImageFont
 
     from app.services.renderer_results import draw_results_column
 
@@ -2488,9 +2488,6 @@ def test_results_column_labels_rows_with_stored_position():
 @pytest.mark.parametrize("lang", ["de", "pl", "fr", "ja", "en"])
 def test_finished_race_status_does_not_overlap_weather(display, lang):
     from app.services.f1_service import F1Service
-    from app.services.i18n import get_translator
-    from app.services.renderers import create_renderer
-    from app.services.weather_service import WeatherData
 
     renderer = create_renderer(display, get_translator(lang), lang)
     race = F1Service().get_all_races_from_static(2026)[0]  # finished: shows the status text
@@ -2519,11 +2516,6 @@ def test_finished_race_status_does_not_overlap_weather(display, lang):
 def test_spectra6_error_text_uses_only_drawn_inks():
     import io
 
-    from PIL import Image
-
-    from app.services.i18n import get_translator
-    from app.services.renderers import create_renderer
-
     renderer = create_renderer("spectra6", get_translator("de"), "de")
     image = Image.open(io.BytesIO(renderer.render_error("Test monochromer Schrift")))
 
@@ -2532,11 +2524,6 @@ def test_spectra6_error_text_uses_only_drawn_inks():
 
 
 def test_only_spectra6_disables_text_antialiasing():
-    from PIL import Image
-
-    from app.services.i18n import get_translator
-    from app.services.renderers import create_renderer
-
     modes = {}
     for display in ("1bit", "bwr", "bwry", "spectra6"):
         renderer = create_renderer(display, get_translator("en"), "en")
@@ -2545,8 +2532,6 @@ def test_only_spectra6_disables_text_antialiasing():
 
 
 def test_fit_left_text_shrinks_then_ellipsizes():
-    from PIL import Image, ImageDraw
-
     from app.services.font_utils import load_ui_font
     from app.services.renderer_calendar import _fit_left_text
 
