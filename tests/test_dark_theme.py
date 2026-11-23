@@ -60,7 +60,9 @@ PANEL_NOW = datetime(2026, 3, 6, 12, tzinfo=UTC)
 def _qatar() -> dict:
     """Return the bundled Qatar 2026 weekend converted to Europe/Prague."""
     races = F1Service(timezone_name="Europe/Prague").get_all_races_from_static(2026)
-    return next(r for r in races if r["race_name"] == "Qatar Grand Prix")
+    race = next((r for r in races if r["race_name"] == "Qatar Grand Prix"), None)
+    assert race is not None
+    return race
 
 
 def _rgb(data: bytes) -> Image.Image:
@@ -209,7 +211,8 @@ def test_flags_keep_their_colours_with_a_white_border(display):
 
 def test_new_track_badge_and_error_image_follow_the_dark_canvas():
     races = F1Service(timezone_name="Europe/Prague").get_all_races_from_static(2026)
-    madring = next(race for race in races if race["circuit"]["circuitId"] == "madring")
+    madring = next((race for race in races if race["circuit"]["circuitId"] == "madring"), None)
+    assert madring is not None
     dark = _rgb(_calendar("bwr", ThemeMode.DARK, race=madring))
     badge = dark.crop((520, 905 - 484, 680, 955 - 484))
     assert _share(badge, BLACK) > 0.4 and WHITE in _colors(badge)

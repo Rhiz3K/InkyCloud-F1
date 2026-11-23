@@ -232,17 +232,18 @@ async def api_info() -> dict:
             "example": "?rotate=180",
             "optional": True,
         },
-    }
-    output_parameters["theme"] = {
-        "type": "string",
-        "description": "dark (experimental): white text and lines on a black background; red, "
-        "yellow and the Spectra 6 colours keep their roles and flags keep their colours. Large "
-        "black areas can ghost on some panels, so prefer a full refresh. Rendered on demand "
-        "(never pregenerated). light keeps the default output. Invalid values return 422.",
-        "values": [theme.value for theme in ThemeMode],
-        "default": ThemeMode.LIGHT.value,
-        "example": "?theme=dark",
-        "optional": True,
+        "theme": {
+            "type": "string",
+            "description": "dark (experimental): white text and lines on a black background; "
+            "red, yellow and the Spectra 6 colours keep their roles and flags keep their colours. "
+            "Large black areas can ghost on some panels, so prefer a full refresh. Rendered on "
+            "demand (never pregenerated). light keeps the default output. Invalid values return "
+            "422.",
+            "values": [theme.value for theme in ThemeMode],
+            "default": ThemeMode.LIGHT.value,
+            "example": "?theme=dark",
+            "optional": True,
+        },
     }
     output_content_type = "image/bmp; image/png with format=png"
     refresh_hint = (
