@@ -199,16 +199,11 @@ async def test_calendar_retry_uses_an_entry_cached_meanwhile(race_app, monkeypat
     async def render_calendar(**kwargs):
         renders.next()
         # A newer request rendered and cached fresh bytes while this render was running.
-        get_bmp_cache()[next(iter(cache_keys))] = (b"fresh", strong_etag(b"fresh"))
+        cache_key = capture.call_args_list[0].kwargs["cache_key"]
+        get_bmp_cache()[cache_key] = (b"fresh", strong_etag(b"fresh"))
         return b"stale", kwargs["race_data"], True
 
-    cache_keys: list[str] = []
-    real = bmp_artifacts.render_calendar_artifact
-
-    async def capture(**kwargs):
-        cache_keys.append(kwargs["cache_key"])
-        return await real(**kwargs)
-
+    capture = AsyncMock(wraps=bmp_artifacts.render_calendar_artifact)
     monkeypatch.setattr(bmp_artifacts, "render_calendar", render_calendar)
     monkeypatch.setattr(bmp_artifacts, "render_calendar_artifact", capture)
 
