@@ -3,6 +3,7 @@
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from io import BytesIO
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from zoneinfo import ZoneInfo
@@ -38,7 +39,7 @@ from app.services.weather_service import (
 from app.services.weekend_phase import weekend_phase
 from app.state import get_bmp_cache, get_bmp_variant_cache
 from app.utils import refresh_hint as rh
-from app.utils.refresh_hint import CountdownMode
+from app.utils.refresh_hint import WEEKEND_FORECAST_LEAD_DAYS, CountdownMode
 
 DISPLAYS = ("1bit", "bwr", "bwry", "spectra6")
 # Qatar 2026 (bundled, normal weekend) and Singapore 2026 (sprint weekend), UTC.
@@ -293,6 +294,31 @@ async def test_past_sessions_are_left_out(open_meteo):
     weekend = await ws.WeatherService().get_weekend_weather(1.0, 2.0, race.date(), sessions)
     assert [item.session for item in weekend.sessions] == ["race"]
     assert open_meteo.requests[0]["start_date"] == datetime.now(UTC).date().isoformat()
+
+
+@pytest.mark.asyncio
+async def test_sessions_that_started_today_are_left_out_even_when_cached(open_meteo, monkeypatch):
+    qualifying = datetime(2026, 11, 28, 15, 0, tzinfo=UTC)
+    race = datetime(2026, 11, 29, 14, 0, tzinfo=UTC)
+    sessions = [("qualifying", qualifying), ("race", race)]
+    clock = {"now": datetime(2026, 11, 28, 10, 0, tzinfo=UTC)}
+
+    class _Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock["now"] if tz is not None else clock["now"].replace(tzinfo=None)
+
+    monkeypatch.setattr(ws, "datetime", _Frozen)
+    service = ws.WeatherService()
+    morning = await service.get_weekend_weather(1.0, 2.0, race.date(), sessions)
+    assert [item.session for item in morning.sessions] == ["qualifying", "race"]
+
+    # Saturday evening: qualifying is over although its forecast is cached and it is still
+    # the same UTC day, so only the race forecast is drawn.
+    clock["now"] = datetime(2026, 11, 28, 20, 0, tzinfo=UTC)
+    evening = await service.get_weekend_weather(1.0, 2.0, race.date(), sessions)
+    assert [item.session for item in evening.sessions] == ["race"]
+    assert evening.sessions[0].weather == morning.sessions[1].weather
 
 
 @pytest.mark.asyncio
@@ -809,7 +835,17 @@ def test_teams_panel_token_and_render_follow_the_unit(monkeypatch):
     assert celsius.temp_unit == TempUnit.C and fahrenheit.temp_unit == TempUnit.F
     c_token = teams_extra_cache_token(TeamsExtra.WEATHER, celsius)
     f_token = teams_extra_cache_token(TeamsExtra.WEATHER, fahrenheit)
-    assert not c_token.endswith("_f") and f_token == c_token + "_f"
+    assert not c_token.endswith("_f") and f_token.endswith("_f")
+    assert c_token.rsplit("_", 1)[0] == f_token.rsplit("_", 2)[0]  # same day, round, panel
+    # The hash follows the drawn temperature: 20.2 °C and 20.4 °C are both 20 °C (one Celsius
+    # image) but 68 °F and 69 °F, so the Fahrenheit panel must not reuse the cached image.
+    warm, warmer = WeatherData(20.2, 1, 40), WeatherData(20.4, 1, 40)
+    assert teams_extra_cache_token(
+        TeamsExtra.WEATHER, replace(celsius, weather=warm)
+    ) == teams_extra_cache_token(TeamsExtra.WEATHER, replace(celsius, weather=warmer))
+    assert teams_extra_cache_token(
+        TeamsExtra.WEATHER, replace(fahrenheit, weather=warm)
+    ) != teams_extra_cache_token(TeamsExtra.WEATHER, replace(fahrenheit, weather=warmer))
     # Without weather or on another panel the unit changes nothing.
     assert teams_extra_cache_token(
         TeamsExtra.WEATHER, replace(fahrenheit, weather=None)
@@ -1067,3 +1103,11 @@ async def test_api_docs_list_the_unit_and_the_weekend_weather():
         assert parameter["values"] == ["c", "f"] and parameter["default"] == "c"
     for path in ("/calendar.bmp", "/auto.bmp", "/preview/configure/{screen_type}.png"):
         assert "weekend" in endpoints[path]["parameters"]["weather_type"]["values"]
+
+
+def test_configurator_weekend_lead_matches_the_server():
+    import re
+
+    template = (Path(__file__).resolve().parents[1] / "app/templates/configure.html").read_text()
+    match = re.search(r"const WEEKEND_FORECAST_LEAD_DAYS = (\d+);", template)
+    assert match and int(match.group(1)) == WEEKEND_FORECAST_LEAD_DAYS

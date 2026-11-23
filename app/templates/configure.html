@@ -529,6 +529,8 @@ block content %}
   let currentAutoScreen = "off";
   const TEMP_UNIT_OPTIONS = ["c", "f"];
   let currentTempUnit = "c";
+  // app/utils/refresh_hint.py WEEKEND_FORECAST_LEAD_DAYS: qualifying/sprint days before the race.
+  const WEEKEND_FORECAST_LEAD_DAYS = 2;
 
   function initScreenTypeVisibility() {
     const isCalendar = currentScreenType === "calendar";
@@ -1937,27 +1939,40 @@ block content %}
     return upcomingRace?.date || null;
   }
 
-  function isRaceDayWeatherAvailable() {
+  /** Whole days until the next race date (rounded up), or null when it is unknown. */
+  function daysUntilNextRace() {
     if (!nextRaceDate) {
-      return false;
+      return null;
     }
-
-    const now = new Date();
     const raceDate = new Date(nextRaceDate);
-    const daysUntilRace = Math.ceil((raceDate - now) / (1000 * 60 * 60 * 24));
-    return daysUntilRace <= 14;
+    return Math.ceil((raceDate - new Date()) / (1000 * 60 * 60 * 24));
+  }
+
+  function isRaceDayWeatherAvailable() {
+    const days = daysUntilNextRace();
+    return days !== null && days <= 14;
+  }
+
+  /**
+   * The weekend forecast also covers qualifying and the sprint up to
+   * WEEKEND_FORECAST_LEAD_DAYS before the race day, so it is available that much earlier.
+   */
+  function isWeekendWeatherAvailable() {
+    const days = daysUntilNextRace();
+    return days !== null && days - WEEKEND_FORECAST_LEAD_DAYS <= 14;
   }
 
   function setWeatherType(type) {
-    const raceDayBtn = document.getElementById("weatherRaceDayBtn");
-    const raceDayBtnMobile = document.getElementById("weatherRaceDayBtnMobile");
-    // The weekend forecast becomes available with the race-day forecast.
-    const raceDayUnavailable =
-      (type === "race_day" || type === "weekend") &&
-      (isWeatherTooltipDisabledState(raceDayBtn) ||
-        isWeatherTooltipDisabledState(raceDayBtnMobile));
+    // Race-day and weekend forecasts have their own availability (and disabled buttons).
+    const forecastButtonIds = {
+      race_day: ["weatherRaceDayBtn", "weatherRaceDayBtnMobile"],
+      weekend: ["weatherWeekendBtn", "weatherWeekendBtnMobile"],
+    }[type];
+    const forecastUnavailable = (forecastButtonIds || []).some((id) =>
+      isWeatherTooltipDisabledState(document.getElementById(id)),
+    );
 
-    if (raceDayUnavailable) {
+    if (forecastUnavailable) {
       return;
     }
 
@@ -2041,17 +2056,18 @@ block content %}
   }
 
   function updateWeatherTypeAvailability() {
-    const raceDayBtns = [
-      document.getElementById("weatherRaceDayBtn"),
-      document.getElementById("weatherRaceDayBtnMobile"),
-      document.getElementById("weatherWeekendBtn"),
-      document.getElementById("weatherWeekendBtnMobile"),
-    ];
     const isRaceDayAvailable = isRaceDayWeatherAvailable();
+    const isWeekendAvailable = isWeekendWeatherAvailable();
+    const forecastBtns = [
+      [document.getElementById("weatherRaceDayBtn"), isRaceDayAvailable],
+      [document.getElementById("weatherRaceDayBtnMobile"), isRaceDayAvailable],
+      [document.getElementById("weatherWeekendBtn"), isWeekendAvailable],
+      [document.getElementById("weatherWeekendBtnMobile"), isWeekendAvailable],
+    ];
 
-    raceDayBtns.forEach((btn) => {
+    forecastBtns.forEach(([btn, available]) => {
       if (!btn) return;
-      if (isRaceDayAvailable) {
+      if (available) {
         btn.setAttribute("aria-disabled", "false");
         btn.removeAttribute("aria-describedby");
         btn.classList.remove(
@@ -2083,7 +2099,10 @@ block content %}
       }
     });
 
-    if (!isRaceDayAvailable && ["race_day", "weekend"].includes(currentWeatherType)) {
+    if (
+      (!isRaceDayAvailable && currentWeatherType === "race_day") ||
+      (!isWeekendAvailable && currentWeatherType === "weekend")
+    ) {
       setWeatherType("current");
     }
   }
@@ -2112,15 +2131,16 @@ block content %}
   }
 
   /**
-   * Sets the temperature unit, syncing every °C/°F switch and the page URL (Celsius, the
-   * default, is left out of URLs so existing links stay unchanged).
+   * Sets the temperature unit, syncing every °C/°F switch and the page URL. Celsius is left
+   * out of the page URL only when it is also the suggestion, so a reload in a US time zone
+   * keeps an explicit °C choice; image URLs omit the server default either way.
    */
   function setTempUnit(unit, refresh = true) {
     if (!TEMP_UNIT_OPTIONS.includes(unit)) unit = "c";
     currentTempUnit = unit;
     if (refresh) {
       const url = new URL(window.location.href);
-      if (unit === "c") url.searchParams.delete("temp_unit");
+      if (unit === "c" && suggestedTempUnit() === "c") url.searchParams.delete("temp_unit");
       else url.searchParams.set("temp_unit", unit);
       window.history.replaceState(null, "", url);
     }

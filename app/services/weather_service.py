@@ -485,8 +485,9 @@ class WeatherService:
 
         Uses the same single request as the race-day forecast. Each session's forecast is
         cached under its own start (the race-day key format), so the hourly prefetch can
-        persist and restore it. Once the race has started only its (archived) race weather
-        is shown. Sessions without data are left out; None when none has data.
+        persist and restore it. Sessions that have started are left out, and once the race
+        has started only its (archived) race weather is shown. Sessions without data are left
+        out; None when none has data.
         """
         if race_date is None or not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
             return None
@@ -499,6 +500,10 @@ class WeatherService:
         found: list[tuple[str, Optional[WeatherData]]] = []
         hourly: Optional[dict] = None
         for kind, start in sessions:
+            if to_utc(start) <= now:
+                # A session that has started is over for the forecast line, even when its
+                # forecast is still cached or its UTC day is still today.
+                continue
             key = _race_weather_cache_key(lat, lon, start)
             weather = self._get_cached(key)
             if weather is None and _in_weekend_window(start, race_date, now):

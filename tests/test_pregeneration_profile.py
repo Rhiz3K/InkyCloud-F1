@@ -286,6 +286,43 @@ async def test_weather_profile_off_neither_fetches_nor_expects_weather(tmp_path,
     assert call(GENERATION_REASONS_META_KEY, "") in db.set_cache_meta.await_args_list
 
 
+@pytest.mark.asyncio
+async def test_weekend_only_weather_profile_still_fetches_weather(tmp_path, profile):
+    profile("en", "1bit", "weekend")
+    load_weather = AsyncMock(return_value=(None, None, {"off": None, "weekend": None}))
+    db = SimpleNamespace(set_cache_meta=AsyncMock(), cleanup_old_stats=AsyncMock())
+    with (
+        patch("app.services.scheduler_generation.get_database", return_value=db),
+        patch("app.services.scheduler_generation.F1Service") as f1_service,
+        patch("app.services.scheduler_generation._load_historical_data", return_value=None),
+        patch("app.services.scheduler_generation._load_weather_context", new=load_weather),
+        patch(
+            "app.services.scheduler_generation._generate_base_variants",
+            new=AsyncMock(return_value=({tmp_path / "calendar_en.bmp"}, 0)),
+        ),
+        patch(
+            "app.services.scheduler_generation._generate_popular_tz_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
+        patch(
+            "app.services.scheduler_generation._generate_teams_bmp_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
+        patch("app.services.scheduler_generation.generate_preview_pngs", new=AsyncMock()),
+        patch("app.services.scheduler_generation._delete_stale_bmps", return_value=0),
+        patch("app.services.scheduler_generation.clear_bmp_cache"),
+        patch("app.services.scheduler_generation.config.IMAGES_PATH", str(tmp_path)),
+        patch("app.services.scheduler_generation.config.WEATHER_ENABLED", False),
+    ):
+        f1_service.return_value.get_next_race_from_static.return_value = {"race_name": "Test"}
+        await scheduler_generation.collect_and_generate()
+
+    load_weather.assert_awaited_once()
+    # Weekend previews are part of the profile and must not be deleted as excluded.
+    (tmp_path / "configure_calendar_en_weather_weekend.png").write_bytes(b"png")
+    assert scheduler_generation._delete_excluded_previews(tmp_path) == 0
+
+
 def test_only_profile_weather_types_count_as_degraded(monkeypatch):
     monkeypatch.setattr(scheduler_generation.config, "WEATHER_ENABLED", True)
     monkeypatch.setattr(scheduler_generation, "_race_weather_expected", lambda race: True)

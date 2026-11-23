@@ -16,6 +16,7 @@ from app.services.weather_service import (
     WeatherData,
     WeatherService,
     _race_weather_cache_key,
+    convert_temperature,
     get_cached_circuit_weather,
 )
 from app.utils.race_times import local_session_start, parse_session_start, session_over
@@ -207,7 +208,14 @@ def teams_extra_cache_token(extra: TeamsExtra, ctx: TeamsExtraContext | None) ->
     token = f"_x{extra}_{today:%Y%m%d}_r{ctx.next_round}"
     if extra == TeamsExtra.WEATHER and ctx.weather is not None:
         wx = ctx.weather
-        values = (round(wx.temperature_c), wx.weather_code, wx.precip_display)
+        # Hash the temperature as drawn: 20.2 °C and 20.4 °C are both 20 °C but 68 °F and
+        # 69 °F. Celsius keeps its historical value, and with it the existing keys.
+        temperature = (
+            round(wx.temperature_c)
+            if ctx.temp_unit == TempUnit.C
+            else convert_temperature(wx.temperature_c, ctx.temp_unit)
+        )
+        values = (temperature, wx.weather_code, wx.precip_display)
         token += "_" + sha256(repr(values).encode()).hexdigest()[:10]
         if ctx.temp_unit != TempUnit.C:
             token += f"_{ctx.temp_unit}"

@@ -934,6 +934,7 @@ function optionButtonsContext() {
                 classList: {add: (...names) => names.forEach((name) => classes.add(name)), remove: (...names) => names.forEach((name) => classes.delete(name)), contains: (name) => classes.has(name)},
                 setAttribute(name, value) {attributes[name] = String(value);},
                 getAttribute(name) {return attributes[name] ?? null;},
+                removeAttribute(name) {delete attributes[name];},
             };
         }
         return elements[id];
@@ -962,6 +963,48 @@ for (const [type, selected] of [["off", "weatherOff"], ["current", "weatherCurre
         assert.equal(element("weatherToggle").checked, type !== "off");
     });
 }
+
+function weatherAvailabilityContext(daysToRace, currentWeatherType) {
+    const {ctx, element} = optionButtonsContext();
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    // Midnight UTC of the date daysToRace from now lies within the last day: ceil() gives daysToRace.
+    const raceDate = new Date(Date.now() + daysToRace * 86400000).toISOString().slice(0, 10);
+    Object.assign(ctx, {nextRaceDate: raceDate, WEEKEND_FORECAST_LEAD_DAYS: 2, currentWeatherType});
+    ctx.isWeatherTooltipDisabledState = (btn) => btn?.getAttribute("aria-disabled") === "true";
+    for (const name of ["daysUntilNextRace", "isRaceDayWeatherAvailable", "isWeekendWeatherAvailable",
+        "updateWeatherTypeAvailability", "setWeatherType"]) {
+        vm.runInContext(templateFunction(template, name), ctx);
+    }
+    return {ctx, element};
+}
+
+test("weekend weather is available before the race-day forecast and keeps its choice", () => {
+    // 16 days out: the race day is beyond the race-day check, qualifying is in range.
+    const {ctx, element} = weatherAvailabilityContext(16, "weekend");
+    assert.equal(ctx.isRaceDayWeatherAvailable(), false);
+    assert.equal(ctx.isWeekendWeatherAvailable(), true);
+    ctx.updateWeatherTypeAvailability();
+    assert.equal(element("weatherRaceDayBtn").getAttribute("aria-disabled"), "true");
+    assert.equal(element("weatherWeekendBtn").getAttribute("aria-disabled"), "false");
+    assert.equal(element("weatherWeekendBtnMobile").getAttribute("aria-disabled"), "false");
+    assert.equal(ctx.currentWeatherType, "weekend");
+    ctx.setWeatherType("race_day");  // ignored while its buttons are disabled
+    assert.equal(ctx.currentWeatherType, "weekend");
+
+    const far = weatherAvailabilityContext(17, "weekend");
+    assert.equal(far.ctx.isWeekendWeatherAvailable(), false);
+    far.ctx.updateWeatherTypeAvailability();
+    assert.equal(far.ctx.currentWeatherType, "current");
+
+    const raceDay = weatherAvailabilityContext(16, "race_day");
+    raceDay.ctx.updateWeatherTypeAvailability();
+    assert.equal(raceDay.ctx.currentWeatherType, "current");
+
+    const unknown = weatherAvailabilityContext(3, "current");
+    unknown.ctx.nextRaceDate = null;
+    assert.equal(unknown.ctx.daysUntilNextRace(), null);
+    assert.equal(unknown.ctx.isWeekendWeatherAvailable(), false);
+});
 
 const DISPLAY_IDS = ["display1bitBtn", "displayBwrBtn", "displayBwryBtn", "displaySpectra6Btn"].flatMap((id) => [id, `${id}Mobile`]);
 
@@ -1234,6 +1277,11 @@ test("setTempUnit syncs every switch and the page URL, ?temp_unit= initialises i
     ctx.setTempUnit("f", false);
     assert.equal(ctx.previewUpdates, 2);
     assert.equal(replaced.length, 2);
+    // Where °F is suggested, an explicit °C stays in the page URL so a reload keeps it.
+    ctx.suggestedTempUnit = () => "f";
+    ctx.setTempUnit("c");
+    assert.equal(replaced.at(-1), "https://racing.example.org/configure/calendar?temp_unit=c");
+    assert.ok(!ctx.getApiUrl().includes("temp_unit"));
 
     const fresh = calendarCountdownContext({suggestedTempUnit: () => "f"});
     fresh.ctx.window.location.search = "?temp_unit=c";
