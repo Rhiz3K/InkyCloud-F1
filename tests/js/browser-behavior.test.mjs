@@ -1420,7 +1420,7 @@ test("theme=dark reaches the screen URL, the preview and /auto.bmp", () => {
     const auto = autoScreenContext("teams", {currentAutoScreen: "daily", currentTheme: "dark",
         currentOutput: {format: "png", rotate: "0"}});
     assert.equal(auto.ctx.getCopyUrl(),
-        "https://racing.example.org/auto.bmp?year=2026&theme=dark&extra=none&mode=daily&format=png");
+        "https://racing.example.org/auto.bmp?year=2026&theme=dark&extra=none&tz=Europe%2FPrague&mode=daily&format=png");
 });
 
 test("setTheme syncs the select, the hint, the page URL and the preview, ?theme= initialises it", () => {
