@@ -158,3 +158,27 @@ def test_font_mime_types_are_registered_by_the_app():
 
     assert mimetypes.guess_type("font.woff2")[0] == "font/woff2"
     assert mimetypes.guess_type("font.ttf")[0] == "font/ttf"
+
+
+# --- Self-hosting log recipe keeps the pinned image and states the logging switch ----------------
+
+
+def test_self_hosting_log_recipe_keeps_release_and_cleans_up():
+    from pathlib import Path
+
+    guide = (Path(__file__).resolve().parents[1] / "SELF-HOSTING.md").read_text(encoding="utf-8")
+    section = guide.split("## Run the released image", 1)[1].split("\n## ", 1)[0]
+    recipe = section.split("docker-compose.override.yml", 1)[1]
+
+    # A bare `docker compose up -d` would select (and could build) f1-eink-cal:local instead
+    # of the pinned release, so every recreate command keeps the image and --no-build.
+    up_lines = [line.strip() for line in recipe.splitlines() if line.strip().startswith("F1_IMAGE")]
+    assert up_lines and all("--no-build" in line for line in up_lines)
+    assert "F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose up -d --no-build" in (
+        recipe
+    )
+    # Python logging is off under the default AGGREGATE_STATS_ONLY=true, so the recipe names
+    # the switch, and removing the override needs another recreate to stop storing output.
+    assert "AGGREGATE_STATS_ONLY=false" in recipe
+    assert "restore `AGGREGATE_STATS_ONLY=true`" in recipe
+    assert "Until the container is recreated" in recipe

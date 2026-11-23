@@ -44,21 +44,36 @@ docker compose down
 ```
 
 The Compose file uses the `none` logging driver, so container output is not stored and
-`docker compose logs` prints nothing. To read logs while troubleshooting, add a
-`docker-compose.override.yml` next to `docker-compose.yml`, recreate the container, and delete
-the file again afterwards:
+`docker compose logs` prints nothing. Application logging is a separate switch: while
+`MINIMAL_DATA_MODE=true` or `AGGREGATE_STATS_ONLY=true` (the default), the application turns
+Python logging off, so changing the logging driver alone shows almost nothing. To read logs
+while troubleshooting:
 
-```yaml
-services:
-  f1-eink-cal:
-    logging:
-      driver: local
-```
+1. Add a `docker-compose.override.yml` next to `docker-compose.yml`:
 
-```bash
-docker compose up -d
-docker compose logs -f f1-eink-cal
-```
+   ```yaml
+   services:
+     f1-eink-cal:
+       logging:
+         driver: local
+   ```
+
+2. For application messages, also set `AGGREGATE_STATS_ONLY=false` in `.env` (with
+   `MINIMAL_DATA_MODE=false`). This is a privacy tradeoff: log lines can contain request
+   details and error payloads, and this legacy profile can store individual request records
+   instead of hourly totals (see [data collection](./docs/data-collection.md)).
+3. Recreate the container with the same pinned release, so Compose does not build or select the
+   local `f1-eink-cal:local` image, and follow the logs:
+
+   ```bash
+   F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose up -d --no-build
+   docker compose logs -f f1-eink-cal
+   ```
+
+When you are done, delete `docker-compose.override.yml`, restore `AGGREGATE_STATS_ONLY=true`, and
+run the same `docker compose up -d --no-build` command again. Until the container is recreated it
+keeps the `local` driver and keeps storing its output. For a [source build](#build-from-source),
+use `docker compose up -d` instead of the pinned-image command.
 
 `docker compose down` keeps the named data volume. Do not add `--volumes` unless permanent data
 deletion is intentional.
