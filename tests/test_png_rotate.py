@@ -57,7 +57,9 @@ OFF_WEEK = datetime(2026, 11, 22, 9, 30, tzinfo=UTC)
 def _qatar() -> dict:
     """Return the bundled Qatar 2026 weekend converted to Europe/Prague."""
     races = F1Service(timezone_name="Europe/Prague").get_all_races_from_static(2026)
-    return next(r for r in races if r["race_name"] == "Qatar Grand Prix")
+    race = next((r for r in races if r["race_name"] == "Qatar Grand Prix"), None)
+    assert race is not None
+    return race
 
 
 def _decode(data: bytes) -> Image.Image:
@@ -190,9 +192,9 @@ def test_png_uses_the_measured_compression_level(monkeypatch, calendars):
     seen = []
     original = Image.Image.save
 
-    def save(self, fp, format=None, **params):
-        seen.append((format, params))
-        return original(self, fp, format, **params)
+    def save(self, fp, *args, **params):
+        seen.append((params.get("format"), {k: v for k, v in params.items() if k != "format"}))
+        return original(self, fp, *args, **params)
 
     monkeypatch.setattr(Image.Image, "save", save)
     transform_bmp_output(calendars["1bit"], PNG)
@@ -262,8 +264,8 @@ async def test_output_artifact_runs_on_the_render_executor_once(
 async def test_output_artifact_skips_the_cache_after_a_cache_reset(
     clean_caches, calendars, monkeypatch
 ):
-    generations = iter([1, 2])
-    monkeypatch.setattr(bmp_artifacts, "bmp_cache_generation", lambda: next(generations))
+    generations = [1, 2]
+    monkeypatch.setattr(bmp_artifacts, "bmp_cache_generation", lambda: generations.pop(0))
     artifact = (calendars["1bit"], strong_etag(calendars["1bit"]))
     derived, cached = await bmp_artifacts.output_artifact(artifact, "1bit", PNG)
     assert not cached and derived[0].startswith(b"\x89PNG")
