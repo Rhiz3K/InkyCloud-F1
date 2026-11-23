@@ -28,10 +28,12 @@ BACKUP_FILENAME_FORMAT = f"{BACKUP_FILENAME_PREFIX}%Y-%m-%d_%H-%M-%S.db"
 SAFETY_SNAPSHOT_PREFIX = "f1_pre_restore_"
 SAFETY_SNAPSHOT_FORMAT = f"{SAFETY_SNAPSHOT_PREFIX}%Y-%m-%d_%H-%M-%S.db"
 _TIMESTAMP_FORMAT = "%Y-%m-%d_%H-%M-%S"
+# A safety snapshot taken within the same second as an existing one gets a ``_N`` suffix.
 _BACKUP_NAME_PATTERN = re.compile(
     rf"^(?P<prefix>{BACKUP_FILENAME_PREFIX}|{SAFETY_SNAPSHOT_PREFIX})"
-    r"(?P<stamp>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.db$"
+    r"(?P<stamp>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})(?:_[1-9]\d{0,3})?\.db$"
 )
+_MAX_SNAPSHOT_SUFFIX = 9999
 # Mutable files kept next to the database travel inside the snapshot in this table, so one
 # object stays atomic, retention keeps working by prefix and older backups simply lack it.
 DATA_FILES_TABLE = "inkycloud_backup_files"
@@ -647,7 +649,7 @@ def local_backups() -> list[dict[str, Any]]:
                 "safety_snapshot": path.name.startswith(SAFETY_SNAPSHOT_PREFIX),
             }
         )
-    return sorted(backups, key=lambda backup: backup["created_utc"])
+    return sorted(backups, key=lambda backup: (backup["created_utc"], backup["name"]))
 
 
 def _s3_backups(s3_client) -> list[dict[str, Any]]:
@@ -811,6 +813,24 @@ def _resolve_restore_source(name: str, source: str, s3_client) -> tuple[str, str
     return (candidates[-1]["name"], source) if candidates else None
 
 
+def _reserve_safety_snapshot(directory: Path) -> Path:
+    """Create an empty safety snapshot file under a name never used before and return it.
+
+    Names have one-second precision, so a second restore within the same second gets a
+    numeric suffix instead of overwriting the first recovery file (``O_EXCL`` reserves it).
+    """
+    stem = datetime.now(timezone.utc).strftime(SAFETY_SNAPSHOT_FORMAT).removesuffix(".db")
+    for suffix in range(_MAX_SNAPSHOT_SUFFIX + 1):
+        candidate = directory / (f"{stem}.db" if suffix == 0 else f"{stem}_{suffix}.db")
+        try:
+            descriptor = os.open(candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            continue
+        os.close(descriptor)
+        return candidate
+    raise FileExistsError("No free safety snapshot name")
+
+
 async def _migrate_database(db_path: str) -> None:
     """Run the normal schema creation and migrations on a restored database."""
     from app.services.database import Database
@@ -827,10 +847,12 @@ async def _migrate_database(db_path: str) -> None:
 def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> dict[str, Any]:
     """Restore a backup over the configured database; run with the service stopped.
 
-    The backup is copied to a working file, checked with ``PRAGMA integrity_check`` and its
-    schema version compared before anything changes. The live database is then saved as a
-    safety snapshot, replaced through SQLite's backup API, its embedded data files are written
-    back atomically, and the normal migrations bring older schemas up to date.
+    The backup is copied to a working file, checked with ``PRAGMA integrity_check``, its
+    schema version compared and the normal migrations run on that copy before anything live
+    changes. The live database is then saved as a safety snapshot (under a unique name),
+    replaced through SQLite's backup API, and the embedded data files are written back
+    atomically. ``database_changed`` tells whether a failure happened after the live data was
+    touched; the safety snapshot then restores the previous state.
     """
     from app.services.database import DATABASE_SCHEMA_VERSION
 
@@ -839,6 +861,7 @@ def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> d
         "name": None,
         "source": None,
         "safety_snapshot": None,
+        "database_changed": False,
         "data_files_restored": [],
         "schema_version_backup": None,
         "schema_version_after": None,
@@ -893,14 +916,21 @@ def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> d
             )
             return result
         data_files = _extract_data_files(working)
+        # Migrate the staged copy first: a failing migration leaves the live data untouched.
+        asyncio.run(_migrate_database(str(working)))
 
         if db_path.exists():
             directory = config.backup_local_dir
             directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-            snapshot = directory / datetime.now(timezone.utc).strftime(SAFETY_SNAPSHOT_FORMAT)
-            create_backup_snapshot(db_path, snapshot, include_data_files=True)
+            snapshot = _reserve_safety_snapshot(directory)
+            try:
+                create_backup_snapshot(db_path, snapshot, include_data_files=True)
+            except BaseException:
+                snapshot.unlink(missing_ok=True)
+                raise
             result["safety_snapshot"] = snapshot.name
 
+        result["database_changed"] = True
         with (
             closing(sqlite3.connect(working)) as src,
             closing(sqlite3.connect(db_path, timeout=5)) as dst,
@@ -912,7 +942,6 @@ def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> d
             atomic_write_bytes_sync(targets[file_name], content)
             result["data_files_restored"].append(file_name)
 
-        asyncio.run(_migrate_database(str(db_path)))
         result["schema_version_after"] = _schema_version(db_path)
     except (OSError, sqlite3.Error) as exc:
         result["error"] = f"Restore failed ({type(exc).__name__})"

@@ -466,6 +466,110 @@ def test_restore_reports_s3_and_io_failures_by_type_only(data_dir, monkeypatch):
     assert failed["error"] == "Restore failed (OSError)"
 
 
+def test_failed_migration_of_the_staged_copy_leaves_the_live_data_untouched(data_dir, capsys):
+    db_path = data_dir / "f1.db"
+    _set_marker(db_path, "backed-up")
+    _circuits(data_dir).write_text('{"monza": "backed-up"}')
+    backup.perform_local_backup()
+    _set_marker(db_path, "live")
+    _circuits(data_dir).write_text('{"monza": "live"}')
+
+    with patch(
+        "app.services.backup._migrate_database", side_effect=sqlite3.OperationalError("boom")
+    ):
+        failed = backup.restore_backup("latest")
+
+    assert failed["success"] is False
+    assert failed["database_changed"] is False
+    assert failed["safety_snapshot"] is None
+    assert _marker(db_path) == "live"
+    assert _circuits(data_dir).read_text() == '{"monza": "live"}'
+    assert not list(_local_dir(data_dir).glob(f"{backup.SAFETY_SNAPSHOT_PREFIX}*"))
+
+    with patch("app.services.backup.restore_backup", return_value=failed):
+        assert backup_cli.cmd_restore("latest", assume_yes=True) == 1
+    assert "The current database was not changed." in capsys.readouterr().out
+
+
+def test_failure_after_the_swap_names_the_snapshot_that_undoes_it(data_dir, capsys):
+    db_path = data_dir / "f1.db"
+    _set_marker(db_path, "backed-up")
+    _circuits(data_dir).write_text('{"monza": "backed-up"}')
+    backup.perform_local_backup()
+    _set_marker(db_path, "live")
+    _circuits(data_dir).write_text('{"monza": "live"}')
+
+    with patch("app.services.backup.atomic_write_bytes_sync", side_effect=OSError("disk full")):
+        failed = backup.restore_backup("latest")
+
+    assert failed["success"] is False
+    assert failed["error"] == "Restore failed (OSError)"
+    assert failed["database_changed"] is True
+    snapshot = failed["safety_snapshot"]
+    assert snapshot and (_local_dir(data_dir) / snapshot).is_file()
+
+    with patch("app.services.backup.restore_backup", return_value=failed):
+        assert backup_cli.cmd_restore("latest", assume_yes=True) == 1
+    output = capsys.readouterr().out
+    assert "was not changed" not in output
+    assert f"backup restore {snapshot}" in output
+
+    # The named snapshot brings back the database and the data file from before the restore.
+    undone = backup.restore_backup(snapshot, source="local")
+    assert undone["success"] is True, undone
+    assert _marker(db_path) == "live"
+    assert _circuits(data_dir).read_text() == '{"monza": "live"}'
+
+    no_previous = {**failed, "safety_snapshot": None}
+    with patch("app.services.backup.restore_backup", return_value=no_previous):
+        assert backup_cli.cmd_restore("latest", assume_yes=True) == 1
+    assert "no previous database to save" in capsys.readouterr().out
+
+
+def test_restores_within_one_second_never_overwrite_a_safety_snapshot(data_dir):
+    db_path = data_dir / "f1.db"
+    backup.perform_local_backup()
+    frozen = datetime(2026, 11, 23, 10, 0, 0, tzinfo=timezone.utc)
+
+    class _Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return frozen
+
+    names = []
+    with patch("app.services.backup.datetime", _Frozen):
+        for marker in ("first", "second", "third"):
+            _set_marker(db_path, marker)
+            restored = backup.restore_backup("latest", source="local")
+            assert restored["success"] is True, restored
+            names.append(restored["safety_snapshot"])
+
+    stem = frozen.strftime(backup.SAFETY_SNAPSHOT_FORMAT).removesuffix(".db")
+    assert names == [f"{stem}.db", f"{stem}_1.db", f"{stem}_2.db"]
+    assert [_marker(_local_dir(data_dir) / name) for name in names] == ["first", "second", "third"]
+    listed = [b["name"] for b in backup.local_backups() if b["safety_snapshot"]]
+    assert listed == names
+    # Suffixed snapshots stay restorable by name and keep the parsed timestamp.
+    assert backup._parse_backup_name(names[1]) == frozen
+    assert backup.restore_backup(names[1], source="local")["success"] is True
+    assert _marker(db_path) == "second"
+
+
+def test_reserving_a_snapshot_name_gives_up_when_every_suffix_is_taken(tmp_path, monkeypatch):
+    monkeypatch.setattr(backup, "_MAX_SNAPSHOT_SUFFIX", 1)
+    frozen = datetime(2026, 11, 23, 10, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(
+        backup,
+        "datetime",
+        type("_Frozen", (datetime,), {"now": classmethod(lambda c, tz=None: frozen)}),
+    )
+    first = backup._reserve_safety_snapshot(tmp_path)
+    second = backup._reserve_safety_snapshot(tmp_path)
+    assert first != second
+    with pytest.raises(FileExistsError):
+        backup._reserve_safety_snapshot(tmp_path)
+
+
 # --- outcome recording -------------------------------------------------------------------
 
 

@@ -12,8 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a pregeneration profile for small self-hosted instances. `PREGENERATE_LANGUAGES`,
   `PREGENERATE_DISPLAYS` and `PREGENERATE_WEATHER_TYPES` (comma-separated, empty = all, unknown
   entries ignored with a warning) limit which calendar, teams and PNG preview files the hourly
-  job writes; `weather=off` calendars are always generated. Combinations outside the profile
-  still render on demand and are cached in memory. `WEATHER_PREFETCH_ALL_CIRCUITS=false`
+  job writes; `weather=off` calendars are always generated. Weather the profile leaves out is
+  not fetched by the hourly job, and previews outside the profile are deleted, so they cannot
+  keep old standings or weather. Combinations outside the profile still render on demand and
+  are cached in memory. `WEATHER_PREFETCH_ALL_CIRCUITS=false`
   refreshes current weather hourly only for the next race instead of every circuit of the
   season; other circuits are fetched on demand. Defaults keep today's behaviour.
 - Add `ops status [--json]` in the container: readiness with stable reason codes
@@ -27,8 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and shares the generation states.
 - Add `backup list [--verify] [--json]`, `backup restore <name|latest>` and
   `backup now --local`. A restore checks the backup with `PRAGMA integrity_check`, refuses a
-  newer schema and a database in use, saves the current database as a safety snapshot, writes
-  through SQLite's backup API and runs the normal migrations, so older backups are upgraded.
+  newer schema and a database in use, runs the normal migrations on the staged copy (so older
+  backups are upgraded before anything live changes), saves the current database as a safety
+  snapshot under a name that is never reused, and writes through SQLite's backup API. A failure
+  after that point names the safety snapshot that undoes it.
   Backups now include `circuits_jolpica.json` (`BACKUP_INCLUDE_DATA_FILES=true`) and restore
   it. Local backups (`BACKUP_LOCAL_DIR`, default next to the database) also work in
   `MINIMAL_DATA_MODE`; external backups stay off there.

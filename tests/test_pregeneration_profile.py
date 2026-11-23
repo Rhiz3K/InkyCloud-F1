@@ -171,6 +171,10 @@ async def test_hourly_generation_writes_only_the_profile_variants(tmp_path, prof
     )
     teams_service = SimpleNamespace(get_teams_and_drivers=AsyncMock(return_value=_teams_data()))
     monkeypatch.setattr(scheduler_generation.config, "IMAGES_PATH", str(images_dir))
+    # A teams preview left by an earlier, wider profile must not outlive it.
+    images_dir.mkdir()
+    (images_dir / "configure_teams_de_bwry.png").write_bytes(b"old standings")
+    (images_dir / "configure_teams_de_bwry.png.meta.json").write_text("{}")
     with (
         patch("app.services.scheduler_generation.get_database", return_value=db),
         patch(
@@ -199,6 +203,7 @@ async def test_hourly_generation_writes_only_the_profile_variants(tmp_path, prof
         "configure_calendar_cs_bwry_weather_race.png",
         "configure_teams_cs_bwry.png",
     ]
+    assert not (images_dir / "configure_teams_de_bwry.png.meta.json").exists()
     # The popular "de" timezone variant is outside the profile and stays on demand.
     assert {c.kwargs.get("lang") for c in db.save_generated_image.await_args_list} == {"cs"}
 
@@ -241,6 +246,89 @@ async def test_weather_profile_off_skips_weather_variants_but_keeps_core_calenda
     assert generate.await_count == 1
     assert generate.await_args.kwargs["display_types"] == ["1bit"]
     assert previews.await_args_list[-1] == call(["off"], previews.await_args_list[-1].args[1])
+
+
+@pytest.mark.asyncio
+async def test_weather_profile_off_neither_fetches_nor_expects_weather(tmp_path, profile):
+    profile("en", "1bit", "off")
+    load_weather = AsyncMock(return_value=(None, None, {"off": None, "current": None}))
+    prune = Mock(return_value=0)
+    db = SimpleNamespace(set_cache_meta=AsyncMock(), cleanup_old_stats=AsyncMock())
+    race = {"race_name": "Test", "circuit": {"circuitId": "x", "lat": "1", "long": "2"}}
+    with (
+        patch("app.services.scheduler_generation.get_database", return_value=db),
+        patch("app.services.scheduler_generation.F1Service") as f1_service,
+        patch("app.services.scheduler_generation._load_historical_data", return_value=None),
+        patch("app.services.scheduler_generation._load_weather_context", new=load_weather),
+        patch(
+            "app.services.scheduler_generation._generate_base_variants",
+            new=AsyncMock(return_value=({tmp_path / "calendar_en.bmp"}, 0)),
+        ),
+        patch(
+            "app.services.scheduler_generation._generate_popular_tz_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
+        patch(
+            "app.services.scheduler_generation._generate_teams_bmp_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
+        patch("app.services.scheduler_generation.generate_preview_pngs", new=AsyncMock()),
+        patch("app.services.scheduler_generation._delete_stale_bmps", new=prune),
+        patch("app.services.scheduler_generation.clear_bmp_cache"),
+        patch("app.services.scheduler_generation.config.IMAGES_PATH", str(tmp_path)),
+        patch("app.services.scheduler_generation.config.WEATHER_ENABLED", True),
+    ):
+        f1_service.return_value.get_next_race_from_static.return_value = race
+        await scheduler_generation.collect_and_generate()
+
+    load_weather.assert_not_awaited()
+    prune.assert_called_once()
+    assert call(GENERATION_REASONS_META_KEY, "") in db.set_cache_meta.await_args_list
+
+
+def test_only_profile_weather_types_count_as_degraded(monkeypatch):
+    monkeypatch.setattr(scheduler_generation.config, "WEATHER_ENABLED", True)
+    monkeypatch.setattr(scheduler_generation, "_race_weather_expected", lambda race: True)
+    race = {"circuit": {"lat": "1", "long": "2"}}
+    weather = WeatherData(21.0, 1, 10)
+    missing_race = {"off": None, "current": weather, "race": None}
+    assert scheduler_generation._weather_context_degraded(race, missing_race) is True
+    assert not scheduler_generation._weather_context_degraded(
+        race, missing_race, ["off", "current"]
+    )
+    assert scheduler_generation._weather_context_degraded(race, {"off": None}, ["off", "race"])
+
+
+def test_previews_outside_the_profile_are_deleted_with_their_metadata(tmp_path, profile):
+    profile("cs", "bwry", "current")
+    kept = [
+        "configure_calendar_cs_bwry.png",
+        "configure_calendar_cs_bwry_weather_current.png",
+        "configure_teams_cs_bwry.png",
+        "unrelated.png",
+    ]
+    excluded = [
+        "preview_teams_cs.png",
+        "preview_calendar_de.png",
+        "configure_teams_de_bwry.png",
+        "configure_teams_cs.png",
+        "configure_calendar_cs_bwry_weather_race.png",
+    ]
+    for name in kept + excluded:
+        (tmp_path / name).write_bytes(b"png")
+        (tmp_path / f"{name}.meta.json").write_text("{}")
+    (tmp_path / "configure_teams_en_spectra6.png.meta.json").write_text("{}")  # orphan
+
+    removed = scheduler_generation._delete_excluded_previews(tmp_path)
+
+    assert removed == len(excluded) + 1
+    assert sorted(path.name for path in tmp_path.glob("*.png")) == sorted(kept)
+    assert sorted(path.name for path in tmp_path.glob("*.meta.json")) == sorted(
+        f"{name}.meta.json" for name in kept
+    )
+    # With the default profile nothing is outside it.
+    profile()
+    assert scheduler_generation._delete_excluded_previews(tmp_path) == 0
 
 
 @pytest.mark.asyncio

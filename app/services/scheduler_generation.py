@@ -6,7 +6,7 @@ import asyncio
 import functools
 import logging
 import weakref
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Collection, Iterable, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypeVar
@@ -276,6 +276,54 @@ async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> No
         logger.info("Generated %d teams preview PNGs for %s", teams_written, lang)
 
 
+# Weather tokens of calendar preview filenames ("race" is the race-day forecast).
+_PREVIEW_WEATHER_KINDS = ("off", "current", "race")
+
+
+def _preview_filenames(
+    languages: Iterable[str], displays: Iterable[str], weather_kinds: Iterable[str]
+) -> set[str]:
+    """Return every preview PNG name that ``generate_preview_pngs`` writes for a profile."""
+    displays, weather_kinds = list(displays), list(weather_kinds)
+    names: set[str] = set()
+    for lang in languages:
+        if "1bit" in displays:
+            names.add(get_preview_filename("teams", lang))
+            if "off" in weather_kinds:
+                names.add(get_preview_filename("calendar", lang))
+        for display in displays:
+            names.add(get_configure_preview_filename("teams", lang, display=display))
+            names.update(
+                get_configure_preview_filename("calendar", lang, display=display, weather=kind)
+                for kind in weather_kinds
+            )
+    return names
+
+
+def _delete_excluded_previews(images_dir: Path) -> int:
+    """Delete preview PNGs (and their metadata) that the pregeneration profile no longer writes.
+
+    A teams preview stays valid for the whole season and a calendar preview for the race
+    weekend, so one left behind by a narrowed profile would keep serving old standings or
+    weather instead of falling back to an on-demand render.
+    """
+    wanted = _preview_filenames(
+        _profile_languages(),
+        _profile_displays(),
+        _profile_weather_types(dict.fromkeys(_PREVIEW_WEATHER_KINDS)),
+    )
+    removed = 0
+    for name in sorted(
+        _preview_filenames(SUPPORTED_LANGUAGES, DISPLAY_TYPES, _PREVIEW_WEATHER_KINDS) - wanted
+    ):
+        path = images_dir / name
+        if path.exists() or metadata_path(path).exists():
+            path.unlink(missing_ok=True)
+            metadata_path(path).unlink(missing_ok=True)
+            removed += 1
+    return removed
+
+
 async def _write_preview_artifact(
     path: Path, content: bytes, source_path: Path, source_metadata: dict
 ) -> None:
@@ -423,14 +471,19 @@ def _race_weather_expected(race_data: dict) -> bool:
 def _weather_context_degraded(
     race_data: dict,
     weather_by_type: dict[str, WeatherData | None],
+    wanted: Collection[str] = ("current", "race"),
 ) -> bool:
-    """Return whether any weather source expected for rendering is unavailable."""
+    """Return whether any weather source expected for rendering is unavailable.
+
+    Only the ``wanted`` variants (those the pregeneration profile renders) count.
+    """
     if not config.WEATHER_ENABLED or not _has_weather_coordinates(race_data):
         return False
 
     expected = {"current"}
     if _race_weather_expected(race_data):
         expected.add("race")
+    expected &= set(wanted)
 
     return any(weather_by_type.get(weather_type) is None for weather_type in expected)
 
@@ -703,8 +756,12 @@ async def _collect_and_generate_unlocked() -> None:
             clear_bmp_cache()
             await generate_preview_pngs(["off"], get_default_teams_year())
 
-        _, _, weather_by_type = await _load_weather_context(race_data)
-        weather_degraded = _weather_context_degraded(race_data, weather_by_type)
+        # Weather the profile does not pregenerate is neither fetched nor expected, so an
+        # unavailable source cannot mark the run degraded or block the stale-file prune.
+        wanted_weather = _profile_weather_types({"current": None, "race": None})
+        if wanted_weather:
+            _, _, weather_by_type = await _load_weather_context(race_data)
+        weather_degraded = _weather_context_degraded(race_data, weather_by_type, wanted_weather)
         if weather_degraded:
             reasons.add(DegradedReason.WEATHER_UNAVAILABLE)
         profile_weather = _profile_weather_types(weather_by_type)
@@ -746,6 +803,9 @@ async def _collect_and_generate_unlocked() -> None:
             reasons.add(DegradedReason.TEAMS_VARIANT_FAILED)
 
         await generate_preview_pngs(list(weather_by_type), get_default_teams_year())
+        excluded_previews = _delete_excluded_previews(images_dir)
+        if excluded_previews:
+            logger.info("Removed %d previews outside the pregeneration profile", excluded_previews)
 
         # Only prune when the whole run succeeded (and weather wasn't degraded), so a
         # transient failure never deletes a previously-good file devices still serve.

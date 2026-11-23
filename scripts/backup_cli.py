@@ -186,7 +186,19 @@ def cmd_restore(name: str, source: str = "auto", assume_yes: bool = False, force
     if not result["success"]:
         print(f"  [FAIL] {result['error']}")
         print()
-        print("Restore FAILED. The current database was not changed.")
+        if not result.get("database_changed"):
+            print("Restore FAILED. The current database was not changed.")
+        elif result.get("safety_snapshot"):
+            print(
+                "Restore FAILED after the database was partly replaced. The previous database "
+                f"and data files are saved as {result['safety_snapshot']}; restore them with "
+                f"'backup restore {result['safety_snapshot']}' before starting the service."
+            )
+        else:
+            print(
+                "Restore FAILED after the database was partly replaced. There was no previous "
+                "database to save; restore another backup before starting the service."
+            )
         return 1
     print(f"  [OK] Integrity check passed: {result['name']} ({result['source']})")
     if result["safety_snapshot"]:
