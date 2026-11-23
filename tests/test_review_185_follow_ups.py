@@ -252,7 +252,7 @@ async def test_encoding_aware_etag_extends_existing_vary_and_skips_non_http():
 async def test_calendar_render_finishing_after_clear_is_served_but_not_cached(monkeypatch):
     import asyncio
 
-    from app.state import bmp_cache_generation, clear_bmp_cache, get_bmp_cache
+    from app.state import bmp_cache_generation, clear_bmp_cache
 
     started, release = asyncio.Event(), asyncio.Event()
 

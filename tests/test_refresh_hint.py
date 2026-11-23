@@ -34,7 +34,8 @@ NOW = datetime(2026, 11, 22, 9, 30, tzinfo=UTC)
 def _race(**overrides) -> dict:
     """Return the bundled Qatar 2026 weekend converted to Europe/Prague."""
     races = F1Service(timezone_name="Europe/Prague").get_all_races_from_static(2026)
-    race = next(r for r in races if r["race_name"] == "Qatar Grand Prix")
+    race = next((r for r in races if r["race_name"] == "Qatar Grand Prix"), None)
+    assert race is not None
     return {**race, **overrides}
 
 
