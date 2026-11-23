@@ -509,18 +509,6 @@ def _is_pregenerated_selection(
     )
 
 
-def _can_serve_calendar_file(
-    options: TrackOptions, countdown: CountdownMode, mode: WeekendMode, unit: TempUnit
-) -> bool:
-    """Identify the calendar configurations written by the scheduler."""
-    return (
-        options == DEFAULT_TRACK_OPTIONS
-        and countdown == CountdownMode.HOURS
-        and mode == WeekendMode.OFF
-        and unit == TempUnit.C
-    )
-
-
 def _get_pregenerated_calendar_path(
     *,
     lang: str,
@@ -590,25 +578,6 @@ def _get_pregenerated_teams_path(*, lang: str, year: int | None, display: str) -
 
     path = _fresh_pregenerated_path(Path(config.IMAGES_PATH) / filename)
     return path if path is not None and artifact_matches(path, f"teams:{default_year}") else None
-
-
-async def _select_calendar_race(
-    f1_service: F1Service,
-    year: int | None,
-    race_round: int | None,
-    race_key: str | None,
-    weekend_mode: WeekendMode,
-) -> dict | None:
-    """Resolve the current selection, fetching a valid explicit round when absent locally."""
-    selected_race = _get_race_data_from_static(f1_service, year, race_round, race_key, weekend_mode)
-    if (
-        selected_race is None
-        and year is not None
-        and race_round is not None
-        and race_selection_error(year, race_round) is None
-    ):
-        selected_race = await f1_service.get_race_by_round(year, race_round)
-    return selected_race
 
 
 def _get_race_data_from_static(
@@ -724,6 +693,42 @@ def _output_freshness(output: ImageOutput, cache_control: str, seconds: int) -> 
             seconds, ERROR_REFRESH_SECONDS
         )
     return cache_control, seconds
+
+
+def _is_pregenerated_calendar_render(
+    track_options: TrackOptions,
+    countdown: CountdownMode,
+    weekend_mode: WeekendMode,
+    temp_unit: TempUnit,
+    theme: ThemeMode,
+) -> bool:
+    """Return whether these render options match the files that pregeneration writes."""
+    return (
+        track_options == DEFAULT_TRACK_OPTIONS
+        and countdown == CountdownMode.HOURS
+        and weekend_mode == WeekendMode.OFF
+        and temp_unit == TempUnit.C
+        and theme == ThemeMode.LIGHT
+    )
+
+
+async def _select_calendar_race(
+    f1_service: F1Service,
+    year: int | None,
+    race_round: int | None,
+    race_key: str | None,
+    weekend_mode: WeekendMode = WeekendMode.OFF,
+) -> dict | None:
+    """Return the requested race from the bundled schedule, or fetch an explicit valid round."""
+    selected_race = _get_race_data_from_static(f1_service, year, race_round, race_key, weekend_mode)
+    if (
+        selected_race is None
+        and year is not None
+        and race_round is not None
+        and race_selection_error(year, race_round) is None
+    ):
+        selected_race = await f1_service.get_race_by_round(year, race_round)
+    return selected_race
 
 
 @with_current_selection
@@ -881,8 +886,9 @@ async def _serve_calendar_bmp(
                 weather_type=weather_type,
                 expected_identity=identity,
             )
-            if _can_serve_calendar_file(track_options, countdown, weekend.mode, temp_unit)
-            and theme == ThemeMode.LIGHT
+            if _is_pregenerated_calendar_render(
+                track_options, countdown, weekend.mode, temp_unit, theme
+            )
             else None
         )
         if image_path is not None:
