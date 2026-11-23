@@ -219,6 +219,7 @@
       "hints": {
         "off": "URL vždy zobrazí tuto obrazovku.",
         "race_week": "/auto.bmp ukazuje kalendář od 48 h před FP1 do konce závodu, jinak týmy s odpočtem. Ideální pro Živýobraz.eu, kde má displej jen jednu URL.",
+        "race_week_teams": "/auto.bmp ukazuje kalendář od 48 h před FP1 do konce závodu, jinak týmy s panelem zvoleným na této stránce. Ideální pro Živýobraz.eu, kde má displej jen jednu URL.",
         "daily": "/auto.bmp střídá kalendář a týmy každý den o místní půlnoci."
       }
     },

@@ -219,6 +219,7 @@
       "hints": {
         "off": "URL 始终显示此屏幕。",
         "race_week": "/auto.bmp 从 FP1 前 48 小时到比赛结束显示日历，其他时间显示带倒计时的车队。非常适合每块屏幕只能设置一个 URL 的 Živýobraz.eu。",
+        "race_week_teams": "/auto.bmp 从 FP1 前 48 小时到比赛结束显示日历，其他时间显示带有本页所选面板的车队。非常适合每块屏幕只能设置一个 URL 的 Živýobraz.eu。",
         "daily": "/auto.bmp 每天在当地午夜于日历和车队之间轮换。"
       }
     },

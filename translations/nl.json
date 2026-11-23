@@ -219,6 +219,7 @@
       "hints": {
         "off": "De URL toont altijd dit scherm.",
         "race_week": "/auto.bmp toont de kalender vanaf 48 uur voor VT1 tot het einde van de race, en anders de teams met aftelling. Ideaal voor Živýobraz.eu, dat één URL per display toestaat.",
+        "race_week_teams": "/auto.bmp toont de kalender vanaf 48 uur voor VT1 tot het einde van de race, en anders de teams met het op deze pagina gekozen paneel. Ideaal voor Živýobraz.eu, dat één URL per display toestaat.",
         "daily": "/auto.bmp wisselt elke dag om lokale middernacht tussen kalender en teams."
       }
     },

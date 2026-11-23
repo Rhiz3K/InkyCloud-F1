@@ -219,6 +219,7 @@
       "hints": {
         "off": "A URL sempre mostra esta tela.",
         "race_week": "/auto.bmp mostra o calendário de 48 h antes do TL1 até o fim da corrida e, no restante do tempo, as equipes com contagem regressiva. Ideal para o Živýobraz.eu, que permite uma URL por tela.",
+        "race_week_teams": "/auto.bmp mostra o calendário de 48 h antes do TL1 até o fim da corrida e, no restante do tempo, as equipes com o painel escolhido nesta página. Ideal para o Živýobraz.eu, que permite uma URL por tela.",
         "daily": "/auto.bmp alterna calendário e equipes todos os dias à meia-noite local."
       }
     },

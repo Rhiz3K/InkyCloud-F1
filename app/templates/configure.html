@@ -373,10 +373,12 @@ block content %}
             <select
               id="autoScreenSelect"
               data-on-change="selectAutoScreen"
-              class="auto-screen-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-racing-red"
+              class="auto-screen-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red"
             >
               {% for opt in ["off", "race_week", "daily"] %}
-              <option value="{{ opt }}" data-hint="{{ auto_ui.hints[opt] }}">{{ auto_ui.options[opt] }}</option>
+              {# The teams page keeps its chosen panel on /auto.bmp; the calendar page gets the countdown. #}
+              {% set hint_key = "race_week_teams" if screen_type == "teams" and opt == "race_week" else opt %}
+              <option value="{{ opt }}" data-hint="{{ auto_ui.hints[hint_key] }}">{{ auto_ui.options[opt] }}</option>
               {% endfor %}
             </select>
             <svg class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1070,6 +1072,10 @@ block content %}
       // /auto.bmp defaults to the countdown panel; keep the chosen "none" panel.
       params.set("extra", "none");
     }
+    // The daily switch, the race-week window and the calendar screen all use tz, even when the
+    // teams panel does not, so the auto URL always keeps the selected timezone.
+    const tz = document.getElementById("tz")?.value;
+    if (tz && !params.has("tz")) params.set("tz", tz);
     if (currentAutoScreen === "daily") params.set("mode", "daily");
     const query = params.toString();
     return `${parsed.origin}/auto.bmp${query ? `?${query}` : ""}`;

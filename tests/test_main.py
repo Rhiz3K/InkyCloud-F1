@@ -1409,9 +1409,8 @@ def test_configure_teams_urls_gate_timezone_params_on_extra_panel():
     response = client.get("/configure/teams")
     html = response.text
 
-    api_url_block = html.split("function getApiUrl() {", 1)[1].split(
-        "function teamsExtraUsesTz", 1
-    )[0]
+    # Up to getCopyUrl: the /auto.bmp copy URL keeps tz for its switch on purpose.
+    api_url_block = html.split("function getApiUrl() {", 1)[1].split("function getCopyUrl", 1)[0]
     teams_api_branch = api_url_block.split("} else {", 1)[1]
     assert "`${window.location.origin}/teams.bmp`" in teams_api_branch
     assert "params.push(`year=${selectedTeamsYear}`)" in teams_api_branch

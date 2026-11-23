@@ -219,6 +219,7 @@
       "hints": {
         "off": "URL zawsze pokazuje ten ekran.",
         "race_week": "/auto.bmp pokazuje kalendarz od 48 h przed FP1 do końca wyścigu, a w pozostałym czasie zespoły z odliczaniem. Idealne dla Živýobraz.eu, gdzie wyświetlacz ma jeden URL.",
+        "race_week_teams": "/auto.bmp pokazuje kalendarz od 48 h przed FP1 do końca wyścigu, a w pozostałym czasie zespoły z panelem wybranym na tej stronie. Idealne dla Živýobraz.eu, gdzie wyświetlacz ma jeden URL.",
         "daily": "/auto.bmp zmienia kalendarz i zespoły codziennie o lokalnej północy."
       }
     },

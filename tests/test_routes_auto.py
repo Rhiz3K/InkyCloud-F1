@@ -317,16 +317,33 @@ async def test_hint_and_max_age_stop_at_the_switch(auto_app):
     calendar = await _get(auto_app, "/auto.bmp?weather=false&countdown=off")
     assert calendar.headers["x-active-screen"] == "calendar"
     assert calendar.headers["cache-control"] == "public, max-age=1200"
-    assert calendar.headers["x-next-refresh-seconds"] == str(1200 + rh.SETTLE_SECONDS)
+    assert calendar.headers["x-next-refresh-seconds"] == "1200"
 
     # Ten minutes before the window opens the teams hint shrinks to the switch.
     _Clock.now = WINDOW_START - timedelta(minutes=10)
     teams = await _get(auto_app, "/auto.bmp?extra=none")
     assert teams.headers["x-active-screen"] == "teams"
     assert teams.headers["cache-control"] == "no-cache"
-    assert teams.headers["x-next-refresh-seconds"] == str(600 + rh.SETTLE_SECONDS)
+    assert teams.headers["x-next-refresh-seconds"] == "600"
     direct = await _get(auto_app, "/teams.bmp")
-    assert int(direct.headers["x-next-refresh-seconds"]) > 600 + rh.SETTLE_SECONDS
+    assert int(direct.headers["x-next-refresh-seconds"]) > 600
+
+
+@pytest.mark.asyncio
+async def test_slow_render_does_not_stretch_max_age_or_hint_past_the_switch(auto_app, monkeypatch):
+    _Clock.now = WINDOW_END - timedelta(minutes=20)
+    serve = images._serve_calendar_bmp
+
+    async def slow_serve(*args, **kwargs):
+        response = await serve(*args, **kwargs)
+        _Clock.now += timedelta(minutes=5)  # the render (or a queue) took five minutes
+        return response
+
+    monkeypatch.setattr(images, "_serve_calendar_bmp", slow_serve)
+    calendar = await _get(auto_app, "/auto.bmp?weather=false&countdown=off")
+    assert calendar.headers["x-active-screen"] == "calendar"
+    assert calendar.headers["cache-control"] == "public, max-age=900"
+    assert calendar.headers["x-next-refresh-seconds"] == "900"
 
 
 @pytest.mark.asyncio
@@ -339,7 +356,7 @@ async def test_304_keeps_headers_and_never_serves_a_stale_screen_across_the_swit
     assert revalidated.content == b""
     assert revalidated.headers["x-active-screen"] == "teams"
     assert revalidated.headers["etag"] == etag
-    assert revalidated.headers["x-next-refresh-seconds"] == str(1800 + rh.SETTLE_SECONDS)
+    assert revalidated.headers["x-next-refresh-seconds"] == "1800"
 
     _Clock.now = WINDOW_START
     switched = await _get(auto_app, "/auto.bmp?weather=false", {"If-None-Match": etag})
@@ -361,7 +378,7 @@ async def test_daily_mode_alternates_at_local_midnight_on_the_route(auto_app):
     calendar = await _get(auto_app, url)
     assert calendar.headers["x-active-screen"] == "calendar"
     assert calendar.headers["cache-control"] == "public, max-age=300"
-    assert calendar.headers["x-next-refresh-seconds"] == str(300 + rh.SETTLE_SECONDS)
+    assert calendar.headers["x-next-refresh-seconds"] == "300"
     _Clock.now = midnight_la
     teams = await _get(auto_app, url)
     assert teams.headers["x-active-screen"] == "teams"
@@ -482,6 +499,7 @@ async def test_json_api_docs_describe_the_auto_endpoint():
 
 @pytest.mark.parametrize("lang, prefix", [("en", ""), ("cs", "/cs")])
 def test_html_docs_and_configurator_offer_the_auto_url(lang, prefix):
+    import html
     import json
     from pathlib import Path
 
@@ -506,3 +524,13 @@ def test_html_docs_and_configurator_offer_the_auto_url(lang, prefix):
         assert 'id="autoScreenSelect"' in page.text
         assert 'data-on-change="selectAutoScreen"' in page.text
         assert texts["configure"]["autoScreen"]["label"] in page.text
+        # The teams page keeps its chosen panel on /auto.bmp, so its race-week hint says so
+        # instead of promising the countdown that the calendar page's auto URL gets.
+        hints = texts["configure"]["autoScreen"]["hints"]
+        shown, hidden = (
+            ("race_week_teams", "race_week")
+            if screen == "teams"
+            else ("race_week", "race_week_teams")
+        )
+        assert html.escape(hints[shown]) in page.text
+        assert html.escape(hints[hidden]) not in page.text

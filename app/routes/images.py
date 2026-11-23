@@ -68,7 +68,6 @@ from app.utils.refresh_hint import (
     MAX_REFRESH_SECONDS,
     MIN_REFRESH_SECONDS,
     REFRESH_HINT_HEADER,
-    SETTLE_SECONDS,
     CountdownMode,
     RefreshHint,
     calendar_refresh_hint,
@@ -1030,7 +1029,9 @@ def _apply_auto_screen(response: Response, choice: ScreenChoice, now: datetime) 
     if choice.next_switch is None:
         return response
     until_switch = (choice.next_switch - now).total_seconds()
-    switch_hint = max(MIN_REFRESH_SECONDS, math.ceil(until_switch) + SETTLE_SECONDS)
+    # No settling delay: the switch itself needs no new pregenerated image, and the hint is
+    # documented never to pass it (apart from the MIN_REFRESH_SECONDS floor).
+    switch_hint = max(MIN_REFRESH_SECONDS, math.ceil(until_switch))
     screen_hint = int(response.headers.get(REFRESH_HINT_HEADER, MAX_REFRESH_SECONDS))
     response.headers[REFRESH_HINT_HEADER] = str(min(screen_hint, switch_hint))
     response.headers["Cache-Control"] = _clamp_max_age(
@@ -1116,4 +1117,5 @@ async def get_auto_bmp(
             extra=TeamsExtra.COUNTDOWN if extra is None else extra,
             endpoint="/auto.bmp",
         )
-    return _apply_auto_screen(response, choice, now)
+    # A fresh clock reading: time spent rendering must not extend max-age past the switch.
+    return _apply_auto_screen(response, choice, _utc_now())

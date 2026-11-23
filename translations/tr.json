@@ -219,6 +219,7 @@
       "hints": {
         "off": "URL her zaman bu ekranı gösterir.",
         "race_week": "/auto.bmp, FP1’den 48 saat önce başlayıp yarış bitene kadar takvimi, diğer zamanlarda geri sayımlı takımları gösterir. Ekran başına tek URL izin veren Živýobraz.eu için idealdir.",
+        "race_week_teams": "/auto.bmp, FP1’den 48 saat önce başlayıp yarış bitene kadar takvimi, diğer zamanlarda bu sayfada seçilen panelle takımları gösterir. Ekran başına tek URL izin veren Živýobraz.eu için idealdir.",
         "daily": "/auto.bmp her gün yerel gece yarısında takvim ile takımlar arasında geçiş yapar."
       }
     },

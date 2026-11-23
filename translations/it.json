@@ -219,6 +219,7 @@
       "hints": {
         "off": "L’URL mostra sempre questa schermata.",
         "race_week": "/auto.bmp mostra il calendario da 48 h prima delle FP1 fino alla fine della gara, altrimenti le squadre con il conto alla rovescia. Ideale per Živýobraz.eu, che consente un solo URL per display.",
+        "race_week_teams": "/auto.bmp mostra il calendario da 48 h prima delle FP1 fino alla fine della gara, altrimenti le squadre con il pannello scelto in questa pagina. Ideale per Živýobraz.eu, che consente un solo URL per display.",
         "daily": "/auto.bmp alterna calendario e squadre ogni giorno a mezzanotte locale."
       }
     },

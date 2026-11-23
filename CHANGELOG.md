@@ -23,7 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   switch, and invalid `mode` or `lead_hours` values return HTTP 422. Calls are counted as
   `/auto.bmp` in the aggregate statistics. The calendar and teams route handlers now share
   internal serving helpers instead of duplicating them. API docs, the configurator ("One URL
-  for both screens"), README, EXAMPLES and all 13 locales are updated.
+  for both screens", whose copied URL always keeps the selected timezone), README, EXAMPLES and
+  all 13 locales are updated.
 
 - Add battery-friendly refresh for e-ink panels. `/calendar.bmp` and
   `/preview/configure/calendar.png` accept `countdown=hours|days|auto|off`: `hours` (default)

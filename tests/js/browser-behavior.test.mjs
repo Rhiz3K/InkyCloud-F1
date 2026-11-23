@@ -1077,7 +1077,9 @@ test("calendar settings move to /auto.bmp without a fixed race", () => {
 
 test("teams settings keep the chosen panel on /auto.bmp", () => {
     const {ctx} = autoScreenContext("teams", {currentAutoScreen: "race_week"});
-    assert.equal(ctx.getCopyUrl(), "https://racing.example.org/auto.bmp?year=2026&extra=none");
+    // The timezone is kept although the "none" panel does not use it: the switch does.
+    assert.ok(!ctx.getApiUrl().includes("tz="));
+    assert.equal(ctx.getCopyUrl(), "https://racing.example.org/auto.bmp?year=2026&extra=none&tz=Europe%2FPrague");
     ctx.currentTeamsExtra = "flags";
     assert.equal(ctx.getCopyUrl(),
         "https://racing.example.org/auto.bmp?year=2026&extra=flags&tz=Europe%2FPrague");
@@ -1090,7 +1092,7 @@ test("setAutoScreen syncs the select, the hint, the page URL and the copied URL"
     assert.equal(select.value, "daily");
     assert.equal(hints[0].textContent, "hint-daily");
     assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?auto=daily"]);
-    assert.equal(apiUrl.value, "https://racing.example.org/auto.bmp?year=2026&extra=none&mode=daily");
+    assert.equal(apiUrl.value, "https://racing.example.org/auto.bmp?year=2026&extra=none&tz=Europe%2FPrague&mode=daily");
     assert.equal(ctx.previewUpdates, 0);
 
     select.value = "bogus";
