@@ -53,7 +53,9 @@ PRAGUE = ZoneInfo("Europe/Prague")
 
 def _race(name: str) -> dict:
     races = F1Service(timezone_name="Europe/Prague").get_all_races_from_static(2026)
-    return next(race for race in races if race["race_name"] == name)
+    race = next((race for race in races if race["race_name"] == name), None)
+    assert race is not None, name
+    return race
 
 
 def _qatar() -> dict:
@@ -474,7 +476,7 @@ async def test_warm_load_restores_weekend_sessions_with_the_weekend_profile(monk
     rows = {
         ws._race_weather_cache_key(1.0, 2.0, sessions[0][1]): (21.0, 3, 20, stamp, None),
     }
-    db = SimpleNamespace(get_weather_cache=AsyncMock(side_effect=lambda key: rows.get(key)))
+    db = SimpleNamespace(get_weather_cache=AsyncMock(side_effect=rows.get))
     monkeypatch.setattr(ws.config, "PREGENERATE_WEATHER_TYPES", "")
     assert await ws.load_prefetched_weather_from_db(db) == 0
     monkeypatch.setattr(ws.config, "PREGENERATE_WEATHER_TYPES", "weekend")
@@ -766,7 +768,7 @@ def test_a_very_long_label_is_clamped(frozen, monkeypatch):
 
 
 def test_weekend_without_room_for_two_lines_keeps_the_race_forecast(frozen, monkeypatch):
-    texts, bottom = _box_texts(_qatar(), QR, "weekend", monkeypatch, schedule_bottom=280)
+    texts, _ = _box_texts(_qatar(), QR, "weekend", monkeypatch, schedule_bottom=280)
     assert "39° " in texts and "Q" not in texts
     qualifying_only = _weekend(("qualifying", 19.2, 61, 60))
     texts, _ = _box_texts(_qatar(), qualifying_only, "weekend", monkeypatch, schedule_bottom=280)

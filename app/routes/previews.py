@@ -377,6 +377,59 @@ async def get_preview_png(
     raise HTTPException(status_code=404, detail="Preview not generated yet")
 
 
+async def _try_teams_extra_preview(
+    request: Request,
+    lang: str,
+    display: str,
+    extra: TeamsExtra,
+    *,
+    tz: str | None,
+    temp_unit: TempUnit,
+) -> tuple[Response | None, bool]:
+    """Render the requested Teams extra panel preview for the configurator.
+
+    Returns ``(response, False)`` on success, ``(None, False)`` when no panel applies and
+    ``(None, True)`` when the panel failed after the rate limit was charged (the caller then
+    serves the plain grid marked as a fallback).
+    """
+    if extra == TeamsExtra.NONE:
+        return None, False
+    ctx = build_teams_extra_context(
+        extra, get_default_teams_year(), timezone_name=tz, temp_unit=temp_unit
+    )
+    if ctx is None:
+        return None, False
+    _charge_configure_preview(request)
+    try:
+        response = await _render_teams_extra_preview(request, lang, display, extra, ctx)
+    except Exception as exc:
+        if isinstance(exc, (HTTPException, StaleSelection)):
+            raise
+        logger.warning("Dynamic teams extra preview failed: %s", exc)
+        return None, True
+    response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
+    return response, False
+
+
+def _has_pregenerated_configure_preview(
+    screen: str,
+    options: TrackOptions,
+    countdown: CountdownMode,
+    weekend_mode: WeekendMode,
+    temp_unit: TempUnit,
+) -> bool:
+    """Return whether a pregenerated configure preview can match the request.
+
+    Teams previews are always pregenerated; calendar ones only with the default options.
+    """
+    return (
+        options == DEFAULT_TRACK_OPTIONS
+        and countdown == CountdownMode.HOURS
+        and weekend_mode == WeekendMode.OFF
+        and temp_unit == TempUnit.C
+    ) or screen == "teams"
+
+
 @router.get("/preview/configure/{screen_type}.png", response_model=None)
 @with_current_selection
 async def get_configure_preview_png(
@@ -426,24 +479,12 @@ async def get_configure_preview_png(
 
     extra_failed = False
     tz = validate_timezone(tz)
-    if safe_screen == "teams" and extra != TeamsExtra.NONE:
-        ctx = build_teams_extra_context(
-            extra, get_default_teams_year(), timezone_name=tz, temp_unit=temp_unit
+    if safe_screen == "teams":
+        response, extra_failed = await _try_teams_extra_preview(
+            request, safe_lang, safe_display, extra, tz=tz, temp_unit=temp_unit
         )
-        if ctx is not None:
-            _charge_configure_preview(request)
-            try:
-                response = await _render_teams_extra_preview(
-                    request, safe_lang, safe_display, extra, ctx
-                )
-            except Exception as exc:
-                if isinstance(exc, (HTTPException, StaleSelection)):
-                    raise
-                logger.warning("Dynamic teams extra preview failed: %s", exc)
-                extra_failed = True
-            else:
-                response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
-                return response
+        if response is not None:
+            return response
 
     filename = get_configure_preview_filename(
         safe_screen,
@@ -455,13 +496,9 @@ async def get_configure_preview_png(
     options = TrackOptions(track_style, track_source, track_accent)
     cached = (
         await _cached_preview_response(configure_path, request, _preview_identity(safe_screen))
-        if (
-            options == DEFAULT_TRACK_OPTIONS
-            and countdown == CountdownMode.HOURS
-            and weekend_mode == WeekendMode.OFF
-            and temp_unit == TempUnit.C
+        if _has_pregenerated_configure_preview(
+            safe_screen, options, countdown, weekend_mode, temp_unit
         )
-        or safe_screen == "teams"
         else None
     )
     if cached is not None:
@@ -486,6 +523,7 @@ async def get_configure_preview_png(
             logger.warning("Dynamic calendar configure preview failed: %s", exc)
 
     if safe_screen == "teams":
+        # A failed extra panel already charged the rate limit for this request.
         _charge_configure_preview(request, already_charged=extra_failed)
         try:
             response = await _render_teams_preview(

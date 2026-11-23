@@ -595,6 +595,55 @@ def _session_countdown_text(
     return f"{label}: {text}", False
 
 
+def _draw_countdown_status(
+    draw: ImageDraw.ImageDraw,
+    status_text: str,
+    *,
+    weather_data,
+    x_left: int,
+    x_right: int,
+    text_y: float,
+    padding_x: int,
+    base_font,
+    rain_icon: str,
+    weather_icon_font,
+    text_fill,
+    temp_unit: TempUnit,
+) -> None:
+    """Draw a race status centred, or left-aligned beside the weather when there is some."""
+    if weather_data is None:
+        status_bbox = draw.textbbox((0, 0), status_text, font=base_font)
+        status_w = status_bbox[2] - status_bbox[0]
+        text_x = x_left + ((x_right - x_left) - status_w) // 2
+        draw.text((text_x, text_y), status_text, fill=text_fill, font=base_font)
+        return
+    # Long localized statuses (e.g. "ABGESCHLOSSEN") ran under the weather icon.
+    status_text, status_font, weather_font = _fit_beside_weather(
+        draw,
+        status_text,
+        base_font,
+        space=(x_right - x_left) - 2 * padding_x - _COUNTDOWN_WEATHER_GAP,
+        weather_data=weather_data,
+        rain_icon=rain_icon,
+        weather_icon_font=weather_icon_font,
+        temp_unit=temp_unit,
+    )
+    draw.text((x_left + padding_x, text_y), status_text, fill=text_fill, font=status_font)
+    _draw_countdown_weather(
+        draw,
+        weather_data,
+        x_right=x_right,
+        text_y=text_y,
+        padding_x=padding_x,
+        rain_icon=rain_icon,
+        weather_icon_font=weather_icon_font,
+        text_font=weather_font,
+        text_fill=text_fill,
+        temp_unit=temp_unit,
+        base_font=base_font,
+    )
+
+
 def draw_countdown_box(
     draw: ImageDraw.ImageDraw,
     race_data: dict,
@@ -713,40 +762,19 @@ def draw_countdown_box(
             session_text = None
 
     if status_text:
-        show_weather = weather_data is not None and not is_cancelled
-        status_font = schedule_row_bold_font
-        if show_weather:
-            # Long localized statuses (e.g. "ABGESCHLOSSEN") ran under the weather icon.
-            status_text, status_font, weather_font = _fit_beside_weather(
-                draw,
-                status_text,
-                schedule_row_bold_font,
-                space=(x_right - x_left) - 2 * padding_x - _COUNTDOWN_WEATHER_GAP,
-                weather_data=weather_data,
-                rain_icon=rain_icon,
-                weather_icon_font=weather_icon_font,
-                temp_unit=temp_unit,
-            )
-        status_bbox = draw.textbbox((0, 0), status_text, font=status_font)
-        status_w = status_bbox[2] - status_bbox[0]
-        text_x = (
-            x_left + padding_x if show_weather else x_left + ((x_right - x_left) - status_w) // 2
-        )
-        draw.text((text_x, text_y), status_text, fill=text_fill, font=status_font)
-        if not show_weather:
-            return int(y_bottom)
-        _draw_countdown_weather(
+        _draw_countdown_status(
             draw,
-            weather_data,
+            status_text,
+            weather_data=None if is_cancelled else weather_data,
+            x_left=x_left,
             x_right=x_right,
             text_y=text_y,
             padding_x=padding_x,
+            base_font=schedule_row_bold_font,
             rain_icon=rain_icon,
             weather_icon_font=weather_icon_font,
-            text_font=weather_font,
             text_fill=text_fill,
             temp_unit=temp_unit,
-            base_font=schedule_row_bold_font,
         )
         return int(y_bottom)
 
