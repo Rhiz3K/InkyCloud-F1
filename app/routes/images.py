@@ -112,6 +112,14 @@ CALENDAR_BMP_CACHE_CONTROL = "public, max-age=3600"
 # is checked first; the scheduler clears it at the end of each generation run (or the TTL
 # expires if a run fails before that).
 PREGENERATED_CACHE_STATUS = "PREGENERATED"
+# Cache-Control of a freshly rendered calendar. Incomplete data is never stored anywhere. A
+# render that straddled a cache clear (and its single retry did too) has complete data but
+# was not cached here, so clients may keep it only while they revalidate it by ETag.
+_CALENDAR_MISS_CACHE_CONTROL = {
+    bmp_artifacts.CacheVerdict.CACHED: CALENDAR_BMP_CACHE_CONTROL,
+    bmp_artifacts.CacheVerdict.INCOMPLETE: "no-store",
+    bmp_artifacts.CacheVerdict.RACED: "no-cache",
+}
 # Panels that print a day count, a date or the next rounds, so change at local midnight.
 _DAY_BASED_TEAMS_EXTRAS = frozenset({TeamsExtra.COUNTDOWN, TeamsExtra.FLAGS, TeamsExtra.TRACK})
 _MAX_AGE_PATTERN = re.compile(r"\bmax-age=(\d+)")
@@ -821,128 +829,133 @@ async def _serve_calendar_bmp(
 
     # Everything after input validation is guarded: a validated BMP request must always get
     # an image back (error BMP on failure), never a text/plain 500 from selection or disk I/O.
+    retried = False
+    selection_grace = (
+        weekend_mode.selection_grace if race_round is None and race_key is None else None
+    )
     try:
-        is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(
-            f1_service, year, race_round, race_key, weekend_mode
-        )
-        selected_race = await _select_calendar_race(
-            f1_service, year, race_round, race_key, weekend_mode
-        )
-        now = _utc_now()
-        identity = calendar_identity(
-            selected_race, track_options, weather_type=weather_type, now=now
-        )
-        hint = calendar_refresh_hint(
-            selected_race,
-            now=now,
-            timezone_name=tz,
-            countdown=countdown,
-            weather_type=weather_type,
-            weather_enabled=config.WEATHER_ENABLED,
-            selection_grace=weekend_mode.selection_grace
-            if race_round is None and race_key is None
-            else None,
-        )
-        weekend = weekend_context(
-            weekend_mode, selected_race, now=now, timezone_name=tz, countdown=countdown
-        )
-        hint = hint.with_changes(
-            weekend.changes, hourly=weekend.pending, period_keyed=weekend.mode == WeekendMode.AUTO
-        )
-        # Without a race the route serves the "failed to fetch" error image: retry soon.
-        poll_hint = hint if selected_race else None
-        cache_key = f"{identity}|" + calendar_cache_key(
-            lang, year, race_round, race_key, tz, weather_type, display
-        )
-        if countdown != CountdownMode.HOURS:
-            # The content period keeps a cached day count from outliving local midnight.
-            cache_key += f":countdown={countdown}:{hint.cache_token()}"
-        cache_key += (
-            weekend.cache_suffix(hint)
-            + temp_unit_cache_suffix(temp_unit)
-            + bmp_artifacts.theme_cache_suffix(theme)
-        )
-        image_cache = bmp_artifacts.calendar_image_cache(
-            countdown, weekend.mode, temp_unit, weather_type, theme
-        )
-        cached_artifact = image_cache.get(cache_key)
-        if cached_artifact is not None:
-            logger.debug("Cache hit for %s", cache_key)
+        # Runs once, or twice when the image caches were cleared during the render: the retry
+        # re-resolves the selection, the in-process cache and the pregenerated file first.
+        while True:
+            is_auto_selected, actual_year, actual_round, actual_race_name = (
+                _get_race_info_for_stats(f1_service, year, race_round, race_key, weekend_mode)
+            )
+            selected_race = await _select_calendar_race(
+                f1_service, year, race_round, race_key, weekend_mode
+            )
+            now = _utc_now()
+            identity = calendar_identity(selected_race, track_options, weather_type=weather_type, now=now)
+            hint = calendar_refresh_hint(
+                selected_race,
+                now=now,
+                timezone_name=tz,
+                countdown=countdown,
+                weather_type=weather_type,
+                weather_enabled=config.WEATHER_ENABLED,
+                selection_grace=selection_grace,
+            )
+            weekend = weekend_context(
+                weekend_mode, selected_race, now=now, timezone_name=tz, countdown=countdown
+            )
+            hint = hint.with_changes(
+                weekend.changes, hourly=weekend.pending, period_keyed=weekend.mode == WeekendMode.AUTO
+            )
+            # Without a race the route serves the "failed to fetch" error image: retry soon.
+            poll_hint = hint if selected_race else None
+            cache_key = f"{identity}|" + calendar_cache_key(
+                lang, year, race_round, race_key, tz, weather_type, display
+            )
+            if countdown != CountdownMode.HOURS:
+                # The content period keeps a cached day count from outliving local midnight.
+                cache_key += f":countdown={countdown}:{hint.cache_token()}"
+            cache_key += (
+                weekend.cache_suffix(hint)
+                + temp_unit_cache_suffix(temp_unit)
+                + bmp_artifacts.theme_cache_suffix(theme)
+            )
+            image_cache = bmp_artifacts.calendar_image_cache(
+                countdown, weekend.mode, temp_unit, weather_type, theme
+            )
+            cached_artifact = image_cache.get(cache_key)
+            if cached_artifact is not None:
+                logger.debug("Cache hit for %s", cache_key)
+                return await respond(
+                    *cached_artifact,
+                    cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type),
+                    cache_status="HIT",
+                )
+
+            image_path = (
+                _get_pregenerated_calendar_path(
+                    lang=lang,
+                    year=year,
+                    race_round=race_round,
+                    race_key=race_key,
+                    tz=tz,
+                    display=display,
+                    weather=weather,
+                    weather_type=weather_type,
+                    expected_identity=identity,
+                )
+                if _is_pregenerated_calendar_render(
+                    track_options, countdown, weekend.mode, temp_unit, theme
+                )
+                else None
+            )
+            if image_path is not None:
+                logger.debug("Serving pre-generated image: %s", image_path)
+                artifact, matching_etag = await _read_pregenerated_artifact(
+                    image_path,
+                    _pregenerated_if_none_match(request, output),
+                    identity,
+                )
+                if matching_etag is not None:
+                    return await respond(
+                        None,
+                        matching_etag,
+                        cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type),
+                        cache_status="REVALIDATED",
+                    )
+                if artifact is not None:
+                    return await respond(
+                        *artifact,
+                        cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type),
+                        cache_status=PREGENERATED_CACHE_STATUS,
+                    )
+                logger.info("Pre-generated image disappeared before read; rendering")
+
+            rendered = await bmp_artifacts.singleflight(
+                f"calendar:{selected_generation()}:{cache_key}",
+                functools.partial(
+                    bmp_artifacts.render_calendar_artifact,
+                    cache_key=cache_key,
+                    race_data=selected_race,
+                    lang=lang,
+                    target_tz=tz or config.DEFAULT_TIMEZONE,
+                    weather_type=weather_type,
+                    display=display,
+                    track_options=track_options,
+                    countdown_mode=countdown,
+                    weekend_mode=weekend.mode,
+                    weekend=weekend.phase,
+                    temp_unit=temp_unit,
+                    **bmp_artifacts.theme_kwargs(theme),
+                ),
+            )
+            verdict = rendered.verdict()
+            if verdict is bmp_artifacts.CacheVerdict.RACED and not retried:
+                logger.info("Image cache cleared while rendering %s; retrying once", cache_key)
+                retried = True
+                continue
             return await respond(
-                *cached_artifact,
-                cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type),
-                cache_status="HIT",
+                *rendered.artifact,
+                cache_control=(
+                    _calendar_cache_control(countdown, hint, weekend_mode, weather_type)
+                    if verdict is bmp_artifacts.CacheVerdict.CACHED
+                    else _CALENDAR_MISS_CACHE_CONTROL[verdict]
+                ),
+                cache_status="MISS",
             )
-
-        image_path = (
-            _get_pregenerated_calendar_path(
-                lang=lang,
-                year=year,
-                race_round=race_round,
-                race_key=race_key,
-                tz=tz,
-                display=display,
-                weather=weather,
-                weather_type=weather_type,
-                expected_identity=identity,
-            )
-            if _is_pregenerated_calendar_render(
-                track_options, countdown, weekend.mode, temp_unit, theme
-            )
-            else None
-        )
-        if image_path is not None:
-            logger.debug("Serving pre-generated image: %s", image_path)
-            artifact, matching_etag = await _read_pregenerated_artifact(
-                image_path,
-                _pregenerated_if_none_match(request, output),
-                identity,
-            )
-            if matching_etag is not None:
-                return await respond(
-                    None,
-                    matching_etag,
-                    cache_control=_calendar_cache_control(
-                        countdown, hint, weekend_mode, weather_type
-                    ),
-                    cache_status="REVALIDATED",
-                )
-            if artifact is not None:
-                return await respond(
-                    *artifact,
-                    cache_control=_calendar_cache_control(
-                        countdown, hint, weekend_mode, weather_type
-                    ),
-                    cache_status=PREGENERATED_CACHE_STATUS,
-                )
-            logger.info("Pre-generated image disappeared before read; rendering")
-
-        artifact = await bmp_artifacts.singleflight(
-            f"calendar:{selected_generation()}:{cache_key}",
-            functools.partial(
-                bmp_artifacts.render_calendar_artifact,
-                cache_key=cache_key,
-                race_data=selected_race,
-                lang=lang,
-                target_tz=tz or config.DEFAULT_TIMEZONE,
-                weather_type=weather_type,
-                display=display,
-                track_options=track_options,
-                countdown_mode=countdown,
-                weekend_mode=weekend.mode,
-                weekend=weekend.phase,
-                temp_unit=temp_unit,
-                **bmp_artifacts.theme_kwargs(theme),
-            ),
-        )
-        is_cacheable = image_cache.get(cache_key) is artifact
-        return await respond(
-            *artifact,
-            cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type)
-            if is_cacheable
-            else "no-store",
-            cache_status="MISS",
-        )
     except Exception as exc:
         if isinstance(exc, (HTTPException, StaleSelection)):
             raise
@@ -982,91 +995,97 @@ async def _serve_teams_bmp(
     singleflight rendering, ETag/304 handling and error image; a non-default ``output`` is
     derived from the default artifact like the calendar's.
     """
+    requested_year = year
+    retried = False
+
+    async def respond(
+        content: bytes | None,
+        etag: str,
+        *,
+        cache_control: str = TEAMS_BMP_CACHE_CONTROL,
+        cache_status: str | None = None,
+    ) -> Response:
+        """Build the teams response with the request's normalized context."""
+        content, etag, cache_status = await _output_body(
+            content, etag, cache_status, display=display, output=output
+        )
+        cache_control, seconds = _output_freshness(output, cache_control, hint.seconds(_utc_now()))
+        return _teams_response(
+            request,
+            content=content,
+            etag=etag,
+            start_time=start_time,
+            lang=lang,
+            display=display,
+            year=year,
+            cache_control=cache_control,
+            cache_status=cache_status,
+            refresh_seconds=seconds,
+            endpoint=endpoint,
+            output=output,
+        )
 
     try:
-        if year is None:
-            year = get_default_teams_year()
-
-        async def respond(
-            content: bytes | None,
-            etag: str,
-            *,
-            cache_control: str = TEAMS_BMP_CACHE_CONTROL,
-            cache_status: str | None = None,
-        ) -> Response:
-            """Build the teams response with the request's normalized context."""
-            content, etag, cache_status = await _output_body(
-                content, etag, cache_status, display=display, output=output
+        # Runs once, or twice when the image caches were cleared during the render: the retry
+        # re-resolves the season, the in-process cache and the pregenerated file first.
+        while True:
+            year = requested_year if requested_year is not None else get_default_teams_year()
+            ctx = (
+                build_teams_extra_context(extra, year, timezone_name=tz, temp_unit=temp_unit)
+                if extra != TeamsExtra.NONE
+                else None
             )
-            cache_control, seconds = _output_freshness(
-                output, cache_control, hint.seconds(_utc_now())
+            effective = extra if ctx is not None else TeamsExtra.NONE
+            hint = teams_refresh_hint(
+                now=_utc_now(),
+                points_sessions=points_session_starts(year),
+                timezone_name=tz,
+                day_panel=effective in _DAY_BASED_TEAMS_EXTRAS,
+                hourly=effective == TeamsExtra.WEATHER,
             )
-            return _teams_response(
-                request,
-                content=content,
-                etag=etag,
-                start_time=start_time,
-                lang=lang,
-                display=display,
-                year=year,
-                cache_control=cache_control,
-                cache_status=cache_status,
-                refresh_seconds=seconds,
-                endpoint=endpoint,
-                output=output,
+            cache_key = get_teams_image_key(
+                lang, year, display=display, extra=effective, extra_context=ctx
+            ) + bmp_artifacts.theme_cache_suffix(theme)
+            cached_artifact = bmp_artifacts.teams_image_cache(effective, theme).get(cache_key)
+            if cached_artifact is not None:
+                return await respond(*cached_artifact, cache_status="HIT")
+
+            image_path = (
+                _get_pregenerated_teams_path(lang=lang, year=year, display=display)
+                if effective == TeamsExtra.NONE and theme == ThemeMode.LIGHT
+                else None
             )
+            if image_path is not None:
+                artifact, matching_etag = await _read_pregenerated_artifact(
+                    image_path,
+                    _pregenerated_if_none_match(request, output),
+                    f"teams:{year}",
+                )
+                if matching_etag is not None:
+                    return await respond(None, matching_etag, cache_status="REVALIDATED")
+                if artifact is not None:
+                    return await respond(*artifact, cache_status=PREGENERATED_CACHE_STATUS)
+                logger.info("Pre-generated teams image disappeared before read; rendering")
 
-        ctx = (
-            build_teams_extra_context(extra, year, timezone_name=tz, temp_unit=temp_unit)
-            if extra != TeamsExtra.NONE
-            else None
-        )
-        effective = extra if ctx is not None else TeamsExtra.NONE
-        hint = teams_refresh_hint(
-            now=_utc_now(),
-            points_sessions=points_session_starts(year),
-            timezone_name=tz,
-            day_panel=effective in _DAY_BASED_TEAMS_EXTRAS,
-            hourly=effective == TeamsExtra.WEATHER,
-        )
-        cache_key = get_teams_image_key(
-            lang, year, display=display, extra=effective, extra_context=ctx
-        ) + bmp_artifacts.theme_cache_suffix(theme)
-        cached_artifact = bmp_artifacts.teams_image_cache(effective, theme).get(cache_key)
-        if cached_artifact is not None:
-            return await respond(*cached_artifact, cache_status="HIT")
-
-        image_path = (
-            _get_pregenerated_teams_path(lang=lang, year=year, display=display)
-            if effective == TeamsExtra.NONE and theme == ThemeMode.LIGHT
-            else None
-        )
-        if image_path is not None:
-            artifact, matching_etag = await _read_pregenerated_artifact(
-                image_path,
-                _pregenerated_if_none_match(request, output),
-                f"teams:{year}",
+            rendered = await bmp_artifacts.singleflight(
+                f"teams:{selected_generation()}:{cache_key}",
+                functools.partial(
+                    bmp_artifacts.render_teams_artifact,
+                    cache_key=cache_key,
+                    lang=lang,
+                    year=year,
+                    display=display,
+                    extra=effective,
+                    extra_context=ctx,
+                    **bmp_artifacts.theme_kwargs(theme),
+                ),
             )
-            if matching_etag is not None:
-                return await respond(None, matching_etag, cache_status="REVALIDATED")
-            if artifact is not None:
-                return await respond(*artifact, cache_status=PREGENERATED_CACHE_STATUS)
-            logger.info("Pre-generated teams image disappeared before read; rendering")
-
-        artifact = await bmp_artifacts.singleflight(
-            f"teams:{selected_generation()}:{cache_key}",
-            functools.partial(
-                bmp_artifacts.render_teams_artifact,
-                cache_key=cache_key,
-                lang=lang,
-                year=year,
-                display=display,
-                extra=effective,
-                extra_context=ctx,
-                **bmp_artifacts.theme_kwargs(theme),
-            ),
-        )
-        return await respond(*artifact, cache_status="MISS")
+            if rendered.verdict() is bmp_artifacts.CacheVerdict.RACED and not retried:
+                logger.info("Image cache cleared while rendering %s; retrying once", cache_key)
+                retried = True
+                continue
+            # Teams always revalidate (no-cache), so every verdict keeps the same header.
+            return await respond(*rendered.artifact, cache_status="MISS")
 
     except Exception as exc:
         if isinstance(exc, (HTTPException, StaleSelection)):

@@ -100,7 +100,9 @@ async def test_round_without_year_uses_the_auto_selected_pregenerated_file():
 
     async def rendered(key, producer):
         calls.append((key, producer.keywords))
-        return (b"bmp", '"etag"')
+        return bmp_artifacts.RenderedArtifact(
+            (b"bmp", '"etag"'), True, bmp_artifacts.bmp_cache_generation()
+        )
 
     get_bmp_cache().clear()
     with (
@@ -280,7 +282,8 @@ async def test_calendar_render_finishing_after_clear_is_served_but_not_cached(mo
     artifact = await task
 
     assert bmp_cache_generation() == before + 1
-    assert artifact[0] == b"old-bytes"
+    assert artifact.artifact[0] == b"old-bytes"
+    assert artifact.verdict() is bmp_artifacts.CacheVerdict.RACED
     assert "c6" not in get_bmp_cache()
 
     release.clear()

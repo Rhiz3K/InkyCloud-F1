@@ -56,7 +56,7 @@ from app.services.track_renderer import attribution_headers
 from app.services.weather_service import TempUnit
 from app.services.weekend_phase import WeekendMode, select_weekend_race
 from app.services.weekend_results import weekend_context
-from app.state import bmp_cache_generation, get_bmp_variant_cache
+from app.state import get_bmp_variant_cache
 from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, strong_etag
 from app.utils.image_conversion import bmp_to_png
@@ -67,6 +67,18 @@ from app.utils.render_limit import render_slot
 router = APIRouter()
 logger = logging.getLogger(__name__)
 _PREVIEW_CACHE_CONTROL = "public, max-age=300"
+# Incomplete data is never stored; a render that straddled a cache clear twice is complete
+# but uncached, so the browser may keep it only while it revalidates by ETag.
+_PREVIEW_MISS_CACHE_CONTROL = {
+    bmp_artifacts.CacheVerdict.CACHED: _PREVIEW_CACHE_CONTROL,
+    bmp_artifacts.CacheVerdict.INCOMPLETE: "no-store",
+    bmp_artifacts.CacheVerdict.RACED: "no-cache",
+}
+_TEAMS_PREVIEW_MISS_CACHE_CONTROL = {
+    bmp_artifacts.CacheVerdict.CACHED: "no-cache",
+    bmp_artifacts.CacheVerdict.INCOMPLETE: "no-store",
+    bmp_artifacts.CacheVerdict.RACED: "no-cache",
+}
 
 
 def _preview_snapshot(path: Path, identity: str) -> tuple[bytes, dict] | None:
@@ -206,64 +218,75 @@ async def _render_configure_calendar(
     """Share calendar BMP caching and singleflight, then encode the matching PNG preview.
 
     ``weather`` is canonical (off/current/race_day/weekend), so the key equals the
-    /calendar.bmp one.
+    /calendar.bmp one. A render that straddles an image-cache clear is retried once with the
+    re-resolved race, like /calendar.bmp.
     """
-    race = select_weekend_race(F1Service(), weekend_mode)
-    now = datetime.now(UTC)
-    key = (
-        calendar_identity(race, options, weather_type=weather, now=now)
-        + "|"
-        + calendar_cache_key(lang, None, None, None, None, weather, display)
-    )
-    weekend = weekend_context(weekend_mode, race, now=now, timezone_name=None, countdown=countdown)
-    hint = None
-    if countdown != CountdownMode.HOURS or weekend.mode != WeekendMode.OFF or weather == "weekend":
-        hint = calendar_refresh_hint(
-            race,
-            now=now,
-            timezone_name=None,
-            countdown=countdown,
-            weather_type=weather,
-            weather_enabled=config.WEATHER_ENABLED,
-            selection_grace=weekend_mode.selection_grace,
-        ).with_changes(
-            weekend.changes, hourly=weekend.pending, period_keyed=weekend.mode == WeekendMode.AUTO
+    retried = False
+    while True:
+        race = select_weekend_race(F1Service(), weekend_mode)
+        now = datetime.now(UTC)
+        key = (
+            calendar_identity(race, options, weather_type=weather, now=now)
+            + "|"
+            + calendar_cache_key(lang, None, None, None, None, weather, display)
         )
-        if countdown != CountdownMode.HOURS:
-            key += f":countdown={countdown}:{hint.cache_token()}"
-        key += weekend.cache_suffix(hint)
-    key += temp_unit_cache_suffix(temp_unit) + bmp_artifacts.theme_cache_suffix(theme)
-    image_cache = bmp_artifacts.calendar_image_cache(
-        countdown, weekend.mode, temp_unit, weather, theme
-    )
-    artifact = image_cache.get(key)
-    if artifact is None:
-        artifact = await bmp_artifacts.singleflight(
-            f"calendar:{selected_generation()}:{key}",
-            functools.partial(
-                bmp_artifacts.render_calendar_artifact,
-                cache_key=key,
-                race_data=race,
-                lang=lang,
-                target_tz=config.DEFAULT_TIMEZONE,
+        weekend = weekend_context(
+            weekend_mode, race, now=now, timezone_name=None, countdown=countdown
+        )
+        hint = None
+        if countdown != CountdownMode.HOURS or weekend.mode != WeekendMode.OFF or weather == "weekend":
+            hint = calendar_refresh_hint(
+                race,
+                now=now,
+                timezone_name=None,
+                countdown=countdown,
                 weather_type=weather,
-                display=display,
-                track_options=options,
-                countdown_mode=countdown,
-                weekend_mode=weekend.mode,
-                weekend=weekend.phase,
-                temp_unit=temp_unit,
-                **bmp_artifacts.theme_kwargs(theme),
-            ),
+                weather_enabled=config.WEATHER_ENABLED,
+                selection_grace=weekend_mode.selection_grace,
+            ).with_changes(
+                weekend.changes, hourly=weekend.pending, period_keyed=weekend.mode == WeekendMode.AUTO
+            )
+            if countdown != CountdownMode.HOURS:
+                key += f":countdown={countdown}:{hint.cache_token()}"
+            key += weekend.cache_suffix(hint)
+        key += temp_unit_cache_suffix(temp_unit) + bmp_artifacts.theme_cache_suffix(theme)
+        image_cache = bmp_artifacts.calendar_image_cache(
+            countdown, weekend.mode, temp_unit, weather, theme
         )
+        artifact = image_cache.get(key)
+        verdict = bmp_artifacts.CacheVerdict.CACHED
+        if artifact is None:
+            rendered = await bmp_artifacts.singleflight(
+                f"calendar:{selected_generation()}:{key}",
+                functools.partial(
+                    bmp_artifacts.render_calendar_artifact,
+                    cache_key=key,
+                    race_data=race,
+                    lang=lang,
+                    target_tz=config.DEFAULT_TIMEZONE,
+                    weather_type=weather,
+                    display=display,
+                    track_options=options,
+                    countdown_mode=countdown,
+                    weekend_mode=weekend.mode,
+                    weekend=weekend.phase,
+                    temp_unit=temp_unit,
+                    **bmp_artifacts.theme_kwargs(theme),
+                ),
+            )
+            artifact, verdict = rendered.artifact, rendered.verdict()
+            if verdict is bmp_artifacts.CacheVerdict.RACED and not retried:
+                retried = True
+                continue
+        break
     async with render_slot(variant=theme != ThemeMode.LIGHT):
         content = await run_render(
             functools.partial(
                 bmp_to_png, artifact[0], full_size=True, preserve_color=display in COLOR_DISPLAYS
             )
         )
-    cache_control = _PREVIEW_CACHE_CONTROL
-    if weather == "weekend" and hint is not None:
+    cache_control = _PREVIEW_MISS_CACHE_CONTROL[verdict]
+    if weather == "weekend" and hint is not None and verdict is bmp_artifacts.CacheVerdict.CACHED:
         cache_control = f"public, max-age={hint.max_age(datetime.now(UTC), 300)}"
     etag = strong_etag(content)
     unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
@@ -273,7 +296,7 @@ async def _render_configure_calendar(
         media_type=None if unchanged else "image/png",
         headers={
             "ETag": etag,
-            "Cache-Control": cache_control if key in image_cache else "no-store",
+            "Cache-Control": cache_control,
             **attribution_headers((race or {}).get("circuit", {}).get("circuitId", ""), options),
         },
     )
@@ -346,8 +369,8 @@ async def _render_teams_extra_preview(
         + bmp_artifacts.theme_cache_suffix(theme)
     )
 
-    async def produce() -> tuple[bytes, str]:
-        """Render and cache only complete teams data in the variant cache."""
+    async def produce() -> bmp_artifacts.RenderedArtifact:
+        """Render and cache only complete, current teams data in the variant cache."""
         generation = selected_generation()
         async with render_slot(variant=True):
             require_current_selection(generation)
@@ -367,24 +390,33 @@ async def _render_teams_extra_preview(
                     **bmp_artifacts.theme_kwargs(theme),
                 )
             )
-            artifact = (content, strong_etag(content))
-            if is_teams_data_cacheable(data) and bmp_cache_generation() == generation:
-                get_bmp_variant_cache()[key] = artifact
-            return artifact
+            rendered = bmp_artifacts.RenderedArtifact(
+                (content, strong_etag(content)), is_teams_data_cacheable(data), generation
+            )
+            if rendered.verdict() is bmp_artifacts.CacheVerdict.CACHED:
+                get_bmp_variant_cache()[key] = rendered.artifact
+            return rendered
 
-    artifact = get_bmp_variant_cache().get(key)
-    if artifact is None:
-        artifact = await bmp_artifacts.singleflight(f"{selected_generation()}:{key}", produce)
+    # A render that straddles an image-cache clear is retried once (the finished flight has
+    # released its key, so the retry renders with freshly loaded teams data).
+    retried = False
+    while True:
+        artifact = get_bmp_variant_cache().get(key)
+        verdict = bmp_artifacts.CacheVerdict.CACHED
+        if artifact is None:
+            rendered = await bmp_artifacts.singleflight(f"{selected_generation()}:{key}", produce)
+            artifact, verdict = rendered.artifact, rendered.verdict()
+            if verdict is bmp_artifacts.CacheVerdict.RACED and not retried:
+                retried = True
+                continue
+        break
     content, etag = artifact
     unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
     return Response(
         content=b"" if unchanged else content,
         status_code=304 if unchanged else 200,
         media_type=None if unchanged else "image/png",
-        headers={
-            "ETag": etag,
-            "Cache-Control": "no-cache" if key in get_bmp_variant_cache() else "no-store",
-        },
+        headers={"ETag": etag, "Cache-Control": _TEAMS_PREVIEW_MISS_CACHE_CONTROL[verdict]},
     )
 
 

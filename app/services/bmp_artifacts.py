@@ -11,7 +11,9 @@ import asyncio
 import functools
 import logging
 from collections.abc import Awaitable, Callable
-from typing import TypedDict
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Any, TypedDict
 
 from cachetools import TTLCache
 
@@ -47,24 +49,58 @@ from app.utils.render_limit import render_slot
 
 logger = logging.getLogger(__name__)
 
-_singleflight_tasks: dict[str, asyncio.Task[BmpArtifact]] = {}
+_singleflight_tasks: dict[str, asyncio.Task[Any]] = {}
 
 
-async def singleflight(
-    key: str,
-    producer: Callable[[], Awaitable[BmpArtifact]],
-) -> BmpArtifact:
+class CacheVerdict(StrEnum):
+    """Why a freshly rendered artifact is (or is not) in the image cache."""
+
+    # Complete inputs, rendered within one cache generation: stored in the image cache.
+    CACHED = "cached"
+    # Degraded or missing inputs: served once, never cached (clients get ``no-store``).
+    INCOMPLETE = "incomplete"
+    # Complete inputs, but the caches were cleared while it rendered: the bytes may predate
+    # the refresh, so they are served but not cached, and the route retries once.
+    RACED = "raced"
+
+
+@dataclass(frozen=True, slots=True)
+class RenderedArtifact:
+    """One shared render's artifact plus what its producer knew while building it.
+
+    Every waiter of a singleflight receives the producer's object, so the verdict is based on
+    the generation the producer captured before loading its inputs, not on when a waiter
+    joined: a request that joined a flight started before a cache clear learns it is stale.
+    """
+
+    artifact: BmpArtifact
+    complete: bool
+    generation: int
+
+    def verdict(self) -> CacheVerdict:
+        """Classify the artifact against the current cache generation."""
+        if not self.complete:
+            return CacheVerdict.INCOMPLETE
+        if self.generation != bmp_cache_generation():
+            return CacheVerdict.RACED
+        return CacheVerdict.CACHED
+
+
+async def singleflight[T](key: str, producer: Callable[[], Awaitable[T]]) -> T:
     """Share one in-flight render per key on the application's event loop.
 
     The mapping is intentionally lock-free: routes and task cleanup access it only from the
     same asyncio event loop. Shielding keeps the producer alive when one waiter disconnects.
+    A finished flight releases its key before its waiters resume, so a waiter that calls
+    again with the same key (e.g. a retry after a cache clear) starts or joins a newer
+    flight, never the one it just received a result from.
     """
     key = selection_flight_key(key)
     existing = _singleflight_tasks.get(key)
     if existing is not None:
         return await asyncio.shield(existing)
 
-    async def execute() -> BmpArtifact:
+    async def execute() -> T:
         """Run the producer and release this key only when its own task completes."""
         try:
             return await producer()
@@ -262,8 +298,8 @@ async def render_calendar_artifact(
     weekend: WeekendPhase | None = None,
     temp_unit: TempUnit = TempUnit.C,
     theme: ThemeMode = ThemeMode.LIGHT,
-) -> BmpArtifact:
-    """Render/hash one calendar miss and cache the pair only when complete.
+) -> RenderedArtifact:
+    """Render/hash one calendar miss and cache the pair only when complete and current.
 
     A non-default countdown, weekend mode, temperature unit, theme or the weekend weather
     summary is an opt-in variant: it renders in a variant slot and is cached in the variant
@@ -286,12 +322,12 @@ async def render_calendar_artifact(
             temp_unit=temp_unit,
             **theme_kwargs(theme),
         )
-        artifact = (bmp_data, strong_etag(bmp_data))
-        if is_cacheable and bmp_cache_generation() == generation:
+        rendered = RenderedArtifact((bmp_data, strong_etag(bmp_data)), is_cacheable, generation)
+        if rendered.verdict() is CacheVerdict.CACHED:
             calendar_image_cache(countdown_mode, weekend_mode, temp_unit, weather_type, theme)[
                 cache_key
-            ] = artifact
-        return artifact
+            ] = rendered.artifact
+        return rendered
 
 
 def calendar_image_cache(
@@ -366,8 +402,8 @@ async def render_teams_artifact(
     extra: TeamsExtra = TeamsExtra.NONE,
     extra_context: TeamsExtraContext | None = None,
     theme: ThemeMode = ThemeMode.LIGHT,
-) -> BmpArtifact:
-    """Fetch, render, and hash one teams miss, caching only a complete dashboard."""
+) -> RenderedArtifact:
+    """Fetch, render, and hash one teams miss, caching only a complete, current dashboard."""
     generation = selected_generation()
     async with render_slot(variant=is_teams_variant(extra, theme)):
         require_current_selection(generation)
@@ -384,14 +420,17 @@ async def render_teams_artifact(
                 **theme_kwargs(theme),
             )
         )
-        artifact = (bmp_data, strong_etag(bmp_data))
-        if is_teams_data_cacheable(teams_data) and bmp_cache_generation() == generation:
-            teams_image_cache(extra, theme)[cache_key] = artifact
-        elif teams_data.teams:
+        rendered = RenderedArtifact(
+            (bmp_data, strong_etag(bmp_data)), is_teams_data_cacheable(teams_data), generation
+        )
+        verdict = rendered.verdict()
+        if verdict is CacheVerdict.CACHED:
+            teams_image_cache(extra, theme)[cache_key] = rendered.artifact
+        elif verdict is CacheVerdict.INCOMPLETE and teams_data.teams:
             logger.warning("Teams standings incomplete for %s; serving but not caching", year)
-        else:
+        elif verdict is CacheVerdict.INCOMPLETE:
             logger.warning("Teams data empty for %s; serving but not caching", year)
-        return artifact
+        return rendered
 
 
 def output_cache_key(artifact: BmpArtifact, display: str, output: ImageOutput) -> str:

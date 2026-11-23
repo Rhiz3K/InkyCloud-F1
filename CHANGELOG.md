@@ -246,6 +246,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A calendar rendered while the scheduler cleared the image cache (at startup and around
+  every full hour, when many devices poll) no longer goes out with `Cache-Control: no-store`.
+  The render is still kept out of the freshly cleared cache, but the request now retries once:
+  it re-resolves the race, checks the in-process cache and the pregenerated file the run has
+  just written, and otherwise renders again. A successful retry is cached and gets the normal
+  headers (`public, max-age=3600` for the calendar). If the retry races a clear as well, the
+  response uses `no-cache` (store, but revalidate by ETag) instead of `no-store`. Requests that
+  joined a shared render started before the clear are detected the same way. `/teams.bmp`
+  (including `extra` panels and `theme=dark`), `/auto.bmp` and the configure previews retry
+  the same way (`/teams.bmp` always sends `no-cache`, so there only the bytes get fresher).
+  Incomplete data and the error image keep `no-store`, and responses outside this race are
+  unchanged.
+
 - Dark previews and themed error images use variant render slots. A failed plain Teams preview makes one upstream request, and only a failed extra panel marks the plain preview as a fallback.
 
 - Review quick wins (issue #185):

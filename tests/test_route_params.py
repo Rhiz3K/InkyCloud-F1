@@ -90,7 +90,9 @@ async def _calendar_render_call(**query):
 
     async def rendered(key, producer):
         calls.append((key, producer.keywords))
-        return (b"bmp", '"etag"')
+        return bmp_artifacts.RenderedArtifact(
+            (b"bmp", '"etag"'), True, bmp_artifacts.bmp_cache_generation()
+        )
 
     get_bmp_cache().clear()
     params = {
@@ -140,7 +142,9 @@ async def test_configure_preview_reuses_the_calendar_bmp_cache_entry():
 
     async def rendered(key, producer):
         seen.append((key, producer.keywords))
-        return (b"bmp", '"etag"')
+        return bmp_artifacts.RenderedArtifact(
+            (b"bmp", '"etag"'), True, bmp_artifacts.bmp_cache_generation()
+        )
 
     get_bmp_cache().clear()
     with (
