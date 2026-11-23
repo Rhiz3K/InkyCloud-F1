@@ -135,14 +135,17 @@ def _calendar_poll_seconds(
     return hint.seconds(_utc_now())
 
 
-def _calendar_cache_control(countdown: CountdownMode, hint: RefreshHint) -> str:
-    """Return the calendar Cache-Control; countdown variants never outlive their next change.
+def _calendar_cache_control(
+    countdown: CountdownMode, hint: RefreshHint, weekend_mode: WeekendMode = WeekendMode.OFF
+) -> str:
+    """Return the calendar Cache-Control; period-keyed variants never outlive their next change.
 
-    The default (hours) keeps its historical one-hour lifetime. A day count, ``off`` or ``auto``
-    image is keyed by its content period, so a browser or shared cache must not reuse it past
-    local midnight, the race start or the auto switch.
+    The default (hours, weekend off) keeps its historical one-hour lifetime. A day count,
+    ``off`` or ``auto`` countdown and a ``weekend_mode=auto`` image are keyed by their content
+    period, so a browser or shared cache must not reuse them past local midnight, the race
+    start, the auto switch or a session boundary.
     """
-    if countdown == CountdownMode.HOURS:
+    if countdown == CountdownMode.HOURS and weekend_mode == WeekendMode.OFF:
         return CALENDAR_BMP_CACHE_CONTROL
     return f"public, max-age={hint.max_age(_utc_now())}"
 
@@ -718,7 +721,7 @@ async def _serve_calendar_bmp(
             logger.debug("Cache hit for %s", cache_key)
             return respond(
                 *cached_artifact,
-                cache_control=_calendar_cache_control(countdown, hint),
+                cache_control=_calendar_cache_control(countdown, hint, weekend.mode),
                 cache_status="HIT",
             )
 
@@ -780,7 +783,9 @@ async def _serve_calendar_bmp(
         is_cacheable = image_cache.get(cache_key) is artifact
         return respond(
             *artifact,
-            cache_control=_calendar_cache_control(countdown, hint) if is_cacheable else "no-store",
+            cache_control=_calendar_cache_control(countdown, hint, weekend.mode)
+            if is_cacheable
+            else "no-store",
             cache_status="MISS",
         )
     except Exception as exc:

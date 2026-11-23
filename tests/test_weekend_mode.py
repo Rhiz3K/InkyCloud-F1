@@ -3,7 +3,7 @@
 import json
 import sqlite3
 from contextlib import closing
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -276,6 +276,43 @@ def test_weekend_changes_cover_window_edges_session_boundaries_and_countdown_tic
     assert rh.next_local_midnight(now, PRAGUE) in days
     off = weekend_changes(race, now=now, zone=PRAGUE, countdown=CountdownMode.OFF)
     assert min(off) == QA_FP2
+
+
+def test_unfinished_date_only_session_wakes_the_display_at_its_local_midnight():
+    # FP1 has no published hour; Saturday qualifying and the race are timed.
+    race = {
+        "season": "2026",
+        "round": "22",
+        "schedule": [
+            {"name": "FP1", "datetime": "2026-11-27"},
+            {"name": "Qualifying", "datetime": "2026-11-28T18:00:00+00:00"},
+            {"name": "Race", "datetime": "2026-11-29T16:00:00+00:00"},
+        ],
+    }
+    friday_night = datetime(2026, 11, 27, 21, 0, tzinfo=UTC)  # 22:00 in Prague
+    saturday = rh.local_midnight(date(2026, 11, 28), PRAGUE)
+    assert _phase(race, friday_night) == WeekendPhase()
+    changes = weekend_changes(race, now=friday_night, zone=PRAGUE, countdown=CountdownMode.OFF)
+    assert saturday in changes
+    assert _phase(race, saturday) == WeekendPhase(
+        past=frozenset({"FP1"}),
+        current="Qualifying",
+        countdown_session="Qualifying",
+        countdown_start=QA_Q,
+    )
+
+    # With countdown=off and no weather the default hint alone would sleep until qualifying.
+    hint = rh.calendar_refresh_hint(
+        race,
+        now=friday_night,
+        timezone_name="Europe/Prague",
+        countdown=CountdownMode.OFF,
+        weather_type="off",
+        weather_enabled=False,
+        selection_grace=NEXT_RACE_GRACE,
+    ).with_changes(changes)
+    assert hint.next_change == saturday
+    assert hint.seconds() == int((saturday - friday_night).total_seconds()) + rh.SETTLE_SECONDS
 
 
 # --- Rendering ------------------------------------------------------------------------------
@@ -857,6 +894,19 @@ async def test_weekend_variant_uses_the_variant_cache_and_session_hint(client_ap
     live = await _get(client_app, "/calendar.bmp?weather=false&weekend_mode=auto")
     assert live.headers["etag"] != auto.headers["etag"]
     assert any(":weekend=1:FP2:live:" in key for key in get_bmp_variant_cache())
+
+
+@pytest.mark.asyncio
+async def test_weekend_variant_http_lifetime_stops_at_the_next_session_boundary(client_app, frozen):
+    frozen.now = QA_FP2 - timedelta(minutes=10)
+    auto = await _get(client_app, "/calendar.bmp?weather=false&weekend_mode=auto")
+    assert auto.headers["cache-control"] == "public, max-age=600"
+    frozen.now = QA_FP2 - timedelta(minutes=4)
+    hit = await _get(client_app, "/calendar.bmp?weather=false&weekend_mode=auto")
+    assert hit.headers["x-cache"] == "HIT"
+    assert hit.headers["cache-control"] == "public, max-age=240"
+    default = await _get(client_app, "/calendar.bmp?weather=false")
+    assert default.headers["cache-control"] == "public, max-age=3600"
 
 
 @pytest.mark.asyncio

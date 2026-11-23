@@ -27,7 +27,7 @@ from typing import Any
 
 from app.services.auto_screen import race_week_window
 from app.services.renderer_text import normalize_session_name
-from app.utils.race_times import parse_utc_instant, session_over
+from app.utils.race_times import local_session_start, parse_utc_instant, session_over
 from app.utils.refresh_hint import (
     RACE_LIVE_WINDOW,
     CountdownMode,
@@ -97,10 +97,15 @@ class WeekendPhase:
 
 @dataclass(frozen=True)
 class _Session:
-    """One schedule row as the weekend view sees it: name, start and whether it is over."""
+    """One schedule row as the weekend view sees it.
+
+    ``start`` is None for a date-only (TBA) session. ``ends`` is when it counts as over: the
+    estimated end of a timed session, or the local midnight after a date-only session's day.
+    """
 
     name: str
     start: datetime | None
+    ends: datetime
     over: bool
 
 
@@ -114,13 +119,15 @@ def _sessions(race_data: Mapping[str, Any], now: datetime, zone: tzinfo) -> list
             continue
         try:
             if len(value) == 10:
-                # A date-only session is over when its local day is over.
-                sessions.append(_Session(name, None, session_over(value, None, zone, now)))
+                # A date-only session is over when its local day is over (as session_over).
+                ends = local_session_start(value, None, zone) + timedelta(days=1)
+                sessions.append(_Session(name, None, ends, session_over(value, None, zone, now)))
                 continue
             start = parse_utc_instant(value)
         except ValueError:
             continue
-        sessions.append(_Session(name, start, start + session_duration(name) <= now))
+        ends = start + session_duration(name)
+        sessions.append(_Session(name, start, ends, ends <= now))
     return sessions
 
 
@@ -165,7 +172,8 @@ def weekend_changes(
 ) -> list[datetime]:
     """Return when the ``weekend_mode=auto`` calendar next changes beyond the default hint.
 
-    The window edges, every session start and estimated end, and the ticks of a session
+    The window edges, every session start and estimated end (the local midnight after a
+    date-only session), and the ticks of a session
     countdown (each hour, or local midnight for whole days); the race countdown itself is
     already part of the default calendar hint.
     """
@@ -176,12 +184,12 @@ def weekend_changes(
     if now < window[0]:
         return changes
     for session in _sessions(race_data, now, zone):
-        if session.start is not None:
-            changes.extend(
-                instant
-                for instant in (session.start, session.start + session_duration(session.name))
-                if instant > now
-            )
+        # A date-only session has no start to wake for, but it still ends at local midnight.
+        changes.extend(
+            instant
+            for instant in (session.start, session.ends)
+            if instant is not None and instant > now
+        )
     phase = weekend_phase(race_data, now=now, zone=zone)
     start = phase.countdown_start if phase is not None else None
     if start is not None and start > now and countdown != CountdownMode.OFF:

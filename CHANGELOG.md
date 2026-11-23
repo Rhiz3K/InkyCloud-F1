@@ -24,7 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   column with its own season (e.g. `2026 QUALIFYING` next to `2025 RACE`). The variant renders
   on demand into the variant cache, keyed by the session phase and the stored podiums;
   outside the weekend without podiums it shares the default image and caches.
-  `X-Next-Refresh-Seconds` also covers session starts, estimated ends and pending results.
+  `X-Next-Refresh-Seconds` also covers session starts, estimated ends (local midnight for a
+  session without a published hour) and pending results, and the variant's `Cache-Control`
+  max-age stops at the next of these changes.
   Invalid values return HTTP 422. API docs, configurator ("Race weekend"), README, EXAMPLES
   and all 13 locales are updated.
 
