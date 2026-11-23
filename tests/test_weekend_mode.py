@@ -73,12 +73,18 @@ def _races(tz: str = "Europe/Prague") -> list[dict]:
     return F1Service(timezone_name=tz).get_all_races_from_static(2026)
 
 
+def _race_named(name: str, tz: str) -> dict:
+    race = next((race for race in _races(tz) if race["race_name"] == name), None)
+    assert race is not None, name
+    return race
+
+
 def _qatar(tz: str = "Europe/Prague") -> dict:
-    return next(race for race in _races(tz) if race["race_name"] == "Qatar Grand Prix")
+    return _race_named("Qatar Grand Prix", tz)
 
 
 def _singapore(tz: str = "Europe/Prague") -> dict:
-    return next(race for race in _races(tz) if race["race_name"] == "Singapore Grand Prix")
+    return _race_named("Singapore Grand Prix", tz)
 
 
 def _phase(race, now, zone=PRAGUE):
