@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import DEFAULT, AsyncMock, MagicMock
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -332,13 +332,12 @@ async def test_hint_and_max_age_stop_at_the_switch(auto_app):
 @pytest.mark.asyncio
 async def test_slow_render_does_not_stretch_max_age_or_hint_past_the_switch(auto_app, monkeypatch):
     _Clock.now = WINDOW_END - timedelta(minutes=20)
-    serve = images._serve_calendar_bmp
 
-    async def slow_serve(*args, **kwargs):
-        response = await serve(*args, **kwargs)
-        _Clock.now += timedelta(minutes=5)  # the render (or a queue) took five minutes
-        return response
+    def take_five_minutes(*_args, **_kwargs):
+        _Clock.now += timedelta(minutes=5)  # the render (or a queue) takes five minutes
+        return DEFAULT
 
+    slow_serve = AsyncMock(wraps=images._serve_calendar_bmp, side_effect=take_five_minutes)
     monkeypatch.setattr(images, "_serve_calendar_bmp", slow_serve)
     calendar = await _get(auto_app, "/auto.bmp?weather=false&countdown=off")
     assert calendar.headers["x-active-screen"] == "calendar"
