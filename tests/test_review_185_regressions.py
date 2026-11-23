@@ -593,6 +593,58 @@ async def test_constructor_standings_skip_malformed_row(monkeypatch):
     assert [s.constructor_name for s in standings] == ["Audi", "Alpine"]
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("method", "rows_key", "valid_row", "attr", "expected"),
+    [
+        (
+            "get_driver_standings",
+            "DriverStandings",
+            {"position": "1", "points": "25", "Driver": {"code": "NOR"}},
+            "driver_code",
+            "NOR",
+        ),
+        (
+            "get_constructor_standings",
+            "ConstructorStandings",
+            {"position": "1", "points": "40", "Constructor": {"name": "McLaren"}},
+            "constructor_name",
+            "McLaren",
+        ),
+    ],
+)
+async def test_all_rejected_standings_rows_recover_after_the_negative_cache(
+    monkeypatch, method, rows_key, valid_row, attr, expected
+):
+    from app.services import standings_service
+
+    def payload(rows):
+        return {"MRData": {"StandingsTable": {"StandingsLists": [{"round": "5", rows_key: rows}]}}}
+
+    clock = [1_000.0]
+    monkeypatch.setattr(standings_service.time, "time", lambda: clock[0])
+    fetch = AsyncMock(return_value=_standings_response(payload([{"position": ""}, None])))
+    monkeypatch.setattr(standings_service, "fetch_with_retry", fetch)
+    service = standings_service.StandingsService()
+    service._cache.clear()
+    service._negative_cache.clear()
+    try:
+        # Only rejected rows: nothing is positive-cached for an hour.
+        assert await getattr(service, method)(2026) == []
+        assert service._cache == {}
+
+        fetch.return_value = _standings_response(payload([valid_row]))
+        assert await getattr(service, method)(2026) == []  # still inside the negative cache
+        clock[0] += standings_service.NEGATIVE_CACHE_TTL_SECONDS + 1
+        recovered = await getattr(service, method)(2026)
+    finally:
+        service._cache.clear()
+        service._negative_cache.clear()
+
+    assert [getattr(standing, attr) for standing in recovered] == [expected]
+    assert fetch.await_count == 2
+
+
 def test_standing_numbers_reject_non_mapping_rows():
     from app.services.standings_service import _parse_standing_numbers
 

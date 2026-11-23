@@ -194,6 +194,11 @@ class StandingsService:
                     )
                 )
 
+            if not driver_standings:
+                # Every row was rejected: return empty so only the short negative cache applies.
+                logger.warning("No valid driver standings rows for %s", year)
+                return []
+
             full_data = StandingsData(
                 season=year,
                 round=round_num,
@@ -288,6 +293,11 @@ class StandingsService:
                         nationality=constructor_data.get("nationality", ""),
                     )
                 )
+
+            if not constructor_standings:
+                # Every row was rejected: return empty so only the short negative cache applies.
+                logger.warning("No valid constructor standings rows for %s", year)
+                return []
 
             full_data = StandingsData(
                 season=year,
