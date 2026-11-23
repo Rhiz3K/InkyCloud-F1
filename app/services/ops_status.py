@@ -36,8 +36,8 @@ from app.utils.sqlite_readonly import read_only_uri
 from app.version import APP_VERSION
 
 REPORT_SCHEMA_VERSION = 1
-_HISTORICAL_REFRESH_META_KEY = "last_historical_refresh"
-_HISTORICAL_REFRESH_STREAK_META_KEY = "historical_refresh_incomplete_streak"
+_HISTORICAL_REFRESH_META_NAME = "last_historical_refresh"
+_HISTORICAL_REFRESH_STREAK_META_NAME = "historical_refresh_incomplete_streak"
 # Matches the escalation threshold of the daily refresh job.
 _HISTORICAL_REFRESH_ALERT_AFTER_RUNS = 3
 # The refresh runs daily; two missed days mean the job is not completing.
@@ -47,8 +47,8 @@ _META_KEYS = (
     GENERATION_SUCCESS_META_KEY,
     GENERATION_STATUS_META_KEY,
     GENERATION_REASONS_META_KEY,
-    _HISTORICAL_REFRESH_META_KEY,
-    _HISTORICAL_REFRESH_STREAK_META_KEY,
+    _HISTORICAL_REFRESH_META_NAME,
+    _HISTORICAL_REFRESH_STREAK_META_NAME,
     "last_backup_success",
     "last_backup_failure",
 )
@@ -69,11 +69,11 @@ def _read_database(path: Path, now: datetime) -> dict[str, Any] | None:
             }
             meta: dict[str, str] = {}
             if "cache_meta" in tables:
-                placeholders = ",".join("?" * len(_META_KEYS))
                 meta = dict(
                     db.execute(
-                        f"SELECT key, value FROM cache_meta WHERE key IN ({placeholders})",
-                        _META_KEYS,
+                        "SELECT key, value FROM cache_meta "
+                        "WHERE key IN (SELECT value FROM json_each(?))",
+                        (json.dumps(_META_KEYS),),
                     ).fetchall()
                 )
             weather: dict[str, int] = {}
@@ -137,10 +137,10 @@ def _historical_section(meta: dict[str, str], now: datetime) -> tuple[dict[str, 
     """Return the daily historical refresh state and its reason codes."""
     reasons: list[DegradedReason] = []
     try:
-        streak = max(int(meta.get(_HISTORICAL_REFRESH_STREAK_META_KEY) or 0), 0)
+        streak = max(int(meta.get(_HISTORICAL_REFRESH_STREAK_META_NAME) or 0), 0)
     except ValueError:
         streak = 0
-    last_success = _iso_or_none(meta.get(_HISTORICAL_REFRESH_META_KEY))
+    last_success = _iso_or_none(meta.get(_HISTORICAL_REFRESH_META_NAME))
     if streak >= _HISTORICAL_REFRESH_ALERT_AFTER_RUNS:
         reasons.append(DegradedReason.HISTORICAL_REFRESH_INCOMPLETE)
     if (

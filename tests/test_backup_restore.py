@@ -490,14 +490,14 @@ def test_external_backup_records_success_and_failure_and_embeds_data_files(data_
 
     assert result["success"] is True
     assert result["data_files"] == ["circuits_jolpica.json"]
-    assert _meta(data_dir / "f1.db", backup.BACKUP_SUCCESS_META_KEY) is not None
+    assert _meta(data_dir / "f1.db", backup.BACKUP_SUCCESS_META_NAME) is not None
 
     failing = MagicMock()
     failing.upload_file.side_effect = RuntimeError("network")
     monkeypatch.setattr(backup, "_get_s3_client", lambda: failing)
     with patch("app.services.backup.sentry_sdk.capture_exception"):
         assert backup.perform_backup_with_details()["success"] is False
-    assert _meta(data_dir / "f1.db", backup.BACKUP_FAILURE_META_KEY) is not None
+    assert _meta(data_dir / "f1.db", backup.BACKUP_FAILURE_META_NAME) is not None
 
 
 def test_scheduled_backup_records_its_outcome(data_dir, monkeypatch):
@@ -507,21 +507,21 @@ def test_scheduled_backup_records_its_outcome(data_dir, monkeypatch):
     monkeypatch.setattr(backup, "cleanup_old_backups", lambda _client=None: 0)
 
     assert backup.perform_backup() is True
-    assert _meta(data_dir / "f1.db", backup.BACKUP_SUCCESS_META_KEY) is not None
+    assert _meta(data_dir / "f1.db", backup.BACKUP_SUCCESS_META_NAME) is not None
 
     failing = MagicMock()
     failing.upload_file.side_effect = RuntimeError("network")
     monkeypatch.setattr(backup, "_get_s3_client", lambda: failing)
     with patch("app.services.backup.sentry_sdk.capture_exception"):
         assert backup.perform_backup() is False
-    assert _meta(data_dir / "f1.db", backup.BACKUP_FAILURE_META_KEY) is not None
+    assert _meta(data_dir / "f1.db", backup.BACKUP_FAILURE_META_NAME) is not None
 
 
 def test_recording_never_creates_a_missing_database(tmp_path, monkeypatch):
     missing = tmp_path / "missing.db"
     monkeypatch.setattr(backup.config, "DATABASE_PATH", str(missing))
 
-    backup._record_backup_event(backup.BACKUP_SUCCESS_META_KEY)
+    backup._record_backup_event(backup.BACKUP_SUCCESS_META_NAME)
 
     assert not missing.exists()
 

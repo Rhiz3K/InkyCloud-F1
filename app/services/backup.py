@@ -35,8 +35,11 @@ _BACKUP_NAME_PATTERN = re.compile(
 # Mutable files kept next to the database travel inside the snapshot in this table, so one
 # object stays atomic, retention keeps working by prefix and older backups simply lack it.
 DATA_FILES_TABLE = "inkycloud_backup_files"
-BACKUP_SUCCESS_META_KEY = "last_backup_success"
-BACKUP_FAILURE_META_KEY = "last_backup_failure"
+# Constant statements (the table name is spelled out, never interpolated into the SQL).
+_SELECT_DATA_FILES_SQL = "SELECT name, content FROM inkycloud_backup_files"
+_DROP_DATA_FILES_SQL = "DROP TABLE inkycloud_backup_files"
+BACKUP_SUCCESS_META_NAME = "last_backup_success"
+BACKUP_FAILURE_META_NAME = "last_backup_failure"
 INTEGRITY_UNKNOWN = "unknown"
 INTEGRITY_OK = "ok"
 INTEGRITY_FAILED = "failed"
@@ -249,7 +252,7 @@ def perform_backup() -> bool:
         )
 
         logger.info("Backup completed successfully: %s", backup_filename)
-        _record_backup_event(BACKUP_SUCCESS_META_KEY)
+        _record_backup_event(BACKUP_SUCCESS_META_NAME)
 
         # Clean up old backups if retention is configured
         if config.BACKUP_RETENTION_DAYS > 0:
@@ -259,7 +262,7 @@ def perform_backup() -> bool:
 
     except Exception as e:
         logger.error("Backup failed: %s", e, exc_info=True)
-        _record_backup_event(BACKUP_FAILURE_META_KEY)
+        _record_backup_event(BACKUP_FAILURE_META_NAME)
         if not config.MINIMAL_DATA_MODE:
             sentry_sdk.capture_exception(e)
         return False
@@ -579,7 +582,7 @@ def perform_backup_with_details() -> dict[str, Any]:
         result["success"] = True
         result["filename"] = backup_filename
         result["size_bytes"] = file_size
-        _record_backup_event(BACKUP_SUCCESS_META_KEY)
+        _record_backup_event(BACKUP_SUCCESS_META_NAME)
 
         # Cleanup old backups
         if config.BACKUP_RETENTION_DAYS > 0:
@@ -587,7 +590,7 @@ def perform_backup_with_details() -> dict[str, Any]:
 
     except Exception as e:
         result["error"] = str(e)
-        _record_backup_event(BACKUP_FAILURE_META_KEY)
+        _record_backup_event(BACKUP_FAILURE_META_NAME)
         if not config.MINIMAL_DATA_MODE:
             sentry_sdk.capture_exception(e)
 
@@ -782,8 +785,8 @@ def _extract_data_files(path: Path) -> dict[str, bytes]:
         ).fetchone()
         if not exists:
             return {}
-        rows = db.execute(f"SELECT name, content FROM {DATA_FILES_TABLE}").fetchall()
-        db.execute(f"DROP TABLE {DATA_FILES_TABLE}")
+        rows = db.execute(_SELECT_DATA_FILES_SQL).fetchall()
+        db.execute(_DROP_DATA_FILES_SQL)
         db.commit()
     return {name: bytes(content) for name, content in rows if name in known}
 
