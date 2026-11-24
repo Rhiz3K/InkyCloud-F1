@@ -415,6 +415,27 @@ def test_session_countdown_follows_the_countdown_mode(frozen, monkeypatch):
     assert "🏁" not in live
 
 
+@pytest.mark.parametrize("mode", list(CountdownMode))
+@pytest.mark.parametrize("elapsed", [timedelta(0), MINUTE, timedelta(hours=1)])
+def test_session_starting_mid_render_shows_live_not_a_negative_countdown(
+    frozen, monkeypatch, mode, elapsed
+):
+    race = _singapore()
+    # The phase is resolved at request entry, just before the sprint starts ...
+    frozen.now = SG_SPRINT - MINUTE
+    pending = _phase(race, frozen.now)
+    assert pending.countdown_session == "Sprint" and not pending.live
+    # ... and the render runs after the start (e.g. behind a slow weather fetch).
+    frozen.now = SG_SPRINT + elapsed
+    live = _box_texts(race, _phase(race, SG_SPRINT + MINUTE), monkeypatch, mode=mode)
+
+    texts = _box_texts(race, pending, monkeypatch, mode=mode)
+
+    assert "SPRINT: LIVE" in texts
+    assert texts == live
+    assert not any("-" in text for text in texts)
+
+
 @pytest.mark.parametrize("lang", LANGUAGE_CODES)
 def test_session_countdown_fits_next_to_the_weather_in_every_locale(frozen, monkeypatch, lang):
     race = _singapore()

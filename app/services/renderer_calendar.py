@@ -366,20 +366,22 @@ def _session_countdown_text(
 
     The countdown follows ``countdown_mode`` like the race countdown; a leading zero day count
     is left out (``Q: 3 h``) and ``off`` shows the local day and start time (``Q: Sat 15:00``;
-    the date is in the schedule above). A running session shows ``LABEL: LIVE``.
+    the date is in the schedule above). A running session shows ``LABEL: LIVE``, also when it
+    started after ``weekend`` was resolved (the render can run behind a weather fetch).
     """
     name = weekend.countdown_session or ""
     label = translator.get(f"session_short_{normalize_session_name(name)}", name.upper())
-    if weekend.live:
-        return f"{label}: {translator.get('session_live', 'LIVE')}", True
     zone = get_timezone(timezone_name or config.DEFAULT_TIMEZONE)
+    now = datetime_cls.now(zone)
     start = weekend.countdown_start
+    if weekend.live or (start is not None and start <= now):
+        return f"{label}: {translator.get('session_live', 'LIVE')}", True
     assert start is not None
     start = start.astimezone(zone)
     if countdown_mode == CountdownMode.OFF:
         day = translator.get(f"day_{start.strftime('%a').lower()}", start.strftime("%a"))
         return f"{label}: {day} {start:%H:%M}", False
-    delta = start - datetime_cls.now(zone)
+    delta = start - now
     text = _countdown_text(
         start,
         delta,
