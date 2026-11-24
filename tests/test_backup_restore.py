@@ -749,3 +749,15 @@ def test_cli_list_warns_about_errors(data_dir, capsys, monkeypatch):
 
     assert backup_cli.cmd_list() == 1
     assert "Warning: S3 listing failed (RuntimeError)" in capsys.readouterr().out
+
+
+def test_self_hosting_one_off_containers_use_the_pinned_release():
+    """A bare `docker compose run` would select f1-eink-cal:local, not the running release."""
+    guide = (Path(__file__).resolve().parents[1] / "SELF-HOSTING.md").read_text(encoding="utf-8")
+    run_lines = [line.strip() for line in guide.splitlines() if "docker compose run" in line]
+
+    assert run_lines
+    assert all(
+        line.startswith("F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose run")
+        for line in run_lines
+    )

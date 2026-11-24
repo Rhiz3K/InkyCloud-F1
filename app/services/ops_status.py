@@ -32,7 +32,7 @@ from app.services.generation_freshness import (
     generation_age_seconds,
 )
 from app.utils.runtime_audit import WEATHER_WINDOWS
-from app.utils.sqlite_readonly import read_only_uri
+from app.utils.sqlite_readonly import read_consistently
 from app.version import APP_VERSION
 
 REPORT_SCHEMA_VERSION = 1
@@ -54,6 +54,38 @@ _META_KEYS = (
 )
 
 
+def _read_rows(uri: str, now: datetime) -> dict[str, Any]:
+    """Read the diagnostic rows through one read-only connection, in one transaction."""
+    with closing(sqlite3.connect(uri, uri=True, timeout=5)) as db:
+        db.execute("PRAGMA query_only=ON")
+        db.execute("BEGIN")
+        tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        meta: dict[str, str] = {}
+        if "cache_meta" in tables:
+            meta = dict(
+                db.execute(
+                    "SELECT key, value FROM cache_meta "
+                    "WHERE key IN (SELECT value FROM json_each(?))",
+                    (json.dumps(_META_KEYS),),
+                ).fetchall()
+            )
+        weather: dict[str, int] = {}
+        if "weather_api_requests" in tables:
+            weather = {
+                label: db.execute(
+                    "SELECT COUNT(*) FROM weather_api_requests WHERE timestamp > ?",
+                    (now.timestamp() - seconds,),
+                ).fetchone()[0]
+                for label, seconds in WEATHER_WINDOWS.items()
+            }
+        weekend: list[tuple] = []
+        if "weekend_results" in tables:
+            weekend = db.execute(
+                "SELECT season, round, podium IS NOT NULL, checked_at FROM weekend_results"
+            ).fetchall()
+    return {"meta": meta, "weather": weather, "weekend": weekend}
+
+
 def _read_database(path: Path, now: datetime) -> dict[str, Any] | None:
     """Read the diagnostic rows from one consistent snapshot; None if unreadable.
 
@@ -61,38 +93,9 @@ def _read_database(path: Path, now: datetime) -> dict[str, Any] | None:
     service runs and while it is stopped.
     """
     try:
-        with closing(sqlite3.connect(read_only_uri(path), uri=True, timeout=5)) as db:
-            db.execute("PRAGMA query_only=ON")
-            db.execute("BEGIN")
-            tables = {
-                row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            }
-            meta: dict[str, str] = {}
-            if "cache_meta" in tables:
-                meta = dict(
-                    db.execute(
-                        "SELECT key, value FROM cache_meta "
-                        "WHERE key IN (SELECT value FROM json_each(?))",
-                        (json.dumps(_META_KEYS),),
-                    ).fetchall()
-                )
-            weather: dict[str, int] = {}
-            if "weather_api_requests" in tables:
-                weather = {
-                    label: db.execute(
-                        "SELECT COUNT(*) FROM weather_api_requests WHERE timestamp > ?",
-                        (now.timestamp() - seconds,),
-                    ).fetchone()[0]
-                    for label, seconds in WEATHER_WINDOWS.items()
-                }
-            weekend: list[tuple] = []
-            if "weekend_results" in tables:
-                weekend = db.execute(
-                    "SELECT season, round, podium IS NOT NULL, checked_at FROM weekend_results"
-                ).fetchall()
+        return read_consistently(path, lambda uri: _read_rows(uri, now))
     except OSError, sqlite3.Error:
         return None
-    return {"meta": meta, "weather": weather, "weekend": weekend}
 
 
 def _storage_ok() -> bool:

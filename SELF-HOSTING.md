@@ -272,11 +272,12 @@ docker compose exec f1-eink-cal backup list
 docker compose exec f1-eink-cal backup list --verify --json
 ```
 
-Restore with the service stopped, in a one-off container:
+Restore with the service stopped, in a one-off container from the same pinned release as the
+service (for a [source build](#build-from-source), leave out `F1_IMAGE=...`):
 
 ```bash
 docker compose stop f1-eink-cal
-docker compose run --rm --no-deps f1-eink-cal backup restore latest
+F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose run --rm --no-deps f1-eink-cal backup restore latest
 docker compose start f1-eink-cal
 ```
 
@@ -319,11 +320,12 @@ docker compose exec f1-eink-cal reset-db cache
 `reset-db cache` also clears the stored race weekend podiums (`weekend_results`); restart the
 service to drop the copy held in memory. `reset-db all` deletes the database file, so the application must not be running: the live
 process keeps its connection to the unlinked file and cannot recreate the schema until it
-restarts. Stop the service and run the reset in a one-off container:
+restarts. Stop the service and run the reset in a one-off container from the same pinned
+release (for a source build, leave out `F1_IMAGE=...`):
 
 ```bash
 docker compose stop f1-eink-cal
-docker compose run --rm --no-deps f1-eink-cal reset-db all
+F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose run --rm --no-deps f1-eink-cal reset-db all
 docker compose start f1-eink-cal
 ```
 

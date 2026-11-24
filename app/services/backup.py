@@ -17,7 +17,7 @@ import sentry_sdk
 from app.config import config
 from app.services.circuit_data import runtime_circuits_data_path
 from app.utils.atomic_io import atomic_write_bytes_sync
-from app.utils.sqlite_readonly import read_only_uri
+from app.utils.sqlite_readonly import read_consistently
 
 logger = logging.getLogger(__name__)
 
@@ -60,13 +60,18 @@ def _resolve_secret(value: Any) -> str | None:
 
 def _create_sqlite_snapshot(db_path: Path, temp_path: str) -> None:
     """Create a consistent SQLite snapshot using SQLite's online backup API."""
-    src = sqlite3.connect(read_only_uri(db_path), uri=True)
-    dst = sqlite3.connect(temp_path)
-    try:
-        src.backup(dst)
-    finally:
-        dst.close()
-        src.close()
+
+    def copy(uri: str) -> None:
+        """Copy the database at ``uri`` into ``temp_path``, replacing what a retry left there."""
+        src = sqlite3.connect(uri, uri=True)
+        dst = sqlite3.connect(temp_path)
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
+
+    read_consistently(db_path, copy)
 
 
 def data_file_paths() -> dict[str, Path]:
