@@ -521,7 +521,7 @@ def test_falsy_explicit_selection_serves_uncached_error_not_next_race(monkeypatc
 
     from app.main import app
     from app.routes import images as images_routes
-    from app.state import clear_bmp_cache, get_bmp_cache
+    from app.state import clear_bmp_cache
 
     monkeypatch.setattr(images_routes.config, "WEATHER_ENABLED", False)
     monkeypatch.setattr(images_routes, "_get_pregenerated_calendar_path", lambda **_kw: None)
