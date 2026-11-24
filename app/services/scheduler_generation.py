@@ -44,6 +44,7 @@ from app.services.weather_service import (
     WeatherDisplay,
     get_weather_context,
     parse_coordinate,
+    weekend_weather_expected,
 )
 from app.state import clear_bmp_cache
 from app.utils.async_locks import LoopLockRegistry, get_loop_lock
@@ -484,7 +485,9 @@ def _weather_context_degraded(
 ) -> bool:
     """Return whether any weather source expected for rendering is unavailable.
 
-    Only the ``wanted`` variants (those the pregeneration profile renders) count.
+    Only the ``wanted`` variants (those the pregeneration profile renders) count. The weekend
+    summary is expected by the weather service's own rule, so a race outside its forecast
+    window (or a weekend whose shown sessions are over) is not degraded.
     """
     if not config.WEATHER_ENABLED or not _has_weather_coordinates(race_data):
         return False
@@ -492,6 +495,8 @@ def _weather_context_degraded(
     expected = {"current"}
     if _race_weather_expected(race_data):
         expected.add("race")
+    if weekend_weather_expected(race_data):
+        expected.add("weekend")
     expected &= set(wanted)
 
     return any(weather_by_type.get(weather_type) is None for weather_type in expected)

@@ -591,6 +591,27 @@ def _in_weekend_window(start: datetime, race_date: date, now: datetime) -> bool:
     return window is not None and window[0] <= to_utc(start).date() <= window[1]
 
 
+def weekend_weather_expected(race_data: dict, now: datetime | None = None) -> bool:
+    """Return whether weather_type=weekend should have data for this race at ``now``.
+
+    Mirrors :meth:`WeatherService.get_weekend_weather`: once the race has started its archived
+    race weather is shown; before that, a session that has not started and lies in the weekend
+    forecast window (``WEEKEND_FORECAST_LEAD_DAYS`` before the race day, within the forecast
+    horizon) gets a forecast. A race still far away, or a weekend whose shown sessions are all
+    over, legitimately has nothing to show.
+    """
+    race_date, sessions = weekend_session_starts(race_data)
+    if race_date is None:
+        return False
+    now = now or datetime.now(timezone.utc)
+    race_start = next((start for kind, start in sessions if kind == "race"), None)
+    if race_start is not None and race_start < now:
+        return True
+    return any(
+        to_utc(start) > now and _in_weekend_window(start, race_date, now) for _, start in sessions
+    )
+
+
 def _match_session_hour(hourly: dict, start: datetime) -> Optional[WeatherData]:
     """Pick one session's forecast hour; a session without a matching hour has no data."""
     if not hourly.get("time"):

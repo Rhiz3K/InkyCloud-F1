@@ -1111,3 +1111,110 @@ def test_configurator_weekend_lead_matches_the_server():
     template = (Path(__file__).resolve().parents[1] / "app/templates/configure.html").read_text()
     match = re.search(r"const WEEKEND_FORECAST_LEAD_DAYS = (\d+);", template)
     assert match and int(match.group(1)) == WEEKEND_FORECAST_LEAD_DAYS
+
+
+# --- Weekend weather counts toward a degraded pregeneration run ---------------------------
+
+
+def _weekend_race(days_to_race: int, *, race_time: bool = True) -> dict:
+    race, sessions = _future_weekend(days_to_race)
+    schedule = [{"name": kind.title(), "datetime": start.isoformat()} for kind, start in sessions]
+    if not race_time:
+        schedule[-1]["datetime"] = race.date().isoformat()
+    return {
+        "race_name": "Test Grand Prix",
+        "circuit": {"circuitId": "test", "lat": "25.49", "long": "51.45"},
+        "schedule": schedule,
+    }
+
+
+def test_weekend_weather_is_expected_only_while_the_service_can_show_it():
+    now = datetime.now(UTC)
+    assert ws.weekend_weather_expected(_weekend_race(2), now) is True
+    assert ws.weekend_weather_expected(_weekend_race(15), now) is True
+    # Too far away: no session lies in the forecast window yet.
+    assert ws.weekend_weather_expected(_weekend_race(20), now) is False
+    # Once the race has started its archived race weather is shown.
+    assert ws.weekend_weather_expected(_weekend_race(0), now + timedelta(days=1)) is True
+    # A date-only race after qualifying: every shown session is over.
+    after_qualifying = now + timedelta(days=3)
+    assert ws.weekend_weather_expected(_weekend_race(3, race_time=False), after_qualifying) is False
+    assert ws.weekend_weather_expected({"schedule": []}, now) is False
+
+
+async def _generate_with_weekend_profile(tmp_path, monkeypatch, race_data, weekend):
+    from unittest.mock import call, patch
+
+    from app.services.generation_freshness import GENERATION_REASONS_META_KEY
+
+    monkeypatch.setattr(scheduler_generation.config, "PREGENERATE_LANGUAGES", "en")
+    monkeypatch.setattr(scheduler_generation.config, "PREGENERATE_DISPLAYS", "1bit")
+    monkeypatch.setattr(scheduler_generation.config, "PREGENERATE_WEATHER_TYPES", "weekend")
+    monkeypatch.setattr(scheduler_generation.config, "WEATHER_ENABLED", True)
+    monkeypatch.setattr(scheduler_generation.config, "IMAGES_PATH", str(tmp_path))
+    weather = {"off": None} if weekend is None else {"off": None, "weekend": weekend}
+    db = SimpleNamespace(set_cache_meta=AsyncMock(), cleanup_old_stats=AsyncMock())
+    prune = MagicMock(return_value=0)
+    with (
+        patch("app.services.scheduler_generation.get_database", return_value=db),
+        patch("app.services.scheduler_generation.F1Service") as f1_service,
+        patch("app.services.scheduler_generation._load_historical_data", return_value=None),
+        patch(
+            "app.services.scheduler_generation._load_weather_context",
+            new=AsyncMock(return_value=(None, None, weather)),
+        ),
+        patch(
+            "app.services.scheduler_generation._generate_base_variants",
+            new=AsyncMock(return_value=({tmp_path / "calendar_en.bmp"}, 0)),
+        ),
+        patch(
+            "app.services.scheduler_generation._generate_popular_tz_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
+        patch(
+            "app.services.scheduler_generation._generate_teams_bmp_variants",
+            new=AsyncMock(return_value=(set(), 0)),
+        ),
+        patch("app.services.scheduler_generation.generate_preview_pngs", new=AsyncMock()),
+        patch("app.services.scheduler_generation._delete_stale_bmps", new=prune),
+        patch("app.services.scheduler_generation.clear_bmp_cache"),
+    ):
+        f1_service.return_value.get_next_race_from_static.return_value = race_data
+        await scheduler_generation.collect_and_generate()
+    statuses = [
+        args.args[1]
+        for args in db.set_cache_meta.await_args_list
+        if args.args[0] == scheduler_generation.GENERATION_STATUS_META_KEY
+    ]
+    reasons = call(GENERATION_REASONS_META_KEY, "weather_unavailable")
+    return statuses[-1], reasons in db.set_cache_meta.await_args_list, prune.called
+
+
+@pytest.mark.asyncio
+async def test_failed_weekend_fetch_in_the_window_marks_the_run_degraded(tmp_path, monkeypatch):
+    status, weather_reason, pruned = await _generate_with_weekend_profile(
+        tmp_path, monkeypatch, _weekend_race(2), weekend=None
+    )
+    assert status == scheduler_generation.GENERATION_STATUS_DEGRADED
+    assert weather_reason is True
+    # The previous weekend images must survive a failed fetch.
+    assert pruned is False
+
+
+@pytest.mark.asyncio
+async def test_weekend_weather_outside_the_window_is_not_degraded(tmp_path, monkeypatch):
+    status, weather_reason, pruned = await _generate_with_weekend_profile(
+        tmp_path, monkeypatch, _weekend_race(20), weekend=None
+    )
+    assert status == scheduler_generation.GENERATION_STATUS_READY
+    assert weather_reason is False
+    assert pruned is True
+
+
+@pytest.mark.asyncio
+async def test_available_weekend_weather_in_the_window_is_ready(tmp_path, monkeypatch):
+    status, _, pruned = await _generate_with_weekend_profile(
+        tmp_path, monkeypatch, _weekend_race(2), weekend=QR
+    )
+    assert status == scheduler_generation.GENERATION_STATUS_READY
+    assert pruned is True
