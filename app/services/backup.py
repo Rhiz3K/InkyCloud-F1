@@ -771,6 +771,83 @@ def _database_in_use(db_path: Path) -> bool:
     return False
 
 
+def _is_unreadable_database(db_path: Path) -> bool:
+    """Return whether an existing file is not a readable SQLite database (corrupt or foreign).
+
+    Only the main file is read (``immutable``), so a crash's leftover ``-wal`` neither hides
+    a broken header nor gets replayed. A file SQLite cannot open at all is an I/O problem,
+    not corruption, and is left to the normal error handling.
+    """
+    if not db_path.exists():
+        return False
+    try:
+        with closing(sqlite3.connect(_database_uri(db_path, "immutable"), uri=True)) as db:
+            db.execute("SELECT count(*) FROM sqlite_master").fetchone()
+    except sqlite3.OperationalError:
+        return False
+    except sqlite3.DatabaseError:
+        return True
+    return False
+
+
+def _restore_blocker(db_path: Path, *, force: bool) -> str | None:
+    """Return why the live database must not be replaced without ``--force``, if anything."""
+    if force:
+        return None
+    if _is_unreadable_database(db_path):
+        return (
+            "The current database is not a readable SQLite database. Stop the service and "
+            "pass --force to replace it; a raw copy is kept as the safety snapshot"
+        )
+    if _database_in_use(db_path):
+        return (
+            "The database is in use. Stop the service first (see SELF-HOSTING.md), or pass "
+            "--force if a crash left stale -wal/-shm files behind"
+        )
+    return None
+
+
+def _copy_raw_database(db_path: Path, snapshot: Path) -> None:
+    """Copy an unreadable database byte for byte, with any ``-wal``/``-shm``, as ``snapshot``.
+
+    ``snapshot`` was already reserved with ``O_EXCL``; its sidecars are created the same way.
+    """
+    shutil.copyfile(db_path, snapshot)
+    for suffix in ("-wal", "-shm"):
+        source = Path(f"{db_path}{suffix}")
+        if source.exists():
+            descriptor = os.open(f"{snapshot}{suffix}", os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            with os.fdopen(descriptor, "wb") as target, source.open("rb") as data:
+                shutil.copyfileobj(data, target)
+
+
+def _save_safety_snapshot(db_path: Path, *, raw: bool) -> str:
+    """Save the live database under a new safety-snapshot name and return that name.
+
+    A readable database goes through SQLite's backup API with its data files embedded; an
+    unreadable one is copied as raw bytes (``raw``), since SQLite cannot read it.
+    """
+    directory = config.backup_local_dir
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    snapshot = _reserve_safety_snapshot(directory)
+    try:
+        if raw:
+            _copy_raw_database(db_path, snapshot)
+        else:
+            create_backup_snapshot(db_path, snapshot, include_data_files=True)
+    except BaseException:
+        for leftover in (snapshot, *(Path(f"{snapshot}{suffix}") for suffix in ("-wal", "-shm"))):
+            leftover.unlink(missing_ok=True)
+        raise
+    return snapshot.name
+
+
+def _remove_database_files(db_path: Path) -> None:
+    """Delete an unreadable database and its sidecars so the staged copy starts clean."""
+    for path in (Path(f"{db_path}-wal"), Path(f"{db_path}-shm"), db_path):
+        path.unlink(missing_ok=True)
+
+
 def _schema_version(path: Path) -> int:
     """Return ``PRAGMA user_version`` of an SQLite file."""
     with closing(sqlite3.connect(_database_uri(path, "immutable"), uri=True)) as db:
@@ -861,6 +938,7 @@ def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> d
         "name": None,
         "source": None,
         "safety_snapshot": None,
+        "safety_snapshot_raw": False,
         "database_changed": False,
         "data_files_restored": [],
         "schema_version_backup": None,
@@ -875,11 +953,9 @@ def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> d
         return result
 
     db_path = Path(config.DATABASE_PATH)
-    if _database_in_use(db_path) and not force:
-        result["error"] = (
-            "The database is in use. Stop the service first (see SELF-HOSTING.md), or pass "
-            "--force if a crash left stale -wal/-shm files behind"
-        )
+    blocker = _restore_blocker(db_path, force=force)
+    if blocker is not None:
+        result["error"] = blocker
         return result
 
     s3_client = _get_s3_client() if source != "local" else None
@@ -920,17 +996,14 @@ def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> d
         asyncio.run(_migrate_database(str(working)))
 
         if db_path.exists():
-            directory = config.backup_local_dir
-            directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-            snapshot = _reserve_safety_snapshot(directory)
-            try:
-                create_backup_snapshot(db_path, snapshot, include_data_files=True)
-            except BaseException:
-                snapshot.unlink(missing_ok=True)
-                raise
-            result["safety_snapshot"] = snapshot.name
+            raw = _is_unreadable_database(db_path)
+            result["safety_snapshot"] = _save_safety_snapshot(db_path, raw=raw)
+            result["safety_snapshot_raw"] = raw
 
         result["database_changed"] = True
+        if result["safety_snapshot_raw"]:
+            # SQLite cannot write into a corrupt file: start from an empty one instead.
+            _remove_database_files(db_path)
         with (
             closing(sqlite3.connect(working)) as src,
             closing(sqlite3.connect(db_path, timeout=5)) as dst,

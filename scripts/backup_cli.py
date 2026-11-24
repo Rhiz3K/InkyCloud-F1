@@ -188,6 +188,12 @@ def cmd_restore(name: str, source: str = "auto", assume_yes: bool = False, force
         print()
         if not result.get("database_changed"):
             print("Restore FAILED. The current database was not changed.")
+        elif result.get("safety_snapshot_raw"):
+            print(
+                "Restore FAILED after the database was partly replaced. A raw copy of the "
+                f"unreadable previous database is saved as {result['safety_snapshot']}; restore "
+                "another backup before starting the service."
+            )
         elif result.get("safety_snapshot"):
             print(
                 "Restore FAILED after the database was partly replaced. The previous database "
@@ -201,7 +207,12 @@ def cmd_restore(name: str, source: str = "auto", assume_yes: bool = False, force
             )
         return 1
     print(f"  [OK] Integrity check passed: {result['name']} ({result['source']})")
-    if result["safety_snapshot"]:
+    if result.get("safety_snapshot_raw"):
+        print(
+            f"  [OK] Saved a raw copy of the unreadable database as {result['safety_snapshot']} "
+            "(data files not included)"
+        )
+    elif result["safety_snapshot"]:
         print(f"  [OK] Previous database saved as {result['safety_snapshot']}")
     print(f"  [OK] Data files restored: {', '.join(result['data_files_restored']) or 'none'}")
     print(

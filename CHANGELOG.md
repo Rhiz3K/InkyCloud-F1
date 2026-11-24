@@ -32,7 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   newer schema and a database in use, runs the normal migrations on the staged copy (so older
   backups are upgraded before anything live changes), saves the current database as a safety
   snapshot under a name that is never reused, and writes through SQLite's backup API. A failure
-  after that point names the safety snapshot that undoes it.
+  after that point names the safety snapshot that undoes it. With `--force` it also replaces
+  a current database that SQLite can no longer read, keeping a raw copy as the safety snapshot.
   Backups now include `circuits_jolpica.json` (`BACKUP_INCLUDE_DATA_FILES=true`) and restore
   it. Local backups (`BACKUP_LOCAL_DIR`, default next to the database) also work in
   `MINIMAL_DATA_MODE`; external backups stay off there.

@@ -288,12 +288,15 @@ a name from `backup list` or `--source local|s3` to choose. The restore:
 2. refuses a backup written by a newer schema version than the running image (`--force`
    overrides this);
 3. refuses while the database is in use (`-wal`/`-shm` files present or the database locked);
-   `--force` is only for stale files left behind by a crash;
+   `--force` is only for stale files left behind by a crash, or to replace a current database
+   that is no longer a readable SQLite file (the restore refuses that without `--force`);
 4. runs the normal schema migrations on the working file, so backups from older versions are
    upgraded before anything live changes;
 5. saves the current database and circuit history as `f1_pre_restore_<timestamp>.db` in
    `BACKUP_LOCAL_DIR` (a second restore within the same second gets a `_1`, `_2`, ... suffix
-   and never overwrites it); restore that name to undo;
+   and never overwrites it); restore that name to undo. An unreadable database is kept as a
+   raw byte copy instead (with its `-wal`/`-shm`, without the circuit history), which can only
+   be copied back by hand;
 6. writes the backup through SQLite's backup API and restores `circuits_jolpica.json` when the
    backup contains it (older backups do not; the current file is kept).
 

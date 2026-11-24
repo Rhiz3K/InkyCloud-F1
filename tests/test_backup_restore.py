@@ -372,6 +372,85 @@ def test_restore_with_force_ignores_stale_sidecars(data_dir):
     assert _marker(db_path) == "backup"
 
 
+_GARBAGE = b"this is not an SQLite database" * 64
+
+
+def test_restore_without_force_reports_a_corrupt_live_database_cleanly(data_dir):
+    db_path = data_dir / "f1.db"
+    backup.perform_local_backup()
+    db_path.write_bytes(_GARBAGE)
+
+    refused = backup.restore_backup("latest")
+
+    assert refused["success"] is False
+    assert "not a readable SQLite database" in refused["error"]
+    assert "--force" in refused["error"]
+    assert refused["database_changed"] is False
+    assert refused["safety_snapshot"] is None
+    assert db_path.read_bytes() == _GARBAGE
+
+
+def test_restore_with_force_replaces_a_corrupt_live_database_and_keeps_a_raw_copy(data_dir, capsys):
+    db_path = data_dir / "f1.db"
+    _set_marker(db_path, "backup")
+    _circuits(data_dir).write_text('{"monza": "backup"}')
+    backup.perform_local_backup()
+    db_path.write_bytes(_GARBAGE)
+    Path(f"{db_path}-wal").write_bytes(b"stale wal")
+    _circuits(data_dir).write_text('{"monza": "live"}')
+
+    result = backup.restore_backup("latest", force=True)
+
+    assert result["success"] is True, result
+    assert result["database_changed"] is True
+    assert result["safety_snapshot_raw"] is True
+    assert _marker(db_path) == "backup"
+    assert _circuits(data_dir).read_text() == '{"monza": "backup"}'
+    assert backup.check_integrity(db_path)
+    snapshot = _local_dir(data_dir) / result["safety_snapshot"]
+    assert snapshot.read_bytes() == _GARBAGE
+    assert Path(f"{snapshot}-wal").read_bytes() == b"stale wal"
+    assert not Path(f"{snapshot}-shm").exists()
+    assert snapshot.stat().st_mode & 0o777 == 0o600
+    assert Path(f"{snapshot}-wal").stat().st_mode & 0o777 == 0o600
+    assert result["safety_snapshot"] in [b["name"] for b in backup.local_backups()]
+
+    with patch("app.services.backup.restore_backup", return_value=result):
+        assert backup_cli.cmd_restore("latest", assume_yes=True) == 0
+    assert f"raw copy of the unreadable database as {result['safety_snapshot']}" in (
+        capsys.readouterr().out
+    )
+
+
+def test_healthy_restore_keeps_an_sqlite_safety_snapshot(data_dir):
+    result = backup.restore_backup(backup.perform_local_backup()["filename"], source="local")
+
+    assert result["success"] is True, result
+    assert result["safety_snapshot_raw"] is False
+    assert backup.check_integrity(_local_dir(data_dir) / result["safety_snapshot"])
+
+
+def test_unopenable_database_path_is_not_reported_as_corrupt(tmp_path):
+    # A path SQLite cannot open (here a directory) is an I/O problem, not a corrupt file.
+    assert backup._is_unreadable_database(tmp_path) is False
+    assert backup._is_unreadable_database(tmp_path / "missing.db") is False
+
+
+def test_late_failure_after_a_raw_safety_copy_says_to_copy_it_back(data_dir, capsys):
+    failed = {
+        "success": False,
+        "error": "Restore failed (OSError)",
+        "database_changed": True,
+        "safety_snapshot": "f1_pre_restore_2026-11-23_10-00-00.db",
+        "safety_snapshot_raw": True,
+    }
+    with patch("app.services.backup.restore_backup", return_value=failed):
+        assert backup_cli.cmd_restore("latest", assume_yes=True) == 1
+    output = capsys.readouterr().out
+    assert "raw copy" in output
+    assert "backup restore f1_pre_restore" not in output
+
+
 def test_restore_refuses_a_backup_from_a_newer_schema_unless_forced(data_dir):
     created = backup.perform_local_backup()["filename"]
     with closing(sqlite3.connect(_local_dir(data_dir) / created)) as db:
