@@ -136,7 +136,7 @@ def _get_cache_key(
     year_key = "next" if year is None else year
     round_key = "next" if round_num is None else round_num
     return (
-        f"{lang}:{year_key}:{round_key}:{race_key or 'auto'}:"
+        f"{lang}:{year_key}:{round_key}:{'auto' if race_key is None else race_key}:"
         f"{tz or 'default'}:{weather_key}:{display}"
     )
 
@@ -169,7 +169,9 @@ def _get_race_info_for_stats(
     if race_key is not None and year is None:
         return is_auto_selected, actual_year, actual_round, actual_race_name
 
-    if year and (race_round or race_key):
+    # Compare with None, not truthiness: round=0, year=0 and race_key= are invalid explicit
+    # selections (error image), never a request for the next race.
+    if year is not None and (race_round is not None or race_key is not None):
         for race in f1_service.get_all_races_from_static(year):
             if race_key and race.get("race_key") == race_key:
                 actual_race_name = race.get("race_name", "Unknown")
@@ -543,7 +545,9 @@ def _get_race_data_from_static(
     if race_key is not None and year is None:
         return None
 
-    if year and (race_round or race_key):
+    # Compare with None, not truthiness: round=0, year=0 and race_key= are invalid explicit
+    # selections (error image), never a request for the next race.
+    if year is not None and (race_round is not None or race_key is not None):
         for race in f1_service.get_all_races_from_static(year):
             if race_key and race.get("race_key") == race_key:
                 return race

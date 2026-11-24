@@ -505,3 +505,49 @@ def test_empty_tz_is_treated_as_unset(monkeypatch):
     service.assert_called_once_with(timezone_name=None)
     with pytest.raises(HTTPException):
         deps.get_f1_service(tz="Not/AZone")
+
+
+# --- Gemini A: round=0 / year=0 / race_key= are explicit, invalid selections ------------------
+
+
+@pytest.mark.parametrize(
+    "query",
+    ["year=2026&round=0", "year=0&round=1", "year=2026&race_key="],
+)
+def test_falsy_explicit_selection_serves_uncached_error_not_next_race(monkeypatch, query):
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from app.routes import images as images_routes
+    from app.state import clear_bmp_cache, get_bmp_cache
+
+    monkeypatch.setattr(images_routes.config, "WEATHER_ENABLED", False)
+    monkeypatch.setattr(images_routes, "_get_pregenerated_calendar_path", lambda **_kw: None)
+    client = TestClient(app)
+    clear_bmp_cache()
+    next_race = client.get("/calendar.bmp?weather=false")
+    clear_bmp_cache()
+
+    response = client.get(f"/calendar.bmp?{query}&weather=false")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/bmp"
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["etag"] != next_race.headers["etag"]
+    assert get_bmp_cache() == {}
+
+
+def test_falsy_explicit_selection_is_not_resolved_as_next_race_in_stats():
+    from unittest.mock import MagicMock
+
+    from app.routes.images import _get_race_info_for_stats
+
+    service = MagicMock()
+    service.get_all_races_from_static.side_effect = lambda year: (
+        [{"round": "1", "race_key": "first", "race_name": "First"}] if year == 2026 else []
+    )
+
+    assert _get_race_info_for_stats(service, 2026, 0, None) == (False, 2026, 0, None)
+    assert _get_race_info_for_stats(service, 2026, None, "") == (False, 2026, None, None)
+    assert _get_race_info_for_stats(service, 0, 1, None) == (False, 0, 1, None)
+    service.get_next_race_from_static.assert_not_called()
