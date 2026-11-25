@@ -77,12 +77,12 @@ def next_local_midnight(now: datetime, zone: tzinfo) -> datetime:
     return local_midnight(now.astimezone(zone).date() + timedelta(days=1), zone)
 
 
-def _next_publication(now: datetime) -> datetime:
-    """Return the next future UTC hourly publication after the scheduler settle window."""
-    target = now.astimezone(UTC).replace(minute=0, second=0, microsecond=0) + timedelta(
+def _publication_at_or_after(change: datetime) -> datetime:
+    """Return the first UTC hourly publication that can include a content change."""
+    target = change.astimezone(UTC).replace(minute=0, second=0, microsecond=0) + timedelta(
         seconds=SETTLE_SECONDS
     )
-    return target if target > now else target + timedelta(hours=1)
+    return target if target >= change else target + timedelta(hours=1)
 
 
 @dataclass(frozen=True)
@@ -92,12 +92,14 @@ class RefreshHint:
     now: datetime
     changes: tuple[datetime, ...] = ()
     hourly: bool = False
+    # Edges absent from the cache key become visible only on publication or cache expiry.
+    publication_changes: tuple[datetime, ...] = ()
 
     @property
     def next_change(self) -> datetime | None:
         """Return the earliest predictable change that is not in the past."""
-        upcoming = [change for change in self.changes if change >= self.now]
-        return min(upcoming) if upcoming else None
+        changes = (*self.changes, *self.publication_changes)
+        return min((change for change in changes if change >= self.now), default=None)
 
     def cache_token(self) -> str:
         """Identify the content period, so a cached image never outlives its next change."""
@@ -114,17 +116,35 @@ class RefreshHint:
             return limit
         return max(0, min(limit, math.floor((change - now).total_seconds())))
 
-    def seconds(self, now: datetime | None = None, *, cache_seconds: int | None = None) -> int:
+    def seconds(
+        self,
+        now: datetime | None = None,
+        *,
+        cache_seconds: float | None = None,
+        cache_ttl: float = HOURLY_REFRESH_SECONDS,
+    ) -> int:
         """Return the remaining time to the earliest publication, expiry or content edge."""
         sent = self.now if now is None else now
-        deadline = self.now + timedelta(seconds=MAX_REFRESH_SECONDS)
-        if cache_seconds is not None:
-            deadline = min(deadline, sent + timedelta(seconds=cache_seconds))
-        elif self.hourly:
-            deadline = min(deadline, _next_publication(self.now))
-        if (change := self.next_change) is not None:
-            deadline = min(deadline, change)
-        return max(MIN_REFRESH_SECONDS, math.ceil((deadline - sent).total_seconds()))
+        deadlines = [self.now + timedelta(seconds=MAX_REFRESH_SECONDS)]
+        deadlines.extend(change for change in self.changes if change >= self.now)
+        if cache_seconds is None:
+            refresh = _publication_at_or_after(self.now)
+            if refresh == self.now:
+                refresh += timedelta(hours=1)
+            source_time = refresh - timedelta(hours=1)
+        else:
+            refresh = sent + timedelta(seconds=cache_seconds)
+            source_time = refresh - timedelta(seconds=cache_ttl)
+        if self.hourly:
+            deadlines.append(refresh)
+        for change in self.publication_changes:
+            if change > source_time:
+                deadlines.append(
+                    _publication_at_or_after(change)
+                    if cache_seconds is None
+                    else max(change, refresh)
+                )
+        return max(MIN_REFRESH_SECONDS, math.ceil((min(deadlines) - sent).total_seconds()))
 
 
 def _race_day(race_data: Mapping[str, Any]) -> date | None:
@@ -146,13 +166,16 @@ def _timed_countdown_changes(
     start: datetime, now: datetime, zone: tzinfo, mode: CountdownMode
 ) -> list[datetime]:
     """Return when the countdown box of a race with a known start next changes."""
+    if mode == CountdownMode.HOURS:
+        # An already-crossed status edge may still be waiting for publication.
+        return [start, start + RACE_LIVE_WINDOW]
     if now >= start + RACE_LIVE_WINDOW:
         return []
     if now >= start:
         return [start + RACE_LIVE_WINDOW]
     changes = [start]
     remaining = start - now
-    if mode in (CountdownMode.OFF, CountdownMode.HOURS):
+    if mode == CountdownMode.OFF:
         return changes
     if countdown_shows_days(mode, remaining):
         changes.append(next_local_midnight(now, zone))
@@ -168,11 +191,13 @@ def _date_only_changes(
 ) -> list[datetime]:
     """Return when the countdown box of a date-only race next changes (local midnights)."""
     today = now.astimezone(zone).date()
-    if today > race_day:
-        return []
     if mode == CountdownMode.OFF and today < race_day:
         return [local_midnight(race_day, zone)]
-    return [next_local_midnight(now, zone)]
+    changes = [next_local_midnight(now, zone)] if today <= race_day else []
+    if mode == CountdownMode.HOURS and today - race_day <= timedelta(days=1):
+        # A poll just after midnight can still see yesterday's image until publication.
+        changes.append(local_midnight(today, zone))
+    return changes
 
 
 def calendar_refresh_hint(
@@ -225,6 +250,8 @@ def calendar_refresh_hint(
             else:
                 hourly = True
 
+    if countdown == CountdownMode.HOURS:
+        return RefreshHint(now, hourly=hourly, publication_changes=tuple(changes))
     return RefreshHint(now, tuple(changes), hourly)
 
 

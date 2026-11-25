@@ -269,6 +269,67 @@ def test_poll_deadline_survives_time_spent_rendering():
     assert _hint(race, now=NOW.replace(minute=59, second=30)).seconds() == 150
 
 
+@pytest.mark.parametrize("edge_hour", [14, 17])
+def test_hours_status_waits_for_publication(edge_hour):
+    race = {"schedule": [{"name": "Race", "datetime": "2026-11-22T14:00:00Z"}]}
+    edge = NOW.replace(hour=edge_hour, minute=0)
+    for now in (edge - timedelta(minutes=58), edge, edge + timedelta(seconds=30)):
+        expected = edge + timedelta(seconds=rh.SETTLE_SECONDS) - now
+        assert _hint(race, now=now).seconds() == expected.total_seconds()
+    before = edge - timedelta(minutes=10)
+    assert _hint(race, now=before, countdown=CountdownMode.DAYS).seconds() == 600
+
+
+@pytest.mark.parametrize("edge_hour", [14, 17])
+def test_hours_status_waits_for_cached_image_expiry(edge_hour):
+    race = {"schedule": [{"name": "Race", "datetime": "2026-11-22T14:00:00Z"}]}
+    before = NOW.replace(hour=edge_hour - 1, minute=50)
+    hint = _hint(race, now=before)
+    assert hint.seconds(cache_seconds=900) == 900
+    # Before the start the hourly countdown can also change at an earlier expiry.
+    assert hint.seconds(cache_seconds=300) == (300 if edge_hour == 14 else 600)
+    pending = _hint(race, now=before + timedelta(minutes=11))
+    assert pending.seconds(cache_seconds=240) == 240
+
+
+def test_hours_edge_exactly_at_publication_uses_that_publication():
+    race = {"schedule": [{"name": "Race", "datetime": "2026-11-22T14:02:00Z"}]}
+    now = NOW.replace(hour=16, minute=50)
+    assert _hint(race, now=now).seconds() == 720
+
+
+@pytest.mark.parametrize("race_day", ["2026-11-28", "2026-11-29", "2026-11-30"])
+def test_date_only_hours_poll_after_midnight_waits_for_refresh(race_day):
+    now = datetime(2026, 11, 28, 23, 0, 30, tzinfo=UTC)
+    hint = _hint(_date_only_race(race_day), now=now)
+    assert hint.seconds() == 90
+    assert hint.seconds(cache_seconds=600) == 600
+
+
+def test_cache_filled_just_before_race_start_retains_its_pending_edge():
+    from app.state import ImageCache
+
+    race = {"schedule": [{"name": "Race", "datetime": "2026-11-22T14:00:00Z"}]}
+    timer = [0.0]
+    cache = ImageCache(1, 3600, timer=lambda: timer[0])
+    cache["image"] = (b"before", "etag")
+    timer[0] = 0.5
+    now = NOW.replace(hour=14, minute=0, microsecond=250000)
+    assert _hint(race, now=now).seconds(cache_seconds=cache.remaining_seconds("image")) == 3600
+
+
+@pytest.mark.asyncio
+async def test_uncached_calendar_miss_uses_normal_poll_hint(client_app, frozen, monkeypatch):
+    monkeypatch.setattr(images.config, "SCHEDULER_ENABLED", False)
+    frozen.now = NOW.replace(minute=0, second=30)
+    render = AsyncMock(return_value=(b"incomplete", _race(), False))
+    monkeypatch.setattr(bmp_artifacts, "render_calendar", render)
+    response = await _get(client_app, "/calendar.bmp?weather=false")
+    assert response.headers["x-cache"] == "MISS"
+    assert not get_bmp_cache()
+    assert response.headers["x-next-refresh-seconds"] == "90"
+
+
 def test_auto_hint_uses_midnight_then_the_48_hour_switch_then_hours():
     far = _hint(_race(), countdown=CountdownMode.AUTO)
     assert far.next_change == datetime(2026, 11, 22, 23, 0, tzinfo=UTC)
@@ -299,7 +360,7 @@ def test_selection_grace_moves_the_automatic_race_on():
         _race(), now=RACE_START + timedelta(hours=3, minutes=30), selection_grace=NEXT_RACE_GRACE
     )
     assert hint.next_change == RACE_START + NEXT_RACE_GRACE
-    assert hint.seconds() == 1800
+    assert hint.seconds() == 1800 + rh.SETTLE_SECONDS
     dated = _hint(
         _date_only_race("2026-11-29"),
         now=datetime(2026, 11, 29, 10, tzinfo=UTC),

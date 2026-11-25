@@ -107,15 +107,17 @@ def _calendar_poll_seconds(
     """Evaluate the source deadline immediately before returning a calendar response."""
     if hint is None:
         return ERROR_REFRESH_SECONDS
-    remaining = None
     if (
         not config.SCHEDULER_ENABLED
         and countdown == CountdownMode.HOURS
         and cache is not None
         and status in ("HIT", "MISS")
+        and key in cache
     ):
-        remaining = cache.remaining_seconds(key)
-    return hint.seconds(_utc_now(), cache_seconds=remaining)
+        return hint.seconds(
+            _utc_now(), cache_seconds=cache.remaining_seconds(key), cache_ttl=cache.ttl
+        )
+    return hint.seconds(_utc_now())
 
 
 def _calendar_cache_control(countdown: CountdownMode, hint: RefreshHint) -> str:

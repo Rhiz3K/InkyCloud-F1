@@ -1,7 +1,6 @@
 """Process-local caches and buffered request-statistics state."""
 
 import logging
-import math
 import time
 from collections import OrderedDict, deque
 from collections.abc import Callable
@@ -56,10 +55,10 @@ class ImageCache(TTLCache[str, BmpArtifact]):
         super().clear()
         self._deadlines.clear()
 
-    def remaining_seconds(self, key: str) -> int:
+    def remaining_seconds(self, key: str) -> float:
         """Return the remaining cache lifetime, or zero for an expired or evicted key."""
         now = self.timer()
-        return max(0, math.ceil(self._deadlines.get(key, now) - now))
+        return max(0.0, self._deadlines.get(key, now) - now)
 
 
 # Cover all localized display/weather variants without immediate LRU churn.
