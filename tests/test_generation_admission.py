@@ -1,11 +1,17 @@
 """Request-level coverage for image selection across scheduler refreshes."""
 
 import asyncio
+from unittest.mock import Mock
 
 import pytest
 
 from app.models import TeamEntry, TeamsData
 from app.routes import images
+from app.services.image_generation import (
+    require_current_selection,
+    selected_generation,
+    with_current_selection,
+)
 from app.services.teams_service import TeamsService
 from app.state import clear_bmp_cache
 from app.utils.etag import strong_etag
@@ -49,7 +55,8 @@ async def test_conditional_teams_waiter_uses_current_generation(monkeypatch, que
 
     monkeypatch.setattr(images, "get_default_teams_year", select)
     monkeypatch.setattr(images, "_get_pregenerated_teams_path", lambda **_: None)
-    monkeypatch.setattr(images, "enforce_rate_limit", lambda *a, **kw: None)
+    charges = Mock()
+    monkeypatch.setattr(images, "enforce_rate_limit", charges)
     monkeypatch.setattr(images, "_record_teams_api_call", lambda **kw: None)
     monkeypatch.setattr(images, "run_render", draw)
     monkeypatch.setattr(TeamsService, "get_teams_and_drivers", roster)
@@ -82,3 +89,32 @@ async def test_conditional_teams_waiter_uses_current_generation(monkeypatch, que
         assert response.status_code == 200
         assert response.body == b"2026"
         assert calls == [2025, 2025]
+    assert [charge.kwargs["bucket"] for charge in charges.call_args_list] == ["teams_bmp"] * (
+        1 if queued else 2
+    )
+
+
+@pytest.mark.asyncio
+async def test_selection_finishes_after_two_reselections():
+    """Repeated clears during admission still allow the last selected inputs to render."""
+    selections = []
+    rendered = []
+
+    @with_current_selection
+    async def select_and_render():
+        generation = selected_generation()
+        selections.append(generation)
+        assert len(selections) <= 3
+
+        async def produce():
+            async with render_slot():
+                clear_bmp_cache()
+                require_current_selection(generation)
+                rendered.append(generation)
+                return b"complete", strong_etag(b"complete")
+
+        return await images._singleflight(f"calendar:{generation}:bounded", produce)
+
+    assert await select_and_render() == (b"complete", strong_etag(b"complete"))
+    assert len(set(selections)) == 3
+    assert rendered == [selections[-1]]

@@ -7,7 +7,8 @@ from functools import wraps
 from app.state import bmp_cache_generation
 
 _selection: ContextVar[int | None] = ContextVar("image_selection", default=None)
-_retrying: ContextVar[bool] = ContextVar("retrying_image_selection", default=False)
+_attempt: ContextVar[int] = ContextVar("image_selection_attempt", default=0)
+_MAX_RESELECTIONS = 2
 
 
 class StaleSelection(Exception):
@@ -21,14 +22,19 @@ def selected_generation() -> int:
 
 
 def require_current_selection(generation: int) -> None:
-    """Release admission and restart selection before drawing obsolete inputs."""
-    if generation != bmp_cache_generation():
+    """Re-select outdated inputs while the request has retries left."""
+    if generation != bmp_cache_generation() and _attempt.get() < _MAX_RESELECTIONS:
         raise StaleSelection
 
 
 def retrying_selection() -> bool:
     """Return whether this request already passed route admission."""
-    return _retrying.get()
+    return _attempt.get() > 0
+
+
+def selection_flight_key(key: str) -> str:
+    """Keep the final attempt separate from producers that can still reject stale inputs."""
+    return f"final-selection:{key}" if _attempt.get() == _MAX_RESELECTIONS else key
 
 
 def with_current_selection[**P, T](
@@ -39,12 +45,14 @@ def with_current_selection[**P, T](
     @wraps(operation)
     async def resolve(*args: P.args, **kwargs: P.kwargs) -> T:
         """Capture selection before the first lookup and retry outside the render slot."""
-        retry = False
-        while True:
-            with _selection.set(bmp_cache_generation()), _retrying.set(retry):
+        for attempt in range(_MAX_RESELECTIONS):
+            with _selection.set(bmp_cache_generation()), _attempt.set(attempt):
                 try:
                     return await operation(*args, **kwargs)
                 except StaleSelection:
-                    retry = True
+                    continue
+        # Re-resolve once more, then let the producer's generation guard decide cacheability.
+        with _selection.set(bmp_cache_generation()), _attempt.set(_MAX_RESELECTIONS):
+            return await operation(*args, **kwargs)
 
     return resolve

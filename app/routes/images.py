@@ -26,6 +26,7 @@ from app.services.image_generation import (
     require_current_selection,
     retrying_selection,
     selected_generation,
+    selection_flight_key,
     with_current_selection,
 )
 from app.services.image_keys import get_calendar_image_key, get_teams_image_key
@@ -88,6 +89,7 @@ async def _singleflight(
     The mapping is intentionally lock-free: routes and task cleanup access it only from the
     same asyncio event loop. Shielding keeps the producer alive when one waiter disconnects.
     """
+    key = selection_flight_key(key)
     existing = _singleflight_tasks.get(key)
     if existing is not None:
         return await asyncio.shield(existing)
