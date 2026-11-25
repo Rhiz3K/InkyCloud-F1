@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Keep teams screen position badges inside their driver rows with a blank row between
   positions, and vertically centre badge and plain position glyphs consistently.
+- Vertically centre teams screen driver points using their own glyph bounds, and show
+  position badges only for P1–P3, with P4 drawn as plain text.
 
 ### Removed
 
