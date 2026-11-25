@@ -10,7 +10,7 @@ import os
 import re
 import time
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -1007,7 +1007,7 @@ def _choose_auto_screen(
         logger.error("Error choosing the auto screen: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:
             sentry_sdk.capture_exception(exc)
-        return ScreenChoice(AutoScreen.TEAMS)
+        return ScreenChoice(AutoScreen.TEAMS, now + timedelta(seconds=ERROR_REFRESH_SECONDS))
 
 
 def _clamp_max_age(cache_control: str, max_age: int) -> str:

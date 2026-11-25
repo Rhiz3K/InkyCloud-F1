@@ -311,6 +311,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Refresh hints count down to the next UTC hourly publication at two minutes past the hour, on-demand cache expiry, or an earlier content change. Both 200 and 304 responses account for render time.
 
+- When the race-week schedule lookup fails, the automatic Teams screen asks the device to retry within five minutes.
+
 ## [1.3.3] - 2026-10-30
 
 ### Removed

@@ -400,6 +400,7 @@ async def test_off_season_without_a_known_switch_keeps_the_teams_hint(auto_app):
     auto_app.state.service.get_next_race_from_static.return_value = None
     empty = await _get(auto_app, "/auto.bmp?extra=none")
     assert empty.headers["x-active-screen"] == "teams"
+    assert empty.headers["x-next-refresh-seconds"] == direct.headers["x-next-refresh-seconds"]
 
 
 @pytest.mark.asyncio
@@ -408,6 +409,12 @@ async def test_failing_schedule_lookup_falls_back_to_teams(auto_app):
     response = await _get(auto_app, "/auto.bmp?extra=none")
     assert response.status_code == 200
     assert response.headers["x-active-screen"] == "teams"
+    assert response.headers["x-next-refresh-seconds"] == "300"
+    again = await _get(
+        auto_app, "/auto.bmp?extra=none", {"If-None-Match": response.headers["etag"]}
+    )
+    assert again.status_code == 304
+    assert again.headers["x-next-refresh-seconds"] == "300"
 
 
 @pytest.mark.asyncio
