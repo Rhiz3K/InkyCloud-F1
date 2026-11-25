@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.config import VALID_LANGUAGES
+from app.services.circuit_data import wikipedia_circuit_credits
 from app.services.track_catalog import TrackSource, load_track_catalog, track_credit
 from app.web.templates import get_template_context, lang_url, templates
 
@@ -32,6 +33,7 @@ async def credits_page(request: Request, lang_prefix: str | None = None) -> Resp
         }
         for track in load_track_catalog()["tracks"]
     ]
+    context["circuit_wiki_credits"] = wikipedia_circuit_credits()
     context["active_page"] = "credits"
     return templates.TemplateResponse(request, "credits.html", context)
 

@@ -323,10 +323,10 @@ def test_invalid_runtime_circuit_record_preserves_valid_metadata(tmp_path, monke
     bundled, runtime = tmp_path / "bundled.json", tmp_path / "runtime.json"
     bundled.write_text("{}")
     runtime.write_text('{"invalid": null, "valid": {"number_of_laps": 57}}')
-    monkeypatch.setattr(circuit_data, "BUNDLED_CIRCUITS_DATA_PATH", bundled)
+    monkeypatch.setattr(circuit_data, "BUNDLED_JOLPICA_PATH", bundled)
     result = circuit_data.load_circuits_data(runtime)
-    assert result["invalid"] is None
-    assert result["valid"]["number_of_laps"] == 57
+    assert "invalid" not in result
+    assert result["valid"] == {}
 
 
 def test_public_preflight_keeps_identity_private_and_reports_unresolved_settings():

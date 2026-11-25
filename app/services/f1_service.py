@@ -671,7 +671,7 @@ class F1Service:
     @staticmethod
     def get_historical_from_static(circuit_id: str) -> HistoricalData:
         """
-        Load historical results from static circuits_data.json.
+        Load historical results from static circuits_jolpica.json.
 
         Args:
             circuit_id: The circuit identifier (e.g., "albert_park")

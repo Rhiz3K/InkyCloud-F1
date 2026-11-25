@@ -12,7 +12,7 @@ from typing import Any
 import httpx
 
 from app.config import config
-from app.services.circuit_data import ensure_runtime_circuits_data, load_circuits_data
+from app.services.circuit_data import ensure_runtime_circuits_data, load_jolpica_data
 from app.services.http_client import get_shared_http_client
 from app.utils.atomic_io import atomic_write_json
 from app.utils.f1_season import get_current_f1_season
@@ -236,12 +236,12 @@ def _would_regress_season(results: dict, existing_historical: object) -> bool:
 async def main(circuit_filter: str | None = None) -> HistoricalRefreshResult:
     """Update persistent historical data and report completion separately from changes."""
     circuits_path = ensure_runtime_circuits_data()
-    circuits = load_circuits_data(circuits_path)
+    circuits = load_jolpica_data(circuits_path)
 
     if circuit_filter:
         circuit_ids = [circuit_filter] if circuit_filter in circuits else []
         if not circuit_ids:
-            logger.error("Circuit %s not found in circuits_data.json", circuit_filter)
+            logger.error("Circuit %s not found in circuits_jolpica.json", circuit_filter)
             return HistoricalRefreshResult((), (circuit_filter,), 0)
     else:
         circuit_ids = list(circuits)

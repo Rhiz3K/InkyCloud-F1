@@ -1,12 +1,33 @@
 {
   "schema": 1,
   "assets": {
-    "circuits_data.json": {
-      "sha256": "9f7cb33d36c2b5b578a94651c682d34ecf89cecd824c42b7eb9a650472438bb4",
-      "license": "CC-BY-NC-SA-4.0 AND LicenseRef-Legacy-Circuit-Facts-Unverified",
-      "author": "Jolpica-F1 / Ergast contributors; legacy F1.com factual metadata",
+    "circuits_jolpica.json": {
+      "sha256": "f834e07a36207223be00d367ccd27157f793c42b27ac9e4c84b38a46840cad07",
+      "license": "CC-BY-NC-SA-4.0",
+      "author": "Jolpica-F1 / Ergast contributors",
       "source": "/static/licenses/DATA_LICENSES.txt",
-      "reviewed_on": "2026-09-15"
+      "reviewed_on": "2026-10-31"
+    },
+    "circuits_jolpica.json.license": {
+      "sha256": "d9bf6798bd863f6c8043132c68c2e054738139cfe88f03faddb6076f34449a5b",
+      "license": "CC-BY-NC-SA-4.0",
+      "author": "Jolpica-F1 / Ergast contributors",
+      "source": "/static/licenses/DATA_LICENSES.txt",
+      "reviewed_on": "2026-10-31"
+    },
+    "circuits_wikipedia.json": {
+      "sha256": "193d3e98864a6313add03beda81028d62cb80ea45ee690d1c46bfcc4d549a184",
+      "license": "CC-BY-SA-4.0",
+      "author": "Wikipedia contributors",
+      "source": "/static/licenses/DATA_LICENSES.txt",
+      "reviewed_on": "2026-10-31"
+    },
+    "circuits_wikipedia.json.license": {
+      "sha256": "bd0bb240293001b8df46a067f666cd26b50a0675b6249c6033ef600a6eccc323",
+      "license": "CC-BY-SA-4.0",
+      "author": "Wikipedia contributors",
+      "source": "/static/licenses/DATA_LICENSES.txt",
+      "reviewed_on": "2026-10-31"
     },
     "css/input.css": {
       "sha256": "84067b3d7ba6e1e14288b7ac569897ad7627d25e4d0eb7932f4a0f9f0f3cf9ea",
@@ -1276,6 +1297,14 @@
       "author": "InkyCloud contributors",
       "source": "https://github.com/Rhiz3K/InkyCloud-F1",
       "reviewed_on": "2026-09-09"
+    },
+    "js/web-vitals.js": {
+      "sha256": "f88532fa800e24f8e73404947b65f1b13535e5c1e08b32104cc1f0e55178aed5",
+      "license": "Apache-2.0",
+      "author": "Google LLC / Web Vitals contributors",
+      "source": "https://github.com/GoogleChrome/web-vitals/tree/v6.2.1",
+      "reviewed_on": "2026-09-11",
+      "provenance_note": "Pinned npm web-vitals 6.2.1 standard build, hosted locally; source map link removed. Apache-2.0 notice distributed alongside."
     },
     "licenses/DATA_LICENSES.txt": {
       "sha256": "afbdcc8ee3e2cb326131db7a5654ae6e0cd83bfde33179cb03ce1a2d1a43a914",
@@ -2789,6 +2818,14 @@
       "source": "/static/licenses/THIRD_PARTY_NOTICES.txt",
       "reviewed_on": "2026-09-09"
     },
+    "licenses/web-vitals-LICENSE.txt": {
+      "sha256": "bfdeded4040e05da31ca9b6239dc83bd23fa26ac8db87342a7ca4363f68916ff",
+      "license": "Apache-2.0",
+      "author": "Google LLC / Web Vitals contributors",
+      "source": "https://github.com/GoogleChrome/web-vitals/tree/v6.2.1",
+      "reviewed_on": "2026-09-11",
+      "provenance_note": "Pinned npm web-vitals 6.2.1 standard build, hosted locally; source map link removed. Apache-2.0 notice distributed alongside."
+    },
     "seasons/2025.json": {
       "sha256": "0e121cfaf1c9aae9debb85f2fe374e3252470b6136e91aa7eb7a694a7b612ed2",
       "license": "CC-BY-NC-SA-4.0",
@@ -2837,22 +2874,6 @@
       "author": "ROY Jules and individually listed Commons authors",
       "source": "/credits",
       "reviewed_on": "2026-09-09"
-    },
-    "js/web-vitals.js": {
-      "sha256": "f88532fa800e24f8e73404947b65f1b13535e5c1e08b32104cc1f0e55178aed5",
-      "license": "Apache-2.0",
-      "author": "Google LLC / Web Vitals contributors",
-      "source": "https://github.com/GoogleChrome/web-vitals/tree/v6.2.1",
-      "reviewed_on": "2026-09-11",
-      "provenance_note": "Pinned npm web-vitals 6.2.1 standard build, hosted locally; source map link removed. Apache-2.0 notice distributed alongside."
-    },
-    "licenses/web-vitals-LICENSE.txt": {
-      "sha256": "bfdeded4040e05da31ca9b6239dc83bd23fa26ac8db87342a7ca4363f68916ff",
-      "license": "Apache-2.0",
-      "author": "Google LLC / Web Vitals contributors",
-      "source": "https://github.com/GoogleChrome/web-vitals/tree/v6.2.1",
-      "reviewed_on": "2026-09-11",
-      "provenance_note": "Pinned npm web-vitals 6.2.1 standard build, hosted locally; source map link removed. Apache-2.0 notice distributed alongside."
     }
   }
 }

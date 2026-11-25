@@ -7,11 +7,14 @@ import json
 import logging
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import quote
 
 from app.config import config
 from app.utils.atomic_io import atomic_write_bytes_sync
 
-BUNDLED_CIRCUITS_DATA_PATH = Path(__file__).resolve().parents[1] / "assets" / "circuits_data.json"
+BUNDLED_JOLPICA_PATH = Path(__file__).resolve().parents[1] / "assets" / "circuits_jolpica.json"
+BUNDLED_WIKIPEDIA_PATH = Path(__file__).resolve().parents[1] / "assets" / "circuits_wikipedia.json"
+WIKIPEDIA_FIELDS = ("circuit_length", "fastest_lap_time", "fastest_lap_driver", "fastest_lap_year")
 logger = logging.getLogger(__name__)
 
 
@@ -19,18 +22,20 @@ logger = logging.getLogger(__name__)
 def _parse_circuits_data(payload: str) -> dict:
     """Parse and cache an immutable circuit-data snapshot by its contents."""
     data = json.loads(payload)
-    return data if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        raise ValueError("Circuit data must be a JSON object")
+    return data
 
 
 def runtime_circuits_data_path() -> Path:
     """Store mutable circuit history beside the configured SQLite database."""
-    return Path(config.DATABASE_PATH).expanduser().parent / "circuits_data.json"
+    return Path(config.DATABASE_PATH).expanduser().parent / "circuits_jolpica.json"
 
 
 def get_circuits_data_path() -> Path:
     """Return the runtime copy when available, otherwise the bundled read-only seed."""
     runtime_path = runtime_circuits_data_path()
-    return runtime_path if runtime_path.exists() else BUNDLED_CIRCUITS_DATA_PATH
+    return runtime_path if runtime_path.exists() else BUNDLED_JOLPICA_PATH
 
 
 def _read_circuits_data(path: Path) -> dict:
@@ -55,34 +60,99 @@ def _history_season(history: object) -> int:
         return -1
 
 
-def load_circuits_data(runtime_path: Path | None = None) -> dict:
-    """Merge current release metadata with the newest persistent circuit history.
-
-    Runtime-only circuits remain available for archived races. For known circuits the
-    release owns metadata; equally recent history prefers the runtime refresh. Copies
-    isolate callers from the JSON parse cache and allow the refresher to update its snapshot.
-    """
-    bundled = _read_circuits_data(BUNDLED_CIRCUITS_DATA_PATH)
+def load_jolpica_data(runtime_path: Path | None = None) -> dict:
+    """Merge bundled metadata with only the newest runtime history, isolating callers."""
+    bundled = _read_circuits_data(BUNDLED_JOLPICA_PATH)
     runtime = _read_circuits_data(runtime_path or get_circuits_data_path())
-    merged = copy.deepcopy(runtime)
-    for circuit_id, metadata in bundled.items():
-        if not isinstance(metadata, dict):
+    merged = {
+        key: copy.deepcopy(value) for key, value in bundled.items() if isinstance(value, dict)
+    }
+    for circuit_id, stored in runtime.items():
+        if not isinstance(stored, dict):
             continue
-        stored = runtime.get(circuit_id)
-        stored = stored if isinstance(stored, dict) else {}
-        merged[circuit_id] = copy.deepcopy({**stored, **metadata})
-        stored_history = stored.get("historical")
-        stored_season = _history_season(stored_history)
-        if stored_season >= 0 and stored_season >= _history_season(metadata.get("historical")):
-            merged[circuit_id]["historical"] = copy.deepcopy(stored_history)
+        record = merged.setdefault(circuit_id, {})
+        history = stored.get("historical")
+        season = _history_season(history)
+        if "historical" in stored and season >= _history_season(record.get("historical")):
+            record["historical"] = copy.deepcopy(history)
     return merged
 
 
+def load_wikipedia_data() -> dict:
+    """Return only licensed Wikipedia facts and their attribution, as independent copies."""
+    return {
+        key: copy.deepcopy(
+            {
+                field: value
+                for field, value in record.items()
+                if (field in WIKIPEDIA_FIELDS and isinstance(value, str)) or field == "_provenance"
+            }
+        )
+        for key, record in _read_circuits_data(BUNDLED_WIKIPEDIA_PATH).items()
+        if isinstance(record, dict)
+    }
+
+
+def load_circuits_data(runtime_path: Path | None = None) -> dict:
+    """Combine separately licensed snapshots only for rendering, preserving attribution."""
+    merged = load_jolpica_data(runtime_path)
+    wikipedia = load_wikipedia_data()
+    for circuit_id, wiki in wikipedia.items():
+        record = merged.setdefault(circuit_id, {})
+        record.update({key: value for key, value in wiki.items() if key != "_provenance"})
+    for circuit_id, record in merged.items():
+        provenance = {}
+        if "_provenance" in record:
+            provenance["jolpica"] = record.pop("_provenance")
+        if "_provenance" in wikipedia.get(circuit_id, {}):
+            provenance["wikipedia"] = wikipedia[circuit_id]["_provenance"]
+        if provenance:
+            record["_provenance"] = provenance
+    return merged
+
+
+def wikipedia_circuit_credits() -> list[dict]:
+    """List unique pinned Wikipedia revisions with links to their contributor history."""
+    credits = {}
+    for record in load_wikipedia_data().values():
+        provenance = record.get("_provenance")
+        if not isinstance(provenance, dict) or not isinstance(provenance.get("fields"), dict):
+            continue
+        for field in provenance["fields"].values():
+            if not isinstance(field, dict):
+                continue
+            title, revid, url = field.get("title"), field.get("revid"), field.get("source")
+            if (
+                not isinstance(title, str)
+                or type(revid) is not int
+                or not isinstance(url, str)
+                or not url.startswith("https://en.wikipedia.org/w/index.php?title=")
+            ):
+                continue
+            credits[title, revid] = {
+                "title": title,
+                "revid": revid,
+                "url": url,
+                "history_url": (
+                    "https://en.wikipedia.org/w/index.php?title="
+                    f"{quote(title, safe='')}&action=history"
+                ),
+            }
+    return sorted(credits.values(), key=lambda credit: (credit["title"], credit["revid"]))
+
+
 def ensure_runtime_circuits_data() -> Path:
-    """Seed the persistent runtime copy from bundled data exactly when it is missing."""
+    """Seed Jolpica data once, migrating only history from a legacy runtime snapshot."""
     runtime_path = runtime_circuits_data_path()
     if runtime_path.exists():
         return runtime_path
     runtime_path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_bytes_sync(runtime_path, BUNDLED_CIRCUITS_DATA_PATH.read_bytes())
+    legacy = runtime_path.with_name("circuits_data.json")
+    if legacy.exists():
+        data = load_jolpica_data(legacy)
+        atomic_write_bytes_sync(runtime_path, (json.dumps(data, indent=2) + "\n").encode())
+        logger.info("Migrated legacy circuit history to circuits_jolpica.json")
+    else:
+        data = _read_circuits_data(BUNDLED_JOLPICA_PATH)
+        atomic_write_bytes_sync(runtime_path, (json.dumps(data, indent=2) + "\n").encode())
     return runtime_path

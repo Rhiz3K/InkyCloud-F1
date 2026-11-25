@@ -62,7 +62,7 @@ def build_catalog() -> bytes:
         for family, items in (("jules", jules), ("commons", commons))
         for item in items
     }
-    circuits = json.loads((ROOT / "app" / "assets" / "circuits_data.json").read_text())
+    circuits = json.loads((ROOT / "app" / "assets" / "circuits_jolpica.json").read_text())
     if set(circuits) != {track["id"] for track in catalogue["tracks"]}:
         raise ValueError("Reviewed catalogue must cover every application circuit")
     expected = {f"{circuit}:{family}" for circuit in circuits for family in ("jules", "commons")}

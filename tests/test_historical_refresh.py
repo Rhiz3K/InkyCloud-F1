@@ -18,7 +18,7 @@ def isolated_circuit_seed(tmp_path, monkeypatch):
 
     seed = tmp_path / "bundle.json"
     seed.write_text("{}")
-    monkeypatch.setattr(circuit_data, "BUNDLED_CIRCUITS_DATA_PATH", seed)
+    monkeypatch.setattr(circuit_data, "BUNDLED_JOLPICA_PATH", seed)
 
 
 def _response(payload: dict):
@@ -191,7 +191,11 @@ async def test_main_handles_filter_updates_regressions_unchanged_and_failures(tm
     path = tmp_path / "circuits.json"
     circuits = {
         "regress": {"historical": {"season": 2026, "value": "new"}},
-        "changed": {"historical": {"season": 2025, "value": "old"}},
+        "changed": {
+            "historical": {"season": 2025, "value": "old"},
+            "circuit_length": "legacy",
+            "_provenance": {"old": True},
+        },
         "same": {"historical": {"season": 2026, "value": "same"}},
         "missing": {},
         "permanent": {},
@@ -222,6 +226,8 @@ async def test_main_handles_filter_updates_regressions_unchanged_and_failures(tm
         transient_failed_circuits=("missing",),
     )
     write.assert_called_once()
+    assert write.call_args.args[1]["changed"] == {"historical": {"season": 2026, "value": "new"}}
+    assert "albert_park" not in write.call_args.args[1]
     pacers = [call.kwargs["pacer"] for call in fetch.await_args_list]
     assert len(pacers) == len(outcomes)
     assert all(isinstance(pacer, historical.AsyncPacer) for pacer in pacers)
