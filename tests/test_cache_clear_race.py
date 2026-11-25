@@ -61,9 +61,11 @@ def race_app(monkeypatch):
         monkeypatch.setattr(module, "get_default_teams_year", lambda: 2026)
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
     monkeypatch.setattr(images, "_get_pregenerated_teams_path", MagicMock(return_value=None))
+    real_snapshot = previews._cached_preview_response
     monkeypatch.setattr(previews, "_cached_preview_response", AsyncMock(return_value=None))
     monkeypatch.setattr(previews.F1Service, "get_next_race_from_static", lambda self: _RACE)
     app = FastAPI()
+    app.state.snapshot_response = real_snapshot
     app.include_router(images.router)
     app.include_router(previews.router)
     app.dependency_overrides[get_f1_service] = lambda: service
@@ -563,3 +565,166 @@ async def test_teams_panel_preview_retry_rebuilds_its_context(race_app, monkeypa
     # The rebuilt context keeps the requested timezone and unit.
     assert contexts[1].tz == "America/New_York" and str(contexts[1].unit) == "f"
     assert list(get_bmp_variant_cache()) == ["preview:teams_en_weather_21.0"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", ["slot", "upstream", "incomplete"])
+@pytest.mark.parametrize("screen", ["calendar", "teams"])
+async def test_retry_keeps_completed_representation_and_its_context(
+    race_app, monkeypatch, failure, screen
+):
+    selections = [
+        _RACE,
+        dict(_RACE, season=2027, round=2, race_name="New GP", circuit={"circuitId": "spa"}),
+    ]
+    draws = 0
+
+    def selected():
+        return selections[bool(draws)]
+
+    service = race_app.dependency_overrides[get_f1_service]()
+    service.get_next_race_from_static.side_effect = selected
+    monkeypatch.setattr(images, "get_default_teams_year", lambda: selected()["season"])
+    monkeypatch.setattr(
+        images, "attribution_headers", lambda circuit, options: {"X-Circuit": circuit}
+    )
+
+    async def draw(**kwargs):
+        nonlocal draws
+        draws += 1
+        if draws == 1:
+            clear_bmp_cache()
+            return b"good", kwargs.get("race_data"), True
+        if failure == "slot":
+            raise images.HTTPException(503)
+        if failure == "upstream":
+            raise RuntimeError("render failed")
+        return b"incomplete", kwargs.get("race_data"), False
+
+    async def roster(self, season):
+        body, _, complete = await draw()
+        return TeamsData(
+            season=season,
+            teams=[TeamEntry(constructor_name=body.decode())],
+            standings_complete=complete,
+        )
+
+    monkeypatch.setattr(bmp_artifacts, "render_calendar", draw)
+    monkeypatch.setattr(bmp_artifacts.TeamsService, "get_teams_and_drivers", roster)
+    monkeypatch.setattr(
+        bmp_artifacts, "is_teams_data_cacheable", lambda data: data.standings_complete
+    )
+    monkeypatch.setattr(
+        bmp_artifacts,
+        "render_teams_bytes",
+        lambda display, lang, data, **kwargs: data.teams[0].constructor_name.encode(),
+    )
+
+    async def derive(artifact, display, output):
+        content = b"png-" + artifact[0]
+        return (content, strong_etag(content)), False
+
+    monkeypatch.setattr(bmp_artifacts, "output_artifact", derive)
+    async with AsyncClient(transport=ASGITransport(app=race_app), base_url="http://test") as client:
+        response = await client.get(
+            f"/{screen}.bmp?format=png&rotate=180",
+            headers={"If-None-Match": strong_etag(b"png-good")} if failure == "upstream" else {},
+        )
+    assert draws == 2 and images.record_api_call.call_count == 1
+    assert response.status_code == (304 if failure == "upstream" else 200)
+    if response.status_code == 200:
+        assert response.content == b"png-good"
+    assert response.headers["etag"] == strong_etag(b"png-good")
+    assert response.headers["cache-control"] == "no-cache"
+    assert int(response.headers["x-next-refresh-seconds"]) <= 300
+    assert not get_bmp_cache()
+    if screen == "calendar":
+        assert response.headers["x-circuit"] == "monza"
+        assert images.record_api_call.call_args.args[5:8] == (2026, 1, "Test GP")
+    else:
+        assert 2026 in images.record_api_call.call_args.args
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["memory", "disk", "miss", "incomplete"])
+async def test_preview_clear_during_final_conversion(race_app, monkeypatch, source, tmp_path):
+    renders = _Renders(complete=source != "incomplete")
+    _calendar_renders(monkeypatch, renders)
+    if source == "memory":
+        await _get(race_app, "/calendar.bmp", weather="false")
+
+    async def convert(func):
+        clear_bmp_cache()
+        return func.args[0]
+
+    monkeypatch.setattr(previews, "run_render", convert)
+    if source == "disk":
+        monkeypatch.setattr(previews, "_cached_preview_response", race_app.state.snapshot_response)
+        monkeypatch.setattr(previews.config, "IMAGES_PATH", str(tmp_path))
+
+        def snapshot(path, identity):
+            clear_bmp_cache()
+            return b"png", {"etag": strong_etag(b"png"), "mtime_ns": 0}
+
+        monkeypatch.setattr(previews, "_preview_snapshot", snapshot)
+    response = await _get(race_app, "/preview/configure/calendar.png")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == (
+        "no-store" if source == "incomplete" else "no-cache"
+    )
+
+
+@pytest.mark.asyncio
+async def test_one_slot_retry_preserves_completed_draw(race_app, monkeypatch):
+    monkeypatch.setattr(images.config, "RENDER_CONCURRENCY", 1)
+    monkeypatch.setattr(images.config, "RENDER_SLOT_WAIT_SECONDS", 0.08)
+    started, release, neighbour, queued = (asyncio.Event() for _ in range(4))
+    draws = []
+
+    async def draw(**kwargs):
+        lang = kwargs["lang"]
+        draws.append(lang)
+        if lang == "en" and draws.count(lang) == 1:
+            started.set()
+            await release.wait()
+        if lang == "fr":
+            neighbour.set()
+            await asyncio.sleep(0.2)
+        return lang.encode(), kwargs["race_data"], True
+
+    original = bmp_artifacts.singleflight
+
+    async def track(key, producer):
+        if "|fr:" in key:
+            queued.set()
+        return await original(key, producer)
+
+    monkeypatch.setattr(bmp_artifacts, "singleflight", track)
+    monkeypatch.setattr(bmp_artifacts, "render_calendar", draw)
+    async with asyncio.timeout(3):
+        first = asyncio.create_task(_get(race_app, "/calendar.bmp"))
+        await started.wait()
+        second = asyncio.create_task(_get(race_app, "/calendar.bmp", lang="fr"))
+        await queued.wait()
+        clear_bmp_cache()
+        release.set()
+        left, right = await asyncio.gather(first, second)
+    assert neighbour.is_set() and draws.count("fr") == 1
+    assert left.status_code == right.status_code == 200
+    assert left.content == b"en" and right.content == b"fr"
+
+
+@pytest.mark.asyncio
+async def test_disk_bmp_cleared_during_read_requires_revalidation(race_app, monkeypatch):
+    monkeypatch.setattr(
+        images, "_get_pregenerated_calendar_path", lambda **kw: Path("calendar.bmp")
+    )
+
+    async def read(*args):
+        clear_bmp_cache()
+        return (b"disk", strong_etag(b"disk")), None
+
+    monkeypatch.setattr(images, "_read_pregenerated_artifact", read)
+    response = await _get(race_app, "/calendar.bmp")
+    assert response.content == b"disk" and response.headers["cache-control"] == "no-cache"
+    assert int(response.headers["x-next-refresh-seconds"]) <= 300

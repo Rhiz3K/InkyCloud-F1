@@ -246,6 +246,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A request whose render spans a cache clear keeps its completed image while retrying. If the retry fails or yields incomplete data, devices receive the original image, its validator and a short retry hint. Previews revalidate if their source changes during encoding.
+
 - A calendar rendered while the scheduler cleared the image cache (at startup and around
   every full hour, when many devices poll) no longer goes out with `Cache-Control: no-store`.
   The render is still kept out of the freshly cleared cache, but the request now retries once:
