@@ -10,6 +10,7 @@ usual headers. Only a second race falls back to ``no-cache``; incomplete data ke
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -24,6 +25,7 @@ from app.routes.deps import get_f1_service
 from app.services import bmp_artifacts
 from app.services.weather_service import WeatherData
 from app.state import clear_bmp_cache, get_bmp_cache, get_bmp_variant_cache
+from app.utils import render_limit
 from app.utils.etag import strong_etag
 
 _RACE = {"season": 2026, "round": 1, "race_name": "Test GP", "circuit": {"circuitId": "monza"}}
@@ -485,6 +487,106 @@ async def test_configure_calendar_preview_reuses_a_cached_calendar(race_app, mon
 
     assert renders.count == 1
     assert response.headers["cache-control"] == "public, max-age=300"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "params", [{"countdown": "days"}, {"theme": "dark"}], ids=["light", "dark"]
+)
+@pytest.mark.parametrize("failure", ["slot", "upstream", "incomplete"])
+async def test_configure_calendar_keeps_completed_png_when_retry_fails(
+    race_app, monkeypatch, params, failure
+):
+    renders = _Renders(clear_on=(1,))
+
+    async def draw(**kwargs):
+        if renders.next() == 1:
+            return b"complete", kwargs["race_data"], True
+        if failure == "upstream":
+            raise RuntimeError("upstream failed")
+        return b"incomplete", kwargs["race_data"], False
+
+    async def encode(func):
+        if failure == "slot":
+            # The first PNG has finished encoding. The replacement producer must time out
+            # in admission before it can draw with the new inputs.
+            monkeypatch.setattr(render_limit, "_semaphore", lambda *_: asyncio.Semaphore(0))
+            monkeypatch.setattr(render_limit.config, "RENDER_SLOT_WAIT_SECONDS", 0.01)
+        return b"png:" + func.args[0]
+
+    monkeypatch.setattr(bmp_artifacts, "render_calendar", draw)
+    monkeypatch.setattr(previews, "run_render", encode)
+    response = await _get(race_app, "/preview/configure/calendar.png", **params)
+    assert renders.count == (1 if failure == "slot" else 2)
+    assert response.status_code == 200
+    assert response.content == b"png:complete"
+    assert response.headers["etag"] == strong_etag(response.content)
+    assert response.headers["cache-control"] == "no-cache"
+    assert not get_bmp_cache() and not get_bmp_variant_cache()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("extra", ["none", "countdown"])
+@pytest.mark.parametrize("failure", ["upstream", "incomplete"])
+async def test_teams_preview_keeps_requested_png_when_retry_fails(
+    race_app, monkeypatch, extra, failure
+):
+    renders = _Renders(clear_on=(1,))
+    build_context = previews.build_teams_extra_context
+    monkeypatch.setattr(
+        previews,
+        "build_teams_extra_context",
+        lambda *a, **kw: build_context(*a, now=datetime(2026, 5, 1, tzinfo=UTC), **kw),
+    )
+
+    async def roster(_self, season):
+        first = renders.next() == 1
+        if not first and failure == "upstream":
+            raise RuntimeError("upstream failed")
+        return TeamsData(
+            season=season,
+            teams=[TeamEntry(constructor_name="complete" if first else "incomplete")],
+            standings_complete=first,
+        )
+
+    async def encode(func):
+        panel = func.keywords["extra"].value
+        return f"{panel}:{func.args[2].teams[0].constructor_name}".encode()
+
+    monkeypatch.setattr(previews.TeamsService, "get_teams_and_drivers", roster)
+    monkeypatch.setattr(previews, "run_render", encode)
+    response = await _get(race_app, "/preview/configure/teams.png", theme="dark", extra=extra)
+    assert renders.count == 2
+    assert response.status_code == 200
+    assert response.content == f"{extra}:complete".encode()
+    assert response.headers["etag"] == strong_etag(response.content)
+    assert response.headers["cache-control"] == "no-cache"
+    assert "x-preview-fallback" not in response.headers
+    assert not get_bmp_variant_cache()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("screen", ["calendar", "teams"])
+@pytest.mark.parametrize("clear", [False, True])
+async def test_homepage_preview_checks_freshness_after_png_encoding(
+    race_app, monkeypatch, screen, clear
+):
+    renderer = MagicMock()
+    renderer.render_calendar.return_value = renderer.render_teams_drivers.return_value = b"source"
+    monkeypatch.setattr(previews, "create_renderer", lambda *_: renderer)
+    _teams_renders(monkeypatch, _Renders(), module=previews)
+
+    def encode(source, **kwargs):
+        assert source == b"source"
+        if clear:
+            clear_bmp_cache()
+        return b"encoded"
+
+    monkeypatch.setattr(previews, "bmp_to_png", encode)
+    response = await _get(race_app, f"/preview/{screen}.png")
+    assert response.status_code == 200
+    assert response.content == b"encoded"
+    assert response.headers["cache-control"] == ("no-cache" if clear else "public, max-age=300")
 
 
 @pytest.mark.asyncio
