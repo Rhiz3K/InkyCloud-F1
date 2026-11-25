@@ -312,7 +312,7 @@ def test_unfinished_date_only_session_wakes_the_display_at_its_local_midnight():
         selection_grace=NEXT_RACE_GRACE,
     ).with_changes(changes)
     assert hint.next_change == saturday
-    assert hint.seconds() == int((saturday - friday_night).total_seconds()) + rh.SETTLE_SECONDS
+    assert hint.seconds() == int((saturday - friday_night).total_seconds())
 
 
 # --- Rendering ------------------------------------------------------------------------------
@@ -843,7 +843,7 @@ def client_app(frozen, monkeypatch):
     bmp_artifacts._singleflight_tasks.clear()
     monkeypatch.setattr(images, "record_api_call", MagicMock())
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
-    monkeypatch.setattr(F1Service, "get_next_race_from_static", lambda self: _qatar())
+    monkeypatch.setattr(F1Service, "get_next_race_from_static", lambda self, **kw: _qatar())
     for module in (images, previews):
         monkeypatch.setattr(module, "enforce_rate_limit", MagicMock())
     app = FastAPI()
@@ -928,6 +928,55 @@ async def test_weekend_variant_http_lifetime_stops_at_the_next_session_boundary(
     assert hit.headers["cache-control"] == "public, max-age=240"
     default = await _get(client_app, "/calendar.bmp?weather=false")
     assert default.headers["cache-control"] == "public, max-age=3600"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["memory", "disk"])
+async def test_weekend_opening_limits_200_and_304(client_app, frozen, monkeypatch, source):
+    frozen.now = QA_FP1 - WEEKEND_LEAD - timedelta(minutes=20)
+    url = "/calendar.bmp?weather=false&weekend_mode=auto"
+    if source == "disk":
+        monkeypatch.setattr(images, "_get_pregenerated_calendar_path", lambda **kw: "calendar.bmp")
+        read = AsyncMock(side_effect=[((b"disk", '"disk"'), None), (None, '"disk"')])
+        monkeypatch.setattr(images, "_read_pregenerated_artifact", read)
+    first = await _get(client_app, url)
+    assert first.headers["cache-control"] == "public, max-age=1200"
+    frozen.now += timedelta(minutes=1)
+    second = await _get(client_app, url, {"If-None-Match": first.headers["etag"]})
+    assert second.status_code == 304
+    assert second.headers["cache-control"] == "public, max-age=1140"
+
+
+@pytest.mark.asyncio
+async def test_automatic_podium_selection_until_next_day(frozen, monkeypatch):
+    from app.services import f1_service
+
+    monkeypatch.setattr(f1_service, "datetime", _FixedDatetime)
+    monkeypatch.setattr(images, "record_api_call", MagicMock())
+    app = FastAPI()
+    app.include_router(images.router)
+    app.include_router(previews.router)
+    service = F1Service()
+    app.dependency_overrides[get_f1_service] = lambda: service
+    frozen.now = QA_RACE + timedelta(hours=4)
+    url = "/calendar.bmp?weather=false&weekend_mode=auto"
+    explicit = url + "&year=2026&round=22"
+    assert (await _get(app, url)).content == (await _get(app, explicit)).content
+    frozen.now += timedelta(hours=2)
+    before = await _get(app, url)
+    wr._store((2026, 22, wr.RACE), _stored("race"), frozen.now)
+    after = await _get(app, url)
+    assert after.content != before.content
+    assert after.content == (await _get(app, explicit)).content
+    auto = await _get(app, "/auto.bmp?weather=false&weekend_mode=auto")
+    assert auto.headers["x-active-screen"] == "calendar" and auto.content == after.content
+    preview = await _get(app, "/preview/configure/calendar.png?weekend_mode=auto")
+    assert preview.headers["link"] == after.headers["link"]
+    frozen.now = QA_RACE + timedelta(hours=24)
+    assert (await _get(app, url)).content == (
+        await _get(app, "/calendar.bmp?weather=false")
+    ).content
+    assert (await _get(app, explicit)).content != (await _get(app, url)).content
 
 
 @pytest.mark.asyncio

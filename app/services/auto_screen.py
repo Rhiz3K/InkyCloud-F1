@@ -67,7 +67,11 @@ def _session_start(event: Mapping[str, Any], zone: tzinfo) -> datetime | None:
 
 
 def race_week_window(
-    race_data: Mapping[str, Any] | None, *, lead: timedelta, zone: tzinfo
+    race_data: Mapping[str, Any] | None,
+    *,
+    lead: timedelta,
+    zone: tzinfo,
+    grace: timedelta = NEXT_RACE_GRACE,
 ) -> tuple[datetime, datetime] | None:
     """Return ``[start, end)`` in which ``race_week`` shows the calendar, or None.
 
@@ -79,7 +83,7 @@ def race_week_window(
         return None
     race_start = race_session_start(dict(race_data))
     if race_start is not None:
-        end = race_start + NEXT_RACE_GRACE
+        end = race_start + grace
     else:
         race_event = next(
             (
@@ -110,6 +114,7 @@ def choose_screen(
     race_data: Mapping[str, Any] | None,
     lead_hours: int,
     zone: tzinfo,
+    grace: timedelta = NEXT_RACE_GRACE,
 ) -> ScreenChoice:
     """Pick the active screen for ``now`` (aware UTC) and the next switch instant."""
     if mode == AutoMode.DAILY:
@@ -117,7 +122,7 @@ def choose_screen(
         screen = AutoScreen.CALENDAR if today.toordinal() % 2 == 0 else AutoScreen.TEAMS
         return ScreenChoice(screen, next_local_midnight(now, zone))
 
-    window = race_week_window(race_data, lead=timedelta(hours=lead_hours), zone=zone)
+    window = race_week_window(race_data, lead=timedelta(hours=lead_hours), zone=zone, grace=grace)
     if window is None:
         return ScreenChoice(AutoScreen.TEAMS)
     start, end = window

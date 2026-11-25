@@ -26,6 +26,7 @@ from enum import StrEnum
 from typing import Any
 
 from app.services.auto_screen import race_week_window
+from app.services.f1_service import NEXT_RACE_GRACE, F1Service
 from app.services.renderer_text import normalize_session_name
 from app.utils.race_times import local_session_start, parse_utc_instant, session_over
 from app.utils.refresh_hint import (
@@ -41,6 +42,18 @@ class WeekendMode(StrEnum):
 
     OFF = "off"
     AUTO = "auto"
+
+    @property
+    def selection_grace(self) -> timedelta:
+        """Keep the automatically selected timed weekend available for late podiums."""
+        return timedelta(hours=24) if self == WeekendMode.AUTO else NEXT_RACE_GRACE
+
+
+def select_weekend_race(service: F1Service, mode: WeekendMode) -> dict | None:
+    """Select the race using the display window requested by the calendar."""
+    if mode == WeekendMode.AUTO:
+        return service.get_next_race_from_static(grace=mode.selection_grace)
+    return service.get_next_race_from_static()
 
 
 # The weekend view starts this long before the first session (FP1).

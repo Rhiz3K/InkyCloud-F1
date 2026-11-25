@@ -26,7 +26,7 @@ from app.routes.params import (
 )
 from app.services import bmp_artifacts
 from app.services.artifact_metadata import calendar_identity, read_artifact_metadata
-from app.services.f1_service import NEXT_RACE_GRACE, F1Service
+from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.image_generation import (
     StaleSelection,
@@ -51,7 +51,7 @@ from app.services.track_catalog import (
     TrackStyle,
 )
 from app.services.track_renderer import attribution_headers
-from app.services.weekend_phase import WeekendMode
+from app.services.weekend_phase import WeekendMode, select_weekend_race
 from app.services.weekend_results import weekend_context
 from app.state import bmp_cache_generation, get_bmp_variant_cache
 from app.utils.async_tasks import run_render
@@ -178,7 +178,7 @@ async def _render_configure_calendar(
 
     ``weather`` is canonical (off/current/race_day), so the key equals the /calendar.bmp one.
     """
-    race = F1Service().get_next_race_from_static()
+    race = select_weekend_race(F1Service(), weekend_mode)
     key = (
         calendar_identity(race, options)
         + "|"
@@ -194,7 +194,7 @@ async def _render_configure_calendar(
             countdown=countdown,
             weather_type=weather,
             weather_enabled=config.WEATHER_ENABLED,
-            selection_grace=NEXT_RACE_GRACE,
+            selection_grace=weekend_mode.selection_grace,
         ).with_changes(weekend.changes, hourly=weekend.pending)
         if countdown != CountdownMode.HOURS:
             key += f":countdown={countdown}:{hint.cache_token()}"

@@ -574,7 +574,7 @@ class F1Service:
             logger.error("Error loading static season data: %s", e, exc_info=True)
             return []
 
-    def get_next_race_from_static(self) -> Optional[dict]:
+    def get_next_race_from_static(self, *, grace: timedelta = NEXT_RACE_GRACE) -> Optional[dict]:
         """
         Find the next race from static data based on current date.
 
@@ -606,7 +606,7 @@ class F1Service:
 
                     # Keep the current race selected until NEXT_RACE_GRACE after lights-out, so
                     # the display doesn't flip to the next GP mid-race.
-                    if race_dt + NEXT_RACE_GRACE > now:
+                    if race_dt + grace > now:
                         logger.debug(
                             "Found next race from static: %s (%s)", race.raceName, race.date
                         )

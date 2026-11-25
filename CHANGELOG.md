@@ -336,6 +336,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - When the race-week schedule lookup fails, the automatic Teams screen asks the device to retry within five minutes.
 
+- Automatic weekend calendars and race-week screens keep the race available for late podiums until 24 hours after its start. Weekend responses expire by the opening of the weekend view.
+
 ## [1.3.3] - 2026-10-30
 
 ### Removed
