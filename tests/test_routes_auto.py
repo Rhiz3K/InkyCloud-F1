@@ -22,7 +22,7 @@ from app.services.auto_screen import (
     race_week_window,
 )
 from app.services.f1_service import NEXT_RACE_GRACE, F1Service
-from app.state import get_bmp_cache, get_bmp_variant_cache
+from app.state import clear_bmp_cache, get_bmp_cache, get_bmp_variant_cache
 from app.utils import refresh_hint as rh
 
 PRAGUE = ZoneInfo("Europe/Prague")
@@ -472,6 +472,26 @@ async def test_lead_hours_bounds_are_accepted(auto_app):
     assert week.headers["x-active-screen"] == "calendar"
     zero = await _get(auto_app, "/auto.bmp?lead_hours=0&extra=none")
     assert zero.headers["x-active-screen"] == "teams"
+
+
+@pytest.mark.asyncio
+async def test_auto_charges_once_across_stale_teams_selection(auto_app, monkeypatch):
+    """Reselect the season after a clear while charging only the automatic endpoint."""
+    seasons = iter((2025, 2026))
+
+    def select():
+        year = next(seasons)
+        if year == 2025:
+            clear_bmp_cache()
+        return year
+
+    monkeypatch.setattr(images, "get_default_teams_year", select)
+    response = await _get(auto_app, "/auto.bmp?extra=none")
+    assert response.status_code == 200
+    assert response.headers["x-active-screen"] == "teams"
+    bmp_artifacts.TeamsService.get_teams_and_drivers.assert_awaited_once_with(2026)
+    images.enforce_rate_limit.assert_called_once()
+    assert images.enforce_rate_limit.call_args.kwargs["bucket"] == "auto_bmp"
 
 
 def test_auto_route_is_rate_limited_in_its_own_bucket(monkeypatch):
