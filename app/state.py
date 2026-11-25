@@ -1,7 +1,10 @@
 """Process-local caches and buffered request-statistics state."""
 
 import logging
+import math
+import time
 from collections import OrderedDict, deque
+from collections.abc import Callable
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -21,10 +24,48 @@ BMP_CACHE_MAXSIZE = 512
 BMP_CACHE_TTL_SECONDS = 3600
 BmpArtifact = tuple[bytes, str]
 
+
+class ImageCache(TTLCache[str, BmpArtifact]):
+    """A BMP cache that exposes the remaining lifetime of a selected image."""
+
+    def __init__(self, maxsize: int, ttl: int, timer: Callable[[], float] = time.monotonic):
+        """Use the same monotonic clock for admission, expiry and refresh hints."""
+        super().__init__(maxsize, ttl, timer=timer)
+        self._deadlines: dict[str, float] = {}
+
+    def __setitem__(self, key: str, value: BmpArtifact) -> None:
+        """Remember the exact deadline assigned by TTLCache, including replacements."""
+        with self.timer as now:
+            super().__setitem__(key, value)
+            self._deadlines[key] = now + self.ttl
+
+    def __delitem__(self, key: str) -> None:
+        """Drop the deadline when an entry is removed or evicted."""
+        self._deadlines.pop(key, None)
+        super().__delitem__(key)
+
+    def expire(self, time: float | None = None) -> list[tuple[str, BmpArtifact]]:
+        """Discard deadlines alongside expired images."""
+        expired = super().expire(time)
+        for key, _ in expired:
+            self._deadlines.pop(key, None)
+        return expired
+
+    def clear(self) -> None:
+        """Clear the image deadlines along with their bytes."""
+        super().clear()
+        self._deadlines.clear()
+
+    def remaining_seconds(self, key: str) -> int:
+        """Return the remaining cache lifetime, or zero for an expired or evicted key."""
+        now = self.timer()
+        return max(0, math.ceil(self._deadlines.get(key, now) - now))
+
+
 # Cover all localized display/weather variants without immediate LRU churn.
 # Teams extra panels and extra previews live in a second cache so a burst of those
 # variants cannot evict the calendar and plain teams entries stored here.
-_bmp_cache: TTLCache[str, BmpArtifact] = TTLCache(
+_bmp_cache: ImageCache = ImageCache(
     maxsize=BMP_CACHE_MAXSIZE,
     ttl=BMP_CACHE_TTL_SECONDS,
 )
@@ -33,13 +74,13 @@ _bmp_cache: TTLCache[str, BmpArtifact] = TTLCache(
 class _VariantCacheSlot:
     """Holds the live extra/preview cache so a resize can replace it."""
 
-    def __init__(self, cache: TTLCache[str, BmpArtifact]) -> None:
+    def __init__(self, cache: ImageCache) -> None:
         """Store the cache currently serving extra and preview images."""
         self.cache = cache
 
 
 _variant_cache_slot = _VariantCacheSlot(
-    TTLCache(maxsize=config.BMP_VARIANT_CACHE_MAXSIZE, ttl=BMP_CACHE_TTL_SECONDS)
+    ImageCache(maxsize=config.BMP_VARIANT_CACHE_MAXSIZE, ttl=BMP_CACHE_TTL_SECONDS)
 )
 
 # Bound the buffer so a serving instance whose flush job never runs (e.g. SCHEDULER_ENABLED
@@ -73,12 +114,12 @@ def bmp_cache_generation() -> int:
     return _CacheGeneration.value
 
 
-def get_bmp_cache() -> TTLCache[str, BmpArtifact]:
+def get_bmp_cache() -> ImageCache:
     """Return the cache of calendar images and plain teams dashboards."""
     return _bmp_cache
 
 
-def get_bmp_variant_cache() -> TTLCache[str, BmpArtifact]:
+def get_bmp_variant_cache() -> ImageCache:
     """Return the cache of teams extra panels and extra preview images.
 
     The configured maximum is applied on read. Shrinking keeps the newest entries
@@ -89,7 +130,7 @@ def get_bmp_variant_cache() -> TTLCache[str, BmpArtifact]:
     if current.maxsize == maxsize:
         return current
     retained = list(current.items())[-maxsize:]
-    rebuilt: TTLCache[str, BmpArtifact] = TTLCache(maxsize=maxsize, ttl=BMP_CACHE_TTL_SECONDS)
+    rebuilt: ImageCache = ImageCache(maxsize=maxsize, ttl=BMP_CACHE_TTL_SECONDS)
     for key, value in retained:
         rebuilt[key] = value
     _variant_cache_slot.cache = rebuilt

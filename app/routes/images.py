@@ -47,6 +47,7 @@ from app.services.track_catalog import (
 from app.services.track_renderer import attribution_headers
 from app.state import (
     BmpArtifact,
+    ImageCache,
     record_api_call,
 )
 from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
@@ -94,6 +95,27 @@ _DAY_BASED_TEAMS_EXTRAS = frozenset({TeamsExtra.COUNTDOWN, TeamsExtra.FLAGS, Tea
 def _utc_now() -> datetime:
     """Return the current instant for refresh hints (a seam for tests)."""
     return datetime.now(UTC)
+
+
+def _calendar_poll_seconds(
+    hint: RefreshHint | None,
+    countdown: CountdownMode,
+    cache: ImageCache | None,
+    key: str,
+    status: str | None,
+) -> int:
+    """Evaluate the source deadline immediately before returning a calendar response."""
+    if hint is None:
+        return ERROR_REFRESH_SECONDS
+    remaining = None
+    if (
+        not config.SCHEDULER_ENABLED
+        and countdown == CountdownMode.HOURS
+        and cache is not None
+        and status in ("HIT", "MISS")
+    ):
+        remaining = cache.remaining_seconds(key)
+    return hint.seconds(_utc_now(), cache_seconds=remaining)
 
 
 def _calendar_cache_control(countdown: CountdownMode, hint: RefreshHint) -> str:
@@ -613,7 +635,9 @@ async def get_calendar_bmp(
     actual_race_name: str | None = None
     selected_race: dict | None = None
     # Until the selection is known (and on the error image) ask for a retry soon.
-    refresh_seconds = ERROR_REFRESH_SECONDS
+    poll_hint: RefreshHint | None = None
+    image_cache: ImageCache | None = None
+    cache_key = ""
 
     def respond(
         content: bytes | None,
@@ -638,7 +662,9 @@ async def get_calendar_bmp(
             cache_control=cache_control,
             cache_status=cache_status,
             track_options=track_options,
-            refresh_seconds=refresh_seconds,
+            refresh_seconds=_calendar_poll_seconds(
+                poll_hint, countdown, image_cache, cache_key, cache_status
+            ),
         )
         response.headers.update(
             attribution_headers(
@@ -666,7 +692,7 @@ async def get_calendar_bmp(
             selection_grace=NEXT_RACE_GRACE if race_round is None and race_key is None else None,
         )
         # Without a race the route serves the "failed to fetch" error image: retry soon.
-        refresh_seconds = hint.seconds() if selected_race else ERROR_REFRESH_SECONDS
+        poll_hint = hint if selected_race else None
         cache_key = f"{identity}|" + calendar_cache_key(
             lang, year, race_round, race_key, tz, weather_type, display
         )
@@ -749,7 +775,7 @@ async def get_calendar_bmp(
         bmp_data, etag = await bmp_artifacts.shared_error_artifact(
             display, lang, "Temporary rendering error"
         )
-        refresh_seconds = ERROR_REFRESH_SECONDS
+        poll_hint = None
         return respond(
             bmp_data,
             etag,
@@ -794,8 +820,6 @@ async def get_teams_bmp(
     lang = normalize_lang(lang)
     display = normalize_display(display)
     tz = validate_timezone(tz)
-    refresh_seconds = ERROR_REFRESH_SECONDS
-
     try:
         if year is None:
             year = get_default_teams_year()
@@ -818,7 +842,7 @@ async def get_teams_bmp(
                 year=year,
                 cache_control=cache_control,
                 cache_status=cache_status,
-                refresh_seconds=refresh_seconds,
+                refresh_seconds=hint.seconds(_utc_now()),
             )
 
         ctx = (
@@ -827,13 +851,13 @@ async def get_teams_bmp(
             else None
         )
         effective = extra if ctx is not None else TeamsExtra.NONE
-        refresh_seconds = teams_refresh_hint(
+        hint = teams_refresh_hint(
             now=_utc_now(),
             points_sessions=points_session_starts(year),
             timezone_name=tz,
             day_panel=effective in _DAY_BASED_TEAMS_EXTRAS,
             hourly=effective == TeamsExtra.WEATHER,
-        ).seconds()
+        )
         cache_key = get_teams_image_key(
             lang, year, display=display, extra=effective, extra_context=ctx
         )

@@ -27,7 +27,13 @@ from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.teams_service import TeamsService, is_teams_data_cacheable
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.weather_service import get_weather_context
-from app.state import BmpArtifact, bmp_cache_generation, get_bmp_cache, get_bmp_variant_cache
+from app.state import (
+    BmpArtifact,
+    ImageCache,
+    bmp_cache_generation,
+    get_bmp_cache,
+    get_bmp_variant_cache,
+)
 from app.utils.async_tasks import run_render
 from app.utils.etag import strong_etag
 from app.utils.race_times import convert_race_times_to_timezone
@@ -235,7 +241,7 @@ async def render_calendar_artifact(
         return artifact
 
 
-def calendar_image_cache(countdown_mode: CountdownMode) -> TTLCache[str, BmpArtifact]:
+def calendar_image_cache(countdown_mode: CountdownMode) -> ImageCache:
     """Keep default-countdown calendars in the main cache and other modes in the variant cache."""
     if countdown_mode == CountdownMode.HOURS:
         return get_bmp_cache()

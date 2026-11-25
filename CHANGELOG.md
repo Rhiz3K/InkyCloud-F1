@@ -292,6 +292,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Compose allows 30 seconds for shutdown so active renders can finish. The API documentation preserves quotes and line breaks in translated controls.
 
+- Refresh hints count down to the next UTC hourly publication at two minutes past the hour, on-demand cache expiry, or an earlier content change. Both 200 and 304 responses account for render time.
+
 ## [1.3.3] - 2026-10-30
 
 ### Removed

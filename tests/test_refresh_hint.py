@@ -207,19 +207,66 @@ def test_days_hint_targets_dst_midnight_in_prague():
     assert autumn.next_change == datetime(2026, 10, 25, 23, 0, tzinfo=UTC)  # 25 h day
     assert autumn.seconds() == rh.MAX_REFRESH_SECONDS
     late_autumn = _hint(race, now=datetime(2026, 10, 25, 1, 30, tzinfo=UTC), countdown="days")
-    assert late_autumn.seconds() == 21 * 3600 + 1800 + rh.SETTLE_SECONDS
+    assert late_autumn.seconds() == 21 * 3600 + 1800
     spring = _hint(race, now=datetime(2026, 3, 28, 23, 0, tzinfo=UTC), countdown="days")
-    assert spring.seconds() == 23 * 3600 + rh.SETTLE_SECONDS
+    assert spring.seconds() == 23 * 3600
     assert spring.next_change == datetime(2026, 3, 29, 22, 0, tzinfo=UTC)
 
 
 def test_hours_hint_targets_the_next_whole_hour_before_start():
     hint = _hint(_race())
-    assert hint.next_change == NOW + timedelta(minutes=30)
+    assert hint.next_change == RACE_START
     assert hint.seconds() == 1800 + rh.SETTLE_SECONDS
     exact = _hint(_race(), now=datetime(2026, 11, 22, 10, 0, tzinfo=UTC))
     assert exact.seconds() == rh.SETTLE_SECONDS
-    assert exact.next_change == datetime(2026, 11, 22, 10, 0, tzinfo=UTC)
+    assert exact.next_change == RACE_START
+
+
+@pytest.mark.asyncio
+async def test_hours_poll_uses_actual_cache_expiry_when_scheduler_disabled(
+    client_app, frozen, monkeypatch
+):
+    from app import state
+
+    monkeypatch.setattr(images.config, "SCHEDULER_ENABLED", False)
+    clock = [10.0]
+    cache = state.ImageCache(8, 3600, timer=lambda: clock[0])
+    monkeypatch.setattr(state, "_bmp_cache", cache)
+    frozen.now = NOW.replace(minute=0, second=30)
+    url = "/calendar.bmp?weather=false"
+    first = await _get(client_app, url)
+    assert first.headers["x-next-refresh-seconds"] == "3600"
+    clock[0] += 700
+    frozen.now += timedelta(seconds=700)
+    hit = await _get(client_app, url, {"If-None-Match": first.headers["etag"]})
+    assert hit.status_code == 304
+    assert hit.headers["x-next-refresh-seconds"] == "2900"
+
+
+def test_image_cache_deadlines_follow_replacement_eviction_and_expiry():
+    from app.state import ImageCache
+
+    clock = [0.0]
+    cache = ImageCache(1, 10, timer=lambda: clock[0])
+    cache["old"] = (b"a", "a")
+    clock[0] = 3
+    cache["new"] = (b"b", "b")
+    assert cache.remaining_seconds("old") == 0
+    clock[0] = 4
+    cache["new"] = (b"c", "c")
+    assert cache.remaining_seconds("new") == 10
+    clock[0] = 14
+    assert cache.expire() == [("new", (b"c", "c"))]
+    assert cache.remaining_seconds("new") == 0
+
+
+def test_poll_deadline_survives_time_spent_rendering():
+    now = NOW.replace(minute=0, second=30)
+    later = now + timedelta(seconds=20)
+    assert RefreshHint(now, hourly=True).seconds(later) == 70
+    race = {"schedule": [{"name": "Race", "datetime": "2026-11-23T13:30:00Z"}]}
+    assert _hint(race, now=now).seconds() == 90
+    assert _hint(race, now=NOW.replace(minute=59, second=30)).seconds() == 150
 
 
 def test_auto_hint_uses_midnight_then_the_48_hour_switch_then_hours():
@@ -252,7 +299,7 @@ def test_selection_grace_moves_the_automatic_race_on():
         _race(), now=RACE_START + timedelta(hours=3, minutes=30), selection_grace=NEXT_RACE_GRACE
     )
     assert hint.next_change == RACE_START + NEXT_RACE_GRACE
-    assert hint.seconds() == 1800 + rh.SETTLE_SECONDS
+    assert hint.seconds() == 1800
     dated = _hint(
         _date_only_race("2026-11-29"),
         now=datetime(2026, 11, 29, 10, tzinfo=UTC),
@@ -307,7 +354,7 @@ def test_current_weather_caps_the_hint_at_one_hour():
         countdown=CountdownMode.OFF,
         weather_type="current",
     )
-    assert early.seconds() == rh.HOURLY_REFRESH_SECONDS
+    assert early.seconds() == 90
     disabled = _hint(_race(), countdown="off", weather_type="current", weather_enabled=False)
     assert disabled.hourly is False
 
@@ -328,7 +375,7 @@ def test_hint_floor_and_cache_token():
     hint = RefreshHint(NOW, (NOW - timedelta(seconds=5), NOW + timedelta(seconds=1)))
     assert hint.next_change == NOW + timedelta(seconds=1)
     assert hint.cache_token() == str(int((NOW + timedelta(seconds=1)).timestamp()))
-    assert RefreshHint(NOW, (NOW,)).seconds() == max(rh.MIN_REFRESH_SECONDS, rh.SETTLE_SECONDS)
+    assert RefreshHint(NOW, (NOW,)).seconds() == rh.MIN_REFRESH_SECONDS
     assert rh.countdown_shows_days(CountdownMode.HOURS, timedelta(days=9)) is False
     assert rh.countdown_shows_days(CountdownMode.AUTO, timedelta(hours=48)) is False
 
@@ -420,9 +467,7 @@ async def test_calendar_days_returns_304_with_hint_across_hours(client_app, froz
     assert first.status_code == 200
     assert first.headers["x-cache"] == "MISS"
     midnight = datetime(2026, 11, 22, 23, 0, tzinfo=UTC)
-    assert first.headers["x-next-refresh-seconds"] == str(
-        int((midnight - NOW).total_seconds()) + rh.SETTLE_SECONDS
-    )
+    assert first.headers["x-next-refresh-seconds"] == str(int((midnight - NOW).total_seconds()))
     assert not get_bmp_cache()
     assert len(get_bmp_variant_cache()) == 1
 
@@ -434,7 +479,7 @@ async def test_calendar_days_returns_304_with_hint_across_hours(client_app, froz
     assert revalidated.status_code == 304
     assert revalidated.content == b""
     assert revalidated.headers["x-next-refresh-seconds"] == str(
-        int((midnight - frozen.now).total_seconds()) + rh.SETTLE_SECONDS
+        int((midnight - frozen.now).total_seconds())
     )
 
     # A fresh render three hours later produces the same bytes and ETag.
@@ -533,9 +578,7 @@ async def test_teams_hint_on_200_304_and_error(client_app, monkeypatch):
     )
     panel = await _get(client_app, "/teams.bmp?extra=countdown&tz=Europe/Prague")
     midnight = datetime(2026, 11, 22, 23, 0, tzinfo=UTC)
-    assert panel.headers["x-next-refresh-seconds"] == str(
-        int((midnight - NOW).total_seconds()) + rh.SETTLE_SECONDS
-    )
+    assert panel.headers["x-next-refresh-seconds"] == str(int((midnight - NOW).total_seconds()))
 
     monkeypatch.setattr(images, "points_session_starts", MagicMock(side_effect=RuntimeError))
     monkeypatch.setattr(

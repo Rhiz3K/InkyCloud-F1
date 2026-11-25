@@ -4,7 +4,7 @@ Battery-powered panels sleep between polls. The image routes send this hint so a
 pick its deep-sleep length from the content instead of waking every hour. It is the number of
 whole seconds until the rendered image is next expected to change:
 
-* a countdown that shows hours changes at the next whole hour before the race start;
+* a default hours image is refreshed by hourly generation, or when its cached render expires;
 * a day count, a "today" label and date-only races change at the next local midnight in the
   requested timezone (a 23 or 25 hour day across a DST change is counted correctly);
 * the race status changes at the race start (IN PROGRESS) and three hours later (COMPLETED);
@@ -77,9 +77,12 @@ def next_local_midnight(now: datetime, zone: tzinfo) -> datetime:
     return local_midnight(now.astimezone(zone).date() + timedelta(days=1), zone)
 
 
-def _next_utc_hour(now: datetime) -> datetime:
-    """Return the next whole UTC hour, when the scheduler regenerates images."""
-    return now.astimezone(UTC).replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+def _next_publication(now: datetime) -> datetime:
+    """Return the next future UTC hourly publication after the scheduler settle window."""
+    target = now.astimezone(UTC).replace(minute=0, second=0, microsecond=0) + timedelta(
+        seconds=SETTLE_SECONDS
+    )
+    return target if target > now else target + timedelta(hours=1)
 
 
 @dataclass(frozen=True)
@@ -111,17 +114,17 @@ class RefreshHint:
             return limit
         return max(0, min(limit, math.floor((change - now).total_seconds())))
 
-    def seconds(self) -> int:
-        """Return the hint in whole seconds, capped and floored."""
-        limit = MAX_REFRESH_SECONDS
-        if self.hourly:
-            until_generation = (_next_utc_hour(self.now) - self.now).total_seconds()
-            limit = min(HOURLY_REFRESH_SECONDS, math.ceil(until_generation) + SETTLE_SECONDS)
-        change = self.next_change
-        if change is not None:
-            until_change = math.ceil((change - self.now).total_seconds()) + SETTLE_SECONDS
-            limit = min(limit, until_change)
-        return max(MIN_REFRESH_SECONDS, limit)
+    def seconds(self, now: datetime | None = None, *, cache_seconds: int | None = None) -> int:
+        """Return the remaining time to the earliest publication, expiry or content edge."""
+        sent = self.now if now is None else now
+        deadline = self.now + timedelta(seconds=MAX_REFRESH_SECONDS)
+        if cache_seconds is not None:
+            deadline = min(deadline, sent + timedelta(seconds=cache_seconds))
+        elif self.hourly:
+            deadline = min(deadline, _next_publication(self.now))
+        if (change := self.next_change) is not None:
+            deadline = min(deadline, change)
+        return max(MIN_REFRESH_SECONDS, math.ceil((deadline - sent).total_seconds()))
 
 
 def _race_day(race_data: Mapping[str, Any]) -> date | None:
@@ -149,7 +152,7 @@ def _timed_countdown_changes(
         return [start + RACE_LIVE_WINDOW]
     changes = [start]
     remaining = start - now
-    if mode == CountdownMode.OFF:
+    if mode in (CountdownMode.OFF, CountdownMode.HOURS):
         return changes
     if countdown_shows_days(mode, remaining):
         changes.append(next_local_midnight(now, zone))
@@ -208,7 +211,9 @@ def calendar_refresh_hint(
         elif race_day is not None:
             changes.extend(_date_only_changes(race_day, now, zone, countdown))
 
-    hourly = False
+    hourly = (
+        countdown == CountdownMode.HOURS and not cancelled and start is not None and now < start
+    )
     if weather_enabled and not cancelled and weather_type != "off":
         if weather_type == "current":
             hourly = True
