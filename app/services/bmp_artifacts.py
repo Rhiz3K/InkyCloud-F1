@@ -161,7 +161,7 @@ async def render_error_artifact(
     display: str, lang: str, message: str, theme: ThemeMode = ThemeMode.LIGHT
 ) -> BmpArtifact:
     """Render one error BMP inside the shared render limit."""
-    async with render_slot():
+    async with render_slot(variant=theme != ThemeMode.LIGHT):
         bmp_data = await run_render(
             functools.partial(render_error_bytes, display, lang, message, **theme_kwargs(theme))
         )

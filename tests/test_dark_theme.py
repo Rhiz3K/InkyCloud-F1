@@ -618,3 +618,38 @@ async def test_api_info_documents_the_theme(image_app):
     ):
         parameter = endpoints[path]["parameters"]["theme"]
         assert parameter["values"] == ["light", "dark"] and parameter["default"] == "light"
+
+
+@pytest.mark.asyncio
+async def test_plain_dark_preview_attempts_teams_once(image_app, monkeypatch):
+    fetch = AsyncMock(side_effect=RuntimeError("upstream"))
+    monkeypatch.setattr(TeamsService, "get_teams_and_drivers", fetch)
+    response = await _get(image_app, "/preview/configure/teams.png?theme=dark")
+    assert response.status_code == 404
+    assert "x-preview-fallback" not in response.headers
+    fetch.assert_awaited_once()
+    previews.enforce_rate_limit.assert_called_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["fallback", "calendar", "error"])
+async def test_dark_work_uses_variant_admission(image_app, monkeypatch, path):
+    slots = MagicMock(wraps=previews.render_slot)
+    monkeypatch.setattr(previews, "render_slot", slots)
+    monkeypatch.setattr(bmp_artifacts, "render_slot", slots)
+    if path == "fallback":
+        monkeypatch.setattr(
+            previews, "_render_teams_extra_preview", AsyncMock(side_effect=RuntimeError("panel"))
+        )
+        result = await _get(image_app, "/preview/configure/teams.png?theme=dark&extra=track")
+        assert result.headers["x-preview-fallback"] == "plain"
+    elif path == "calendar":
+        result = await _get(image_app, "/preview/configure/calendar.png?theme=dark")
+        assert result.status_code == 200
+    else:
+        await bmp_artifacts.shared_error_artifact(
+            "1bit", "en", "Temporary rendering error", theme=ThemeMode.DARK
+        )
+    assert slots.call_count >= 1 and all(
+        call.kwargs.get("variant") for call in slots.call_args_list
+    )

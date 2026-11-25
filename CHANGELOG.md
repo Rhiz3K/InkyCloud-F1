@@ -246,6 +246,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Dark previews and themed error images use variant render slots. A failed plain Teams preview makes one upstream request, and only a failed extra panel marks the plain preview as a fallback.
+
 - Review quick wins (issue #185):
   - `/teams.bmp` no longer returns the error image when the standings fetch is slow. Standings
     enrichment now gets 75% of `TEAMS_ENRICHMENT_TIMEOUT_SECONDS`, so the bundled roster is

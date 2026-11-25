@@ -256,7 +256,7 @@ async def _render_configure_calendar(
                 **bmp_artifacts.theme_kwargs(theme),
             ),
         )
-    async with render_slot():
+    async with render_slot(variant=theme != ThemeMode.LIGHT):
         content = await run_render(
             functools.partial(
                 bmp_to_png, artifact[0], full_size=True, preserve_color=display in COLOR_DISPLAYS
@@ -305,7 +305,7 @@ async def _render_teams_preview(
     lang: str, display: str = "1bit", *, full_size: bool, theme: ThemeMode = ThemeMode.LIGHT
 ) -> StreamingResponse:
     """Render a dynamic Teams PNG when no pregenerated preview is available."""
-    async with render_slot():
+    async with render_slot(variant=theme != ThemeMode.LIGHT):
         season = get_default_teams_year()
         teams_service = TeamsService()
         async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
@@ -469,6 +469,12 @@ async def _try_teams_extra_preview(
         if isinstance(exc, (HTTPException, StaleSelection)):
             raise
         logger.warning("Dynamic teams extra preview failed: %s", exc)
+        if ctx is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Configure preview not generated yet",
+                headers={"Cache-Control": "no-store"},
+            ) from exc
         return None, True
     response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
     return response, False
