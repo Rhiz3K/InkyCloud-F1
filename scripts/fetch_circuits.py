@@ -360,6 +360,99 @@ def races(payload: Any) -> tuple[int, list[Any]]:
     return total, items
 
 
+def _refresh_wikipedia(
+    cid: str,
+    title: str,
+    record: dict[str, Any],
+    fetch: Fetch,
+    baseline_record: dict[str, Any],
+    today: date,
+) -> None:
+    """Refresh Wikipedia facts and provenance, propagating guarded value jumps."""
+    try:
+        url = str(
+            httpx.URL(
+                "https://en.wikipedia.org/w/api.php",
+                params={
+                    "action": "query",
+                    "prop": "revisions",
+                    "rvprop": "ids|content",
+                    "rvslots": "main",
+                    "titles": title,
+                    "redirects": "1",
+                    "format": "json",
+                    "formatversion": "2",
+                    "maxlag": "5",
+                },
+            )
+        )
+        payload = fetch(url)
+        text, revid, actual = wikipedia_revision(payload, title)
+        if actual != title or payload["query"].get("redirects"):
+            warn(f"{cid}: Wikipedia: '{title}' redirected to '{actual}'; recording actual title")
+        facts = extract_wikipedia_facts(text, today.year, cid)
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, IndexError) as exc:
+        warn(f"{cid}: Wikipedia: {exc}; keeping previous value")
+    else:
+        for field, validator, convert in (
+            ("circuit_length", valid_length, lambda v: float(v[:-2])),
+            ("fastest_lap_time", valid_time, lambda v: int(v[0]) * 60 + float(v[2:])),
+        ):
+            previous = previous_value(record, baseline_record, field)
+            if field in facts and validator(previous):
+                check_jump(cid, field, previous, facts[field], convert)
+        for field, value in facts.items():
+            record[field] = value
+            record["_provenance"]["fields"][field] = {
+                "source": "https://en.wikipedia.org/w/index.php?title="
+                f"{quote(actual.replace(' ', '_'), safe='')}&oldid={revid}",
+                "title": actual,
+                "revid": revid,
+                "retrieved_on": today.isoformat(),
+            }
+
+
+def _refresh_jolpica(
+    cid: str,
+    jid: str,
+    target: dict[str, Any],
+    fetch: Fetch,
+    baseline_record: dict[str, Any],
+    today: date,
+) -> None:
+    """Refresh Jolpica facts and provenance, propagating guarded value jumps."""
+    try:
+        first_url = f"{BASE}/circuits/{jid}/results/1.json?limit=1"
+        total, first = races(fetch(first_url))
+        season = first[0]["season"]
+        if not valid_year(season, today.year):
+            raise ValueError("invalid first_grand_prix")
+        last_url = f"{BASE}/circuits/{jid}/results/1.json?limit=5&offset={max(0, total - 5)}"
+        _, last = races(fetch(last_url))
+        laps = planned_laps([race["Results"][0]["laps"] for race in last])
+        if laps is None or len(last) > 5:
+            raise ValueError("invalid number_of_laps")
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, IndexError) as exc:
+        warn(f"{cid}: Jolpica: {exc}; keeping previous value")
+    else:
+        previous = previous_value(target, baseline_record, "number_of_laps")
+        if type(previous) in (int, str) and valid_laps(str(previous)):
+            check_jump(cid, "number_of_laps", previous, laps, float)
+        provenance = target.setdefault("_provenance", {})
+        fields = provenance.setdefault("fields", {})
+        for field, output_value, source, method in (
+            ("first_grand_prix", season, first_url, METHOD_FIRST),
+            ("number_of_laps", laps, last_url, METHOD_LAPS),
+        ):
+            target[field] = output_value
+            fields[field] = {
+                "source": source,
+                "method": method,
+                "retrieved_on": today.isoformat(),
+            }
+        provenance["scope"] = "historical, first_grand_prix, number_of_laps"
+
+
 def build_outputs(
     old_wiki: dict[str, Any],
     old_jolpica: dict[str, Any],
@@ -395,80 +488,10 @@ def build_outputs(
         record["_provenance"].setdefault("fields", {})
         if only is not None and cid not in only:
             continue
-        try:
-            url = str(
-                httpx.URL(
-                    "https://en.wikipedia.org/w/api.php",
-                    params={
-                        "action": "query",
-                        "prop": "revisions",
-                        "rvprop": "ids|content",
-                        "rvslots": "main",
-                        "titles": title,
-                        "redirects": "1",
-                        "format": "json",
-                        "formatversion": "2",
-                        "maxlag": "5",
-                    },
-                )
-            )
-            payload = fetch_wikipedia(url)
-            text, revid, actual = wikipedia_revision(payload, title)
-            if actual != title or payload["query"].get("redirects"):
-                warn(
-                    f"{cid}: Wikipedia: '{title}' redirected to '{actual}'; recording actual title"
-                )
-            facts = extract_wikipedia_facts(text, today.year, cid)
-        except (httpx.HTTPError, ValueError, KeyError, TypeError, IndexError) as exc:
-            warn(f"{cid}: Wikipedia: {exc}; keeping previous value")
-        else:
-            for field, validator, convert in (
-                ("circuit_length", valid_length, lambda v: float(v[:-2])),
-                ("fastest_lap_time", valid_time, lambda v: int(v[0]) * 60 + float(v[2:])),
-            ):
-                previous = previous_value(record, (baseline or {}).get(cid, {}), field)
-                if field in facts and validator(previous):
-                    check_jump(cid, field, previous, facts[field], convert)
-            for field, value in facts.items():
-                record[field] = value
-                record["_provenance"]["fields"][field] = {
-                    "source": "https://en.wikipedia.org/w/index.php?title="
-                    f"{quote(actual.replace(' ', '_'), safe='')}&oldid={revid}",
-                    "title": actual,
-                    "revid": revid,
-                    "retrieved_on": today.isoformat(),
-                }
-        try:
-            first_url = f"{BASE}/circuits/{jid}/results/1.json?limit=1"
-            total, first = races(fetch_jolpica(first_url))
-            season = first[0]["season"]
-            if not valid_year(season, today.year):
-                raise ValueError("invalid first_grand_prix")
-            last_url = f"{BASE}/circuits/{jid}/results/1.json?limit=5&offset={max(0, total - 5)}"
-            _, last = races(fetch_jolpica(last_url))
-            laps = planned_laps([race["Results"][0]["laps"] for race in last])
-            if laps is None or len(last) > 5:
-                raise ValueError("invalid number_of_laps")
-        except (httpx.HTTPError, ValueError, KeyError, TypeError, IndexError) as exc:
-            warn(f"{cid}: Jolpica: {exc}; keeping previous value")
-        else:
-            target = jolpica[cid]
-            previous = previous_value(target, (baseline or {}).get(cid, {}), "number_of_laps")
-            if type(previous) in (int, str) and valid_laps(str(previous)):
-                check_jump(cid, "number_of_laps", previous, laps, float)
-            provenance = target.setdefault("_provenance", {})
-            fields = provenance.setdefault("fields", {})
-            for field, output_value, source, method in (
-                ("first_grand_prix", season, first_url, METHOD_FIRST),
-                ("number_of_laps", laps, last_url, METHOD_LAPS),
-            ):
-                target[field] = output_value
-                fields[field] = {
-                    "source": source,
-                    "method": method,
-                    "retrieved_on": today.isoformat(),
-                }
-            provenance["scope"] = "historical, first_grand_prix, number_of_laps"
+        _refresh_wikipedia(
+            cid, title, record, fetch_wikipedia, (baseline or {}).get(cid, {}), today
+        )
+        _refresh_jolpica(cid, jid, target, fetch_jolpica, (baseline or {}).get(cid, {}), today)
     return wiki, jolpica
 
 
@@ -487,6 +510,33 @@ def load_existing(path: Path, *, optional: bool = False) -> dict[str, Any]:
         if not isinstance(provenance, dict) or not isinstance(provenance.get("fields", {}), dict):
             raise ValueError(f"{path}: invalid provenance")
     return data
+
+
+def _print_differences(
+    old_wiki: dict[str, Any],
+    wiki: dict[str, Any],
+    old_jolpica: dict[str, Any],
+    jolpica: dict[str, Any],
+    baseline: dict[str, Any] | None,
+) -> None:
+    """Print field differences and the baseline-aware summary of new values."""
+    new_values = []
+    for label, old, new, fields in (
+        ("Wikipedia", old_wiki, wiki, FIELDS),
+        ("Jolpica", old_jolpica, jolpica, ("first_grand_prix", "number_of_laps")),
+    ):
+        for cid in new:
+            for field in fields:
+                previous = previous_value(old.get(cid, {}), (baseline or {}).get(cid, {}), field)
+                value = new[cid].get(field)
+                is_new = previous is None and value is not None
+                if is_new:
+                    new_values.append(f"{label} {cid}.{field} = {value!r}")
+                marker = " NEW" if is_new else ""
+                print(f"{label}{marker} {cid}.{field}: {previous!r} -> {value!r}")
+    print(f"New values (no previous value, jump guard not applied): {len(new_values)}")
+    for line in new_values:
+        print(line)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -512,25 +562,7 @@ def main(argv: list[str] | None = None) -> int:
             wiki, jolpica = build_outputs(
                 old_wiki, old_jolpica, fetch, fetch, only=args.only, baseline=baseline
             )
-        new_values = []
-        for label, old, new, fields in (
-            ("Wikipedia", old_wiki, wiki, FIELDS),
-            ("Jolpica", old_jolpica, jolpica, ("first_grand_prix", "number_of_laps")),
-        ):
-            for cid in new:
-                for field in fields:
-                    previous = previous_value(
-                        old.get(cid, {}), (baseline or {}).get(cid, {}), field
-                    )
-                    value = new[cid].get(field)
-                    is_new = previous is None and value is not None
-                    if is_new:
-                        new_values.append(f"{label} {cid}.{field} = {value!r}")
-                    marker = " NEW" if is_new else ""
-                    print(f"{label}{marker} {cid}.{field}: {previous!r} -> {value!r}")
-        print(f"New values (no previous value, jump guard not applied): {len(new_values)}")
-        for line in new_values:
-            print(line)
+        _print_differences(old_wiki, wiki, old_jolpica, jolpica, baseline)
         if not args.dry_run:
             for path, data in ((args.wikipedia_out, wiki), (args.jolpica_out, jolpica)):
                 atomic_write_bytes_sync(

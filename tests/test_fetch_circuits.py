@@ -2,6 +2,7 @@
 
 import json
 from datetime import date
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -394,13 +395,15 @@ def test_invalid_resolved_title(title):
 
 def test_total_deadline(monkeypatch):
     """Reject a response whose streamed chunks exceed the total deadline."""
-    ticks = iter([0.0, float(fc.TOTAL_DEADLINE) + 0.001])
-    monkeypatch.setattr(fc.time, "monotonic", lambda: next(ticks))
-    with httpx.Client(
-        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={}))
-    ) as client:
-        with pytest.raises(ValueError, match="request exceeded total deadline"):
-            fc.fetch_json(client, "https://example.org/")
+    ticks = [0.0, float(fc.TOTAL_DEADLINE) + 0.001]
+    monkeypatch.setattr(fc.time, "monotonic", lambda: ticks.pop(0) if len(ticks) > 1 else ticks[0])
+    with (
+        httpx.Client(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, json={}))
+        ) as client,
+        pytest.raises(ValueError, match="request exceeded total deadline"),
+    ):
+        fc.fetch_json(client, "https://example.org/")
 
 
 @pytest.mark.parametrize("field", ["fastest_lap_time", "number_of_laps", None])
@@ -420,7 +423,7 @@ def test_cli_new_values_and_guard_failures(tmp_path, monkeypatch, capsys, field)
 
     def fetch(self, url):
         """Serve source fixtures without requests or pacing."""
-        return wiki(url) if "wikipedia.org" in url else jolpica(url)
+        return wiki(url) if urlsplit(url).hostname == "en.wikipedia.org" else jolpica(url)
 
     monkeypatch.setattr(fc.PacedFetcher, "__call__", fetch)
     result = fc.main(
