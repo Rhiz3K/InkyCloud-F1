@@ -42,6 +42,7 @@ from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.weather_service import (
     WeatherData,
     WeatherDisplay,
+    WeekendWeather,
     get_weather_context,
     parse_coordinate,
     weekend_weather_expected,
@@ -360,6 +361,12 @@ async def _generate_variant(
     render never propagates up and aborts the whole generation run.
     """
     wd = weather_data if weather_type != "off" else None
+    identity = calendar_identity(
+        race_data,
+        weather_type=weather_type,
+        now=datetime.now(timezone.utc),
+        source_period=wd.period if isinstance(wd, WeekendWeather) else "",
+    )
     image_key = _get_image_key(lang, tz, display, weather_type)
     image_path = images_dir / f"{image_key}.bmp"
 
@@ -377,7 +384,7 @@ async def _generate_variant(
                 weather_type,
             )
         )
-        await _write_bmp_artifact(image_path, bmp_data, calendar_identity(race_data))
+        await _write_bmp_artifact(image_path, bmp_data, identity)
         await db.save_generated_image(image_key=image_key, image_path=str(image_path), lang=lang)
     except Exception as exc:
         logger.error(

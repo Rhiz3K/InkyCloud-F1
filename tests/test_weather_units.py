@@ -1,5 +1,6 @@
 """Weekend weather forecast and the ``temp_unit=c|f`` switch (#185 F6)."""
 
+import asyncio
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from io import BytesIO
@@ -392,12 +393,14 @@ async def test_invalid_input_and_finished_races(monkeypatch, open_meteo):
     assert await service.get_weekend_weather(1.0, 200.0, race.date(), sessions) is None
     past = datetime.now(UTC) - timedelta(hours=5)
     archived = WeatherData(12.0, 61, 0, "1.6 mm")
-    monkeypatch.setattr(service, "get_race_weather", AsyncMock(return_value=archived))
+    service._set_cached(ws._race_weather_cache_key(1.0, 2.0, past), WeatherData(23, 1, 40))
+    monkeypatch.setattr(service, "get_historical_race_weather", AsyncMock(return_value=archived))
     weekend = await service.get_weekend_weather(
         1.0, 2.0, past.date(), [("qualifying", past - timedelta(days=1)), ("race", past)]
     )
     assert weekend == WeekendWeather((SessionWeather("race", archived),))
-    service.get_race_weather.return_value = None
+    service.get_historical_race_weather.assert_awaited_once()
+    service.get_historical_race_weather.return_value = None
     assert await service.get_weekend_weather(1.0, 2.0, past.date(), [("race", past)]) is None
     assert open_meteo.requests == []
 
@@ -437,8 +440,6 @@ async def test_weather_context_adds_the_weekend_only_on_request(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_weather_context_timeout_keeps_resolved_values(monkeypatch):
-    import asyncio
-
     current = WeatherData(21.0, 2, 20)
 
     async def partial(_race, weather_by_type, **_kwargs):
@@ -552,11 +553,11 @@ async def test_generation_requests_the_weekend_only_with_the_profile(monkeypatch
     monkeypatch.setattr(scheduler_generation, "get_weather_context", context)
     monkeypatch.setattr(scheduler_generation.config, "PREGENERATE_WEATHER_TYPES", "")
     await scheduler_generation._load_weather_context(_qatar())
-    assert context.await_args.kwargs == {"include_weekend": False}
+    assert context.await_args.kwargs == {"include_weekend": False, "wanted": ["current", "race"]}
     assert scheduler_generation._profile_weather_types({"off": None, "weekend": QR}) == ["off"]
     monkeypatch.setattr(scheduler_generation.config, "PREGENERATE_WEATHER_TYPES", "weekend")
     await scheduler_generation._load_weather_context(_qatar())
-    assert context.await_args.kwargs == {"include_weekend": True}
+    assert context.await_args.kwargs == {"include_weekend": True, "wanted": ["weekend"]}
     assert scheduler_generation._profile_weather_types({"off": None, "weekend": QR}) == [
         "off",
         "weekend",
@@ -571,7 +572,7 @@ def _hint(race, now, weather_type):
         race,
         now=now,
         timezone_name=None,
-        countdown=CountdownMode.HOURS,
+        countdown=CountdownMode.OFF,
         weather_type=weather_type,
         weather_enabled=True,
         selection_grace=None,
@@ -898,12 +899,13 @@ def client_app(frozen, monkeypatch):
     bmp_artifacts._singleflight_tasks.clear()
     weather = {"off": None, "current": WeatherData(20.0, 1, 5), "race": WeatherData(38.9, 1, 100)}
 
-    async def context(race_data, *, include_weekend=False):
+    async def context(race_data, *, include_weekend=False, wanted=()):
         return None, None, {**weather, **({"weekend": QR} if include_weekend else {})}
 
     monkeypatch.setattr(bmp_artifacts, "get_weather_context", context)
     monkeypatch.setattr(bmp_artifacts.config, "WEATHER_ENABLED", True)
     monkeypatch.setattr(images, "record_api_call", MagicMock())
+    lookup = images._get_pregenerated_calendar_path
     pregenerated = MagicMock(return_value=None)
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", pregenerated)
     monkeypatch.setattr(F1Service, "get_next_race_from_static", lambda self: _qatar())
@@ -913,6 +915,7 @@ def client_app(frozen, monkeypatch):
     app.include_router(images.router)
     app.include_router(previews.router)
     app.dependency_overrides[get_f1_service] = lambda: service
+    app.state.lookup = lookup
     app.state.pregenerated = pregenerated
     yield app
     bmp_artifacts._singleflight_tasks.clear()
@@ -1050,7 +1053,8 @@ async def test_preview_forwards_the_unit_and_weekend(client_app, monkeypatch):
 async def test_render_calendar_picks_the_weekend_weather(monkeypatch):
     seen = {}
 
-    async def context(race_data, *, include_weekend=False):
+    async def context(race_data, *, include_weekend=False, wanted=()):
+        assert wanted == ("weekend",)
         seen["include_weekend"] = include_weekend
         return None, None, {"off": None, "race": WeatherData(1, 0, 0), "weekend": QR}
 
@@ -1218,3 +1222,158 @@ async def test_available_weekend_weather_in_the_window_is_ready(tmp_path, monkey
     )
     assert status == scheduler_generation.GENERATION_STATUS_READY
     assert pruned is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "not an object",
+        {"time": [None]},
+        {"temperature_2m": None},
+        {"weather_code": None},
+        {"precipitation_probability": None},
+        {"temperature_2m": ["bad"]},
+        {"time": ["invalid"]},
+    ],
+)
+async def test_unusable_forecast_is_never_cached(open_meteo, bad):
+    race, sessions = _future_weekend(3)
+    payload = {"time": [race.strftime("%Y-%m-%dT%H:00")], "temperature_2m": [22]}
+    open_meteo.payload = {**payload, **bad} if isinstance(bad, dict) else bad
+    service = ws.WeatherService()
+    assert await service.get_weekend_weather(1, 2, race.date(), sessions) is None
+    assert not ws._hourly_forecast_cache
+    open_meteo.payload = payload
+    valid = await service.get_weekend_weather(1, 2, race.date(), sessions)
+    assert [row.session for row in valid.sessions] == ["race"]
+    assert len(open_meteo.requests) == 2
+
+
+@pytest.mark.asyncio
+async def test_concurrent_forecasts_and_empty_render_share_window(open_meteo, monkeypatch):
+    race, sessions = _future_weekend(3)
+    data = {
+        "circuit": {"lat": 1, "long": 2},
+        "schedule": [{"name": kind, "datetime": start.isoformat()} for kind, start in sessions],
+    }
+    monkeypatch.setattr(ws.config, "WEATHER_ENABLED", True)
+    get = open_meteo.get
+
+    async def delayed(*args, **kwargs):
+        await asyncio.sleep(0.01)
+        return await get(*args, **kwargs)
+
+    monkeypatch.setattr(open_meteo, "get", delayed)
+    open_meteo.payload = {"time": []}
+    for count in (1, 2):
+        results = await asyncio.gather(
+            *(
+                ws.get_weather_context(data, wanted=("race", "weekend"), include_weekend=True)
+                for _ in range(2)
+            )
+        )
+        assert all(result[2] == {"off": None} for result in results)
+        assert len(open_meteo.requests) == open_meteo.reserved == count
+    ws._hourly_forecast_cache["old"] = ({}, datetime.now(UTC) - timedelta(hours=1))
+    open_meteo.payload = None
+    result = await ws.get_weather_context(data, wanted=("weekend",), include_weekend=True)
+    assert set(result[2]) == {"weekend", "off"}
+    assert "old" not in ws._hourly_forecast_cache
+
+
+@pytest.mark.asyncio
+async def test_date_only_prefetch_saves_qualifying_without_current(open_meteo, monkeypatch):
+    race, sessions = _future_weekend(3)
+    data = {
+        "circuit": {"lat": 1, "long": 2},
+        "schedule": [
+            {"name": "qualifying", "datetime": sessions[0][1].isoformat()},
+            {"name": "race", "datetime": race.date().isoformat()},
+        ],
+    }
+    monkeypatch.setattr(F1Service, "get_next_race_from_static", lambda self: data)
+    monkeypatch.setattr(ws.config, "PREGENERATE_WEATHER_TYPES", "weekend")
+    db = SimpleNamespace(
+        save_weather_cache=AsyncMock(), get_weather_cache=AsyncMock(return_value=None)
+    )
+    await ws.prefetch_weather_for_next_race(db)
+    key = ws._race_weather_cache_key(1.0, 2.0, sessions[0][1])
+    assert db.save_weather_cache.await_args.kwargs["cache_key"] == key
+    assert len(open_meteo.requests) == 1
+    await ws.load_prefetched_weather_from_db(db)
+    db.get_weather_cache.assert_awaited_once_with(key)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["disk", "memory"])
+async def test_weekend_forecast_expires_when_session_starts(
+    client_app, frozen, monkeypatch, tmp_path, source
+):
+    frozen.now = QA_Q - timedelta(minutes=10)
+    monkeypatch.setattr(ws, "datetime", _FixedDatetime)
+    monkeypatch.setattr(scheduler_generation, "datetime", _FixedDatetime)
+    monkeypatch.setattr(images.config, "IMAGES_PATH", str(tmp_path))
+    url = "/calendar.bmp?weather_type=weekend"
+
+    async def context(*args, **kwargs):
+        weekend = QR if frozen.now < QA_Q else WeekendWeather((QR.sessions[-1],))
+        return None, None, {"weekend": weekend}
+
+    monkeypatch.setattr(bmp_artifacts, "get_weather_context", context)
+    if source == "disk":
+        monkeypatch.setattr(images, "_get_pregenerated_calendar_path", client_app.state.lookup)
+        monkeypatch.setattr(
+            scheduler_generation, "_render_calendar_variant_bytes", lambda *a: b"disk"
+        )
+        await scheduler_generation._generate_variant(
+            tmp_path, AsyncMock(), _qatar(), None, QR, "en", None, "1bit", "weekend"
+        )
+    first = await _get(client_app, url)
+    assert first.headers["cache-control"] == "public, max-age=600"
+    assert first.headers["x-next-refresh-seconds"] == "600"
+    if source == "disk":
+        assert first.content == b"disk"
+    headers = {"If-None-Match": first.headers["etag"]}
+    frozen.now += timedelta(minutes=1)
+    same = await _get(client_app, url, headers)
+    assert same.status_code == 304 and same.headers["cache-control"] == "public, max-age=540"
+    frozen.now = QA_Q
+    updated = await _get(client_app, url, headers)
+    assert updated.status_code == 200 and updated.content != first.content
+
+
+@pytest.mark.asyncio
+async def test_weekend_preview_uses_the_source_forecast_period(
+    client_app, frozen, monkeypatch, tmp_path
+):
+    frozen.now = QA_Q - timedelta(minutes=2)
+    monkeypatch.setattr(images.config, "IMAGES_PATH", str(tmp_path))
+    race_date, sessions = weekend_session_starts(_qatar())
+    service = ws.WeatherService()
+    monkeypatch.setattr(ws, "datetime", _FixedDatetime)
+    monkeypatch.setattr(service, "_weekend_hourly", AsyncMock(return_value=_hourly(QA_Q.date(), 2)))
+    fetched = await service.get_weekend_weather(1.0, 2.0, race_date, sessions)
+    monkeypatch.setattr(scheduler_generation, "_render_calendar_variant_bytes", lambda *a: b"BMP")
+    # Publication finishes after qualifying. The sidecars must identify the source snapshot.
+    frozen.now = QA_Q + timedelta(minutes=1)
+    monkeypatch.setattr(scheduler_generation, "datetime", _FixedDatetime)
+    source = await scheduler_generation._generate_variant(
+        tmp_path, AsyncMock(), _qatar(), None, fetched, "en", None, "1bit", "weekend"
+    )
+    filename = previews.get_configure_preview_filename(
+        "calendar", "en", display="1bit", weather="weekend"
+    )
+    await scheduler_generation._write_preview_artifact(
+        tmp_path / filename,
+        b"disk PNG",
+        source,
+        scheduler_generation.read_artifact_metadata(source),
+    )
+    url = "/preview/configure/calendar.png?weather_type=weekend"
+    frozen.now = QA_Q - timedelta(minutes=2)
+    disk = await _get(client_app, url)
+    assert disk.content == b"disk PNG" and disk.headers["cache-control"] == "public, max-age=120"
+    frozen.now = QA_Q
+    updated = await _get(client_app, url, {"If-None-Match": disk.headers["etag"]})
+    assert updated.status_code == 200 and updated.content.startswith(b"\x89PNG")

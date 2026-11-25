@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Weekend forecasts expire at each session start. Concurrent renders share validated hourly data, scheduled qualifying forecasts work before the race time is published, and finished races use archived observations.
 - Add `weather_type=weekend` and `temp_unit=c|f`. `weekend` adds a second line to the calendar
   status box with the qualifying and race forecast (`Q ☀ 19° 💧60% | R ☀ 22° 💧10%`), plus the
   sprint when it fits, under the countdown or the `weekend_mode=auto` session label. The

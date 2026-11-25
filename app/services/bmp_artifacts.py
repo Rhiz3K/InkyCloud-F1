@@ -193,7 +193,9 @@ async def render_calendar(
     weather_data = None
     if weather_type != "off" and config.WEATHER_ENABLED and not race_data.get("is_cancelled"):
         _, _, weather_by_type = await get_weather_context(
-            race_data, include_weekend=weather_type == "weekend"
+            race_data,
+            include_weekend=weather_type == "weekend",
+            wanted=("weekend",) if weather_type == "weekend" else ("race", "current"),
         )
         weather_key = {"current": "current", "weekend": "weekend"}.get(weather_type, "race")
         weather_data = weather_by_type.get(weather_key)

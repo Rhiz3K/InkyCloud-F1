@@ -138,7 +138,10 @@ def _calendar_poll_seconds(
 
 
 def _calendar_cache_control(
-    countdown: CountdownMode, hint: RefreshHint, weekend_mode: WeekendMode = WeekendMode.OFF
+    countdown: CountdownMode,
+    hint: RefreshHint,
+    weekend_mode: WeekendMode = WeekendMode.OFF,
+    weather_type: str = "off",
 ) -> str:
     """Return the calendar Cache-Control; period-keyed variants never outlive their next change.
 
@@ -147,7 +150,11 @@ def _calendar_cache_control(
     period, so a browser or shared cache must not reuse them past local midnight, the race
     start, the auto switch or a session boundary.
     """
-    if countdown == CountdownMode.HOURS and weekend_mode == WeekendMode.OFF:
+    if (
+        countdown == CountdownMode.HOURS
+        and weekend_mode == WeekendMode.OFF
+        and weather_type != "weekend"
+    ):
         return CALENDAR_BMP_CACHE_CONTROL
     return f"public, max-age={hint.max_age(_utc_now())}"
 
@@ -488,6 +495,18 @@ def _is_pregenerated_selection(
     )
 
 
+def _can_serve_calendar_file(
+    options: TrackOptions, countdown: CountdownMode, mode: WeekendMode, unit: TempUnit
+) -> bool:
+    """Identify the calendar configurations written by the scheduler."""
+    return (
+        options == DEFAULT_TRACK_OPTIONS
+        and countdown == CountdownMode.HOURS
+        and mode == WeekendMode.OFF
+        and unit == TempUnit.C
+    )
+
+
 def _get_pregenerated_calendar_path(
     *,
     lang: str,
@@ -531,7 +550,11 @@ def _get_pregenerated_calendar_path(
     identity = (
         expected_identity
         if expected_identity is not None
-        else calendar_identity(F1Service(timezone_name=target_tz).get_next_race_from_static())
+        else calendar_identity(
+            F1Service(timezone_name=target_tz).get_next_race_from_static(),
+            weather_type=key_weather,
+            now=_utc_now(),
+        )
     )
     return path if path is not None and artifact_matches(path, identity) else None
 
@@ -709,8 +732,10 @@ async def _serve_calendar_bmp(
         selected_race = await _select_calendar_race(
             f1_service, year, race_round, race_key, weekend_mode
         )
-        identity = calendar_identity(selected_race, track_options)
         now = _utc_now()
+        identity = calendar_identity(
+            selected_race, track_options, weather_type=weather_type, now=now
+        )
         hint = calendar_refresh_hint(
             selected_race,
             now=now,
@@ -745,7 +770,7 @@ async def _serve_calendar_bmp(
             logger.debug("Cache hit for %s", cache_key)
             return respond(
                 *cached_artifact,
-                cache_control=_calendar_cache_control(countdown, hint, weekend_mode),
+                cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type),
                 cache_status="HIT",
             )
 
@@ -761,10 +786,7 @@ async def _serve_calendar_bmp(
                 weather_type=weather_type,
                 expected_identity=identity,
             )
-            if track_options == DEFAULT_TRACK_OPTIONS
-            and countdown == CountdownMode.HOURS
-            and weekend.mode == WeekendMode.OFF
-            and temp_unit == TempUnit.C
+            if _can_serve_calendar_file(track_options, countdown, weekend.mode, temp_unit)
             else None
         )
         if image_path is not None:
@@ -778,13 +800,17 @@ async def _serve_calendar_bmp(
                 return respond(
                     None,
                     matching_etag,
-                    cache_control=_calendar_cache_control(countdown, hint, weekend_mode),
+                    cache_control=_calendar_cache_control(
+                        countdown, hint, weekend_mode, weather_type
+                    ),
                     cache_status="REVALIDATED",
                 )
             if artifact is not None:
                 return respond(
                     *artifact,
-                    cache_control=_calendar_cache_control(countdown, hint, weekend_mode),
+                    cache_control=_calendar_cache_control(
+                        countdown, hint, weekend_mode, weather_type
+                    ),
                     cache_status=PREGENERATED_CACHE_STATUS,
                 )
             logger.info("Pre-generated image disappeared before read; rendering")
@@ -809,7 +835,7 @@ async def _serve_calendar_bmp(
         is_cacheable = image_cache.get(cache_key) is artifact
         return respond(
             *artifact,
-            cache_control=_calendar_cache_control(countdown, hint, weekend_mode)
+            cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type)
             if is_cacheable
             else "no-store",
             cache_status="MISS",

@@ -29,7 +29,7 @@ from enum import StrEnum
 from typing import Any
 
 from app.config import config
-from app.utils.race_times import race_session_start
+from app.utils.race_times import race_session_start, weekend_session_starts
 from app.utils.timezones import get_timezone
 
 REFRESH_HINT_HEADER = "X-Next-Refresh-Seconds"
@@ -275,6 +275,10 @@ def calendar_refresh_hint(
         countdown == CountdownMode.HOURS and not cancelled and start is not None and now < start
     )
     if weather_enabled and not cancelled and weather_type != "off":
+        if weather_type == "weekend":
+            changes.extend(
+                start for _, start in weekend_session_starts(dict(race_data))[1] if start > now
+            )
         if weather_type == "current":
             hourly = True
         elif (forecast_from := _forecast_start(start, race_day, weather_type)) is not None:

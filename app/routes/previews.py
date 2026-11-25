@@ -101,6 +101,30 @@ async def _cached_preview_response(path: Path, request: Request, identity: str) 
     )
 
 
+async def _configure_preview_snapshot(
+    path: Path, request: Request, screen: str, weather: str, countdown: CountdownMode
+) -> Response | None:
+    """Match a pregenerated weekend preview to its source period and upcoming session."""
+    if screen != "calendar" or weather != "weekend":
+        return await _cached_preview_response(path, request, _preview_identity(screen))
+    race = F1Service().get_next_race_from_static()
+    now = datetime.now(UTC)
+    identity = calendar_identity(race, weather_type=weather, now=now)
+    hint = calendar_refresh_hint(
+        race,
+        now=now,
+        timezone_name=None,
+        countdown=countdown,
+        weather_type=weather,
+        weather_enabled=config.WEATHER_ENABLED,
+        selection_grace=None,
+    )
+    cached = await _cached_preview_response(path, request, identity)
+    if cached is not None:
+        cached.headers["Cache-Control"] = f"public, max-age={hint.max_age(datetime.now(UTC), 300)}"
+    return cached
+
+
 def _preview_identity(screen: str) -> str:
     """Resolve the current race or season represented by automatic previews."""
     if screen == "calendar":
@@ -183,14 +207,15 @@ async def _render_configure_calendar(
     /calendar.bmp one.
     """
     race = select_weekend_race(F1Service(), weekend_mode)
+    now = datetime.now(UTC)
     key = (
-        calendar_identity(race, options)
+        calendar_identity(race, options, weather_type=weather, now=now)
         + "|"
         + calendar_cache_key(lang, None, None, None, None, weather, display)
     )
-    now = datetime.now(UTC)
     weekend = weekend_context(weekend_mode, race, now=now, timezone_name=None, countdown=countdown)
-    if countdown != CountdownMode.HOURS or weekend.mode != WeekendMode.OFF:
+    hint = None
+    if countdown != CountdownMode.HOURS or weekend.mode != WeekendMode.OFF or weather == "weekend":
         hint = calendar_refresh_hint(
             race,
             now=now,
@@ -232,6 +257,9 @@ async def _render_configure_calendar(
                 bmp_to_png, artifact[0], full_size=True, preserve_color=display in COLOR_DISPLAYS
             )
         )
+    cache_control = _PREVIEW_CACHE_CONTROL
+    if weather == "weekend" and hint is not None:
+        cache_control = f"public, max-age={hint.max_age(datetime.now(UTC), 300)}"
     etag = strong_etag(content)
     unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
     return Response(
@@ -240,7 +268,7 @@ async def _render_configure_calendar(
         media_type=None if unchanged else "image/png",
         headers={
             "ETag": etag,
-            "Cache-Control": _PREVIEW_CACHE_CONTROL if key in image_cache else "no-store",
+            "Cache-Control": cache_control if key in image_cache else "no-store",
             **attribution_headers((race or {}).get("circuit", {}).get("circuitId", ""), options),
         },
     )
@@ -495,7 +523,9 @@ async def get_configure_preview_png(
     configure_path = Path(config.IMAGES_PATH) / filename
     options = TrackOptions(track_style, track_source, track_accent)
     cached = (
-        await _cached_preview_response(configure_path, request, _preview_identity(safe_screen))
+        await _configure_preview_snapshot(
+            configure_path, request, safe_screen, safe_weather, countdown
+        )
         if _has_pregenerated_configure_preview(
             safe_screen, options, countdown, weekend_mode, temp_unit
         )
