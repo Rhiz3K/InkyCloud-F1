@@ -7,7 +7,7 @@ import re
 import shutil
 import sqlite3
 import tempfile
-from contextlib import closing, suppress
+from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -16,6 +16,8 @@ import sentry_sdk
 
 from app.config import config
 from app.services.circuit_data import runtime_circuits_data_path
+from app.services.i18n import get_translator
+from app.services.storage_lock import storage_lock
 from app.utils.atomic_io import atomic_write_bytes_sync
 from app.utils.sqlite_readonly import read_consistently
 
@@ -31,7 +33,7 @@ _TIMESTAMP_FORMAT = "%Y-%m-%d_%H-%M-%S"
 # A safety snapshot taken within the same second as an existing one gets a ``_N`` suffix.
 _BACKUP_NAME_PATTERN = re.compile(
     rf"^(?P<prefix>{BACKUP_FILENAME_PREFIX}|{SAFETY_SNAPSHOT_PREFIX})"
-    r"(?P<stamp>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})(?:_[1-9]\d{0,3})?\.db$"
+    r"(?P<stamp>\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})(?:_(?P<suffix>[1-9]\d{0,3}))?\.db$"
 )
 _MAX_SNAPSHOT_SUFFIX = 9999
 # Mutable files kept next to the database travel inside the snapshot in this table, so one
@@ -84,18 +86,22 @@ def _embed_data_files(snapshot_path: str | Path, *, include: bool | None = None)
     """Copy the mutable data files into a snapshot; return the names that were stored."""
     if not (config.BACKUP_INCLUDE_DATA_FILES if include is None else include):
         return []
-    files = {name: path for name, path in data_file_paths().items() if path.is_file()}
+    files = {
+        name: path.read_bytes() if path.is_file() else None
+        for name, path in data_file_paths().items()
+        if include is True or path.is_file()
+    }
     with closing(sqlite3.connect(snapshot_path)) as db:
         db.execute(
-            f"CREATE TABLE IF NOT EXISTS {DATA_FILES_TABLE} "
-            "(name TEXT PRIMARY KEY, content BLOB NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS inkycloud_backup_files "
+            "(name TEXT PRIMARY KEY, content BLOB)"
         )
         db.executemany(
-            f"INSERT OR REPLACE INTO {DATA_FILES_TABLE} (name, content) VALUES (?, ?)",
-            [(name, path.read_bytes()) for name, path in files.items()],
+            "INSERT OR REPLACE INTO inkycloud_backup_files (name, content) VALUES (?, ?)",
+            files.items(),
         )
         db.commit()
-    return sorted(files)
+    return sorted(name for name, content in files.items() if content is not None)
 
 
 def create_backup_snapshot(
@@ -617,13 +623,33 @@ def perform_backup_with_details() -> dict[str, Any]:
 
 
 def check_integrity(path: Path) -> bool:
-    """Return whether ``path`` is an SQLite database that passes ``PRAGMA integrity_check``."""
+    """Check the file header, application schema and page integrity without migrating it."""
     try:
+        with path.open("rb") as archive:
+            if archive.read(16) != b"SQLite format 3\x00":
+                return False
         with closing(sqlite3.connect(_database_uri(path, "immutable"), uri=True)) as db:
+            if not _known_archive_schema(db):
+                return False
             rows = db.execute("PRAGMA integrity_check").fetchall()
     except OSError, sqlite3.Error:
         return False
     return rows == [("ok",)]
+
+
+def _known_archive_schema(db: sqlite3.Connection) -> bool:
+    """Recognize current and legacy InkyCloud tables even before their first data row."""
+
+    def has(table: str, required: set[str]) -> bool:
+        """Check named table columns using SQLite's parameterized pragma function."""
+        columns = db.execute("SELECT name FROM pragma_table_info(?)", (table,))
+        return required <= {row[0] for row in columns}
+
+    return has("cache_meta", {"key", "value", "updated_at"}) and (
+        has("generated_images", {"image_key", "image_path", "generated_at"})
+        or has("api_calls", {"id", "timestamp", "endpoint"})
+        or has("weather_cache", {"cache_key", "temperature_c", "weather_code", "expires_at"})
+    )
 
 
 def _parse_backup_name(name: str) -> datetime | None:
@@ -631,7 +657,16 @@ def _parse_backup_name(name: str) -> datetime | None:
     match = _BACKUP_NAME_PATTERN.match(name)
     if match is None:
         return None
-    return datetime.strptime(match["stamp"], _TIMESTAMP_FORMAT).replace(tzinfo=timezone.utc)
+    try:
+        return datetime.strptime(match["stamp"], _TIMESTAMP_FORMAT).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _backup_order(entry: dict[str, Any]) -> tuple[str, int]:
+    """Order same-second publications by their numeric sequence."""
+    tail = entry["name"].removesuffix(".db").rsplit("_", 1)[-1]
+    return entry["created_utc"], int(tail) if tail.isdecimal() else 0
 
 
 def local_backups() -> list[dict[str, Any]]:
@@ -654,7 +689,7 @@ def local_backups() -> list[dict[str, Any]]:
                 "safety_snapshot": path.name.startswith(SAFETY_SNAPSHOT_PREFIX),
             }
         )
-    return sorted(backups, key=lambda backup: (backup["created_utc"], backup["name"]))
+    return sorted(backups, key=_backup_order)
 
 
 def _s3_backups(s3_client) -> list[dict[str, Any]]:
@@ -675,7 +710,7 @@ def _s3_backups(s3_client) -> list[dict[str, Any]]:
                     "safety_snapshot": False,
                 }
             )
-    return sorted(backups, key=lambda backup: backup["created_utc"])
+    return sorted(backups, key=_backup_order)
 
 
 def _download_s3_backup(s3_client, name: str, target: Path) -> None:
@@ -716,7 +751,7 @@ def list_backups(*, verify: bool = False) -> dict[str, Any]:
             except Exception as exc:
                 backup["integrity"] = INTEGRITY_FAILED
                 result["errors"].append(f"Verifying {backup['name']} failed ({type(exc).__name__})")
-    result["backups"] = sorted(backups, key=lambda backup: backup["created_utc"])
+    result["backups"] = sorted(backups, key=_backup_order)
     return result
 
 
@@ -741,13 +776,11 @@ def perform_local_backup() -> dict[str, Any]:
     directory = config.backup_local_dir
     try:
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-        filename = generate_backup_filename()
-        temp_path = directory / f".{filename}.tmp"
-        try:
-            result["data_files"] = create_backup_snapshot(db_path, temp_path)
-            os.replace(temp_path, directory / filename)
-        finally:
-            temp_path.unlink(missing_ok=True)
+        with tempfile.NamedTemporaryFile(dir=directory, suffix=".tmp") as staged:
+            result["data_files"] = create_backup_snapshot(db_path, staged.name)
+            filename = _publish_local_backup(
+                Path(staged.name), directory, generate_backup_filename()
+            )
     except (OSError, sqlite3.Error) as exc:
         result["error"] = f"Local backup failed ({type(exc).__name__})"
         return result
@@ -761,9 +794,22 @@ def perform_local_backup() -> dict[str, Any]:
     return result
 
 
-def _database_in_use(db_path: Path) -> bool:
+def _publish_local_backup(staged: Path, directory: Path, name: str) -> str:
+    """Link a finished private snapshot into the listing without replacing any archive."""
+    for candidate in _snapshot_names(directory, name):
+        try:
+            os.link(staged, candidate)
+        except FileExistsError:
+            continue
+        return candidate.name
+    raise FileExistsError(name)
+
+
+def _database_in_use(db_path: Path, *, ignore_sidecars: bool = False) -> bool:
     """Return whether another process appears to hold the database open or locked."""
-    if any(Path(f"{db_path}{suffix}").exists() for suffix in ("-wal", "-shm")):
+    if not ignore_sidecars and any(
+        Path(f"{db_path}{suffix}").exists() for suffix in ("-wal", "-shm")
+    ):
         return True
     if not db_path.exists():
         return False
@@ -797,14 +843,14 @@ def _is_unreadable_database(db_path: Path) -> bool:
 
 def _restore_blocker(db_path: Path, *, force: bool) -> str | None:
     """Return why the live database must not be replaced without ``--force``, if anything."""
-    if force:
-        return None
     if _is_unreadable_database(db_path):
+        if force:
+            return None
         return (
             "The current database is not a readable SQLite database. Stop the service and "
             "pass --force to replace it; a raw copy is kept as the safety snapshot"
         )
-    if _database_in_use(db_path):
+    if _database_in_use(db_path, ignore_sidecars=force):
         return (
             "The database is in use. Stop the service first (see SELF-HOSTING.md), or pass "
             "--force if a crash left stale -wal/-shm files behind"
@@ -859,7 +905,7 @@ def _schema_version(path: Path) -> int:
         return int(db.execute("PRAGMA user_version").fetchone()[0])
 
 
-def _extract_data_files(path: Path) -> dict[str, bytes]:
+def _extract_data_files(path: Path) -> dict[str, bytes | None]:
     """Remove the embedded data files from a working copy and return the known ones."""
     known = set(data_file_paths())
     with closing(sqlite3.connect(path)) as db:
@@ -872,7 +918,7 @@ def _extract_data_files(path: Path) -> dict[str, bytes]:
         rows = db.execute(_SELECT_DATA_FILES_SQL).fetchall()
         db.execute(_DROP_DATA_FILES_SQL)
         db.commit()
-    return {name: bytes(content) for name, content in rows if name in known}
+    return {name: content for name, content in rows if name in known}
 
 
 def _resolve_restore_source(name: str, source: str, s3_client) -> tuple[str, str] | None:
@@ -895,15 +941,22 @@ def _resolve_restore_source(name: str, source: str, s3_client) -> tuple[str, str
     return (candidates[-1]["name"], source) if candidates else None
 
 
+def _snapshot_names(directory: Path, name: str):
+    """Yield the timestamp name followed by its possible collision suffixes."""
+    yield directory / name
+    stem = name.removesuffix(".db")
+    for suffix in range(1, _MAX_SNAPSHOT_SUFFIX + 1):
+        yield directory / f"{stem}_{suffix}.db"
+
+
 def _reserve_safety_snapshot(directory: Path) -> Path:
     """Create an empty safety snapshot file under a name never used before and return it.
 
     Names have one-second precision, so a second restore within the same second gets a
     numeric suffix instead of overwriting the first recovery file (``O_EXCL`` reserves it).
     """
-    stem = datetime.now(timezone.utc).strftime(SAFETY_SNAPSHOT_FORMAT).removesuffix(".db")
-    for suffix in range(_MAX_SNAPSHOT_SUFFIX + 1):
-        candidate = directory / (f"{stem}.db" if suffix == 0 else f"{stem}_{suffix}.db")
+    name = datetime.now(timezone.utc).strftime(SAFETY_SNAPSHOT_FORMAT)
+    for candidate in _snapshot_names(directory, name):
         try:
             descriptor = os.open(candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         except FileExistsError:
@@ -936,8 +989,6 @@ def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> d
     atomically. ``database_changed`` tells whether a failure happened after the live data was
     touched; the safety snapshot then restores the previous state.
     """
-    from app.services.database import DATABASE_SCHEMA_VERSION
-
     result: dict[str, Any] = {
         "success": False,
         "name": None,
@@ -958,6 +1009,18 @@ def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> d
         return result
 
     db_path = Path(config.DATABASE_PATH)
+    try:
+        with storage_lock(db_path, exclusive=True):
+            return _restore_locked(name, source, force, db_path, result)
+    except BlockingIOError:
+        result["error"] = get_translator(config.DEFAULT_LANG)["restore_lock_busy"]
+    except OSError as exc:
+        result["error"] = f"Restore failed ({type(exc).__name__})"
+    return result
+
+
+def _restore_locked(name: str, source: str, force: bool, db_path: Path, result: dict) -> dict:
+    """Resolve and stage the archive under the volume's exclusive restore lock."""
     blocker = _restore_blocker(db_path, force=force)
     if blocker is not None:
         result["error"] = blocker
@@ -974,8 +1037,16 @@ def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> d
         return result
     result["name"], result["source"] = resolved
 
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    working = db_path.with_name(f".{db_path.name}.restore.{os.getpid()}.tmp")
+    with tempfile.TemporaryDirectory(
+        dir=db_path.parent, prefix=f".{db_path.name}.restore."
+    ) as stage:
+        return _restore_staged(Path(stage) / "snapshot.db", db_path, result, s3_client, force)
+
+
+def _restore_staged(working: Path, db_path: Path, result: dict, s3_client, force: bool) -> dict:
+    """Validate and migrate the private copy before taking a safety snapshot and publishing."""
+    from app.services.database import DATABASE_SCHEMA_VERSION
+
     try:
         try:
             if result["source"] == "local":
@@ -1017,16 +1088,15 @@ def restore_backup(name: str, *, source: str = "auto", force: bool = False) -> d
 
         targets = data_file_paths()
         for file_name, content in sorted(data_files.items()):
-            atomic_write_bytes_sync(targets[file_name], content)
+            if content is None:
+                targets[file_name].unlink(missing_ok=True)
+            else:
+                atomic_write_bytes_sync(targets[file_name], content)
             result["data_files_restored"].append(file_name)
 
         result["schema_version_after"] = _schema_version(db_path)
     except (OSError, sqlite3.Error) as exc:
         result["error"] = f"Restore failed ({type(exc).__name__})"
         return result
-    finally:
-        for leftover in (working, *(Path(f"{working}{suffix}") for suffix in ("-wal", "-shm"))):
-            with suppress(OSError):
-                leftover.unlink(missing_ok=True)
     result["success"] = True
     return result

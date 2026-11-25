@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from datetime import datetime, timezone
 from enum import StrEnum
 
+GENERATION_ATTEMPT_META_KEY = "last_generation_attempt"
 GENERATION_SUCCESS_META_KEY = "last_generation_success"
 GENERATION_STATUS_META_KEY = "last_generation_status"
 # Comma-separated DegradedReason codes of the last generation run (empty after a clean run).

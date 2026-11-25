@@ -525,3 +525,81 @@ async def test_other_circuits_are_still_fetched_on_demand_when_prefetch_is_limit
     assert current is live
     assert weather_service.get_cached_circuit_weather("elsewhere") is live
     weather_service.clear_circuit_weather_cache()
+
+
+@pytest.mark.asyncio
+async def test_race_only_profile_skips_current_lookup(monkeypatch):
+    from app.services import weather_service
+
+    race = {
+        "circuit": {"circuitId": "monza", "lat": "45", "long": "9"},
+        "schedule": [{"name": "Race", "datetime": "2026-11-28T14:00:00Z"}],
+    }
+    current = AsyncMock(side_effect=AssertionError("excluded current weather"))
+    forecast = WeatherData(20, 1, 0)
+    monkeypatch.setattr(weather_service.config, "WEATHER_ENABLED", True)
+    monkeypatch.setattr(weather_service, "_resolve_current_weather", current)
+    monkeypatch.setattr(
+        weather_service, "_resolve_race_weather", AsyncMock(return_value=(forecast, None))
+    )
+    monkeypatch.setattr(scheduler_generation.config, "PREGENERATE_WEATHER_TYPES", "race_day")
+    assert await scheduler_generation._load_weather_context(race) == (
+        None,
+        forecast,
+        {"off": None, "race": forecast},
+    )
+    current.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_failed_attempt_keeps_previous_publication(tmp_path, monkeypatch):
+    from app.services import ops_status
+    from app.services.database import Database
+    from app.services.generation_freshness import GENERATION_SUCCESS_META_KEY
+
+    db = Database(str(tmp_path / "ops.db"))
+    previous = datetime.now(timezone.utc).isoformat()
+    await db.set_cache_meta(GENERATION_SUCCESS_META_KEY, previous)
+    monkeypatch.setattr(scheduler_generation, "get_database", lambda: db)
+    monkeypatch.setattr(scheduler_generation.config, "IMAGES_PATH", str(tmp_path / "images"))
+    monkeypatch.setattr(ops_status.config, "DATABASE_PATH", str(tmp_path / "ops.db"))
+    monkeypatch.setattr(
+        scheduler_generation, "_generate_base_variants", AsyncMock(return_value=(set(), 1))
+    )
+    monkeypatch.setattr(
+        scheduler_generation, "_generate_popular_tz_variants", AsyncMock(return_value=(set(), 0))
+    )
+    monkeypatch.setattr(
+        scheduler_generation, "_generate_teams_bmp_variants", AsyncMock(return_value=(set(), 1))
+    )
+    monkeypatch.setattr(
+        scheduler_generation,
+        "_load_weather_context",
+        AsyncMock(return_value=(None, None, {"off": None})),
+    )
+    monkeypatch.setattr(scheduler_generation, "generate_preview_pngs", AsyncMock())
+    try:
+        await scheduler_generation.collect_and_generate()
+        report = ops_status.collect_ops_status()
+        assert report["generation"]["last_success_utc"] == previous
+        attempt = report["generation"]["latest_attempt"]
+        assert attempt["status"] == "failed"
+        assert "calendar_variant_failed" in attempt["reasons"]
+        assert "calendar_variant_failed" in report["reasons"]
+        assert "failed" in ops_status._format_text(report)
+        assert ops_status._latest_attempt("invalid|failed|") is None
+    finally:
+        await db.close()
+
+
+@pytest.mark.asyncio
+async def test_generation_exception_records_failed_attempt(monkeypatch):
+    db = AsyncMock()
+    monkeypatch.setattr(scheduler_generation, "get_database", lambda: db)
+    monkeypatch.setattr(
+        scheduler_generation, "_publish_images", AsyncMock(side_effect=OSError("disk"))
+    )
+    await scheduler_generation.collect_and_generate()
+    key, value = db.set_cache_meta.await_args.args
+    assert key == scheduler_generation.GENERATION_ATTEMPT_META_KEY
+    assert value.split("|")[1:] == ["failed", "generation_degraded"]

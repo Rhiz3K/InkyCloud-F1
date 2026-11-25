@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Databázi používá služba nebo probíhající obnova. Zastavte službu nebo počkejte na dokončení obnovy.",
+  "ops_last_attempt": "Poslední pokus o generování",
   "next_race": "Příští závod",
   "schedule": "Rozvrh",
   "weekend_schedule": "HARMONOGRAM VÍKENDU",

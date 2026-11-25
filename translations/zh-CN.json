@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "服务或恢复进程正在使用数据库。请停止服务或等待恢复完成。",
+  "ops_last_attempt": "最近一次生成尝试",
   "next_race": "下一场比赛",
   "schedule": "赛程",
   "weekend_schedule": "周末赛程",

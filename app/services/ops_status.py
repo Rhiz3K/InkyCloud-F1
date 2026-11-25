@@ -21,6 +21,7 @@ from typing import Any
 from app.config import config
 from app.services.database import WEATHER_QUOTA_LIMITS
 from app.services.generation_freshness import (
+    GENERATION_ATTEMPT_META_KEY,
     GENERATION_REASONS_META_KEY,
     GENERATION_STATE_REASONS,
     GENERATION_STATUS_META_KEY,
@@ -31,6 +32,7 @@ from app.services.generation_freshness import (
     decode_reasons,
     generation_age_seconds,
 )
+from app.services.i18n import get_translator
 from app.utils.runtime_audit import WEATHER_WINDOWS
 from app.utils.sqlite_readonly import read_consistently
 from app.version import APP_VERSION
@@ -44,6 +46,7 @@ _HISTORICAL_REFRESH_ALERT_AFTER_RUNS = 3
 _HISTORICAL_REFRESH_OVERDUE_AFTER = timedelta(days=2)
 _NOT_READY_STATES = {GenerationState.STARTING, GenerationState.INVALID, GenerationState.STALE}
 _META_KEYS = (
+    GENERATION_ATTEMPT_META_KEY,
     GENERATION_SUCCESS_META_KEY,
     GENERATION_STATUS_META_KEY,
     GENERATION_REASONS_META_KEY,
@@ -96,6 +99,21 @@ def _read_database(path: Path, now: datetime) -> dict[str, Any] | None:
         return read_consistently(path, lambda uri: _read_rows(uri, now))
     except OSError, sqlite3.Error:
         return None
+
+
+def _latest_attempt(raw: str | None) -> dict[str, Any] | None:
+    """Read the latest completed generation attempt, accepting older databases without one."""
+    fields = (raw or "").split("|", 2)
+    if len(fields) != 3 or fields[1] not in ("ready", "degraded", "failed"):
+        return None
+    stamp = _iso_or_none(fields[0])
+    if stamp is None:
+        return None
+    return {
+        "started_utc": stamp,
+        "status": fields[1],
+        "reasons": [reason.value for reason in decode_reasons(fields[2])],
+    }
 
 
 def _storage_ok() -> bool:
@@ -257,6 +275,10 @@ def collect_ops_status(
     elif state in _NOT_READY_STATES and database_ok:
         reasons.append(GENERATION_STATE_REASONS[state])
 
+    attempt = _latest_attempt(meta.get(GENERATION_ATTEMPT_META_KEY))
+    if attempt and attempt["status"] == "failed":
+        reasons.extend(DegradedReason(code) for code in attempt["reasons"])
+
     weather, quota_exhausted = _weather_section(snapshot["weather"] if snapshot else {})
     if quota_exhausted:
         reasons.append(DegradedReason.WEATHER_QUOTA_EXHAUSTED)
@@ -278,6 +300,7 @@ def collect_ops_status(
         "checks": {"database_ok": database_ok, "storage_ok": storage_ok},
         "generation": {
             "state": state.value,
+            "latest_attempt": attempt,
             "last_success_utc": _iso_or_none(generated_at),
             "age_seconds": generation_age_seconds(generated_at, now=now),
             "reasons": [reason.value for reason in generation_reasons],
@@ -320,6 +343,10 @@ def _format_text(report: dict[str, Any]) -> str:
         f"weather={','.join(profile['weather_types'])} "
         f"prefetch_all_circuits={str(profile['weather_prefetch_all_circuits']).lower()}",
     ]
+    if attempt := report["generation"].get("latest_attempt"):
+        label = get_translator(config.DEFAULT_LANG)["ops_last_attempt"]
+        details = ", ".join(attempt["reasons"])
+        lines.append(f"{label} {attempt['started_utc']} {attempt['status']} ({details})")
     return "\n".join(lines)
 
 

@@ -155,9 +155,12 @@ def cmd_list(verify: bool = False, as_json: bool = False):
     from app.services.backup import list_backups
 
     result = list_backups(verify=verify)
+    failed = bool(result["errors"]) or any(
+        row["integrity"] == "failed" for row in result["backups"]
+    )
     if as_json:
         print(json.dumps(result, indent=2))
-        return 1 if result["errors"] else 0
+        return int(failed)
     if not result["backups"]:
         print("No backups found.")
     for backup in result["backups"]:
@@ -170,7 +173,7 @@ def cmd_list(verify: bool = False, as_json: bool = False):
         print("S3 backups not listed: S3 is not configured or MINIMAL_DATA_MODE=true.")
     for error in result["errors"]:
         print(f"Warning: {error}")
-    return 1 if result["errors"] else 0
+    return int(failed)
 
 
 def cmd_restore(name: str, source: str = "auto", assume_yes: bool = False, force: bool = False):

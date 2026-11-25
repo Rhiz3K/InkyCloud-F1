@@ -367,6 +367,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Automatic weekend calendars and race-week screens keep the race available for late podiums until 24 hours after its start. Weekend responses expire by the opening of the weekend view.
 
+- Restore and service startup coordinate access to the database and circuit history. Backup verification checks the InkyCloud schema and reports failure to scripts. Local backups preserve same-second snapshots, and undo restores circuit-file presence. Operator diagnostics show the latest generation attempt and give authenticated monitoring its own quota. Generation fetches only selected weather sources.
+
 ## [1.3.3] - 2026-10-30
 
 ### Removed

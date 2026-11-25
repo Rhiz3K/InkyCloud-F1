@@ -45,6 +45,7 @@ from app.services.scheduler import (
     stop_scheduler,
 )
 from app.services.scheduler_maintenance import flush_api_calls_to_db
+from app.services.storage_lock import storage_lock
 from app.services.warmup import warm_teams_renderer_assets
 from app.utils.async_tasks import (
     RENDER_WORKER_COUNT,
@@ -134,6 +135,14 @@ def _check_persistent_storage() -> bool:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
+    with storage_lock(Path(config.DATABASE_PATH)):
+        async with _running_service():
+            yield
+
+
+@asynccontextmanager
+async def _running_service():
+    """Start and drain the service while its database and circuit files are reserved."""
     logger.info("Starting F1.InkyCloud.click service")
 
     _check_persistent_storage()

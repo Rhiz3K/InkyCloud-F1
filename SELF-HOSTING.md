@@ -262,15 +262,18 @@ and work in every profile; they are written to `BACKUP_LOCAL_DIR` (default
 docker compose exec f1-eink-cal backup now --local
 ```
 
+Each local backup is completed in a private file on the backup volume and published atomically. Backups made in the same second receive numeric suffixes. `latest` selects the highest suffix for that timestamp.
+
 Local backups older than `BACKUP_RETENTION_DAYS` are removed when a new one is written.
 
-List what can be restored. `--verify` runs `PRAGMA integrity_check` on every backup (downloading
-the S3 ones to a temporary file); without it integrity shows as `unknown`:
+Run `backup list --verify` to check each archive's SQLite header, InkyCloud schema and page integrity. S3 archives are downloaded to a temporary file. A failed check gives a nonzero exit status in text and JSON output.
 
 ```bash
 docker compose exec f1-eink-cal backup list
 docker compose exec f1-eink-cal backup list --verify --json
 ```
+
+The service holds a shared kernel lock on `<database>.lock` throughout its lifetime. Restore requires an exclusive lock from staging through publication of the database and circuit files. Keep the lock file in place. The kernel releases the lock on process exit, including a crash. `--force` still requires exclusive access.
 
 Restore with the service stopped, in a one-off container from the same pinned release as the
 service (for a [source build](#build-from-source), leave out `F1_IMAGE=...`):
@@ -299,7 +302,7 @@ a name from `backup list` or `--source local|s3` to choose. The restore:
    raw byte copy instead (with its `-wal`/`-shm`, without the circuit history), which can only
    be copied back by hand;
 6. writes the backup through SQLite's backup API and restores `circuits_jolpica.json` when the
-   backup contains it (older backups do not; the current file is kept).
+   backup contains it. Undo also removes a circuit file that was absent at the time of the safety snapshot. Historical database-only archives preserve the current circuit file.
 
 A failure before step 6 leaves the database unchanged. If step 6 fails, the command says so and
 names the safety snapshot to restore before starting the service.

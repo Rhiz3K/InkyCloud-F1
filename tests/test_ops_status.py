@@ -475,6 +475,9 @@ def test_token_guessing_is_rate_limited(monkeypatch, data_dir):
 
     assert client.get("/api/ops/status").status_code == 401
     assert client.get("/api/ops/status").status_code == 429
+    headers = {"Authorization": "Bearer " + ops.config.ADMIN_API_TOKEN.get_secret_value()}
+    assert client.get("/api/ops/status", headers=headers).status_code == 200
+    assert client.get("/api/ops/status", headers=headers).status_code == 429
     rate_limit._RATE_LIMIT_BUCKETS.clear()
 
 

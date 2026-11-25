@@ -31,16 +31,18 @@ def _require_admin_bearer(request: Request) -> None:
     expected = configured.get_secret_value() if configured is not None else ""
     if not expected:
         raise HTTPException(status_code=404, detail="Not Found")
-    enforce_rate_limit(request, bucket="ops_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
     scheme, _, provided = request.headers.get("Authorization", "").partition(" ")
     if scheme.lower() != "bearer" or not secrets.compare_digest(
         provided.strip().encode("utf-8"), expected.encode("utf-8")
     ):
+        enforce_rate_limit(request, bucket="ops_rejected", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
         raise HTTPException(
             status_code=401,
             detail="Unauthorized",
             headers={"WWW-Authenticate": "Bearer", **_NO_STORE},
         )
+
+    enforce_rate_limit(request, bucket="ops_read", limit=config.STATS_RATE_LIMIT_PER_MINUTE)
 
 
 @router.get("/api/ops/status", include_in_schema=False)

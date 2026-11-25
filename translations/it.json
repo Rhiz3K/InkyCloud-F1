@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Un servizio o un ripristino sta usando il database. Arresta il servizio o attendi il completamento del ripristino.",
+  "ops_last_attempt": "Ultimo tentativo di generazione",
   "next_race": "Prossima gara",
   "schedule": "Programma",
   "weekend_schedule": "PROGRAMMA DEL WEEKEND",

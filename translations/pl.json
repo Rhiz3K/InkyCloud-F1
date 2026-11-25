@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Usługa lub proces przywracania korzysta z bazy danych. Zatrzymaj usługę lub poczekaj na zakończenie przywracania.",
+  "ops_last_attempt": "Ostatnia próba generowania",
   "next_race": "Następny wyścig",
   "schedule": "Harmonogram",
   "weekend_schedule": "HARMONOGRAM WEEKENDU",

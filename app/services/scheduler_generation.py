@@ -21,6 +21,7 @@ from app.services.artifact_metadata import (
 from app.services.database import Database, get_database
 from app.services.f1_service import F1Service
 from app.services.generation_freshness import (
+    GENERATION_ATTEMPT_META_KEY,
     GENERATION_REASONS_META_KEY,
     GENERATION_STATUS_DEGRADED,
     GENERATION_STATUS_META_KEY,
@@ -433,7 +434,10 @@ async def _load_weather_context(
     race_data: dict,
 ) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
     """Load current and race-day weather variants for generation."""
-    current_weather, race_weather, weather_by_type = await get_weather_context(race_data)
+    wanted = _profile_weather_types({"current": None, "race": None})
+    current_weather, race_weather, weather_by_type = await get_weather_context(
+        race_data, wanted=wanted
+    )
 
     circuit_id = race_data.get("circuit", {}).get("circuitId")
     if circuit_id and current_weather:
@@ -703,150 +707,163 @@ async def _collect_and_generate_unlocked() -> None:
 
     try:
         db = get_database()
-        f1_service = F1Service()
-
-        images_dir = Path(config.IMAGES_PATH)
-        images_dir.mkdir(parents=True, exist_ok=True)
-
-        race_data = f1_service.get_next_race_from_static()
-        if not race_data:
-            logger.warning("No upcoming race found in static data")
-            return
-
-        logger.info("Next race: %s (from static data)", race_data.get("race_name"))
-
-        historical_data = _load_historical_data(race_data)
-
-        # Core calendars must be ready before any optional upstream dependency is awaited.
-        weather_by_type: dict[str, WeatherData | None] = {"off": None}
-        display_types = _profile_displays()
-        logger.info(
-            "Generating variants: displays=%s, weather=%s",
-            display_types,
-            list(weather_by_type.keys()),
-        )
-
-        # Write every variant first (overwriting its deterministic path), then prune stale
-        # files. We never delete up front: a mid-run failure used to leave devices with no
-        # pregenerated images for an hour.
-        generated_paths: set[Path] = set()
-        total_failures = 0
+        started = datetime.now(timezone.utc).isoformat()
         reasons: set[DegradedReason] = set()
-
-        base_paths, base_failures = await _generate_base_variants(
-            images_dir=images_dir,
-            db=db,
-            race_data=race_data,
-            historical_data=historical_data,
-            display_types=display_types,
-            weather_by_type=weather_by_type,
-        )
-        generated_paths |= base_paths
-        total_failures += base_failures
-        if base_failures:
-            reasons.add(DegradedReason.CALENDAR_VARIANT_FAILED)
-
-        from app.services.teams_service import get_default_teams_year
-
-        if base_paths:
-            await db.set_cache_meta(GENERATION_STATUS_META_KEY, GENERATION_STATUS_DEGRADED)
-            await db.set_cache_meta(
-                GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat()
-            )
-            clear_bmp_cache()
-            await generate_preview_pngs(["off"], get_default_teams_year())
-
-        # Weather the profile does not pregenerate is neither fetched nor expected, so an
-        # unavailable source cannot mark the run degraded or block the stale-file prune.
-        wanted_weather = _profile_weather_types({"current": None, "race": None})
-        if wanted_weather:
-            _, _, weather_by_type = await _load_weather_context(race_data)
-        weather_degraded = _weather_context_degraded(race_data, weather_by_type, wanted_weather)
-        if weather_degraded:
-            reasons.add(DegradedReason.WEATHER_UNAVAILABLE)
-        profile_weather = _profile_weather_types(weather_by_type)
-        weather_by_type = {key: weather_by_type[key] for key in profile_weather}
-        weather_variants = {key: value for key, value in weather_by_type.items() if key != "off"}
-        if weather_variants:
-            weather_paths, weather_failures = await _generate_base_variants(
-                images_dir=images_dir,
-                db=db,
-                race_data=race_data,
-                historical_data=historical_data,
-                display_types=display_types,
-                weather_by_type=weather_variants,
-            )
-            generated_paths |= weather_paths
-            total_failures += weather_failures
-            if weather_failures:
-                reasons.add(DegradedReason.WEATHER_VARIANT_FAILED)
-
-        tz_paths, tz_failures = await _generate_popular_tz_variants(
-            images_dir=images_dir,
-            db=db,
-            race_data=race_data,
-            historical_data=historical_data,
-            display_types=display_types,
-            weather_by_type=weather_by_type,
-        )
-        generated_paths |= tz_paths
-        total_failures += tz_failures
-        if tz_failures:
-            reasons.add(DegradedReason.TIMEZONE_VARIANT_FAILED)
-
-        teams_paths, teams_failures = await _generate_teams_bmp_variants(
-            images_dir=images_dir, db=db, reasons=reasons
-        )
-        generated_paths |= teams_paths
-        total_failures += teams_failures
-        if teams_failures and DegradedReason.TEAMS_DATA_UNAVAILABLE not in reasons:
-            reasons.add(DegradedReason.TEAMS_VARIANT_FAILED)
-
-        await generate_preview_pngs(list(weather_by_type), get_default_teams_year())
-        excluded_previews = _delete_excluded_previews(images_dir)
-        if excluded_previews:
-            logger.info("Removed %d previews outside the pregeneration profile", excluded_previews)
-
-        # Only prune when the whole run succeeded (and weather wasn't degraded), so a
-        # transient failure never deletes a previously-good file devices still serve.
-        if total_failures == 0 and not weather_degraded:
-            removed = _delete_stale_bmps(images_dir, keep=generated_paths)
-            if removed:
-                logger.info("Pruned %d stale BMP files", removed)
-        else:
-            logger.warning(
-                "Skipping stale-BMP prune: %d variant failure(s), weather_degraded=%s",
-                total_failures,
-                weather_degraded,
-            )
-
-        # Readiness means that at least one core calendar artifact was published recently.
-        # Optional weather, timezone, teams, and preview failures remain observable as a
-        # degraded run but must not restart a process that can still serve calendars.
-        if base_paths:
-            generation_status = (
-                GENERATION_STATUS_DEGRADED
-                if total_failures or weather_degraded
-                else GENERATION_STATUS_READY
-            )
-            await db.set_cache_meta(GENERATION_STATUS_META_KEY, generation_status)
-            await db.set_cache_meta(GENERATION_REASONS_META_KEY, encode_reasons(reasons))
-            await db.set_cache_meta(
-                GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat()
-            )
-        else:
-            logger.error(
-                "Generation produced no core calendar artifacts; readiness marker unchanged"
-            )
-        clear_bmp_cache()
-
-        if config.STATS_RETENTION_DAYS > 0:
-            await db.cleanup_old_stats(days=config.STATS_RETENTION_DAYS)
-
-        logger.info(
-            "Image generation completed: %d images (%d failures)",
-            len(generated_paths),
-            total_failures,
+        try:
+            status = await _publish_images(db, reasons)
+        except Exception:
+            logger.exception("Image generation failed")
+            status = "failed"
+            reasons.add(DegradedReason.GENERATION_DEGRADED)
+        # A single row keeps the time, outcome and reasons from different attempts together.
+        await db.set_cache_meta(
+            GENERATION_ATTEMPT_META_KEY, "|".join((started, status, encode_reasons(reasons)))
         )
     except Exception as exc:
         logger.error("Error in image generation: %s", exc, exc_info=True)
+
+
+async def _publish_images(db: Database, reasons: set[DegradedReason]) -> str:
+    """Publish the selected variants and maintain the last successful generation markers."""
+    f1_service = F1Service()
+
+    images_dir = Path(config.IMAGES_PATH)
+    images_dir.mkdir(parents=True, exist_ok=True)
+
+    race_data = f1_service.get_next_race_from_static()
+    if not race_data:
+        logger.warning("No upcoming race found in static data")
+        reasons.add(DegradedReason.CALENDAR_VARIANT_FAILED)
+        return "failed"
+
+    logger.info("Next race: %s (from static data)", race_data.get("race_name"))
+
+    historical_data = _load_historical_data(race_data)
+
+    # Core calendars must be ready before any optional upstream dependency is awaited.
+    weather_by_type: dict[str, WeatherData | None] = {"off": None}
+    display_types = _profile_displays()
+    logger.info(
+        "Generating variants: displays=%s, weather=%s",
+        display_types,
+        list(weather_by_type.keys()),
+    )
+
+    # Write every variant first (overwriting its deterministic path), then prune stale
+    # files. We never delete up front: a mid-run failure used to leave devices with no
+    # pregenerated images for an hour.
+    generated_paths: set[Path] = set()
+    total_failures = 0
+
+    base_paths, base_failures = await _generate_base_variants(
+        images_dir=images_dir,
+        db=db,
+        race_data=race_data,
+        historical_data=historical_data,
+        display_types=display_types,
+        weather_by_type=weather_by_type,
+    )
+    generated_paths |= base_paths
+    total_failures += base_failures
+    if base_failures:
+        reasons.add(DegradedReason.CALENDAR_VARIANT_FAILED)
+
+    from app.services.teams_service import get_default_teams_year
+
+    if base_paths:
+        await db.set_cache_meta(GENERATION_STATUS_META_KEY, GENERATION_STATUS_DEGRADED)
+        await db.set_cache_meta(GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat())
+        clear_bmp_cache()
+        await generate_preview_pngs(["off"], get_default_teams_year())
+
+    # Weather the profile does not pregenerate is neither fetched nor expected, so an
+    # unavailable source cannot mark the run degraded or block the stale-file prune.
+    wanted_weather = _profile_weather_types({"current": None, "race": None})
+    if wanted_weather:
+        _, _, weather_by_type = await _load_weather_context(race_data)
+    weather_degraded = _weather_context_degraded(race_data, weather_by_type, wanted_weather)
+    if weather_degraded:
+        reasons.add(DegradedReason.WEATHER_UNAVAILABLE)
+    profile_weather = _profile_weather_types(weather_by_type)
+    weather_by_type = {key: weather_by_type[key] for key in profile_weather}
+    weather_variants = {key: value for key, value in weather_by_type.items() if key != "off"}
+    if weather_variants:
+        weather_paths, weather_failures = await _generate_base_variants(
+            images_dir=images_dir,
+            db=db,
+            race_data=race_data,
+            historical_data=historical_data,
+            display_types=display_types,
+            weather_by_type=weather_variants,
+        )
+        generated_paths |= weather_paths
+        total_failures += weather_failures
+        if weather_failures:
+            reasons.add(DegradedReason.WEATHER_VARIANT_FAILED)
+
+    tz_paths, tz_failures = await _generate_popular_tz_variants(
+        images_dir=images_dir,
+        db=db,
+        race_data=race_data,
+        historical_data=historical_data,
+        display_types=display_types,
+        weather_by_type=weather_by_type,
+    )
+    generated_paths |= tz_paths
+    total_failures += tz_failures
+    if tz_failures:
+        reasons.add(DegradedReason.TIMEZONE_VARIANT_FAILED)
+
+    teams_paths, teams_failures = await _generate_teams_bmp_variants(
+        images_dir=images_dir, db=db, reasons=reasons
+    )
+    generated_paths |= teams_paths
+    total_failures += teams_failures
+    if teams_failures and DegradedReason.TEAMS_DATA_UNAVAILABLE not in reasons:
+        reasons.add(DegradedReason.TEAMS_VARIANT_FAILED)
+
+    await generate_preview_pngs(list(weather_by_type), get_default_teams_year())
+    excluded_previews = _delete_excluded_previews(images_dir)
+    if excluded_previews:
+        logger.info("Removed %d previews outside the pregeneration profile", excluded_previews)
+
+    # Only prune when the whole run succeeded (and weather wasn't degraded), so a
+    # transient failure never deletes a previously-good file devices still serve.
+    if total_failures == 0 and not weather_degraded:
+        removed = _delete_stale_bmps(images_dir, keep=generated_paths)
+        if removed:
+            logger.info("Pruned %d stale BMP files", removed)
+    else:
+        logger.warning(
+            "Skipping stale-BMP prune: %d variant failure(s), weather_degraded=%s",
+            total_failures,
+            weather_degraded,
+        )
+
+    # Readiness means that at least one core calendar artifact was published recently.
+    # Optional weather, timezone, teams, and preview failures remain observable as a
+    # degraded run but must not restart a process that can still serve calendars.
+    if base_paths:
+        generation_status = (
+            GENERATION_STATUS_DEGRADED
+            if total_failures or weather_degraded
+            else GENERATION_STATUS_READY
+        )
+        await db.set_cache_meta(GENERATION_STATUS_META_KEY, generation_status)
+        await db.set_cache_meta(GENERATION_REASONS_META_KEY, encode_reasons(reasons))
+        await db.set_cache_meta(GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat())
+    else:
+        generation_status = "failed"
+        reasons.add(DegradedReason.CALENDAR_VARIANT_FAILED)
+        logger.error("Generation produced no core calendar artifacts; readiness marker unchanged")
+    clear_bmp_cache()
+
+    if config.STATS_RETENTION_DAYS > 0:
+        await db.cleanup_old_stats(days=config.STATS_RETENTION_DAYS)
+
+    logger.info(
+        "Image generation completed: %d images (%d failures)",
+        len(generated_paths),
+        total_failures,
+    )
+    return generation_status

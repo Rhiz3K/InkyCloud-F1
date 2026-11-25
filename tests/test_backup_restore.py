@@ -6,9 +6,13 @@ import asyncio
 import json
 import shutil
 import sqlite3
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from threading import Barrier, Event
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -305,6 +309,138 @@ def test_minimal_data_mode_keeps_external_backups_off(data_dir, monkeypatch):
     assert backup.perform_local_backup()["success"] is True
 
 
+@pytest.mark.parametrize("foreign", ["empty", "foreign", "wrong_columns"])
+def test_verify_and_restore_reject_non_application_archives(data_dir, foreign, capsys, monkeypatch):
+    path = _local_dir(data_dir) / "f1_backup_2026-02-04_05-06-07.db"
+    path.parent.mkdir()
+    path.touch()
+    if foreign != "empty":
+        with closing(sqlite3.connect(path)) as db:
+            db.execute("CREATE TABLE cache_meta(key, value, updated_at)")
+            if foreign == "wrong_columns":
+                db.execute("CREATE TABLE generated_images(other)")
+    assert not backup.check_integrity(path)
+    for as_json in (False, True):
+        assert backup_cli.cmd_list(verify=True, as_json=as_json) == 1
+        assert "failed" in capsys.readouterr().out
+    assert not backup.restore_backup(path.name, force=True)["database_changed"]
+    monkeypatch.setattr(backup, "_get_s3_client", lambda: FakeS3({path.name: path}))
+    assert all(row["integrity"] == "failed" for row in backup.list_backups(verify=True)["backups"])
+
+
+def test_empty_version_zero_application_archive_is_restorable(data_dir):
+    name = backup.perform_local_backup()["filename"]
+    with closing(sqlite3.connect(_local_dir(data_dir) / name)) as db:
+        db.execute("PRAGMA user_version=0")
+        db.execute("DELETE FROM cache_meta")
+        db.commit()
+    assert backup.check_integrity(_local_dir(data_dir) / name)
+    assert backup.restore_backup(name)["success"]
+
+
+def test_safety_snapshot_restores_absent_circuit_file(data_dir):
+    circuit = _circuits(data_dir)
+    circuit.write_bytes(b"archived")
+    name = backup.perform_local_backup()["filename"]
+    circuit.unlink()
+    result = backup.restore_backup(name)
+    assert circuit.read_bytes() == b"archived"
+    assert backup.restore_backup(result["safety_snapshot"])["success"]
+    assert not circuit.exists()
+
+
+def test_local_backups_publish_distinct_completed_files(data_dir, monkeypatch):
+    stamp = datetime.now(timezone.utc).strftime(backup.BACKUP_FILENAME_FORMAT)
+    monkeypatch.setattr(backup, "generate_backup_filename", lambda: stamp)
+    barrier = Barrier(2)
+    source = backup.create_backup_snapshot
+
+    def stage(db, path):
+        files = source(db, path)
+        _set_marker(Path(path), Path(path).name)
+        barrier.wait(timeout=4)
+        return files
+
+    monkeypatch.setattr(backup, "create_backup_snapshot", stage)
+    with ThreadPoolExecutor(2) as pool:
+        results = [
+            future.result(timeout=8)
+            for future in [pool.submit(backup.perform_local_backup) for _ in range(2)]
+        ]
+    archives = [_local_dir(data_dir) / row["filename"] for row in results]
+    assert all(row["success"] for row in results)
+    assert len(set(archives)) == len({_marker(path) for path in archives}) == 2
+    # The suffix is a sequence number. Invalid calendar dates are ignored by latest.
+    local = _local_dir(data_dir)
+    for suffix in ("_2", "_10"):
+        shutil.copyfile(archives[0], local / (stamp[:-3] + suffix + ".db"))
+    (local / "f1_backup_2026-02-31_03-00-00.db").touch()
+    assert backup._resolve_restore_source("latest", "local", None) == (
+        stamp[:-3] + "_10.db",
+        "local",
+    )
+
+
+def test_restore_excludes_service_and_second_restore_until_cleanup(data_dir, monkeypatch):
+    from app import main
+
+    name = backup.perform_local_backup()["filename"]
+    entered, release = Event(), Event()
+    original = backup._save_safety_snapshot
+
+    def paused(*args, **kwargs):
+        snapshot = original(*args, **kwargs)
+        entered.set()
+        assert release.wait(6)
+        return snapshot
+
+    monkeypatch.setattr(backup, "_save_safety_snapshot", paused)
+    monkeypatch.setattr(main, "config", backup.config)
+    with ThreadPoolExecutor(1) as pool:
+        first = pool.submit(backup.restore_backup, name)
+        try:
+            assert entered.wait(4)
+            assert not backup.restore_backup(name, force=True)["success"]
+
+            async def startup():
+                async with main.lifespan(main.app):
+                    pytest.fail("started during restore")
+
+            with pytest.raises(BlockingIOError):
+                asyncio.run(startup())
+        finally:
+            release.set()
+        assert first.result()["success"]
+
+
+def test_service_lock_survives_force_and_is_released_on_process_exit(data_dir):
+    from app.services.storage_lock import storage_lock
+
+    path = data_dir / "f1.db"
+    name = backup.perform_local_backup()["filename"]
+    with storage_lock(path), storage_lock(path):
+        assert not backup.restore_backup(name, force=True)["database_changed"]
+    script = """
+import os
+import sys
+from pathlib import Path
+from app.services.storage_lock import storage_lock
+with storage_lock(Path(sys.argv[1]), exclusive=True):
+    os._exit(0)
+"""
+    subprocess.run([sys.executable, "-c", script, str(path)], check=True)
+    assert backup.restore_backup(name)["success"]
+
+
+def test_lock_io_failure_and_exhausted_publication_do_not_replace_data(data_dir, monkeypatch):
+    name = backup.perform_local_backup()["filename"]
+    monkeypatch.setattr(backup, "_MAX_SNAPSHOT_SUFFIX", 0)
+    monkeypatch.setattr(backup, "generate_backup_filename", lambda: name)
+    assert not backup.perform_local_backup()["success"]
+    with patch.object(backup, "storage_lock", side_effect=OSError):
+        assert not backup.restore_backup(name)["database_changed"]
+
+
 # --- restore safety ----------------------------------------------------------------------
 
 
@@ -356,6 +492,7 @@ def test_restore_refuses_while_the_database_is_in_use(data_dir):
         holder.execute("PRAGMA journal_mode=DELETE")
         holder.execute("BEGIN EXCLUSIVE")
         assert "in use" in backup.restore_backup("latest")["error"]
+        assert "in use" in backup.restore_backup("latest", force=True)["error"]
         holder.rollback()
 
 

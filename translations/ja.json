@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "サービスまたは復元処理がデータベースを使用しています。サービスを停止するか、復元が完了するまでお待ちください。",
+  "ops_last_attempt": "直近の生成試行",
   "next_race": "次のレース",
   "schedule": "スケジュール",
   "weekend_schedule": "週末スケジュール",

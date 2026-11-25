@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Der Dienst oder eine Wiederherstellung verwendet die Datenbank. Stoppen Sie den Dienst oder warten Sie, bis die Wiederherstellung abgeschlossen ist.",
+  "ops_last_attempt": "Letzter Generierungsversuch",
   "next_race": "Nächstes Rennen",
   "schedule": "Zeitplan",
   "weekend_schedule": "WOCHENENDZEITPLAN",
