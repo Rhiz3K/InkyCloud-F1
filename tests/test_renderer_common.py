@@ -900,3 +900,81 @@ def test_render_full_2026_teams_screen_draws_no_badges(monkeypatch, renderer_cls
         x_end = width // 2 - 2 if xy[0] < width // 2 else width - 5
         right_edge = draw.textbbox(xy, text, font=font)[2]
         assert right_edge <= x_end - 72 - 8, (text, xy, right_edge)
+
+
+@pytest.mark.parametrize("inverted", [False, True])
+@pytest.mark.parametrize("positions", [(3, 5), (4, 8), (1, 2)])
+def test_team_position_badges_fit_rows_and_centre_glyphs(inverted, positions):
+    """Real position ink stays centred, with a white row separating adjacent rows."""
+    image = Image.new("RGB", (400, 60), "white")
+    draw = MagicMock(wraps=ImageDraw.Draw(image))
+    font = Renderer(translator=get_translator("en")).fonts["circuit_stats_value"]
+    row_height = 17
+    glyph_tops = []
+    boxes = []
+    for index, position in enumerate(positions):
+        driver_y = 10 + index * row_height
+        driver = SimpleNamespace(
+            name="Test Driver", driver_number=None, points=0, position=position
+        )
+        renderer_teams.draw_team_driver_row(
+            draw,
+            image,
+            driver,
+            driver_y=driver_y,
+            driver_row_height=row_height,
+            photo_x=0,
+            photo_size=12,
+            pts_right_x=390,
+            driver_pos_x=320,
+            badge_pad_x=5,
+            small_font=font,
+            driver_name_padding=1,
+            draw_driver_photo_fn=MagicMock(),
+            get_text_y_fn=renderer_text.get_text_y,
+            format_team_driver_display_name_fn=lambda value: value,
+            format_points_fn=str,
+            right_align_x_fn=lambda *_args: 370,
+            text_fill="black",
+            badge_outline_fill="black",
+            badge_colors_fn=lambda _position: (
+                ("black", "white") if inverted else ("white", "black")
+            ),
+            lang_code="en",
+        )
+        text_call = draw.text.call_args
+        assert text_call.args[1] == f"P{position}"
+        assert text_call.args[0][0] == 320
+        # Isolate the actual rasterized glyphs from the badge fill and outline.
+        mask = Image.new("L", image.size)
+        ImageDraw.Draw(mask).text(text_call.args[0], text_call.args[1], font=font, fill=255)
+        ink = mask.getbbox()
+        assert ink is not None
+        glyph_tops.append(ink[1] - driver_y)
+        bbox = draw.textbbox((0, 0), f"P{position}", font=font)
+        glyph_h = bbox[3] - bbox[1]
+        pad_y = max(0, min(3, (row_height - 1 - glyph_h) // 2))
+        outer_h = glyph_h + 2 * pad_y
+        expected_top = driver_y + (row_height - 1 - outer_h) // 2
+        assert ink[1] == expected_top + pad_y
+        if position <= 4:
+            (left, top), (right, bottom) = draw.rectangle.call_args.args[0]
+            boxes.append((top, bottom))
+            assert left == 315
+            assert right == 315 + bbox[2] - bbox[0] + 10
+            assert driver_y <= top <= bottom <= driver_y + row_height - 2
+            assert bottom - top + 1 == outer_h
+            assert ink[1] - top == bottom - (ink[3] - 1) == pad_y
+
+    assert glyph_tops[0] == glyph_tops[1]
+    upper_bottom = boxes[0][1]
+    lower_column = image.crop((315, 27, 355, 44))
+    ink_rows = [
+        y + 27
+        for y in range(lower_column.height)
+        if any(lower_column.getpixel((x, y)) != (255, 255, 255) for x in range(40))
+    ]
+    lower_top = min(ink_rows)
+    assert lower_top - upper_bottom >= 2
+    for y in range(upper_bottom + 1, lower_top):
+        assert all(image.getpixel((x, y)) == (255, 255, 255) for x in range(315, 355))

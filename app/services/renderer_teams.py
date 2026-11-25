@@ -238,30 +238,32 @@ def draw_team_driver_row(
     pts_x = right_align_x_fn(draw, driver_pts, pts_right_x, small_font)
     draw.text((pts_x, driver_small_y), driver_pts, fill=text_fill, font=small_font)
 
+    pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
+    pos_h = pos_bbox[3] - pos_bbox[1]
+    badge_pad_y = max(0, min(3, (driver_row_height - 1 - pos_h) // 2))
+    badge_h = int(pos_h) + badge_pad_y * 2
+    badge_y = driver_y + (driver_row_height - 1 - badge_h) // 2
+    pos_y = badge_y + badge_pad_y - pos_bbox[1]
+
     if driver.position and driver.position <= 4:
-        pos_bbox = draw.textbbox((0, 0), pos_text, font=small_font)
         pos_w = pos_bbox[2] - pos_bbox[0]
-        pos_h = pos_bbox[3] - pos_bbox[1]
-        badge_pad_y = 3
         badge_w = int(pos_w) + badge_pad_x * 2
-        badge_h = int(pos_h) + badge_pad_y * 2
         badge_x = driver_pos_x - badge_pad_x
-        badge_y = driver_y + (driver_row_height - badge_h) // 2
         badge_fill, badge_text_fill = badge_colors_fn(driver.position)
         draw.rectangle(
-            [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h)],
+            [(badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h - 1)],
             fill=badge_fill,
             outline=badge_outline_fill,
         )
         draw.text(
-            (badge_x + badge_pad_x, badge_y + badge_pad_y - pos_bbox[1]),
+            (badge_x + badge_pad_x, pos_y),
             pos_text,
             fill=badge_text_fill,
             font=small_font,
         )
         return
 
-    draw.text((driver_pos_x, driver_small_y), pos_text, fill=text_fill, font=small_font)
+    draw.text((driver_pos_x, pos_y), pos_text, fill=text_fill, font=small_font)
 
 
 def draw_team_row(
