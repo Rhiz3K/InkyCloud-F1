@@ -863,3 +863,29 @@ test("closed mobile nav is inert and focus moves in and back out", () => {
     listeners.keydown({key: "Escape"});
     assert.deepEqual(focused, ["menu-close", "hamburger"]);
 });
+
+test("closing the settings drawer returns focus to the button that opened it", () => {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const document = {getElementById: id => elements[id]};
+    const button = () => ({matches: selector => selector === "button", focus() {document.activeElement = this;}});
+    const classes = new Set(["-translate-x-full"]);
+    const elements = {
+        mobileMenuBtn: button(), settingsSidebarClose: button(),
+        sidebarOverlay: {classList: {add() {}, remove() {}}},
+        settingsSidebar: {
+            classList: {add: c => classes.add(c), remove: c => classes.delete(c), contains: c => classes.has(c)},
+            contains: el => el === elements.settingsSidebarClose,
+        },
+    };
+    const ctx = vm.createContext({document, syncSidebarInert() {}});
+    vm.runInContext(template.slice(template.indexOf("  function isDesktopSidebar()"), template.indexOf("\n  syncSidebarInert();")), ctx);
+    ctx.window = {matchMedia: () => ({matches: false})};
+    for (const opener of [button(), elements.mobileMenuBtn]) {
+        opener.focus();
+        if (opener === elements.mobileMenuBtn) ctx.toggleSidebar();
+        else ctx.toggleSidebar.call(opener);
+        assert.equal(document.activeElement, elements.settingsSidebarClose);
+        ctx.toggleSidebar();
+        assert.equal(document.activeElement, opener);
+    }
+});

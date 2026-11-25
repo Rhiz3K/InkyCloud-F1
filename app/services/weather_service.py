@@ -92,7 +92,10 @@ def _finite_number(value: object) -> float | None:
     """Return a finite float for numeric provider values, otherwise None (bools excluded)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    number = float(value)
+    try:
+        number = float(value)
+    except OverflowError:
+        return None
     return number if math.isfinite(number) else None
 
 
@@ -607,27 +610,25 @@ def _match_hourly_weather(
         logger.warning("Could not find weather for %s", race_hour_str)
         return None
 
-    precip_value = precip_values[matched_index] if matched_index < len(precip_values) else 0
-    precip_probability = 0
-    precip_display_override = None
-    if precipitation_as_amount:
-        precip_display_override = _format_precipitation_amount(precip_value)
-    else:
-        precip_probability = int(precip_value or 0)
+    return _hourly_weather_row(temps, codes, precip_values, matched_index, precipitation_as_amount)
 
-    # Never fabricate weather: a missing/short/null temperature array must yield "no data",
-    # not a synthetic 20C/sunny that gets cached, persisted, and baked into BMPs.
-    temperature = temps[matched_index] if matched_index < len(temps) else None
-    if temperature is None:
-        logger.warning("No temperature in hourly data for %s", race_hour_str)
+
+def _hourly_weather_row(
+    temps: list, codes: list, precipitation: list, index: int, as_amount: bool
+) -> Optional[WeatherData]:
+    """Read one provider row, preserving the defaults for missing optional fields."""
+    temperature = _finite_number(temps[index]) if index < len(temps) else None
+    raw_code = codes[index] if index < len(codes) else None
+    raw_precip = precipitation[index] if index < len(precipitation) else None
+    code = _finite_number(0 if raw_code is None else raw_code)
+    precip = _finite_number(0 if raw_precip is None else raw_precip)
+    if temperature is None or code is None or precip is None:
         return None
-    code = codes[matched_index] if matched_index < len(codes) else None
-
     return WeatherData(
         temperature_c=temperature,
-        weather_code=code if code is not None else 0,
-        precipitation_probability=precip_probability,
-        precipitation_display_override=precip_display_override,
+        weather_code=int(code),
+        precipitation_probability=0 if as_amount else int(precip),
+        precipitation_display_override=_format_precipitation_amount(precip) if as_amount else None,
     )
 
 

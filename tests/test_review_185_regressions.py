@@ -529,6 +529,9 @@ async def test_driver_standings_skip_malformed_row_and_use_current_team(monkeypa
                             },
                             None,
                             "not-a-row",
+                            {"Driver": None},
+                            {"Constructors": [None]},
+                            {"Constructors": "invalid"},
                             {
                                 "position": "2",
                                 "points": "80",
@@ -572,6 +575,7 @@ async def test_constructor_standings_skip_malformed_row(monkeypatch):
                             {"position": "1", "points": "200", "Constructor": {"name": "Audi"}},
                             {"position": "2", "points": "n/a", "Constructor": {"name": "Haas"}},
                             ["bad", "row"],
+                            {"Constructor": None},
                             {"position": "3", "points": "90", "Constructor": {"name": "Alpine"}},
                         ],
                     }

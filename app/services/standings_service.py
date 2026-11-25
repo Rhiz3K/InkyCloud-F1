@@ -177,6 +177,10 @@ class StandingsService:
                     continue
                 driver_data = entry.get("Driver", {})
                 constructors = entry.get("Constructors", [])
+                if not isinstance(driver_data, dict) or not isinstance(constructors, list):
+                    continue
+                if constructors and not isinstance(constructors[-1], dict):
+                    continue
                 # Constructors are chronological; the last one is the driver's current team,
                 # matching the Teams roster rule.
                 constructor_name = constructors[-1].get("name", "") if constructors else ""
@@ -283,6 +287,8 @@ class StandingsService:
                     )
                     continue
                 constructor_data = entry.get("Constructor", {})
+                if not isinstance(constructor_data, dict):
+                    continue
 
                 constructor_standings.append(
                     ConstructorStanding(

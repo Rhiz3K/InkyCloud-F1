@@ -191,6 +191,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restrict the data-on-* event dispatcher to an explicit, frozen allowlist of handlers instead of calling any global function, closing a CSP-bypass gadget.
 - Replace the header's two inline event handlers (mobile menu, language switcher) with data-on-* attributes, so the CSP can be enforced.
 
+- Skip malformed standings and hourly weather rows individually. The mobile settings drawer returns keyboard focus to the button that opened it.
+
 ## [1.3.3] - 2026-10-30
 
 ### Removed

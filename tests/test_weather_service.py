@@ -1118,3 +1118,25 @@ async def test_load_prefetched_weather_handles_missing_partial_and_timestamp_var
         "app.services.weather_service._get_next_race_details", return_value=(1.0, 2.0, race_dt)
     ):
         assert await weather.load_prefetched_weather_from_db(db) == 2
+
+
+@pytest.mark.parametrize("field", ["temperature_2m", "weather_code", "precip"])
+@pytest.mark.parametrize(
+    "value", [True, "bad", float("nan"), float("inf"), pytest.param(10**400, id="overflow")]
+)
+def test_hourly_numbers_must_be_finite(field, value):
+    stamp = datetime(2026, 7, 10, 14, tzinfo=timezone.utc)
+    hourly = {
+        "time": ["2026-07-10T14:00"],
+        "temperature_2m": [20],
+        "weather_code": [1],
+        "precip": [10],
+    }
+    hourly[field] = [value]
+    for amount in (True, False):
+        assert (
+            weather._match_hourly_weather(
+                hourly, stamp, precipitation_key="precip", precipitation_as_amount=amount
+            )
+            is None
+        )
