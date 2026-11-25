@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import errno
 import json
+import os
 import shutil
 import sqlite3
+import stat
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -349,7 +352,14 @@ def test_safety_snapshot_restores_absent_circuit_file(data_dir):
     assert not circuit.exists()
 
 
-def test_local_backups_publish_distinct_completed_files(data_dir, monkeypatch):
+@pytest.mark.parametrize("hard_links", [True, False])
+def test_local_backups_publish_distinct_completed_files(data_dir, monkeypatch, hard_links):
+    if not hard_links:
+        monkeypatch.setattr(backup.os, "link", MagicMock(side_effect=OSError(errno.EPERM, "link")))
+        # Mounts with fixed permissions can also reject a redundant chmod.
+        monkeypatch.setattr(
+            backup.os, "fchmod", MagicMock(side_effect=OSError(errno.ENOTSUP, "mode"))
+        )
     stamp = datetime.now(timezone.utc).strftime(backup.BACKUP_FILENAME_FORMAT)
     monkeypatch.setattr(backup, "generate_backup_filename", lambda: stamp)
     barrier = Barrier(2)
@@ -357,7 +367,7 @@ def test_local_backups_publish_distinct_completed_files(data_dir, monkeypatch):
 
     def stage(db, path):
         files = source(db, path)
-        _set_marker(Path(path), Path(path).name)
+        _set_marker(Path(path), str(path))
         barrier.wait(timeout=4)
         return files
 
@@ -379,6 +389,39 @@ def test_local_backups_publish_distinct_completed_files(data_dir, monkeypatch):
         stamp[:-3] + "_10.db",
         "local",
     )
+
+
+@pytest.mark.parametrize(("mask", "expected"), [(0o000, 0o644), (0o022, 0o644), (0o077, 0o600)])
+@pytest.mark.parametrize("private_snapshot", [False, True])
+def test_local_backup_permissions_follow_umask(
+    data_dir, monkeypatch, mask, expected, private_snapshot
+):
+    snapshot = backup.create_backup_snapshot
+
+    def private(db, staged):
+        embedded = snapshot(db, staged)
+        staged.chmod(0o600)
+        return embedded
+
+    if private_snapshot:
+        monkeypatch.setattr(backup, "create_backup_snapshot", private)
+    previous = os.umask(mask)
+    try:
+        created = backup.perform_local_backup()
+    finally:
+        os.umask(previous)
+    assert created["success"]
+    assert stat.S_IMODE((_local_dir(data_dir) / created["filename"]).stat().st_mode) == expected
+
+
+@pytest.mark.parametrize("link_errno", [errno.EIO, errno.ENOTSUP])
+def test_failed_local_publication_cleans_its_reservation(data_dir, monkeypatch, link_errno):
+    monkeypatch.setattr(backup.os, "link", MagicMock(side_effect=OSError(link_errno, "link")))
+    replace = MagicMock(side_effect=OSError(errno.EIO, "replace"))
+    monkeypatch.setattr(backup.os, "replace", replace)
+    assert not backup.perform_local_backup()["success"]
+    assert replace.call_count == int(link_errno == errno.ENOTSUP)
+    assert not list(_local_dir(data_dir).iterdir())
 
 
 def test_restore_excludes_service_and_second_restore_until_cleanup(data_dir, monkeypatch):
@@ -430,6 +473,24 @@ with storage_lock(Path(sys.argv[1]), exclusive=True):
 """
     subprocess.run([sys.executable, "-c", script, str(path)], check=True)
     assert backup.restore_backup(name)["success"]
+
+
+def test_storage_lock_opens_read_only_and_names_an_inaccessible_lock(tmp_path, monkeypatch):
+    from app.services.storage_lock import storage_lock
+
+    db = tmp_path / "f1.db"
+    path = tmp_path / "f1.db.lock"
+    opened = MagicMock(wraps=os.open)
+    monkeypatch.setattr(os, "open", opened)
+    with storage_lock(db, exclusive=True):
+        opened.assert_called_once_with(path, os.O_RDONLY | os.O_CREAT, 0o644)
+    path.chmod(0o444)
+    with storage_lock(db):
+        assert path.is_file()
+    opened.side_effect = PermissionError("permission denied")
+    with pytest.raises(PermissionError, match=str(path)):
+        with storage_lock(db):
+            pytest.fail("acquired an inaccessible lock")
 
 
 def test_lock_io_failure_and_exhausted_publication_do_not_replace_data(data_dir, monkeypatch):

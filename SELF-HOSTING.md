@@ -303,6 +303,7 @@ a name from `backup list` or `--source local|s3` to choose. The restore:
    be copied back by hand;
 6. writes the backup through SQLite's backup API and restores `circuits_jolpica.json` when the
    backup contains it. Undo also removes a circuit file that was absent at the time of the safety snapshot. Historical database-only archives preserve the current circuit file.
+   Restoring a new pre-restore safety snapshot requires a release that understands its circuit-file presence manifest.
 
 A failure before step 6 leaves the database unchanged. If step 6 fails, the command says so and
 names the safety snapshot to restore before starting the service.

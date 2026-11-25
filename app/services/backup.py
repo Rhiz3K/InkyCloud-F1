@@ -1,11 +1,13 @@
 """S3-compatible backup service for SQLite database."""
 
 import asyncio
+import errno
 import logging
 import os
 import re
 import shutil
 import sqlite3
+import stat
 import tempfile
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
@@ -776,11 +778,16 @@ def perform_local_backup() -> dict[str, Any]:
     directory = config.backup_local_dir
     try:
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=directory, suffix=".tmp") as staged:
-            result["data_files"] = create_backup_snapshot(db_path, staged.name)
-            filename = _publish_local_backup(
-                Path(staged.name), directory, generate_backup_filename()
-            )
+        with tempfile.TemporaryDirectory(dir=directory) as workspace:
+            staged = Path(workspace) / "snapshot.db"
+            # Let this mount apply the umask without changing the process-wide setting.
+            descriptor = os.open(staged, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o644)
+            with os.fdopen(descriptor, "rb+"):
+                mode = stat.S_IMODE(os.fstat(descriptor).st_mode)
+                result["data_files"] = create_backup_snapshot(db_path, staged)
+                if stat.S_IMODE(os.fstat(descriptor).st_mode) != mode:
+                    os.fchmod(descriptor, mode)
+            filename = _publish_local_backup(staged, directory, generate_backup_filename())
     except (OSError, sqlite3.Error) as exc:
         result["error"] = f"Local backup failed ({type(exc).__name__})"
         return result
@@ -795,14 +802,31 @@ def perform_local_backup() -> dict[str, Any]:
 
 
 def _publish_local_backup(staged: Path, directory: Path, name: str) -> str:
-    """Link a finished private snapshot into the listing without replacing any archive."""
+    """Publish a completed snapshot under the first available timestamp name."""
     for candidate in _snapshot_names(directory, name):
         try:
-            os.link(staged, candidate)
+            _publish_backup_candidate(staged, candidate)
         except FileExistsError:
             continue
         return candidate.name
     raise FileExistsError(name)
+
+
+def _publish_backup_candidate(staged: Path, candidate: Path) -> None:
+    """Publish by hard link, or atomically replace our own reservation on other filesystems."""
+    try:
+        os.link(staged, candidate)
+        return
+    except OSError as exc:
+        if exc.errno not in (errno.EPERM, errno.ENOTSUP, errno.EOPNOTSUPP):
+            raise
+    descriptor = os.open(candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    try:
+        os.close(descriptor)
+        os.replace(staged, candidate)
+    except BaseException:
+        candidate.unlink(missing_ok=True)
+        raise
 
 
 def _database_in_use(db_path: Path, *, ignore_sidecars: bool = False) -> bool:
