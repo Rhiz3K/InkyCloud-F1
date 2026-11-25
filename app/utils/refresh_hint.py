@@ -234,6 +234,15 @@ def _forecast_start(
     return datetime.combine(first_day, time.min, UTC)
 
 
+def _forecast_session_changes(
+    race_data: Mapping[str, Any], weather_type: str, now: datetime
+) -> tuple[datetime, ...]:
+    """Return the starts that change the weekend forecast's cache key immediately."""
+    if weather_type != "weekend":
+        return ()
+    return tuple(start for _, start in weekend_session_starts(dict(race_data))[1] if start > now)
+
+
 def calendar_refresh_hint(
     race_data: Mapping[str, Any] | None,
     *,
@@ -274,11 +283,9 @@ def calendar_refresh_hint(
     hourly = (
         countdown == CountdownMode.HOURS and not cancelled and start is not None and now < start
     )
+    session_changes: tuple[datetime, ...] = ()
     if weather_enabled and not cancelled and weather_type != "off":
-        if weather_type == "weekend":
-            changes.extend(
-                start for _, start in weekend_session_starts(dict(race_data))[1] if start > now
-            )
+        session_changes = _forecast_session_changes(race_data, weather_type, now)
         if weather_type == "current":
             hourly = True
         elif (forecast_from := _forecast_start(start, race_day, weather_type)) is not None:
@@ -288,8 +295,8 @@ def calendar_refresh_hint(
                 hourly = True
 
     if countdown == CountdownMode.HOURS:
-        return RefreshHint(now, hourly=hourly, publication_changes=tuple(changes))
-    return RefreshHint(now, tuple(changes), hourly)
+        return RefreshHint(now, session_changes, hourly, tuple(changes))
+    return RefreshHint(now, (*changes, *session_changes), hourly)
 
 
 def teams_refresh_hint(

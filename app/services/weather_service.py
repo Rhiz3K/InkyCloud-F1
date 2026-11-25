@@ -80,7 +80,7 @@ _hourly_forecast_cache: dict[str, tuple[dict, datetime]] = {}
 # and up to 14 days of data as one call; the 3-day weekend window stays within one call, and
 # the shared quota (WEATHER_BUDGET) reserves exactly one unit per request.
 FORECAST_HOURLY_VARIABLES = "temperature_2m,weather_code,precipitation_probability"
-_hourly_inflight: dict[tuple[asyncio.AbstractEventLoop, str], asyncio.Future[dict | None]] = {}
+_hourly_inflight: dict[tuple[asyncio.AbstractEventLoop, str], asyncio.Task[dict | None]] = {}
 _render_forecasts: ContextVar[dict[str, dict | None] | None] = ContextVar(
     "render_forecasts", default=None
 )
@@ -452,22 +452,29 @@ class WeatherService:
         memo = _render_forecasts.get()
         if memo is not None and key in memo:
             return memo[key]
-        flight_key = (asyncio.get_running_loop(), key)
+        loop = asyncio.get_running_loop()
+        flight_key = (loop, key)
         pending = _hourly_inflight.get(flight_key)
         if pending is None:
-            pending = asyncio.get_running_loop().create_future()
-            _hourly_inflight[flight_key] = pending
-            hourly = None
-            try:
+
+            async def fetch() -> dict | None:
+                """Cache the provider's completed result independently of each waiter's timeout."""
                 hourly = await self._fetch_hourly_window(lat, lon, start, end)
                 if hourly is not None:
                     expires = datetime.now(timezone.utc) + timedelta(minutes=self.cache_minutes)
                     _hourly_forecast_cache[key] = (hourly, expires)
-            finally:
-                pending.set_result(hourly)
+                return hourly
+
+            def finished(task: asyncio.Task[dict | None]) -> None:
+                """Release the flight and observe failures even if every waiter disconnected."""
                 del _hourly_inflight[flight_key]
-        else:
-            hourly = await asyncio.shield(pending)
+                if not task.cancelled():
+                    task.exception()
+
+            pending = loop.create_task(fetch())
+            _hourly_inflight[flight_key] = pending
+            pending.add_done_callback(finished)
+        hourly = await asyncio.shield(pending)
         if memo is not None:
             memo[key] = hourly
         return hourly
@@ -1145,6 +1152,7 @@ async def _prefetch_weekend_weather(
             temperature_c=item.weather.temperature_c,
             weather_code=item.weather.weather_code,
             precipitation_probability=item.weather.precipitation_probability,
+            precipitation_display_override=item.weather.precipitation_display_override,
             ttl_minutes=120,
         )
     logger.info("Prefetched weekend weather: %s", weekend.temp_display)

@@ -23,6 +23,7 @@ from app.routes.deps import get_f1_service
 from app.routes.params import canonical_weather_type, temp_unit_cache_suffix
 from app.services import bmp_artifacts, renderer_calendar, scheduler_generation
 from app.services import weather_service as ws
+from app.services.database import Database
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderers import create_renderer
@@ -597,6 +598,22 @@ def test_date_only_race_has_a_weekend_forecast_but_no_race_day_forecast():
     now = datetime(2026, 12, 1, tzinfo=UTC)
     assert not _hint(race, now, "race_day").hourly
     assert _hint(race, now, "weekend").hourly
+
+
+@pytest.mark.parametrize(
+    ("edge", "seconds"), [(QA_Q, 600), (QA_RACE, 600), (QA_RACE + rh.RACE_LIVE_WINDOW, 720)]
+)
+def test_hours_weekend_forecast_only_polls_exactly_at_session_starts(edge, seconds):
+    hint = rh.calendar_refresh_hint(
+        _qatar(),
+        now=edge - timedelta(minutes=10),
+        timezone_name=None,
+        countdown=CountdownMode.HOURS,
+        weather_type="weekend",
+        weather_enabled=True,
+        selection_grace=None,
+    )
+    assert hint.seconds() == seconds
 
 
 # --- Rendering ---------------------------------------------------------------------------
@@ -1280,6 +1297,80 @@ async def test_concurrent_forecasts_and_empty_render_share_window(open_meteo, mo
     result = await ws.get_weather_context(data, wanted=("weekend",), include_weekend=True)
     assert set(result[2]) == {"weekend", "off"}
     assert "old" not in ws._hourly_forecast_cache
+
+
+@pytest.mark.asyncio
+async def test_owner_timeout_preserves_shared_hourly_forecast(monkeypatch):
+    race, _ = _future_weekend(3)
+    service = ws.WeatherService()
+    started, release = asyncio.Event(), asyncio.Event()
+    hourly = _hourly(race.date(), 1)
+
+    async def fetch(*args):
+        started.set()
+        await release.wait()
+        return hourly
+
+    provider = AsyncMock(side_effect=fetch)
+    monkeypatch.setattr(service, "_fetch_hourly_window", provider)
+    deadline = asyncio.timeout(None)
+
+    async def first_request():
+        async with deadline:
+            return await service._weekend_hourly(1, 2, race.date())
+
+    owner = asyncio.create_task(first_request())
+    await started.wait()
+    waiter = asyncio.create_task(service._weekend_hourly(1, 2, race.date()))
+    await asyncio.sleep(0)
+    deadline.reschedule(asyncio.get_running_loop().time())
+    try:
+        with pytest.raises(TimeoutError):
+            await owner
+    finally:
+        release.set()
+    assert await waiter == hourly
+    assert not ws._hourly_inflight
+    assert await service._weekend_hourly(1, 2, race.date()) == hourly
+    provider.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_cancelled_provider_releases_hourly_window(monkeypatch):
+    race, _ = _future_weekend(3)
+    service = ws.WeatherService()
+    hourly = _hourly(race.date(), 1)
+    provider = AsyncMock(side_effect=[asyncio.CancelledError(), hourly])
+    monkeypatch.setattr(service, "_fetch_hourly_window", provider)
+    with pytest.raises(asyncio.CancelledError):
+        await service._weekend_hourly(1, 2, race.date())
+    assert not ws._hourly_inflight
+    assert await service._weekend_hourly(1, 2, race.date()) == hourly
+    assert provider.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_weekend_only_prefetch_preserves_archived_rainfall_after_restart(
+    tmp_path, monkeypatch
+):
+    race, sessions = _future_weekend(-1)
+    observed = WeatherData(19.0, 61, 0, "1.6 mm")
+    monkeypatch.setattr(ws.config, "PREGENERATE_WEATHER_TYPES", "weekend")
+    monkeypatch.setattr(ws, "_get_next_race_details", lambda: (1.0, 2.0, race))
+    monkeypatch.setattr(ws, "_next_weekend_sessions", lambda: (race.date(), sessions))
+    history = AsyncMock(return_value=observed)
+    monkeypatch.setattr(ws.WeatherService, "get_historical_race_weather", history)
+    db = Database(str(tmp_path / "f1.db"))
+    try:
+        await ws.prefetch_weather_for_next_race(db)
+        ws.clear_weather_cache()
+        assert await ws.load_prefetched_weather_from_db(db) == 1
+        restored = await ws.WeatherService().get_race_weather(1.0, 2.0, race)
+        assert restored == observed
+        assert restored.precip_display == "1.6 mm"
+        history.assert_awaited_once()
+    finally:
+        await db.close()
 
 
 @pytest.mark.asyncio
