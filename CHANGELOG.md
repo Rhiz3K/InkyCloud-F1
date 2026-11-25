@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file name and `ETag` describe the bytes sent, so each variant revalidates with its own `304`;
   the path stays `.bmp`. Invalid values return HTTP 422. API docs, configurator ("Image output",
   the preview stays upright), README, EXAMPLES and all 13 locales are updated.
+- PNG and rotated device images revalidate after a cache clear during conversion. If the error image also fails to encode, the device receives HTTP 503 with `no-store`.
 
 - Weekend forecasts expire at each session start. Concurrent renders share validated hourly data, scheduled qualifying forecasts work before the race time is published, and finished races use archived observations.
 - Add `weather_type=weekend` and `temp_unit=c|f`. `weekend` adds a second line to the calendar

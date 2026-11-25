@@ -5,6 +5,7 @@ import atexit
 import os
 import shutil
 import tempfile
+from types import SimpleNamespace
 
 import pytest
 
@@ -80,3 +81,9 @@ def sepang_2017_payload():
         "ThirdPractice": {"date": "2017-09-30"},
         "Qualifying": {"date": "2017-09-30"},
     }
+
+
+@pytest.fixture
+def fixed_rate_limit_clock(monkeypatch):
+    """Make the quota interval independent of the first image's render time."""
+    monkeypatch.setattr("app.utils.rate_limit.time", SimpleNamespace(monotonic=lambda: 1000.0))

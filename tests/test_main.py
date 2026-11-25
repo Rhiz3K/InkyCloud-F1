@@ -1696,7 +1696,7 @@ def test_calendar_bmp_with_bwry_display():
     assert int.from_bytes(response.content[28:30], byteorder="little") == 4
 
 
-def test_calendar_bmp_rate_limit_returns_429(monkeypatch):
+def test_calendar_bmp_rate_limit_returns_429(monkeypatch, fixed_rate_limit_clock):
     _reset_rate_limit_state_for_tests()
     monkeypatch.setattr(images_routes.config, "RATE_LIMIT_ENABLED", True)
     monkeypatch.setattr(images_routes.config, "IMAGE_RATE_LIMIT_PER_MINUTE", 1)

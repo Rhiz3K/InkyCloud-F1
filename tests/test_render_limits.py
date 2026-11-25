@@ -25,7 +25,7 @@ from app.state import get_bmp_cache, get_bmp_variant_cache
 from app.utils import render_limit
 from app.utils.async_tasks import run_render
 from app.utils.etag import strong_etag
-from app.utils.rate_limit import _reset_rate_limit_state_for_tests
+from app.utils.rate_limit import _reset_rate_limit_state_for_tests, enforce_rate_limit
 from app.utils.render_limit import render_jobs, render_slot, reset_render_limits_for_tests
 
 _NOW = datetime(2026, 5, 1, 12, tzinfo=UTC)
@@ -710,17 +710,18 @@ def test_permit_release_waits_for_every_tracked_worker():
 
 
 @pytest.mark.asyncio
-async def test_image_rate_limit_still_returns_429_before_rendering(monkeypatch):
+async def test_image_rate_limit_still_returns_429_before_rendering(
+    routes, monkeypatch, fixed_rate_limit_clock
+):
     """The existing per-minute limit is unchanged and still wins over render admission."""
     _reset_rate_limit_state_for_tests()
     monkeypatch.setattr(images.config, "RATE_LIMIT_ENABLED", True)
     monkeypatch.setattr(images.config, "IMAGE_RATE_LIMIT_PER_MINUTE", 1)
     monkeypatch.setattr(images.config, "MINIMAL_DATA_MODE", False)
     monkeypatch.setattr(images.config, "AGGREGATE_STATS_ONLY", False)
-    app = FastAPI()
-    app.include_router(images.router)
+    monkeypatch.setattr(images, "enforce_rate_limit", enforce_rate_limit)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
         first = await client.get("/teams.bmp", params={"extra": "none"})
         second = await client.get("/teams.bmp", params={"extra": "countdown"})
 

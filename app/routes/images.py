@@ -61,6 +61,7 @@ from app.services.weekend_results import weekend_context
 from app.state import (
     BmpArtifact,
     ImageCache,
+    bmp_cache_generation,
     record_api_call,
 )
 from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
@@ -696,10 +697,27 @@ async def _output_body(
     """
     if content is None or output.is_default:
         return content, etag, cache_status
-    (content, etag), cached = await bmp_artifacts.output_artifact((content, etag), display, output)
+    try:
+        (content, etag), cached = await bmp_artifacts.output_artifact(
+            (content, etag), display, output
+        )
+    except Exception as exc:
+        if cache_status is not None:
+            raise
+        logger.warning("Could not encode error image: %s", exc)
+        raise HTTPException(status_code=503, headers={"Cache-Control": "no-store"}) from exc
     if cache_status is not None:
         cache_status = "HIT" if cached else "MISS"
     return content, etag, cache_status
+
+
+def _output_freshness(output: ImageOutput, cache_control: str, seconds: int) -> tuple[str, int]:
+    """Recheck the source generation after asynchronous device conversion."""
+    if not output.is_default and selected_generation() != bmp_cache_generation():
+        return ("no-store" if cache_control == "no-store" else "no-cache"), min(
+            seconds, ERROR_REFRESH_SECONDS
+        )
+    return cache_control, seconds
 
 
 @with_current_selection
@@ -749,8 +767,18 @@ async def _serve_calendar_bmp(
         cache_status: str | None,
     ) -> Response:
         """Build the calendar response with the request's normalized statistics context."""
+        source_status = cache_status
         content, etag, cache_status = await _output_body(
             content, etag, cache_status, display=display, output=output
+        )
+        if poll_hint is not None and cache_control.startswith("public"):
+            cache_control = _calendar_cache_control(
+                countdown, poll_hint, weekend_mode, weather_type
+            )
+        cache_control, seconds = _output_freshness(
+            output,
+            cache_control,
+            _calendar_poll_seconds(poll_hint, countdown, image_cache, cache_key, source_status),
         )
         response = _calendar_response(
             request,
@@ -767,9 +795,7 @@ async def _serve_calendar_bmp(
             cache_control=cache_control,
             cache_status=cache_status,
             track_options=track_options,
-            refresh_seconds=_calendar_poll_seconds(
-                poll_hint, countdown, image_cache, cache_key, cache_status
-            ),
+            refresh_seconds=seconds,
             endpoint=endpoint,
             output=output,
         )
@@ -952,6 +978,9 @@ async def _serve_teams_bmp(
             content, etag, cache_status = await _output_body(
                 content, etag, cache_status, display=display, output=output
             )
+            cache_control, seconds = _output_freshness(
+                output, cache_control, hint.seconds(_utc_now())
+            )
             return _teams_response(
                 request,
                 content=content,
@@ -962,7 +991,7 @@ async def _serve_teams_bmp(
                 year=year,
                 cache_control=cache_control,
                 cache_status=cache_status,
-                refresh_seconds=hint.seconds(_utc_now()),
+                refresh_seconds=seconds,
                 endpoint=endpoint,
                 output=output,
             )

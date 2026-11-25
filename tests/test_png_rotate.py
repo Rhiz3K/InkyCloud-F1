@@ -24,7 +24,7 @@ from app.services.f1_service import F1Service
 from app.services.legal import AttributionMiddleware
 from app.services.renderers import display_palette
 from app.services.spectra6_renderer import Spectra6Colors
-from app.state import get_bmp_cache, get_bmp_variant_cache
+from app.state import clear_bmp_cache, get_bmp_cache, get_bmp_variant_cache
 from app.utils import image_conversion
 from app.utils.bmp import encode_indexed_bmp_4bit
 from app.utils.etag import encode_etag_sidecar, etag_sidecar_path, strong_etag
@@ -427,7 +427,7 @@ async def test_variants_combine_with_countdown_weekend_and_temperature(image_app
     weather = {"off": None, "current": None, "race": None}
     monkeypatch.setattr(bmp_artifacts.config, "WEATHER_ENABLED", True)
 
-    async def context(race_data, *, include_weekend=False):
+    async def context(race_data, *, include_weekend=False, wanted=()):
         return None, None, {**weather, **({"weekend": None} if include_weekend else {})}
 
     monkeypatch.setattr(bmp_artifacts, "get_weather_context", context)
@@ -569,3 +569,43 @@ async def test_pregenerated_teams_is_the_source_of_its_variants(
     )
     _assert_final_bytes(rotated, "image/bmp", "teams.bmp")
     assert rotated.content == transform_bmp_output(bmp, ROTATED)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("screen", ["calendar", "teams"])
+async def test_unencodable_error_output_is_a_controlled_503(image_app, monkeypatch, screen):
+    monkeypatch.setattr(
+        bmp_artifacts, "output_artifact", AsyncMock(side_effect=ValueError("conversion"))
+    )
+    response = await _get(image_app, f"/{screen}.bmp?weather=false&format=png&rotate=180")
+    assert response.status_code == 503 and response.headers["cache-control"] == "no-store"
+    assert not response.content.startswith(b"BM")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["memory", "disk", "miss"])
+@pytest.mark.parametrize("screen", ["calendar", "teams"])
+async def test_clear_during_output_requires_revalidation(
+    image_app, tmp_path, monkeypatch, calendars, source, screen
+):
+    url = f"/{screen}.bmp?weather=false"
+    if source == "memory":
+        assert (await _get(image_app, url)).status_code == 200
+    elif source == "disk":
+        identity = calendar_identity(_qatar()) if screen == "calendar" else "teams:2026"
+        path = await _pregenerated(tmp_path, calendars["1bit"], identity)
+        monkeypatch.setattr(
+            images, f"_get_pregenerated_{screen}_path", MagicMock(return_value=path)
+        )
+    derive = bmp_artifacts.output_artifact
+
+    async def clear_during(artifact, display, output):
+        clear_bmp_cache()
+        return await derive(artifact, display, output)
+
+    monkeypatch.setattr(bmp_artifacts, "output_artifact", clear_during)
+    response = await _get(image_app, url + "&format=png&rotate=180")
+    assert response.status_code == 200 and response.content.startswith(b"\x89PNG")
+    assert response.headers["cache-control"] == "no-cache"
+    assert int(response.headers["x-next-refresh-seconds"]) <= 300
+    assert response.headers["etag"] == strong_etag(response.content)
