@@ -240,7 +240,7 @@ def cleanup_old_backups(s3_client=None) -> int:
                         error.get("Code") or error.get("Message"),
                     )
                 deleted = (response or {}).get("Deleted")
-                deleted_count += len(deleted) if deleted is not None else len(batch) - len(errors)
+                deleted_count += len(deleted or [])
 
             logger.info(
                 "Deleted %s old backup(s) (older than %s)", deleted_count, cutoff_date.date()

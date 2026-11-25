@@ -19,6 +19,13 @@ from app.routes.images import _validate_timezone_param
 from app.services.artifact_metadata import calendar_identity, read_artifact_metadata
 from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
+from app.services.image_generation import (
+    StaleSelection,
+    require_current_selection,
+    retrying_selection,
+    selected_generation,
+    with_current_selection,
+)
 from app.services.image_keys import (
     get_configure_preview_filename,
     get_preview_filename,
@@ -174,7 +181,7 @@ async def _render_configure_calendar(
     artifact = get_bmp_cache().get(key)
     if artifact is None:
         artifact = await _singleflight(
-            f"calendar:{key}",
+            f"calendar:{selected_generation()}:{key}",
             functools.partial(
                 _render_calendar_artifact,
                 cache_key=key,
@@ -266,8 +273,9 @@ async def _render_teams_extra_preview(
 
     async def produce() -> tuple[bytes, str]:
         """Render and cache only complete teams data in the variant cache."""
-        generation = bmp_cache_generation()
+        generation = selected_generation()
         async with render_slot(variant=True):
+            require_current_selection(generation)
             async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
                 data = await TeamsService().get_teams_and_drivers(ctx.season)
             if not data.teams:
@@ -290,7 +298,7 @@ async def _render_teams_extra_preview(
 
     artifact = get_bmp_variant_cache().get(key)
     if artifact is None:
-        artifact = await _singleflight(key, produce)
+        artifact = await _singleflight(f"{selected_generation()}:{key}", produce)
     content, etag = artifact
     unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
     return Response(
@@ -336,7 +344,7 @@ async def get_preview_png(
     try:
         return await _render_dynamic_preview(safe_screen, safe_lang, full_size=False)
     except Exception as exc:
-        if isinstance(exc, HTTPException):
+        if isinstance(exc, (HTTPException, StaleSelection)):
             raise
         logger.warning("Dynamic %s homepage preview failed: %s", safe_screen, exc)
 
@@ -344,6 +352,7 @@ async def get_preview_png(
 
 
 @router.get("/preview/configure/{screen_type}.png", response_model=None)
+@with_current_selection
 async def get_configure_preview_png(
     screen_type: str,
     request: Request,
@@ -383,23 +392,19 @@ async def get_configure_preview_png(
     safe_weather = allowed_weather.get(weather_type, "off")
     safe_display = allowed_display.get(display, "1bit")
 
-    teams_preview_rate_checked = False
     extra_failed = False
     _validate_timezone_param(tz)
     tz = normalize_timezone(tz) if tz else None
     if safe_screen == "teams" and extra != TeamsExtra.NONE:
         ctx = build_teams_extra_context(extra, get_default_teams_year(), timezone_name=tz)
         if ctx is not None:
-            enforce_rate_limit(
-                request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
-            )
-            teams_preview_rate_checked = True
+            _charge_configure_preview(request)
             try:
                 response = await _render_teams_extra_preview(
                     request, safe_lang, safe_display, extra, ctx
                 )
             except Exception as exc:
-                if isinstance(exc, HTTPException):
+                if isinstance(exc, (HTTPException, StaleSelection)):
                     raise
                 logger.warning("Dynamic teams extra preview failed: %s", exc)
                 extra_failed = True
@@ -421,33 +426,21 @@ async def get_configure_preview_png(
         else None
     )
     if cached is not None:
-        if safe_screen == "calendar":
-            race = F1Service().get_next_race_from_static() or {}
-            cached.headers.update(
-                attribution_headers(race.get("circuit", {}).get("circuitId", ""), options)
-            )
-        if safe_screen == "teams":
-            cached.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
-        return _mark_extra_fallback(cached) if extra_failed else cached
+        return _configure_cached_response(cached, safe_screen, options, extra_failed)
 
     if safe_screen == "calendar":
-        enforce_rate_limit(
-            request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
-        )
+        _charge_configure_preview(request)
         try:
             return await _render_configure_calendar(
                 request, safe_lang, safe_display, safe_weather, options
             )
         except Exception as exc:
-            if isinstance(exc, HTTPException):
+            if isinstance(exc, (HTTPException, StaleSelection)):
                 raise
             logger.warning("Dynamic calendar configure preview failed: %s", exc)
 
     if safe_screen == "teams":
-        if not teams_preview_rate_checked:
-            enforce_rate_limit(
-                request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
-            )
+        _charge_configure_preview(request, already_charged=extra_failed)
         try:
             response = await _render_teams_preview(
                 safe_lang,
@@ -457,11 +450,33 @@ async def get_configure_preview_png(
             response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
             return _mark_extra_fallback(response) if extra_failed else response
         except Exception as exc:
-            if isinstance(exc, HTTPException):
+            if isinstance(exc, (HTTPException, StaleSelection)):
                 raise
             logger.warning("Dynamic teams configure preview failed: %s", exc)
 
     raise HTTPException(status_code=404, detail="Configure preview not generated yet")
+
+
+def _charge_configure_preview(request: Request, *, already_charged: bool = False) -> None:
+    """Charge once across a panel fallback or a cache-generation retry."""
+    if not already_charged and not retrying_selection():
+        enforce_rate_limit(
+            request, bucket="dynamic_preview", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE
+        )
+
+
+def _configure_cached_response(
+    cached: Response, screen: str, options: TrackOptions, extra_failed: bool
+) -> Response:
+    """Attach attribution and panel fallback headers to a cached preview."""
+    if screen == "calendar":
+        race = F1Service().get_next_race_from_static() or {}
+        cached.headers.update(
+            attribution_headers(race.get("circuit", {}).get("circuitId", ""), options)
+        )
+    if screen == "teams":
+        cached.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
+    return _mark_extra_fallback(cached) if extra_failed else cached
 
 
 def _mark_extra_fallback(response: Response) -> Response:

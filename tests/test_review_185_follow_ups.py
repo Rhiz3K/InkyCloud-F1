@@ -130,7 +130,7 @@ async def test_round_without_year_uses_the_auto_selected_pregenerated_file():
 # --- C5: gzip and identity bodies never share a strong ETag; 304s vary on encoding -------------
 
 
-def _etag_app():
+def _etag_app(size=4002):
     from starlette.applications import Starlette
     from starlette.middleware import Middleware
     from starlette.middleware.gzip import GZipMiddleware
@@ -140,7 +140,7 @@ def _etag_app():
     from app.main import EncodingAwareETagMiddleware
     from app.utils.etag import if_none_match_matches, strong_etag
 
-    body = b"BM" + bytes(4000)
+    body = b"BM" + bytes(size - 2)
     etag = strong_etag(body)
 
     async def image(request):
@@ -157,10 +157,11 @@ def _etag_app():
     ), etag
 
 
-def test_gzip_response_gets_weak_etag_and_vary():
+@pytest.mark.parametrize("size", [499, 500])
+def test_gzip_response_gets_weak_etag_and_vary(size):
     from fastapi.testclient import TestClient
 
-    app, etag = _etag_app()
+    app, etag = _etag_app(size)
     client = TestClient(app)
 
     identity = client.get("/image.bmp", headers={"Accept-Encoding": "identity"})
@@ -168,9 +169,15 @@ def test_gzip_response_gets_weak_etag_and_vary():
 
     assert identity.headers["etag"] == etag
     assert "content-encoding" not in identity.headers
-    assert gzipped.headers["content-encoding"] == "gzip"
+    assert gzipped.headers.get("content-encoding") == ("gzip" if size >= 500 else None)
     assert gzipped.headers["etag"] == f"W/{etag}"
-    for response in (identity, gzipped):
+    for encoding, response in (("identity", identity), ("gzip", gzipped)):
+        revalidated = client.get(
+            "/image.bmp",
+            headers={"Accept-Encoding": encoding, "If-None-Match": response.headers["etag"]},
+        )
+        assert revalidated.status_code == 304
+        assert revalidated.headers["etag"] == response.headers["etag"]
         assert response.headers["vary"].lower().count("accept-encoding") == 1
 
 
@@ -402,7 +409,9 @@ def test_backup_cleanup_counts_only_confirmed_deletes(caplog):
         config.MINIMAL_DATA_MODE = False
         config.BACKUP_RETENTION_DAYS = 30
         config.S3_BUCKET_NAME = "bucket"
-        assert cleanup_old_backups(client) == 2
+        assert cleanup_old_backups(client) == 0
+        client.delete_objects.return_value = {}
+        assert cleanup_old_backups(client) == 0
 
 
 def test_backup_info_reports_minimal_mode_as_disabled(capsys):

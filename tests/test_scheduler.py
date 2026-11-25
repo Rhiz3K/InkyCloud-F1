@@ -1391,6 +1391,8 @@ def test_run_backup_honors_configuration():
         ("1-7", "mon,tue,wed,thu,fri,sat,sun"),
         ("5-7", "fri,sat,sun"),
         ("7-7", "sun"),
+        ("00-07", "sun,mon,tue,wed,thu,fri,sat"),
+        ("07-7", "sun"),
         ("0-7/2", "sun,tue,thu,sat"),
     ],
 )

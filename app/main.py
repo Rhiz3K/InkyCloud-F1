@@ -267,7 +267,7 @@ class EncodingAwareETagMiddleware:
 
     Routes hash the identity bytes into a strong ETag before compression, so identity and gzip
     bodies would otherwise share one strong validator. Mounted outside GZipMiddleware, this
-    weakens the tag for encoded (or gzip-negotiated 304) responses and adds
+    uses weak validators whenever gzip is negotiated, including below its size threshold, and adds
     ``Vary: Accept-Encoding`` to every response that carries an ETag, including 304s.
     """
 
@@ -294,8 +294,7 @@ class EncodingAwareETagMiddleware:
                     if "accept-encoding" not in vary.lower():
                         headers["Vary"] = f"{vary}, Accept-Encoding" if vary else "Accept-Encoding"
                     encoded = headers.get("content-encoding", "identity").lower() != "identity"
-                    revalidated_gzip = message.get("status") == 304 and accepts_gzip
-                    if not etag.startswith("W/") and (encoded or revalidated_gzip):
+                    if not etag.startswith("W/") and (encoded or accepts_gzip):
                         headers["ETag"] = f"W/{etag}"
             await send(message)
 

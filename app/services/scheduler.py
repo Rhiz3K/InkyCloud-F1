@@ -133,7 +133,7 @@ def _normalize_cron_day_of_week(value: str) -> str:
         elif base.count("-") == 1:
             start_text, end_text = base.split("-", 1)
             start = parse_weekday(start_text)
-            if end_text.strip() == "7" and start_text.strip() != "7":
+            if end_text.strip().lstrip("0") == "7" and start_text.strip().lstrip("0") != "7":
                 # 7 is Sunday at the end of the week: 0-7 means every day and 1-7 Mon..Sun.
                 # Normalising it to 0 first collapsed 0-7 to Sunday only.
                 values = inclusive_range(start, 6) + ([0] if start else [])
