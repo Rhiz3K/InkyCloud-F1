@@ -876,10 +876,10 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
 {% endblock %} {% block scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
   const currentUiLang = {{ ui_lang | tojson }};
-  const copyText = '{{ t.get("api_docs_copy", "Copy") }}';
-  const copiedText = '{{ t.get("api_docs_copied", "Copied!") }}';
-  const loadingText = "{{ t.api_docs_loading_text }}";
-  const errorText = "{{ t.api_docs_error_text }}";
+  const copyText = {{ t.get("api_docs_copy", "Copy") | tojson }};
+  const copiedText = {{ t.get("api_docs_copied", "Copied!") | tojson }};
+  const loadingText = {{ t.api_docs_loading_text | tojson }};
+  const errorText = {{ t.api_docs_error_text | tojson }};
 
   // Tab switching
   function switchTab(tabName) {

@@ -269,6 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Image requests after a cache clear now use the refreshed inputs. Gzip-negotiated responses consistently use weak ETags, including small files. Backup retention counts confirmed deletes and accepts zero-padded cron weekdays.
 
+- Compose allows 30 seconds for shutdown so active renders can finish. The API documentation preserves quotes and line breaks in translated controls.
+
 ## [1.3.3] - 2026-10-30
 
 ### Removed

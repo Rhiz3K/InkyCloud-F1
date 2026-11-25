@@ -2,10 +2,14 @@
 
 import asyncio
 import io
-import mimetypes
+import json
+import subprocess
+import sys
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
+from jinja2 import Environment
 from PIL import Image, ImageDraw
 
 from app.services import bmp_artifacts, weather_service
@@ -154,18 +158,37 @@ async def test_drain_singleflight_waits_for_and_cancels_in_flight_renders(caplog
 
 
 def test_font_mime_types_are_registered_by_the_app():
-    import app.main  # noqa: F401
+    # Import in isolation so a prior test and the OS MIME database cannot mask a regression.
+    script = """
+import mimetypes
+for ext in ('.woff', '.woff2', '.ttf'):
+    mimetypes.add_type('application/octet-stream', ext)
+import app.main
+for ext in ('woff', 'woff2', 'ttf'):
+    assert mimetypes.guess_type('font.' + ext)[0] == 'font/' + ext
+"""
+    subprocess.run([sys.executable, "-c", script], check=True)
 
-    assert mimetypes.guess_type("font.woff2")[0] == "font/woff2"
-    assert mimetypes.guess_type("font.ttf")[0] == "font/ttf"
+
+def test_compose_allows_both_shutdown_drains_to_finish():
+    assert "    stop_grace_period: 30s" in Path("docker-compose.yml").read_text().splitlines()
+
+
+def test_api_docs_translation_literals_round_trip():
+    source = Path("app/templates/api_docs.html").read_text()
+    value = 'It\'s a "quote"\n</script>'
+    keys = ["copy", "copied", "loading_text", "error_text"]
+    translations = {"api_docs_" + key: value for key in keys}
+    env = Environment(autoescape=True)
+    for name in ["copyText", "copiedText", "loadingText", "errorText"]:
+        literal = source.split(f"const {name} = ", 1)[1].split(";\n", 1)[0]
+        assert json.loads(env.from_string(literal).render(t=translations)) == value
 
 
 # --- Self-hosting log recipe keeps the pinned image and states the logging switch ----------------
 
 
 def test_self_hosting_log_recipe_keeps_release_and_cleans_up():
-    from pathlib import Path
-
     guide = (Path(__file__).resolve().parents[1] / "SELF-HOSTING.md").read_text(encoding="utf-8")
     section = guide.split("## Run the released image", 1)[1].split("\n## ", 1)[0]
     recipe = section.split("docker-compose.override.yml", 1)[1]
