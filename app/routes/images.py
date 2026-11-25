@@ -715,7 +715,9 @@ async def _serve_calendar_bmp(
         weekend = weekend_context(
             weekend_mode, selected_race, now=now, timezone_name=tz, countdown=countdown
         )
-        hint = hint.with_changes(weekend.changes, hourly=weekend.pending)
+        hint = hint.with_changes(
+            weekend.changes, hourly=weekend.pending, period_keyed=weekend.mode == WeekendMode.AUTO
+        )
         # Without a race the route serves the "failed to fetch" error image: retry soon.
         poll_hint = hint if selected_race else None
         cache_key = f"{identity}|" + calendar_cache_key(

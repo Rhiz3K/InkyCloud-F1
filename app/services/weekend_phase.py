@@ -12,9 +12,10 @@ side: a session is drawn as over a little late rather than while it may still be
 The race uses the same three hours as the race status (``IN PROGRESS``, then
 ``COMPLETED``).
 
-The weekend runs from :data:`WEEKEND_LEAD` before the first session until the automatic
-next-race selection moves on (see :func:`~app.services.auto_screen.race_week_window`).
-Outside it the calendar is drawn exactly as with ``weekend_mode=off``.
+The phase window opens :data:`WEEKEND_LEAD` before the first session and closes four hours
+after a timed race starts (see :func:`~app.services.auto_screen.race_week_window`). With
+``weekend_mode=auto``, automatic selection keeps that race for 24 hours after its start so
+the calendar can show its podium after the phase window closes.
 """
 
 from __future__ import annotations

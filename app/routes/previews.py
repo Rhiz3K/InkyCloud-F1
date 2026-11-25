@@ -195,7 +195,9 @@ async def _render_configure_calendar(
             weather_type=weather,
             weather_enabled=config.WEATHER_ENABLED,
             selection_grace=weekend_mode.selection_grace,
-        ).with_changes(weekend.changes, hourly=weekend.pending)
+        ).with_changes(
+            weekend.changes, hourly=weekend.pending, period_keyed=weekend.mode == WeekendMode.AUTO
+        )
         if countdown != CountdownMode.HOURS:
             key += f":countdown={countdown}:{hint.cache_token()}"
         key += weekend.cache_suffix(hint)

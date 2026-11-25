@@ -101,9 +101,16 @@ class RefreshHint:
         changes = (*self.changes, *self.publication_changes)
         return min((change for change in changes if change >= self.now), default=None)
 
-    def with_changes(self, changes: Iterable[datetime], *, hourly: bool = False) -> RefreshHint:
-        """Return this hint with more predicted changes (and hourly data when ``hourly``)."""
-        return RefreshHint(self.now, (*self.changes, *changes), self.hourly or hourly)
+    def with_changes(
+        self, changes: Iterable[datetime], *, hourly: bool = False, period_keyed: bool = False
+    ) -> RefreshHint:
+        """Add on-demand edges, including all content edges when the key tracks their period."""
+        exact = (*self.changes, *changes)
+        delayed = self.publication_changes
+        if period_keyed:
+            exact += tuple(change for change in delayed if change > self.now)
+            delayed = ()
+        return RefreshHint(self.now, exact, self.hourly or hourly, delayed)
 
     def cache_token(self) -> str:
         """Identify the content period, so a cached image never outlives its next change."""

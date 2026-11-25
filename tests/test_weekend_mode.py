@@ -874,6 +874,15 @@ async def test_invalid_weekend_mode_returns_422(client_app, url):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("mode, seconds", [("off", 720), ("auto", 600)])
+async def test_hours_status_edge_follows_weekend_cache_key(client_app, frozen, mode, seconds):
+    frozen.now = QA_RACE + rh.RACE_LIVE_WINDOW - timedelta(minutes=10)
+    response = await _get(client_app, f"/calendar.bmp?weather=false&weekend_mode={mode}")
+    assert response.status_code == 200
+    assert response.headers["x-next-refresh-seconds"] == str(seconds)
+
+
+@pytest.mark.asyncio
 async def test_off_and_outside_the_weekend_serve_the_default_image(client_app, frozen):
     frozen.now = datetime(2026, 11, 23, 9, 0, tzinfo=UTC)
     default = await _get(client_app, "/calendar.bmp?weather=false")
