@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import random
 import weakref
 from datetime import datetime, timezone
@@ -15,7 +16,7 @@ from fastapi import Request
 from PIL import Image
 
 from app.services import http_client
-from app.utils import async_locks, async_tasks, atomic_io, jolpica, rate_limit
+from app.utils import async_locks, async_tasks, atomic_io, f1_season, jolpica, rate_limit
 from app.utils import http as http_utils
 from app.utils.bmp import encode_indexed_bmp_4bit, quantize_to_palette
 from app.utils.f1_season import SEASON_START_DATES, get_current_f1_season
@@ -160,12 +161,53 @@ def test_current_f1_season_before_first_known_start():
     assert get_current_f1_season(before_first) == min(SEASON_START_DATES) - 1
 
 
-def test_season_start_dates_cover_current_calendar_year():
-    current_year = datetime.now(timezone.utc).year
+def test_season_start_dates_match_bundled_calendars():
+    for year, start in SEASON_START_DATES.items():
+        assert f1_season.bundled_season_start(year) == start
 
-    assert max(SEASON_START_DATES) >= current_year, (
-        f"SEASON_START_DATES must include the {current_year} first-race date"
+
+@pytest.mark.parametrize(
+    ("moment", "season"),
+    [
+        (datetime(2026, 3, 7, 23, 59, tzinfo=timezone.utc), 2025),
+        (datetime(2026, 3, 8, tzinfo=timezone.utc), 2026),
+        (datetime(2027, 1, 1, tzinfo=timezone.utc), 2026),
+        (datetime(2027, 12, 31, tzinfo=timezone.utc), 2026),
+    ],
+)
+def test_new_calendar_year_does_not_start_an_unpublished_season(bundled_calendars, moment, season):
+    (bundled_calendars / "2027.json").write_text('{"races": []}', encoding="utf-8")
+    assert get_current_f1_season(moment) == season
+
+
+def test_bundled_calendar_starts_a_season_on_its_first_race_day(bundled_calendars):
+    def calendar(year, *races):
+        (bundled_calendars / f"{year}.json").write_text(
+            json.dumps({"races": list(races)}), encoding="utf-8"
+        )
+
+    # A cancelled opener keeps its original date but has no round.
+    calendar(
+        2027,
+        {"round": "2", "date": "2027-03-21"},
+        {"round": "1", "date": "2027-03-14"},
+        {"round": "", "date": "2027-03-07"},
     )
+    calendar(2028, {"date": "2028-03-05"}, {"round": None, "date": "2028-03-12"})
+    calendar(2029, {"round": "1", "date": "soon"})
+    assert get_current_f1_season(datetime(2027, 3, 13, tzinfo=timezone.utc)) == 2026
+    assert get_current_f1_season(datetime(2027, 3, 14, tzinfo=timezone.utc)) == 2027
+    assert get_current_f1_season(datetime(2028, 6, 1, tzinfo=timezone.utc)) == 2027
+    assert f1_season.bundled_season_start(2028) is None
+    assert f1_season.bundled_season_start(2029) is None
+    assert f1_season.bundled_season_start(2030) is None
+
+
+def test_stale_calendars_are_reported(bundled_calendars, caplog):
+    with caplog.at_level("WARNING"):
+        assert get_current_f1_season(datetime(2028, 6, 1, tzinfo=timezone.utc)) == 2026
+
+    assert "No F1 calendar is bundled after season 2026; it stays current in 2028" in caplog.text
 
 
 @pytest.mark.asyncio

@@ -155,14 +155,14 @@ async def test_get_teams_and_drivers_marks_standings_failure_as_incomplete(monke
     assert entry.expires_at - time.time() <= teams.DEGRADED_CACHE_TTL_SECONDS
 
 
-def test_get_current_f1_season_falls_back_to_current_year_for_future_seasons(caplog):
-    future_date = datetime(2027, 4, 1, tzinfo=timezone.utc)
-
+def test_get_current_f1_season_keeps_last_season_until_a_calendar_is_bundled(
+    bundled_calendars, caplog
+):
+    (bundled_calendars / "2027.json").write_text('{"races": []}', encoding="utf-8")
     with caplog.at_level("WARNING"):
-        season = get_current_f1_season(future_date)
+        assert get_current_f1_season(datetime(2027, 4, 1, tzinfo=timezone.utc)) == 2026
 
-    assert season == 2027
-    assert "falling back to current year 2027" in caplog.text
+    assert "No F1 calendar" not in caplog.text
 
 
 def test_get_default_teams_year_falls_back_to_latest_bundled_season(monkeypatch):

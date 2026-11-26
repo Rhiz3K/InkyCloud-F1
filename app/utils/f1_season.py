@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from functools import lru_cache
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 MIN_F1_SEASON = 1950
+SEASONS_DIR = Path(__file__).resolve().parent.parent / "assets" / "seasons"
 
 SEASON_START_DATES: dict[int, datetime] = {
     2025: datetime(2025, 3, 16, tzinfo=timezone.utc),
@@ -14,24 +18,47 @@ SEASON_START_DATES: dict[int, datetime] = {
 }
 
 
+@lru_cache(maxsize=16)
+def bundled_season_start(year: int) -> datetime | None:
+    """Return the first bundled race day of a season, or None when no calendar is published.
+
+    Cancelled races stay in bundled calendars with their original dates but without a round;
+    they never start a season, and a calendar with only cancelled races counts as unpublished.
+    """
+    try:
+        races = json.loads((SEASONS_DIR / f"{year}.json").read_text(encoding="utf-8"))["races"]
+        first_day = min(date.fromisoformat(race["date"]) for race in races if race.get("round"))
+    except OSError, ValueError, TypeError, KeyError:
+        return None
+    return datetime(first_day.year, first_day.month, first_day.day, tzinfo=timezone.utc)
+
+
+def _season_start(year: int) -> datetime | None:
+    """Prefer the maintained start date, then the bundled calendar."""
+    return SEASON_START_DATES.get(year) or bundled_season_start(year)
+
+
 def get_current_f1_season(now: datetime | None = None) -> int:
-    """Get the current F1 season based on known first-race dates."""
+    """Return the newest season whose first race day has been reached.
+
+    A new calendar year does not start a new season. Until that season's calendar is bundled
+    and its first race day arrives, the previous season stays current, so the winter break keeps
+    serving the last season's results, standings and teams.
+    """
     current_time = now or datetime.now(timezone.utc)
-    latest_known_year = max(SEASON_START_DATES)
-
-    if current_time.year > latest_known_year:
-        logger.warning(
-            "F1 season start dates are only defined through %s; falling back to current year %s",
-            latest_known_year,
-            current_time.year,
-        )
-        return current_time.year
-
-    for year in sorted(SEASON_START_DATES, reverse=True):
-        if current_time >= SEASON_START_DATES[year]:
+    earliest_known_year = min(SEASON_START_DATES)
+    for year in range(current_time.year, earliest_known_year - 1, -1):
+        start = _season_start(year)
+        if start is not None and current_time >= start:
+            if year < current_time.year - 1:
+                logger.warning(
+                    "No F1 calendar is bundled after season %s; it stays current in %s",
+                    year,
+                    current_time.year,
+                )
             return year
 
-    return min(SEASON_START_DATES) - 1
+    return earliest_known_year - 1
 
 
 def get_max_supported_f1_season(now: datetime | None = None) -> int:

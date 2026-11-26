@@ -63,6 +63,21 @@ def _reset_image_render_guards():
 
 
 @pytest.fixture
+def bundled_calendars(tmp_path, monkeypatch):
+    """Point season detection at an empty calendar directory the test fills itself.
+
+    Years in SEASON_START_DATES keep their maintained start dates, so tests of later seasons
+    do not depend on which future calendars the repository happens to bundle.
+    """
+    from app.utils import f1_season
+
+    monkeypatch.setattr(f1_season, "SEASONS_DIR", tmp_path)
+    f1_season.bundled_season_start.cache_clear()
+    yield tmp_path
+    f1_season.bundled_season_start.cache_clear()
+
+
+@pytest.fixture
 def sepang_2017_payload():
     """Historical Jolpica race with dates but no session times."""
     return {
