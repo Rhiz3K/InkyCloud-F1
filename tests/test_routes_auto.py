@@ -477,10 +477,10 @@ async def test_lead_hours_bounds_are_accepted(auto_app):
 @pytest.mark.asyncio
 async def test_auto_charges_once_across_stale_teams_selection(auto_app, monkeypatch):
     """Reselect the season after a clear while charging only the automatic endpoint."""
-    seasons = iter((2025, 2026))
+    seasons = [2025, 2026]
 
     def select():
-        year = next(seasons)
+        year = seasons.pop(0)
         if year == 2025:
             clear_bmp_cache()
         return year
