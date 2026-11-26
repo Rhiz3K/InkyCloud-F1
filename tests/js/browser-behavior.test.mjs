@@ -433,6 +433,7 @@ function teamsUrlContext(state = {}, {tz} = {}) {
         updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
         TEAMS_EXTRA_OPTIONS: ["none", "countdown", "flags", "track", "weather"],
         COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
+        AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
         currentScreenType: "teams", currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none", ...state,
     });
@@ -586,6 +587,7 @@ function calendarCountdownContext(state = {}) {
         updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
         TEAMS_EXTRA_OPTIONS: ["none", "countdown", "flags", "track", "weather"],
         COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
+        AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
         currentScreenType: "calendar", currentUiLang: "en", currentDisplayType: "1bit", currentTeamsExtra: "none",
         selectedYear: null, selectedRound: null, selectedRaceKey: null, selectedTz: null, defaultTimezone: "Europe/Prague",
         ...state,
@@ -1002,4 +1004,113 @@ test("revealTzItem scrolls only the list, and only when the selection is out of 
     const unscrollable = {clientHeight: 100, scrollHeight: 100, scrollTop: 0};
     ctx.revealTzItem(unscrollable, item(500));
     assert.equal(unscrollable.scrollTop, 0);
+});
+
+// One URL for both screens (/auto.bmp): only the copied URL changes, never the preview.
+function autoScreenContext(screen, state = {}) {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const replaced = [];
+    const options = ["off", "race_week", "daily"].map((value) => ({value, dataset: {hint: `hint-${value}`}}));
+    const select = {
+        options, selectedIndex: 0,
+        get value() {return this.selectedIndex >= 0 ? options[this.selectedIndex].value : "";},
+        set value(v) {this.selectedIndex = options.findIndex((o) => o.value === v);},
+    };
+    const hints = [{textContent: ""}];
+    const apiUrl = {value: ""};
+    const ctx = vm.createContext({
+        URL, URLSearchParams,
+        window: {location: {origin: "https://racing.example.org", search: "",
+            href: `https://racing.example.org/configure/${screen}`},
+        history: {replaceState(_s, _t, url) {replaced.push(String(url)); ctx.window.location.href = String(url);}}},
+        document: {
+            getElementById(id) {
+                if (id === "tz") return {value: "Europe/Prague"};
+                if (id === "weatherToggle") return {checked: false};
+                if (id === "apiUrl") return apiUrl;
+                return null;
+            },
+            querySelector() {return {value: "race_day"};},
+            querySelectorAll(selector) {
+                return selector === ".auto-screen-select" ? [select] : selector === ".auto-screen-hint" ? hints : [];
+            },
+        },
+        updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
+        TEAMS_EXTRA_OPTIONS: ["none", "countdown", "flags", "track", "weather"],
+        COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
+        AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
+        currentScreenType: screen, currentUiLang: "en", currentDisplayType: "1bit",
+        currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none",
+        selectedYear: null, selectedRound: null, selectedRaceKey: null, selectedTz: null, defaultTimezone: "Europe/Prague",
+        ...state,
+    });
+    for (const name of ["getCurrentSeason", "getApiUrl", "getCopyUrl", "appendTrackParams", "canUsePrerenderedPreview",
+        "getPreviewUrl", "setAutoScreen", "selectAutoScreen", "teamsExtraUsesTz", "getTeamsTz", "updateUrlDisplay",
+        "initTrackOptions"]) {
+        vm.runInContext(templateFunction(template, name), ctx);
+    }
+    return {ctx, replaced, select, hints, apiUrl};
+}
+
+test("auto screen off keeps the copied URL equal to the screen URL", () => {
+    for (const screen of ["calendar", "teams"]) {
+        const {ctx} = autoScreenContext(screen);
+        assert.equal(ctx.getCopyUrl(), ctx.getApiUrl());
+        ctx.currentAutoScreen = "bogus";
+        assert.equal(ctx.getCopyUrl(), ctx.getApiUrl());
+    }
+});
+
+test("calendar settings move to /auto.bmp without a fixed race", () => {
+    const {ctx} = autoScreenContext("calendar", {
+        currentAutoScreen: "race_week", selectedYear: 2026, selectedRaceKey: "2026-round-5-miami",
+        currentDisplayType: "bwry", currentCountdown: "days",
+    });
+    assert.ok(ctx.getApiUrl().includes("race_key="));
+    assert.equal(ctx.getCopyUrl(),
+        "https://racing.example.org/auto.bmp?tz=Europe%2FPrague&weather=false&display=bwry&countdown=days");
+    ctx.currentAutoScreen = "daily";
+    assert.equal(ctx.getCopyUrl(),
+        "https://racing.example.org/auto.bmp?tz=Europe%2FPrague&weather=false&display=bwry&countdown=days&mode=daily");
+    assert.ok(!ctx.getPreviewUrl().includes("/auto.bmp"));
+});
+
+test("teams settings keep the chosen panel on /auto.bmp", () => {
+    const {ctx} = autoScreenContext("teams", {currentAutoScreen: "race_week"});
+    // The timezone is kept although the "none" panel does not use it: the switch does.
+    assert.ok(!ctx.getApiUrl().includes("tz="));
+    assert.equal(ctx.getCopyUrl(), "https://racing.example.org/auto.bmp?year=2026&extra=none&tz=Europe%2FPrague");
+    ctx.currentTeamsExtra = "flags";
+    assert.equal(ctx.getCopyUrl(),
+        "https://racing.example.org/auto.bmp?year=2026&extra=flags&tz=Europe%2FPrague");
+});
+
+test("setAutoScreen syncs the select, the hint, the page URL and the copied URL", () => {
+    const {ctx, replaced, select, hints, apiUrl} = autoScreenContext("teams");
+    ctx.setAutoScreen("daily");
+    assert.equal(ctx.currentAutoScreen, "daily");
+    assert.equal(select.value, "daily");
+    assert.equal(hints[0].textContent, "hint-daily");
+    assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?auto=daily"]);
+    assert.equal(apiUrl.value, "https://racing.example.org/auto.bmp?year=2026&extra=none&tz=Europe%2FPrague&mode=daily");
+    assert.equal(ctx.previewUpdates, 0);
+
+    select.value = "bogus";
+    ctx.selectAutoScreen.call({value: "bogus"});
+    assert.equal(ctx.currentAutoScreen, "off");
+    assert.equal(replaced.at(-1), "https://racing.example.org/configure/teams");
+    assert.equal(apiUrl.value, "https://racing.example.org/teams.bmp?year=2026");
+
+    ctx.setAutoScreen("race_week", false);
+    assert.equal(replaced.length, 2);
+    assert.equal(hints[0].textContent, "hint-race_week");
+
+    const fresh = autoScreenContext("calendar");
+    fresh.ctx.window.location.search = "?auto=race_week";
+    fresh.ctx.initTrackOptions();
+    assert.equal(fresh.ctx.currentAutoScreen, "race_week");
+    fresh.ctx.window.location.search = "?auto=hourly";
+    fresh.ctx.currentAutoScreen = "off";
+    fresh.ctx.initTrackOptions();
+    assert.equal(fresh.ctx.currentAutoScreen, "off");
 });

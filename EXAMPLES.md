@@ -26,6 +26,21 @@ curl -sD - "http://localhost:8000/calendar.bmp?countdown=auto&weather=false" -o 
 curl "http://localhost:8000/calendar.bmp?countdown=off" -o calendar.bmp
 ```
 
+### One URL for Both Screens
+
+```bash
+# Calendar in race week (from 48 h before FP1), teams with a countdown otherwise.
+# Use this single URL for Živýobraz.eu or firmware that polls one address.
+curl -sD - "http://localhost:8000/auto.bmp?lang=cs&tz=Europe/Prague" -o screen.bmp \
+  | grep -i -E "x-active-screen|x-next-refresh-seconds"
+
+# Show the calendar three days ahead and the plain teams grid otherwise
+curl "http://localhost:8000/auto.bmp?lead_hours=72&extra=none" -o screen.bmp
+
+# Alternate calendar and teams every day at local midnight
+curl "http://localhost:8000/auto.bmp?mode=daily&tz=America/New_York&display=bwry" -o screen.bmp
+```
+
 ### Check Health
 
 ```bash
@@ -168,13 +183,14 @@ curl http://localhost:8000/api
 #include <HTTPClient.h>
 #include <WiFi.h>
 
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+// Define WIFI_SSID / WIFI_PASSWORD in secrets.h and keep that file out of version control.
+#include "secrets.h"
+
 const char* serverUrl = "http://your-server:8000/calendar.bmp?lang=cs";
 
 void setup() {
   Serial.begin(115200);
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);

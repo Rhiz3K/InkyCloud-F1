@@ -209,6 +209,20 @@
       },
       "batteryNote": "Het weer wordt elk uur ververst. Zet het weer uit voor de langste batterijduur. De header X-Next-Refresh-Seconds vertelt je display hoe lang het kan slapen."
     },
+    "autoScreen": {
+      "label": "Eén URL voor beide schermen",
+      "options": {
+        "off": "Uit (alleen dit scherm)",
+        "race_week": "Raceweek: kalender, anders teams",
+        "daily": "Dagelijks: elke dag wisselen"
+      },
+      "hints": {
+        "off": "De URL toont altijd dit scherm.",
+        "race_week": "/auto.bmp toont de kalender vanaf 48 uur voor VT1 tot het einde van de race, en anders de teams met aftelling. Ideaal voor Živýobraz.eu, dat één URL per display toestaat.",
+        "race_week_teams": "/auto.bmp toont de kalender vanaf 48 uur voor VT1 tot het einde van de race, en anders de teams met het op deze pagina gekozen paneel. Ideaal voor Živýobraz.eu, dat één URL per display toestaat.",
+        "daily": "/auto.bmp wisselt elke dag om lokale middernacht tussen kalender en teams."
+      }
+    },
     "displayLabel": "Scherm",
     "imageCreditsNote": "Bronvermelding en licenties van de afbeelding:",
     "teamsExtra": {
@@ -410,6 +424,12 @@
   "api_docs_weather_desc": "Weeroverlay in- of uitschakelen",
   "api_docs_weather_type_desc": "Welke variant van weergegevens gerenderd moet worden",
   "api_docs_countdown_desc": "Aftelling in het statusvak: hours (dagen en uren, standaard), days (hele dagen in tz, wisselt om lokale middernacht), auto (hele dagen tot 48 uur voor de start, daarna dagen en uren) of off (racedatum in plaats van aftelling). Ongeldige waarden geven HTTP 422.",
+  "api_docs_auto_desc": "Eén URL die direct de kalender- of teams-BMP teruggeeft (zonder doorverwijzing). Voor displays die maar één adres kunnen opvragen, zoals Živýobraz.eu of eenvoudige ESP32-firmware.",
+  "api_docs_auto_mode_desc": "race_week: de kalender vanaf lead_hours voor de eerste sessie van het volgende raceweekend tot de volgende race wordt gekozen (4 uur na de start), anders de teams, ook in de winterstop en bij afgelaste races. daily: kalender op even en teams op oneven lokale dagen in tz, wisselt om lokale middernacht. Ongeldige waarden geven HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Alleen race_week: hoeveel uur voor de eerste sessie (FP1) de kalender verschijnt. Waarden buiten 0–168 geven HTTP 422.",
+  "api_docs_auto_extra_desc": "Teamspaneel op deze URL; standaard countdown (dagen tot de volgende race). none toont alleen het raster.",
+  "api_docs_auto_shared_desc": "Dezelfde waarden als bij /calendar.bmp en /teams.bmp; elke parameter geldt voor zijn eigen scherm. year kiest het teamsseizoen; de kalender toont altijd de volgende race.",
+  "api_docs_auto_headers_note": "X-Active-Screen geeft aan welk scherm is teruggegeven (calendar of teams). De ETag hoort bij het actieve scherm, dus een 304 komt alleen zolang het display dat scherm al toont. X-Next-Refresh-Seconds en de max-age in Cache-Control reiken nooit verder dan de volgende wissel.",
   "api_docs_calendar_desc": "Genereert een F1-kalender als BMP-afbeelding (800×480) voor 1bit-, 4-bit B/W/R-, 4-bit B/W/R/Y- en Spectra 6 E-Ink-displays.",
   "api_docs_eg": "bijv.",
   "api_docs_dimensions_label": "Afmetingen",

@@ -209,6 +209,20 @@
       },
       "batteryNote": "El tiempo se actualiza cada hora. Para la máxima autonomía, desactiva el tiempo. La cabecera X-Next-Refresh-Seconds indica a la pantalla cuánto puede dormir."
     },
+    "autoScreen": {
+      "label": "Una URL para ambas pantallas",
+      "options": {
+        "off": "Desactivado (solo esta pantalla)",
+        "race_week": "Semana de carrera: calendario, si no equipos",
+        "daily": "Diario: alternar cada día"
+      },
+      "hints": {
+        "off": "La URL siempre muestra esta pantalla.",
+        "race_week": "/auto.bmp muestra el calendario desde 48 h antes de la FP1 hasta el final de la carrera y, el resto del tiempo, los equipos con cuenta atrás. Ideal para Živýobraz.eu, que admite una URL por pantalla.",
+        "race_week_teams": "/auto.bmp muestra el calendario desde 48 h antes de la FP1 hasta el final de la carrera y, el resto del tiempo, los equipos con el panel elegido en esta página. Ideal para Živýobraz.eu, que admite una URL por pantalla.",
+        "daily": "/auto.bmp alterna calendario y equipos cada día a medianoche local."
+      }
+    },
     "displayLabel": "Pantalla",
     "imageCreditsNote": "Atribución y licencias de la imagen:",
     "teamsExtra": {
@@ -410,6 +424,12 @@
   "api_docs_weather_desc": "Activa o desactiva la capa del tiempo",
   "api_docs_weather_type_desc": "Qué variante de datos meteorológicos renderizar",
   "api_docs_countdown_desc": "Cuenta atrás en el recuadro de estado: hours (días y horas, por defecto), days (días completos en tz, cambia a medianoche local), auto (días completos hasta 48 h antes de la salida, luego días y horas) u off (fecha de la carrera en lugar de la cuenta atrás). Los valores no válidos devuelven HTTP 422.",
+  "api_docs_auto_desc": "Una URL que devuelve directamente el BMP del calendario o de los equipos (sin redirección). Para pantallas que solo pueden consultar una dirección, como Živýobraz.eu o un firmware ESP32 sencillo.",
+  "api_docs_auto_mode_desc": "race_week: el calendario desde lead_hours antes de la primera sesión del próximo fin de semana de carrera hasta que se elige la siguiente carrera (4 h después de la salida); los equipos en el resto, incluida la pretemporada y las carreras canceladas. daily: calendario los días locales pares y equipos los impares en tz, con cambio a medianoche local. Los valores no válidos devuelven HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Solo race_week: cuántas horas antes de la primera sesión (FP1) aparece el calendario. Los valores fuera de 0–168 devuelven HTTP 422.",
+  "api_docs_auto_extra_desc": "Panel de equipos en esta URL; por defecto countdown (días hasta la próxima carrera). none muestra solo la cuadrícula.",
+  "api_docs_auto_shared_desc": "Los mismos valores que en /calendar.bmp y /teams.bmp; cada parámetro se aplica a su pantalla. year elige la temporada de equipos; el calendario siempre muestra la próxima carrera.",
+  "api_docs_auto_headers_note": "X-Active-Screen indica qué pantalla se devolvió (calendar o teams). El ETag es el de la pantalla activa, así que solo se devuelve 304 mientras la pantalla ya la muestra. X-Next-Refresh-Seconds y el max-age de Cache-Control nunca van más allá del siguiente cambio.",
   "api_docs_calendar_desc": "Genera un calendario de F1 como imagen BMP (800×480) para pantallas E-Ink 1bit, 4-bit B/W/R, 4-bit B/W/R/Y y Spectra 6.",
   "api_docs_eg": "p. ej.",
   "api_docs_dimensions_label": "Dimensiones",

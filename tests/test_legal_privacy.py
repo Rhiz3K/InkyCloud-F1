@@ -83,6 +83,8 @@ def test_error_scrubber_keeps_stack_location_without_private_context():
     [
         ("/calendar.bmp", 200, True),
         ("/teams.bmp", 304, True),
+        ("/auto.bmp", 200, True),
+        ("/auto.bmp", 304, True),
         ("/api/races/2026", 200, True),
         ("/preview/calendar.png", 200, True),
         ("/api/race/2026/1", 200, True),

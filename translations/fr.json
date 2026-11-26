@@ -209,6 +209,20 @@
       },
       "batteryNote": "La météo est actualisée toutes les heures. Pour une autonomie maximale, désactivez la météo. L’en-tête X-Next-Refresh-Seconds indique à l’écran combien de temps dormir."
     },
+    "autoScreen": {
+      "label": "Une URL pour les deux écrans",
+      "options": {
+        "off": "Désactivé (cet écran seulement)",
+        "race_week": "Semaine de course : calendrier, sinon équipes",
+        "daily": "Quotidien : alterner chaque jour"
+      },
+      "hints": {
+        "off": "L’URL affiche toujours cet écran.",
+        "race_week": "/auto.bmp affiche le calendrier de 48 h avant la FP1 jusqu’à la fin de la course, et les équipes avec compte à rebours le reste du temps. Idéal pour Živýobraz.eu, qui n’accepte qu’une URL par écran.",
+        "race_week_teams": "/auto.bmp affiche le calendrier de 48 h avant la FP1 jusqu’à la fin de la course, et les équipes avec le panneau choisi sur cette page le reste du temps. Idéal pour Živýobraz.eu, qui n’accepte qu’une URL par écran.",
+        "daily": "/auto.bmp alterne calendrier et équipes chaque jour à minuit local."
+      }
+    },
     "displayLabel": "Affichage",
     "imageCreditsNote": "Attribution et licences de l'image :",
     "teamsExtra": {
@@ -410,6 +424,12 @@
   "api_docs_weather_desc": "Activer ou désactiver l'overlay météo",
   "api_docs_weather_type_desc": "Quelle variante de données météo afficher",
   "api_docs_countdown_desc": "Compte à rebours dans l’encadré d’état : hours (jours et heures, par défaut), days (jours entiers dans tz, change à minuit local), auto (jours entiers jusqu’à 48 h avant le départ, puis jours et heures) ou off (date de la course au lieu du compte à rebours). Une valeur non valide renvoie HTTP 422.",
+  "api_docs_auto_desc": "Une URL qui renvoie directement le BMP du calendrier ou des équipes (sans redirection). Pour les écrans qui ne peuvent interroger qu’une seule adresse, comme Živýobraz.eu ou un firmware ESP32 simple.",
+  "api_docs_auto_mode_desc": "race_week : le calendrier à partir de lead_hours avant la première séance du prochain week-end de course jusqu’à la sélection de la course suivante (4 h après le départ), les équipes le reste du temps, y compris pendant l’intersaison et pour les courses annulées. daily : calendrier les jours locaux pairs et équipes les jours impairs dans tz, avec bascule à minuit local. Une valeur non valide renvoie HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "race_week uniquement : combien d’heures avant la première séance (FP1) le calendrier apparaît. Une valeur hors de 0–168 renvoie HTTP 422.",
+  "api_docs_auto_extra_desc": "Panneau des équipes sur cette URL ; par défaut countdown (jours avant la prochaine course). none affiche la grille seule.",
+  "api_docs_auto_shared_desc": "Mêmes valeurs que pour /calendar.bmp et /teams.bmp ; chaque paramètre s’applique à son écran. year choisit la saison des équipes ; le calendrier montre toujours la prochaine course.",
+  "api_docs_auto_headers_note": "X-Active-Screen indique l’écran renvoyé (calendar ou teams). L’ETag est celui de l’écran actif : un 304 n’est donc renvoyé que si l’écran l’affiche déjà. X-Next-Refresh-Seconds et le max-age de Cache-Control ne dépassent jamais la prochaine bascule.",
   "api_docs_calendar_desc": "Génère un calendrier F1 en image BMP (800×480) pour écrans E-Ink 1bit, 4-bit B/W/R, 4-bit B/W/R/Y et Spectra 6.",
   "api_docs_eg": "ex.",
   "api_docs_dimensions_label": "Dimensions",

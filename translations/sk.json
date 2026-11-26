@@ -209,6 +209,20 @@
       },
       "batteryNote": "Počasie sa obnovuje každú hodinu. Pre najdlhšiu výdrž batérie počasie vypnite. Dĺžku spánku displeju určí hlavička X-Next-Refresh-Seconds."
     },
+    "autoScreen": {
+      "label": "Jedna URL pre obe obrazovky",
+      "options": {
+        "off": "Vypnuté (iba táto obrazovka)",
+        "race_week": "Pretekársky týždeň: kalendár, inak tímy",
+        "daily": "Denne: striedať každý deň"
+      },
+      "hints": {
+        "off": "URL vždy zobrazí túto obrazovku.",
+        "race_week": "/auto.bmp ukazuje kalendár od 48 h pred FP1 do konca pretekov, inak tímy s odpočtom. Ideálne pre Živýobraz.eu, kde má displej iba jednu URL.",
+        "race_week_teams": "/auto.bmp ukazuje kalendár od 48 h pred FP1 do konca pretekov, inak tímy s panelom zvoleným na tejto stránke. Ideálne pre Živýobraz.eu, kde má displej iba jednu URL.",
+        "daily": "/auto.bmp strieda kalendár a tímy každý deň o miestnej polnoci."
+      }
+    },
     "displayLabel": "Displej",
     "imageCreditsNote": "Atribúcia a licencie obrázka:",
     "teamsExtra": {
@@ -410,6 +424,12 @@
   "api_docs_weather_desc": "Zapnúť alebo vypnúť vrstvu počasia",
   "api_docs_weather_type_desc": "Ktorý variant údajov o počasí vyrenderovať",
   "api_docs_countdown_desc": "Odpočet v informačnom poli: hours (dni a hodiny, predvolené), days (celé dni v tz, mení sa o miestnej polnoci), auto (celé dni až do 48 h pred štartom, potom dni a hodiny) alebo off (dátum pretekov namiesto odpočtu). Neplatná hodnota vráti HTTP 422.",
+  "api_docs_auto_desc": "Jedna URL, ktorá vracia priamo BMP kalendára alebo tímov (bez presmerovania). Hodí sa pre displeje, ktoré vedia sťahovať iba jednu adresu, napríklad Živýobraz.eu alebo jednoduchý firmvér ESP32.",
+  "api_docs_auto_mode_desc": "race_week: kalendár od lead_hours pred prvou session najbližšieho pretekárskeho víkendu až do výberu ďalších pretekov (4 h po štarte), inak tímy, vrátane zimnej prestávky a zrušených pretekov. daily: kalendár v párne a tímy v nepárne miestne dni v tz, prepína sa o miestnej polnoci. Neplatná hodnota vráti HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Iba pre race_week: koľko hodín pred prvou session (FP1) sa zobrazí kalendár. Hodnota mimo 0–168 vráti HTTP 422.",
+  "api_docs_auto_extra_desc": "Panel tímov na tejto URL; predvolený je countdown (dni do ďalších pretekov). Hodnota none zobrazí samotnú mriežku.",
+  "api_docs_auto_shared_desc": "Rovnaké hodnoty ako pri /calendar.bmp a /teams.bmp; každý parameter platí pre svoju obrazovku. year volí sezónu tímov; kalendár vždy ukazuje najbližšie preteky.",
+  "api_docs_auto_headers_note": "Hlavička X-Active-Screen hovorí, ktorá obrazovka bola vrátená (calendar alebo teams). ETag patrí aktívnej obrazovke, takže 304 príde iba vtedy, keď ju displej už zobrazuje. X-Next-Refresh-Seconds ani max-age v Cache-Control nikdy neprekročia ďalšie prepnutie.",
   "api_docs_calendar_desc": "Generuje F1 kalendár ako BMP obrázok (800×480) pre 1bit, 4-bit B/W/R, 4-bit B/W/R/Y a Spectra 6 E-Ink displeje.",
   "api_docs_eg": "napr.",
   "api_docs_dimensions_label": "Rozmery",

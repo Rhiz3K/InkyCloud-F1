@@ -16,6 +16,7 @@ _CODE_COMMENTS: dict[str, dict[str, str]] = {
         "curl_localized": "# With Czech language and timezone",
         "curl_race": "# Specific race (year and round)",
         "curl_bwry": "# B/W/R/Y output for four-color E-Ink",
+        "curl_auto": "# One URL: calendar in race week, teams otherwise",
         "python_docstring": "Download F1 calendar as BMP image.",
         "python_print": "Calendar saved as calendar.bmp",
         "python_usage": "# Usage",
@@ -28,6 +29,7 @@ _CODE_COMMENTS: dict[str, dict[str, str]] = {
         "curl_localized": "# S českým jazykem a časovým pásmem",
         "curl_race": "# Konkrétní závod (rok a kolo)",
         "curl_bwry": "# B/W/R/Y varianta pro černo-bílo-červeno-žlutý e-paper",
+        "curl_auto": "# Jedna URL: v závodním týdnu kalendář, jinak týmy",
         "python_docstring": "Stáhne F1 kalendář jako BMP obrázek.",
         "python_print": "Kalendář uložen jako calendar.bmp",
         "python_usage": "# Použití",
@@ -50,7 +52,9 @@ def build_code_examples(ui_lang: str, server_url: str) -> dict[str, str]:
             f"{c['curl_race']}\n"
             f'curl -o calendar.bmp "{server_url}/calendar.bmp?year=2026&round=6"\n\n'
             f"{c['curl_bwry']}\n"
-            f'curl -o calendar.bmp "{server_url}/calendar.bmp?display=bwry"'
+            f'curl -o calendar.bmp "{server_url}/calendar.bmp?display=bwry"\n\n'
+            f"{c['curl_auto']}\n"
+            f'curl -o screen.bmp "{server_url}/auto.bmp?lang=cs&tz=Europe/Prague"'
         ),
         "code_python": (
             "import httpx\n\n"

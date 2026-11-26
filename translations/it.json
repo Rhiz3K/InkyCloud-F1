@@ -209,6 +209,20 @@
       },
       "batteryNote": "Il meteo si aggiorna ogni ora. Per la massima autonomia disattiva il meteo. L’intestazione X-Next-Refresh-Seconds indica al display quanto può dormire."
     },
+    "autoScreen": {
+      "label": "Un URL per entrambe le schermate",
+      "options": {
+        "off": "Disattivato (solo questa schermata)",
+        "race_week": "Settimana di gara: calendario, altrimenti squadre",
+        "daily": "Giornaliero: alterna ogni giorno"
+      },
+      "hints": {
+        "off": "L’URL mostra sempre questa schermata.",
+        "race_week": "/auto.bmp mostra il calendario da 48 h prima delle FP1 fino alla fine della gara, altrimenti le squadre con il conto alla rovescia. Ideale per Živýobraz.eu, che consente un solo URL per display.",
+        "race_week_teams": "/auto.bmp mostra il calendario da 48 h prima delle FP1 fino alla fine della gara, altrimenti le squadre con il pannello scelto in questa pagina. Ideale per Živýobraz.eu, che consente un solo URL per display.",
+        "daily": "/auto.bmp alterna calendario e squadre ogni giorno a mezzanotte locale."
+      }
+    },
     "displayLabel": "Display",
     "imageCreditsNote": "Attribuzione e licenze dell'immagine:",
     "teamsExtra": {
@@ -410,6 +424,12 @@
   "api_docs_weather_desc": "Abilita o disabilita l'overlay meteo",
   "api_docs_weather_type_desc": "Quale variante dei dati meteo renderizzare",
   "api_docs_countdown_desc": "Conto alla rovescia nel riquadro di stato: hours (giorni e ore, predefinito), days (giorni interi in tz, cambia a mezzanotte locale), auto (giorni interi fino a 48 h prima della partenza, poi giorni e ore) oppure off (data della gara al posto del conto alla rovescia). I valori non validi restituiscono HTTP 422.",
+  "api_docs_auto_desc": "Un URL che restituisce direttamente il BMP del calendario o delle squadre (senza reindirizzamento). Per display che possono interrogare un solo indirizzo, come Živýobraz.eu o un semplice firmware ESP32.",
+  "api_docs_auto_mode_desc": "race_week: il calendario da lead_hours prima della prima sessione del prossimo weekend di gara finché non viene scelta la gara successiva (4 h dopo la partenza), altrimenti le squadre, anche durante la pausa invernale e per le gare annullate. daily: calendario nei giorni locali pari e squadre in quelli dispari in tz, con cambio a mezzanotte locale. I valori non validi restituiscono HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Solo race_week: quante ore prima della prima sessione (FP1) compare il calendario. I valori fuori da 0–168 restituiscono HTTP 422.",
+  "api_docs_auto_extra_desc": "Pannello squadre su questo URL; predefinito countdown (giorni alla prossima gara). none mostra solo la griglia.",
+  "api_docs_auto_shared_desc": "Gli stessi valori di /calendar.bmp e /teams.bmp; ogni parametro vale per la propria schermata. year sceglie la stagione delle squadre; il calendario mostra sempre la prossima gara.",
+  "api_docs_auto_headers_note": "X-Active-Screen indica quale schermata è stata restituita (calendar o teams). L’ETag è quello della schermata attiva, quindi 304 arriva solo se il display la mostra già. X-Next-Refresh-Seconds e il max-age di Cache-Control non superano mai il cambio successivo.",
   "api_docs_calendar_desc": "Genera un calendario F1 come immagine BMP (800×480) per display E-Ink 1bit, 4-bit B/W/R, 4-bit B/W/R/Y e Spectra 6.",
   "api_docs_eg": "ad es.",
   "api_docs_dimensions_label": "Dimensioni",

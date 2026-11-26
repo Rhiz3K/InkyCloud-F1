@@ -209,6 +209,20 @@
       },
       "batteryNote": "O clima é atualizado a cada hora. Para a maior duração da bateria, desligue o clima. O cabeçalho X-Next-Refresh-Seconds diz à tela quanto tempo dormir."
     },
+    "autoScreen": {
+      "label": "Uma URL para as duas telas",
+      "options": {
+        "off": "Desligado (só esta tela)",
+        "race_week": "Semana de corrida: calendário, senão equipes",
+        "daily": "Diário: alternar a cada dia"
+      },
+      "hints": {
+        "off": "A URL sempre mostra esta tela.",
+        "race_week": "/auto.bmp mostra o calendário de 48 h antes do TL1 até o fim da corrida e, no restante do tempo, as equipes com contagem regressiva. Ideal para o Živýobraz.eu, que permite uma URL por tela.",
+        "race_week_teams": "/auto.bmp mostra o calendário de 48 h antes do TL1 até o fim da corrida e, no restante do tempo, as equipes com o painel escolhido nesta página. Ideal para o Živýobraz.eu, que permite uma URL por tela.",
+        "daily": "/auto.bmp alterna calendário e equipes todos os dias à meia-noite local."
+      }
+    },
     "displayLabel": "Tela",
     "imageCreditsNote": "Atribuição e licenças da imagem:",
     "teamsExtra": {
@@ -410,6 +424,12 @@
   "api_docs_weather_desc": "Ativa ou desativa a sobreposição de clima",
   "api_docs_weather_type_desc": "Qual variante de dados meteorológicos renderizar",
   "api_docs_countdown_desc": "Contagem regressiva na caixa de status: hours (dias e horas, padrão), days (dias inteiros em tz, muda à meia-noite local), auto (dias inteiros até 48 h antes da largada, depois dias e horas) ou off (data da corrida em vez da contagem). Valores inválidos retornam HTTP 422.",
+  "api_docs_auto_desc": "Uma URL que retorna diretamente o BMP do calendário ou das equipes (sem redirecionamento). Para telas que só conseguem consultar um endereço, como Živýobraz.eu ou um firmware ESP32 simples.",
+  "api_docs_auto_mode_desc": "race_week: o calendário a partir de lead_hours antes da primeira sessão do próximo fim de semana de corrida até a próxima corrida ser selecionada (4 h após a largada); as equipes no restante do tempo, inclusive na pausa de fim de temporada e em corridas canceladas. daily: calendário nos dias locais pares e equipes nos ímpares em tz, trocando à meia-noite local. Valores inválidos retornam HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Somente race_week: quantas horas antes da primeira sessão (TL1) o calendário aparece. Valores fora de 0–168 retornam HTTP 422.",
+  "api_docs_auto_extra_desc": "Painel das equipes nesta URL; padrão countdown (dias até a próxima corrida). none mostra só a grade.",
+  "api_docs_auto_shared_desc": "Os mesmos valores de /calendar.bmp e /teams.bmp; cada parâmetro vale para a sua tela. year escolhe a temporada das equipes; o calendário sempre mostra a próxima corrida.",
+  "api_docs_auto_headers_note": "X-Active-Screen informa qual tela foi retornada (calendar ou teams). O ETag é o da tela ativa, então um 304 só é retornado enquanto a tela já a exibe. X-Next-Refresh-Seconds e o max-age do Cache-Control nunca ultrapassam a próxima troca.",
   "api_docs_calendar_desc": "Gera um calendário de F1 como imagem BMP (800×480) para telas E-Ink 1bit, 4-bit B/W/R, 4-bit B/W/R/Y e Spectra 6.",
   "api_docs_eg": "ex.",
   "api_docs_dimensions_label": "Dimensões",

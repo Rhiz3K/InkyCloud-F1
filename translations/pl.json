@@ -209,6 +209,20 @@
       },
       "batteryNote": "Pogoda odświeża się co godzinę. Aby bateria działała najdłużej, wyłącz pogodę. Długość uśpienia wyświetlacza wskaże nagłówek X-Next-Refresh-Seconds."
     },
+    "autoScreen": {
+      "label": "Jeden URL dla obu ekranów",
+      "options": {
+        "off": "Wyłączone (tylko ten ekran)",
+        "race_week": "Tydzień wyścigu: kalendarz, poza nim zespoły",
+        "daily": "Codziennie: zmiana co dzień"
+      },
+      "hints": {
+        "off": "URL zawsze pokazuje ten ekran.",
+        "race_week": "/auto.bmp pokazuje kalendarz od 48 h przed FP1 do końca wyścigu, a w pozostałym czasie zespoły z odliczaniem. Idealne dla Živýobraz.eu, gdzie wyświetlacz ma jeden URL.",
+        "race_week_teams": "/auto.bmp pokazuje kalendarz od 48 h przed FP1 do końca wyścigu, a w pozostałym czasie zespoły z panelem wybranym na tej stronie. Idealne dla Živýobraz.eu, gdzie wyświetlacz ma jeden URL.",
+        "daily": "/auto.bmp zmienia kalendarz i zespoły codziennie o lokalnej północy."
+      }
+    },
     "displayLabel": "Wyświetlacz",
     "imageCreditsNote": "Atrybucja i licencje obrazu:",
     "teamsExtra": {
@@ -410,6 +424,12 @@
   "api_docs_weather_desc": "Włącz lub wyłącz nakładkę pogody",
   "api_docs_weather_type_desc": "Który wariant danych pogodowych wyrenderować",
   "api_docs_countdown_desc": "Odliczanie w polu stanu: hours (dni i godziny, domyślnie), days (pełne dni w tz, zmienia się o lokalnej północy), auto (pełne dni do 48 h przed startem, potem dni i godziny) lub off (data wyścigu zamiast odliczania). Nieprawidłowa wartość zwraca HTTP 422.",
+  "api_docs_auto_desc": "Jeden URL, który zwraca bezpośrednio BMP kalendarza lub zespołów (bez przekierowania). Dla wyświetlaczy, które mogą pobierać tylko jeden adres, np. Živýobraz.eu lub prosty firmware ESP32.",
+  "api_docs_auto_mode_desc": "race_week: kalendarz od lead_hours przed pierwszą sesją najbliższego weekendu wyścigowego do wyboru kolejnego wyścigu (4 h po starcie), w pozostałym czasie zespoły, także w przerwie zimowej i przy odwołanych wyścigach. daily: kalendarz w parzyste, a zespoły w nieparzyste dni lokalne w tz, zmiana o lokalnej północy. Nieprawidłowa wartość zwraca HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Tylko race_week: ile godzin przed pierwszą sesją (FP1) pojawia się kalendarz. Wartości spoza 0–168 zwracają HTTP 422.",
+  "api_docs_auto_extra_desc": "Panel zespołów pod tym URL; domyślnie countdown (dni do następnego wyścigu). none pokazuje samą siatkę.",
+  "api_docs_auto_shared_desc": "Te same wartości co w /calendar.bmp i /teams.bmp; każdy parametr dotyczy swojego ekranu. year wybiera sezon zespołów; kalendarz zawsze pokazuje najbliższy wyścig.",
+  "api_docs_auto_headers_note": "X-Active-Screen mówi, który ekran został zwrócony (calendar lub teams). ETag należy do aktywnego ekranu, więc 304 przychodzi tylko wtedy, gdy wyświetlacz już go pokazuje. X-Next-Refresh-Seconds ani max-age w Cache-Control nigdy nie sięgają poza następne przełączenie.",
   "api_docs_calendar_desc": "Generuje kalendarz F1 jako obraz BMP (800×480) dla wyświetlaczy E-Ink 1bit, 4-bit B/W/R, 4-bit B/W/R/Y i Spectra 6.",
   "api_docs_eg": "np.",
   "api_docs_dimensions_label": "Wymiary",

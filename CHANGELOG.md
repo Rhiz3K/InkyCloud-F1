@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `GET /auto.bmp`: one URL that returns the calendar or the teams BMP directly (no
+  redirect), for Živýobraz.eu and other displays that can poll only one address.
+  `mode=race_week` (default) shows the calendar from `lead_hours` (0–168, default 48) before
+  the first session of the next race weekend until the next race is selected (4 hours after the
+  start, or the end of the local race day while the start time is unpublished), and teams with
+  the `countdown` panel otherwise (the off-season and cancelled races included; an explicit
+  `extra` wins). `mode=daily` alternates calendar and teams by the local date in `tz` and
+  switches at local midnight. It accepts the calendar and teams parameters, and its bytes,
+  ETag, licence `Link` headers, pregenerated files and cache entries are those of the direct
+  URL with the same parameters. A new `X-Active-Screen: calendar|teams` header names the
+  screen; `X-Next-Refresh-Seconds` and the `Cache-Control` `max-age` never reach past the next
+  switch, and invalid `mode` or `lead_hours` values return HTTP 422. Calls are counted as
+  `/auto.bmp` in the aggregate statistics; its calendar responses also count in the calendar
+  display, race, map-style and popular-timezone breakdowns (so their timezones keep getting
+  pregenerated images), and its teams responses in the teams display breakdown. The calendar and teams route handlers now share
+  internal serving helpers instead of duplicating them. API docs, the configurator ("One URL
+  for both screens", whose copied URL always keeps the selected timezone), README, EXAMPLES and
+  all 13 locales are updated.
+
 - Add battery-friendly refresh for e-ink panels. `/calendar.bmp` and
   `/preview/configure/calendar.png` accept `countdown=hours|days|auto|off`: `hours` (default)
   keeps today's days-and-hours countdown and byte-identical output; `days` shows whole calendar
@@ -293,6 +312,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compose allows 30 seconds for shutdown so active renders can finish. The API documentation preserves quotes and line breaks in translated controls.
 
 - Refresh hints count down to the next UTC hourly publication at two minutes past the hour, on-demand cache expiry, or an earlier content change. Both 200 and 304 responses account for render time.
+
+- When the race-week schedule lookup fails, the automatic Teams screen asks the device to retry within five minutes.
 
 ## [1.3.3] - 2026-10-30
 

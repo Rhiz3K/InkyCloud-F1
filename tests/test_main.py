@@ -1409,9 +1409,8 @@ def test_configure_teams_urls_gate_timezone_params_on_extra_panel():
     response = client.get("/configure/teams")
     html = response.text
 
-    api_url_block = html.split("function getApiUrl() {", 1)[1].split(
-        "function teamsExtraUsesTz", 1
-    )[0]
+    # Up to getCopyUrl: the /auto.bmp copy URL keeps tz for its switch on purpose.
+    api_url_block = html.split("function getApiUrl() {", 1)[1].split("function getCopyUrl", 1)[0]
     teams_api_branch = api_url_block.split("} else {", 1)[1]
     assert "`${window.location.origin}/teams.bmp`" in teams_api_branch
     assert "params.push(`year=${selectedTeamsYear}`)" in teams_api_branch
@@ -1761,6 +1760,18 @@ def test_teams_bmp_default():
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/bmp"
     assert response.content[:2] == b"BM"
+
+
+def test_auto_bmp_through_the_full_app_carries_screen_and_attribution():
+    """/auto.bmp is mounted behind the attribution middleware like the direct routes."""
+    for query in ("", "?mode=daily&tz=America/New_York&display=bwr"):
+        response = client.get(f"/auto.bmp{query}")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/bmp"
+        assert response.content[:2] == b"BM"
+        assert response.headers["x-active-screen"] in {"calendar", "teams"}
+        assert response.headers["x-data-attribution"].startswith("Jolpica-F1")
+        assert 60 <= int(response.headers["x-next-refresh-seconds"]) <= 86400
 
 
 def test_teams_bmp_with_year():

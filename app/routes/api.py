@@ -9,8 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.models import PerfMetricsPayload
+from app.services.auto_screen import (
+    ACTIVE_SCREEN_HEADER,
+    DEFAULT_LEAD_HOURS,
+    MAX_LEAD_HOURS,
+    AutoMode,
+)
 from app.services.database import get_database
-from app.services.f1_service import F1Service
+from app.services.f1_service import NEXT_RACE_GRACE, F1Service
 from app.services.private_stats import canonical_page
 from app.services.renderer_text import get_team_color_hex, get_team_key
 from app.services.renderers import DISPLAY_TYPES
@@ -378,6 +384,90 @@ async def api_info() -> dict:
                     f"/teams.bmp?year={get_default_teams_year()}",
                     "/teams.bmp?display=bwr",
                     "/teams.bmp?display=spectra6",
+                ],
+            },
+            "/auto.bmp": {
+                "method": "GET",
+                "description": "One URL that returns the calendar or the teams BMP directly "
+                "(no redirect), for displays that can poll a single address such as "
+                "Živýobraz.eu. Accepts the calendar and teams parameters; each applies to "
+                "its own screen.",
+                "parameters": {
+                    "mode": {
+                        "type": "string",
+                        "description": "race_week: calendar from lead_hours before the first "
+                        "session of the next race weekend until the next race is selected "
+                        f"({int(NEXT_RACE_GRACE.total_seconds() // 3600)} h after the start, or "
+                        "after the local race day while the start time is unpublished), teams "
+                        "otherwise, also during the off-season and for cancelled races. daily: "
+                        "calendar on even and teams on odd local days in tz, switching at "
+                        "local midnight. Invalid values return 422.",
+                        "values": [mode.value for mode in AutoMode],
+                        "default": AutoMode.RACE_WEEK.value,
+                        "example": "?mode=daily",
+                        "optional": True,
+                    },
+                    "lead_hours": {
+                        "type": "integer",
+                        "description": "race_week: hours before the first session when the "
+                        "calendar appears. Values outside the range return 422.",
+                        "minimum": 0,
+                        "maximum": MAX_LEAD_HOURS,
+                        "default": DEFAULT_LEAD_HOURS,
+                        "example": "?lead_hours=72",
+                        "optional": True,
+                    },
+                    "lang": {"type": "string", "default": "en", "values": _LANGUAGE_VALUES},
+                    "tz": {
+                        **timezone_parameter,
+                        "description": "IANA timezone for both screens and the daily switch; "
+                        "an invalid timezone returns 400",
+                    },
+                    "display": {"type": "string", "default": "1bit", "values": _DISPLAY_VALUES},
+                    "weather": {
+                        "type": "boolean",
+                        "description": "Calendar only",
+                        "default": True,
+                        "optional": True,
+                    },
+                    "weather_type": {
+                        "type": "string",
+                        "description": "Calendar only",
+                        "values": ["race_day", "race", "current", "off"],
+                        "default": "race_day",
+                        "optional": True,
+                    },
+                    "countdown": {**countdown_parameter, "description": "Calendar only"},
+                    **track_parameters,
+                    "extra": {
+                        "type": "string",
+                        "description": "Teams only; defaults to countdown on this URL",
+                        "values": [extra.value for extra in TeamsExtra],
+                        "default": TeamsExtra.COUNTDOWN.value,
+                        "optional": True,
+                    },
+                    "year": {
+                        "type": "integer",
+                        "description": "Teams only: season year; the calendar always shows the "
+                        "next race",
+                        "optional": True,
+                    },
+                },
+                "response": {
+                    "content_type": "image/bmp",
+                    "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
+                    "active_screen": f"{ACTIVE_SCREEN_HEADER}: calendar or teams",
+                    "cache_control": "As the active screen; max-age never exceeds the seconds "
+                    "until the next switch",
+                    "conditional_requests": "ETag of the active screen (the same as its direct "
+                    "URL); a 304 is returned only while the client already shows that screen",
+                    "refresh_hint": f"{refresh_hint} Never later than the next switch.",
+                },
+                "examples": [
+                    "/auto.bmp",
+                    "/auto.bmp?lang=cs&tz=Europe/Prague&display=bwry",
+                    "/auto.bmp?mode=daily&tz=America/New_York",
+                    "/auto.bmp?lead_hours=72&extra=flags",
                 ],
             },
             "/api": {"method": "GET", "description": "API documentation (this endpoint)"},
