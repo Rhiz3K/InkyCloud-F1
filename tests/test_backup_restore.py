@@ -488,9 +488,8 @@ def test_storage_lock_opens_read_only_and_names_an_inaccessible_lock(tmp_path, m
     with storage_lock(db):
         assert path.is_file()
     opened.side_effect = PermissionError("permission denied")
-    with pytest.raises(PermissionError, match=str(path)):
-        with storage_lock(db):
-            pytest.fail("acquired an inaccessible lock")
+    with pytest.raises(PermissionError, match=str(path)), storage_lock(db):
+        pytest.fail("acquired an inaccessible lock")
 
 
 def test_lock_io_failure_and_exhausted_publication_do_not_replace_data(data_dir, monkeypatch):
