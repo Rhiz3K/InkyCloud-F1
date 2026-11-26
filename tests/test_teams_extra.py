@@ -9,6 +9,7 @@ import httpx
 import pytest
 from PIL import Image, ImageChops, ImageDraw
 
+from app.services import bmp_artifacts
 from app.services import renderer_teams_extras as panels
 from app.services import teams_extra as extras
 from app.services.f1_service import F1Service
@@ -266,7 +267,7 @@ def test_completed_rounds_and_real_colour_flags(ctx, monkeypatch, tmp_path):
 
 def test_render_helpers_forward_options(ctx, monkeypatch):
     """Worker adapters forward the same optional panel arguments."""
-    from app.routes import images, previews
+    from app.routes import previews
     from app.services import scheduler_generation
 
     renderer = Mock()
@@ -274,8 +275,8 @@ def test_render_helpers_forward_options(ctx, monkeypatch):
     teams = object()
     for module, invoke in (
         (
-            images,
-            lambda: images._render_teams_bytes(
+            bmp_artifacts,
+            lambda: bmp_artifacts.render_teams_bytes(
                 "1bit", "en", teams, extra=TeamsExtra.TRACK, extra_context=ctx
             ),
         ),

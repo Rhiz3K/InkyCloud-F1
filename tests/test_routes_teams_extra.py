@@ -10,6 +10,7 @@ from httpx import ASGITransport, AsyncClient, AsyncHTTPTransport
 
 from app.models import TeamEntry, TeamsData
 from app.routes import images, previews
+from app.services import bmp_artifacts
 from app.services.teams_extra import TeamsExtra, build_teams_extra_context, teams_extra_cache_token
 from app.services.weather_service import WeatherData, WeatherService
 from app.state import clear_bmp_cache, get_bmp_cache, get_bmp_variant_cache
@@ -23,7 +24,7 @@ def routes(monkeypatch):
     """Mount isolated routes with deterministic data and no external fetching."""
     get_bmp_cache().clear()
     get_bmp_variant_cache().clear()
-    images._singleflight_tasks.clear()
+    bmp_artifacts._singleflight_tasks.clear()
     monkeypatch.setattr(WeatherService, "get_cached_value", lambda key: WeatherData(20.0, 1, 10))
     monkeypatch.setattr(images, "record_api_call", MagicMock())
     for module in (images, previews):
@@ -36,9 +37,10 @@ def routes(monkeypatch):
                 extra, year, now=_NOW, **kwargs
             ),
         )
+    for module in (bmp_artifacts, previews):
         monkeypatch.setattr(module, "is_teams_data_cacheable", lambda data: True)
     monkeypatch.setattr(
-        images.TeamsService,
+        bmp_artifacts.TeamsService,
         "get_teams_and_drivers",
         AsyncMock(
             return_value=TeamsData(season=2026, teams=[TeamEntry(constructor_name="Ferrari")])
@@ -52,7 +54,7 @@ def routes(monkeypatch):
     yield app
     get_bmp_cache().clear()
     get_bmp_variant_cache().clear()
-    images._singleflight_tasks.clear()
+    bmp_artifacts._singleflight_tasks.clear()
 
 
 @pytest.mark.asyncio
@@ -202,8 +204,8 @@ async def test_license_headers(routes, extra, monkeypatch):
                 assert conditional.headers["Link"] == expected
         monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
         monkeypatch.setattr(
-            images,
-            "_render_calendar_artifact",
+            bmp_artifacts,
+            "render_calendar_artifact",
             AsyncMock(return_value=(b"calendar", '"calendar"')),
         )
         calendar = await client.get("/calendar.bmp")
@@ -305,7 +307,7 @@ async def test_extra_preview_failures_use_ordinary_fallback(
     previews.enforce_rate_limit.assert_called_once()
     assert not get_bmp_cache()
     assert not get_bmp_variant_cache()
-    assert not images._singleflight_tasks
+    assert not bmp_artifacts._singleflight_tasks
 
 
 @pytest.mark.asyncio

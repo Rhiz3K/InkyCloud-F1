@@ -14,6 +14,7 @@ from PIL import Image, ImageChops
 from app.routes import credits as credit_routes
 from app.routes import images, pages, previews, tracks
 from app.routes.deps import get_f1_service
+from app.services import bmp_artifacts
 from app.services.artifact_metadata import calendar_identity, write_artifact_metadata
 from app.services.f1_service import F1Service
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions, TrackSource, TrackStyle
@@ -35,7 +36,7 @@ def artwork_app(monkeypatch, tmp_path):
     monkeypatch.setattr(images, "_record_calendar_api_call", lambda **_: None)
     get_bmp_cache().clear()
     _reset_rate_limit_state_for_tests()
-    images._singleflight_tasks.clear()
+    bmp_artifacts._singleflight_tasks.clear()
     app = FastAPI()
     for router in (
         tracks.router,
@@ -49,7 +50,7 @@ def artwork_app(monkeypatch, tmp_path):
     yield app
     get_bmp_cache().clear()
     _reset_rate_limit_state_for_tests()
-    images._singleflight_tasks.clear()
+    bmp_artifacts._singleflight_tasks.clear()
 
 
 def test_catalog_metadata_and_openapi_share_all_public_choices(artwork_app):

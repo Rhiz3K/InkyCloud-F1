@@ -17,6 +17,7 @@ from app import main, state
 from app.config import LANGUAGE_CODES, config
 from app.routes import api, images, pages
 from app.routes.deps import get_f1_service
+from app.services import bmp_artifacts
 from app.services.database import DATABASE_SCHEMA_VERSION, Database
 from app.services.i18n import get_translator
 from app.services.private_stats import TRACK_DIMENSIONS, hour_stamp, normalize_track_options
@@ -183,7 +184,7 @@ async def test_calendar_defaults_custom_choices_cache_and_304_reach_stats_api(
         state.get_bmp_cache()[kwargs["cache_key"]] = artifact
         return artifact
 
-    monkeypatch.setattr(images, "_render_calendar_artifact", render)
+    monkeypatch.setattr(bmp_artifacts, "render_calendar_artifact", render)
     app = FastAPI()
     app.include_router(images.router)
     app.include_router(api.router)

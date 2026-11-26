@@ -7,6 +7,7 @@ import pytest
 
 from app.models import TeamEntry, TeamsData
 from app.routes import images
+from app.services import bmp_artifacts
 from app.services.image_generation import (
     require_current_selection,
     selected_generation,
@@ -58,7 +59,7 @@ async def test_conditional_teams_waiter_uses_current_generation(monkeypatch, que
     charges = Mock()
     monkeypatch.setattr(images, "enforce_rate_limit", charges)
     monkeypatch.setattr(images, "_record_teams_api_call", lambda **kw: None)
-    monkeypatch.setattr(images, "run_render", draw)
+    monkeypatch.setattr(bmp_artifacts, "run_render", draw)
     monkeypatch.setattr(TeamsService, "get_teams_and_drivers", roster)
     monkeypatch.setattr(images.config, "RENDER_CONCURRENCY", 1)
     if queued:
@@ -113,7 +114,7 @@ async def test_selection_finishes_after_two_reselections():
                 rendered.append(generation)
                 return b"complete", strong_etag(b"complete")
 
-        return await images._singleflight(f"calendar:{generation}:bounded", produce)
+        return await bmp_artifacts.singleflight(f"calendar:{generation}:bounded", produce)
 
     assert await select_and_render() == (b"complete", strong_etag(b"complete"))
     assert len(set(selections)) == 3

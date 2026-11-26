@@ -12,8 +12,8 @@ import pytest
 
 from app.models import PerfMetricsPayload
 from app.routes import images, previews
+from app.services import bmp_artifacts, teams_service, weather_service
 from app.services import scheduler_generation as generation
-from app.services import teams_service, weather_service
 from app.services.database import Database
 from app.state import clear_bmp_cache
 from tests.test_routes_images import _request
@@ -53,7 +53,9 @@ async def test_teams_total_budget_covers_scheduler_and_both_dynamic_routes(tmp_p
         await asyncio.wait_for(previews._render_teams_preview("en", full_size=False), 0.5)
     with pytest.raises(TimeoutError):
         await asyncio.wait_for(
-            images._render_teams_artifact(cache_key="teams", lang="en", year=2026, display="1bit"),
+            bmp_artifacts.render_teams_artifact(
+                cache_key="teams", lang="en", year=2026, display="1bit"
+            ),
             0.5,
         )
 
@@ -160,7 +162,7 @@ async def test_auto_calendar_memory_cache_changes_with_next_race(monkeypatch):
     monkeypatch.setattr(images, "enforce_rate_limit", Mock())
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", lambda **_: None)
     render = AsyncMock(side_effect=[(b"monza", race, True), (b"madring", race, True)])
-    monkeypatch.setattr(images, "_render_calendar", render)
+    monkeypatch.setattr(bmp_artifacts, "render_calendar", render)
     kwargs = dict(
         lang="en",
         year=None,

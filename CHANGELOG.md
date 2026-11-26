@@ -194,6 +194,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the server's local time, so on a server in `Europe/Prague` a 13:00 race showed as 12:00
     UTC. Weekend sessions are ordered by their actual start, so qualifying no longer appears
     after the race when the two fall on either side of the autumn clock change.
+  - The image routes, the previews and the shared dependencies read `lang`, `display`,
+    `weather`/`weather_type` and `tz` through one module (`app/routes/params.py`). BMP
+    rendering, caching and request sharing for misses live in `app/services/bmp_artifacts.py`.
+    Previews no longer import private helpers from the BMP router. Equivalent requests now
+    share one image. `?weather=false` renders the same image as `?weather_type=off`; before,
+    the countdown used the short units meant to sit beside a weather block that wasn't there.
+    `?weather_type=race` shares the `race_day` image instead of rendering it a second time.
+    An unknown `lang` on the preview routes falls back to `DEFAULT_LANG`, as the BMP routes
+    already did, instead of English.
 
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
