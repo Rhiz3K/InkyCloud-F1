@@ -1131,8 +1131,8 @@ def test_hourly_numbers_must_be_finite(field, value):
         "temperature_2m": [20],
         "weather_code": [1],
         "precip": [10],
+        field: [value],
     }
-    hourly[field] = [value]
     for amount in (True, False):
         assert (
             weather._match_hourly_weather(
