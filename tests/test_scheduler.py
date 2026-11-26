@@ -582,7 +582,11 @@ async def test_collect_and_generate_skips_stale_prune_when_race_weather_missing(
         await collect_and_generate()
 
     prune.assert_not_called()
-    assert db.set_cache_meta.await_count == 4
+    assert db.set_cache_meta.await_count == 6
+    assert (
+        call(scheduler_generation.GENERATION_REASONS_META_KEY, "weather_unavailable")
+        in db.set_cache_meta.await_args_list
+    )
     assert db.set_cache_meta.await_args_list[0] == call(
         scheduler_generation.GENERATION_STATUS_META_KEY,
         scheduler_generation.GENERATION_STATUS_DEGRADED,
@@ -1082,12 +1086,16 @@ async def test_collect_and_generate_prunes_after_fully_successful_run(tmp_path):
 
     assert keep.exists()
     assert not stale.exists()
-    assert db.set_cache_meta.await_count == 4
+    assert db.set_cache_meta.await_count == 6
     assert db.set_cache_meta.await_args_list[2] == call(
         scheduler_generation.GENERATION_STATUS_META_KEY,
         scheduler_generation.GENERATION_STATUS_READY,
     )
-    assert db.set_cache_meta.await_args_list[3].args[0] == (
+    # A clean run clears the reasons of an earlier degraded run.
+    assert db.set_cache_meta.await_args_list[3] == call(
+        scheduler_generation.GENERATION_REASONS_META_KEY, ""
+    )
+    assert db.set_cache_meta.await_args_list[4].args[0] == (
         scheduler_generation.GENERATION_SUCCESS_META_KEY
     )
 

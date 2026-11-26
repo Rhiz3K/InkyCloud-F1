@@ -14,9 +14,10 @@ from fastapi.responses import JSONResponse
 from app.config import config
 from app.services.database import get_database
 from app.services.generation_freshness import (
-    GENERATION_STATUS_DEGRADED,
     GENERATION_STATUS_META_KEY,
     GENERATION_SUCCESS_META_KEY,
+    GenerationState,
+    classify_generation,
     generation_age_seconds,
     generation_is_fresh,
 )
@@ -91,17 +92,8 @@ async def readiness() -> JSONResponse:
 
     generation_age = generation_age_seconds(generated_at)
     generation_ok = generation_is_fresh(generated_at)
-    if generated_at is None:
-        generation_status = "starting"
-    elif generation_age is None:
-        generation_status = "invalid"
-    elif not generation_ok:
-        generation_status = "stale"
-    elif last_generation_status == GENERATION_STATUS_DEGRADED:
-        generation_status = "degraded"
-    else:
-        # A fresh marker written by a version predating status metadata remains valid.
-        generation_status = "ready"
+    # The same states map to DegradedReason codes in ops status; publicly only the state shows.
+    generation_status = classify_generation(generated_at, last_generation_status)
     checks["generation"] = {
         "ok": generation_ok,
         "status": generation_status,
@@ -110,7 +102,11 @@ async def readiness() -> JSONResponse:
 
     ready = database_ok and storage_ok and generation_ok
     service_status = (
-        "not_ready" if not ready else "degraded" if generation_status == "degraded" else "ready"
+        "not_ready"
+        if not ready
+        else "degraded"
+        if generation_status == GenerationState.DEGRADED
+        else "ready"
     )
     return JSONResponse(
         status_code=200 if ready else 503,

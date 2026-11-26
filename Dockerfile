@@ -58,6 +58,10 @@ RUN chmod +x /usr/local/bin/reset-db
 COPY scripts/backup_cli.py /usr/local/bin/backup
 RUN chmod +x /usr/local/bin/backup
 
+# Copy and install operator diagnostics CLI (ops status)
+COPY scripts/ops_cli.py /usr/local/bin/ops
+RUN chmod +x /usr/local/bin/ops
+
 # Create non-root user for security
 RUN useradd -m -u 1000 -s /bin/bash appuser \
     && mkdir -p /app/data \

@@ -27,6 +27,7 @@ from app.routes.credits import router as credits_router
 from app.routes.docs import router as docs_router
 from app.routes.health import router as health_router
 from app.routes.images import router as images_router
+from app.routes.ops import router as ops_router
 from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
@@ -44,6 +45,7 @@ from app.services.scheduler import (
     stop_scheduler,
 )
 from app.services.scheduler_maintenance import flush_api_calls_to_db
+from app.services.storage_lock import storage_lock
 from app.services.warmup import warm_teams_renderer_assets
 from app.utils.async_tasks import (
     RENDER_WORKER_COUNT,
@@ -133,6 +135,14 @@ def _check_persistent_storage() -> bool:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
+    with storage_lock(Path(config.DATABASE_PATH)):
+        async with _running_service():
+            yield
+
+
+@asynccontextmanager
+async def _running_service():
+    """Start and drain the service while its database and circuit files are reserved."""
     logger.info("Starting F1.InkyCloud.click service")
 
     _check_persistent_storage()
@@ -435,6 +445,7 @@ app.include_router(previews_router)  # /preview/* must be before pages (/{lang}/
 app.include_router(docs_router)
 app.include_router(seo_router)
 app.include_router(health_router)
+app.include_router(ops_router)
 app.include_router(api_router)
 app.include_router(images_router)
 app.include_router(tracks_router)

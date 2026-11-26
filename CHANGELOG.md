@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a pregeneration profile for small self-hosted instances. `PREGENERATE_LANGUAGES`,
+  `PREGENERATE_DISPLAYS` and `PREGENERATE_WEATHER_TYPES` (comma-separated, empty = all, unknown
+  entries ignored with a warning) limit which calendar, teams and PNG preview files the hourly
+  job writes; `weather=off` calendars are always generated. Weather the profile leaves out is
+  not fetched by the hourly job, and previews outside the profile are deleted, so they cannot
+  keep old standings or weather. Combinations outside the profile still render on demand and
+  are cached in memory. `WEATHER_PREFETCH_ALL_CIRCUITS=false`
+  refreshes current weather hourly only for the next race instead of every circuit of the
+  season; other circuits are fetched on demand. Defaults keep today's behaviour.
+- Add `ops status [--json]` in the container: readiness with stable reason codes
+  (`weather_unavailable`, `teams_data_unavailable`, `weather_quota_exhausted`,
+  `historical_refresh_incomplete`, `backup_failed`, ...), Open-Meteo quota usage, historical
+  refresh streak, weekend podium state, pregenerated files, last backups and the active
+  profile, without visitor data, paths or secrets. The hourly job stores the reasons of its last
+  run. With `ADMIN_API_TOKEN` set, `GET /api/ops/status` returns the same JSON plus in-memory
+  cache occupancy (`Authorization: Bearer`, constant-time comparison, `Cache-Control:
+  no-store`); without a token it answers 404, a wrong token 401. `/health/ready` is unchanged
+  and shares the generation states.
+- Add `backup list [--verify] [--json]`, `backup restore <name|latest>` and
+  `backup now --local`. A restore checks the backup with `PRAGMA integrity_check`, refuses a
+  newer schema and a database in use, runs the normal migrations on the staged copy (so older
+  backups are upgraded before anything live changes), saves the current database as a safety
+  snapshot under a name that is never reused, and writes through SQLite's backup API. A failure
+  after that point names the safety snapshot that undoes it. With `--force` it also replaces
+  a current database that SQLite can no longer read, keeping a raw copy as the safety snapshot.
+  Backups now include `circuits_jolpica.json` (`BACKUP_INCLUDE_DATA_FILES=true`) and restore
+  it. Local backups (`BACKUP_LOCAL_DIR`, default next to the database) also work in
+  `MINIMAL_DATA_MODE`; external backups stay off there.
+
 - Add `weekend_mode=off|auto` to `/calendar.bmp`, `/auto.bmp` and
   `/preview/configure/calendar.png`. `off` (default) keeps byte-identical output. With `auto`,
   from 12 hours before the first session until the next race is selected, finished sessions
@@ -337,6 +366,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When the race-week schedule lookup fails, the automatic Teams screen asks the device to retry within five minutes.
 
 - Automatic weekend calendars and race-week screens keep the race available for late podiums until 24 hours after its start. Weekend responses expire by the opening of the weekend view.
+
+- Restore and service startup coordinate access to the database and circuit history. Backup verification checks the InkyCloud schema and reports failure to scripts. Local backups preserve same-second snapshots, and undo restores circuit-file presence. Operator diagnostics show the latest generation attempt and give authenticated monitoring its own quota. Generation fetches only selected weather sources.
 
 ## [1.3.3] - 2026-10-30
 

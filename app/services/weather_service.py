@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import math
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Optional
@@ -674,6 +675,7 @@ async def _resolve_race_weather(
 async def _get_weather_context_unbounded(
     race_data: dict | None,
     weather_by_type: dict[str, Optional[WeatherData]],
+    wanted: Collection[str] = ("current", "race"),
 ) -> tuple[
     Optional[WeatherData],
     Optional[WeatherData],
@@ -695,35 +697,40 @@ async def _get_weather_context_unbounded(
     circuit_id, lat, lon = _extract_circuit_context(race_data)
     race_dt = race_session_start(race_data)
 
-    current_weather, weather_service = await _resolve_current_weather(
-        circuit_id=circuit_id,
-        lat=lat,
-        lon=lon,
-        weather_service=None,
-    )
-    if current_weather:
-        weather_by_type["current"] = current_weather
-
-    race_weather, _ = await _resolve_race_weather(
-        lat=lat,
-        lon=lon,
-        race_dt=race_dt,
-        weather_service=weather_service,
-    )
-    if race_weather:
-        weather_by_type["race"] = race_weather
+    current_weather = race_weather = None
+    weather_service = None
+    if "current" in wanted:
+        current_weather, weather_service = await _resolve_current_weather(
+            circuit_id=circuit_id,
+            lat=lat,
+            lon=lon,
+            weather_service=None,
+        )
+        if current_weather:
+            weather_by_type["current"] = current_weather
+    if "race" in wanted:
+        race_weather, _ = await _resolve_race_weather(
+            lat=lat,
+            lon=lon,
+            race_dt=race_dt,
+            weather_service=weather_service,
+        )
+        if race_weather:
+            weather_by_type["race"] = race_weather
 
     return current_weather, race_weather, weather_by_type
 
 
 async def get_weather_context(
     race_data: dict | None,
+    *,
+    wanted: Collection[str] = ("current", "race"),
 ) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
     """Bound optional weather enrichment for both scheduled and on-demand calendars."""
     weather_by_type: dict[str, WeatherData | None] = {"off": None}
     try:
         async with asyncio.timeout(config.WEATHER_ENRICHMENT_TIMEOUT_SECONDS):
-            return await _get_weather_context_unbounded(race_data, weather_by_type)
+            return await _get_weather_context_unbounded(race_data, weather_by_type, wanted=wanted)
     except TimeoutError:
         # Keep a lookup that already finished (e.g. current weather) instead of discarding it
         # because a slower one (e.g. the race-day forecast) ran out of budget.

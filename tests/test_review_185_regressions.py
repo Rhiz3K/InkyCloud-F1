@@ -161,7 +161,7 @@ async def test_off_weather_type_never_fetches_weather(monkeypatch):
 async def test_weather_timeout_keeps_already_resolved_current_weather(monkeypatch):
     current = WeatherData(21.0, 2, 20)
 
-    async def partial(_race_data, weather_by_type):
+    async def partial(_race_data, weather_by_type, **_kwargs):
         weather_by_type["current"] = current
         await asyncio.Event().wait()
 

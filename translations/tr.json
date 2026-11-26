@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Bir hizmet veya geri yükleme işlemi veritabanını kullanıyor. Hizmeti durdurun veya geri yüklemenin tamamlanmasını bekleyin.",
+  "ops_last_attempt": "Son görüntü oluşturma denemesi",
   "next_race": "Sonraki yarış",
   "schedule": "Takvim",
   "weekend_schedule": "HAFTA SONU PROGRAMI",

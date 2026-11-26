@@ -110,6 +110,39 @@ write probe without blocking the event loop.
 Keep the replica count at one. Multiple replicas would run independent schedulers and caches
 against the same SQLite database.
 
+## Small instance profile
+
+By default the hourly job pregenerates every language, palette and weather variant (13 × 4 × 3
+calendars, 52 teams images and their PNG previews) and refreshes current weather for every
+circuit of the season. A Raspberry Pi or a 1-vCPU VPS that feeds one or two displays at home
+only needs a fraction of that. Limit it in `.env`:
+
+```bash
+# One Czech BWRY display: 3 calendars, 1 teams image and 4 previews per hour
+PREGENERATE_LANGUAGES=cs
+PREGENERATE_DISPLAYS=bwry
+# Optional: only the weather=off calendar (off = no current/race_day variants)
+PREGENERATE_WEATHER_TYPES=off
+# Refresh current weather only for the next race (about 1 instead of ~25 requests per hour)
+WEATHER_PREFETCH_ALL_CIRCUITS=false
+```
+
+- Values are comma-separated and case-insensitive; empty means all. Unknown entries are ignored
+  with a warning, and a list without any supported entry falls back to all.
+- `weather=off` calendars are always pregenerated because readiness depends on them.
+- Everything outside the profile keeps working: a request for another language, palette or
+  weather type is rendered on demand and cached in memory, exactly like a timezone variant.
+  The first such request costs one render.
+- With `WEATHER_PREFETCH_ALL_CIRCUITS=false`, the next race (and, during the hours after its
+  start, the following one) stays warm. A calendar for another circuit fetches its weather when
+  it is requested, within the same Open-Meteo quota.
+- Pregenerated files that fall outside a new profile are deleted after the next fully
+  successful hourly run; PNG previews outside it are deleted by the next run. With
+  `PREGENERATE_WEATHER_TYPES=off` the hourly job does not fetch weather at all, so an
+  unavailable weather API does not mark the run degraded.
+
+`ops status` (below) prints the active profile and how many files one run writes.
+
 ## Health and monitoring
 
 - `GET /health` reports process liveness and has no dependency checks.
@@ -117,12 +150,58 @@ against the same SQLite database.
   at least one core calendar BMP was generated within the last six hours. Its top-level status is
   `ready` after a complete run or `degraded` when optional weather or secondary variants failed.
 - `/api/stats` reports request totals including separate 200 and 304 status counts.
+- `ops status` inside the container explains a `degraded` or unready state with stable reason
+  codes (see [Diagnostics](#diagnostics)).
 
 The Dockerfile and Compose health checks use `/health/ready`. Initial startup remains unready
 until the first core calendar artifact is published. A partial run refreshes the marker and reports
 `degraded` when the service can still serve calendars; a run with no core output leaves the marker
 unchanged. The built-in five-minute start period accommodates the first upstream refresh and
 localized render cycle without marking a healthy cold deployment as failed.
+
+## Diagnostics
+
+The Compose file stores no logs, so a `degraded` readiness does not say why. Ask the container:
+
+```bash
+docker compose exec f1-eink-cal ops status
+docker compose exec f1-eink-cal ops status --json
+```
+
+The report reads the database read-only (it also works while the service is stopped) and
+contains no visitor statistics, file paths, hostnames, bucket names or secrets. It shows the
+overall `status` (`ready`, `degraded`, `not_ready`; exit code 0, 1, 2), the `reasons`, the last
+generation, Open-Meteo quota usage per window, the daily historical refresh (last success and
+incomplete streak), stored weekend podiums, pregenerated files on disk, the last external and
+local backup and the active pregeneration profile.
+
+Reason codes are stable and only ever added:
+
+| Code | Meaning |
+| --- | --- |
+| `database_unavailable`, `storage_unavailable` | SQLite cannot be read, or `/app/data` is not mounted or not writable |
+| `generation_starting`, `generation_invalid`, `generation_stale` | no calendar generated yet, an unreadable marker, or none within six hours (`/health/ready` reports the same states as `checks.generation.status`) |
+| `calendar_variant_failed`, `weather_variant_failed`, `timezone_variant_failed`, `teams_variant_failed` | some pregenerated images of the last run failed to render |
+| `weather_unavailable` | weather expected for the next race could not be loaded in the last run |
+| `teams_data_unavailable` | teams or standings data could not be fetched or was incomplete |
+| `generation_degraded` | a degraded run recorded by an older version, without details |
+| `weather_quota_exhausted` | an Open-Meteo window (minute, hour, day, 31 days) is used up |
+| `historical_refresh_incomplete`, `historical_refresh_overdue` | three or more incomplete daily refreshes in a row, or no successful one for two days |
+| `backup_failed` | the latest external backup failed after the last successful one |
+
+Quota, historical refresh and backup reasons appear only here; `/health/ready` stays as
+minimal as before and reports `degraded` only for generation problems.
+
+For remote monitoring, set `ADMIN_API_TOKEN` and request the same JSON (plus in-memory cache
+occupancy) over HTTP:
+
+```bash
+curl -H "Authorization: Bearer $ADMIN_API_TOKEN" https://f1.example.com/api/ops/status
+```
+
+Without `ADMIN_API_TOKEN` the endpoint answers 404; a missing or wrong token answers 401. The
+token is compared in constant time, attempts share the statistics rate limit, and responses are
+sent with `Cache-Control: no-store`. The endpoint also works with `MINIMAL_DATA_MODE=true`.
 
 ## Reverse proxy
 
@@ -171,9 +250,66 @@ docker compose exec f1-eink-cal backup now
 and steps are normalized for APScheduler. An invalid enabled backup schedule fails startup rather
 than silently disabling backups.
 
-To restore, stop the service, preserve the current `/app/data` directory, restore the selected
-SQLite backup as `/app/data/f1.db`, ensure ownership matches container UID 1000, and start the
-service. Keep the old data copy until readiness and expected statistics are verified.
+Each backup is a consistent SQLite snapshot. With `BACKUP_INCLUDE_DATA_FILES=true` (default)
+the mutable circuit history `circuits_jolpica.json` travels inside the same file (in a
+`inkycloud_backup_files` table that a restore removes again), so a restore brings back both.
+
+External backups stay off with `MINIMAL_DATA_MODE=true`. Local backups never leave the machine
+and work in every profile; they are written to `BACKUP_LOCAL_DIR` (default
+`/app/data/backups`, on the same volume, so also copy them elsewhere):
+
+```bash
+docker compose exec f1-eink-cal backup now --local
+```
+
+Each local backup is completed in a private file on the backup volume and published atomically. Backups made in the same second receive numeric suffixes. `latest` selects the highest suffix for that timestamp.
+
+Local backups older than `BACKUP_RETENTION_DAYS` are removed when a new one is written.
+
+Run `backup list --verify` to check each archive's SQLite header, InkyCloud schema and page integrity. S3 archives are downloaded to a temporary file. A failed check gives a nonzero exit status in text and JSON output.
+
+```bash
+docker compose exec f1-eink-cal backup list
+docker compose exec f1-eink-cal backup list --verify --json
+```
+
+The service holds a shared kernel lock on `<database>.lock` throughout its lifetime. Restore requires an exclusive lock from staging through publication of the database and circuit files. Keep the lock file in place. The kernel releases the lock on process exit, including a crash. `--force` still requires exclusive access.
+
+Restore with the service stopped, in a one-off container from the same pinned release as the
+service (for a [source build](#build-from-source), leave out `F1_IMAGE=...`):
+
+```bash
+docker compose stop f1-eink-cal
+F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose run --rm --no-deps f1-eink-cal backup restore latest
+docker compose start f1-eink-cal
+```
+
+`latest` is the newest S3 backup when S3 is configured, otherwise the newest local backup; pass
+a name from `backup list` or `--source local|s3` to choose. The restore:
+
+1. copies the backup to a working file and refuses to continue unless `PRAGMA integrity_check`
+   reports `ok`;
+2. refuses a backup written by a newer schema version than the running image (`--force`
+   overrides this);
+3. refuses while the database is in use (`-wal`/`-shm` files present or the database locked);
+   `--force` is only for stale files left behind by a crash, or to replace a current database
+   that is no longer a readable SQLite file (the restore refuses that without `--force`);
+4. runs the normal schema migrations on the working file, so backups from older versions are
+   upgraded before anything live changes;
+5. saves the current database and circuit history as `f1_pre_restore_<timestamp>.db` in
+   `BACKUP_LOCAL_DIR` (a second restore within the same second gets a `_1`, `_2`, ... suffix
+   and never overwrites it); restore that name to undo. An unreadable database is kept as a
+   raw byte copy instead (with its `-wal`/`-shm`, without the circuit history), which can only
+   be copied back by hand;
+6. writes the backup through SQLite's backup API and restores `circuits_jolpica.json` when the
+   backup contains it. Undo also removes a circuit file that was absent at the time of the safety snapshot. Historical database-only archives preserve the current circuit file.
+   Restoring a new pre-restore safety snapshot requires a release that understands its circuit-file presence manifest.
+
+A failure before step 6 leaves the database unchanged. If step 6 fails, the command says so and
+names the safety snapshot to restore before starting the service.
+
+Add `--yes` to skip the confirmation prompt. Pregenerated images are rebuilt by the next hourly
+run. Keep the safety snapshot until readiness and expected statistics are verified.
 
 ## Database maintenance
 
@@ -188,11 +324,12 @@ docker compose exec f1-eink-cal reset-db cache
 `reset-db cache` also clears the stored race weekend podiums (`weekend_results`); restart the
 service to drop the copy held in memory. `reset-db all` deletes the database file, so the application must not be running: the live
 process keeps its connection to the unlinked file and cannot recreate the schema until it
-restarts. Stop the service and run the reset in a one-off container:
+restarts. Stop the service and run the reset in a one-off container from the same pinned
+release (for a source build, leave out `F1_IMAGE=...`):
 
 ```bash
 docker compose stop f1-eink-cal
-docker compose run --rm --no-deps f1-eink-cal reset-db all
+F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose run --rm --no-deps f1-eink-cal reset-db all
 docker compose start f1-eink-cal
 ```
 
@@ -246,7 +383,8 @@ scikit-learn. See [`scripts/README.md`](./scripts/README.md) for the unified CLI
 
 ### Readiness is 503
 
-Inspect the JSON body of `/health/ready` and the container logs (see
+Run `ops status` (see [Diagnostics](#diagnostics)) for reason codes, then inspect the JSON body
+of `/health/ready` and the container logs (see
 [Run the released image](#run-the-released-image) for enabling them). The response identifies database,
 storage, and generation checks separately. Generation status distinguishes `starting`, `stale`,
 and a still-servable `degraded` state. Common 503 causes are a missing `/app/data` mount,

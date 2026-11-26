@@ -29,6 +29,7 @@ still work. See [BMP_PROCESSING.md](../BMP_PROCESSING.md) and [TRACK_ARTWORK.md]
 `material_diff.py`, alignment checks and panel test-image scripts remain local diagnostics.
 Do not publish an old diagnostic image without reviewing the depicted assets.
 
-`backup_cli.py` and `reset_db.sh` are installed as `backup` and `reset-db` in the container.
+`backup_cli.py`, `ops_cli.py` and `reset_db.sh` are installed as `backup`, `ops` and `reset-db`
+in the container.
 Follow [SELF-HOSTING.md](../SELF-HOSTING.md) and the
 [upgrade guidance](../docs/data-collection.md#upgrading-to-130) for storage operations.

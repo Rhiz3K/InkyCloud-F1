@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Another service or restore is using this database. Stop the service or wait for the restore to finish.",
+  "ops_last_attempt": "Latest generation attempt",
   "next_race": "Next Race",
   "schedule": "Schedule",
   "weekend_schedule": "WEEKEND SCHEDULE",

@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Un servicio o una restauración está usando la base de datos. Detén el servicio o espera a que termine la restauración.",
+  "ops_last_attempt": "Último intento de generación",
   "next_race": "Próxima carrera",
   "schedule": "Horario",
   "weekend_schedule": "HORARIO DEL FIN DE SEMANA",

@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Een dienst of herstelproces gebruikt de database. Stop de dienst of wacht tot het herstel is voltooid.",
+  "ops_last_attempt": "Laatste poging om beelden te genereren",
   "next_race": "Volgende race",
   "schedule": "Schema",
   "weekend_schedule": "WEEKENDSCHEMA",

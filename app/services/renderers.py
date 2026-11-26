@@ -7,6 +7,7 @@ applied to one copy (like the BWR results-flag map) silently missed the others.
 
 from __future__ import annotations
 
+from app.config import DISPLAY_CODES
 from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.renderer import Renderer
@@ -14,7 +15,7 @@ from app.services.spectra6_renderer import Spectra6Renderer
 
 AnyRenderer = Renderer | Spectra6Renderer | BwrRenderer | BwryRenderer
 RendererType = type[Renderer] | type[Spectra6Renderer] | type[BwrRenderer] | type[BwryRenderer]
-DISPLAY_TYPES = ("1bit", "bwr", "bwry", "spectra6")
+DISPLAY_TYPES = DISPLAY_CODES
 COLOR_DISPLAYS = frozenset({"bwr", "bwry", "spectra6"})
 
 _RENDERER_TYPES: dict[str, RendererType] = {

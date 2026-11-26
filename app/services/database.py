@@ -20,6 +20,8 @@ from app.utils.async_tasks import create_supervised_task
 logger = logging.getLogger(__name__)
 PERF_STATS_SAMPLE_LIMIT = 10_000
 DATABASE_SCHEMA_VERSION = 8
+# Open-Meteo free-tier request limits per window; the rolling 31 days covers any month.
+WEATHER_QUOTA_LIMITS = {"minute": 600, "hour": 5000, "day": 10000, "rolling_31_days": 300000}
 
 STATS_CLEANUP_QUERIES = {
     "request_stats": "DELETE FROM request_stats WHERE timestamp < ?",
@@ -1490,10 +1492,10 @@ class Database:
                     row = await cursor.fetchone()
                 allowed = (
                     row is not None
-                    and row["month_count"] < 300000
-                    and row["day_count"] < 10000
-                    and row["hour_count"] < 5000
-                    and row["minute_count"] < 600
+                    and row["month_count"] < WEATHER_QUOTA_LIMITS["rolling_31_days"]
+                    and row["day_count"] < WEATHER_QUOTA_LIMITS["day"]
+                    and row["hour_count"] < WEATHER_QUOTA_LIMITS["hour"]
+                    and row["minute_count"] < WEATHER_QUOTA_LIMITS["minute"]
                 )
                 if allowed:
                     await conn.execute("INSERT INTO weather_api_requests VALUES (?)", (stamp,))
