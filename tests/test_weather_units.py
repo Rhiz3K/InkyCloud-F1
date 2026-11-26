@@ -1468,3 +1468,24 @@ async def test_weekend_preview_uses_the_source_forecast_period(
     frozen.now = QA_Q
     updated = await _get(client_app, url, {"If-None-Match": disk.headers["etag"]})
     assert updated.status_code == 200 and updated.content.startswith(b"\x89PNG")
+
+
+@pytest.mark.asyncio
+async def test_sessions_read_from_a_shared_forecast_expire_with_it(open_meteo):
+    """A session cached from an older shared forecast does not outlive that forecast."""
+    race, sessions = _future_weekend(3)
+    await ws.WeatherService(cache_minutes=120).get_race_weather(1.0, 2.0, race)
+    [(window, (hourly, _))] = ws._hourly_forecast_cache.items()
+    forecast_expiry = datetime.now(UTC) + timedelta(minutes=5)
+    ws._hourly_forecast_cache[window] = (hourly, forecast_expiry)
+    ws._weather_cache.clear()
+
+    service = ws.WeatherService(cache_minutes=60)
+    weekend = await service.get_weekend_weather(1.0, 2.0, race.date(), sessions)
+    assert [row.session for row in weekend.sessions] == ["qualifying", "race"]
+    ws._weather_cache.pop(ws._race_weather_cache_key(1.0, 2.0, race))
+    assert await service.get_race_weather(1.0, 2.0, race) is not None
+
+    assert len(open_meteo.requests) == 1
+    assert len(ws._weather_cache) == 2
+    assert all(expires == forecast_expiry for _, expires in ws._weather_cache.values())

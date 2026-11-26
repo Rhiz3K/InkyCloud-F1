@@ -86,6 +86,11 @@ _render_forecasts: ContextVar[dict[str, dict | None] | None] = ContextVar(
 )
 
 
+def _hourly_window_key(lat: float, lon: float, start: date, end: date) -> str:
+    """Name one shared hourly forecast window."""
+    return f"hourly_{round(lat, 2)}_{round(lon, 2)}_{start.isoformat()}_{end.isoformat()}"
+
+
 @asynccontextmanager
 async def _forecast_scope() -> AsyncIterator[None]:
     """Remember even empty forecast windows for the duration of one enrichment."""
@@ -358,7 +363,11 @@ class WeatherService:
         try:
             weather_data = await self._fetch_weather(lat, lon, race_datetime_utc)
             if weather_data:
-                self._set_cached(cache_key, weather_data)
+                self._set_cached(
+                    cache_key,
+                    weather_data,
+                    not_after=self._hourly_expiry(lat, lon, race_datetime_utc.date()),
+                )
             return weather_data
 
         except httpx.TimeoutException:
@@ -442,7 +451,7 @@ class WeatherService:
         if window is None:
             return None
         start, end = window
-        key = f"hourly_{round(lat, 2)}_{round(lon, 2)}_{start.isoformat()}_{end.isoformat()}"
+        key = _hourly_window_key(lat, lon, start, end)
         now = datetime.now(timezone.utc)
         for old_key, (_, expires) in tuple(_hourly_forecast_cache.items()):
             if expires <= now:
@@ -478,6 +487,15 @@ class WeatherService:
         if memo is not None:
             memo[key] = hourly
         return hourly
+
+    @staticmethod
+    def _hourly_expiry(lat: float, lon: float, race_date: date) -> Optional[datetime]:
+        """Return when the cached weekend forecast for this race expires, if one is cached."""
+        window = forecast_window(race_date, datetime.now(timezone.utc).date())
+        if window is None:
+            return None
+        entry = _hourly_forecast_cache.get(_hourly_window_key(lat, lon, *window))
+        return entry[1] if entry is not None else None
 
     async def _fetch_hourly_window(
         self, lat: float, lon: float, start: date, end: date
@@ -541,7 +559,9 @@ class WeatherService:
                         hourly = {}
                 weather = _match_session_hour(hourly, start)
                 if weather is not None:
-                    self._set_cached(key, weather)
+                    self._set_cached(
+                        key, weather, not_after=self._hourly_expiry(lat, lon, race_date)
+                    )
             found.append((kind, weather))
         return _weekend_from(found, period)
 
@@ -595,9 +615,17 @@ class WeatherService:
             del _weather_cache[key]
         return None
 
-    def _set_cached(self, key: str, data: WeatherData) -> None:
-        """Cache a weather response using this service's configured TTL."""
+    def _set_cached(
+        self, key: str, data: WeatherData, *, not_after: Optional[datetime] = None
+    ) -> None:
+        """Cache a weather response using this service's configured TTL.
+
+        ``not_after`` caps the lifetime at the expiry of the response the value was read from,
+        so a session picked from an older shared forecast does not outlive that forecast.
+        """
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=self.cache_minutes)
+        if not_after is not None:
+            expires_at = min(expires_at, not_after)
         _weather_cache[key] = (data, expires_at)
 
 
