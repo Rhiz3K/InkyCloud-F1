@@ -1489,3 +1489,5 @@ async def test_sessions_read_from_a_shared_forecast_expire_with_it(open_meteo):
     assert len(open_meteo.requests) == 1
     assert len(ws._weather_cache) == 2
     assert all(expires == forecast_expiry for _, expires in ws._weather_cache.values())
+    # A race beyond the forecast horizon has no shared window to inherit an expiry from.
+    assert ws.WeatherService._hourly_expiry(1.0, 2.0, race.date() + timedelta(days=60)) is None
