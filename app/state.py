@@ -1,10 +1,10 @@
 """Process-local caches and buffered request-statistics state."""
 
 import logging
-import time
 from collections import OrderedDict, deque
 from collections.abc import Callable
 from datetime import datetime, timezone
+from time import monotonic
 from uuid import uuid4
 
 from cachetools import TTLCache
@@ -27,18 +27,19 @@ BmpArtifact = tuple[bytes, str]
 class ImageCache(TTLCache[str, BmpArtifact]):
     """A BMP cache that exposes the remaining lifetime of a selected image."""
 
-    def __init__(self, maxsize: int, ttl: int, timer: Callable[[], float] = time.monotonic):
+    def __init__(self, maxsize: int, ttl: int, timer: Callable[[], float] = monotonic):
         """Use the same monotonic clock for admission, expiry and refresh hints."""
         super().__init__(maxsize, ttl, timer=timer)
         self._deadlines: dict[str, float] = {}
 
-    def __setitem__(self, key: str, value: BmpArtifact) -> None:
+    # The typed cachetools signature omits TTLCache's private helper argument.
+    def __setitem__(self, key: str, value: BmpArtifact) -> None:  # skipcq: PYL-W0222
         """Remember the exact deadline assigned by TTLCache, including replacements."""
         with self.timer as now:
             super().__setitem__(key, value)
             self._deadlines[key] = now + self.ttl
 
-    def __delitem__(self, key: str) -> None:
+    def __delitem__(self, key: str) -> None:  # skipcq: PYL-W0222
         """Drop the deadline when an entry is removed or evicted."""
         self._deadlines.pop(key, None)
         super().__delitem__(key)
