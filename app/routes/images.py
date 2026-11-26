@@ -35,7 +35,6 @@ from app.services.generation_freshness import PREGENERATED_MAX_AGE_SECONDS
 from app.services.image_generation import (
     StaleSelection,
     selected_generation,
-    with_current_selection,
 )
 from app.services.image_keys import get_calendar_image_key, get_teams_image_key
 from app.services.renderer_theme import ThemeMode
@@ -87,6 +86,7 @@ from app.utils.refresh_hint import (
 from app.utils.timezones import get_timezone, is_valid_timezone, normalize_timezone
 
 from .deps import get_f1_service
+from .image_retry import PreparedImage, retry_render
 from .params import (
     calendar_cache_key,
     canonical_weather_type,
@@ -112,6 +112,14 @@ CALENDAR_BMP_CACHE_CONTROL = "public, max-age=3600"
 # is checked first; the scheduler clears it at the end of each generation run (or the TTL
 # expires if a run fails before that).
 PREGENERATED_CACHE_STATUS = "PREGENERATED"
+# Cache-Control of a freshly rendered calendar. Incomplete data is never stored anywhere. A
+# render that straddled a cache clear (and its single retry did too) has complete data but
+# was not cached here, so clients may keep it only while they revalidate it by ETag.
+_CALENDAR_MISS_CACHE_CONTROL = {
+    bmp_artifacts.CacheVerdict.CACHED: CALENDAR_BMP_CACHE_CONTROL,
+    bmp_artifacts.CacheVerdict.INCOMPLETE: "no-store",
+    bmp_artifacts.CacheVerdict.RACED: "no-cache",
+}
 # Panels that print a day count, a date or the next rounds, so change at local midnight.
 _DAY_BASED_TEAMS_EXTRAS = frozenset({TeamsExtra.COUNTDOWN, TeamsExtra.FLAGS, TeamsExtra.TRACK})
 _MAX_AGE_PATTERN = re.compile(r"\bmax-age=(\d+)")
@@ -686,9 +694,9 @@ async def _output_body(
     return content, etag, cache_status
 
 
-def _output_freshness(output: ImageOutput, cache_control: str, seconds: int) -> tuple[str, int]:
+def _output_freshness(cache_control: str, seconds: int) -> tuple[str, int]:
     """Recheck the source generation after asynchronous device conversion."""
-    if not output.is_default and selected_generation() != bmp_cache_generation():
+    if selected_generation() != bmp_cache_generation():
         return ("no-store" if cache_control == "no-store" else "no-cache"), min(
             seconds, ERROR_REFRESH_SECONDS
         )
@@ -731,8 +739,9 @@ async def _select_calendar_race(
     return selected_race
 
 
-@with_current_selection
+@retry_render
 async def _serve_calendar_bmp(
+    retry: bool,
     request: Request,
     *,
     f1_service: F1Service,
@@ -751,7 +760,7 @@ async def _serve_calendar_bmp(
     temp_unit: TempUnit = TempUnit.C,
     output: ImageOutput = DEFAULT_IMAGE_OUTPUT,
     theme: ThemeMode = ThemeMode.LIGHT,
-) -> Response:
+) -> PreparedImage:
     """Serve one calendar BMP from validated, normalized inputs.
 
     Shared by ``/calendar.bmp`` and ``/auto.bmp``: the in-process caches, the pregenerated
@@ -777,7 +786,8 @@ async def _serve_calendar_bmp(
         *,
         cache_control: str,
         cache_status: str | None,
-    ) -> Response:
+        verdict: bmp_artifacts.CacheVerdict = bmp_artifacts.CacheVerdict.CACHED,
+    ) -> PreparedImage:
         """Build the calendar response with the request's normalized statistics context."""
         source_status = cache_status
         content, etag, cache_status = await _output_body(
@@ -788,39 +798,48 @@ async def _serve_calendar_bmp(
                 countdown, poll_hint, weekend_mode, weather_type
             )
         cache_control, seconds = _output_freshness(
-            output,
             cache_control,
             _calendar_poll_seconds(poll_hint, countdown, image_cache, cache_key, source_status),
         )
-        response = _calendar_response(
-            request,
-            content=content,
-            etag=etag,
-            start_time=start_time,
-            lang=lang,
-            display=display,
-            tz=tz,
-            actual_year=actual_year,
-            actual_round=actual_round,
-            actual_race_name=actual_race_name,
-            is_auto_selected=is_auto_selected,
-            cache_control=cache_control,
-            cache_status=cache_status,
-            track_options=track_options,
-            refresh_seconds=seconds,
-            endpoint=endpoint,
-            output=output,
-        )
-        response.headers.update(
-            attribution_headers(
-                (selected_race or {}).get("circuit", {}).get("circuitId", ""),
-                track_options,
+        if verdict is bmp_artifacts.CacheVerdict.RACED:
+            seconds = min(seconds, ERROR_REFRESH_SECONDS)
+
+        def finish() -> Response:
+            """Apply conditional headers and attribution to this attempt's bytes."""
+            response = _calendar_response(
+                request,
+                content=content,
+                etag=etag,
+                start_time=start_time,
+                lang=lang,
+                display=display,
+                tz=tz,
+                actual_year=actual_year,
+                actual_round=actual_round,
+                actual_race_name=actual_race_name,
+                is_auto_selected=is_auto_selected,
+                cache_control=cache_control,
+                cache_status=cache_status,
+                track_options=track_options,
+                refresh_seconds=seconds,
+                endpoint=endpoint,
+                output=output,
             )
-        )
-        return response
+            response.headers.update(
+                attribution_headers(
+                    (selected_race or {}).get("circuit", {}).get("circuitId", ""),
+                    track_options,
+                )
+            )
+            return response
+
+        return PreparedImage(verdict, finish)
 
     # Everything after input validation is guarded: a validated BMP request must always get
     # an image back (error BMP on failure), never a text/plain 500 from selection or disk I/O.
+    selection_grace = (
+        weekend_mode.selection_grace if race_round is None and race_key is None else None
+    )
     try:
         is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(
             f1_service, year, race_round, race_key, weekend_mode
@@ -839,9 +858,7 @@ async def _serve_calendar_bmp(
             countdown=countdown,
             weather_type=weather_type,
             weather_enabled=config.WEATHER_ENABLED,
-            selection_grace=weekend_mode.selection_grace
-            if race_round is None and race_key is None
-            else None,
+            selection_grace=selection_grace,
         )
         weekend = weekend_context(
             weekend_mode, selected_race, now=now, timezone_name=tz, countdown=countdown
@@ -917,7 +934,7 @@ async def _serve_calendar_bmp(
                 )
             logger.info("Pre-generated image disappeared before read; rendering")
 
-        artifact = await bmp_artifacts.singleflight(
+        rendered = await bmp_artifacts.singleflight(
             f"calendar:{selected_generation()}:{cache_key}",
             functools.partial(
                 bmp_artifacts.render_calendar_artifact,
@@ -935,16 +952,19 @@ async def _serve_calendar_bmp(
                 **bmp_artifacts.theme_kwargs(theme),
             ),
         )
-        is_cacheable = image_cache.get(cache_key) is artifact
+        verdict = rendered.verdict()
         return await respond(
-            *artifact,
-            cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type)
-            if is_cacheable
-            else "no-store",
+            *rendered.artifact,
+            verdict=verdict,
+            cache_control=(
+                _calendar_cache_control(countdown, hint, weekend_mode, weather_type)
+                if verdict is bmp_artifacts.CacheVerdict.CACHED
+                else _CALENDAR_MISS_CACHE_CONTROL[verdict]
+            ),
             cache_status="MISS",
         )
     except Exception as exc:
-        if isinstance(exc, (HTTPException, StaleSelection)):
+        if retry or isinstance(exc, (HTTPException, StaleSelection)):
             raise
         logger.error("Error generating calendar: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:
@@ -958,11 +978,13 @@ async def _serve_calendar_bmp(
             etag,
             cache_control="no-store",
             cache_status=None,
+            verdict=bmp_artifacts.CacheVerdict.INCOMPLETE,
         )
 
 
-@with_current_selection
+@retry_render
 async def _serve_teams_bmp(
+    retry: bool,
     request: Request,
     *,
     start_time: float,
@@ -975,7 +997,7 @@ async def _serve_teams_bmp(
     temp_unit: TempUnit = TempUnit.C,
     output: ImageOutput = DEFAULT_IMAGE_OUTPUT,
     theme: ThemeMode = ThemeMode.LIGHT,
-) -> Response:
+) -> PreparedImage:
     """Serve one teams BMP from validated, normalized inputs.
 
     Shared by ``/teams.bmp`` and ``/auto.bmp`` with the same caches, pregenerated files,
@@ -983,25 +1005,25 @@ async def _serve_teams_bmp(
     derived from the default artifact like the calendar's.
     """
 
-    try:
-        if year is None:
-            year = get_default_teams_year()
-
-        async def respond(
-            content: bytes | None,
-            etag: str,
-            *,
-            cache_control: str = TEAMS_BMP_CACHE_CONTROL,
-            cache_status: str | None = None,
-        ) -> Response:
-            """Build the teams response with the request's normalized context."""
-            content, etag, cache_status = await _output_body(
-                content, etag, cache_status, display=display, output=output
-            )
-            cache_control, seconds = _output_freshness(
-                output, cache_control, hint.seconds(_utc_now())
-            )
-            return _teams_response(
+    async def respond(
+        content: bytes | None,
+        etag: str,
+        *,
+        cache_control: str = TEAMS_BMP_CACHE_CONTROL,
+        cache_status: str | None = None,
+        verdict: bmp_artifacts.CacheVerdict = bmp_artifacts.CacheVerdict.CACHED,
+    ) -> PreparedImage:
+        """Build the teams response with the request's normalized context."""
+        content, etag, cache_status = await _output_body(
+            content, etag, cache_status, display=display, output=output
+        )
+        cache_control, seconds = _output_freshness(cache_control, hint.seconds(_utc_now()))
+        if verdict is bmp_artifacts.CacheVerdict.RACED:
+            seconds = min(seconds, ERROR_REFRESH_SECONDS)
+        return PreparedImage(
+            verdict,
+            functools.partial(
+                _teams_response,
                 request,
                 content=content,
                 etag=etag,
@@ -1014,8 +1036,11 @@ async def _serve_teams_bmp(
                 refresh_seconds=seconds,
                 endpoint=endpoint,
                 output=output,
-            )
+            ),
+        )
 
+    try:
+        year = year if year is not None else get_default_teams_year()
         ctx = (
             build_teams_extra_context(extra, year, timezone_name=tz, temp_unit=temp_unit)
             if extra != TeamsExtra.NONE
@@ -1053,7 +1078,7 @@ async def _serve_teams_bmp(
                 return await respond(*artifact, cache_status=PREGENERATED_CACHE_STATUS)
             logger.info("Pre-generated teams image disappeared before read; rendering")
 
-        artifact = await bmp_artifacts.singleflight(
+        rendered = await bmp_artifacts.singleflight(
             f"teams:{selected_generation()}:{cache_key}",
             functools.partial(
                 bmp_artifacts.render_teams_artifact,
@@ -1066,10 +1091,11 @@ async def _serve_teams_bmp(
                 **bmp_artifacts.theme_kwargs(theme),
             ),
         )
-        return await respond(*artifact, cache_status="MISS")
+        # Teams always revalidate (no-cache), so every verdict keeps the same header.
+        return await respond(*rendered.artifact, cache_status="MISS", verdict=rendered.verdict())
 
     except Exception as exc:
-        if isinstance(exc, (HTTPException, StaleSelection)):
+        if retry or isinstance(exc, (HTTPException, StaleSelection)):
             raise
         logger.error("Error generating teams: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:
@@ -1080,18 +1106,22 @@ async def _serve_teams_bmp(
         error_body, error_etag, _ = await _output_body(
             bmp_data, etag, None, display=display, output=output
         )
-        return _teams_response(
-            request,
-            content=error_body,
-            etag=error_etag,
-            start_time=start_time,
-            lang=lang,
-            display=display,
-            year=year,
-            cache_control="no-store",
-            refresh_seconds=ERROR_REFRESH_SECONDS,
-            endpoint=endpoint,
-            output=output,
+        return PreparedImage(
+            bmp_artifacts.CacheVerdict.INCOMPLETE,
+            functools.partial(
+                _teams_response,
+                request,
+                content=error_body,
+                etag=error_etag,
+                start_time=start_time,
+                lang=lang,
+                display=display,
+                year=year,
+                cache_control="no-store",
+                refresh_seconds=ERROR_REFRESH_SECONDS,
+                endpoint=endpoint,
+                output=output,
+            ),
         )
 
 

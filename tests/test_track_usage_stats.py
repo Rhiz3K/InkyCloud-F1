@@ -182,7 +182,7 @@ async def test_calendar_defaults_custom_choices_cache_and_304_reach_stats_api(
         data = kwargs["track_options"].cache_key.encode()
         artifact = (data, strong_etag(data))
         state.get_bmp_cache()[kwargs["cache_key"]] = artifact
-        return artifact
+        return bmp_artifacts.RenderedArtifact(artifact, True, state.bmp_cache_generation())
 
     monkeypatch.setattr(bmp_artifacts, "render_calendar_artifact", render)
     app = FastAPI()

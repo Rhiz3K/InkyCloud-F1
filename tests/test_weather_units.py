@@ -1027,7 +1027,11 @@ async def test_auto_and_teams_forward_the_unit(client_app, monkeypatch):
     monkeypatch.setattr(
         images.bmp_artifacts,
         "render_teams_artifact",
-        AsyncMock(return_value=(b"BM", '"etag"')),
+        AsyncMock(
+            return_value=bmp_artifacts.RenderedArtifact(
+                (b"BM", '"etag"'), True, bmp_artifacts.bmp_cache_generation()
+            )
+        ),
     )
     await _get(client_app, "/teams.bmp?extra=weather&temp_unit=f")
     monkeypatch.setattr(

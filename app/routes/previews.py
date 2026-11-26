@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
 from email.utils import formatdate
 from io import BytesIO
@@ -16,6 +17,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response, Streamin
 
 from app.config import config
 from app.paths import ASSETS_DIR
+from app.routes.image_retry import PreparedImage, retry_render
 from app.routes.params import (
     calendar_cache_key,
     canonical_weather_type,
@@ -56,7 +58,7 @@ from app.services.track_renderer import attribution_headers
 from app.services.weather_service import TempUnit
 from app.services.weekend_phase import WeekendMode, select_weekend_race
 from app.services.weekend_results import weekend_context
-from app.state import bmp_cache_generation, get_bmp_variant_cache
+from app.state import BmpArtifact, bmp_cache_generation, get_bmp_variant_cache
 from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, strong_etag
 from app.utils.image_conversion import bmp_to_png
@@ -67,6 +69,18 @@ from app.utils.render_limit import render_slot
 router = APIRouter()
 logger = logging.getLogger(__name__)
 _PREVIEW_CACHE_CONTROL = "public, max-age=300"
+# Incomplete data is never stored; a render that straddled a cache clear twice is complete
+# but uncached, so the browser may keep it only while it revalidates by ETag.
+_PREVIEW_MISS_CACHE_CONTROL = {
+    bmp_artifacts.CacheVerdict.CACHED: _PREVIEW_CACHE_CONTROL,
+    bmp_artifacts.CacheVerdict.INCOMPLETE: "no-store",
+    bmp_artifacts.CacheVerdict.RACED: "no-cache",
+}
+_TEAMS_PREVIEW_MISS_CACHE_CONTROL = {
+    bmp_artifacts.CacheVerdict.CACHED: "no-cache",
+    bmp_artifacts.CacheVerdict.INCOMPLETE: "no-store",
+    bmp_artifacts.CacheVerdict.RACED: "no-cache",
+}
 
 
 def _preview_snapshot(path: Path, identity: str) -> tuple[bytes, dict] | None:
@@ -83,20 +97,37 @@ def _preview_snapshot(path: Path, identity: str) -> tuple[bytes, dict] | None:
     return content, metadata
 
 
+def _preview_freshness(cache_control: str, generation: int) -> str:
+    """Require revalidation if the preview's source changed during I/O or encoding."""
+    if generation != bmp_cache_generation() and cache_control != "no-store":
+        return "no-cache"
+    return cache_control
+
+
+def _png_response(request: Request, content: bytes, etag: str, headers: dict[str, str]) -> Response:
+    """Apply the conditional request to the final PNG bytes."""
+    unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
+    return Response(
+        content=b"" if unchanged else content,
+        status_code=304 if unchanged else 200,
+        media_type=None if unchanged else "image/png",
+        headers={"ETag": etag, **headers},
+    )
+
+
 async def _cached_preview_response(path: Path, request: Request, identity: str) -> Response | None:
     """Serve a fresh PNG snapshot or let the caller render/fall back to the BMP."""
+    generation = selected_generation()
     snapshot = await asyncio.to_thread(_preview_snapshot, path, identity)
     if snapshot is None:
         return None
     content, metadata = snapshot
-    not_modified = if_none_match_matches(request.headers.get("If-None-Match"), metadata["etag"])
-    return Response(
-        content=b"" if not_modified else content,
-        status_code=304 if not_modified else 200,
-        media_type=None if not_modified else "image/png",
-        headers={
-            "Cache-Control": _PREVIEW_CACHE_CONTROL,
-            "ETag": metadata["etag"],
+    return _png_response(
+        request,
+        content,
+        metadata["etag"],
+        {
+            "Cache-Control": _preview_freshness(_PREVIEW_CACHE_CONTROL, generation),
             "Last-Modified": formatdate(metadata["mtime_ns"] / 1e9, usegmt=True),
         },
     )
@@ -121,7 +152,7 @@ async def _configure_preview_snapshot(
         selection_grace=None,
     )
     cached = await _cached_preview_response(path, request, identity)
-    if cached is not None:
+    if cached is not None and cached.headers["Cache-Control"] != "no-cache":
         cached.headers["Cache-Control"] = f"public, max-age={hint.max_age(datetime.now(UTC), 300)}"
     return cached
 
@@ -163,6 +194,7 @@ async def _render_calendar_preview(
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
 ) -> StreamingResponse:
     """Render the next race when startup has not produced a calendar preview yet."""
+    generation = selected_generation()
     async with render_slot():
         f1_service = F1Service()
         race_data = f1_service.get_next_race_from_static()
@@ -186,13 +218,15 @@ async def _render_calendar_preview(
         BytesIO(png_data),
         media_type="image/png",
         headers={
-            "Cache-Control": _PREVIEW_CACHE_CONTROL,
+            "Cache-Control": _preview_freshness(_PREVIEW_CACHE_CONTROL, generation),
             **attribution_headers(circuit_id, track_options),
         },
     )
 
 
+@retry_render
 async def _render_configure_calendar(
+    _retry: bool,
     request: Request,
     lang: str,
     display: str,
@@ -202,11 +236,12 @@ async def _render_configure_calendar(
     weekend_mode: WeekendMode = WeekendMode.OFF,
     temp_unit: TempUnit = TempUnit.C,
     theme: ThemeMode = ThemeMode.LIGHT,
-) -> Response:
+) -> PreparedImage:
     """Share calendar BMP caching and singleflight, then encode the matching PNG preview.
 
     ``weather`` is canonical (off/current/race_day/weekend), so the key equals the
-    /calendar.bmp one.
+    /calendar.bmp one. A render that straddles an image-cache clear is retried once with the
+    re-resolved race, like /calendar.bmp.
     """
     race = select_weekend_race(F1Service(), weekend_mode)
     now = datetime.now(UTC)
@@ -237,8 +272,9 @@ async def _render_configure_calendar(
         countdown, weekend.mode, temp_unit, weather, theme
     )
     artifact = image_cache.get(key)
+    verdict = bmp_artifacts.CacheVerdict.CACHED
     if artifact is None:
-        artifact = await bmp_artifacts.singleflight(
+        rendered = await bmp_artifacts.singleflight(
             f"calendar:{selected_generation()}:{key}",
             functools.partial(
                 bmp_artifacts.render_calendar_artifact,
@@ -256,26 +292,22 @@ async def _render_configure_calendar(
                 **bmp_artifacts.theme_kwargs(theme),
             ),
         )
+        artifact, verdict = rendered.artifact, rendered.verdict()
     async with render_slot(variant=theme != ThemeMode.LIGHT):
         content = await run_render(
             functools.partial(
                 bmp_to_png, artifact[0], full_size=True, preserve_color=display in COLOR_DISPLAYS
             )
         )
-    cache_control = _PREVIEW_CACHE_CONTROL
-    if weather == "weekend" and hint is not None:
+    cache_control = _PREVIEW_MISS_CACHE_CONTROL[verdict]
+    if weather == "weekend" and hint is not None and verdict is bmp_artifacts.CacheVerdict.CACHED:
         cache_control = f"public, max-age={hint.max_age(datetime.now(UTC), 300)}"
-    etag = strong_etag(content)
-    unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
-    return Response(
-        content=b"" if unchanged else content,
-        status_code=304 if unchanged else 200,
-        media_type=None if unchanged else "image/png",
-        headers={
-            "ETag": etag,
-            "Cache-Control": cache_control if key in image_cache else "no-store",
-            **attribution_headers((race or {}).get("circuit", {}).get("circuitId", ""), options),
-        },
+    headers = {
+        "Cache-Control": _preview_freshness(cache_control, selected_generation()),
+        **attribution_headers((race or {}).get("circuit", {}).get("circuitId", ""), options),
+    }
+    return PreparedImage(
+        verdict, functools.partial(_png_response, request, content, strong_etag(content), headers)
     )
 
 
@@ -305,6 +337,7 @@ async def _render_teams_preview(
     lang: str, display: str = "1bit", *, full_size: bool, theme: ThemeMode = ThemeMode.LIGHT
 ) -> StreamingResponse:
     """Render a dynamic Teams PNG when no pregenerated preview is available."""
+    generation = selected_generation()
     async with render_slot(variant=theme != ThemeMode.LIGHT):
         season = get_default_teams_year()
         teams_service = TeamsService()
@@ -326,28 +359,56 @@ async def _render_teams_preview(
     return StreamingResponse(
         BytesIO(png_data),
         media_type="image/png",
-        headers={"Cache-Control": _PREVIEW_CACHE_CONTROL},
+        headers={"Cache-Control": _preview_freshness(_PREVIEW_CACHE_CONTROL, generation)},
     )
 
 
+@retry_render
 async def _render_teams_extra_preview(
+    retry: bool,
     request: Request,
     lang: str,
     display: str,
     extra: TeamsExtra,
     ctx: TeamsExtraContext | None,
     theme: ThemeMode = ThemeMode.LIGHT,
-) -> Response:
-    """Cache a full-size panel (or plain dark) preview under its day/weather/theme token."""
+    *,
+    rebuild_context: Callable[[], TeamsExtraContext | None] | None = None,
+) -> PreparedImage:
+    """Cache a full-size panel (or plain dark) preview under its day/weather/theme token.
+
+    A render that straddles an image-cache clear is retried once. ``rebuild_context`` then
+    rebuilds the panel context (weather, next race) as the clear may have refreshed it, so the
+    retry neither draws nor caches the panel from before the clear.
+    """
+    if (retry or retrying_selection()) and rebuild_context is not None:
+        ctx = rebuild_context()
+    effective = extra if ctx is not None else TeamsExtra.NONE
+    artifact, verdict = await _teams_extra_preview_artifact(lang, display, effective, ctx, theme)
+    headers = {"Cache-Control": _TEAMS_PREVIEW_MISS_CACHE_CONTROL[verdict]}
+    return PreparedImage(verdict, functools.partial(_png_response, request, *artifact, headers))
+
+
+async def _teams_extra_preview_artifact(
+    lang: str,
+    display: str,
+    extra: TeamsExtra,
+    ctx: TeamsExtraContext | None,
+    theme: ThemeMode,
+) -> tuple[BmpArtifact, bmp_artifacts.CacheVerdict]:
+    """Return one panel preview from the variant cache or a (singleflight) render."""
     season = ctx.season if ctx is not None else get_default_teams_year()
     key = (
         "preview:"
         + get_teams_image_key(lang, season, display=display, extra=extra, extra_context=ctx)
         + bmp_artifacts.theme_cache_suffix(theme)
     )
+    artifact = get_bmp_variant_cache().get(key)
+    if artifact is not None:
+        return artifact, bmp_artifacts.CacheVerdict.CACHED
 
-    async def produce() -> tuple[bytes, str]:
-        """Render and cache only complete teams data in the variant cache."""
+    async def produce() -> bmp_artifacts.RenderedArtifact:
+        """Render and cache only complete, current teams data in the variant cache."""
         generation = selected_generation()
         async with render_slot(variant=True):
             require_current_selection(generation)
@@ -367,25 +428,16 @@ async def _render_teams_extra_preview(
                     **bmp_artifacts.theme_kwargs(theme),
                 )
             )
-            artifact = (content, strong_etag(content))
-            if is_teams_data_cacheable(data) and bmp_cache_generation() == generation:
-                get_bmp_variant_cache()[key] = artifact
-            return artifact
+            rendered = bmp_artifacts.RenderedArtifact(
+                (content, strong_etag(content)), is_teams_data_cacheable(data), generation
+            )
+            if rendered.verdict() is bmp_artifacts.CacheVerdict.CACHED:
+                get_bmp_variant_cache()[key] = rendered.artifact
+            return rendered
 
-    artifact = get_bmp_variant_cache().get(key)
-    if artifact is None:
-        artifact = await bmp_artifacts.singleflight(f"{selected_generation()}:{key}", produce)
-    content, etag = artifact
-    unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
-    return Response(
-        content=b"" if unchanged else content,
-        status_code=304 if unchanged else 200,
-        media_type=None if unchanged else "image/png",
-        headers={
-            "ETag": etag,
-            "Cache-Control": "no-cache" if key in get_bmp_variant_cache() else "no-store",
-        },
-    )
+    # The finished flight releases its key, so a retry renders with freshly loaded data.
+    rendered = await bmp_artifacts.singleflight(f"{selected_generation()}:{key}", produce)
+    return rendered.artifact, rendered.verdict()
 
 
 async def _render_dynamic_preview(
@@ -446,13 +498,16 @@ async def _try_teams_extra_preview(
     dark = theme != ThemeMode.LIGHT
     if extra == TeamsExtra.NONE and not dark:
         return None, False
-    ctx = (
-        build_teams_extra_context(
+
+    def build_context() -> TeamsExtraContext | None:
+        """Build the panel context for the requested timezone and unit (again on a retry)."""
+        if extra == TeamsExtra.NONE:
+            return None
+        return build_teams_extra_context(
             extra, get_default_teams_year(), timezone_name=tz, temp_unit=temp_unit
         )
-        if extra != TeamsExtra.NONE
-        else None
-    )
+
+    ctx = build_context()
     if ctx is None and not dark:
         return None, False
     _charge_configure_preview(request)
@@ -461,9 +516,10 @@ async def _try_teams_extra_preview(
             request,
             lang,
             display,
-            extra if ctx is not None else TeamsExtra.NONE,
+            extra,
             ctx,
             **bmp_artifacts.theme_kwargs(theme),
+            rebuild_context=build_context,
         )
     except Exception as exc:
         if isinstance(exc, (HTTPException, StaleSelection)):

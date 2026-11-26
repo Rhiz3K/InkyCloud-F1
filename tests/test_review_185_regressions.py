@@ -82,7 +82,8 @@ async def test_teams_artifact_renders_roster_when_only_standings_stall(monkeypat
         1,
     )
 
-    assert artifact[0] == b"roster-bmp"
+    assert artifact.artifact[0] == b"roster-bmp"
+    assert artifact.verdict() is bmp_artifacts.CacheVerdict.INCOMPLETE
     rendered_data = render.await_args.args[0].args[2]
     assert rendered_data.teams and rendered_data.standings_complete is False
     # Degraded output is served but never pinned in the image cache.

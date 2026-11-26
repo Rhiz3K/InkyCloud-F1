@@ -206,7 +206,11 @@ async def test_license_headers(routes, extra, monkeypatch):
         monkeypatch.setattr(
             bmp_artifacts,
             "render_calendar_artifact",
-            AsyncMock(return_value=(b"calendar", '"calendar"')),
+            AsyncMock(
+                return_value=bmp_artifacts.RenderedArtifact(
+                    (b"calendar", '"calendar"'), True, bmp_artifacts.bmp_cache_generation()
+                )
+            ),
         )
         calendar = await client.get("/calendar.bmp")
         assert 'rel="license"' not in calendar.headers.get("Link", "")
