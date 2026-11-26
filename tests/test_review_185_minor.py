@@ -56,6 +56,24 @@ def test_flag_codes_come_only_from_the_country_map():
     assert get_country_flag_iso_code("Belarus", COUNTRY_MAP) == ""
 
 
+def test_every_mapped_and_scheduled_country_has_both_flag_assets():
+    from app.paths import ASSETS_DIR
+    from scripts.download_flags import COUNTRY_MAP as DOWNLOAD_MAP
+
+    assert DOWNLOAD_MAP == COUNTRY_MAP
+    scheduled = {
+        race["Circuit"]["Location"]["country"]
+        for season in ASSETS_DIR.glob("seasons/[0-9][0-9][0-9][0-9].json")
+        for race in json.loads(season.read_text(encoding="utf-8"))["races"]
+    }
+    assert scheduled <= COUNTRY_MAP.keys()
+    register = json.loads((ASSETS_DIR / "asset-register.json").read_text(encoding="utf-8"))
+    for code in set(COUNTRY_MAP.values()):
+        for folder in ("flags", "flags_flat"):
+            assert (ASSETS_DIR / folder / f"{code}.png").is_file()
+            assert f"{folder}/{code}.png" in register["assets"]
+
+
 # --- E12: error text wraps at word boundaries --------------------------------------------------
 
 

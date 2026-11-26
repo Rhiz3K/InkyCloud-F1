@@ -223,6 +223,13 @@
       "source": "https://flagpedia.net/download/icons",
       "reviewed_on": "2026-09-09"
     },
+    "flags/my.png": {
+      "sha256": "21f87580617b112282eb2107b19ba02fda89641ee7962a591cf5f65902167d92",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-11-26"
+    },
     "flags/nl.png": {
       "sha256": "5302df84498c506a59a9db87a3d12e31a666dc89bc496f7da7c6d30da7372ef0",
       "license": "Public domain (Flagpedia declaration)",
@@ -768,6 +775,13 @@
       "author": "Flagpedia / Flagcdn",
       "source": "https://flagpedia.net/download/icons",
       "reviewed_on": "2026-09-09"
+    },
+    "flags_flat/my.png": {
+      "sha256": "cfa5f23d144106a08268fd9cd9aa18ddfb893eed0a255e288e5648b396774fee",
+      "license": "Public domain (Flagpedia declaration)",
+      "author": "Flagpedia / Flagcdn",
+      "source": "https://flagpedia.net/download/icons",
+      "reviewed_on": "2026-11-26"
     },
     "flags_flat/nl.png": {
       "sha256": "2551bcd6a2ea816da99fd646a6f68feef0e3b2897216b1afca88a6e4283ee42f",
