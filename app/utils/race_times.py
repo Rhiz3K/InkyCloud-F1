@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import copy
 import logging
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta, tzinfo
 from typing import Any
 
@@ -152,3 +153,42 @@ def convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
 
     result["timezone"] = normalized_tz_str
     return result
+
+
+WEEKEND_SESSIONS = ("sprint", "qualifying", "race")
+
+
+def weekend_session_starts(race_data: dict) -> tuple[date | None, list[tuple[str, datetime]]]:
+    """Return the race's UTC date and the timed weekend sessions shown by weather_type=weekend.
+
+    A date-only race still provides its date, so qualifying can be shown before the race
+    time is published.
+    """
+    race_date: date | None = None
+    sessions: list[tuple[str, datetime]] = []
+    for event in race_data.get("schedule") or []:
+        kind = str(event.get("name", "")).strip().lower()
+        value = event.get("datetime")
+        if kind not in WEEKEND_SESSIONS or not isinstance(value, str):
+            continue
+        try:
+            if len(value) == 10:
+                if kind == "race":
+                    race_date = date.fromisoformat(value)
+                continue
+            start = parse_utc_instant(value)
+        except ValueError:
+            continue
+        if kind == "race":
+            race_date = start.date()
+        sessions.append((kind, start))
+    sessions.sort(key=lambda item: WEEKEND_SESSIONS.index(item[0]))
+    return race_date, sessions
+
+
+def forecast_period(sessions: Sequence[tuple[str, datetime]], now: datetime) -> str:
+    """Identify the weekend sessions whose forecasts have not yet started."""
+    return (
+        ",".join(f"{kind}@{int(start.timestamp())}" for kind, start in sessions if start > now)
+        or "finished"
+    )

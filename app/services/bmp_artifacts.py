@@ -26,7 +26,7 @@ from app.services.renderers import create_renderer
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.teams_service import TeamsService, is_teams_data_cacheable
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
-from app.services.weather_service import get_weather_context
+from app.services.weather_service import TempUnit, get_weather_context
 from app.services.weekend_phase import WeekendMode, WeekendPhase
 from app.services.weekend_results import apply_weekend_results
 from app.state import (
@@ -110,6 +110,7 @@ def render_calendar_bytes(
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
     countdown_mode: CountdownMode = CountdownMode.HOURS,
     weekend: WeekendPhase | None = None,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> bytes:
     """Construct the renderer and render in the worker thread.
 
@@ -126,6 +127,7 @@ def render_calendar_bytes(
         track_options=track_options,
         countdown_mode=countdown_mode,
         weekend=weekend,
+        temp_unit=temp_unit,
     )
 
 
@@ -174,12 +176,13 @@ async def render_calendar(
     countdown_mode: CountdownMode = CountdownMode.HOURS,
     weekend_mode: WeekendMode = WeekendMode.OFF,
     weekend: WeekendPhase | None = None,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> tuple[bytes, dict | None, bool]:
     """Render a calendar BMP for a selected race and a canonical weather type.
 
     ``weekend_mode=auto`` prefers this weekend's stored podiums in the footer and draws the
-    ``weekend`` phase. Returns the output, the timezone-converted race data and whether it
-    may be cached.
+    ``weekend`` phase. ``weather_type=weekend`` draws the sessions' forecast summary.
+    Returns the output, the timezone-converted race data and whether it may be cached.
     """
     if not race_data:
         error_bmp = await run_render(
@@ -189,8 +192,13 @@ async def render_calendar(
 
     weather_data = None
     if weather_type != "off" and config.WEATHER_ENABLED and not race_data.get("is_cancelled"):
-        _, _, weather_by_type = await get_weather_context(race_data)
-        weather_data = weather_by_type.get("current" if weather_type == "current" else "race")
+        _, _, weather_by_type = await get_weather_context(
+            race_data,
+            include_weekend=weather_type == "weekend",
+            wanted=("weekend",) if weather_type == "weekend" else ("race", "current"),
+        )
+        weather_key = {"current": "current", "weekend": "weekend"}.get(weather_type, "race")
+        weather_data = weather_by_type.get(weather_key)
 
     race_data = maybe_convert_timezone(race_data, target_tz)
 
@@ -213,6 +221,7 @@ async def render_calendar(
             track_options,
             countdown_mode,
             weekend,
+            temp_unit,
         )
     )
     return (bmp_data, race_data, True)
@@ -230,14 +239,16 @@ async def render_calendar_artifact(
     countdown_mode: CountdownMode = CountdownMode.HOURS,
     weekend_mode: WeekendMode = WeekendMode.OFF,
     weekend: WeekendPhase | None = None,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> BmpArtifact:
     """Render/hash one calendar miss and cache the pair only when complete.
 
-    A non-default countdown or weekend mode is an opt-in variant: it renders in a variant
-    slot and is cached in the variant cache, so it can never displace the default calendars.
+    A non-default countdown, weekend mode, temperature unit or the weekend weather summary
+    is an opt-in variant: it renders in a variant slot and is cached in the variant cache, so
+    it can never displace the default calendars.
     """
     generation = selected_generation()
-    variant = countdown_mode != CountdownMode.HOURS or weekend_mode != WeekendMode.OFF
+    variant = is_calendar_variant(countdown_mode, weekend_mode, temp_unit, weather_type)
     async with render_slot(variant=variant):
         require_current_selection(generation)
         bmp_data, _race_data, is_cacheable = await render_calendar(
@@ -250,20 +261,41 @@ async def render_calendar_artifact(
             countdown_mode=countdown_mode,
             weekend_mode=weekend_mode,
             weekend=weekend,
+            temp_unit=temp_unit,
         )
         artifact = (bmp_data, strong_etag(bmp_data))
         if is_cacheable and bmp_cache_generation() == generation:
-            calendar_image_cache(countdown_mode, weekend_mode)[cache_key] = artifact
+            calendar_image_cache(countdown_mode, weekend_mode, temp_unit, weather_type)[
+                cache_key
+            ] = artifact
         return artifact
 
 
 def calendar_image_cache(
-    countdown_mode: CountdownMode, weekend_mode: WeekendMode = WeekendMode.OFF
+    countdown_mode: CountdownMode,
+    weekend_mode: WeekendMode = WeekendMode.OFF,
+    temp_unit: TempUnit = TempUnit.C,
+    weather_type: str = "off",
 ) -> ImageCache:
     """Keep default calendars in the main cache and opt-in variants in the variant cache."""
-    if countdown_mode == CountdownMode.HOURS and weekend_mode == WeekendMode.OFF:
-        return get_bmp_cache()
-    return get_bmp_variant_cache()
+    if is_calendar_variant(countdown_mode, weekend_mode, temp_unit, weather_type):
+        return get_bmp_variant_cache()
+    return get_bmp_cache()
+
+
+def is_calendar_variant(
+    countdown_mode: CountdownMode,
+    weekend_mode: WeekendMode = WeekendMode.OFF,
+    temp_unit: TempUnit = TempUnit.C,
+    weather_type: str = "off",
+) -> bool:
+    """Return whether a calendar is an opt-in variant (variant render slot and cache)."""
+    return (
+        countdown_mode != CountdownMode.HOURS
+        or weekend_mode != WeekendMode.OFF
+        or temp_unit != TempUnit.C
+        or weather_type == "weekend"
+    )
 
 
 def teams_image_cache(extra: TeamsExtra) -> TTLCache[str, BmpArtifact]:

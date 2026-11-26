@@ -3,9 +3,12 @@
 import asyncio
 import logging
 import math
-from collections.abc import Collection
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from collections.abc import AsyncIterator, Collection, Sequence
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta, timezone
+from enum import StrEnum
 from typing import TYPE_CHECKING, Optional
 
 import httpx
@@ -15,7 +18,14 @@ from app.services.circuit_metadata import canonical_circuit_id
 from app.services.http_client import get_shared_http_client
 from app.services.weather_budget import WEATHER_BUDGET
 from app.utils.http import fetch_with_retry
-from app.utils.race_times import parse_utc_instant, race_session_start, to_utc
+from app.utils.race_times import (
+    forecast_period,
+    parse_utc_instant,
+    race_session_start,
+    to_utc,
+    weekend_session_starts,
+)
+from app.utils.refresh_hint import FORECAST_RANGE_DAYS, WEEKEND_FORECAST_LEAD_DAYS
 
 if TYPE_CHECKING:
     from app.services.database import Database
@@ -62,6 +72,34 @@ OPEN_METEO_URL = config.OPEN_METEO_URL
 OPEN_METEO_ARCHIVE_URL = config.OPEN_METEO_ARCHIVE_URL
 
 _weather_cache: dict[str, tuple["WeatherData", datetime]] = {}
+# Hourly forecast arrays of one race-weekend window, shared by race_day and weekend lookups so
+# both read one Open-Meteo response instead of requesting the same days twice.
+_hourly_forecast_cache: dict[str, tuple[dict, datetime]] = {}
+
+# Hourly variables of a forecast request. Open-Meteo bills a request with up to 10 variables
+# and up to 14 days of data as one call; the 3-day weekend window stays within one call, and
+# the shared quota (WEATHER_BUDGET) reserves exactly one unit per request.
+FORECAST_HOURLY_VARIABLES = "temperature_2m,weather_code,precipitation_probability"
+_hourly_inflight: dict[tuple[asyncio.AbstractEventLoop, str], asyncio.Task[dict | None]] = {}
+_render_forecasts: ContextVar[dict[str, dict | None] | None] = ContextVar(
+    "render_forecasts", default=None
+)
+
+
+def _hourly_window_key(lat: float, lon: float, start: date, end: date) -> str:
+    """Name one shared hourly forecast window."""
+    return f"hourly_{round(lat, 2)}_{round(lon, 2)}_{start.isoformat()}_{end.isoformat()}"
+
+
+@asynccontextmanager
+async def _forecast_scope() -> AsyncIterator[None]:
+    """Remember even empty forecast windows for the duration of one enrichment."""
+    token = _render_forecasts.set({})
+    try:
+        yield
+    finally:
+        _render_forecasts.reset(token)
+
 
 # Circuit weather cache - populated by scheduler, read by renderer
 # Maps circuit_id -> WeatherData
@@ -95,6 +133,20 @@ def _finite_number(value: object) -> float | None:
     return number if math.isfinite(number) else None
 
 
+class TempUnit(StrEnum):
+    """Temperature unit used when drawing weather; data and caches always stay in Celsius."""
+
+    C = "c"
+    F = "f"
+
+
+def convert_temperature(temperature_c: float, unit: TempUnit = TempUnit.C) -> int:
+    """Return the rounded temperature in ``unit`` (Fahrenheit is converted before rounding)."""
+    if unit == TempUnit.F:
+        return int(round(temperature_c * 9 / 5 + 32))
+    return int(round(temperature_c))
+
+
 @dataclass
 class WeatherData:
     """Normalized weather values required by the e-ink renderers."""
@@ -112,7 +164,11 @@ class WeatherData:
     @property
     def temp_display(self) -> str:
         """Return rounded Celsius temperature text for the display."""
-        return f"{int(round(self.temperature_c))}\u00b0"
+        return self.format_temp(TempUnit.C)
+
+    def format_temp(self, unit: TempUnit = TempUnit.C) -> str:
+        """Return the rounded temperature with a degree sign in the requested unit."""
+        return f"{convert_temperature(self.temperature_c, unit)}\u00b0"
 
     @property
     def precip_display(self) -> str:
@@ -120,6 +176,46 @@ class WeatherData:
         if self.precipitation_display_override is not None:
             return self.precipitation_display_override
         return f"{self.precipitation_probability}%"
+
+
+@dataclass(frozen=True)
+class SessionWeather:
+    """Forecast for the start of one weekend session (``sprint``, ``qualifying`` or ``race``)."""
+
+    session: str
+    weather: WeatherData
+
+
+@dataclass(frozen=True)
+class WeekendWeather:
+    """Weather of the race weekend's key sessions that have data, in weekend order.
+
+    Sessions beyond the forecast horizon, without a published start or already in the past
+    are left out, so the renderer shows what is available.
+    """
+
+    sessions: tuple[SessionWeather, ...]
+    period: str = field(default="", compare=False)
+
+    @property
+    def temp_display(self) -> str:
+        """Return a compact Celsius summary for logs, e.g. ``qualifying 19° race 22°``."""
+        return " ".join(f"{item.session} {item.weather.temp_display}" for item in self.sessions)
+
+
+# What a calendar can draw in its status box: one forecast or a weekend summary.
+WeatherDisplay = WeatherData | WeekendWeather
+
+
+def forecast_window(race_date: date, today: date) -> tuple[date, date] | None:
+    """Return the UTC days of the race weekend that the forecast can cover, or None.
+
+    The window spans the race day and the days before it that hold qualifying and a sprint,
+    clipped to today and to the 16-day forecast horizon (today included).
+    """
+    start = max(today, race_date - timedelta(days=WEEKEND_FORECAST_LEAD_DAYS))
+    end = min(race_date, today + timedelta(days=FORECAST_RANGE_DAYS - 1))
+    return (start, end) if start <= end else None
 
 
 class WeatherService:
@@ -254,10 +350,10 @@ class WeatherService:
             logger.debug("Race already started, fetching historical weather")
             return await self.get_historical_race_weather(lat, lon, race_datetime_utc)
 
-        # The 16-day availability horizon includes today. Fetch only the target day,
-        # not all intervening days: each request stays within one provider call unit.
+        # The 16-day availability horizon includes today. Fetch only the race weekend, not
+        # all intervening days: each request stays within one provider call unit.
         forecast_days = (race_datetime_utc.date() - now.date()).days + 1
-        if forecast_days > 16:
+        if forecast_days > FORECAST_RANGE_DAYS:
             logger.debug(
                 "Race requires %d forecast days, outside 16-day forecast range",
                 forecast_days,
@@ -267,7 +363,11 @@ class WeatherService:
         try:
             weather_data = await self._fetch_weather(lat, lon, race_datetime_utc)
             if weather_data:
-                self._set_cached(cache_key, weather_data)
+                self._set_cached(
+                    cache_key,
+                    weather_data,
+                    not_after=self._hourly_expiry(lat, lon, race_datetime_utc.date()),
+                )
             return weather_data
 
         except httpx.TimeoutException:
@@ -322,7 +422,7 @@ class WeatherService:
         race_datetime: datetime,
     ) -> Optional[WeatherData]:
         """
-        Fetch hourly forecast for race datetime from Open-Meteo.
+        Fetch the race weekend's hourly forecast and pick the race hour.
 
         Parameters:
             lat: Latitude.
@@ -332,27 +432,138 @@ class WeatherService:
         Returns:
             WeatherData for matching hour/day, or None if no data found.
         """
-        race_date = race_datetime.strftime("%Y-%m-%d")
+        hourly = await self._weekend_hourly(lat, lon, to_utc(race_datetime).date())
+        if hourly is None:
+            return None
+        return _match_hourly_weather(
+            hourly,
+            race_datetime,
+            precipitation_key="precipitation_probability",
+        )
+
+    async def _weekend_hourly(self, lat: float, lon: float, race_date: date) -> Optional[dict]:
+        """Return the hourly forecast of the race weekend window, fetching it at most once.
+
+        One request covers qualifying, a sprint and the race (the days before the race up to
+        the race day, clipped to the forecast horizon); race_day and weekend lookups share it.
+        """
+        window = forecast_window(race_date, datetime.now(timezone.utc).date())
+        if window is None:
+            return None
+        start, end = window
+        key = _hourly_window_key(lat, lon, start, end)
+        now = datetime.now(timezone.utc)
+        for old_key, (_, expires) in tuple(_hourly_forecast_cache.items()):
+            if expires <= now:
+                del _hourly_forecast_cache[old_key]
+        if key in _hourly_forecast_cache:
+            return _hourly_forecast_cache[key][0]
+        memo = _render_forecasts.get()
+        if memo is not None and key in memo:
+            return memo[key]
+        loop = asyncio.get_running_loop()
+        flight_key = (loop, key)
+        pending = _hourly_inflight.get(flight_key)
+        if pending is None:
+
+            async def fetch() -> dict | None:
+                """Cache the provider's completed result independently of each waiter's timeout."""
+                hourly = await self._fetch_hourly_window(lat, lon, start, end)
+                if hourly is not None:
+                    expires = datetime.now(timezone.utc) + timedelta(minutes=self.cache_minutes)
+                    _hourly_forecast_cache[key] = (hourly, expires)
+                return hourly
+
+            def finished(task: asyncio.Task[dict | None]) -> None:
+                """Release the flight and observe failures even if every waiter disconnected."""
+                del _hourly_inflight[flight_key]
+                if not task.cancelled():
+                    task.exception()
+
+            pending = loop.create_task(fetch())
+            _hourly_inflight[flight_key] = pending
+            pending.add_done_callback(finished)
+        hourly = await asyncio.shield(pending)
+        if memo is not None:
+            memo[key] = hourly
+        return hourly
+
+    @staticmethod
+    def _hourly_expiry(lat: float, lon: float, race_date: date) -> Optional[datetime]:
+        """Return when the cached weekend forecast for this race expires, if one is cached."""
+        window = forecast_window(race_date, datetime.now(timezone.utc).date())
+        if window is None:
+            return None
+        entry = _hourly_forecast_cache.get(_hourly_window_key(lat, lon, *window))
+        return entry[1] if entry is not None else None
+
+    async def _fetch_hourly_window(
+        self, lat: float, lon: float, start: date, end: date
+    ) -> dict | None:
+        """Fetch one provider window and retain only usable hourly tables."""
         params: dict[str, str | int | float] = {
             "latitude": round(lat, 2),
             "longitude": round(lon, 2),
-            "hourly": "temperature_2m,weather_code,precipitation_probability",
+            "hourly": FORECAST_HOURLY_VARIABLES,
             "timezone": "UTC",
-            "start_date": race_date,
-            "end_date": race_date,
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
         }
-
         client = get_shared_http_client(httpx.AsyncClient, timeout=self.timeout)
         response = await fetch_with_retry(
             client, OPEN_METEO_URL, params=params, pacer=WEATHER_BUDGET, logger=logger
         )
-        data = response.json()
+        payload = response.json()
+        hourly = payload.get("hourly") if isinstance(payload, dict) else None
+        return _usable_forecast(hourly)
 
-        return _match_hourly_weather(
-            data.get("hourly", {}),
-            race_datetime,
-            precipitation_key="precipitation_probability",
-        )
+    async def get_weekend_weather(
+        self,
+        lat: float,
+        lon: float,
+        race_date: date | None,
+        sessions: Sequence[tuple[str, datetime]],
+    ) -> Optional[WeekendWeather]:
+        """Return the forecast of the weekend's qualifying, sprint and race starts.
+
+        Uses the same single request as the race-day forecast. Each session's forecast is
+        cached under its own start (the race-day key format), so the hourly prefetch can
+        persist and restore it. Sessions that have started are left out, and once the race
+        has started only its (archived) race weather is shown. Sessions without data are left
+        out; None when none has data.
+        """
+        if race_date is None or not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+            return None
+        now = datetime.now(timezone.utc)
+        race_start = next((start for kind, start in sessions if kind == "race"), None)
+        period = forecast_period(sessions, now)
+        if race_start is not None and race_start <= now:
+            race_weather = await self.get_historical_race_weather(lat, lon, race_start)
+            return _weekend_from([("race", race_weather)], period)
+
+        found: list[tuple[str, Optional[WeatherData]]] = []
+        hourly: Optional[dict] = None
+        for kind, start in sessions:
+            if to_utc(start) <= now:
+                # A session that has started is over for the forecast line, even when its
+                # forecast is still cached or its UTC day is still today.
+                continue
+            key = _race_weather_cache_key(lat, lon, start)
+            weather = self._get_cached(key)
+            if weather is None and _in_weekend_window(start, race_date, now):
+                if hourly is None:
+                    try:
+                        hourly = await self._weekend_hourly(lat, lon, race_date) or {}
+                    except Exception as e:
+                        logger.warning("Failed to fetch weekend weather: %s", e)
+                        hourly = {}
+                weather = _match_session_hour(hourly, start)
+                if weather is not None:
+                    self._set_cached(
+                        key, weather, not_after=self._hourly_expiry(lat, lon, race_date)
+                    )
+            found.append((kind, weather))
+        return _weekend_from(found, period)
 
     async def _fetch_historical_weather(
         self,
@@ -404,9 +615,17 @@ class WeatherService:
             del _weather_cache[key]
         return None
 
-    def _set_cached(self, key: str, data: WeatherData) -> None:
-        """Cache a weather response using this service's configured TTL."""
+    def _set_cached(
+        self, key: str, data: WeatherData, *, not_after: Optional[datetime] = None
+    ) -> None:
+        """Cache a weather response using this service's configured TTL.
+
+        ``not_after`` caps the lifetime at the expiry of the response the value was read from,
+        so a session picked from an older shared forecast does not outlive that forecast.
+        """
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=self.cache_minutes)
+        if not_after is not None:
+            expires_at = min(expires_at, not_after)
         _weather_cache[key] = (data, expires_at)
 
 
@@ -417,6 +636,85 @@ def clear_weather_cache() -> None:
     Removes all cached entries so subsequent requests will fetch fresh data.
     """
     _weather_cache.clear()
+    _hourly_forecast_cache.clear()
+
+
+def _in_weekend_window(start: datetime, race_date: date, now: datetime) -> bool:
+    """Return whether a session's UTC day lies in the weekend forecast window."""
+    window = forecast_window(race_date, now.date())
+    return window is not None and window[0] <= to_utc(start).date() <= window[1]
+
+
+def weekend_weather_expected(race_data: dict, now: datetime | None = None) -> bool:
+    """Return whether weather_type=weekend should have data for this race at ``now``.
+
+    Mirrors :meth:`WeatherService.get_weekend_weather`: once the race has started its archived
+    race weather is shown; before that, a session that has not started and lies in the weekend
+    forecast window (``WEEKEND_FORECAST_LEAD_DAYS`` before the race day, within the forecast
+    horizon) gets a forecast. A race still far away, or a weekend whose shown sessions are all
+    over, legitimately has nothing to show.
+    """
+    race_date, sessions = weekend_session_starts(race_data)
+    if race_date is None:
+        return False
+    now = now or datetime.now(timezone.utc)
+    race_start = next((start for kind, start in sessions if kind == "race"), None)
+    if race_start is not None and race_start <= now:
+        return True
+    return any(
+        to_utc(start) > now and _in_weekend_window(start, race_date, now) for _, start in sessions
+    )
+
+
+def _hourly_arrays(hourly: dict, precipitation_key: str) -> tuple[list, list, list, list] | None:
+    """Validate the parallel arrays, allowing short or missing optional columns."""
+    times = hourly.get("time")
+    temps = hourly.get("temperature_2m")
+    codes = hourly.get("weather_code", [])
+    precip = hourly.get(precipitation_key, [])
+    if (
+        isinstance(times, list)
+        and isinstance(temps, list)
+        and isinstance(codes, list)
+        and isinstance(precip, list)
+    ):
+        return times, temps, codes, precip
+    return None
+
+
+def _usable_forecast(hourly: object) -> dict | None:
+    """Require at least one timed row with usable weather before caching a forecast."""
+    if not isinstance(hourly, dict):
+        return None
+    arrays = _hourly_arrays(hourly, "precipitation_probability")
+    if arrays is None:
+        return None
+    times, temps, codes, precip = arrays
+    for i, stamp in enumerate(times):
+        if not isinstance(stamp, str):
+            continue
+        try:
+            parse_utc_instant(stamp)
+        except ValueError:
+            continue
+        if _hourly_weather_row(temps, codes, precip, i, False) is not None:
+            return hourly
+    return None
+
+
+def _match_session_hour(hourly: dict, start: datetime) -> Optional[WeatherData]:
+    """Pick one session's forecast hour; a session without a matching hour has no data."""
+    if not hourly.get("time"):
+        return None
+    return _match_hourly_weather(hourly, start, precipitation_key="precipitation_probability")
+
+
+def _weekend_from(
+    found: Sequence[tuple[str, Optional[WeatherData]]], period: str
+) -> Optional[WeekendWeather]:
+    """Keep the sessions with data; None when nothing is left to show."""
+    sessions = tuple(SessionWeather(kind, weather) for kind, weather in found if weather)
+    return WeekendWeather(sessions, period) if sessions else None
 
 
 # =========================================================================
@@ -567,11 +865,10 @@ def _match_hourly_weather(
     precipitation_as_amount: bool = False,
 ) -> Optional[WeatherData]:
     """Select the closest usable hourly weather row for a race timestamp."""
-    times = hourly.get("time", [])
-    temps = hourly.get("temperature_2m", [])
-    codes = hourly.get("weather_code", [])
-    precip_values = hourly.get(precipitation_key, [])
-
+    arrays = _hourly_arrays(hourly, precipitation_key)
+    if arrays is None:
+        return None
+    times, temps, codes, precip_values = arrays
     if not times:
         logger.warning("Empty weather response")
         return None
@@ -591,7 +888,7 @@ def _match_hourly_weather(
         closest_delta_seconds: Optional[float] = None
 
         for i, t in enumerate(times):
-            if not t.startswith(race_date_str):
+            if not isinstance(t, str) or not t.startswith(race_date_str):
                 continue
 
             try:
@@ -674,20 +971,22 @@ async def _resolve_race_weather(
 
 async def _get_weather_context_unbounded(
     race_data: dict | None,
-    weather_by_type: dict[str, Optional[WeatherData]],
+    weather_by_type: dict[str, Optional[WeatherDisplay]],
+    *,
+    include_weekend: bool = False,
     wanted: Collection[str] = ("current", "race"),
 ) -> tuple[
     Optional[WeatherData],
     Optional[WeatherData],
-    dict[str, Optional[WeatherData]],
+    dict[str, Optional[WeatherDisplay]],
 ]:
     """
-    Build weather context (current and race-day) for a given race.
+    Build weather context (current, race-day and optionally weekend) for a given race.
 
     Returns a tuple of (current_weather, race_weather, weather_by_type).
-    weather_by_type always includes "off": None and adds "current"/"race" when data exists.
-    It is filled in place, so the bounded caller keeps whatever already resolved if the
-    remaining lookups time out.
+    weather_by_type always includes "off": None and adds "current"/"race" (and "weekend"
+    with ``include_weekend``) when data exists. It is filled in place, so the bounded caller
+    keeps whatever already resolved if the remaining lookups time out.
     """
     weather_by_type.setdefault("off", None)
 
@@ -709,7 +1008,7 @@ async def _get_weather_context_unbounded(
         if current_weather:
             weather_by_type["current"] = current_weather
     if "race" in wanted:
-        race_weather, _ = await _resolve_race_weather(
+        race_weather, weather_service = await _resolve_race_weather(
             lat=lat,
             lon=lon,
             race_dt=race_dt,
@@ -718,19 +1017,34 @@ async def _get_weather_context_unbounded(
         if race_weather:
             weather_by_type["race"] = race_weather
 
+    if include_weekend and lat is not None and lon is not None:
+        race_date, sessions = weekend_session_starts(race_data)
+        service = weather_service or _build_weather_service()
+        weekend_weather = await service.get_weekend_weather(lat, lon, race_date, sessions)
+        if weekend_weather:
+            weather_by_type["weekend"] = weekend_weather
+
     return current_weather, race_weather, weather_by_type
 
 
+@_forecast_scope()
 async def get_weather_context(
     race_data: dict | None,
     *,
     wanted: Collection[str] = ("current", "race"),
-) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
-    """Bound optional weather enrichment for both scheduled and on-demand calendars."""
-    weather_by_type: dict[str, WeatherData | None] = {"off": None}
+    include_weekend: bool = False,
+) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherDisplay | None]]:
+    """Bound optional weather enrichment for both scheduled and on-demand calendars.
+
+    ``include_weekend`` adds the weather_type=weekend summary; it reuses the race-day
+    forecast request whenever the race itself is within the forecast horizon.
+    """
+    weather_by_type: dict[str, WeatherDisplay | None] = {"off": None}
     try:
         async with asyncio.timeout(config.WEATHER_ENRICHMENT_TIMEOUT_SECONDS):
-            return await _get_weather_context_unbounded(race_data, weather_by_type, wanted=wanted)
+            return await _get_weather_context_unbounded(
+                race_data, weather_by_type, include_weekend=include_weekend, wanted=wanted
+            )
     except TimeoutError:
         # Keep a lookup that already finished (e.g. current weather) instead of discarding it
         # because a slower one (e.g. the race-day forecast) ran out of budget.
@@ -738,7 +1052,12 @@ async def get_weather_context(
             "Weather enrichment timed out; rendering with partial weather (%s)",
             ", ".join(key for key in weather_by_type if key != "off") or "none",
         )
-        return weather_by_type.get("current"), weather_by_type.get("race"), weather_by_type
+        current, race = weather_by_type.get("current"), weather_by_type.get("race")
+        return (
+            current if isinstance(current, WeatherData) else None,
+            race if isinstance(race, WeatherData) else None,
+            weather_by_type,
+        )
 
 
 # =========================================================================
@@ -746,7 +1065,7 @@ async def get_weather_context(
 # =========================================================================
 
 
-def _get_next_race_details() -> Optional[tuple[float, float, datetime]]:
+def _get_next_race_details() -> Optional[tuple[float, float, datetime | None]]:
     """Extract coordinates and race datetime from next race static data."""
     from app.services.f1_service import F1Service
 
@@ -773,13 +1092,16 @@ def _get_next_race_details() -> Optional[tuple[float, float, datetime]]:
         return None
 
     race_dt = race_session_start(race_data)
-    if race_dt is None:
+    if race_dt is None and not (
+        "weekend" in config.pregenerate_weather_types and weekend_weather_expected(race_data)
+    ):
         logger.warning("No known race start for weather prefetch")
         return None
 
     return (lat_f, lon_f, race_dt)
 
 
+@_forecast_scope()
 async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData]:
     """
     Pre-fetch weather for next race and store in DB cache.
@@ -792,7 +1114,10 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
     lat, lon, race_dt = details
     weather_service = WeatherService(cache_minutes=120)
 
-    current_weather = await weather_service.get_current_weather(lat, lon)
+    kinds = config.pregenerate_weather_types
+    current_weather = (
+        await weather_service.get_current_weather(lat, lon) if "current" in kinds else None
+    )
     if current_weather:
         cache_key = _current_weather_cache_key(lat, lon)
         await db.save_weather_cache(
@@ -804,8 +1129,12 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
         )
         logger.info("Prefetched current weather: %s", current_weather.temp_display)
 
-    race_weather = await weather_service.get_race_weather(lat, lon, race_dt)
-    if race_weather:
+    race_weather = (
+        await weather_service.get_race_weather(lat, lon, race_dt)
+        if "race_day" in kinds and race_dt is not None
+        else None
+    )
+    if race_weather and race_dt is not None:
         cache_key = _race_weather_cache_key(lat, lon, race_dt)
         await db.save_weather_cache(
             cache_key=cache_key,
@@ -816,9 +1145,45 @@ async def prefetch_weather_for_next_race(db: "Database") -> Optional[WeatherData
             precipitation_display_override=race_weather.precipitation_display_override,
         )
         logger.info("Prefetched race day weather: %s", race_weather.temp_display)
-        return race_weather
 
-    return current_weather
+    if "weekend" in config.pregenerate_weather_types:
+        await _prefetch_weekend_weather(db, weather_service, lat, lon)
+
+    return race_weather or current_weather
+
+
+def _next_weekend_sessions() -> tuple[date | None, list[tuple[str, datetime]]]:
+    """Return the next race's UTC date and its timed weekend sessions from static data."""
+    from app.services.f1_service import F1Service
+
+    return weekend_session_starts(F1Service().get_next_race_from_static() or {})
+
+
+async def _prefetch_weekend_weather(
+    db: "Database", weather_service: WeatherService, lat: float, lon: float
+) -> None:
+    """Persist the qualifying and sprint forecasts for pregenerated weekend calendars.
+
+    Runs only when PREGENERATE_WEATHER_TYPES lists ``weekend``. The race forecast is saved by
+    the caller; the sessions reuse its request (same weekend window).
+    """
+    race_date, sessions = _next_weekend_sessions()
+    weekend = await weather_service.get_weekend_weather(lat, lon, race_date, sessions)
+    if weekend is None:
+        return
+    starts = dict(sessions)
+    for item in weekend.sessions:
+        if item.session == "race" and "race_day" in config.pregenerate_weather_types:
+            continue
+        await db.save_weather_cache(
+            cache_key=_race_weather_cache_key(lat, lon, starts[item.session]),
+            temperature_c=item.weather.temperature_c,
+            weather_code=item.weather.weather_code,
+            precipitation_probability=item.weather.precipitation_probability,
+            precipitation_display_override=item.weather.precipitation_display_override,
+            ttl_minutes=120,
+        )
+    logger.info("Prefetched weekend weather: %s", weekend.temp_display)
 
 
 def _weather_from_db_row(row: tuple) -> WeatherData:
@@ -852,10 +1217,15 @@ async def load_prefetched_weather_from_db(db: "Database") -> int:
         return 0
 
     lat, lon, race_dt = details
-    keys = (
-        _current_weather_cache_key(lat, lon),
-        _race_weather_cache_key(lat, lon, race_dt),
-    )
+    kinds = config.pregenerate_weather_types
+    keys = [_current_weather_cache_key(lat, lon)] if "current" in kinds else []
+    if race_dt is not None and ("race_day" in kinds or "weekend" in kinds):
+        keys.append(_race_weather_cache_key(lat, lon, race_dt))
+    if "weekend" in config.pregenerate_weather_types:
+        _, sessions = _next_weekend_sessions()
+        keys.extend(
+            _race_weather_cache_key(lat, lon, start) for kind, start in sessions if kind != "race"
+        )
 
     loaded = 0
     now = datetime.now(timezone.utc)

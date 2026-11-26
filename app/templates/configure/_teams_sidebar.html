@@ -1,4 +1,5 @@
 {% import "configure/_timezone_picker.html" as tz_picker %}
+{% import "configure/_temp_unit.html" as temp_unit with context %}
 {% set tx = t.configure.teamsExtra %}
 {% set teams_extra_options = ["none", "countdown", "flags", "track", "weather"] %}
 <div class="hidden lg:flex flex-1 flex-col min-h-0">
@@ -65,6 +66,7 @@
     </div>
     <p class="teams-extra-hint mt-2 text-xs text-gray-600" aria-live="polite">{{ tx.hints.none }}</p>
     <p class="teams-extra-note-weather hidden mt-2 text-xs text-gray-600">{{ tx.weatherNote }}</p>
+    {{ temp_unit.toggle("Teams", extra_class="teams-extra-note-weather hidden") }}
     <p class="teams-extra-note-track hidden mt-2 text-xs text-gray-600">{{ tx.trackNote }} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ tx.creditsLink }}</a></p>
   </div>
 
@@ -94,6 +96,7 @@
   </div>
   <p class="teams-extra-hint mt-2 text-xs text-gray-600" aria-live="polite">{{ tx.hints.none }}</p>
   <p class="teams-extra-note-weather hidden mt-2 text-xs text-gray-600">{{ tx.weatherNote }}</p>
+  {{ temp_unit.toggle("TeamsMobile", mobile=True, extra_class="teams-extra-note-weather hidden") }}
   <p class="teams-extra-note-track hidden mt-2 text-xs text-gray-600">{{ tx.trackNote }} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ tx.creditsLink }}</a></p>
 </div>
 

@@ -50,7 +50,7 @@ from app.services.renderer_text import (
 )
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.track_renderer import render_track_image
-from app.services.weather_service import RAINDROP_ICON, WeatherData
+from app.services.weather_service import RAINDROP_ICON, TempUnit, WeatherDisplay
 from app.utils.refresh_hint import CountdownMode
 
 if TYPE_CHECKING:
@@ -380,10 +380,11 @@ class RendererBase(RendererCore):
         self,
         draw: ImageDraw.ImageDraw,
         race_data: dict,
-        weather_data: WeatherData | None = None,
+        weather_data: WeatherDisplay | None = None,
         weather_type: str = "",
         countdown_mode: CountdownMode = CountdownMode.HOURS,
         weekend: WeekendPhase | None = None,
+        temp_unit: TempUnit = TempUnit.C,
     ) -> int:
         """Draw the race-weekend schedule and return its lower boundary."""
         return draw_schedule_section(
@@ -404,6 +405,7 @@ class RendererBase(RendererCore):
             weather_type=weather_type,
             countdown_mode=countdown_mode,
             weekend=weekend,
+            temp_unit=temp_unit,
         )
 
     def _draw_schedule_row(
@@ -445,11 +447,12 @@ class RendererBase(RendererCore):
         draw: ImageDraw.ImageDraw,
         race_data: dict,
         schedule_bottom: int,
-        weather_data: WeatherData | None = None,
+        weather_data: WeatherDisplay | None = None,
         weather_type: str = "",
         *,
         countdown_mode: CountdownMode = CountdownMode.HOURS,
         weekend: WeekendPhase | None = None,
+        temp_unit: TempUnit = TempUnit.C,
     ) -> int:
         """Draw the countdown/status box and return its bottom coordinate."""
         return draw_countdown_box(
@@ -475,6 +478,7 @@ class RendererBase(RendererCore):
             weather_type=weather_type,
             countdown_mode=countdown_mode,
             weekend=weekend,
+            temp_unit=temp_unit,
         )
 
     def _draw_circuit_stats(

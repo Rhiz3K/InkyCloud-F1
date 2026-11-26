@@ -1,4 +1,5 @@
 {% import "configure/_timezone_picker.html" as tz_picker %}
+{% import "configure/_temp_unit.html" as temp_unit with context %}
 {% set cd = t.configure.countdown %}
 {% set countdown_options = ["hours", "days", "auto", "off"] %}
 {% set wm = t.configure.weekendMode %}
@@ -47,6 +48,16 @@
       >
         <span id="weatherRaceDayText">Race day</span>
       </button>
+      <button
+        type="button"
+        data-on-click="setWeatherType" data-args='["weekend"]'
+        id="weatherWeekendBtn"
+        aria-pressed="false"
+        class="weather-type-btn flex-1 px-2 py-0.5 text-[9px] font-bold uppercase text-center border border-black transition-all bg-white hover:bg-black hover:text-white"
+        data-weather-tooltip-trigger
+      >
+        <span id="weatherWeekendText">{{ t.configure.weatherWeekendLabel }}</span>
+      </button>
     </div>
     <input
       type="radio"
@@ -65,6 +76,15 @@
       id="weatherRaceDayRadio"
       aria-labelledby="weatherRaceDayText"
     />
+    <input
+      type="radio"
+      name="weatherType"
+      value="weekend"
+      class="hidden"
+      id="weatherWeekendRadio"
+      aria-labelledby="weatherWeekendText"
+    />
+    {{ temp_unit.toggle("") }}
   </div>
 
   <div class="flex-shrink-0 px-2 py-1.5 border-t-2 border-black bg-gray-50" id="countdownContainer">
@@ -157,7 +177,7 @@
       >Weather</span
     >
   </div>
-  <div class="grid grid-cols-3 gap-1" role="group" aria-labelledby="weatherLabelMobile">
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-1" role="group" aria-labelledby="weatherLabelMobile">
     <button
       type="button"
       data-on-click="setWeatherType" data-args='["off"]'
@@ -186,7 +206,18 @@
     >
       Race Day
     </button>
+    <button
+      type="button"
+      data-on-click="setWeatherType" data-args='["weekend"]'
+      id="weatherWeekendBtnMobile"
+      aria-pressed="false"
+      class="weather-type-btn-mobile min-w-0 px-2 py-2 text-[11px] font-bold uppercase text-center border-2 border-black transition-all bg-white hover:bg-black hover:text-white"
+      data-weather-tooltip-trigger
+    >
+      {{ t.configure.weatherWeekendLabel }}
+    </button>
   </div>
+  {{ temp_unit.toggle("Mobile", mobile=True) }}
 </div>
 
 <!-- Countdown - Mobile -->

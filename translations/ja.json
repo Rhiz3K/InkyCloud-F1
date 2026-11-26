@@ -201,6 +201,7 @@
     "weatherLabel": "天気",
     "weatherCurrentLabel": "現在",
     "weatherRaceDayLabel": "レース当日",
+    "weatherWeekendLabel": "週末",
     "weatherTooltipText": "レース14日前から有効",
     "countdown": {
       "label": "カウントダウン",
@@ -284,7 +285,11 @@
     "epaperStep1BeforeLink": "",
     "epaperStep1BetweenLinkAndUrl": " でコンテンツソースとして ",
     "epaperStep1AfterUrl": " を選択",
-    "epaperStep2Text": "上のURLを画像URL欄に貼り付け"
+    "epaperStep2Text": "上のURLを画像URL欄に貼り付け",
+    "tempUnit": {
+      "label": "温度",
+      "hint": "華氏は描画時に変換されます。天気データとリクエスト数は変わりません。"
+    }
   },
   "unofficial_notice": "独立したファンプロジェクトです。Formula Oneグループ、FIA、チーム、ドライバーとは提携しておらず、承認や支援も受けていません。",
   "stats_disabled": "利用統計は無効です。データ最小化モードでは収集しません。",
@@ -445,6 +450,9 @@
   "api_docs_weather_type_desc": "描画する天気データの種類",
   "api_docs_countdown_desc": "ステータス欄のカウントダウン: hours（日と時間、既定）、days（tz での日数のみ。現地の午前0時に変化）、auto（スタートの48時間前までは日数のみ、その後は日と時間）、off（カウントダウンの代わりにレース日）。無効な値は HTTP 422 を返します。",
   "api_docs_weekend_mode_desc": "週末モード：off（既定）または auto。auto では、レースウィークエンド中（最初のセッションの 12 時間前から）終了したセッションにチェックが付き、進行中または次のセッションが強調され、ステータス欄はその短い名前付きでカウントダウンします（例：予選: 3 時間）。実際の終了時刻は公開されないため、セッションは開始時刻に控えめな所要時間の見積もりを加えた時点で終了とみなします。フッターには今週末の予選と決勝の表彰台を、入手でき次第表示します（Jolpica から、これらのセッション後の数時間だけ取得）。各列の上にシーズンを表示します。無効な値は HTTP 422 を返します。",
+  "api_docs_weather_weekend_desc": "Weekend: ステータス欄に2行目を追加し、予選（収まればスプリントも）と決勝の予報を表示します（例: 予選 19° 60% | 決勝 22° 10%）。週末全体を Open-Meteo への1回のリクエストで取得し、race_day と同じリクエストを使います。16日間の予報範囲外や時刻未発表のセッションは省略され、決勝スタート後は決勝の天気のみ表示します。",
+  "api_docs_temp_unit_desc": "温度単位: c（既定、摂氏）または f（華氏）。同じキャッシュ済みデータから描画時に変換するため、天気リクエストは増えません。無効な値は HTTP 422 を返します。",
+  "api_docs_teams_temp_unit_desc": "天気パネル（extra=weather）の温度単位: c（既定）または f。無効な値は HTTP 422 を返します。",
   "api_docs_auto_desc": "カレンダーまたはチームの BMP を直接返す 1 つの URL です（リダイレクトなし）。Živýobraz.eu やシンプルな ESP32 ファームウェアなど、1 つのアドレスしか取得できないディスプレイ向けです。",
   "api_docs_auto_mode_desc": "race_week: 次のレースウィークエンドの最初のセッションの lead_hours 前から、次のレースに切り替わるまで（スタートの 4 時間後）はカレンダー、それ以外はチーム（オフシーズンや中止レースを含む）。daily: tz の現地日付が偶数の日はカレンダー、奇数の日はチームを表示し、現地の午前0時に切り替えます。無効な値は HTTP 422 を返します。",
   "api_docs_auto_lead_hours_desc": "race_week のみ: 最初のセッション（FP1）の何時間前にカレンダーを表示するか。0〜168 以外の値は HTTP 422 を返します。",
@@ -466,5 +474,8 @@
   "api_docs_laskakit_step3": "更新間隔を 1〜6 時間に設定",
   "api_docs_close_btn": "閉じる",
   "api_docs_loading_text": "読み込み中...",
-  "api_docs_error_text": "エラー"
+  "api_docs_error_text": "エラー",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "予選",
+  "weather_session_race": "決勝"
 }

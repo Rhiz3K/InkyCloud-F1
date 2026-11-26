@@ -224,9 +224,11 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                   <code class="bg-gray-100 px-1">off</code>,
                   <code class="bg-gray-100 px-1">race_day</code>,
                   <code class="bg-gray-100 px-1">race</code>,
-                  <code class="bg-gray-100 px-1">current</code>
+                  <code class="bg-gray-100 px-1">current</code>,
+                  <code class="bg-gray-100 px-1">weekend</code>
                   ({{ t.get("api_docs_default", "default") }}: <code>race_day</code>)</span
                 >
+                <br /><span class="text-xs"><code>weekend</code> — {{ t.api_docs_weather_weekend_desc }}</span>
               </td>
             </tr>
             <tr>
@@ -258,6 +260,21 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                   <code class="bg-gray-100 px-1">off</code>,
                   <code class="bg-gray-100 px-1">auto</code>
                   ({{ t.get("api_docs_default", "default") }}: <code>off</code>)</span
+                >
+              </td>
+            </tr>
+            <tr>
+              <td class="px-3 py-2 font-mono text-racing-red font-bold">
+                temp_unit
+              </td>
+              <td class="px-3 py-2">string</td>
+              <td class="px-3 py-2">
+                {{ t.api_docs_temp_unit_desc }}
+                <br /><span class="text-xs text-gray-500"
+                  >{{ t.get("api_docs_values", "Values") }}:
+                  <code class="bg-gray-100 px-1">c</code>,
+                  <code class="bg-gray-100 px-1">f</code>
+                  ({{ t.get("api_docs_default", "default") }}: <code>c</code>)</span
                 >
               </td>
             </tr>
@@ -577,6 +594,19 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               <td class="px-3 py-2">string</td>
               <td class="px-3 py-2">{{ t.get("api_docs_teams_tz_desc", "Optional IANA timezone for extra panels showing a time or date: countdown, flags, track, weather. Defaults to the server's DEFAULT_TIMEZONE; ignored for none or unavailable panels. Invalid values return HTTP 400. Also supported by /preview/configure/teams.png.") }}</td>
             </tr>
+            <tr>
+              <td class="px-3 py-2 font-mono text-racing-red font-bold">temp_unit</td>
+              <td class="px-3 py-2">string</td>
+              <td class="px-3 py-2">
+                {{ t.api_docs_teams_temp_unit_desc }}
+                <br /><span class="text-xs text-gray-500"
+                  >{{ t.get("api_docs_values", "Values") }}:
+                  <code class="bg-gray-100 px-1">c</code>,
+                  <code class="bg-gray-100 px-1">f</code>
+                  ({{ t.get("api_docs_default", "default") }}: <code>c</code>)</span
+                >
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -719,8 +749,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             </tr>
             <tr>
               <td class="px-3 py-2 font-mono text-racing-red font-bold">
-                lang, tz, display, weather, weather_type, countdown, weekend_mode, track_style,
-                track_source, track_accent, year
+                lang, tz, display, weather, weather_type, countdown, weekend_mode, temp_unit,
+                track_style, track_source, track_accent, year
               </td>
               <td class="px-3 py-2">—</td>
               <td class="px-3 py-2">{{ t.api_docs_auto_shared_desc }}</td>
@@ -917,6 +947,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           <p class="text-xs mt-2"><code>track_style</code>, <code>track_source</code>, <code>track_accent</code> — {{ track_ui.styleLabel }}, {{ track_ui.sourceLabel }}, {{ track_ui.accentLabel }} (<code>calendar</code>).</p>
           <p class="text-xs mt-2"><code>countdown</code> — {{ t.api_docs_countdown_desc }} (<code>calendar</code>)</p>
           <p class="text-xs mt-2"><code>weekend_mode</code> — {{ t.api_docs_weekend_mode_desc }} (<code>calendar</code>)</p>
+          <p class="text-xs mt-2"><code>temp_unit</code> — {{ t.api_docs_temp_unit_desc }} (<code>calendar</code>, <code>teams</code>)</p>
         </div>
 
         <div class="border-2 border-black p-4">

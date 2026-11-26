@@ -201,6 +201,7 @@
     "weatherLabel": "Wetter",
     "weatherCurrentLabel": "Aktuell",
     "weatherRaceDayLabel": "Am Renntag",
+    "weatherWeekendLabel": "Wochenende",
     "weatherTooltipText": "Aktiviert sich 14 Tage vor dem Rennen",
     "countdown": {
       "label": "Countdown",
@@ -284,7 +285,11 @@
     "epaperStep1BeforeLink": "In ",
     "epaperStep1BetweenLinkAndUrl": " ",
     "epaperStep1AfterUrl": " als Inhaltsquelle auswählen",
-    "epaperStep2Text": "Die obige URL in das Bild-URL-Feld einfügen"
+    "epaperStep2Text": "Die obige URL in das Bild-URL-Feld einfügen",
+    "tempUnit": {
+      "label": "Temperatur",
+      "hint": "Fahrenheit wird beim Zeichnen umgerechnet; Wetterdaten und Anfragen bleiben gleich."
+    }
   },
   "unofficial_notice": "Unabhängiges Fanprojekt. Keine Verbindung zur Formula One Gruppe, FIA, Teams oder Fahrern; keine Billigung oder Förderung durch diese.",
   "stats_disabled": "Nutzungsstatistiken sind deaktiviert. Im datensparsamen Modus werden sie nicht erhoben.",
@@ -445,6 +450,9 @@
   "api_docs_weather_type_desc": "Welche Wetterdatenvariante gerendert werden soll",
   "api_docs_countdown_desc": "Countdown im Statusfeld: hours (Tage und Stunden, Standard), days (ganze Tage in tz, wechselt um lokale Mitternacht), auto (ganze Tage bis 48 h vor dem Start, danach Tage und Stunden) oder off (Renndatum statt Countdown). Ungültige Werte liefern HTTP 422.",
   "api_docs_weekend_mode_desc": "Wochenendmodus: off (Standard) oder auto. Mit auto werden während des Rennwochenendes (ab 12 h vor der ersten Session) beendete Sessions abgehakt, die laufende oder nächste Session markiert und das Statusfeld zählt mit ihrem Kurznamen auf sie herunter (z. B. Q: 3 Std). Eine Session gilt ab ihrem Start plus einer vorsichtigen Dauerschätzung als beendet, weil das tatsächliche Ende nicht veröffentlicht wird. Die Fußzeile zeigt die Qualifying- und Rennpodien dieses Wochenendes, sobald verfügbar (Jolpica, nur in den Stunden nach diesen Sessions abgefragt), mit der Saison über jeder Spalte. Ungültige Werte liefern HTTP 422.",
+  "api_docs_weather_weekend_desc": "Weekend: eine zweite Zeile im Statusfeld mit der Vorhersage für das Qualifying (und den Sprint, wenn er passt) und das Rennen, z. B. Q 19° 60% | R 22° 10%. Eine einzige Open-Meteo-Anfrage deckt das ganze Wochenende ab, dieselbe wie bei race_day. Sessions jenseits der 16-Tage-Vorhersage oder ohne veröffentlichte Zeit werden weggelassen; nach dem Rennstart wird nur das Rennwetter gezeigt.",
+  "api_docs_temp_unit_desc": "Temperatureinheit: c (Standard, Celsius) oder f (Fahrenheit). Wird beim Zeichnen aus denselben zwischengespeicherten Daten umgerechnet und kostet keine zusätzlichen Wetteranfragen. Ungültige Werte liefern HTTP 422.",
+  "api_docs_teams_temp_unit_desc": "Temperatureinheit des Wetterpanels (extra=weather): c (Standard) oder f. Ungültige Werte liefern HTTP 422.",
   "api_docs_auto_desc": "Eine URL, die das Kalender- oder Teams-BMP direkt liefert (ohne Weiterleitung). Für Displays, die nur eine Adresse abrufen können, etwa Živýobraz.eu oder einfache ESP32-Firmware.",
   "api_docs_auto_mode_desc": "race_week: Kalender ab lead_hours vor der ersten Session des nächsten Rennwochenendes, bis das nächste Rennen gewählt wird (4 h nach dem Start), sonst Teams, auch in der Winterpause und bei abgesagten Rennen. daily: Kalender an geraden, Teams an ungeraden lokalen Tagen in tz, Wechsel um lokale Mitternacht. Ungültige Werte liefern HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Nur race_week: wie viele Stunden vor der ersten Session (FP1) der Kalender erscheint. Werte außerhalb von 0–168 liefern HTTP 422.",
@@ -466,5 +474,8 @@
   "api_docs_laskakit_step3": "Aktualisierungsintervall auf 1-6 Stunden setzen",
   "api_docs_close_btn": "Schließen",
   "api_docs_loading_text": "Wird geladen...",
-  "api_docs_error_text": "Fehler"
+  "api_docs_error_text": "Fehler",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "Q",
+  "weather_session_race": "R"
 }

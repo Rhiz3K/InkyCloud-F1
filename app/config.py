@@ -53,7 +53,10 @@ DISPLAY_CODES: tuple[str, ...] = ("1bit", "bwr", "bwry", "spectra6")
 
 # Optional weather variants the scheduler can pregenerate next to the always-generated "off"
 # calendars (canonical query names; "race" is accepted as an alias of "race_day").
-PREGENERATE_WEATHER_CODES: tuple[str, ...] = ("current", "race_day")
+PREGENERATE_WEATHER_CODES: tuple[str, ...] = ("current", "race_day", "weekend")
+# An empty PREGENERATE_WEATHER_TYPES keeps the variants generated before the setting existed;
+# the weekend summary is pregenerated only when listed explicitly.
+DEFAULT_PREGENERATE_WEATHER_CODES: tuple[str, ...] = ("current", "race_day")
 _WEATHER_ALIASES = {"race": "race_day"}
 
 
@@ -338,8 +341,9 @@ class Config(BaseSettings):
     PREGENERATE_WEATHER_TYPES: str = Field(
         "",
         description=(
-            "Comma-separated weather variants (current, race_day) pregenerated next to the "
-            "always-generated weather=off calendars (empty = both, off = none)"
+            "Comma-separated weather variants (current, race_day, weekend) pregenerated next to "
+            "the always-generated weather=off calendars (empty = current and race_day, "
+            "off = none)"
         ),
     )
     WEATHER_ENRICHMENT_TIMEOUT_SECONDS: int = Field(15, gt=0)
@@ -443,7 +447,9 @@ class Config(BaseSettings):
     def pregenerate_weather_types(self) -> tuple[str, ...]:
         """Optional weather variants pregenerated next to the ``off`` calendars."""
         selected = set(self.PREGENERATE_WEATHER_TYPES.split(",")) - {""}
-        return tuple(code for code in PREGENERATE_WEATHER_CODES if not selected or code in selected)
+        if not selected:
+            return DEFAULT_PREGENERATE_WEATHER_CODES
+        return tuple(code for code in PREGENERATE_WEATHER_CODES if code in selected)
 
     @property
     def backup_local_dir(self) -> Path:

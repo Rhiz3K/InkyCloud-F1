@@ -201,6 +201,7 @@
     "weatherLabel": "Počasie",
     "weatherCurrentLabel": "Aktuálne",
     "weatherRaceDayLabel": "Deň pretekov",
+    "weatherWeekendLabel": "Víkend",
     "weatherTooltipText": "Aktivuje sa 14 dní pred pretekmi",
     "countdown": {
       "label": "Odpočet",
@@ -284,7 +285,11 @@
     "epaperStep1BeforeLink": "V ",
     "epaperStep1BetweenLinkAndUrl": " vyberte ",
     "epaperStep1AfterUrl": " ako zdroj obsahu",
-    "epaperStep2Text": "Vložte vyššie uvedenú URL do poľa URL obrázka"
+    "epaperStep2Text": "Vložte vyššie uvedenú URL do poľa URL obrázka",
+    "tempUnit": {
+      "label": "Teplota",
+      "hint": "Fahrenheit sa prevádza pri kreslení; údaje o počasí aj počet požiadaviek zostávajú rovnaké."
+    }
   },
   "unofficial_notice": "Nezávislý fanúšikovský projekt. Nie je spojený so skupinou Formula One, FIA, tímami ani jazdcami a nie je nimi schválený ani sponzorovaný.",
   "stats_disabled": "Štatistiky používania sú vypnuté. V minimálnom režime ich služba nezbiera.",
@@ -445,6 +450,9 @@
   "api_docs_weather_type_desc": "Ktorý variant údajov o počasí vyrenderovať",
   "api_docs_countdown_desc": "Odpočet v informačnom poli: hours (dni a hodiny, predvolené), days (celé dni v tz, mení sa o miestnej polnoci), auto (celé dni až do 48 h pred štartom, potom dni a hodiny) alebo off (dátum pretekov namiesto odpočtu). Neplatná hodnota vráti HTTP 422.",
   "api_docs_weekend_mode_desc": "Režim víkendu: off (predvolené) alebo auto. S auto sa počas pretekárskeho víkendu (od 12 h pred prvou session) dokončené sessions označia zaškrtnutím, práve prebiehajúca alebo ďalšia session sa zvýrazní a informačné pole odpočítava k nej s krátkym názvom (napr. K: 3 h). Session sa považuje za skončenú od štartu plus konzervatívny odhad dĺžky, pretože skutočný koniec sa nezverejňuje. Päta ukáže pódium kvalifikácie a pretekov tohto víkendu, len čo je k dispozícii (Jolpica, sťahuje sa len v hodinách po týchto sessions), s ročníkom nad každým stĺpcom. Neplatná hodnota vráti HTTP 422.",
+  "api_docs_weather_weekend_desc": "Weekend: druhý riadok v informačnom poli s predpoveďou pre kvalifikáciu (a šprint, ak sa zmestí) a preteky, napr. K 19° 60% | P 22° 10%. Celý víkend pokryje jediná požiadavka na Open-Meteo, tá istá, ktorú používa race_day. Sessions mimo 16-dňovej predpovede alebo bez zverejneného času sa vynechajú; po štarte pretekov sa zobrazí len počasie pretekov.",
+  "api_docs_temp_unit_desc": "Jednotka teploty: c (predvolené, stupne Celzia) alebo f (stupne Fahrenheita). Prevádza sa pri kreslení obrázka z rovnakých uložených údajov, takže nepridáva žiadne požiadavky na počasie. Neplatná hodnota vráti HTTP 422.",
+  "api_docs_teams_temp_unit_desc": "Jednotka teploty panelu počasia (extra=weather): c (predvolené) alebo f. Neplatná hodnota vráti HTTP 422.",
   "api_docs_auto_desc": "Jedna URL, ktorá vracia priamo BMP kalendára alebo tímov (bez presmerovania). Hodí sa pre displeje, ktoré vedia sťahovať iba jednu adresu, napríklad Živýobraz.eu alebo jednoduchý firmvér ESP32.",
   "api_docs_auto_mode_desc": "race_week: kalendár od lead_hours pred prvou session najbližšieho pretekárskeho víkendu až do výberu ďalších pretekov (4 h po štarte), inak tímy, vrátane zimnej prestávky a zrušených pretekov. daily: kalendár v párne a tímy v nepárne miestne dni v tz, prepína sa o miestnej polnoci. Neplatná hodnota vráti HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Iba pre race_week: koľko hodín pred prvou session (FP1) sa zobrazí kalendár. Hodnota mimo 0–168 vráti HTTP 422.",
@@ -466,5 +474,8 @@
   "api_docs_laskakit_step3": "Nastavte interval obnovovania na 1-6 hodín",
   "api_docs_close_btn": "Zavrieť",
   "api_docs_loading_text": "Načítava sa...",
-  "api_docs_error_text": "Chyba"
+  "api_docs_error_text": "Chyba",
+  "weather_session_sprint": "Š",
+  "weather_session_qualifying": "K",
+  "weather_session_race": "P"
 }

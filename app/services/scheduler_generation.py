@@ -39,7 +39,14 @@ from app.services.image_keys import (
 )
 from app.services.renderers import COLOR_DISPLAYS, DISPLAY_TYPES, create_renderer
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext
-from app.services.weather_service import WeatherData, get_weather_context, parse_coordinate
+from app.services.weather_service import (
+    WeatherData,
+    WeatherDisplay,
+    WeekendWeather,
+    get_weather_context,
+    parse_coordinate,
+    weekend_weather_expected,
+)
 from app.state import clear_bmp_cache
 from app.utils.async_locks import LoopLockRegistry, get_loop_lock
 from app.utils.async_tasks import RENDER_WORKER_COUNT, run_render
@@ -67,7 +74,7 @@ def _profile_displays() -> list[str]:
     return [display for display in DISPLAY_TYPES if display in selected]
 
 
-def _profile_weather_types(weather_by_type: dict[str, WeatherData | None]) -> list[str]:
+def _profile_weather_types(weather_by_type: dict[str, WeatherDisplay | None]) -> list[str]:
     """Weather variants to pregenerate: ``off`` always, others per PREGENERATE_WEATHER_TYPES."""
     # Generation keys race-day weather as "race" (its filename token) rather than "race_day".
     allowed = {
@@ -123,7 +130,7 @@ def _render_calendar_variant_bytes(
     display: str,
     race_data: dict,
     historical_data,
-    weather_data: WeatherData | None,
+    weather_data: WeatherDisplay | None,
     weather_type: str,
 ) -> bytes:
     """Construct the renderer and render in the worker thread.
@@ -278,7 +285,7 @@ async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> No
 
 
 # Weather tokens of calendar preview filenames ("race" is the race-day forecast).
-_PREVIEW_WEATHER_KINDS = ("off", "current", "race")
+_PREVIEW_WEATHER_KINDS = ("off", "current", "race", "weekend")
 
 
 def _preview_filenames(
@@ -342,7 +349,7 @@ async def _generate_variant(
     db: Database,
     race_data: dict,
     historical_data,
-    weather_data: WeatherData | None,
+    weather_data: WeatherDisplay | None,
     lang: str,
     tz: str | None,
     display: str,
@@ -354,6 +361,12 @@ async def _generate_variant(
     render never propagates up and aborts the whole generation run.
     """
     wd = weather_data if weather_type != "off" else None
+    identity = calendar_identity(
+        race_data,
+        weather_type=weather_type,
+        now=datetime.now(timezone.utc),
+        source_period=wd.period if isinstance(wd, WeekendWeather) else "",
+    )
     image_key = _get_image_key(lang, tz, display, weather_type)
     image_path = images_dir / f"{image_key}.bmp"
 
@@ -371,7 +384,7 @@ async def _generate_variant(
                 weather_type,
             )
         )
-        await _write_bmp_artifact(image_path, bmp_data, calendar_identity(race_data))
+        await _write_bmp_artifact(image_path, bmp_data, identity)
         await db.save_generated_image(image_key=image_key, image_path=str(image_path), lang=lang)
     except Exception as exc:
         logger.error(
@@ -432,11 +445,11 @@ def _load_historical_data(race_data: dict) -> object | None:
 
 async def _load_weather_context(
     race_data: dict,
-) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
-    """Load current and race-day weather variants for generation."""
-    wanted = _profile_weather_types({"current": None, "race": None})
+) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherDisplay | None]]:
+    """Load current, race-day and (when the profile lists it) weekend weather for generation."""
+    wanted = _profile_weather_types({"current": None, "race": None, "weekend": None})
     current_weather, race_weather, weather_by_type = await get_weather_context(
-        race_data, wanted=wanted
+        race_data, include_weekend="weekend" in wanted, wanted=wanted
     )
 
     circuit_id = race_data.get("circuit", {}).get("circuitId")
@@ -474,12 +487,14 @@ def _race_weather_expected(race_data: dict) -> bool:
 
 def _weather_context_degraded(
     race_data: dict,
-    weather_by_type: dict[str, WeatherData | None],
+    weather_by_type: dict[str, WeatherDisplay | None],
     wanted: Collection[str] = ("current", "race"),
 ) -> bool:
     """Return whether any weather source expected for rendering is unavailable.
 
-    Only the ``wanted`` variants (those the pregeneration profile renders) count.
+    Only the ``wanted`` variants (those the pregeneration profile renders) count. The weekend
+    summary is expected by the weather service's own rule, so a race outside its forecast
+    window (or a weekend whose shown sessions are over) is not degraded.
     """
     if not config.WEATHER_ENABLED or not _has_weather_coordinates(race_data):
         return False
@@ -487,6 +502,8 @@ def _weather_context_degraded(
     expected = {"current"}
     if _race_weather_expected(race_data):
         expected.add("race")
+    if weekend_weather_expected(race_data):
+        expected.add("weekend")
     expected &= set(wanted)
 
     return any(weather_by_type.get(weather_type) is None for weather_type in expected)
@@ -499,7 +516,7 @@ async def _generate_base_variants(
     race_data: dict,
     historical_data,
     display_types: Sequence[str],
-    weather_by_type: dict[str, WeatherData | None],
+    weather_by_type: dict[str, WeatherDisplay | None],
 ) -> tuple[set[Path], int]:
     """Generate the base language/display/weather combinations.
 
@@ -533,7 +550,7 @@ async def _generate_popular_tz_variants(
     race_data: dict,
     historical_data,
     display_types: Sequence[str],
-    weather_by_type: dict[str, WeatherData | None],
+    weather_by_type: dict[str, WeatherDisplay | None],
 ) -> tuple[set[Path], int]:
     """Generate extra calendar variants for the most-used non-default timezones.
 
@@ -741,7 +758,7 @@ async def _publish_images(db: Database, reasons: set[DegradedReason]) -> str:
     historical_data = _load_historical_data(race_data)
 
     # Core calendars must be ready before any optional upstream dependency is awaited.
-    weather_by_type: dict[str, WeatherData | None] = {"off": None}
+    weather_by_type: dict[str, WeatherDisplay | None] = {"off": None}
     display_types = _profile_displays()
     logger.info(
         "Generating variants: displays=%s, weather=%s",
@@ -778,7 +795,7 @@ async def _publish_images(db: Database, reasons: set[DegradedReason]) -> str:
 
     # Weather the profile does not pregenerate is neither fetched nor expected, so an
     # unavailable source cannot mark the run degraded or block the stale-file prune.
-    wanted_weather = _profile_weather_types({"current": None, "race": None})
+    wanted_weather = _profile_weather_types({"current": None, "race": None, "weekend": None})
     if wanted_weather:
         _, _, weather_by_type = await _load_weather_context(race_data)
     weather_degraded = _weather_context_degraded(race_data, weather_by_type, wanted_weather)

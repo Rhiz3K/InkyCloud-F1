@@ -55,6 +55,7 @@ from app.services.track_catalog import (
     TrackStyle,
 )
 from app.services.track_renderer import attribution_headers
+from app.services.weather_service import TempUnit
 from app.services.weekend_phase import WeekendMode, select_weekend_race
 from app.services.weekend_results import weekend_context
 from app.state import (
@@ -83,6 +84,7 @@ from .params import (
     canonical_weather_type,
     normalize_display,
     normalize_lang,
+    temp_unit_cache_suffix,
     validate_calendar_selection,
     validate_timezone,
     weather_file_key,
@@ -136,7 +138,10 @@ def _calendar_poll_seconds(
 
 
 def _calendar_cache_control(
-    countdown: CountdownMode, hint: RefreshHint, weekend_mode: WeekendMode = WeekendMode.OFF
+    countdown: CountdownMode,
+    hint: RefreshHint,
+    weekend_mode: WeekendMode = WeekendMode.OFF,
+    weather_type: str = "off",
 ) -> str:
     """Return the calendar Cache-Control; period-keyed variants never outlive their next change.
 
@@ -145,7 +150,11 @@ def _calendar_cache_control(
     period, so a browser or shared cache must not reuse them past local midnight, the race
     start, the auto switch or a session boundary.
     """
-    if countdown == CountdownMode.HOURS and weekend_mode == WeekendMode.OFF:
+    if (
+        countdown == CountdownMode.HOURS
+        and weekend_mode == WeekendMode.OFF
+        and weather_type != "weekend"
+    ):
         return CALENDAR_BMP_CACHE_CONTROL
     return f"public, max-age={hint.max_age(_utc_now())}"
 
@@ -486,6 +495,18 @@ def _is_pregenerated_selection(
     )
 
 
+def _can_serve_calendar_file(
+    options: TrackOptions, countdown: CountdownMode, mode: WeekendMode, unit: TempUnit
+) -> bool:
+    """Identify the calendar configurations written by the scheduler."""
+    return (
+        options == DEFAULT_TRACK_OPTIONS
+        and countdown == CountdownMode.HOURS
+        and mode == WeekendMode.OFF
+        and unit == TempUnit.C
+    )
+
+
 def _get_pregenerated_calendar_path(
     *,
     lang: str,
@@ -529,7 +550,11 @@ def _get_pregenerated_calendar_path(
     identity = (
         expected_identity
         if expected_identity is not None
-        else calendar_identity(F1Service(timezone_name=target_tz).get_next_race_from_static())
+        else calendar_identity(
+            F1Service(timezone_name=target_tz).get_next_race_from_static(),
+            weather_type=key_weather,
+            now=_utc_now(),
+        )
     )
     return path if path is not None and artifact_matches(path, identity) else None
 
@@ -603,7 +628,14 @@ _DISPLAY_DESCRIPTION = (
     f"'bwr' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red), "
     f"or 'bwry' ({config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT} black/white/red/yellow)"
 )
-_WEATHER_TYPE_DESCRIPTION = "Weather type: 'race_day' (alias 'race'), 'current', or 'off'"
+_WEATHER_TYPE_DESCRIPTION = (
+    "Weather type: 'race_day' (alias 'race'), 'current', 'weekend' (qualifying, sprint when it "
+    "fits and race forecast from one request), or 'off'"
+)
+_TEMP_UNIT_DESCRIPTION = (
+    "Temperature unit: c (default, Celsius) or f (Fahrenheit, converted when drawing); "
+    "invalid values return 422"
+)
 _COUNTDOWN_DESCRIPTION = (
     "Countdown: hours (default, days and hours), days (whole days), "
     "auto (days until 48 h before the start, then days and hours) or off (race date)"
@@ -635,6 +667,7 @@ async def _serve_calendar_bmp(
     race_key: str | None = None,
     endpoint: str = "/calendar.bmp",
     weekend_mode: WeekendMode = WeekendMode.OFF,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> Response:
     """Serve one calendar BMP from validated, normalized inputs.
 
@@ -699,8 +732,10 @@ async def _serve_calendar_bmp(
         selected_race = await _select_calendar_race(
             f1_service, year, race_round, race_key, weekend_mode
         )
-        identity = calendar_identity(selected_race, track_options)
         now = _utc_now()
+        identity = calendar_identity(
+            selected_race, track_options, weather_type=weather_type, now=now
+        )
         hint = calendar_refresh_hint(
             selected_race,
             now=now,
@@ -726,14 +761,16 @@ async def _serve_calendar_bmp(
         if countdown != CountdownMode.HOURS:
             # The content period keeps a cached day count from outliving local midnight.
             cache_key += f":countdown={countdown}:{hint.cache_token()}"
-        cache_key += weekend.cache_suffix(hint)
-        image_cache = bmp_artifacts.calendar_image_cache(countdown, weekend.mode)
+        cache_key += weekend.cache_suffix(hint) + temp_unit_cache_suffix(temp_unit)
+        image_cache = bmp_artifacts.calendar_image_cache(
+            countdown, weekend.mode, temp_unit, weather_type
+        )
         cached_artifact = image_cache.get(cache_key)
         if cached_artifact is not None:
             logger.debug("Cache hit for %s", cache_key)
             return respond(
                 *cached_artifact,
-                cache_control=_calendar_cache_control(countdown, hint, weekend_mode),
+                cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type),
                 cache_status="HIT",
             )
 
@@ -749,9 +786,7 @@ async def _serve_calendar_bmp(
                 weather_type=weather_type,
                 expected_identity=identity,
             )
-            if track_options == DEFAULT_TRACK_OPTIONS
-            and countdown == CountdownMode.HOURS
-            and weekend.mode == WeekendMode.OFF
+            if _can_serve_calendar_file(track_options, countdown, weekend.mode, temp_unit)
             else None
         )
         if image_path is not None:
@@ -765,13 +800,17 @@ async def _serve_calendar_bmp(
                 return respond(
                     None,
                     matching_etag,
-                    cache_control=_calendar_cache_control(countdown, hint, weekend_mode),
+                    cache_control=_calendar_cache_control(
+                        countdown, hint, weekend_mode, weather_type
+                    ),
                     cache_status="REVALIDATED",
                 )
             if artifact is not None:
                 return respond(
                     *artifact,
-                    cache_control=_calendar_cache_control(countdown, hint, weekend_mode),
+                    cache_control=_calendar_cache_control(
+                        countdown, hint, weekend_mode, weather_type
+                    ),
                     cache_status=PREGENERATED_CACHE_STATUS,
                 )
             logger.info("Pre-generated image disappeared before read; rendering")
@@ -790,12 +829,13 @@ async def _serve_calendar_bmp(
                 countdown_mode=countdown,
                 weekend_mode=weekend.mode,
                 weekend=weekend.phase,
+                temp_unit=temp_unit,
             ),
         )
         is_cacheable = image_cache.get(cache_key) is artifact
         return respond(
             *artifact,
-            cache_control=_calendar_cache_control(countdown, hint, weekend_mode)
+            cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type)
             if is_cacheable
             else "no-store",
             cache_status="MISS",
@@ -829,6 +869,7 @@ async def _serve_teams_bmp(
     year: int | None,
     extra: TeamsExtra,
     endpoint: str = "/teams.bmp",
+    temp_unit: TempUnit = TempUnit.C,
 ) -> Response:
     """Serve one teams BMP from validated, normalized inputs.
 
@@ -863,7 +904,7 @@ async def _serve_teams_bmp(
             )
 
         ctx = (
-            build_teams_extra_context(extra, year, timezone_name=tz)
+            build_teams_extra_context(extra, year, timezone_name=tz, temp_unit=temp_unit)
             if extra != TeamsExtra.NONE
             else None
         )
@@ -969,6 +1010,7 @@ async def get_calendar_bmp(
     weekend_mode: Annotated[
         WeekendMode, Query(description=_WEEKEND_MODE_DESCRIPTION)
     ] = WeekendMode.OFF,
+    temp_unit: Annotated[TempUnit, Query(description=_TEMP_UNIT_DESCRIPTION)] = TempUnit.C,
 ):
     """Render the calendar endpoint for the requested display and selection."""
     start_time = time.time()
@@ -992,6 +1034,7 @@ async def get_calendar_bmp(
         race_round=race_round if year is not None else None,
         race_key=race_key,
         weekend_mode=weekend_mode,
+        temp_unit=temp_unit,
     )
 
 
@@ -1008,6 +1051,9 @@ async def get_teams_bmp(
     ] = None,
     extra: Annotated[TeamsExtra, Query(description=_TEAMS_EXTRA_DESCRIPTION)] = TeamsExtra.NONE,
     display: str = Query(default="1bit", description=_DISPLAY_DESCRIPTION),
+    temp_unit: Annotated[
+        TempUnit, Query(description=f"Weather panel: {_TEMP_UNIT_DESCRIPTION}")
+    ] = TempUnit.C,
 ):
     """Render the teams and drivers dashboard as a BMP image."""
     start_time = time.time()
@@ -1020,6 +1066,7 @@ async def get_teams_bmp(
         tz=validate_timezone(tz),
         year=year,
         extra=extra,
+        temp_unit=temp_unit,
     )
 
 
@@ -1126,6 +1173,9 @@ async def get_auto_bmp(
     year: Annotated[
         int | None, Query(description="Teams: season year; the calendar always shows the next race")
     ] = None,
+    temp_unit: Annotated[
+        TempUnit, Query(description=f"Calendar and teams weather panel: {_TEMP_UNIT_DESCRIPTION}")
+    ] = TempUnit.C,
     f1_service: F1Service = Depends(get_f1_service),
 ):
     """Serve the calendar or the teams BMP on one URL, switching by race week or by day."""
@@ -1156,6 +1206,7 @@ async def get_auto_bmp(
             countdown=countdown,
             endpoint="/auto.bmp",
             weekend_mode=weekend_mode,
+            temp_unit=temp_unit,
         )
     else:
         response = await _serve_teams_bmp(
@@ -1167,6 +1218,7 @@ async def get_auto_bmp(
             year=year,
             extra=TeamsExtra.COUNTDOWN if extra is None else extra,
             endpoint="/auto.bmp",
+            temp_unit=temp_unit,
         )
     # A fresh clock reading: time spent rendering must not extend max-age past the switch.
     return _apply_auto_screen(response, choice, _utc_now())

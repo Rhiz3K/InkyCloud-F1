@@ -201,6 +201,7 @@
     "weatherLabel": "Tiempo",
     "weatherCurrentLabel": "Actual",
     "weatherRaceDayLabel": "Día de carrera",
+    "weatherWeekendLabel": "Fin de semana",
     "weatherTooltipText": "Se activa 14 días antes de la carrera",
     "countdown": {
       "label": "Cuenta atrás",
@@ -284,7 +285,11 @@
     "epaperStep1BeforeLink": "En ",
     "epaperStep1BetweenLinkAndUrl": " selecciona ",
     "epaperStep1AfterUrl": " como fuente de contenido",
-    "epaperStep2Text": "Pega la URL de arriba en el campo de URL de imagen"
+    "epaperStep2Text": "Pega la URL de arriba en el campo de URL de imagen",
+    "tempUnit": {
+      "label": "Temperatura",
+      "hint": "Fahrenheit se convierte al dibujar; los datos meteorológicos y las peticiones no cambian."
+    }
   },
   "unofficial_notice": "Proyecto independiente de aficionados, sin afiliación, aprobación ni patrocinio del grupo Formula One, la FIA, los equipos o los pilotos.",
   "stats_disabled": "Las estadísticas de uso están desactivadas. Este servicio no las recopila en modo mínimo.",
@@ -445,6 +450,9 @@
   "api_docs_weather_type_desc": "Qué variante de datos meteorológicos renderizar",
   "api_docs_countdown_desc": "Cuenta atrás en el recuadro de estado: hours (días y horas, por defecto), days (días completos en tz, cambia a medianoche local), auto (días completos hasta 48 h antes de la salida, luego días y horas) u off (fecha de la carrera en lugar de la cuenta atrás). Los valores no válidos devuelven HTTP 422.",
   "api_docs_weekend_mode_desc": "Modo fin de semana: off (por defecto) o auto. Con auto, durante el fin de semana de carrera (desde 12 h antes de la primera sesión) las sesiones terminadas llevan una marca de verificación, la sesión en curso o la siguiente se resalta y el recuadro de estado cuenta atrás hasta ella con su nombre corto (p. ej. Q: 3 h). Una sesión se considera terminada desde su inicio más una estimación conservadora de duración, porque el final real no se publica. El pie muestra los podios de clasificación y carrera de este fin de semana en cuanto estén disponibles (Jolpica, consultado solo en las horas posteriores a esas sesiones), con la temporada sobre cada columna. Los valores no válidos devuelven HTTP 422.",
+  "api_docs_weather_weekend_desc": "Weekend: una segunda línea en el recuadro de estado con el pronóstico de la clasificación (y del sprint si cabe) y de la carrera, p. ej. Q 19° 60% | C 22° 10%. Una sola petición a Open-Meteo cubre todo el fin de semana, la misma que usa race_day. Las sesiones fuera del pronóstico de 16 días o sin hora publicada se omiten; tras la salida solo se muestra el tiempo de la carrera.",
+  "api_docs_temp_unit_desc": "Unidad de temperatura: c (por defecto, Celsius) o f (Fahrenheit). Se convierte al dibujar la imagen con los mismos datos en caché, sin peticiones meteorológicas adicionales. Los valores no válidos devuelven HTTP 422.",
+  "api_docs_teams_temp_unit_desc": "Unidad de temperatura del panel del tiempo (extra=weather): c (por defecto) o f. Los valores no válidos devuelven HTTP 422.",
   "api_docs_auto_desc": "Una URL que devuelve directamente el BMP del calendario o de los equipos (sin redirección). Para pantallas que solo pueden consultar una dirección, como Živýobraz.eu o un firmware ESP32 sencillo.",
   "api_docs_auto_mode_desc": "race_week: el calendario desde lead_hours antes de la primera sesión del próximo fin de semana de carrera hasta que se elige la siguiente carrera (4 h después de la salida); los equipos en el resto, incluida la pretemporada y las carreras canceladas. daily: calendario los días locales pares y equipos los impares en tz, con cambio a medianoche local. Los valores no válidos devuelven HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Solo race_week: cuántas horas antes de la primera sesión (FP1) aparece el calendario. Los valores fuera de 0–168 devuelven HTTP 422.",
@@ -466,5 +474,8 @@
   "api_docs_laskakit_step3": "Configura el intervalo de actualización entre 1 y 6 horas",
   "api_docs_close_btn": "Cerrar",
   "api_docs_loading_text": "Cargando...",
-  "api_docs_error_text": "Error"
+  "api_docs_error_text": "Error",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "Q",
+  "weather_session_race": "C"
 }

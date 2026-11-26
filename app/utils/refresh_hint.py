@@ -29,7 +29,7 @@ from enum import StrEnum
 from typing import Any
 
 from app.config import config
-from app.utils.race_times import race_session_start
+from app.utils.race_times import race_session_start, weekend_session_starts
 from app.utils.timezones import get_timezone
 
 REFRESH_HINT_HEADER = "X-Next-Refresh-Seconds"
@@ -47,6 +47,9 @@ RACE_LIVE_WINDOW = timedelta(hours=3)
 AUTO_DAYS_THRESHOLD = timedelta(hours=48)
 # Open-Meteo forecasts cover 16 days including today (see WeatherService.get_race_weather).
 FORECAST_RANGE_DAYS = 16
+# weather_type=weekend also forecasts qualifying and a sprint, up to this many days before the
+# race day (the forecast request covers these days and the race day).
+WEEKEND_FORECAST_LEAD_DAYS = 2
 # Standings can change hourly while results and penalties arrive after a points session.
 RESULTS_WINDOW = timedelta(hours=24)
 
@@ -211,6 +214,35 @@ def _date_only_changes(
     return changes
 
 
+def _forecast_start(
+    start: datetime | None, race_day: date | None, weather_type: str
+) -> datetime | None:
+    """Return when a race-day or weekend forecast first exists, None without a race date.
+
+    A date-only race has no race-day forecast, but its weekend forecast can still show a
+    timed qualifying.
+    """
+    weekend = weather_type == "weekend"
+    if start is not None:
+        forecast_day = start.date()
+    elif weekend and race_day is not None:
+        forecast_day = race_day
+    else:
+        return None
+    lead_days = WEEKEND_FORECAST_LEAD_DAYS if weekend else 0
+    first_day = forecast_day - timedelta(days=FORECAST_RANGE_DAYS - 1 + lead_days)
+    return datetime.combine(first_day, time.min, UTC)
+
+
+def _forecast_session_changes(
+    race_data: Mapping[str, Any], weather_type: str, now: datetime
+) -> tuple[datetime, ...]:
+    """Return the starts that change the weekend forecast's cache key immediately."""
+    if weather_type != "weekend":
+        return ()
+    return tuple(start for _, start in weekend_session_starts(dict(race_data))[1] if start > now)
+
+
 def calendar_refresh_hint(
     race_data: Mapping[str, Any] | None,
     *,
@@ -223,7 +255,8 @@ def calendar_refresh_hint(
 ) -> RefreshHint:
     """Predict the next change of a calendar image.
 
-    ``weather_type`` is canonical (``off``, ``current`` or ``race_day``). ``selection_grace``
+    ``weather_type`` is canonical (``off``, ``current``, ``race_day`` or ``weekend``; the
+    weekend forecast starts with qualifying, before the race forecast). ``selection_grace``
     is how long the automatic next-race selection keeps a race after its start; None for an
     explicitly selected race.
     """
@@ -250,20 +283,20 @@ def calendar_refresh_hint(
     hourly = (
         countdown == CountdownMode.HOURS and not cancelled and start is not None and now < start
     )
+    session_changes: tuple[datetime, ...] = ()
     if weather_enabled and not cancelled and weather_type != "off":
+        session_changes = _forecast_session_changes(race_data, weather_type, now)
         if weather_type == "current":
             hourly = True
-        elif start is not None:
-            first_forecast_day = start.date() - timedelta(days=FORECAST_RANGE_DAYS - 1)
-            forecast_from = datetime.combine(first_forecast_day, time.min, UTC)
+        elif (forecast_from := _forecast_start(start, race_day, weather_type)) is not None:
             if now < forecast_from:
                 changes.append(forecast_from)
             else:
                 hourly = True
 
     if countdown == CountdownMode.HOURS:
-        return RefreshHint(now, hourly=hourly, publication_changes=tuple(changes))
-    return RefreshHint(now, tuple(changes), hourly)
+        return RefreshHint(now, session_changes, hourly, tuple(changes))
+    return RefreshHint(now, (*changes, *session_changes), hourly)
 
 
 def teams_refresh_hint(

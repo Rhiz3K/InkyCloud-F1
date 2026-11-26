@@ -23,6 +23,7 @@ from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_extra import TeamsExtra
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.track_catalog import TrackAccent, TrackSource, TrackStyle
+from app.services.weather_service import TempUnit
 from app.services.weekend_phase import WeekendMode
 from app.state import get_bmp_cache, get_bmp_variant_cache
 from app.utils.f1_season import (
@@ -194,6 +195,17 @@ async def api_info() -> dict:
         "example": "?weekend_mode=auto",
         "optional": True,
     }
+    temp_unit_parameter = {
+        "type": "string",
+        "description": "Temperature unit of the drawn weather: c (Celsius) or f (Fahrenheit, "
+        "converted when drawing from the same cached Celsius data, without extra weather "
+        "requests). Invalid values return 422.",
+        "values": [unit.value for unit in TempUnit],
+        "default": TempUnit.C.value,
+        "example": "?temp_unit=f",
+        "optional": True,
+    }
+    weather_type_values = ["race_day", "race", "current", "weekend", "off"]
     refresh_hint = (
         f"{REFRESH_HINT_HEADER} on 200 and 304: seconds until the image is next expected to "
         f"change ({MIN_REFRESH_SECONDS}-{MAX_REFRESH_SECONDS}, at most "
@@ -307,15 +319,20 @@ async def api_info() -> dict:
                         "type": "string",
                         "description": (
                             "Weather source to render "
-                            "('race' normalizes to 'race_day'; 'off' disables weather)"
+                            "('race' normalizes to 'race_day'; 'off' disables weather). "
+                            "'weekend' adds a second line to the status box with the "
+                            "qualifying (and, when it fits, sprint) and race forecasts from "
+                            "the same single Open-Meteo request as race_day; sessions beyond "
+                            "the 16-day forecast or without a published time are left out"
                         ),
-                        "values": ["race_day", "race", "current", "off"],
+                        "values": weather_type_values,
                         "default": "race_day",
                         "example": "?weather_type=current",
                         "optional": True,
                     },
                     "countdown": countdown_parameter,
                     "weekend_mode": weekend_mode_parameter,
+                    "temp_unit": temp_unit_parameter,
                 },
                 "response": {
                     "content_type": "image/bmp",
@@ -339,6 +356,7 @@ async def api_info() -> dict:
                     "/calendar.bmp?display=spectra6&weather_type=current",
                     "/calendar.bmp?countdown=auto&weather=false",
                     "/calendar.bmp?weekend_mode=auto&display=bwry",
+                    "/calendar.bmp?weather_type=weekend&temp_unit=f&tz=America/New_York",
                 ],
             },
             "/teams.bmp": {
@@ -381,6 +399,11 @@ async def api_info() -> dict:
                         "example": "?display=bwr",
                         "optional": True,
                     },
+                    "temp_unit": {
+                        **temp_unit_parameter,
+                        "description": "Temperature unit of the weather panel (extra=weather): "
+                        "c or f. Invalid values return 422.",
+                    },
                 },
                 "response": {
                     "content_type": "image/bmp",
@@ -400,6 +423,7 @@ async def api_info() -> dict:
                     f"/teams.bmp?year={get_default_teams_year()}",
                     "/teams.bmp?display=bwr",
                     "/teams.bmp?display=spectra6",
+                    "/teams.bmp?extra=weather&temp_unit=f",
                 ],
             },
             "/auto.bmp": {
@@ -449,12 +473,16 @@ async def api_info() -> dict:
                     "weather_type": {
                         "type": "string",
                         "description": "Calendar only",
-                        "values": ["race_day", "race", "current", "off"],
+                        "values": weather_type_values,
                         "default": "race_day",
                         "optional": True,
                     },
                     "countdown": {**countdown_parameter, "description": "Calendar only"},
                     "weekend_mode": {**weekend_mode_parameter, "description": "Calendar only"},
+                    "temp_unit": {
+                        **temp_unit_parameter,
+                        "description": "Calendar weather and teams weather panel",
+                    },
                     **track_parameters,
                     "extra": {
                         "type": "string",
@@ -518,7 +546,7 @@ async def api_info() -> dict:
                     "weather_type": {
                         "type": "string",
                         "default": "off",
-                        "values": ["off", "current", "race", "race_day"],
+                        "values": ["off", "current", "race", "race_day", "weekend"],
                     },
                     "extra": {
                         "type": "string",
@@ -533,6 +561,10 @@ async def api_info() -> dict:
                     "weekend_mode": {
                         **weekend_mode_parameter,
                         "description": "Calendar weekend mode; applies only to calendar",
+                    },
+                    "temp_unit": {
+                        **temp_unit_parameter,
+                        "description": "Calendar weather and teams weather panel",
                     },
                     **track_parameters,
                 },

@@ -10,10 +10,17 @@ from fastapi import HTTPException
 
 from app.config import VALID_LANGUAGES, config
 from app.services.renderers import DISPLAY_TYPES
+from app.services.weather_service import TempUnit
 from app.utils.timezones import is_valid_timezone, normalize_timezone
 
 # Canonical weather variants. "race" is the documented alias of "race_day".
-WEATHER_TYPES = {"off": "off", "current": "current", "race_day": "race_day", "race": "race_day"}
+WEATHER_TYPES = {
+    "off": "off",
+    "current": "current",
+    "race_day": "race_day",
+    "race": "race_day",
+    "weekend": "weekend",
+}
 
 
 def normalize_lang(lang: str) -> str:
@@ -29,7 +36,7 @@ def normalize_display(display: str) -> str:
 def canonical_weather_type(
     weather_type: str, *, weather: bool = True, default: str = "race_day"
 ) -> str:
-    """Collapse the weather switch and type to ``off``, ``current`` or ``race_day``.
+    """Collapse the weather switch and type to ``off``, ``current``, ``race_day``, ``weekend``.
 
     ``weather=False`` means ``off`` whatever the type, and ``race`` means ``race_day``, so
     aliases never render or cache the same image twice. Only these enum values reach a path.
@@ -68,7 +75,11 @@ def calendar_cache_key(
     weather_type: str,
     display: str,
 ) -> str:
-    """Build the in-process cache key for one canonical calendar variant."""
+    """Build the in-process cache key for one canonical calendar variant.
+
+    A non-default ``temp_unit`` is appended by the caller (``temp_unit_cache_suffix``), so
+    Celsius keys stay unchanged.
+    """
     # Compare with None, not truthiness: 0 is a (rejected) value, not "missing".
     year_key = "next" if year is None else year
     round_key = "next" if round_num is None else round_num
@@ -76,3 +87,8 @@ def calendar_cache_key(
         f"{lang}:{year_key}:{round_key}:{'auto' if race_key is None else race_key}:"
         f"{tz or 'default'}:{weather_type}:{display}"
     )
+
+
+def temp_unit_cache_suffix(temp_unit: TempUnit) -> str:
+    """Return the cache-key suffix of a temperature unit; empty for the Celsius default."""
+    return "" if temp_unit == TempUnit.C else f":temp={temp_unit}"

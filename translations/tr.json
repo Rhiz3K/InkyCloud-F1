@@ -201,6 +201,7 @@
     "weatherLabel": "Hava durumu",
     "weatherCurrentLabel": "Güncel",
     "weatherRaceDayLabel": "Yarış günü",
+    "weatherWeekendLabel": "Hafta sonu",
     "weatherTooltipText": "Yarıştan 14 gün önce etkinleşir",
     "countdown": {
       "label": "Geri sayım",
@@ -284,7 +285,11 @@
     "epaperStep1BeforeLink": "",
     "epaperStep1BetweenLinkAndUrl": " içinde içerik kaynağı olarak ",
     "epaperStep1AfterUrl": " seçin",
-    "epaperStep2Text": "Yukarıdaki URL'yi görsel URL alanına yapıştırın"
+    "epaperStep2Text": "Yukarıdaki URL'yi görsel URL alanına yapıştırın",
+    "tempUnit": {
+      "label": "Sıcaklık",
+      "hint": "Fahrenheit çizim sırasında dönüştürülür; hava durumu verileri ve istekler değişmez."
+    }
   },
   "unofficial_notice": "Bağımsız hayran projesidir. Formula One grubu, FIA, takımlar veya sürücülerle bağlantısı, onayı ya da sponsorluğu yoktur.",
   "stats_disabled": "Kullanım istatistikleri kapalıdır. Bu hizmet asgari modda istatistik toplamaz.",
@@ -445,6 +450,9 @@
   "api_docs_weather_type_desc": "Hangi hava durumu verisi varyantının çizileceği",
   "api_docs_countdown_desc": "Durum kutusundaki geri sayım: hours (gün ve saat, varsayılan), days (tz içinde tam gün, yerel gece yarısı değişir), auto (başlangıçtan 48 saat öncesine kadar tam gün, sonra gün ve saat) veya off (geri sayım yerine yarış tarihi). Geçersiz değerler HTTP 422 döndürür.",
   "api_docs_weekend_mode_desc": "Hafta sonu modu: off (varsayılan) veya auto. auto ile yarış hafta sonu boyunca (ilk seanstan 12 saat önce başlayarak) biten seanslar işaretlenir, süren veya sıradaki seans vurgulanır ve durum kutusu kısa adıyla ona geri sayar (ör. SIR: 3 sa). Gerçek bitiş yayımlanmadığından bir seans, başlangıcına temkinli bir süre tahmini eklendiği andan itibaren bitmiş sayılır. Alt bilgi, bu hafta sonunun sıralama ve yarış podyumlarını hazır olur olmaz gösterir (Jolpica, yalnızca bu seanslardan sonraki saatlerde sorgulanır); her sütunun üzerinde sezon yer alır. Geçersiz değerler HTTP 422 döndürür.",
+  "api_docs_weather_weekend_desc": "Weekend: durum kutusunda sıralama (sığarsa sprint de) ve yarış tahminini gösteren ikinci bir satır, ör. SIR 19° 60% | Y 22° 10%. Tüm hafta sonu, race_day ile aynı olan tek bir Open-Meteo isteğiyle alınır. 16 günlük tahmin aralığı dışındaki veya saati açıklanmamış seanslar atlanır; yarış başladıktan sonra yalnızca yarış havası gösterilir.",
+  "api_docs_temp_unit_desc": "Sıcaklık birimi: c (varsayılan, Celsius) veya f (Fahrenheit). Görsel çizilirken aynı önbellekteki verilerden dönüştürülür, ek hava durumu isteği gerekmez. Geçersiz değerler HTTP 422 döndürür.",
+  "api_docs_teams_temp_unit_desc": "Hava durumu panelinin sıcaklık birimi (extra=weather): c (varsayılan) veya f. Geçersiz değerler HTTP 422 döndürür.",
   "api_docs_auto_desc": "Takvim veya takımlar BMP’sini doğrudan döndüren tek bir URL (yönlendirme yok). Živýobraz.eu ya da basit ESP32 yazılımı gibi yalnızca tek bir adresi sorgulayabilen ekranlar içindir.",
   "api_docs_auto_mode_desc": "race_week: bir sonraki yarış hafta sonunun ilk seansından lead_hours önce başlayıp sonraki yarış seçilene kadar (startan 4 saat sonra) takvim, diğer zamanlarda sezon arası ve iptal edilen yarışlar dahil takımlar. daily: tz’deki yerel çift günlerde takvim, tek günlerde takımlar; geçiş yerel gece yarısında olur. Geçersiz değerler HTTP 422 döndürür.",
   "api_docs_auto_lead_hours_desc": "Yalnızca race_week: takvimin ilk seanstan (FP1) kaç saat önce görüneceği. 0–168 dışındaki değerler HTTP 422 döndürür.",
@@ -466,5 +474,8 @@
   "api_docs_laskakit_step3": "Yenileme aralığını 1-6 saat olarak ayarlayın",
   "api_docs_close_btn": "Kapat",
   "api_docs_loading_text": "Yükleniyor...",
-  "api_docs_error_text": "Hata"
+  "api_docs_error_text": "Hata",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "SIR",
+  "weather_session_race": "Y"
 }

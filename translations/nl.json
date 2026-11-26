@@ -201,6 +201,7 @@
     "weatherLabel": "Weer",
     "weatherCurrentLabel": "Huidig",
     "weatherRaceDayLabel": "Racedag",
+    "weatherWeekendLabel": "Weekend",
     "weatherTooltipText": "Wordt 14 dagen voor de race geactiveerd",
     "countdown": {
       "label": "Aftelling",
@@ -284,7 +285,11 @@
     "epaperStep1BeforeLink": "Selecteer in ",
     "epaperStep1BetweenLinkAndUrl": " ",
     "epaperStep1AfterUrl": " als contentbron",
-    "epaperStep2Text": "Plak de URL hierboven in het afbeeldings-URL-veld"
+    "epaperStep2Text": "Plak de URL hierboven in het afbeeldings-URL-veld",
+    "tempUnit": {
+      "label": "Temperatuur",
+      "hint": "Fahrenheit wordt bij het tekenen omgerekend; weergegevens en verzoeken blijven gelijk."
+    }
   },
   "unofficial_notice": "Onafhankelijk fanproject, zonder band met, goedkeuring of sponsoring door de Formula One groep, FIA, teams of coureurs.",
   "stats_disabled": "Gebruiksstatistieken zijn uitgeschakeld. Deze dienst verzamelt ze niet in de minimale modus.",
@@ -445,6 +450,9 @@
   "api_docs_weather_type_desc": "Welke variant van weergegevens gerenderd moet worden",
   "api_docs_countdown_desc": "Aftelling in het statusvak: hours (dagen en uren, standaard), days (hele dagen in tz, wisselt om lokale middernacht), auto (hele dagen tot 48 uur voor de start, daarna dagen en uren) of off (racedatum in plaats van aftelling). Ongeldige waarden geven HTTP 422.",
   "api_docs_weekend_mode_desc": "Weekendmodus: off (standaard) of auto. Met auto krijgen tijdens het raceweekend (vanaf 12 uur vóór de eerste sessie) afgelopen sessies een vinkje, wordt de lopende of volgende sessie gemarkeerd en telt het statusvak af naar die sessie met de korte naam (bijv. KW: 3 u). Een sessie geldt als afgelopen vanaf de start plus een voorzichtige schatting van de duur, omdat het echte einde niet wordt gepubliceerd. De voettekst toont de kwalificatie- en racepodia van dit weekend zodra ze beschikbaar zijn (Jolpica, alleen opgevraagd in de uren na die sessies), met het seizoen boven elke kolom. Ongeldige waarden geven HTTP 422.",
+  "api_docs_weather_weekend_desc": "Weekend: een tweede regel in het statusvak met de voorspelling voor de kwalificatie (en de sprint als die past) en de race, bijv. KW 19° 60% | R 22° 10%. Eén Open-Meteo-verzoek dekt het hele weekend, hetzelfde dat race_day gebruikt. Sessies buiten de 16-daagse voorspelling of zonder gepubliceerde tijd worden weggelaten; na de start wordt alleen het raceweer getoond.",
+  "api_docs_temp_unit_desc": "Temperatuureenheid: c (standaard, Celsius) of f (Fahrenheit). Wordt bij het tekenen omgerekend uit dezelfde gecachte gegevens en kost geen extra weerverzoeken. Ongeldige waarden geven HTTP 422.",
+  "api_docs_teams_temp_unit_desc": "Temperatuureenheid van het weerpaneel (extra=weather): c (standaard) of f. Ongeldige waarden geven HTTP 422.",
   "api_docs_auto_desc": "Eén URL die direct de kalender- of teams-BMP teruggeeft (zonder doorverwijzing). Voor displays die maar één adres kunnen opvragen, zoals Živýobraz.eu of eenvoudige ESP32-firmware.",
   "api_docs_auto_mode_desc": "race_week: de kalender vanaf lead_hours voor de eerste sessie van het volgende raceweekend tot de volgende race wordt gekozen (4 uur na de start), anders de teams, ook in de winterstop en bij afgelaste races. daily: kalender op even en teams op oneven lokale dagen in tz, wisselt om lokale middernacht. Ongeldige waarden geven HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Alleen race_week: hoeveel uur voor de eerste sessie (FP1) de kalender verschijnt. Waarden buiten 0–168 geven HTTP 422.",
@@ -466,5 +474,8 @@
   "api_docs_laskakit_step3": "Stel het vernieuwingsinterval in op 1-6 uur",
   "api_docs_close_btn": "Sluiten",
   "api_docs_loading_text": "Laden...",
-  "api_docs_error_text": "Fout"
+  "api_docs_error_text": "Fout",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "KW",
+  "weather_session_race": "R"
 }

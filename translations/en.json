@@ -201,6 +201,7 @@
     "weatherLabel": "Weather",
     "weatherCurrentLabel": "Current",
     "weatherRaceDayLabel": "Race day",
+    "weatherWeekendLabel": "Weekend",
     "weatherTooltipText": "Activates 14 days before race",
     "countdown": {
       "label": "Countdown",
@@ -284,7 +285,11 @@
     "epaperStep1BeforeLink": "In ",
     "epaperStep1BetweenLinkAndUrl": " select ",
     "epaperStep1AfterUrl": " as content source",
-    "epaperStep2Text": "Copy the URL above into the image URL field"
+    "epaperStep2Text": "Copy the URL above into the image URL field",
+    "tempUnit": {
+      "label": "Temperature",
+      "hint": "Fahrenheit is converted when drawing; the weather data and requests stay the same."
+    }
   },
   "unofficial_notice": "Independent fan project. Not affiliated with, endorsed by or sponsored by the Formula One group, FIA, teams or drivers.",
   "stats_disabled": "Usage statistics are disabled. This service does not collect them in minimal data mode.",
@@ -445,6 +450,9 @@
   "api_docs_weather_type_desc": "Which weather data variant to render",
   "api_docs_countdown_desc": "Countdown in the status box: hours (days and hours, default), days (whole days in tz, changes at local midnight), auto (whole days until 48 h before the start, then days and hours) or off (race date instead of a countdown). Invalid values return HTTP 422.",
   "api_docs_weekend_mode_desc": "Weekend mode: off (default) or auto. With auto, during the race weekend (from 12 h before the first session) finished sessions get a check mark, the running or next session is marked and the status box counts down to it with its short label (e.g. Q: 3 h). A session counts as finished from its start plus a conservative duration estimate, because the real end is not published. The footer shows this weekend's qualifying and race podiums once available (Jolpica, fetched only in the hours after those sessions), with the season above each column. Invalid values return HTTP 422.",
+  "api_docs_weather_weekend_desc": "Weekend: a second line in the status box with the forecast for qualifying (and the sprint when it fits) and the race, e.g. Q 19° 60% | R 22° 10%. One Open-Meteo request covers the whole weekend, the same one race_day uses. Sessions beyond the 16-day forecast or without a published time are left out; after the race starts only the race weather is shown.",
+  "api_docs_temp_unit_desc": "Temperature unit: c (default, Celsius) or f (Fahrenheit). Converted when the image is drawn from the same cached data, so it costs no extra weather requests. Invalid values return HTTP 422.",
+  "api_docs_teams_temp_unit_desc": "Temperature unit of the weather panel (extra=weather): c (default) or f. Invalid values return HTTP 422.",
   "api_docs_auto_desc": "One URL that returns the calendar or the teams BMP directly (no redirect). Use it on displays that can poll only one address, such as Živýobraz.eu or simple ESP32 firmware.",
   "api_docs_auto_mode_desc": "race_week: the calendar from lead_hours before the first session of the next race weekend until the next race is selected (4 h after the start), teams otherwise, including the off-season and cancelled races. daily: calendar on even and teams on odd local days in tz, switching at local midnight. Invalid values return HTTP 422.",
   "api_docs_auto_lead_hours_desc": "race_week only: how many hours before the first session (FP1) the calendar appears. Values outside 0–168 return HTTP 422.",
@@ -466,5 +474,8 @@
   "api_docs_laskakit_step3": "Set refresh interval to 1-6 hours",
   "api_docs_close_btn": "Close",
   "api_docs_loading_text": "Loading...",
-  "api_docs_error_text": "Error"
+  "api_docs_error_text": "Error",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "Q",
+  "weather_session_race": "R"
 }

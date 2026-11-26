@@ -242,6 +242,7 @@ const PAGE_HANDLER_NAMES = [
     "selectYearMobile",
     "setDisplayType",
     "setTeamsExtra",
+    "setTempUnit",
     "setWeatherType",
     "toggleSidebar",
     "updatePreview",

@@ -21,6 +21,7 @@ from app.routes.params import (
     canonical_weather_type,
     normalize_display,
     normalize_lang,
+    temp_unit_cache_suffix,
     validate_timezone,
     weather_file_key,
 )
@@ -51,6 +52,7 @@ from app.services.track_catalog import (
     TrackStyle,
 )
 from app.services.track_renderer import attribution_headers
+from app.services.weather_service import TempUnit
 from app.services.weekend_phase import WeekendMode, select_weekend_race
 from app.services.weekend_results import weekend_context
 from app.state import bmp_cache_generation, get_bmp_variant_cache
@@ -97,6 +99,30 @@ async def _cached_preview_response(path: Path, request: Request, identity: str) 
             "Last-Modified": formatdate(metadata["mtime_ns"] / 1e9, usegmt=True),
         },
     )
+
+
+async def _configure_preview_snapshot(
+    path: Path, request: Request, screen: str, weather: str, countdown: CountdownMode
+) -> Response | None:
+    """Match a pregenerated weekend preview to its source period and upcoming session."""
+    if screen != "calendar" or weather != "weekend":
+        return await _cached_preview_response(path, request, _preview_identity(screen))
+    race = F1Service().get_next_race_from_static()
+    now = datetime.now(UTC)
+    identity = calendar_identity(race, weather_type=weather, now=now)
+    hint = calendar_refresh_hint(
+        race,
+        now=now,
+        timezone_name=None,
+        countdown=countdown,
+        weather_type=weather,
+        weather_enabled=config.WEATHER_ENABLED,
+        selection_grace=None,
+    )
+    cached = await _cached_preview_response(path, request, identity)
+    if cached is not None:
+        cached.headers["Cache-Control"] = f"public, max-age={hint.max_age(datetime.now(UTC), 300)}"
+    return cached
 
 
 def _preview_identity(screen: str) -> str:
@@ -173,20 +199,23 @@ async def _render_configure_calendar(
     options: TrackOptions,
     countdown: CountdownMode = CountdownMode.HOURS,
     weekend_mode: WeekendMode = WeekendMode.OFF,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> Response:
     """Share calendar BMP caching and singleflight, then encode the matching PNG preview.
 
-    ``weather`` is canonical (off/current/race_day), so the key equals the /calendar.bmp one.
+    ``weather`` is canonical (off/current/race_day/weekend), so the key equals the
+    /calendar.bmp one.
     """
     race = select_weekend_race(F1Service(), weekend_mode)
+    now = datetime.now(UTC)
     key = (
-        calendar_identity(race, options)
+        calendar_identity(race, options, weather_type=weather, now=now)
         + "|"
         + calendar_cache_key(lang, None, None, None, None, weather, display)
     )
-    now = datetime.now(UTC)
     weekend = weekend_context(weekend_mode, race, now=now, timezone_name=None, countdown=countdown)
-    if countdown != CountdownMode.HOURS or weekend.mode != WeekendMode.OFF:
+    hint = None
+    if countdown != CountdownMode.HOURS or weekend.mode != WeekendMode.OFF or weather == "weekend":
         hint = calendar_refresh_hint(
             race,
             now=now,
@@ -201,7 +230,8 @@ async def _render_configure_calendar(
         if countdown != CountdownMode.HOURS:
             key += f":countdown={countdown}:{hint.cache_token()}"
         key += weekend.cache_suffix(hint)
-    image_cache = bmp_artifacts.calendar_image_cache(countdown, weekend.mode)
+    key += temp_unit_cache_suffix(temp_unit)
+    image_cache = bmp_artifacts.calendar_image_cache(countdown, weekend.mode, temp_unit, weather)
     artifact = image_cache.get(key)
     if artifact is None:
         artifact = await bmp_artifacts.singleflight(
@@ -218,6 +248,7 @@ async def _render_configure_calendar(
                 countdown_mode=countdown,
                 weekend_mode=weekend.mode,
                 weekend=weekend.phase,
+                temp_unit=temp_unit,
             ),
         )
     async with render_slot():
@@ -226,6 +257,9 @@ async def _render_configure_calendar(
                 bmp_to_png, artifact[0], full_size=True, preserve_color=display in COLOR_DISPLAYS
             )
         )
+    cache_control = _PREVIEW_CACHE_CONTROL
+    if weather == "weekend" and hint is not None:
+        cache_control = f"public, max-age={hint.max_age(datetime.now(UTC), 300)}"
     etag = strong_etag(content)
     unchanged = if_none_match_matches(request.headers.get("If-None-Match"), etag)
     return Response(
@@ -234,7 +268,7 @@ async def _render_configure_calendar(
         media_type=None if unchanged else "image/png",
         headers={
             "ETag": etag,
-            "Cache-Control": _PREVIEW_CACHE_CONTROL if key in image_cache else "no-store",
+            "Cache-Control": cache_control if key in image_cache else "no-store",
             **attribution_headers((race or {}).get("circuit", {}).get("circuitId", ""), options),
         },
     )
@@ -371,6 +405,59 @@ async def get_preview_png(
     raise HTTPException(status_code=404, detail="Preview not generated yet")
 
 
+async def _try_teams_extra_preview(
+    request: Request,
+    lang: str,
+    display: str,
+    extra: TeamsExtra,
+    *,
+    tz: str | None,
+    temp_unit: TempUnit,
+) -> tuple[Response | None, bool]:
+    """Render the requested Teams extra panel preview for the configurator.
+
+    Returns ``(response, False)`` on success, ``(None, False)`` when no panel applies and
+    ``(None, True)`` when the panel failed after the rate limit was charged (the caller then
+    serves the plain grid marked as a fallback).
+    """
+    if extra == TeamsExtra.NONE:
+        return None, False
+    ctx = build_teams_extra_context(
+        extra, get_default_teams_year(), timezone_name=tz, temp_unit=temp_unit
+    )
+    if ctx is None:
+        return None, False
+    _charge_configure_preview(request)
+    try:
+        response = await _render_teams_extra_preview(request, lang, display, extra, ctx)
+    except Exception as exc:
+        if isinstance(exc, (HTTPException, StaleSelection)):
+            raise
+        logger.warning("Dynamic teams extra preview failed: %s", exc)
+        return None, True
+    response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
+    return response, False
+
+
+def _has_pregenerated_configure_preview(
+    screen: str,
+    options: TrackOptions,
+    countdown: CountdownMode,
+    weekend_mode: WeekendMode,
+    temp_unit: TempUnit,
+) -> bool:
+    """Return whether a pregenerated configure preview can match the request.
+
+    Teams previews are always pregenerated; calendar ones only with the default options.
+    """
+    return (
+        options == DEFAULT_TRACK_OPTIONS
+        and countdown == CountdownMode.HOURS
+        and weekend_mode == WeekendMode.OFF
+        and temp_unit == TempUnit.C
+    ) or screen == "teams"
+
+
 @router.get("/preview/configure/{screen_type}.png", response_model=None)
 @with_current_selection
 async def get_configure_preview_png(
@@ -401,6 +488,10 @@ async def get_configure_preview_png(
         WeekendMode,
         Query(description="Calendar weekend mode: off (default) or auto"),
     ] = WeekendMode.OFF,
+    temp_unit: Annotated[
+        TempUnit,
+        Query(description="Temperature unit for calendar and teams weather: c (default) or f"),
+    ] = TempUnit.C,
 ) -> Response:
     """Serve pre-generated configure-preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
@@ -416,22 +507,12 @@ async def get_configure_preview_png(
 
     extra_failed = False
     tz = validate_timezone(tz)
-    if safe_screen == "teams" and extra != TeamsExtra.NONE:
-        ctx = build_teams_extra_context(extra, get_default_teams_year(), timezone_name=tz)
-        if ctx is not None:
-            _charge_configure_preview(request)
-            try:
-                response = await _render_teams_extra_preview(
-                    request, safe_lang, safe_display, extra, ctx
-                )
-            except Exception as exc:
-                if isinstance(exc, (HTTPException, StaleSelection)):
-                    raise
-                logger.warning("Dynamic teams extra preview failed: %s", exc)
-                extra_failed = True
-            else:
-                response.headers["Link"] = f'<{config.SITE_URL.rstrip("/")}/credits>; rel="license"'
-                return response
+    if safe_screen == "teams":
+        response, extra_failed = await _try_teams_extra_preview(
+            request, safe_lang, safe_display, extra, tz=tz, temp_unit=temp_unit
+        )
+        if response is not None:
+            return response
 
     filename = get_configure_preview_filename(
         safe_screen,
@@ -442,13 +523,12 @@ async def get_configure_preview_png(
     configure_path = Path(config.IMAGES_PATH) / filename
     options = TrackOptions(track_style, track_source, track_accent)
     cached = (
-        await _cached_preview_response(configure_path, request, _preview_identity(safe_screen))
-        if (
-            options == DEFAULT_TRACK_OPTIONS
-            and countdown == CountdownMode.HOURS
-            and weekend_mode == WeekendMode.OFF
+        await _configure_preview_snapshot(
+            configure_path, request, safe_screen, safe_weather, countdown
         )
-        or safe_screen == "teams"
+        if _has_pregenerated_configure_preview(
+            safe_screen, options, countdown, weekend_mode, temp_unit
+        )
         else None
     )
     if cached is not None:
@@ -458,7 +538,14 @@ async def get_configure_preview_png(
         _charge_configure_preview(request)
         try:
             return await _render_configure_calendar(
-                request, safe_lang, safe_display, safe_weather, options, countdown, weekend_mode
+                request,
+                safe_lang,
+                safe_display,
+                safe_weather,
+                options,
+                countdown,
+                weekend_mode,
+                temp_unit,
             )
         except Exception as exc:
             if isinstance(exc, (HTTPException, StaleSelection)):
@@ -466,6 +553,7 @@ async def get_configure_preview_png(
             logger.warning("Dynamic calendar configure preview failed: %s", exc)
 
     if safe_screen == "teams":
+        # A failed extra panel already charged the rate limit for this request.
         _charge_configure_preview(request, already_charged=extra_failed)
         try:
             response = await _render_teams_preview(

@@ -38,6 +38,18 @@ curl "http://localhost:8000/auto.bmp?weekend_mode=auto&countdown=auto&tz=Europe/
   -o screen.bmp
 ```
 
+### Weekend Weather and Fahrenheit
+
+```bash
+# Qualifying (and sprint when it fits) plus race forecast from one Open-Meteo request
+curl "http://localhost:8000/calendar.bmp?weather_type=weekend&display=bwry" -o calendar.bmp
+
+# The same in Fahrenheit for a US display, and the teams weather panel in Fahrenheit
+curl "http://localhost:8000/calendar.bmp?weather_type=weekend&temp_unit=f&tz=America/New_York" \
+  -o calendar.bmp
+curl "http://localhost:8000/teams.bmp?extra=weather&temp_unit=f" -o teams.bmp
+```
+
 ### One URL for Both Screens
 
 ```bash
