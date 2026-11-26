@@ -223,3 +223,12 @@ def test_degenerate_edges_and_import_validation():
     for d in ("M0 0 L1 1", "<svg/>", "M0 0 Z M1 1 Z"):
         with pytest.raises(ValueError):
             vector_commands(d)
+
+
+@pytest.mark.parametrize("display", ["1bit", "bwr", "bwry", "spectra6"])
+def test_blueprint_grid_keeps_horizontal_lines_after_quantization(display):
+    options = TrackOptions(TrackStyle.BLUEPRINT, TrackSource.JULES, TrackAccent.RED)
+    image = render_track_image({"circuit": {"circuitId": "monza"}}, 494, 260, display, options)
+    inked = (np.asarray(image.convert("RGB")) != 255).any(axis=2)
+    assert int((inked.mean(axis=1) > 0.6).sum()) >= 10  # horizontal grid lines
+    assert int((inked.mean(axis=0) > 0.6).sum()) >= 20  # vertical grid lines

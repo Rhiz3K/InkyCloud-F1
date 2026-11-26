@@ -122,7 +122,9 @@ class TrackDrawing:
             )
         else:
             d = (
-                f"M0 {spacing} V0 H{spacing}"
+                # Keep both grid lines wholly inside the tile. Centred on the tile edge, half of
+                # each stroke was clipped and colour quantization erased the horizontal lines.
+                f"M{thick / 2} {spacing} V{thick / 2} H{spacing}"
                 if kind == "grid"
                 else f"M{-spacing / 2} {spacing / 2} L{spacing / 2} {-spacing / 2} "
                 f"M0 {spacing} L{spacing} 0 "
