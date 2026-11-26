@@ -244,6 +244,27 @@
         "daily": "/auto.bmp zmienia kalendarz i zespoły codziennie o lokalnej północy."
       }
     },
+    "output": {
+      "label": "Wyjście obrazu",
+      "formatLabel": "Format",
+      "formatOptions": {
+        "bmp": "BMP (domyślny)",
+        "png": "PNG (mniejszy)"
+      },
+      "formatHints": {
+        "bmp": "Nieskompresowany BMP, który odczyta każde firmware e-ink.",
+        "png": "Te same piksele i kolory, 4–27× mniejsze pobieranie. Tylko dla firmware, które potrafi dekodować PNG."
+      },
+      "rotateLabel": "Obrót",
+      "rotateOptions": {
+        "0": "0° (domyślnie)",
+        "180": "180° (do góry nogami)"
+      },
+      "rotateHints": {
+        "0": "Tak jak w podglądzie.",
+        "180": "Do obudowy ze złączem po przeciwnej stronie. Podgląd pozostaje nieodwrócony."
+      }
+    },
     "displayLabel": "Wyświetlacz",
     "imageCreditsNote": "Atrybucja i licencje obrazu:",
     "teamsExtra": {
@@ -453,6 +474,9 @@
   "api_docs_weather_weekend_desc": "Weekend: druga linia w polu statusu z prognozą dla kwalifikacji (i sprintu, jeśli się zmieści) oraz wyścigu, np. K 19° 60% | W 22° 10%. Cały weekend obejmuje jedno zapytanie do Open-Meteo, to samo, którego używa race_day. Sesje poza 16-dniową prognozą lub bez opublikowanej godziny są pomijane; po starcie wyścigu wyświetlana jest tylko pogoda wyścigu.",
   "api_docs_temp_unit_desc": "Jednostka temperatury: c (domyślnie, Celsjusz) lub f (Fahrenheit). Przeliczana podczas rysowania z tych samych danych w pamięci podręcznej, bez dodatkowych zapytań o pogodę. Nieprawidłowe wartości zwracają HTTP 422.",
   "api_docs_teams_temp_unit_desc": "Jednostka temperatury panelu pogody (extra=weather): c (domyślnie) lub f. Nieprawidłowe wartości zwracają HTTP 422.",
+  "api_docs_format_desc": "Format wyjściowy: bmp (domyślny, bez zmian) lub png. PNG jest bezstratny, z dokładnie tymi samymi indeksami pikseli i paletą panelu (bez ditheringu i dodatkowych kolorów) oraz 4–27× mniejszy; dla firmware, które dekoduje PNG. Ścieżka pozostaje .bmp; Content-Type, Content-Length i ETag opisują wysłane bajty. Nieprawidłowa wartość zwraca HTTP 422.",
+  "api_docs_rotate_desc": "Obrót: 0 (domyślnie) lub 180. 180 bezstratnie odwraca obraz do góry nogami (nadal 800×480, ta sama głębia kolorów BMP) dla panelu zamontowanego odwrotnie. 90/270 nie są dostępne, bo wymagałyby układu pionowego. Nieprawidłowa wartość zwraca HTTP 422.",
+  "api_docs_output_sizes": "Typowe rozmiary kalendarza z format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Każdy format i obrót ma własny ETag.",
   "api_docs_auto_desc": "Jeden URL, który zwraca bezpośrednio BMP kalendarza lub zespołów (bez przekierowania). Dla wyświetlaczy, które mogą pobierać tylko jeden adres, np. Živýobraz.eu lub prosty firmware ESP32.",
   "api_docs_auto_mode_desc": "race_week: kalendarz od lead_hours przed pierwszą sesją najbliższego weekendu wyścigowego do wyboru kolejnego wyścigu (4 h po starcie), w pozostałym czasie zespoły, także w przerwie zimowej i przy odwołanych wyścigach. daily: kalendarz w parzyste, a zespoły w nieparzyste dni lokalne w tz, zmiana o lokalnej północy. Nieprawidłowa wartość zwraca HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Tylko race_week: ile godzin przed pierwszą sesją (FP1) pojawia się kalendarz. Wartości spoza 0–168 zwracają HTTP 422.",

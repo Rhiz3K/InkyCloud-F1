@@ -232,6 +232,7 @@ const PAGE_HANDLER_NAMES = [
     "onTzSearch",
     "refreshPreview",
     "selectAutoScreen",
+    "selectOutputOption",
     "selectCountdown",
     "selectRaceFromList",
     "selectRaceMobile",

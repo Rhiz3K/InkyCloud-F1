@@ -296,6 +296,23 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               </td>
             </tr>
             {% endfor %}
+            {% for parameter, choices, default, description in [
+              ('format', ['bmp', 'png'], 'bmp', t.api_docs_format_desc),
+              ('rotate', ['0', '180'], '0', t.api_docs_rotate_desc)
+            ] %}
+            <tr>
+              <td class="px-3 py-2 font-mono text-racing-red font-bold">{{ parameter }}</td>
+              <td class="px-3 py-2">string</td>
+              <td class="px-3 py-2">
+                {{ description }}
+                <br /><span class="text-xs text-gray-500">
+                  {{ t.get("api_docs_values", "Values") }}:
+                  {% for choice in choices %}<code class="bg-gray-100 px-1">{{ choice }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+                  ({{ t.get("api_docs_default", "default") }}: <code>{{ default }}</code>)
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
@@ -313,6 +330,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               >Content-Type</span
             >
             <code class="font-bold">image/bmp</code>
+            <code class="font-bold block text-xs">image/png (format=png)</code>
           </div>
           <div>
             <span class="text-gray-500 block text-xs uppercase"
@@ -333,6 +351,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
         </div>
       </div>
       <p class="text-sm mb-2">{{ t.get("api_docs_etag_note", "BMP responses include ETag. Send If-None-Match to receive 304 when the image is unchanged.") }}</p>
+      <p class="text-sm mb-2">{{ t.api_docs_output_sizes }} <code>/calendar.bmp?display=spectra6&amp;format=png&amp;rotate=180</code></p>
       <p class="text-sm mb-6">{{ t.api_docs_refresh_hint_note }} <code>/calendar.bmp?countdown=auto&amp;weather=false</code></p>
 
       <!-- Try it -->
@@ -607,6 +626,23 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 >
               </td>
             </tr>
+            {% for parameter, choices, default, description in [
+              ('format', ['bmp', 'png'], 'bmp', t.api_docs_format_desc),
+              ('rotate', ['0', '180'], '0', t.api_docs_rotate_desc)
+            ] %}
+            <tr>
+              <td class="px-3 py-2 font-mono text-racing-red font-bold">{{ parameter }}</td>
+              <td class="px-3 py-2">string</td>
+              <td class="px-3 py-2">
+                {{ description }}
+                <br /><span class="text-xs text-gray-500">
+                  {{ t.get("api_docs_values", "Values") }}:
+                  {% for choice in choices %}<code class="bg-gray-100 px-1">{{ choice }}</code>{% if not loop.last %}, {% endif %}{% endfor %}
+                  ({{ t.get("api_docs_default", "default") }}: <code>{{ default }}</code>)
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
           </tbody>
         </table>
       </div>
@@ -625,6 +661,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
               >Content-Type</span
             >
             <code class="font-bold">image/bmp</code>
+            <code class="font-bold block text-xs">image/png (format=png)</code>
           </div>
           <div>
             <span class="text-gray-500 block text-xs uppercase"
@@ -750,7 +787,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             <tr>
               <td class="px-3 py-2 font-mono text-racing-red font-bold">
                 lang, tz, display, weather, weather_type, countdown, weekend_mode, temp_unit,
-                track_style, track_source, track_accent, year
+                track_style, track_source, track_accent, year, format, rotate
               </td>
               <td class="px-3 py-2">—</td>
               <td class="px-3 py-2">{{ t.api_docs_auto_shared_desc }}</td>

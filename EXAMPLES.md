@@ -65,6 +65,30 @@ curl "http://localhost:8000/auto.bmp?lead_hours=72&extra=none" -o screen.bmp
 curl "http://localhost:8000/auto.bmp?mode=daily&tz=America/New_York&display=bwry" -o screen.bmp
 ```
 
+### PNG Output and 180° Rotation
+
+```bash
+# Palette-exact PNG: same pixels and panel palette as the BMP, about 14 KB instead of 385 KB
+curl -sD - "http://localhost:8000/calendar.bmp?display=spectra6&format=png" -o calendar.png \
+  | grep -i -E "content-type|content-length|etag"
+
+# Upside down for an enclosure with the connector on the other side (still a 4-bit BMP)
+curl "http://localhost:8000/teams.bmp?display=bwr&rotate=180" -o teams.bmp
+
+# Both, on the one-URL screen switch (the path stays .bmp; Content-Type is image/png)
+curl "http://localhost:8000/auto.bmp?display=bwry&format=png&rotate=180" -o screen.png
+```
+
+| `display`  | BMP       | `format=png` |
+| ---------- | --------- | ------------ |
+| `1bit`     | 48 062 B  | ~10.5 KB     |
+| `bwr`      | 192 118 B | ~12.8 KB     |
+| `bwry`     | 192 118 B | ~13.0 KB     |
+| `spectra6` | 385 078 B | ~14.3 KB     |
+
+Measured on an 800×480 calendar. `90` and `270` are not offered because they need a portrait
+layout; invalid `format` or `rotate` values return `422`.
+
 ### Check Health
 
 ```bash

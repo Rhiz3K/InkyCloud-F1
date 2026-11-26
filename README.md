@@ -57,6 +57,8 @@ https://racing.example.com/auto.bmp?lang=cs&tz=Europe/Prague
 | `track_style`  | 18 style identifiers from `/api/tracks`; default `relief` | `?track_style=contours` |
 | `track_source` | `jules` (default), `commons`       | `?track_source=commons`              |
 | `track_accent` | 16 accent subsets from `/api/tracks`; default `all` | `?track_accent=warm` |
+| `format`       | `bmp` (default), `png` — palette-exact PNG, see [PNG output and rotation](#png-output-and-rotation) | `?format=png` |
+| `rotate`       | `0` (default), `180` — upside-down panel | `?rotate=180` |
 
 **Examples:**
 
@@ -72,6 +74,7 @@ https://racing.example.com/calendar.bmp?lang=en&weather=true&weather_type=curren
 https://racing.example.com/calendar.bmp?lang=en&countdown=auto&weather=false
 https://racing.example.com/calendar.bmp?lang=en&weekend_mode=auto&display=bwry
 https://racing.example.com/calendar.bmp?lang=en&tz=America/New_York&weather_type=weekend&temp_unit=f
+https://racing.example.com/calendar.bmp?lang=en&display=spectra6&format=png&rotate=180
 https://racing.example.com/teams.bmp?lang=ja&display=spectra6
 https://racing.example.com/auto.bmp?lang=de&tz=Europe/Berlin&display=bwry
 https://racing.example.com/sk/configure/calendar
@@ -117,12 +120,44 @@ image is the same as without the parameter.
   weekend calendars with `PREGENERATE_WEATHER_TYPES=...,weekend`. Invalid `temp_unit` values
   return `422`.
 
+### PNG output and rotation
+
+`format=png` and `rotate=180` work on `/calendar.bmp`, `/teams.bmp` and `/auto.bmp`, together
+with every other parameter.
+
+- `format=png` returns a lossless PNG with exactly the same pixels as the BMP: 1-bit greyscale
+  for `1bit`, and an indexed PNG whose palette is exactly the panel palette for `bwr`, `bwry`
+  and `spectra6` (no conversion to greyscale or RGB, no dithering, no extra colours, so every
+  pixel keeps its palette index). It is much smaller to download, which saves radio time and
+  RAM on a battery-powered ESP32, but your firmware must be able to decode PNG; keep the default
+  BMP otherwise. Measured on an 800×480 calendar:
+
+  | `display`  | BMP       | PNG      | Smaller |
+  | ---------- | --------- | -------- | ------- |
+  | `1bit`     | 48 062 B  | 10 507 B | 4.6×    |
+  | `bwr`      | 192 118 B | 12 842 B | 15×     |
+  | `bwry`     | 192 118 B | 13 017 B | 15×     |
+  | `spectra6` | 385 078 B | 14 340 B | 27×     |
+
+- `rotate=180` turns the image upside down without loss for a panel mounted with its connector
+  on the other side. The image stays 800×480 and a rotated BMP keeps the default bit depth and
+  header (1-bit, 4-bit for `bwr`/`bwry`, 8-bit for `spectra6`), so existing BMP parsers keep
+  working. `90` and `270` are not offered: they would need a separate portrait layout.
+- The path stays `.bmp` even for PNG; `Content-Type` (`image/png`), `Content-Length`, the
+  `Content-Disposition` file name and the `ETag` describe the bytes actually sent, so every
+  format and rotation revalidates with its own `304`. Licence and `X-Next-Refresh-Seconds`
+  headers are the same as for the BMP.
+- The default (`format=bmp&rotate=0`) is byte-identical to a URL without these parameters.
+  Other variants are converted from that same default image (in-process cache or pregenerated
+  file) once on the render workers and kept in the variant cache. Invalid values return `422`.
+  The configurator offers both under "Image output"; its preview always stays upright.
+
 ### One URL for Both Screens (`/auto.bmp`)
 
 `GET /auto.bmp` returns the calendar or the teams BMP directly (no redirect), so a display that
 can poll only one address still gets both screens. It accepts the calendar and teams parameters
 above (`lang`, `tz`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`,
-`temp_unit`, `track_*`, `extra`, `year`); each applies to its own screen. `year` selects the teams season; the calendar always
+`temp_unit`, `track_*`, `extra`, `year`, `format`, `rotate`); each applies to its own screen. `year` selects the teams season; the calendar always
 shows the next race.
 
 | Parameter    | Options                              | Example            |
@@ -277,7 +312,7 @@ Your deployed instance provides these endpoints:
 
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
-| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`, `temp_unit`, `tz`, `track_style`, `track_source`, and `track_accent` params; `X-Next-Refresh-Seconds` hint header |
+| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`, `temp_unit`, `tz`, `track_style`, `track_source`, and `track_accent` params; `format=png` and `rotate=180` on all three image endpoints; `X-Next-Refresh-Seconds` hint header |
 | `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`, `extra`: `none`, `countdown`, `flags`, `track`, `weather`; `temp_unit` for the weather panel); optional IANA `tz` applies only to countdown, flags, track, and weather panels showing a time or date (also on `/preview/configure/teams.png`); attribution/licences at `/credits` (`Link rel="license"` header) |
 | `GET /auto.bmp`                          | Calendar or teams BMP on one URL (`mode`: `race_week`, `daily`; `lead_hours` 0–168; calendar and teams params); `X-Active-Screen` header |
 | `GET /`                                  | Landing page with screen type selection                 |

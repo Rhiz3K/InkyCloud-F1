@@ -244,6 +244,27 @@
         "daily": "/auto.bmp střídá kalendář a týmy každý den o místní půlnoci."
       }
     },
+    "output": {
+      "label": "Výstup obrázku",
+      "formatLabel": "Formát",
+      "formatOptions": {
+        "bmp": "BMP (výchozí)",
+        "png": "PNG (menší)"
+      },
+      "formatHints": {
+        "bmp": "Nekomprimovaný BMP, který přečte každý e-ink firmware.",
+        "png": "Stejné pixely i barvy, 4–27× menší stahování. Jen pro firmware, který umí dekódovat PNG."
+      },
+      "rotateLabel": "Otočení",
+      "rotateOptions": {
+        "0": "0° (výchozí)",
+        "180": "180° (vzhůru nohama)"
+      },
+      "rotateHints": {
+        "0": "Stejně jako v náhledu.",
+        "180": "Pro krabičku s konektorem na opačné straně. Náhled zůstává nepřevrácený."
+      }
+    },
     "displayLabel": "Displej",
     "imageCreditsNote": "Atribuce a licence obrázku:",
     "teamsExtra": {
@@ -453,6 +474,9 @@
   "api_docs_weather_weekend_desc": "Weekend: druhý řádek v informačním poli s předpovědí pro kvalifikaci (a sprint, pokud se vejde) a závod, např. K 19° 60% | Z 22° 10%. Celý víkend pokryje jediný dotaz na Open-Meteo, tentýž, který používá race_day. Sessions mimo 16denní předpověď nebo bez zveřejněného času se vynechají; po startu závodu se zobrazí jen počasí závodu.",
   "api_docs_temp_unit_desc": "Jednotka teploty: c (výchozí, stupně Celsia) nebo f (stupně Fahrenheita). Převádí se při kreslení obrázku ze stejných uložených dat, takže nepřidává žádné dotazy na počasí. Neplatná hodnota vrátí HTTP 422.",
   "api_docs_teams_temp_unit_desc": "Jednotka teploty panelu počasí (extra=weather): c (výchozí) nebo f. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_format_desc": "Formát výstupu: bmp (výchozí, beze změny) nebo png. PNG je bezztrátové se stejnými indexy pixelů a paletou panelu (bez ditheringu a nových barev) a je 4–27× menší; pro firmware, který PNG umí dekódovat. Cesta zůstává .bmp; Content-Type, Content-Length a ETag odpovídají odeslaným bajtům. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_rotate_desc": "Otočení: 0 (výchozí) nebo 180. 180 bezztrátově otočí obraz vzhůru nohama (stále 800×480, stejná barevná hloubka BMP) pro panel namontovaný obráceně. 90/270 nejsou k dispozici, protože by vyžadovaly layout na výšku. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_output_sizes": "Typické velikosti kalendáře s format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Každý formát a otočení má vlastní ETag.",
   "api_docs_auto_desc": "Jedna URL, která vrací přímo BMP kalendáře nebo týmů (bez přesměrování). Hodí se pro displeje, které umí stahovat jen jednu adresu, například Živýobraz.eu nebo jednoduchý firmware ESP32.",
   "api_docs_auto_mode_desc": "race_week: kalendář od lead_hours před první session nejbližšího závodního víkendu až do výběru dalšího závodu (4 h po startu), jinak týmy, včetně zimní přestávky a zrušených závodů. daily: kalendář v sudé a týmy v liché místní dny v tz, přepíná se o místní půlnoci. Neplatná hodnota vrátí HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Jen pro race_week: kolik hodin před první session (FP1) se objeví kalendář. Hodnota mimo 0–168 vrátí HTTP 422.",

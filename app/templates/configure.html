@@ -387,6 +387,38 @@ block content %}
           </div>
           <p class="auto-screen-hint mt-1 text-xs text-gray-600" aria-live="polite">{{ auto_ui.hints.off }}</p>
         </div>
+        {# Output format and rotation change only the copied URL; the preview stays upright. #}
+        {% set output_ui = t.configure.output %}
+        <div class="w-full max-w-[800px] mt-3 p-3 bg-white border-2 border-black shadow-neo-sm" id="outputContainer">
+          <div class="text-xs font-bold uppercase mb-1.5" id="outputLabel">{{ output_ui.label }}</div>
+          <div class="flex flex-col md:flex-row gap-3">
+            {% for field, label, choices in [
+              ("format", output_ui.formatLabel, ["bmp", "png"]),
+              ("rotate", output_ui.rotateLabel, ["0", "180"])
+            ] %}
+            {% set options = output_ui.formatOptions if field == "format" else output_ui.rotateOptions %}
+            {% set hints = output_ui.formatHints if field == "format" else output_ui.rotateHints %}
+            <div class="flex-1">
+              <label class="text-[10px] font-bold uppercase mb-1 block" for="output-{{ field }}-select">{{ label }}</label>
+              <div class="relative">
+                <select
+                  id="output-{{ field }}-select"
+                  data-on-change="selectOutputOption" data-args='["{{ field }}"]'
+                  class="output-{{ field }}-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red"
+                >
+                  {% for opt in choices %}
+                  <option value="{{ opt }}" data-hint="{{ hints[opt] }}">{{ options[opt] }}</option>
+                  {% endfor %}
+                </select>
+                <svg class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+              <p class="output-{{ field }}-hint mt-1 text-xs text-gray-600" aria-live="polite">{{ hints[choices[0]] }}</p>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
         <p class="w-full max-w-[800px] mt-2 text-xs text-gray-600">
           {{ t.configure.imageCreditsNote }}
           <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ t.configure.teamsExtra.creditsLink }}</a>
@@ -531,6 +563,9 @@ block content %}
   let currentTempUnit = "c";
   // app/utils/refresh_hint.py WEEKEND_FORECAST_LEAD_DAYS: qualifying/sprint days before the race.
   const WEEKEND_FORECAST_LEAD_DAYS = 2;
+  // Output encoding and rotation: the first value of each list is the default, never in URLs.
+  const OUTPUT_OPTIONS = { format: ["bmp", "png"], rotate: ["0", "180"] };
+  const currentOutput = { format: "bmp", rotate: "0" };
 
   function initScreenTypeVisibility() {
     const isCalendar = currentScreenType === "calendar";
@@ -1081,8 +1116,11 @@ block content %}
    */
   function getCopyUrl() {
     const screenUrl = getApiUrl();
+    const output = getOutputParams();
     if (!AUTO_SCREEN_OPTIONS.includes(currentAutoScreen) || currentAutoScreen === "off") {
-      return screenUrl;
+      if (output.length === 0) return screenUrl;
+      const outputQuery = output.map(([name, value]) => `${name}=${value}`).join("&");
+      return `${screenUrl}${screenUrl.includes("?") ? "&" : "?"}${outputQuery}`;
     }
     const parsed = new URL(screenUrl);
     const params = parsed.searchParams;
@@ -1099,8 +1137,51 @@ block content %}
     const tz = document.getElementById("tz")?.value;
     if (tz && !params.has("tz")) params.set("tz", tz);
     if (currentAutoScreen === "daily") params.set("mode", "daily");
+    for (const [name, value] of output) params.set(name, value);
     const query = params.toString();
     return `${parsed.origin}/auto.bmp${query ? `?${query}` : ""}`;
+  }
+
+  /**
+   * Non-default output parameters (format=png, rotate=180) for the copied URL. The preview
+   * never carries them, so it always shows the screen upright.
+   */
+  function getOutputParams() {
+    return Object.entries(OUTPUT_OPTIONS)
+      .filter(([name, choices]) => choices.includes(currentOutput[name]) && currentOutput[name] !== choices[0])
+      .map(([name]) => [name, currentOutput[name]]);
+  }
+
+  /**
+   * Sets the output format or rotation, syncing its select, its hint, the page URL (the
+   * default is left out) and the copied URL. The preview is not reloaded.
+   */
+  function setOutputOption(name, value, refresh = true) {
+    const choices = OUTPUT_OPTIONS[name];
+    if (!choices) return;
+    if (!choices.includes(value)) value = choices[0];
+    currentOutput[name] = value;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (value === choices[0]) url.searchParams.delete(name);
+      else url.searchParams.set(name, value);
+      window.history.replaceState(null, "", url);
+    }
+    let hint = "";
+    document.querySelectorAll(`.output-${name}-select`).forEach((select) => {
+      select.value = value;
+      const option = select.options[select.selectedIndex];
+      if (option) hint = option.dataset.hint || "";
+    });
+    document.querySelectorAll(`.output-${name}-hint`).forEach((el) => {
+      el.textContent = hint;
+    });
+    if (refresh) updateUrlDisplay();
+  }
+
+  /** Change handler of the format and rotation selects (data-args names the option). */
+  function selectOutputOption(name) {
+    setOutputOption(name, this.value);
   }
 
   /**
@@ -1193,6 +1274,10 @@ block content %}
     if (AUTO_SCREEN_OPTIONS.includes(autoScreen)) currentAutoScreen = autoScreen;
     const tempUnit = query.get("temp_unit");
     currentTempUnit = TEMP_UNIT_OPTIONS.includes(tempUnit) ? tempUnit : suggestedTempUnit();
+    for (const [name, choices] of Object.entries(OUTPUT_OPTIONS)) {
+      const requested = query.get(name);
+      if (choices.includes(requested)) currentOutput[name] = requested;
+    }
     for (const field of ["style", "source", "accent"]) {
       const control = document.getElementById(`track-${field}`);
       if (!control) continue;
@@ -2378,6 +2463,7 @@ block content %}
     if (currentScreenType === "calendar") setWeekendMode(currentWeekendMode, false);
     setTempUnit(currentTempUnit, false);
     setAutoScreen(currentAutoScreen, false);
+    for (const name of Object.keys(OUTPUT_OPTIONS)) setOutputOption(name, currentOutput[name], false);
     initializeWeatherTooltips();
     setUiLanguage(currentUiLang);
 

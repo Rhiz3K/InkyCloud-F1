@@ -61,10 +61,17 @@ from app.services.weekend_results import weekend_context
 from app.state import (
     BmpArtifact,
     ImageCache,
+    bmp_cache_generation,
     record_api_call,
 )
 from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
 from app.utils.f1_season import race_selection_error
+from app.utils.image_conversion import (
+    DEFAULT_IMAGE_OUTPUT,
+    ImageOutput,
+    OutputFormat,
+    Rotation,
+)
 from app.utils.rate_limit import enforce_rate_limit
 from app.utils.refresh_hint import (
     ERROR_REFRESH_SECONDS,
@@ -280,10 +287,12 @@ def _bmp_response(
     record_call: Callable[[int, int], None],
     cache_status: str | None = None,
     refresh_seconds: int | None = None,
+    media_type: str = "image/bmp",
 ) -> Response:
-    """Build a 200/304 BMP response and record the call exactly once.
+    """Build a 200/304 image response and record the call exactly once.
 
     ``refresh_seconds`` becomes the ``X-Next-Refresh-Seconds`` hint on both 200 and 304.
+    ``etag`` and ``media_type`` describe the final bytes (BMP, or PNG for ``format=png``).
     """
     not_modified = if_none_match_matches(request.headers.get("If-None-Match"), etag)
     status_code = 304 if not_modified else 200
@@ -303,7 +312,7 @@ def _bmp_response(
     return Response(
         content=body,
         status_code=status_code,
-        media_type="image/bmp" if status_code == 200 else None,
+        media_type=media_type if status_code == 200 else None,
         headers=headers,
     )
 
@@ -326,13 +335,15 @@ def _calendar_response(
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
     refresh_seconds: int | None = None,
     endpoint: str = "/calendar.bmp",
+    output: ImageOutput = DEFAULT_IMAGE_OUTPUT,
 ) -> Response:
     """Apply the shared calendar response and call-record epilogue."""
     return _bmp_response(
         request,
         content=content,
         etag=etag,
-        filename="calendar.bmp",
+        filename=output.filename("calendar"),
+        media_type=output.media_type,
         cache_control=cache_control,
         cache_status=cache_status,
         refresh_seconds=refresh_seconds,
@@ -366,13 +377,15 @@ def _teams_response(
     cache_status: str | None = None,
     refresh_seconds: int | None = None,
     endpoint: str = "/teams.bmp",
+    output: ImageOutput = DEFAULT_IMAGE_OUTPUT,
 ) -> Response:
     """Apply the shared teams response and call-record epilogue."""
     response = _bmp_response(
         request,
         content=content,
         etag=etag,
-        filename="teams.bmp",
+        filename=output.filename("teams"),
+        media_type=output.media_type,
         cache_control=cache_control,
         cache_status=cache_status,
         refresh_seconds=refresh_seconds,
@@ -644,10 +657,67 @@ _WEEKEND_MODE_DESCRIPTION = (
     "Weekend mode: off (default) or auto (during the race weekend mark finished sessions, "
     "highlight the next one, count down to it and show this weekend's podiums when known)"
 )
+_FORMAT_DESCRIPTION = (
+    "Output format: bmp (default, unchanged bytes) or png (lossless with the same pixel "
+    "indices and panel palette, 4-27x smaller); the path stays .bmp; invalid values return 422"
+)
+_ROTATE_DESCRIPTION = (
+    "Rotation in degrees: 0 (default) or 180 (for a panel mounted upside down, still "
+    "800x480); 90/270 are not offered because they need a portrait layout; invalid values "
+    "return 422"
+)
 _TEAMS_EXTRA_DESCRIPTION = (
     "Teams panel: none, countdown, flags (next 3 races), track, weather; "
     "timeline/combo alias countdown"
 )
+
+
+def _pregenerated_if_none_match(request: Request, output: ImageOutput) -> str | None:
+    """Return the validator for a pregenerated file's body-free 304 shortcut.
+
+    A pregenerated file's sidecar ETag belongs to the default BMP. A PNG or rotated variant
+    has its own ETag, so it always reads the file and compares the final bytes' ETag instead.
+    """
+    return request.headers.get("If-None-Match") if output.is_default else None
+
+
+async def _output_body(
+    content: bytes | None,
+    etag: str,
+    cache_status: str | None,
+    *,
+    display: str,
+    output: ImageOutput,
+) -> tuple[bytes | None, str, str | None]:
+    """Turn a default artifact into the requested format and rotation.
+
+    The default output passes through unchanged. For a variant ``X-Cache`` reports whether
+    the converted bytes came from the variant cache (``HIT``) or were encoded now (``MISS``);
+    an uncached response (``None``, e.g. the error image) keeps no ``X-Cache``.
+    """
+    if content is None or output.is_default:
+        return content, etag, cache_status
+    try:
+        (content, etag), cached = await bmp_artifacts.output_artifact(
+            (content, etag), display, output
+        )
+    except Exception as exc:
+        if cache_status is not None:
+            raise
+        logger.warning("Could not encode error image: %s", exc)
+        raise HTTPException(status_code=503, headers={"Cache-Control": "no-store"}) from exc
+    if cache_status is not None:
+        cache_status = "HIT" if cached else "MISS"
+    return content, etag, cache_status
+
+
+def _output_freshness(output: ImageOutput, cache_control: str, seconds: int) -> tuple[str, int]:
+    """Recheck the source generation after asynchronous device conversion."""
+    if not output.is_default and selected_generation() != bmp_cache_generation():
+        return ("no-store" if cache_control == "no-store" else "no-cache"), min(
+            seconds, ERROR_REFRESH_SECONDS
+        )
+    return cache_control, seconds
 
 
 @with_current_selection
@@ -668,13 +738,15 @@ async def _serve_calendar_bmp(
     endpoint: str = "/calendar.bmp",
     weekend_mode: WeekendMode = WeekendMode.OFF,
     temp_unit: TempUnit = TempUnit.C,
+    output: ImageOutput = DEFAULT_IMAGE_OUTPUT,
 ) -> Response:
     """Serve one calendar BMP from validated, normalized inputs.
 
     Shared by ``/calendar.bmp`` and ``/auto.bmp``: the in-process caches, the pregenerated
     files, singleflight rendering, ETag/304 handling and the error image are the same, so
     equal parameters always produce the same bytes from the same cache entry. ``endpoint``
-    only names the route in the aggregate call statistics.
+    only names the route in the aggregate call statistics. A non-default ``output`` (PNG
+    and/or 180° rotation) is derived from that same default artifact by ``_output_body``.
     """
     weather = weather_type != "off"
     # Defaults let the error path build a response even when selection itself fails.
@@ -687,7 +759,7 @@ async def _serve_calendar_bmp(
     image_cache: ImageCache | None = None
     cache_key = ""
 
-    def respond(
+    async def respond(
         content: bytes | None,
         etag: str,
         *,
@@ -695,6 +767,19 @@ async def _serve_calendar_bmp(
         cache_status: str | None,
     ) -> Response:
         """Build the calendar response with the request's normalized statistics context."""
+        source_status = cache_status
+        content, etag, cache_status = await _output_body(
+            content, etag, cache_status, display=display, output=output
+        )
+        if poll_hint is not None and cache_control.startswith("public"):
+            cache_control = _calendar_cache_control(
+                countdown, poll_hint, weekend_mode, weather_type
+            )
+        cache_control, seconds = _output_freshness(
+            output,
+            cache_control,
+            _calendar_poll_seconds(poll_hint, countdown, image_cache, cache_key, source_status),
+        )
         response = _calendar_response(
             request,
             content=content,
@@ -710,10 +795,9 @@ async def _serve_calendar_bmp(
             cache_control=cache_control,
             cache_status=cache_status,
             track_options=track_options,
-            refresh_seconds=_calendar_poll_seconds(
-                poll_hint, countdown, image_cache, cache_key, cache_status
-            ),
+            refresh_seconds=seconds,
             endpoint=endpoint,
+            output=output,
         )
         response.headers.update(
             attribution_headers(
@@ -768,7 +852,7 @@ async def _serve_calendar_bmp(
         cached_artifact = image_cache.get(cache_key)
         if cached_artifact is not None:
             logger.debug("Cache hit for %s", cache_key)
-            return respond(
+            return await respond(
                 *cached_artifact,
                 cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type),
                 cache_status="HIT",
@@ -793,11 +877,11 @@ async def _serve_calendar_bmp(
             logger.debug("Serving pre-generated image: %s", image_path)
             artifact, matching_etag = await _read_pregenerated_artifact(
                 image_path,
-                request.headers.get("If-None-Match"),
+                _pregenerated_if_none_match(request, output),
                 identity,
             )
             if matching_etag is not None:
-                return respond(
+                return await respond(
                     None,
                     matching_etag,
                     cache_control=_calendar_cache_control(
@@ -806,7 +890,7 @@ async def _serve_calendar_bmp(
                     cache_status="REVALIDATED",
                 )
             if artifact is not None:
-                return respond(
+                return await respond(
                     *artifact,
                     cache_control=_calendar_cache_control(
                         countdown, hint, weekend_mode, weather_type
@@ -833,7 +917,7 @@ async def _serve_calendar_bmp(
             ),
         )
         is_cacheable = image_cache.get(cache_key) is artifact
-        return respond(
+        return await respond(
             *artifact,
             cache_control=_calendar_cache_control(countdown, hint, weekend_mode, weather_type)
             if is_cacheable
@@ -850,7 +934,7 @@ async def _serve_calendar_bmp(
             display, lang, "Temporary rendering error"
         )
         poll_hint = None
-        return respond(
+        return await respond(
             bmp_data,
             etag,
             cache_control="no-store",
@@ -870,18 +954,20 @@ async def _serve_teams_bmp(
     extra: TeamsExtra,
     endpoint: str = "/teams.bmp",
     temp_unit: TempUnit = TempUnit.C,
+    output: ImageOutput = DEFAULT_IMAGE_OUTPUT,
 ) -> Response:
     """Serve one teams BMP from validated, normalized inputs.
 
     Shared by ``/teams.bmp`` and ``/auto.bmp`` with the same caches, pregenerated files,
-    singleflight rendering, ETag/304 handling and error image.
+    singleflight rendering, ETag/304 handling and error image; a non-default ``output`` is
+    derived from the default artifact like the calendar's.
     """
 
     try:
         if year is None:
             year = get_default_teams_year()
 
-        def respond(
+        async def respond(
             content: bytes | None,
             etag: str,
             *,
@@ -889,6 +975,12 @@ async def _serve_teams_bmp(
             cache_status: str | None = None,
         ) -> Response:
             """Build the teams response with the request's normalized context."""
+            content, etag, cache_status = await _output_body(
+                content, etag, cache_status, display=display, output=output
+            )
+            cache_control, seconds = _output_freshness(
+                output, cache_control, hint.seconds(_utc_now())
+            )
             return _teams_response(
                 request,
                 content=content,
@@ -899,8 +991,9 @@ async def _serve_teams_bmp(
                 year=year,
                 cache_control=cache_control,
                 cache_status=cache_status,
-                refresh_seconds=hint.seconds(_utc_now()),
+                refresh_seconds=seconds,
                 endpoint=endpoint,
+                output=output,
             )
 
         ctx = (
@@ -921,7 +1014,7 @@ async def _serve_teams_bmp(
         )
         cached_artifact = bmp_artifacts.teams_image_cache(effective).get(cache_key)
         if cached_artifact is not None:
-            return respond(*cached_artifact, cache_status="HIT")
+            return await respond(*cached_artifact, cache_status="HIT")
 
         image_path = (
             _get_pregenerated_teams_path(lang=lang, year=year, display=display)
@@ -931,13 +1024,13 @@ async def _serve_teams_bmp(
         if image_path is not None:
             artifact, matching_etag = await _read_pregenerated_artifact(
                 image_path,
-                request.headers.get("If-None-Match"),
+                _pregenerated_if_none_match(request, output),
                 f"teams:{year}",
             )
             if matching_etag is not None:
-                return respond(None, matching_etag, cache_status="REVALIDATED")
+                return await respond(None, matching_etag, cache_status="REVALIDATED")
             if artifact is not None:
-                return respond(*artifact, cache_status=PREGENERATED_CACHE_STATUS)
+                return await respond(*artifact, cache_status=PREGENERATED_CACHE_STATUS)
             logger.info("Pre-generated teams image disappeared before read; rendering")
 
         artifact = await bmp_artifacts.singleflight(
@@ -952,7 +1045,7 @@ async def _serve_teams_bmp(
                 extra_context=ctx,
             ),
         )
-        return respond(*artifact, cache_status="MISS")
+        return await respond(*artifact, cache_status="MISS")
 
     except Exception as exc:
         if isinstance(exc, (HTTPException, StaleSelection)):
@@ -963,10 +1056,13 @@ async def _serve_teams_bmp(
         bmp_data, etag = await bmp_artifacts.shared_error_artifact(
             display, lang, "Temporary rendering error"
         )
+        error_body, error_etag, _ = await _output_body(
+            bmp_data, etag, None, display=display, output=output
+        )
         return _teams_response(
             request,
-            content=bmp_data,
-            etag=etag,
+            content=error_body,
+            etag=error_etag,
             start_time=start_time,
             lang=lang,
             display=display,
@@ -974,6 +1070,7 @@ async def _serve_teams_bmp(
             cache_control="no-store",
             refresh_seconds=ERROR_REFRESH_SECONDS,
             endpoint=endpoint,
+            output=output,
         )
 
 
@@ -1011,6 +1108,10 @@ async def get_calendar_bmp(
         WeekendMode, Query(description=_WEEKEND_MODE_DESCRIPTION)
     ] = WeekendMode.OFF,
     temp_unit: Annotated[TempUnit, Query(description=_TEMP_UNIT_DESCRIPTION)] = TempUnit.C,
+    output_format: Annotated[
+        OutputFormat, Query(alias="format", description=_FORMAT_DESCRIPTION)
+    ] = OutputFormat.BMP,
+    rotate: Annotated[Rotation, Query(description=_ROTATE_DESCRIPTION)] = Rotation.NONE,
 ):
     """Render the calendar endpoint for the requested display and selection."""
     start_time = time.time()
@@ -1035,6 +1136,7 @@ async def get_calendar_bmp(
         race_key=race_key,
         weekend_mode=weekend_mode,
         temp_unit=temp_unit,
+        output=ImageOutput(output_format, rotate),
     )
 
 
@@ -1054,6 +1156,10 @@ async def get_teams_bmp(
     temp_unit: Annotated[
         TempUnit, Query(description=f"Weather panel: {_TEMP_UNIT_DESCRIPTION}")
     ] = TempUnit.C,
+    output_format: Annotated[
+        OutputFormat, Query(alias="format", description=_FORMAT_DESCRIPTION)
+    ] = OutputFormat.BMP,
+    rotate: Annotated[Rotation, Query(description=_ROTATE_DESCRIPTION)] = Rotation.NONE,
 ):
     """Render the teams and drivers dashboard as a BMP image."""
     start_time = time.time()
@@ -1067,6 +1173,7 @@ async def get_teams_bmp(
         year=year,
         extra=extra,
         temp_unit=temp_unit,
+        output=ImageOutput(output_format, rotate),
     )
 
 
@@ -1176,6 +1283,10 @@ async def get_auto_bmp(
     temp_unit: Annotated[
         TempUnit, Query(description=f"Calendar and teams weather panel: {_TEMP_UNIT_DESCRIPTION}")
     ] = TempUnit.C,
+    output_format: Annotated[
+        OutputFormat, Query(alias="format", description=_FORMAT_DESCRIPTION)
+    ] = OutputFormat.BMP,
+    rotate: Annotated[Rotation, Query(description=_ROTATE_DESCRIPTION)] = Rotation.NONE,
     f1_service: F1Service = Depends(get_f1_service),
 ):
     """Serve the calendar or the teams BMP on one URL, switching by race week or by day."""
@@ -1184,6 +1295,7 @@ async def get_auto_bmp(
     lang = normalize_lang(lang)
     display = normalize_display(display)
     tz = validate_timezone(tz)
+    output = ImageOutput(output_format, rotate)
     now = _utc_now()
     choice = _choose_auto_screen(
         mode,
@@ -1207,6 +1319,7 @@ async def get_auto_bmp(
             endpoint="/auto.bmp",
             weekend_mode=weekend_mode,
             temp_unit=temp_unit,
+            output=output,
         )
     else:
         response = await _serve_teams_bmp(
@@ -1219,6 +1332,7 @@ async def get_auto_bmp(
             extra=TeamsExtra.COUNTDOWN if extra is None else extra,
             endpoint="/auto.bmp",
             temp_unit=temp_unit,
+            output=output,
         )
     # A fresh clock reading: time spent rendering must not extend max-age past the switch.
     return _apply_auto_screen(response, choice, _utc_now())

@@ -436,6 +436,7 @@ function teamsUrlContext(state = {}, {tz} = {}) {
         WEEKEND_MODE_OPTIONS: ["off", "auto"], currentWeekendMode: "off",
         AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
         TEMP_UNIT_OPTIONS: ["c", "f"], currentTempUnit: "c", suggestedTempUnit: () => "c",
+        OUTPUT_OPTIONS: {format: ["bmp", "png"], rotate: ["0", "180"]}, currentOutput: {format: "bmp", rotate: "0"},
         currentScreenType: "teams", currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none", ...state,
     });
@@ -592,6 +593,7 @@ function calendarCountdownContext(state = {}, kind = "countdown") {
         WEEKEND_MODE_OPTIONS: ["off", "auto"], currentWeekendMode: "off",
         AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
         TEMP_UNIT_OPTIONS: ["c", "f"], currentTempUnit: "c", suggestedTempUnit: () => "c",
+        OUTPUT_OPTIONS: {format: ["bmp", "png"], rotate: ["0", "180"]}, currentOutput: {format: "bmp", rotate: "0"},
         currentScreenType: "calendar", currentUiLang: "en", currentDisplayType: "1bit", currentTeamsExtra: "none",
         selectedYear: null, selectedRound: null, selectedRaceKey: null, selectedTz: null, defaultTimezone: "Europe/Prague",
         ...state,
@@ -1111,6 +1113,16 @@ function autoScreenContext(screen, state = {}) {
     };
     const hints = [{textContent: ""}];
     const apiUrl = {value: ""};
+    const outputSelects = Object.fromEntries(Object.entries({format: ["bmp", "png"], rotate: ["0", "180"]})
+        .map(([name, values]) => {
+            const choices = values.map((value) => ({value, dataset: {hint: `hint-${name}-${value}`}}));
+            return [name, {
+                options: choices, selectedIndex: 0,
+                get value() {return this.selectedIndex >= 0 ? choices[this.selectedIndex].value : "";},
+                set value(v) {this.selectedIndex = choices.findIndex((o) => o.value === v);},
+            }];
+        }));
+    const outputHints = {format: [{textContent: ""}], rotate: [{textContent: ""}]};
     const ctx = vm.createContext({
         URL, URLSearchParams,
         window: {location: {origin: "https://racing.example.org", search: "",
@@ -1125,6 +1137,8 @@ function autoScreenContext(screen, state = {}) {
             },
             querySelector() {return {value: "race_day"};},
             querySelectorAll(selector) {
+                const output = /^\.output-(format|rotate)-(select|hint)$/.exec(selector);
+                if (output) return output[2] === "select" ? [outputSelects[output[1]]] : outputHints[output[1]];
                 return selector === ".auto-screen-select" ? [select] : selector === ".auto-screen-hint" ? hints : [];
             },
         },
@@ -1134,6 +1148,7 @@ function autoScreenContext(screen, state = {}) {
         WEEKEND_MODE_OPTIONS: ["off", "auto"], currentWeekendMode: "off",
         AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
         TEMP_UNIT_OPTIONS: ["c", "f"], currentTempUnit: "c", suggestedTempUnit: () => "c",
+        OUTPUT_OPTIONS: {format: ["bmp", "png"], rotate: ["0", "180"]}, currentOutput: {format: "bmp", rotate: "0"},
         currentScreenType: screen, currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none",
         selectedYear: null, selectedRound: null, selectedRaceKey: null, selectedTz: null, defaultTimezone: "Europe/Prague",
@@ -1141,10 +1156,10 @@ function autoScreenContext(screen, state = {}) {
     });
     for (const name of ["getCurrentSeason", "getApiUrl", "getCopyUrl", "appendTrackParams", "canUsePrerenderedPreview",
         "getPreviewUrl", "setAutoScreen", "selectAutoScreen", "teamsExtraUsesTz", "getTeamsTz", "updateUrlDisplay",
-        "initTrackOptions"]) {
+        "initTrackOptions", "getOutputParams", "setOutputOption", "selectOutputOption"]) {
         vm.runInContext(templateFunction(template, name), ctx);
     }
-    return {ctx, replaced, select, hints, apiUrl};
+    return {ctx, replaced, select, hints, apiUrl, outputSelects, outputHints};
 }
 
 test("auto screen off keeps the copied URL equal to the screen URL", () => {
@@ -1214,6 +1229,62 @@ test("setAutoScreen syncs the select, the hint, the page URL and the copied URL"
     fresh.ctx.currentAutoScreen = "off";
     fresh.ctx.initTrackOptions();
     assert.equal(fresh.ctx.currentAutoScreen, "off");
+});
+
+// Output format and rotation (#185 F3): only the copied URL changes, never the preview.
+test("format=png and rotate=180 reach the copied URL but not the preview", () => {
+    const {ctx} = autoScreenContext("calendar", {currentOutput: {format: "png", rotate: "180"}});
+    assert.equal(ctx.getCopyUrl(),
+        "https://racing.example.org/calendar.bmp?tz=Europe%2FPrague&weather=false&format=png&rotate=180");
+    assert.ok(!ctx.getApiUrl().includes("format="));
+    assert.ok(!ctx.getPreviewUrl().includes("format=") && !ctx.getPreviewUrl().includes("rotate="));
+    ctx.currentOutput = {format: "png", rotate: "0"};
+    assert.equal(ctx.getCopyUrl(), "https://racing.example.org/calendar.bmp?tz=Europe%2FPrague&weather=false&format=png");
+    ctx.currentOutput = {format: "bogus", rotate: "90"};
+    assert.equal(ctx.getCopyUrl(), ctx.getApiUrl());
+
+    const teams = autoScreenContext("teams", {currentOutput: {format: "bmp", rotate: "180"}, selectedTeamsYear: null,
+        currentTeamsSeason: null});
+    assert.equal(teams.ctx.getCopyUrl(), "https://racing.example.org/teams.bmp?rotate=180");
+});
+
+test("output options move to /auto.bmp with the screen settings", () => {
+    const {ctx} = autoScreenContext("teams", {currentAutoScreen: "daily", currentOutput: {format: "png", rotate: "180"}});
+    assert.equal(ctx.getCopyUrl(),
+        "https://racing.example.org/auto.bmp?year=2026&extra=none&tz=Europe%2FPrague&mode=daily&format=png&rotate=180");
+});
+
+test("setOutputOption syncs the select, the hint, the page URL and the copied URL", () => {
+    const {ctx, replaced, outputSelects, outputHints, apiUrl} = autoScreenContext("teams");
+    ctx.selectOutputOption.call({value: "png"}, "format");
+    assert.equal(ctx.currentOutput.format, "png");
+    assert.equal(outputSelects.format.value, "png");
+    assert.equal(outputHints.format[0].textContent, "hint-format-png");
+    assert.deepEqual(replaced, ["https://racing.example.org/configure/teams?format=png"]);
+    assert.equal(apiUrl.value, "https://racing.example.org/teams.bmp?year=2026&format=png");
+    ctx.selectOutputOption.call({value: "180"}, "rotate");
+    assert.equal(replaced.at(-1), "https://racing.example.org/configure/teams?format=png&rotate=180");
+    assert.equal(apiUrl.value, "https://racing.example.org/teams.bmp?year=2026&format=png&rotate=180");
+    ctx.selectOutputOption.call({value: "270"}, "rotate");
+    assert.equal(ctx.currentOutput.rotate, "0");
+    assert.equal(outputHints.rotate[0].textContent, "hint-rotate-0");
+    assert.equal(replaced.at(-1), "https://racing.example.org/configure/teams?format=png");
+    assert.equal(ctx.previewUpdates, 0);
+
+    ctx.setOutputOption("format", "bmp", false);
+    assert.equal(replaced.length, 3);
+    assert.equal(outputSelects.format.value, "bmp");
+    ctx.setOutputOption("unknown", "x");
+    assert.equal(replaced.length, 3);
+
+    const fresh = autoScreenContext("calendar");
+    fresh.ctx.window.location.search = "?format=png&rotate=180";
+    fresh.ctx.initTrackOptions();
+    assert.deepEqual({...fresh.ctx.currentOutput}, {format: "png", rotate: "180"});
+    fresh.ctx.window.location.search = "?format=jpeg&rotate=90";
+    fresh.ctx.currentOutput = {format: "bmp", rotate: "0"};
+    fresh.ctx.initTrackOptions();
+    assert.deepEqual({...fresh.ctx.currentOutput}, {format: "bmp", rotate: "0"});
 });
 
 // Temperature unit (#185 F6): Celsius never reaches a URL, Fahrenheit only where weather is drawn.

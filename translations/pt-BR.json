@@ -244,6 +244,27 @@
         "daily": "/auto.bmp alterna calendário e equipes todos os dias à meia-noite local."
       }
     },
+    "output": {
+      "label": "Saída da imagem",
+      "formatLabel": "Formato",
+      "formatOptions": {
+        "bmp": "BMP (padrão)",
+        "png": "PNG (menor)"
+      },
+      "formatHints": {
+        "bmp": "BMP sem compressão, lido por qualquer firmware de e-ink.",
+        "png": "Mesmos pixels e cores, download de 4 a 27 vezes menor. Apenas para firmwares que decodificam PNG."
+      },
+      "rotateLabel": "Rotação",
+      "rotateOptions": {
+        "0": "0° (padrão)",
+        "180": "180° (de cabeça para baixo)"
+      },
+      "rotateHints": {
+        "0": "Como na pré-visualização.",
+        "180": "Para uma caixa com o conector do outro lado. A pré-visualização continua na posição normal."
+      }
+    },
     "displayLabel": "Tela",
     "imageCreditsNote": "Atribuição e licenças da imagem:",
     "teamsExtra": {
@@ -453,6 +474,9 @@
   "api_docs_weather_weekend_desc": "Weekend: uma segunda linha no quadro de status com a previsão da classificação (e da sprint, se couber) e da corrida, p. ex. Q 19° 60% | C 22° 10%. Uma única requisição ao Open-Meteo cobre o fim de semana inteiro, a mesma usada por race_day. Sessões além da previsão de 16 dias ou sem horário publicado são omitidas; após a largada só o clima da corrida é exibido.",
   "api_docs_temp_unit_desc": "Unidade de temperatura: c (padrão, Celsius) ou f (Fahrenheit). Convertida ao desenhar a imagem a partir dos mesmos dados em cache, sem requisições de clima extras. Valores inválidos retornam HTTP 422.",
   "api_docs_teams_temp_unit_desc": "Unidade de temperatura do painel de clima (extra=weather): c (padrão) ou f. Valores inválidos retornam HTTP 422.",
+  "api_docs_format_desc": "Formato de saída: bmp (padrão, inalterado) ou png. O PNG é sem perdas, com exatamente os mesmos índices de pixel e a mesma paleta do painel (sem pontilhado nem cores extras) e de 4 a 27 vezes menor, para firmwares que decodificam PNG. O caminho continua .bmp; Content-Type, Content-Length e ETag descrevem os bytes enviados. Valores inválidos retornam HTTP 422.",
+  "api_docs_rotate_desc": "Rotação: 0 (padrão) ou 180. 180 vira a imagem de cabeça para baixo sem perdas (continua 800×480, mesma profundidade de cor do BMP) para um painel montado ao contrário. 90/270 não são oferecidos porque exigiriam um layout em retrato. Valores inválidos retornam HTTP 422.",
+  "api_docs_output_sizes": "Tamanhos típicos do calendário com format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Cada formato e rotação tem seu próprio ETag.",
   "api_docs_auto_desc": "Uma URL que retorna diretamente o BMP do calendário ou das equipes (sem redirecionamento). Para telas que só conseguem consultar um endereço, como Živýobraz.eu ou um firmware ESP32 simples.",
   "api_docs_auto_mode_desc": "race_week: o calendário a partir de lead_hours antes da primeira sessão do próximo fim de semana de corrida até a próxima corrida ser selecionada (4 h após a largada); as equipes no restante do tempo, inclusive na pausa de fim de temporada e em corridas canceladas. daily: calendário nos dias locais pares e equipes nos ímpares em tz, trocando à meia-noite local. Valores inválidos retornam HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Somente race_week: quantas horas antes da primeira sessão (TL1) o calendário aparece. Valores fora de 0–168 retornam HTTP 422.",

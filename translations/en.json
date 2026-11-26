@@ -244,6 +244,27 @@
         "daily": "/auto.bmp alternates calendar and teams every day at local midnight."
       }
     },
+    "output": {
+      "label": "Image output",
+      "formatLabel": "Format",
+      "formatOptions": {
+        "bmp": "BMP (default)",
+        "png": "PNG (smaller)"
+      },
+      "formatHints": {
+        "bmp": "Uncompressed BMP that every e-ink firmware reads.",
+        "png": "Same pixels and colours, 4–27× smaller download. Only for firmware that can decode PNG."
+      },
+      "rotateLabel": "Rotation",
+      "rotateOptions": {
+        "0": "0° (default)",
+        "180": "180° (upside down)"
+      },
+      "rotateHints": {
+        "0": "As in the preview.",
+        "180": "For an enclosure with the connector on the other side. The preview stays upright."
+      }
+    },
     "displayLabel": "Display",
     "imageCreditsNote": "Image attribution and licences:",
     "teamsExtra": {
@@ -453,6 +474,9 @@
   "api_docs_weather_weekend_desc": "Weekend: a second line in the status box with the forecast for qualifying (and the sprint when it fits) and the race, e.g. Q 19° 60% | R 22° 10%. One Open-Meteo request covers the whole weekend, the same one race_day uses. Sessions beyond the 16-day forecast or without a published time are left out; after the race starts only the race weather is shown.",
   "api_docs_temp_unit_desc": "Temperature unit: c (default, Celsius) or f (Fahrenheit). Converted when the image is drawn from the same cached data, so it costs no extra weather requests. Invalid values return HTTP 422.",
   "api_docs_teams_temp_unit_desc": "Temperature unit of the weather panel (extra=weather): c (default) or f. Invalid values return HTTP 422.",
+  "api_docs_format_desc": "Output format: bmp (default, unchanged) or png. PNG is lossless with exactly the same pixel indices and panel palette (no dithering, no extra colours) and 4–27× smaller, for firmware that decodes PNG. The path stays .bmp; Content-Type, Content-Length and ETag describe the bytes sent. Invalid values return HTTP 422.",
+  "api_docs_rotate_desc": "Rotation: 0 (default) or 180. 180 turns the image upside down without loss (still 800×480, same BMP colour depth) for a panel mounted the other way round. 90/270 are not offered because they would need a portrait layout. Invalid values return HTTP 422.",
+  "api_docs_output_sizes": "Typical calendar sizes with format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Every format and rotation has its own ETag.",
   "api_docs_auto_desc": "One URL that returns the calendar or the teams BMP directly (no redirect). Use it on displays that can poll only one address, such as Živýobraz.eu or simple ESP32 firmware.",
   "api_docs_auto_mode_desc": "race_week: the calendar from lead_hours before the first session of the next race weekend until the next race is selected (4 h after the start), teams otherwise, including the off-season and cancelled races. daily: calendar on even and teams on odd local days in tz, switching at local midnight. Invalid values return HTTP 422.",
   "api_docs_auto_lead_hours_desc": "race_week only: how many hours before the first session (FP1) the calendar appears. Values outside 0–168 return HTTP 422.",
