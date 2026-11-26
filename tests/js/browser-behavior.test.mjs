@@ -433,6 +433,7 @@ function teamsUrlContext(state = {}, {tz} = {}) {
         updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
         TEAMS_EXTRA_OPTIONS: ["none", "countdown", "flags", "track", "weather"],
         COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
+        WEEKEND_MODE_OPTIONS: ["off", "auto"], currentWeekendMode: "off",
         AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
         currentScreenType: "teams", currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none", ...state,
@@ -559,7 +560,7 @@ for (const legacy of ["timeline", "combo"]) {
 }
 
 // Calendar countdown mode: default "hours" never reaches a URL, other modes do.
-function calendarCountdownContext(state = {}) {
+function calendarCountdownContext(state = {}, kind = "countdown") {
     const template = readFileSync("app/templates/configure.html", "utf8");
     const replaced = [];
     const hintFor = (select) => ({value: "hours", options: [], get selectedIndex() {return 0;},
@@ -581,19 +582,20 @@ function calendarCountdownContext(state = {}) {
             },
             querySelector() {return {value: "race_day"};},
             querySelectorAll(selector) {
-                return selector === ".countdown-select" ? selects : selector === ".countdown-hint" ? hints : [];
+                return selector === `.${kind}-select` ? selects : selector === `.${kind}-hint` ? hints : [];
             },
         },
         updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
         TEAMS_EXTRA_OPTIONS: ["none", "countdown", "flags", "track", "weather"],
         COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
+        WEEKEND_MODE_OPTIONS: ["off", "auto"], currentWeekendMode: "off",
         AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
         currentScreenType: "calendar", currentUiLang: "en", currentDisplayType: "1bit", currentTeamsExtra: "none",
         selectedYear: null, selectedRound: null, selectedRaceKey: null, selectedTz: null, defaultTimezone: "Europe/Prague",
         ...state,
     });
     for (const name of ["getApiUrl", "appendTrackParams", "canUsePrerenderedPreview", "getPreviewUrl",
-        "setCountdown", "selectCountdown", "initTrackOptions"]) {
+        "setCountdown", "selectCountdown", "setWeekendMode", "selectWeekendMode", "initTrackOptions"]) {
         vm.runInContext(templateFunction(template, name), ctx);
     }
     return {ctx, replaced, selects, hints};
@@ -647,6 +649,52 @@ test("selectCountdown applies this.value and ?countdown= initialises the mode", 
     fresh.ctx.currentCountdown = "hours";
     fresh.ctx.initTrackOptions();
     assert.equal(fresh.ctx.currentCountdown, "hours");
+});
+
+test("calendar URLs carry weekend_mode=auto and omit the default off", () => {
+    const {ctx} = calendarCountdownContext({}, "weekend-mode");
+    ctx.currentWeekendMode = "auto";
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/calendar.bmp?weekend_mode=auto");
+    assert.equal(ctx.getPreviewUrl(),
+        "https://racing.example.org/preview/configure/calendar.png?weather_type=race&weekend_mode=auto");
+    ctx.currentCountdown = "days";
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/calendar.bmp?countdown=days&weekend_mode=auto");
+    ctx.currentWeekendMode = "off";
+    assert.equal(ctx.getApiUrl(), "https://racing.example.org/calendar.bmp?countdown=days");
+});
+
+test("setWeekendMode syncs both selects, the hint and the page URL", () => {
+    const {ctx, replaced, selects, hints} = calendarCountdownContext({}, "weekend-mode");
+    ctx.setWeekendMode("auto");
+    assert.equal(ctx.currentWeekendMode, "auto");
+    assert.deepEqual(selects.map((s) => s.value), ["auto", "auto"]);
+    assert.equal(hints[1].textContent, "hint-auto-mobile");
+    assert.deepEqual(replaced, ["https://racing.example.org/configure/calendar?weekend_mode=auto"]);
+    assert.equal(ctx.previewUpdates, 1);
+
+    ctx.setWeekendMode("bogus");
+    assert.equal(ctx.currentWeekendMode, "off");
+    assert.equal(replaced.at(-1), "https://racing.example.org/configure/calendar");
+
+    ctx.setWeekendMode("auto", false);
+    assert.equal(ctx.previewUpdates, 2);
+    assert.equal(replaced.length, 2);
+});
+
+test("selectWeekendMode applies this.value and ?weekend_mode= initialises the mode", () => {
+    const {ctx, selects} = calendarCountdownContext({}, "weekend-mode");
+    selects[0].value = "auto";
+    ctx.selectWeekendMode.call(selects[0]);
+    assert.equal(ctx.currentWeekendMode, "auto");
+
+    const fresh = calendarCountdownContext({}, "weekend-mode");
+    fresh.ctx.window.location.search = "?weekend_mode=auto";
+    fresh.ctx.initTrackOptions();
+    assert.equal(fresh.ctx.currentWeekendMode, "auto");
+    fresh.ctx.window.location.search = "?weekend_mode=on";
+    fresh.ctx.currentWeekendMode = "off";
+    fresh.ctx.initTrackOptions();
+    assert.equal(fresh.ctx.currentWeekendMode, "off");
 });
 
 const NY_TZ = "tz=America%2FNew_York";
@@ -1038,6 +1086,7 @@ function autoScreenContext(screen, state = {}) {
         updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0,
         TEAMS_EXTRA_OPTIONS: ["none", "countdown", "flags", "track", "weather"],
         COUNTDOWN_OPTIONS: ["hours", "days", "auto", "off"], currentCountdown: "hours",
+        WEEKEND_MODE_OPTIONS: ["off", "auto"], currentWeekendMode: "off",
         AUTO_SCREEN_OPTIONS: ["off", "race_week", "daily"], currentAutoScreen: "off",
         currentScreenType: screen, currentUiLang: "en", currentDisplayType: "1bit",
         currentTeamsSeason: 2026, selectedTeamsYear: 2026, currentTeamsExtra: "none",
@@ -1073,6 +1122,12 @@ test("calendar settings move to /auto.bmp without a fixed race", () => {
     assert.equal(ctx.getCopyUrl(),
         "https://racing.example.org/auto.bmp?tz=Europe%2FPrague&weather=false&display=bwry&countdown=days&mode=daily");
     assert.ok(!ctx.getPreviewUrl().includes("/auto.bmp"));
+});
+
+test("the weekend mode moves to /auto.bmp with the calendar settings", () => {
+    const {ctx} = autoScreenContext("calendar", {currentAutoScreen: "race_week", currentWeekendMode: "auto"});
+    assert.equal(ctx.getCopyUrl(),
+        "https://racing.example.org/auto.bmp?tz=Europe%2FPrague&weather=false&weekend_mode=auto");
 });
 
 test("teams settings keep the chosen panel on /auto.bmp", () => {

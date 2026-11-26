@@ -523,6 +523,8 @@ block content %}
   let currentTeamsExtra = "none";
   const COUNTDOWN_OPTIONS = ["hours", "days", "auto", "off"];
   let currentCountdown = "hours";
+  const WEEKEND_MODE_OPTIONS = ["off", "auto"];
+  let currentWeekendMode = "off";
   const AUTO_SCREEN_OPTIONS = ["off", "race_week", "daily"];
   let currentAutoScreen = "off";
 
@@ -1035,6 +1037,7 @@ block content %}
         params.push(`display=${currentDisplayType}`);
       }
       if (currentCountdown !== "hours") params.push(`countdown=${currentCountdown}`);
+      if (currentWeekendMode !== "off") params.push(`weekend_mode=${currentWeekendMode}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else {
@@ -1165,6 +1168,8 @@ block content %}
     if (TEAMS_EXTRA_OPTIONS.includes(extra)) currentTeamsExtra = extra;
     const countdown = query.get("countdown");
     if (COUNTDOWN_OPTIONS.includes(countdown)) currentCountdown = countdown;
+    const weekendMode = query.get("weekend_mode");
+    if (WEEKEND_MODE_OPTIONS.includes(weekendMode)) currentWeekendMode = weekendMode;
     const autoScreen = query.get("auto");
     if (AUTO_SCREEN_OPTIONS.includes(autoScreen)) currentAutoScreen = autoScreen;
     for (const field of ["style", "source", "accent"]) {
@@ -1215,6 +1220,7 @@ block content %}
       params.push(`weather_type=${finalWeather}`);
       if (currentDisplayType !== "1bit") params.push(`display=${currentDisplayType}`);
       if (currentCountdown !== "hours") params.push(`countdown=${currentCountdown}`);
+      if (currentWeekendMode !== "off") params.push(`weekend_mode=${currentWeekendMode}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else if (canUsePrerenderedPreview() && currentScreenType === "teams") {
@@ -2119,6 +2125,38 @@ block content %}
     setCountdown(this.value);
   }
 
+  /**
+   * Sets the calendar weekend mode, syncing both selects, the hint and the page URL
+   * (the default "off" is left out of URLs so existing links stay unchanged).
+   */
+  function setWeekendMode(mode, refresh = true) {
+    if (!WEEKEND_MODE_OPTIONS.includes(mode)) mode = "off";
+    currentWeekendMode = mode;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (mode === "off") url.searchParams.delete("weekend_mode");
+      else url.searchParams.set("weekend_mode", mode);
+      window.history.replaceState(null, "", url);
+    }
+
+    let hint = "";
+    document.querySelectorAll(".weekend-mode-select").forEach((select) => {
+      select.value = mode;
+      const option = select.options[select.selectedIndex];
+      if (option) hint = option.dataset.hint || "";
+    });
+    document.querySelectorAll(".weekend-mode-hint").forEach((el) => {
+      el.textContent = hint;
+    });
+
+    if (refresh) updatePreview();
+  }
+
+  /** Change handler for the weekend mode selects; `this` is the select (dispatchDeclaredHandler). */
+  function selectWeekendMode() {
+    setWeekendMode(this.value);
+  }
+
   function setDisplayType(type, refresh = true) {
     currentDisplayType = type;
     if (refresh) {
@@ -2237,6 +2275,7 @@ block content %}
     setDisplayType(currentDisplayType, false);
     if (currentScreenType === "teams") setTeamsExtra(currentTeamsExtra, false);
     if (currentScreenType === "calendar") setCountdown(currentCountdown, false);
+    if (currentScreenType === "calendar") setWeekendMode(currentWeekendMode, false);
     setAutoScreen(currentAutoScreen, false);
     initializeWeatherTooltips();
     setUiLanguage(currentUiLang);

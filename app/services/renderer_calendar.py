@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from PIL import Image, ImageDraw
 from PIL.ImageFont import FreeTypeFont
@@ -13,10 +13,17 @@ from PIL.ImageFont import FreeTypeFont
 from app.config import config
 from app.services.font_utils import fit_ui_font
 from app.services.renderer_assets import _load_image_copy
-from app.services.renderer_text import clamp_text, text_width
+from app.services.renderer_text import clamp_text, normalize_session_name, text_width
 from app.utils.race_times import today_in_timezone
 from app.utils.refresh_hint import RACE_LIVE_WINDOW, CountdownMode, countdown_shows_days
 from app.utils.timezones import get_timezone
+
+if TYPE_CHECKING:
+    from app.services.weekend_phase import WeekendPhase
+
+# Schedule row marks drawn by weekend_mode=auto in the 10 px gap left of the date column.
+MARK_PAST = "past"
+MARK_CURRENT = "current"
 
 
 def _shrink_font_to_width(
@@ -345,6 +352,53 @@ def _countdown_text(
     return f"{days} {days_label}" if date_only else f"{days} {days_label} {hours} {hours_label}"
 
 
+def _session_countdown_text(
+    weekend: WeekendPhase,
+    *,
+    countdown_mode: CountdownMode,
+    timezone_name: str | None,
+    datetime_cls,
+    translator: Mapping[str, str],
+    lang_code: str,
+    weather_type: str,
+) -> tuple[str, bool]:
+    """Return ``LABEL: countdown`` for the next non-race session and whether it is running.
+
+    The countdown follows ``countdown_mode`` like the race countdown; a leading zero day count
+    is left out (``Q: 3 h``) and ``off`` shows the local day and start time (``Q: Sat 15:00``;
+    the date is in the schedule above). A running session shows ``LABEL: LIVE``, also when it
+    started after ``weekend`` was resolved (the render can run behind a weather fetch).
+    """
+    name = weekend.countdown_session or ""
+    label = translator.get(f"session_short_{normalize_session_name(name)}", name.upper())
+    zone = get_timezone(timezone_name or config.DEFAULT_TIMEZONE)
+    now = datetime_cls.now(zone)
+    start = weekend.countdown_start
+    if weekend.live or (start is not None and start <= now):
+        return f"{label}: {translator.get('session_live', 'LIVE')}", True
+    assert start is not None
+    start = start.astimezone(zone)
+    if countdown_mode == CountdownMode.OFF:
+        day = translator.get(f"day_{start.strftime('%a').lower()}", start.strftime("%a"))
+        return f"{label}: {day} {start:%H:%M}", False
+    delta = start - now
+    text = _countdown_text(
+        start,
+        delta,
+        countdown_mode=countdown_mode,
+        timezone_name=timezone_name,
+        datetime_cls=datetime_cls,
+        translator=translator,
+        lang_code=lang_code,
+        weather_type=weather_type,
+    )
+    days_label, _ = _countdown_unit_labels(
+        0, 0, translator=translator, lang_code=lang_code, weather_type=weather_type
+    )
+    text = text.removeprefix(f"0 {days_label} ")
+    return f"{label}: {text}", False
+
+
 def draw_countdown_box(
     draw: ImageDraw.ImageDraw,
     race_data: dict,
@@ -368,12 +422,14 @@ def draw_countdown_box(
     weather_data=None,
     weather_type: str = "",
     countdown_mode: CountdownMode = CountdownMode.HOURS,
+    weekend: WeekendPhase | None = None,
 ) -> int:
     """Draw the countdown/status box and return its bottom y-coordinate.
 
     ``countdown_mode`` picks days and hours (default), whole days, days until 48 hours before
     the start (``auto``) or the race date instead of a countdown (``off``); race statuses and
-    weather are drawn the same way in every mode.
+    weather are drawn the same way in every mode. With a ``weekend`` phase whose next session
+    is not the race, the box counts down to that session with its short label instead.
     """
     is_cancelled = race_data.get("is_cancelled", False)
     race_dt = _find_race_datetime(race_data.get("schedule", []), datetime_cls)
@@ -407,6 +463,21 @@ def draw_countdown_box(
         translator=translator,
         timezone_name=race_data.get("timezone"),
     )
+    session_text: str | None = None
+    if weekend is not None and weekend.countdown_session and not is_cancelled:
+        session_text, session_live = _session_countdown_text(
+            weekend,
+            countdown_mode=countdown_mode,
+            timezone_name=race_data.get("timezone"),
+            datetime_cls=datetime_cls,
+            translator=translator,
+            lang_code=lang_code,
+            weather_type=weather_type,
+        )
+        # The session replaces the race countdown or a date-only race-day placeholder.
+        status_text = session_text if session_live else None
+        if session_live:
+            session_text = None
 
     if status_text:
         show_weather = weather_data is not None and not is_cancelled
@@ -447,20 +518,23 @@ def draw_countdown_box(
         )
         return int(y_bottom)
 
-    if delta is None or delta.total_seconds() <= 0:
+    if session_text is not None:
+        countdown_str = session_text
+    elif delta is None or delta.total_seconds() <= 0:
         return schedule_bottom
+    else:
+        countdown_str = _countdown_text(
+            race_dt,
+            delta,
+            countdown_mode=countdown_mode,
+            timezone_name=race_data.get("timezone"),
+            datetime_cls=datetime_cls,
+            translator=translator,
+            lang_code=lang_code,
+            weather_type=weather_type,
+        )
 
     flag_icon = "🏁"
-    countdown_str = _countdown_text(
-        race_dt,
-        delta,
-        countdown_mode=countdown_mode,
-        timezone_name=race_data.get("timezone"),
-        datetime_cls=datetime_cls,
-        translator=translator,
-        lang_code=lang_code,
-        weather_type=weather_type,
-    )
 
     flag_bbox = draw.textbbox((0, 0), flag_icon, font=icon_small_font)
     flag_w = flag_bbox[2] - flag_bbox[0]
@@ -646,6 +720,44 @@ def draw_track_section(
     draw.text((padding, label_y), label_text, fill=label_fill, font=label_font)
 
 
+def _draw_schedule_mark(
+    draw: ImageDraw.ImageDraw,
+    mark: str,
+    *,
+    right_x: int,
+    digits_bbox: tuple[float, float, float, float],
+    fill,
+) -> None:
+    """Draw a check mark or a triangle, at most 8 px wide, ending at ``right_x``.
+
+    Shapes instead of glyphs: they look the same in every locale font and palette.
+    """
+    center_y = round((digits_bbox[1] + digits_bbox[3]) / 2)
+    if mark == MARK_PAST:
+        draw.line(
+            [(right_x - 7, center_y), (right_x - 4, center_y + 3), (right_x, center_y - 4)],
+            fill=fill,
+            width=2,
+        )
+        return
+    draw.polygon(
+        [(right_x - 6, center_y - 5), (right_x - 6, center_y + 5), (right_x, center_y)],
+        fill=fill,
+    )
+
+
+def schedule_mark(event: Mapping[str, Any], weekend: WeekendPhase | None) -> str | None:
+    """Return the weekend mark of one schedule row, None without a weekend phase."""
+    if weekend is None:
+        return None
+    name = event.get("name")
+    if name in weekend.past:
+        return MARK_PAST
+    if name == weekend.current:
+        return MARK_CURRENT
+    return None
+
+
 def draw_schedule_row(
     draw: ImageDraw.ImageDraw,
     *,
@@ -664,8 +776,15 @@ def draw_schedule_row(
     format_schedule_session_name_fn,
     session_text_shadow_fill=None,
     session_text_shadow_offset: tuple[int, int] = (1, 1),
+    mark: str | None = None,
+    mark_fill=None,
 ) -> None:
-    """Draw one localized schedule row using shared date/time/name layout."""
+    """Draw one localized schedule row using shared date/time/name layout.
+
+    ``mark`` (``weekend_mode=auto``) draws a finished session with a check mark and a plain
+    regular-weight name, and the current or next session with a filled ``mark_fill``
+    triangle; both marks sit in the gap left of ``schedule_date_x``.
+    """
     dt = event.get("datetime")
     name = event.get("name", "")
 
@@ -685,6 +804,7 @@ def draw_schedule_row(
 
     name_max_width = canvas_width - schedule_name_x - 5
     translated_name = format_schedule_session_name_fn(draw, name, name_max_width)
+    past = mark == MARK_PAST
     font_bold = fit_ui_font(
         draw,
         lang_code,
@@ -692,12 +812,24 @@ def draw_schedule_row(
         max_width=name_max_width,
         base_size=20,
         min_size=15,
-        bold=True,
+        bold=not past,
     )
 
     draw.text((schedule_date_x, y), date_str, fill=regular_text_fill, font=font_reg)
     draw.text((schedule_day_x, y), day_str, fill=regular_text_fill, font=font_reg)
     draw.text((schedule_time_x, y), time_str, fill=regular_text_fill, font=font_reg)
+    if mark is not None:
+        _draw_schedule_mark(
+            draw,
+            mark,
+            right_x=schedule_date_x - 2,
+            digits_bbox=draw.textbbox((schedule_date_x, y), "0", font=font_reg),
+            fill=regular_text_fill if past else (mark_fill or regular_text_fill),
+        )
+    if past:
+        # Finished sessions lose their session colour and shadow, so upcoming ones stand out.
+        session_text_fill = regular_text_fill
+        session_text_shadow_fill = None
     if session_text_shadow_fill is not None and session_text_shadow_fill != session_text_fill:
         shadow_x = schedule_name_x + session_text_shadow_offset[0]
         shadow_y = y + session_text_shadow_offset[1]
@@ -728,8 +860,9 @@ def draw_schedule_section(
     weather_data,
     weather_type: str,
     countdown_mode: CountdownMode = CountdownMode.HOURS,
+    weekend: WeekendPhase | None = None,
 ) -> int:
-    """Draw the schedule title, rows, and countdown area."""
+    """Draw the schedule title, rows, and countdown area (with weekend marks when given)."""
     schedule_title = translator.get("weekend_schedule", "WEEKEND SCHEDULE")
     schedule_title_font = fit_ui_font(
         draw,
@@ -751,11 +884,17 @@ def draw_schedule_section(
     row_y = schedule_start_y
 
     for event in schedule:
-        draw_schedule_row_fn(draw, row_y, event)
+        draw_schedule_row_fn(draw, row_y, event, mark=schedule_mark(event, weekend))
         row_y += schedule_row_height
         if row_y > results_y_start - 80:
             break
 
     return draw_countdown_box_fn(
-        draw, race_data, row_y + 10, weather_data, weather_type, countdown_mode=countdown_mode
+        draw,
+        race_data,
+        row_y + 10,
+        weather_data,
+        weather_type,
+        countdown_mode=countdown_mode,
+        weekend=weekend,
     )

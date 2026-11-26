@@ -19,7 +19,7 @@ from app.utils.async_tasks import create_supervised_task
 
 logger = logging.getLogger(__name__)
 PERF_STATS_SAMPLE_LIMIT = 10_000
-DATABASE_SCHEMA_VERSION = 7
+DATABASE_SCHEMA_VERSION = 8
 
 STATS_CLEANUP_QUERIES = {
     "request_stats": "DELETE FROM request_stats WHERE timestamp < ?",
@@ -264,6 +264,17 @@ class Database:
                         cached_at TEXT NOT NULL,
                         expires_at TEXT NOT NULL,
                         precipitation_display_override TEXT
+                    );
+
+                    -- Current-weekend podiums (weekend_mode=auto). A NULL podium is the
+                    -- negative cache: checked_at records the last attempt without results.
+                    CREATE TABLE IF NOT EXISTS weekend_results (
+                        season INTEGER NOT NULL,
+                        round INTEGER NOT NULL,
+                        session TEXT NOT NULL,
+                        podium TEXT,
+                        checked_at TEXT NOT NULL,
+                        PRIMARY KEY (season, round, session)
                     );
 
                     -- Create indexes (note: idx_api_calls_race created after migrations)
@@ -1576,6 +1587,47 @@ class Database:
             )
             await conn.commit()
             return cursor.rowcount
+
+    # =========================================================================
+    # Weekend results (current-weekend qualifying and race podiums)
+    # =========================================================================
+
+    async def save_weekend_result(
+        self,
+        season: int,
+        round_num: int,
+        session: str,
+        podium: str | None,
+        checked_at: datetime,
+    ) -> None:
+        """Store one session's podium JSON, or a NULL podium as a negative-cache entry.
+
+        A stored podium is final: a later negative entry never replaces it.
+        """
+        await self._init_db_if_needed()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO weekend_results (season, round, session, podium, checked_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(season, round, session) DO UPDATE SET
+                    podium = COALESCE(weekend_results.podium, excluded.podium),
+                    checked_at = excluded.checked_at
+                """,
+                (season, round_num, session, podium, checked_at.isoformat()),
+            )
+            await conn.commit()
+
+    async def load_weekend_results(self) -> list[dict]:
+        """Return every stored weekend result row (podium JSON or None, checked_at ISO)."""
+        await self._init_db_if_needed()
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
+                "SELECT season, round, session, podium, checked_at FROM weekend_results"
+            ) as cursor,
+        ):
+            return [dict(row) for row in await cursor.fetchall()]
 
 
 @dataclass(slots=True)

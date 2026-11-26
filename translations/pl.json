@@ -25,6 +25,13 @@
   "session_sprintqualifying": "Sprint K.",
   "session_sprint": "Sprint",
   "session_race": "Wyścig",
+  "session_short_fp1": "T1",
+  "session_short_fp2": "T2",
+  "session_short_fp3": "T3",
+  "session_short_sprintqualifying": "SK",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "K",
+  "session_live": "TRWA",
   "loading": "Ładowanie...",
   "no_data": "Brak dostępnych danych o wyścigu",
   "new_track": "NOWY TOR",
@@ -208,6 +215,17 @@
         "off": "Data wyścigu zamiast odliczania; zmienia się tylko ze stanem wyścigu."
       },
       "batteryNote": "Pogoda odświeża się co godzinę. Aby bateria działała najdłużej, wyłącz pogodę. Długość uśpienia wyświetlacza wskaże nagłówek X-Next-Refresh-Seconds."
+    },
+    "weekendMode": {
+      "label": "Weekend wyścigowy",
+      "options": {
+        "off": "Wyłączony",
+        "auto": "Śledź weekend"
+      },
+      "hints": {
+        "off": "Ten sam kalendarz przez cały tydzień.",
+        "auto": "Podczas weekendu wyścigowego: zakończone sesje odhaczone, następna wyróżniona z odliczaniem oraz podia kwalifikacji i wyścigu z tego weekendu, gdy tylko są dostępne."
+      }
     },
     "autoScreen": {
       "label": "Jeden URL dla obu ekranów",
@@ -424,6 +442,7 @@
   "api_docs_weather_desc": "Włącz lub wyłącz nakładkę pogody",
   "api_docs_weather_type_desc": "Który wariant danych pogodowych wyrenderować",
   "api_docs_countdown_desc": "Odliczanie w polu stanu: hours (dni i godziny, domyślnie), days (pełne dni w tz, zmienia się o lokalnej północy), auto (pełne dni do 48 h przed startem, potem dni i godziny) lub off (data wyścigu zamiast odliczania). Nieprawidłowa wartość zwraca HTTP 422.",
+  "api_docs_weekend_mode_desc": "Tryb weekendu: off (domyślnie) lub auto. Z auto podczas weekendu wyścigowego (od 12 h przed pierwszą sesją) zakończone sesje są odhaczone, trwająca lub następna sesja jest wyróżniona, a pole stanu odlicza do niej z krótką nazwą (np. K: 3 h). Sesja jest uznawana za zakończoną od startu plus ostrożne oszacowanie czasu trwania, bo faktyczny koniec nie jest publikowany. Stopka pokazuje podia kwalifikacji i wyścigu z tego weekendu, gdy tylko są dostępne (Jolpica, pobierane tylko w godzinach po tych sesjach), z sezonem nad każdą kolumną. Nieprawidłowe wartości zwracają HTTP 422.",
   "api_docs_auto_desc": "Jeden URL, który zwraca bezpośrednio BMP kalendarza lub zespołów (bez przekierowania). Dla wyświetlaczy, które mogą pobierać tylko jeden adres, np. Živýobraz.eu lub prosty firmware ESP32.",
   "api_docs_auto_mode_desc": "race_week: kalendarz od lead_hours przed pierwszą sesją najbliższego weekendu wyścigowego do wyboru kolejnego wyścigu (4 h po starcie), w pozostałym czasie zespoły, także w przerwie zimowej i przy odwołanych wyścigach. daily: kalendarz w parzyste, a zespoły w nieparzyste dni lokalne w tz, zmiana o lokalnej północy. Nieprawidłowa wartość zwraca HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Tylko race_week: ile godzin przed pierwszą sesją (FP1) pojawia się kalendarz. Wartości spoza 0–168 zwracają HTTP 422.",

@@ -30,7 +30,7 @@ from app.services.auto_screen import (
     ScreenChoice,
     choose_screen,
 )
-from app.services.f1_service import NEXT_RACE_GRACE, F1Service
+from app.services.f1_service import F1Service
 from app.services.generation_freshness import PREGENERATED_MAX_AGE_SECONDS
 from app.services.image_generation import (
     StaleSelection,
@@ -55,6 +55,8 @@ from app.services.track_catalog import (
     TrackStyle,
 )
 from app.services.track_renderer import attribution_headers
+from app.services.weekend_phase import WeekendMode, select_weekend_race
+from app.services.weekend_results import weekend_context
 from app.state import (
     BmpArtifact,
     ImageCache,
@@ -133,14 +135,17 @@ def _calendar_poll_seconds(
     return hint.seconds(_utc_now())
 
 
-def _calendar_cache_control(countdown: CountdownMode, hint: RefreshHint) -> str:
-    """Return the calendar Cache-Control; countdown variants never outlive their next change.
+def _calendar_cache_control(
+    countdown: CountdownMode, hint: RefreshHint, weekend_mode: WeekendMode = WeekendMode.OFF
+) -> str:
+    """Return the calendar Cache-Control; period-keyed variants never outlive their next change.
 
-    The default (hours) keeps its historical one-hour lifetime. A day count, ``off`` or ``auto``
-    image is keyed by its content period, so a browser or shared cache must not reuse it past
-    local midnight, the race start or the auto switch.
+    The default (hours, weekend off) keeps its historical one-hour lifetime. A day count,
+    ``off`` or ``auto`` countdown and a ``weekend_mode=auto`` image are keyed by their content
+    period, so a browser or shared cache must not reuse them past local midnight, the race
+    start, the auto switch or a session boundary.
     """
-    if countdown == CountdownMode.HOURS:
+    if countdown == CountdownMode.HOURS and weekend_mode == WeekendMode.OFF:
         return CALENDAR_BMP_CACHE_CONTROL
     return f"public, max-age={hint.max_age(_utc_now())}"
 
@@ -163,6 +168,7 @@ def _get_race_info_for_stats(
     year: int | None,
     race_round: int | None,
     race_key: str | None,
+    weekend_mode: WeekendMode = WeekendMode.OFF,
 ) -> tuple[bool, int | None, int | None, str | None]:
     """Resolve the race metadata that should be recorded in call statistics."""
     is_auto_selected = year is None and race_round is None and race_key is None
@@ -186,7 +192,7 @@ def _get_race_info_for_stats(
                 break
         return is_auto_selected, actual_year, actual_round, actual_race_name
 
-    race_info = f1_service.get_next_race_from_static()
+    race_info = select_weekend_race(f1_service, weekend_mode)
     if race_info:
         actual_year = int(race_info.get("season", 0)) or None
         actual_round = _to_round_number(race_info.get("round"))
@@ -548,10 +554,14 @@ def _get_pregenerated_teams_path(*, lang: str, year: int | None, display: str) -
 
 
 async def _select_calendar_race(
-    f1_service: F1Service, year: int | None, race_round: int | None, race_key: str | None
+    f1_service: F1Service,
+    year: int | None,
+    race_round: int | None,
+    race_key: str | None,
+    weekend_mode: WeekendMode,
 ) -> dict | None:
     """Resolve the current selection, fetching a valid explicit round when absent locally."""
-    selected_race = _get_race_data_from_static(f1_service, year, race_round, race_key)
+    selected_race = _get_race_data_from_static(f1_service, year, race_round, race_key, weekend_mode)
     if (
         selected_race is None
         and year is not None
@@ -567,6 +577,7 @@ def _get_race_data_from_static(
     year: int | None,
     race_round: int | None,
     race_key: str | None,
+    weekend_mode: WeekendMode = WeekendMode.OFF,
 ) -> dict | None:
     """Load race data for either an explicit selection or the next race."""
     if race_key is not None and year is None:
@@ -582,7 +593,7 @@ def _get_race_data_from_static(
                 return race
         return None
 
-    return f1_service.get_next_race_from_static()
+    return select_weekend_race(f1_service, weekend_mode)
 
 
 _LANG_DESCRIPTION = f"Language code ({', '.join(LANGUAGE_CODES)})"
@@ -596,6 +607,10 @@ _WEATHER_TYPE_DESCRIPTION = "Weather type: 'race_day' (alias 'race'), 'current',
 _COUNTDOWN_DESCRIPTION = (
     "Countdown: hours (default, days and hours), days (whole days), "
     "auto (days until 48 h before the start, then days and hours) or off (race date)"
+)
+_WEEKEND_MODE_DESCRIPTION = (
+    "Weekend mode: off (default) or auto (during the race weekend mark finished sessions, "
+    "highlight the next one, count down to it and show this weekend's podiums when known)"
 )
 _TEAMS_EXTRA_DESCRIPTION = (
     "Teams panel: none, countdown, flags (next 3 races), track, weather; "
@@ -619,6 +634,7 @@ async def _serve_calendar_bmp(
     race_round: int | None = None,
     race_key: str | None = None,
     endpoint: str = "/calendar.bmp",
+    weekend_mode: WeekendMode = WeekendMode.OFF,
 ) -> Response:
     """Serve one calendar BMP from validated, normalized inputs.
 
@@ -678,18 +694,29 @@ async def _serve_calendar_bmp(
     # an image back (error BMP on failure), never a text/plain 500 from selection or disk I/O.
     try:
         is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(
-            f1_service, year, race_round, race_key
+            f1_service, year, race_round, race_key, weekend_mode
         )
-        selected_race = await _select_calendar_race(f1_service, year, race_round, race_key)
+        selected_race = await _select_calendar_race(
+            f1_service, year, race_round, race_key, weekend_mode
+        )
         identity = calendar_identity(selected_race, track_options)
+        now = _utc_now()
         hint = calendar_refresh_hint(
             selected_race,
-            now=_utc_now(),
+            now=now,
             timezone_name=tz,
             countdown=countdown,
             weather_type=weather_type,
             weather_enabled=config.WEATHER_ENABLED,
-            selection_grace=NEXT_RACE_GRACE if race_round is None and race_key is None else None,
+            selection_grace=weekend_mode.selection_grace
+            if race_round is None and race_key is None
+            else None,
+        )
+        weekend = weekend_context(
+            weekend_mode, selected_race, now=now, timezone_name=tz, countdown=countdown
+        )
+        hint = hint.with_changes(
+            weekend.changes, hourly=weekend.pending, period_keyed=weekend.mode == WeekendMode.AUTO
         )
         # Without a race the route serves the "failed to fetch" error image: retry soon.
         poll_hint = hint if selected_race else None
@@ -699,13 +726,14 @@ async def _serve_calendar_bmp(
         if countdown != CountdownMode.HOURS:
             # The content period keeps a cached day count from outliving local midnight.
             cache_key += f":countdown={countdown}:{hint.cache_token()}"
-        image_cache = bmp_artifacts.calendar_image_cache(countdown)
+        cache_key += weekend.cache_suffix(hint)
+        image_cache = bmp_artifacts.calendar_image_cache(countdown, weekend.mode)
         cached_artifact = image_cache.get(cache_key)
         if cached_artifact is not None:
             logger.debug("Cache hit for %s", cache_key)
             return respond(
                 *cached_artifact,
-                cache_control=_calendar_cache_control(countdown, hint),
+                cache_control=_calendar_cache_control(countdown, hint, weekend_mode),
                 cache_status="HIT",
             )
 
@@ -721,7 +749,9 @@ async def _serve_calendar_bmp(
                 weather_type=weather_type,
                 expected_identity=identity,
             )
-            if track_options == DEFAULT_TRACK_OPTIONS and countdown == CountdownMode.HOURS
+            if track_options == DEFAULT_TRACK_OPTIONS
+            and countdown == CountdownMode.HOURS
+            and weekend.mode == WeekendMode.OFF
             else None
         )
         if image_path is not None:
@@ -735,13 +765,13 @@ async def _serve_calendar_bmp(
                 return respond(
                     None,
                     matching_etag,
-                    cache_control=CALENDAR_BMP_CACHE_CONTROL,
+                    cache_control=_calendar_cache_control(countdown, hint, weekend_mode),
                     cache_status="REVALIDATED",
                 )
             if artifact is not None:
                 return respond(
                     *artifact,
-                    cache_control=CALENDAR_BMP_CACHE_CONTROL,
+                    cache_control=_calendar_cache_control(countdown, hint, weekend_mode),
                     cache_status=PREGENERATED_CACHE_STATUS,
                 )
             logger.info("Pre-generated image disappeared before read; rendering")
@@ -758,12 +788,16 @@ async def _serve_calendar_bmp(
                 display=display,
                 track_options=track_options,
                 countdown_mode=countdown,
+                weekend_mode=weekend.mode,
+                weekend=weekend.phase,
             ),
         )
         is_cacheable = image_cache.get(cache_key) is artifact
         return respond(
             *artifact,
-            cache_control=_calendar_cache_control(countdown, hint) if is_cacheable else "no-store",
+            cache_control=_calendar_cache_control(countdown, hint, weekend_mode)
+            if is_cacheable
+            else "no-store",
             cache_status="MISS",
         )
     except Exception as exc:
@@ -932,6 +966,9 @@ async def get_calendar_bmp(
     countdown: Annotated[
         CountdownMode, Query(description=_COUNTDOWN_DESCRIPTION)
     ] = CountdownMode.HOURS,
+    weekend_mode: Annotated[
+        WeekendMode, Query(description=_WEEKEND_MODE_DESCRIPTION)
+    ] = WeekendMode.OFF,
 ):
     """Render the calendar endpoint for the requested display and selection."""
     start_time = time.time()
@@ -954,6 +991,7 @@ async def get_calendar_bmp(
         # pregenerated-file match identical to the plain auto-selected request.
         race_round=race_round if year is not None else None,
         race_key=race_key,
+        weekend_mode=weekend_mode,
     )
 
 
@@ -992,15 +1030,17 @@ def _choose_auto_screen(
     f1_service: F1Service,
     lead_hours: int,
     tz: str | None,
+    weekend_mode: WeekendMode = WeekendMode.OFF,
 ) -> ScreenChoice:
     """Pick the /auto.bmp screen; a failing schedule lookup falls back to teams."""
     try:
-        race = f1_service.get_next_race_from_static() if mode == AutoMode.RACE_WEEK else None
+        race = select_weekend_race(f1_service, weekend_mode) if mode == AutoMode.RACE_WEEK else None
         return choose_screen(
             mode,
             now=now,
             race_data=race,
             lead_hours=lead_hours,
+            grace=weekend_mode.selection_grace,
             zone=get_timezone(tz or config.DEFAULT_TIMEZONE),
         )
     except Exception as exc:
@@ -1076,6 +1116,9 @@ async def get_auto_bmp(
     countdown: Annotated[
         CountdownMode, Query(description=f"Calendar: {_COUNTDOWN_DESCRIPTION}")
     ] = CountdownMode.HOURS,
+    weekend_mode: Annotated[
+        WeekendMode, Query(description=f"Calendar: {_WEEKEND_MODE_DESCRIPTION}")
+    ] = WeekendMode.OFF,
     extra: Annotated[
         TeamsExtra | None,
         Query(description=f"Teams: {_TEAMS_EXTRA_DESCRIPTION}; default countdown"),
@@ -1092,7 +1135,14 @@ async def get_auto_bmp(
     display = normalize_display(display)
     tz = validate_timezone(tz)
     now = _utc_now()
-    choice = _choose_auto_screen(mode, now=now, f1_service=f1_service, lead_hours=lead_hours, tz=tz)
+    choice = _choose_auto_screen(
+        mode,
+        now=now,
+        f1_service=f1_service,
+        lead_hours=lead_hours,
+        tz=tz,
+        weekend_mode=weekend_mode,
+    )
     if choice.screen == AutoScreen.CALENDAR:
         response = await _serve_calendar_bmp(
             request,
@@ -1105,6 +1155,7 @@ async def get_auto_bmp(
             track_options=TrackOptions(track_style, track_source, track_accent),
             countdown=countdown,
             endpoint="/auto.bmp",
+            weekend_mode=weekend_mode,
         )
     else:
         response = await _serve_teams_bmp(
