@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Een dienst of herstelproces gebruikt de database. Stop de dienst of wacht tot het herstel is voltooid.",
+  "ops_last_attempt": "Laatste poging om beelden te genereren",
   "next_race": "Volgende race",
   "schedule": "Schema",
   "weekend_schedule": "WEEKENDSCHEMA",
@@ -12,6 +14,7 @@
   "countdown_hours_one": "uur",
   "countdown_hours_few": "uur",
   "countdown_hours_many": "uur",
+  "countdown_today": "Vandaag",
   "cancelled": "GEANNULEERD",
   "race_ongoing": "BEZIG",
   "race_completed": "VOLTOOID",
@@ -24,6 +27,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "Sprint",
   "session_race": "Race",
+  "session_short_fp1": "VT1",
+  "session_short_fp2": "VT2",
+  "session_short_fp3": "VT3",
+  "session_short_sprintqualifying": "SQ",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "KW",
+  "session_live": "LIVE",
   "loading": "Laden...",
   "no_data": "Geen racedata beschikbaar",
   "new_track": "NIEUW CIRCUIT",
@@ -48,6 +58,7 @@
   "api_docs_race_key_desc": "Race-identificatie uit /api/races/{year}; vereist year",
   "api_docs_selection_note": "Zonder de combinatie van year en round of race_key wordt de volgende race geselecteerd. Neem round of race_key over uit /api/races/{year}. Uitzondering: race_key zonder year geeft HTTP 400 terug.",
   "api_docs_etag_note": "BMP-antwoorden bevatten ETag. Stuur If-None-Match om 304 te ontvangen wanneer de afbeelding ongewijzigd is.",
+  "api_docs_refresh_hint_note": "Kalender- en teamsantwoorden (200 en 304) bevatten X-Next-Refresh-Seconds: een hint over hoeveel seconden het duurt tot de afbeelding naar verwachting weer verandert (60 tot 86400, hooguit 3600 zolang elk uur ververst weer wordt getoond). Displays op batterij kunnen dit als duur van de diepe slaap gebruiken; het is alleen een hint, dus een verzoek kan nog steeds 304 opleveren.",
   "api_docs_operational_auth": "De lees-API’s voor statistieken vereisen X-Admin-Token of Authorization: Bearer <token> wanneer ADMIN_API_TOKEN is ingesteld. Met MINIMAL_DATA_MODE=true geven alle statistiek-API’s 410 terug.",
   "api_docs_history_desc": "Aanvraaggeschiedenis per uur; limit: 1–720 (standaard 168).",
   "api_docs_perf_desc": "GET: prestatieoverzichten; hours: 1–720 (standaard 24). POST: numerieke Web Vitals; metadata van bezoekers en apparaten worden genegeerd.",
@@ -190,7 +201,81 @@
     "weatherLabel": "Weer",
     "weatherCurrentLabel": "Huidig",
     "weatherRaceDayLabel": "Racedag",
+    "weatherWeekendLabel": "Weekend",
     "weatherTooltipText": "Wordt 14 dagen voor de race geactiveerd",
+    "countdown": {
+      "label": "Aftelling",
+      "options": {
+        "hours": "Dagen + uren",
+        "days": "Alleen dagen",
+        "auto": "Auto (batterijzuinig)",
+        "off": "Uit (racedatum)"
+      },
+      "hints": {
+        "hours": "Dagen en uren; de afbeelding verandert elk uur.",
+        "days": "Hele dagen; de afbeelding verandert één keer per dag om lokale middernacht.",
+        "auto": "Hele dagen tot 48 uur voor de start, daarna dagen en uren.",
+        "off": "Racedatum in plaats van aftelling; verandert alleen met de racestatus."
+      },
+      "batteryNote": "Het weer wordt elk uur ververst. Zet het weer uit voor de langste batterijduur. De header X-Next-Refresh-Seconds vertelt je display hoe lang het kan slapen."
+    },
+    "weekendMode": {
+      "label": "Raceweekend",
+      "options": {
+        "off": "Uit",
+        "auto": "Weekend volgen"
+      },
+      "hints": {
+        "off": "De hele week dezelfde kalender.",
+        "auto": "Tijdens het raceweekend: afgelopen sessies afgevinkt, de volgende gemarkeerd met aftelling, en de kwalificatie- en racepodia van dit weekend zodra ze beschikbaar zijn."
+      }
+    },
+    "autoScreen": {
+      "label": "Eén URL voor beide schermen",
+      "options": {
+        "off": "Uit (alleen dit scherm)",
+        "race_week": "Raceweek: kalender, anders teams",
+        "daily": "Dagelijks: elke dag wisselen"
+      },
+      "hints": {
+        "off": "De URL toont altijd dit scherm.",
+        "race_week": "/auto.bmp toont de kalender vanaf 48 uur voor VT1 tot het einde van de race, en anders de teams met aftelling. Ideaal voor Živýobraz.eu, dat één URL per display toestaat.",
+        "race_week_teams": "/auto.bmp toont de kalender vanaf 48 uur voor VT1 tot het einde van de race, en anders de teams met het op deze pagina gekozen paneel. Ideaal voor Živýobraz.eu, dat één URL per display toestaat.",
+        "daily": "/auto.bmp wisselt elke dag om lokale middernacht tussen kalender en teams."
+      }
+    },
+    "theme": {
+      "label": "Thema",
+      "options": {
+        "light": "Licht (standaard)",
+        "dark": "Donker (experimenteel)"
+      },
+      "hints": {
+        "light": "Zwarte tekst op een witte achtergrond.",
+        "dark": "Witte tekst op zwart, rode en gele accenten blijven. Experimenteel: grote zwarte vlakken kunnen op sommige panelen nabeelden achterlaten; gebruik een volledige verversing."
+      }
+    },
+    "output": {
+      "label": "Beelduitvoer",
+      "formatLabel": "Formaat",
+      "formatOptions": {
+        "bmp": "BMP (standaard)",
+        "png": "PNG (kleiner)"
+      },
+      "formatHints": {
+        "bmp": "Ongecomprimeerde BMP die elke e-ink-firmware kan lezen.",
+        "png": "Dezelfde pixels en kleuren, 4–27× kleinere download. Alleen voor firmware die PNG kan decoderen."
+      },
+      "rotateLabel": "Rotatie",
+      "rotateOptions": {
+        "0": "0° (standaard)",
+        "180": "180° (ondersteboven)"
+      },
+      "rotateHints": {
+        "0": "Zoals in het voorbeeld.",
+        "180": "Voor een behuizing met de connector aan de andere kant. Het voorbeeld blijft rechtop."
+      }
+    },
     "displayLabel": "Scherm",
     "imageCreditsNote": "Bronvermelding en licenties van de afbeelding:",
     "teamsExtra": {
@@ -232,7 +317,11 @@
     "epaperStep1BeforeLink": "Selecteer in ",
     "epaperStep1BetweenLinkAndUrl": " ",
     "epaperStep1AfterUrl": " als contentbron",
-    "epaperStep2Text": "Plak de URL hierboven in het afbeeldings-URL-veld"
+    "epaperStep2Text": "Plak de URL hierboven in het afbeeldings-URL-veld",
+    "tempUnit": {
+      "label": "Temperatuur",
+      "hint": "Fahrenheit wordt bij het tekenen omgerekend; weergegevens en verzoeken blijven gelijk."
+    }
   },
   "unofficial_notice": "Onafhankelijk fanproject, zonder band met, goedkeuring of sponsoring door de Formula One groep, FIA, teams of coureurs.",
   "stats_disabled": "Gebruiksstatistieken zijn uitgeschakeld. Deze dienst verzamelt ze niet in de minimale modus.",
@@ -380,5 +469,49 @@
   "teams_extra_done": "verreden",
   "teams_extra_upcoming": "Komende races",
   "teams_extra_today": "vandaag",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Minimale modus",
+  "api_docs_open_json": "JSON openen",
+  "api_docs_teams_tz_desc": "Optionele IANA-tijdzone voor panelen met een tijd of datum: countdown, flags, track, weather. Standaard de DEFAULT_TIMEZONE van de server; genegeerd bij none of niet-beschikbare panelen. Ongeldige waarden geven HTTP 400. Ook ondersteund door /preview/configure/teams.png.",
+  "api_docs_lang_desc": "Taalcode voor kalendertekst",
+  "api_docs_year_desc": "Seizoensjaar voor een specifieke race",
+  "api_docs_round_desc": "Rondenummer uit de racelijst van het seizoen; genegeerd zonder year",
+  "api_docs_tz_desc": "Tijdzone voor tijden in het schema (IANA-formaat)",
+  "api_docs_calendar_display_desc": "Uitvoermodus voor 1bit-, B/W/R-, B/W/R/Y- of Spectra 6-displays",
+  "api_docs_weather_desc": "Weeroverlay in- of uitschakelen",
+  "api_docs_weather_type_desc": "Welke variant van weergegevens gerenderd moet worden",
+  "api_docs_countdown_desc": "Aftelling in het statusvak: hours (dagen en uren, standaard), days (hele dagen in tz, wisselt om lokale middernacht), auto (hele dagen tot 48 uur voor de start, daarna dagen en uren) of off (racedatum in plaats van aftelling). Ongeldige waarden geven HTTP 422.",
+  "api_docs_weekend_mode_desc": "Weekendmodus: off (standaard) of auto. Met auto krijgen tijdens het raceweekend (vanaf 12 uur vóór de eerste sessie) afgelopen sessies een vinkje, wordt de lopende of volgende sessie gemarkeerd en telt het statusvak af naar die sessie met de korte naam (bijv. KW: 3 u). Een sessie geldt als afgelopen vanaf de start plus een voorzichtige schatting van de duur, omdat het echte einde niet wordt gepubliceerd. De voettekst toont de kwalificatie- en racepodia van dit weekend zodra ze beschikbaar zijn (Jolpica, alleen opgevraagd in de uren na die sessies), met het seizoen boven elke kolom. Ongeldige waarden geven HTTP 422.",
+  "api_docs_weather_weekend_desc": "Weekend: een tweede regel in het statusvak met de voorspelling voor de kwalificatie (en de sprint als die past) en de race, bijv. KW 19° 60% | R 22° 10%. Eén Open-Meteo-verzoek dekt het hele weekend, hetzelfde dat race_day gebruikt. Sessies buiten de 16-daagse voorspelling of zonder gepubliceerde tijd worden weggelaten; na de start wordt alleen het raceweer getoond.",
+  "api_docs_temp_unit_desc": "Temperatuureenheid: c (standaard, Celsius) of f (Fahrenheit). Wordt bij het tekenen omgerekend uit dezelfde gecachte gegevens en kost geen extra weerverzoeken. Ongeldige waarden geven HTTP 422.",
+  "api_docs_teams_temp_unit_desc": "Temperatuureenheid van het weerpaneel (extra=weather): c (standaard) of f. Ongeldige waarden geven HTTP 422.",
+  "api_docs_format_desc": "Uitvoerformaat: bmp (standaard, ongewijzigd) of png. PNG is verliesvrij met exact dezelfde pixelindices en hetzelfde schermpalet (geen dithering, geen extra kleuren) en 4–27× kleiner, voor firmware die PNG kan decoderen. Het pad blijft .bmp; Content-Type, Content-Length en ETag beschrijven de verzonden bytes. Ongeldige waarden geven HTTP 422.",
+  "api_docs_rotate_desc": "Rotatie: 0 (standaard) of 180. 180 zet het beeld verliesvrij op zijn kop (nog steeds 800×480, dezelfde BMP-kleurdiepte) voor een omgekeerd gemonteerd scherm. 90/270 worden niet aangeboden omdat die een staande lay-out nodig hebben. Ongeldige waarden geven HTTP 422.",
+  "api_docs_output_sizes": "Typische kalendergroottes met format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Elk formaat en elke rotatie heeft een eigen ETag.",
+  "api_docs_theme_desc": "Thema: light (standaard) of dark (experimenteel). Donker tekent witte tekst en lijnen op een zwarte achtergrond; rood, geel en de Spectra 6-kleuren blijven behouden en vlaggen houden hun kleuren. Grote zwarte vlakken kunnen op sommige e-inkpanelen nabeelden achterlaten, dus een volledige verversing is aan te raden. Wordt op aanvraag gerenderd, nooit vooraf. Ongeldige waarden geven HTTP 422.",
+  "api_docs_auto_desc": "Eén URL die direct de kalender- of teams-BMP teruggeeft (zonder doorverwijzing). Voor displays die maar één adres kunnen opvragen, zoals Živýobraz.eu of eenvoudige ESP32-firmware.",
+  "api_docs_auto_mode_desc": "race_week: de kalender vanaf lead_hours voor de eerste sessie van het volgende raceweekend tot de volgende race wordt gekozen (4 uur na de start), anders de teams, ook in de winterstop en bij afgelaste races. daily: kalender op even en teams op oneven lokale dagen in tz, wisselt om lokale middernacht. Ongeldige waarden geven HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Alleen race_week: hoeveel uur voor de eerste sessie (FP1) de kalender verschijnt. Waarden buiten 0–168 geven HTTP 422.",
+  "api_docs_auto_extra_desc": "Teamspaneel op deze URL; standaard countdown (dagen tot de volgende race). none toont alleen het raster.",
+  "api_docs_auto_shared_desc": "Dezelfde waarden als bij /calendar.bmp en /teams.bmp; elke parameter geldt voor zijn eigen scherm. year kiest het teamsseizoen; de kalender toont altijd de volgende race.",
+  "api_docs_auto_headers_note": "X-Active-Screen geeft aan welk scherm is teruggegeven (calendar of teams). De ETag hoort bij het actieve scherm, dus een 304 komt alleen zolang het display dat scherm al toont. X-Next-Refresh-Seconds en de max-age in Cache-Control reiken nooit verder dan de volgende wissel.",
+  "api_docs_calendar_desc": "Genereert een F1-kalender als BMP-afbeelding (800×480) voor 1bit-, 4-bit B/W/R-, 4-bit B/W/R/Y- en Spectra 6 E-Ink-displays.",
+  "api_docs_eg": "bijv.",
+  "api_docs_dimensions_label": "Afmetingen",
+  "api_docs_color_depth_label": "Kleurdiepte",
+  "api_docs_races_desc": "Lijst van alle races voor een seizoen",
+  "api_docs_race_desc": "Gedetailleerde race-informatie inclusief schema",
+  "api_docs_stats_desc": "Aanvraagstatistieken van de laatste 24 uur",
+  "api_docs_health_desc": "Service health-check",
+  "api_docs_json_api_desc": "API-documentatie in JSON-formaat",
+  "api_docs_laskakit_title": "Voor LaskaKit / zivyobraz.eu:",
+  "api_docs_laskakit_step1": "Selecteer in zivyobraz.eu als contentbron: URL met afbeelding",
+  "api_docs_laskakit_step2": "Plak de URL",
+  "api_docs_laskakit_step3": "Stel het vernieuwingsinterval in op 1-6 uur",
+  "api_docs_close_btn": "Sluiten",
+  "api_docs_loading_text": "Laden...",
+  "api_docs_error_text": "Fout",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "KW",
+  "weather_session_race": "R"
 }

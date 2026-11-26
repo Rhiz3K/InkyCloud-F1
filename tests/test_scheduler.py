@@ -582,7 +582,11 @@ async def test_collect_and_generate_skips_stale_prune_when_race_weather_missing(
         await collect_and_generate()
 
     prune.assert_not_called()
-    assert db.set_cache_meta.await_count == 4
+    assert db.set_cache_meta.await_count == 6
+    assert (
+        call(scheduler_generation.GENERATION_REASONS_META_KEY, "weather_unavailable")
+        in db.set_cache_meta.await_args_list
+    )
     assert db.set_cache_meta.await_args_list[0] == call(
         scheduler_generation.GENERATION_STATUS_META_KEY,
         scheduler_generation.GENERATION_STATUS_DEGRADED,
@@ -829,26 +833,6 @@ async def test_load_weather_context_returns_service_result():
 )
 def test_has_weather_coordinates_validates_bounds_and_alias(circuit, expected):
     assert scheduler_generation._has_weather_coordinates({"circuit": circuit}) is expected
-
-
-@pytest.mark.parametrize(
-    ("schedule", "expected"),
-    [
-        ([], None),
-        ([{"name": "Race"}], None),
-        ([{"name": "Race", "datetime": "invalid"}], None),
-        (
-            [{"name": "Race", "datetime": "2026-07-12T14:00:00"}],
-            datetime(2026, 7, 12, 14, tzinfo=timezone.utc),
-        ),
-        (
-            [{"name": "race", "datetime": "2026-07-12T16:00:00+02:00"}],
-            datetime(2026, 7, 12, 14, tzinfo=timezone.utc),
-        ),
-    ],
-)
-def test_parse_race_datetime_utc(schedule, expected):
-    assert scheduler_generation._parse_race_datetime_utc({"schedule": schedule}) == expected
 
 
 def test_race_weather_expected_for_past_near_and_far_dates():
@@ -1102,12 +1086,16 @@ async def test_collect_and_generate_prunes_after_fully_successful_run(tmp_path):
 
     assert keep.exists()
     assert not stale.exists()
-    assert db.set_cache_meta.await_count == 4
+    assert db.set_cache_meta.await_count == 6
     assert db.set_cache_meta.await_args_list[2] == call(
         scheduler_generation.GENERATION_STATUS_META_KEY,
         scheduler_generation.GENERATION_STATUS_READY,
     )
-    assert db.set_cache_meta.await_args_list[3].args[0] == (
+    # A clean run clears the reasons of an earlier degraded run.
+    assert db.set_cache_meta.await_args_list[3] == call(
+        scheduler_generation.GENERATION_REASONS_META_KEY, ""
+    )
+    assert db.set_cache_meta.await_args_list[4].args[0] == (
         scheduler_generation.GENERATION_SUCCESS_META_KEY
     )
 
@@ -1386,6 +1374,14 @@ def test_run_backup_honors_configuration():
         ("0/2", "sun,tue,thu,sat"),
         ("monday", "mon"),
         ("1,1-2", "mon,tue"),
+        # 7 as a range end is Sunday at the end of the week (issue #185, C11).
+        ("0-7", "sun,mon,tue,wed,thu,fri,sat"),
+        ("1-7", "mon,tue,wed,thu,fri,sat,sun"),
+        ("5-7", "fri,sat,sun"),
+        ("7-7", "sun"),
+        ("00-07", "sun,mon,tue,wed,thu,fri,sat"),
+        ("07-7", "sun"),
+        ("0-7/2", "sun,tue,thu,sat"),
     ],
 )
 def test_normalize_cron_day_of_week(value, expected):
@@ -1511,6 +1507,7 @@ def test_start_and_stop_scheduler_cover_disabled_existing_and_weather_jobs():
             "weather_prefetch",
             "hourly_generation",
             "historical_results_refresh",
+            "weekend_results_refresh",
             "flush_api_calls",
             "cleanup_retained_stats",
             "fetch_circuit_weather",
@@ -1538,7 +1535,9 @@ async def test_run_initial_generation_publishes_calendar_before_upstream_refresh
         patch("app.services.scheduler.config.SCHEDULER_ENABLED", True),
         patch("app.services.scheduler.config.WEATHER_ENABLED", True),
         patch("app.services.scheduler._load_weather_from_db", new=step("load")),
+        patch("app.services.scheduler._load_weekend_results_from_db", new=step("podiums")),
         patch("app.services.scheduler._collect_and_generate", new=step("generate")),
+        patch("app.services.scheduler._refresh_weekend_results", new=step("weekend")),
         patch("app.services.scheduler._historical_refresh_is_due", new=step("due", True)),
         patch("app.services.scheduler._refresh_historical_results", new=step("historical")),
         patch("app.services.scheduler._fetch_all_circuits_weather", new=step("weather")),
@@ -1548,7 +1547,16 @@ async def test_run_initial_generation_publishes_calendar_before_upstream_refresh
 
     # Readiness depends on the generation marker, so calendars are published before the
     # potentially minutes-long historical catch-up and all-circuit weather fetch.
-    assert order == ["load", "generate", "due", "historical", "weather", "version"]
+    assert order == [
+        "load",
+        "podiums",
+        "generate",
+        "weekend",
+        "due",
+        "historical",
+        "weather",
+        "version",
+    ]
 
 
 @pytest.mark.asyncio
@@ -1576,12 +1584,15 @@ async def test_run_initial_generation_does_not_preload_all_weather_without_sched
             "app.services.scheduler._fetch_all_circuits_weather",
             new=step("weather", weather_error),
         ),
+        patch("app.services.scheduler._load_weekend_results_from_db", new=step("podiums")),
         patch("app.services.scheduler._collect_and_generate", new=step("generate")),
+        patch("app.services.scheduler._refresh_weekend_results", new=step("weekend")),
         patch("app.services.scheduler.refresh_version_info", new=step("version")),
     ):
         await scheduler.run_initial_generation()
 
-    assert order == ["load", "generate", "version"]
+    # Without the scheduler the stored podiums are loaded, but Jolpica is never asked.
+    assert order == ["load", "podiums", "generate", "version"]
 
 
 @pytest.mark.asyncio
@@ -1592,6 +1603,8 @@ async def test_run_initial_generation_runs_enabled_steps_and_isolates_failures()
     fetch = AsyncMock()
     collect = AsyncMock()
     version = AsyncMock()
+    podiums = AsyncMock()
+    weekend = AsyncMock()
     with (
         patch("app.services.scheduler.config.SCHEDULER_ENABLED", True),
         patch("app.services.scheduler.config.WEATHER_ENABLED", True),
@@ -1600,6 +1613,8 @@ async def test_run_initial_generation_runs_enabled_steps_and_isolates_failures()
         patch("app.services.scheduler._load_weather_from_db", new=load),
         patch("app.services.scheduler._fetch_all_circuits_weather", new=fetch),
         patch("app.services.scheduler._collect_and_generate", new=collect),
+        patch("app.services.scheduler._load_weekend_results_from_db", new=podiums),
+        patch("app.services.scheduler._refresh_weekend_results", new=weekend),
         patch("app.services.scheduler.refresh_version_info", new=version),
     ):
         await scheduler.run_initial_generation()
@@ -1609,17 +1624,23 @@ async def test_run_initial_generation_runs_enabled_steps_and_isolates_failures()
     fetch.assert_awaited_once()
     collect.assert_awaited_once()
     version.assert_awaited_once()
+    podiums.assert_awaited_once()
+    weekend.assert_awaited_once()
 
     collect_disabled = AsyncMock()
     version_disabled = AsyncMock()
+    weekend_disabled = AsyncMock()
     with (
         patch("app.services.scheduler.config.SCHEDULER_ENABLED", False),
         patch("app.services.scheduler.config.WEATHER_ENABLED", False),
         patch("app.services.scheduler._collect_and_generate", new=collect_disabled),
+        patch("app.services.scheduler._load_weekend_results_from_db", new=AsyncMock()),
+        patch("app.services.scheduler._refresh_weekend_results", new=weekend_disabled),
         patch("app.services.scheduler.refresh_version_info", new=version_disabled),
     ):
         await scheduler.run_initial_generation()
     collect_disabled.assert_awaited_once()
+    weekend_disabled.assert_not_awaited()
     version_disabled.assert_awaited_once()
 
     due_false = AsyncMock(return_value=False)
@@ -1628,6 +1649,8 @@ async def test_run_initial_generation_runs_enabled_steps_and_isolates_failures()
         patch("app.services.scheduler.config.WEATHER_ENABLED", False),
         patch("app.services.scheduler._historical_refresh_is_due", new=due_false),
         patch("app.services.scheduler._collect_and_generate", new=AsyncMock()),
+        patch("app.services.scheduler._load_weekend_results_from_db", new=AsyncMock()),
+        patch("app.services.scheduler._refresh_weekend_results", new=AsyncMock()),
         patch("app.services.scheduler.refresh_version_info", new=AsyncMock()),
     ):
         await scheduler.run_initial_generation()
@@ -1651,6 +1674,14 @@ async def test_run_initial_generation_runs_enabled_steps_and_isolates_failures()
         patch(
             "app.services.scheduler._collect_and_generate",
             new=AsyncMock(side_effect=RuntimeError("generate")),
+        ),
+        patch(
+            "app.services.scheduler._load_weekend_results_from_db",
+            new=AsyncMock(side_effect=RuntimeError("podiums")),
+        ),
+        patch(
+            "app.services.scheduler._refresh_weekend_results",
+            new=AsyncMock(side_effect=RuntimeError("weekend")),
         ),
         patch(
             "app.services.scheduler.refresh_version_info",

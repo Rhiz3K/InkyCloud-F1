@@ -32,14 +32,18 @@ class BwrColors:
     IDX_RED = 2
 
 
-BWR_THEME = make_color_theme(
-    colors=BwrColors,
-    track_directory=lambda: TRACKS_BWR_DIR,
-    flags_directories=lambda: (FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR),
-    images_directory=lambda: IMAGES_DIR,
-    prepare_track_image=lambda image, width, height, _logger: prepare_color_track_image(
-        image, width, height
-    ),
+BWR_THEME, BWR_DARK_THEME = (
+    make_color_theme(
+        colors=BwrColors,
+        track_directory=lambda: TRACKS_BWR_DIR,
+        flags_directories=lambda: (FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR),
+        images_directory=lambda: IMAGES_DIR,
+        prepare_track_image=lambda image, width, height, _logger: prepare_color_track_image(
+            image, width, height
+        ),
+        dark=dark,
+    )
+    for dark in (False, True)
 )
 
 
@@ -47,6 +51,9 @@ class BwrRenderer(Spectra6Renderer):
     """Renderer for generating black/white/red indexed BMP images."""
 
     THEME = BWR_THEME
+    DARK_THEME = BWR_DARK_THEME
+    # map_to_bwr_palette thresholds anti-aliased edges onto black/white/red itself.
+    TEXT_ANTIALIAS = True
 
     def _to_indexed_bmp(self, image: Image.Image) -> bytes:
         """Map the RGB canvas to the strict B/W/R palette and encode 4-bit BMP."""

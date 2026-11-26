@@ -34,14 +34,18 @@ class BwryColors:
     IDX_YELLOW = 3
 
 
-BWRY_THEME = make_color_theme(
-    colors=BwryColors,
-    track_directory=lambda: TRACKS_BWRY_DIR,
-    flags_directories=lambda: (FLAGS_BWRY_DIR, FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR),
-    images_directory=lambda: IMAGES_DIR,
-    prepare_track_image=lambda image, width, height, _logger: prepare_color_track_image(
-        image, width, height
-    ),
+BWRY_THEME, BWRY_DARK_THEME = (
+    make_color_theme(
+        colors=BwryColors,
+        track_directory=lambda: TRACKS_BWRY_DIR,
+        flags_directories=lambda: (FLAGS_BWRY_DIR, FLAGS_BWR_DIR, FLAGS_FALLBACK_DIR),
+        images_directory=lambda: IMAGES_DIR,
+        prepare_track_image=lambda image, width, height, _logger: prepare_color_track_image(
+            image, width, height
+        ),
+        dark=dark,
+    )
+    for dark in (False, True)
 )
 
 
@@ -49,6 +53,7 @@ class BwryRenderer(BwrRenderer):
     """Renderer for generating black/white/red/yellow indexed BMP images."""
 
     THEME = BWRY_THEME
+    DARK_THEME = BWRY_DARK_THEME
 
     def _to_indexed_bmp(self, image: Image.Image) -> bytes:
         """Map the RGB canvas to the strict B/W/R/Y palette and encode 4-bit BMP."""

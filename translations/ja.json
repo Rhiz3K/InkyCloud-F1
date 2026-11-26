@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "サービスまたは復元処理がデータベースを使用しています。サービスを停止するか、復元が完了するまでお待ちください。",
+  "ops_last_attempt": "直近の生成試行",
   "next_race": "次のレース",
   "schedule": "スケジュール",
   "weekend_schedule": "週末スケジュール",
@@ -12,6 +14,7 @@
   "countdown_hours_one": "時間",
   "countdown_hours_few": "時間",
   "countdown_hours_many": "時間",
+  "countdown_today": "今日",
   "cancelled": "中止",
   "race_ongoing": "進行中",
   "race_completed": "終了",
@@ -24,6 +27,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "スプリント",
   "session_race": "決勝",
+  "session_short_fp1": "FP1",
+  "session_short_fp2": "FP2",
+  "session_short_fp3": "FP3",
+  "session_short_sprintqualifying": "SQ",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "予選",
+  "session_live": "進行中",
   "loading": "読み込み中...",
   "no_data": "レースデータがありません",
   "new_track": "新コース",
@@ -48,6 +58,7 @@
   "api_docs_race_key_desc": "/api/races/{year} のレース識別子。year が必要です",
   "api_docs_selection_note": "year と round または race_key の組み合わせを指定しない場合、次のレースが選択されます。round または race_key を /api/races/{year} からコピーしてください。 例外：year なしで race_key を指定すると HTTP 400 が返されます。",
   "api_docs_etag_note": "BMP レスポンスには ETag が含まれます。If-None-Match を送信すると、画像が変更されていない場合に 304 が返されます。",
+  "api_docs_refresh_hint_note": "カレンダーとチームのレスポンス（200 と 304）には X-Next-Refresh-Seconds が含まれます。画像が次に変わる見込みまでの秒数の目安です（60〜86400。毎時更新の天気を表示中は最大 3600）。バッテリー駆動のディスプレイはディープスリープの長さに使えます。目安のため、取得時に 304 が返ることもあります。",
   "api_docs_operational_auth": "ADMIN_API_TOKEN が設定されている場合、統計読み取り API には X-Admin-Token または Authorization: Bearer <token> が必要です。MINIMAL_DATA_MODE=true の場合、すべての統計 API が 410 を返します。",
   "api_docs_history_desc": "1 時間ごとのリクエスト履歴。limit: 1–720（デフォルト 168）。",
   "api_docs_perf_desc": "GET: パフォーマンスの概要。hours: 1–720（デフォルト 24）。POST: Web Vitals の数値。訪問者とデバイスのメタデータは無視されます。",
@@ -190,7 +201,81 @@
     "weatherLabel": "天気",
     "weatherCurrentLabel": "現在",
     "weatherRaceDayLabel": "レース当日",
+    "weatherWeekendLabel": "週末",
     "weatherTooltipText": "レース14日前から有効",
+    "countdown": {
+      "label": "カウントダウン",
+      "options": {
+        "hours": "日 + 時間",
+        "days": "日数のみ",
+        "auto": "自動（省電力）",
+        "off": "オフ（レース日）"
+      },
+      "hints": {
+        "hours": "日と時間。画像は毎時変わります。",
+        "days": "日数のみ。画像は1日1回、現地の午前0時に変わります。",
+        "auto": "スタートの48時間前までは日数のみ、その後は日と時間。",
+        "off": "カウントダウンの代わりにレース日。レースの状態が変わったときだけ変化します。"
+      },
+      "batteryNote": "天気は毎時更新されます。バッテリーを最も長持ちさせるには天気をオフにしてください。スリープ時間は X-Next-Refresh-Seconds ヘッダーで決められます。"
+    },
+    "weekendMode": {
+      "label": "レースウィークエンド",
+      "options": {
+        "off": "オフ",
+        "auto": "週末に合わせる"
+      },
+      "hints": {
+        "off": "一週間ずっと同じカレンダー。",
+        "auto": "レースウィークエンド中：終了したセッションにチェック、次のセッションを強調してカウントダウン、今週末の予選と決勝の表彰台を入手でき次第表示。"
+      }
+    },
+    "autoScreen": {
+      "label": "両方の画面に 1 つの URL",
+      "options": {
+        "off": "オフ（この画面のみ）",
+        "race_week": "レース週: カレンダー、それ以外はチーム",
+        "daily": "毎日: 1 日ごとに切り替え"
+      },
+      "hints": {
+        "off": "URL は常にこの画面を表示します。",
+        "race_week": "/auto.bmp は FP1 の 48 時間前からレース終了までカレンダーを、それ以外はカウントダウン付きのチームを表示します。1 台につき 1 つの URL しか使えない Živýobraz.eu に最適です。",
+        "race_week_teams": "/auto.bmp は FP1 の 48 時間前からレース終了までカレンダーを、それ以外はこのページで選んだパネル付きのチームを表示します。1 台につき 1 つの URL しか使えない Živýobraz.eu に最適です。",
+        "daily": "/auto.bmp は毎日、現地の午前0時にカレンダーとチームを切り替えます。"
+      }
+    },
+    "theme": {
+      "label": "テーマ",
+      "options": {
+        "light": "ライト（既定）",
+        "dark": "ダーク（試験的）"
+      },
+      "hints": {
+        "light": "白い背景に黒い文字。",
+        "dark": "黒地に白い文字、赤と黄のアクセントはそのまま。試験的: 広い黒い領域は一部のパネルで残像が出ることがあります。フルリフレッシュを使用してください。"
+      }
+    },
+    "output": {
+      "label": "画像の出力",
+      "formatLabel": "形式",
+      "formatOptions": {
+        "bmp": "BMP（既定）",
+        "png": "PNG（小さい）"
+      },
+      "formatHints": {
+        "bmp": "どの電子ペーパーのファームウェアでも読める非圧縮 BMP。",
+        "png": "ピクセルも色も同じで、ダウンロードは 4〜27 分の 1。PNG をデコードできるファームウェア専用です。"
+      },
+      "rotateLabel": "回転",
+      "rotateOptions": {
+        "0": "0°（既定）",
+        "180": "180°（上下反転）"
+      },
+      "rotateHints": {
+        "0": "プレビューと同じ向きです。",
+        "180": "コネクタが反対側にあるケース向けです。プレビューは正立のままです。"
+      }
+    },
     "displayLabel": "ディスプレイ",
     "imageCreditsNote": "画像の帰属表示とライセンス：",
     "teamsExtra": {
@@ -232,7 +317,11 @@
     "epaperStep1BeforeLink": "",
     "epaperStep1BetweenLinkAndUrl": " でコンテンツソースとして ",
     "epaperStep1AfterUrl": " を選択",
-    "epaperStep2Text": "上のURLを画像URL欄に貼り付け"
+    "epaperStep2Text": "上のURLを画像URL欄に貼り付け",
+    "tempUnit": {
+      "label": "温度",
+      "hint": "華氏は描画時に変換されます。天気データとリクエスト数は変わりません。"
+    }
   },
   "unofficial_notice": "独立したファンプロジェクトです。Formula Oneグループ、FIA、チーム、ドライバーとは提携しておらず、承認や支援も受けていません。",
   "stats_disabled": "利用統計は無効です。データ最小化モードでは収集しません。",
@@ -380,5 +469,49 @@
   "teams_extra_done": "終了",
   "teams_extra_upcoming": "今後のレース",
   "teams_extra_today": "今日",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "データ最小化モード",
+  "api_docs_open_json": "JSONを開く",
+  "api_docs_teams_tz_desc": "時刻や日付を表示するパネル（countdown、flags、track、weather）用の任意の IANA タイムゾーン。既定はサーバーの DEFAULT_TIMEZONE で、none や利用できないパネルでは無視されます。無効な値は HTTP 400 を返します。/preview/configure/teams.png でも使用できます。",
+  "api_docs_lang_desc": "カレンダーテキスト用の言語コード",
+  "api_docs_year_desc": "特定レース用のシーズン年",
+  "api_docs_round_desc": "シーズンのレース一覧のラウンド番号（year がなければ無視）",
+  "api_docs_tz_desc": "スケジュール時刻用のタイムゾーン (IANA 形式)",
+  "api_docs_calendar_display_desc": "1bit、B/W/R、B/W/R/Y、Spectra 6 ディスプレイ用の出力モード",
+  "api_docs_weather_desc": "天気オーバーレイの有効化または無効化",
+  "api_docs_weather_type_desc": "描画する天気データの種類",
+  "api_docs_countdown_desc": "ステータス欄のカウントダウン: hours（日と時間、既定）、days（tz での日数のみ。現地の午前0時に変化）、auto（スタートの48時間前までは日数のみ、その後は日と時間）、off（カウントダウンの代わりにレース日）。無効な値は HTTP 422 を返します。",
+  "api_docs_weekend_mode_desc": "週末モード：off（既定）または auto。auto では、レースウィークエンド中（最初のセッションの 12 時間前から）終了したセッションにチェックが付き、進行中または次のセッションが強調され、ステータス欄はその短い名前付きでカウントダウンします（例：予選: 3 時間）。実際の終了時刻は公開されないため、セッションは開始時刻に控えめな所要時間の見積もりを加えた時点で終了とみなします。フッターには今週末の予選と決勝の表彰台を、入手でき次第表示します（Jolpica から、これらのセッション後の数時間だけ取得）。各列の上にシーズンを表示します。無効な値は HTTP 422 を返します。",
+  "api_docs_weather_weekend_desc": "Weekend: ステータス欄に2行目を追加し、予選（収まればスプリントも）と決勝の予報を表示します（例: 予選 19° 60% | 決勝 22° 10%）。週末全体を Open-Meteo への1回のリクエストで取得し、race_day と同じリクエストを使います。16日間の予報範囲外や時刻未発表のセッションは省略され、決勝スタート後は決勝の天気のみ表示します。",
+  "api_docs_temp_unit_desc": "温度単位: c（既定、摂氏）または f（華氏）。同じキャッシュ済みデータから描画時に変換するため、天気リクエストは増えません。無効な値は HTTP 422 を返します。",
+  "api_docs_teams_temp_unit_desc": "天気パネル（extra=weather）の温度単位: c（既定）または f。無効な値は HTTP 422 を返します。",
+  "api_docs_format_desc": "出力形式: bmp（既定、変更なし）または png。PNG はロスレスで、ピクセルのインデックスとパネルのパレットが完全に同一です（ディザリングや追加の色なし）。サイズは 4〜27 分の 1 で、PNG をデコードできるファームウェア向けです。パスは .bmp のままで、Content-Type、Content-Length、ETag は送信されるバイトを表します。無効な値は HTTP 422 を返します。",
+  "api_docs_rotate_desc": "回転: 0（既定）または 180。180 は逆向きに取り付けたパネル用に画像をロスレスで上下反転します（800×480 と BMP の色深度はそのまま）。90/270 は縦向きのレイアウトが必要になるため提供していません。無効な値は HTTP 422 を返します。",
+  "api_docs_output_sizes": "format=png のカレンダーの一般的なサイズ: 1bit 48 KB → 約 10 KB、bwr/bwry 192 KB → 約 13 KB、spectra6 385 KB → 約 14 KB。形式と回転ごとに独自の ETag があります。",
+  "api_docs_theme_desc": "テーマ: light（既定）または dark（試験的）。ダークでは黒い背景に白い文字と線を描きます。赤・黄・Spectra 6 の色はそのまま、国旗も元の色を保ちます。広い黒い領域は一部の電子ペーパーで残像が出ることがあるため、フルリフレッシュを推奨します。必要時にのみ描画され、事前生成はされません。無効な値は HTTP 422 を返します。",
+  "api_docs_auto_desc": "カレンダーまたはチームの BMP を直接返す 1 つの URL です（リダイレクトなし）。Živýobraz.eu やシンプルな ESP32 ファームウェアなど、1 つのアドレスしか取得できないディスプレイ向けです。",
+  "api_docs_auto_mode_desc": "race_week: 次のレースウィークエンドの最初のセッションの lead_hours 前から、次のレースに切り替わるまで（スタートの 4 時間後）はカレンダー、それ以外はチーム（オフシーズンや中止レースを含む）。daily: tz の現地日付が偶数の日はカレンダー、奇数の日はチームを表示し、現地の午前0時に切り替えます。無効な値は HTTP 422 を返します。",
+  "api_docs_auto_lead_hours_desc": "race_week のみ: 最初のセッション（FP1）の何時間前にカレンダーを表示するか。0〜168 以外の値は HTTP 422 を返します。",
+  "api_docs_auto_extra_desc": "この URL でのチームパネル。既定は countdown（次のレースまでの日数）。none でグリッドのみになります。",
+  "api_docs_auto_shared_desc": "/calendar.bmp と /teams.bmp と同じ値で、各パラメーターはそれぞれの画面に適用されます。year はチームのシーズンを選びます。カレンダーは常に次のレースを表示します。",
+  "api_docs_auto_headers_note": "X-Active-Screen は返された画面（calendar または teams）を示します。ETag はアクティブな画面のものなので、304 はディスプレイがすでにその画面を表示している場合にだけ返ります。X-Next-Refresh-Seconds と Cache-Control の max-age は次の切り替えを越えません。",
+  "api_docs_calendar_desc": "F1 カレンダーを BMP 画像 (800×480) として生成し、1bit、4-bit B/W/R、4-bit B/W/R/Y、Spectra 6 の E-Ink ディスプレイに対応します。",
+  "api_docs_eg": "例",
+  "api_docs_dimensions_label": "サイズ",
+  "api_docs_color_depth_label": "色深度",
+  "api_docs_races_desc": "指定シーズンの全レース一覧",
+  "api_docs_race_desc": "スケジュールを含む詳細なレース情報",
+  "api_docs_stats_desc": "直近24時間のリクエスト統計",
+  "api_docs_health_desc": "サービス稼働状況チェック",
+  "api_docs_json_api_desc": "JSON 形式の API ドキュメント",
+  "api_docs_laskakit_title": "LaskaKit / zivyobraz.eu 向け:",
+  "api_docs_laskakit_step1": "zivyobraz.eu でコンテンツソースとして画像 URL を選択",
+  "api_docs_laskakit_step2": "URL を貼り付け",
+  "api_docs_laskakit_step3": "更新間隔を 1〜6 時間に設定",
+  "api_docs_close_btn": "閉じる",
+  "api_docs_loading_text": "読み込み中...",
+  "api_docs_error_text": "エラー",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "予選",
+  "weather_session_race": "決勝"
 }

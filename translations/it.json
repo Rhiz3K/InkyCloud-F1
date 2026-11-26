@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Un servizio o un ripristino sta usando il database. Arresta il servizio o attendi il completamento del ripristino.",
+  "ops_last_attempt": "Ultimo tentativo di generazione",
   "next_race": "Prossima gara",
   "schedule": "Programma",
   "weekend_schedule": "PROGRAMMA DEL WEEKEND",
@@ -12,6 +14,7 @@
   "countdown_hours_one": "ora",
   "countdown_hours_few": "ore",
   "countdown_hours_many": "ore",
+  "countdown_today": "Oggi",
   "cancelled": "ANNULLATA",
   "race_ongoing": "IN CORSO",
   "race_completed": "COMPLETATA",
@@ -24,6 +27,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "Sprint",
   "session_race": "Gara",
+  "session_short_fp1": "PL1",
+  "session_short_fp2": "PL2",
+  "session_short_fp3": "PL3",
+  "session_short_sprintqualifying": "SQ",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "Q",
+  "session_live": "LIVE",
   "loading": "Caricamento...",
   "no_data": "Nessun dato gara disponibile",
   "new_track": "NUOVO CIRCUITO",
@@ -48,6 +58,7 @@
   "api_docs_race_key_desc": "Identificatore della gara da /api/races/{year}; richiede year",
   "api_docs_selection_note": "Senza la combinazione di year e round o race_key, viene selezionata la prossima gara. Copia round o race_key da /api/races/{year}. Eccezione: race_key senza year restituisce HTTP 400.",
   "api_docs_etag_note": "Le risposte BMP includono ETag. Invia If-None-Match per ricevere 304 quando l’immagine non è cambiata.",
+  "api_docs_refresh_hint_note": "Le risposte di calendario e squadre (200 e 304) includono X-Next-Refresh-Seconds: un’indicazione di quanti secondi mancano alla prossima modifica prevista dell’immagine (da 60 a 86400, al massimo 3600 finché è mostrato il meteo aggiornato ogni ora). I display a batteria possono usarlo come durata del sonno profondo; è solo un’indicazione, quindi una richiesta può comunque restituire 304.",
   "api_docs_operational_auth": "Le API di lettura delle statistiche richiedono X-Admin-Token o Authorization: Bearer <token> quando ADMIN_API_TOKEN è configurato. Con MINIMAL_DATA_MODE=true, tutte le API delle statistiche restituiscono 410.",
   "api_docs_history_desc": "Cronologia delle richieste per ora; limit: 1–720 (predefinito 168).",
   "api_docs_perf_desc": "GET: riepiloghi delle prestazioni; hours: 1–720 (predefinito 24). POST: valori numerici di Web Vitals; i metadati dei visitatori e dei dispositivi vengono ignorati.",
@@ -190,7 +201,81 @@
     "weatherLabel": "Meteo",
     "weatherCurrentLabel": "Attuale",
     "weatherRaceDayLabel": "Giorno gara",
+    "weatherWeekendLabel": "Weekend",
     "weatherTooltipText": "Si attiva 14 giorni prima della gara",
+    "countdown": {
+      "label": "Conto alla rovescia",
+      "options": {
+        "hours": "Giorni + ore",
+        "days": "Solo giorni",
+        "auto": "Auto (risparmio batteria)",
+        "off": "Disattivato (data)"
+      },
+      "hints": {
+        "hours": "Giorni e ore; l’immagine cambia ogni ora.",
+        "days": "Giorni interi; l’immagine cambia una volta al giorno a mezzanotte locale.",
+        "auto": "Giorni interi fino a 48 h prima della partenza, poi giorni e ore.",
+        "off": "Data della gara al posto del conto alla rovescia; cambia solo con lo stato della gara."
+      },
+      "batteryNote": "Il meteo si aggiorna ogni ora. Per la massima autonomia disattiva il meteo. L’intestazione X-Next-Refresh-Seconds indica al display quanto può dormire."
+    },
+    "weekendMode": {
+      "label": "Weekend di gara",
+      "options": {
+        "off": "Disattivato",
+        "auto": "Segui il weekend"
+      },
+      "hints": {
+        "off": "Lo stesso calendario tutta la settimana.",
+        "auto": "Durante il weekend di gara: sessioni concluse spuntate, la successiva evidenziata con conto alla rovescia e i podi di qualifiche e gara di questo weekend appena disponibili."
+      }
+    },
+    "autoScreen": {
+      "label": "Un URL per entrambe le schermate",
+      "options": {
+        "off": "Disattivato (solo questa schermata)",
+        "race_week": "Settimana di gara: calendario, altrimenti squadre",
+        "daily": "Giornaliero: alterna ogni giorno"
+      },
+      "hints": {
+        "off": "L’URL mostra sempre questa schermata.",
+        "race_week": "/auto.bmp mostra il calendario da 48 h prima delle FP1 fino alla fine della gara, altrimenti le squadre con il conto alla rovescia. Ideale per Živýobraz.eu, che consente un solo URL per display.",
+        "race_week_teams": "/auto.bmp mostra il calendario da 48 h prima delle FP1 fino alla fine della gara, altrimenti le squadre con il pannello scelto in questa pagina. Ideale per Živýobraz.eu, che consente un solo URL per display.",
+        "daily": "/auto.bmp alterna calendario e squadre ogni giorno a mezzanotte locale."
+      }
+    },
+    "theme": {
+      "label": "Tema",
+      "options": {
+        "light": "Chiaro (predefinito)",
+        "dark": "Scuro (sperimentale)"
+      },
+      "hints": {
+        "light": "Testo nero su sfondo bianco.",
+        "dark": "Testo bianco su nero, gli accenti rossi e gialli restano. Sperimentale: le grandi aree nere possono lasciare immagini fantasma su alcuni pannelli; usa un aggiornamento completo."
+      }
+    },
+    "output": {
+      "label": "Uscita immagine",
+      "formatLabel": "Formato",
+      "formatOptions": {
+        "bmp": "BMP (predefinito)",
+        "png": "PNG (più piccolo)"
+      },
+      "formatHints": {
+        "bmp": "BMP non compresso, leggibile da qualsiasi firmware e-ink.",
+        "png": "Stessi pixel e colori, download da 4 a 27 volte più piccolo. Solo per firmware in grado di decodificare PNG."
+      },
+      "rotateLabel": "Rotazione",
+      "rotateOptions": {
+        "0": "0° (predefinita)",
+        "180": "180° (capovolta)"
+      },
+      "rotateHints": {
+        "0": "Come nell’anteprima.",
+        "180": "Per un contenitore con il connettore sul lato opposto. L’anteprima resta dritta."
+      }
+    },
     "displayLabel": "Display",
     "imageCreditsNote": "Attribuzione e licenze dell'immagine:",
     "teamsExtra": {
@@ -232,7 +317,11 @@
     "epaperStep1BeforeLink": "In ",
     "epaperStep1BetweenLinkAndUrl": " seleziona ",
     "epaperStep1AfterUrl": " come sorgente contenuto",
-    "epaperStep2Text": "Incolla l’URL qui sopra nel campo URL immagine"
+    "epaperStep2Text": "Incolla l’URL qui sopra nel campo URL immagine",
+    "tempUnit": {
+      "label": "Temperatura",
+      "hint": "I Fahrenheit vengono convertiti durante il disegno; dati meteo e richieste restano invariati."
+    }
   },
   "unofficial_notice": "Progetto indipendente di appassionati, senza affiliazione, approvazione o sponsorizzazione del gruppo Formula One, FIA, squadre o piloti.",
   "stats_disabled": "Le statistiche d’uso sono disattivate. Il servizio non le raccoglie in modalità minima.",
@@ -380,5 +469,49 @@
   "teams_extra_done": "disputate",
   "teams_extra_upcoming": "Prossime gare",
   "teams_extra_today": "oggi",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Modalità minima",
+  "api_docs_open_json": "Apri JSON",
+  "api_docs_teams_tz_desc": "Fuso orario IANA facoltativo per i pannelli che mostrano ora o data: countdown, flags, track, weather. Predefinito: DEFAULT_TIMEZONE del server; ignorato con none o pannelli non disponibili. I valori non validi restituiscono HTTP 400. Supportato anche da /preview/configure/teams.png.",
+  "api_docs_lang_desc": "Codice lingua per il testo del calendario",
+  "api_docs_year_desc": "Anno di stagione per una gara specifica",
+  "api_docs_round_desc": "Numero del round dall'elenco delle gare; ignorato senza year",
+  "api_docs_tz_desc": "Fuso orario per gli orari del programma (formato IANA)",
+  "api_docs_calendar_display_desc": "Modalità di output per display 1bit, B/W/R, B/W/R/Y o Spectra 6",
+  "api_docs_weather_desc": "Abilita o disabilita l'overlay meteo",
+  "api_docs_weather_type_desc": "Quale variante dei dati meteo renderizzare",
+  "api_docs_countdown_desc": "Conto alla rovescia nel riquadro di stato: hours (giorni e ore, predefinito), days (giorni interi in tz, cambia a mezzanotte locale), auto (giorni interi fino a 48 h prima della partenza, poi giorni e ore) oppure off (data della gara al posto del conto alla rovescia). I valori non validi restituiscono HTTP 422.",
+  "api_docs_weekend_mode_desc": "Modalità weekend: off (predefinita) o auto. Con auto, durante il weekend di gara (da 12 h prima della prima sessione) le sessioni concluse ricevono un segno di spunta, la sessione in corso o la successiva viene evidenziata e il riquadro di stato mostra il conto alla rovescia con il suo nome breve (es. Q: 3 h). Una sessione si considera conclusa dal suo inizio più una stima prudente della durata, perché la fine reale non viene pubblicata. Il piè di pagina mostra i podi di qualifiche e gara di questo weekend appena disponibili (Jolpica, interrogato solo nelle ore successive a quelle sessioni), con la stagione sopra ogni colonna. I valori non validi restituiscono HTTP 422.",
+  "api_docs_weather_weekend_desc": "Weekend: una seconda riga nel riquadro di stato con la previsione per le qualifiche (e la sprint se c’è spazio) e la gara, ad es. Q 19° 60% | G 22° 10%. Una sola richiesta a Open-Meteo copre l’intero weekend, la stessa usata da race_day. Le sessioni oltre i 16 giorni di previsione o senza orario pubblicato vengono omesse; dopo il via si mostra solo il meteo della gara.",
+  "api_docs_temp_unit_desc": "Unità di temperatura: c (predefinita, Celsius) o f (Fahrenheit). Viene convertita durante il disegno dagli stessi dati in cache, senza richieste meteo aggiuntive. I valori non validi restituiscono HTTP 422.",
+  "api_docs_teams_temp_unit_desc": "Unità di temperatura del pannello meteo (extra=weather): c (predefinita) o f. I valori non validi restituiscono HTTP 422.",
+  "api_docs_format_desc": "Formato di uscita: bmp (predefinito, invariato) o png. Il PNG è senza perdita, con esattamente gli stessi indici dei pixel e la stessa palette del pannello (niente dithering né colori aggiunti) ed è da 4 a 27 volte più piccolo, per firmware che decodificano PNG. Il percorso resta .bmp; Content-Type, Content-Length ed ETag descrivono i byte inviati. I valori non validi restituiscono HTTP 422.",
+  "api_docs_rotate_desc": "Rotazione: 0 (predefinita) o 180. 180 capovolge l’immagine senza perdita (sempre 800×480, stessa profondità di colore BMP) per un pannello montato al contrario. 90/270 non sono disponibili perché richiederebbero un layout verticale. I valori non validi restituiscono HTTP 422.",
+  "api_docs_output_sizes": "Dimensioni tipiche del calendario con format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Ogni formato e rotazione ha il proprio ETag.",
+  "api_docs_theme_desc": "Tema: light (predefinito) o dark (sperimentale). Il tema scuro disegna testo e linee bianche su sfondo nero; rosso, giallo e i colori Spectra 6 restano invariati e le bandiere mantengono i loro colori. Le grandi aree nere possono lasciare immagini fantasma su alcuni pannelli e-ink, quindi è consigliato un aggiornamento completo. Generato su richiesta, mai in anticipo. I valori non validi restituiscono HTTP 422.",
+  "api_docs_auto_desc": "Un URL che restituisce direttamente il BMP del calendario o delle squadre (senza reindirizzamento). Per display che possono interrogare un solo indirizzo, come Živýobraz.eu o un semplice firmware ESP32.",
+  "api_docs_auto_mode_desc": "race_week: il calendario da lead_hours prima della prima sessione del prossimo weekend di gara finché non viene scelta la gara successiva (4 h dopo la partenza), altrimenti le squadre, anche durante la pausa invernale e per le gare annullate. daily: calendario nei giorni locali pari e squadre in quelli dispari in tz, con cambio a mezzanotte locale. I valori non validi restituiscono HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Solo race_week: quante ore prima della prima sessione (FP1) compare il calendario. I valori fuori da 0–168 restituiscono HTTP 422.",
+  "api_docs_auto_extra_desc": "Pannello squadre su questo URL; predefinito countdown (giorni alla prossima gara). none mostra solo la griglia.",
+  "api_docs_auto_shared_desc": "Gli stessi valori di /calendar.bmp e /teams.bmp; ogni parametro vale per la propria schermata. year sceglie la stagione delle squadre; il calendario mostra sempre la prossima gara.",
+  "api_docs_auto_headers_note": "X-Active-Screen indica quale schermata è stata restituita (calendar o teams). L’ETag è quello della schermata attiva, quindi 304 arriva solo se il display la mostra già. X-Next-Refresh-Seconds e il max-age di Cache-Control non superano mai il cambio successivo.",
+  "api_docs_calendar_desc": "Genera un calendario F1 come immagine BMP (800×480) per display E-Ink 1bit, 4-bit B/W/R, 4-bit B/W/R/Y e Spectra 6.",
+  "api_docs_eg": "ad es.",
+  "api_docs_dimensions_label": "Dimensioni",
+  "api_docs_color_depth_label": "Profondità colore",
+  "api_docs_races_desc": "Elenco di tutte le gare di una stagione",
+  "api_docs_race_desc": "Informazioni dettagliate sulla gara, incluso il programma",
+  "api_docs_stats_desc": "Statistiche delle richieste nelle ultime 24 ore",
+  "api_docs_health_desc": "Controllo stato del servizio",
+  "api_docs_json_api_desc": "Documentazione API in formato JSON",
+  "api_docs_laskakit_title": "Per LaskaKit / zivyobraz.eu:",
+  "api_docs_laskakit_step1": "In zivyobraz.eu seleziona come sorgente contenuto: URL con immagine",
+  "api_docs_laskakit_step2": "Incolla l'URL",
+  "api_docs_laskakit_step3": "Imposta l'intervallo di aggiornamento su 1-6 ore",
+  "api_docs_close_btn": "Chiudi",
+  "api_docs_loading_text": "Caricamento...",
+  "api_docs_error_text": "Errore",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "Q",
+  "weather_session_race": "G"
 }

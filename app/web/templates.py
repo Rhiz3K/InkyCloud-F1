@@ -2,25 +2,54 @@
 
 from __future__ import annotations
 
-import mimetypes
+import hashlib
+from collections.abc import Iterable
+from pathlib import Path
 from typing import Any
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
-from app.paths import TEMPLATES_DIR
+from app.paths import ASSETS_DIR, TEMPLATES_DIR
 from app.services.i18n import get_translator
 from app.services.legal import CONTENT_POLICY_VERSION
 from app.services.track_catalog import track_ui_options
 from app.version import APP_VERSION
 
-# Register font MIME types (Python's mimetypes doesn't know TTF by default)
-mimetypes.add_type("font/ttf", ".ttf")
-mimetypes.add_type("font/woff", ".woff")
-mimetypes.add_type("font/woff2", ".woff2")
-
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+# Static files that base.html loads with ``?v={{ asset_version }}``.
+VERSIONED_STATIC_ASSETS = (
+    "css/tailwind.min.css",
+    "css/styles.css",
+    "js/common.js",
+    "js/web-vitals.js",
+    "js/perf-metrics.js",
+    "favicon/favicon.ico",
+    "favicon/favicon-96x96.png",
+    "favicon/apple-touch-icon.png",
+    "favicon/site.webmanifest",
+)
+
+
+def static_asset_version(
+    base: str, assets_dir: Path = ASSETS_DIR, names: Iterable[str] = VERSIONED_STATIC_ASSETS
+) -> str:
+    """Return the ``?v=`` token for static assets: ``base`` plus a digest of their contents.
+
+    Production deploys every merge to main without a version bump, and the service worker and
+    browser caches key static files by URL. Without the digest, a returning visitor could load a
+    new page with a stale script (for example a handler allowlist missing a new control).
+    """
+    digest = hashlib.sha256()
+    for name in names:
+        digest.update(name.encode())
+        digest.update((assets_dir / name).read_bytes())
+    return f"{base}-{digest.hexdigest()[:12]}"
+
+
+ASSET_VERSION = static_asset_version(f"{APP_VERSION}-{CONTENT_POLICY_VERSION}")
 
 LANGUAGE_LABELS: dict[str, str] = {
     "cs": "CZ",
@@ -188,7 +217,7 @@ def get_template_context(request: Request, ui_lang: str = "en") -> dict[str, Any
         "nav": nav,
         "site_url": str(config.SITE_URL).rstrip("/"),
         "app_version": APP_VERSION,
-        "asset_version": f"{APP_VERSION}-{CONTENT_POLICY_VERSION}",
+        "asset_version": ASSET_VERSION,
         "format_bytes": format_bytes,
         "calc_percent": calc_percent,
         "lang_url": lambda path: lang_url(path, ui_lang),

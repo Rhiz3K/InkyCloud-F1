@@ -19,7 +19,9 @@ from app.utils.async_tasks import create_supervised_task
 
 logger = logging.getLogger(__name__)
 PERF_STATS_SAMPLE_LIMIT = 10_000
-DATABASE_SCHEMA_VERSION = 6
+DATABASE_SCHEMA_VERSION = 8
+# Open-Meteo free-tier request limits per window; the rolling 31 days covers any month.
+WEATHER_QUOTA_LIMITS = {"minute": 600, "hour": 5000, "day": 10000, "rolling_31_days": 300000}
 
 STATS_CLEANUP_QUERIES = {
     "request_stats": "DELETE FROM request_stats WHERE timestamp < ?",
@@ -262,7 +264,19 @@ class Database:
                         weather_code INTEGER NOT NULL,
                         precipitation_probability INTEGER NOT NULL,
                         cached_at TEXT NOT NULL,
-                        expires_at TEXT NOT NULL
+                        expires_at TEXT NOT NULL,
+                        precipitation_display_override TEXT
+                    );
+
+                    -- Current-weekend podiums (weekend_mode=auto). A NULL podium is the
+                    -- negative cache: checked_at records the last attempt without results.
+                    CREATE TABLE IF NOT EXISTS weekend_results (
+                        season INTEGER NOT NULL,
+                        round INTEGER NOT NULL,
+                        session TEXT NOT NULL,
+                        podium TEXT,
+                        checked_at TEXT NOT NULL,
+                        PRIMARY KEY (season, round, session)
                     );
 
                     -- Create indexes (note: idx_api_calls_race created after migrations)
@@ -345,6 +359,15 @@ class Database:
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_perf_metrics_visit "
             "ON perf_metrics(visit_id, page_path, measurement_version)"
         )
+
+        # Historical race weather shows an amount ("1.6mm") rather than a probability; without
+        # this column a restart reloaded it as "0%".
+        async with conn.execute("PRAGMA table_info(weather_cache)") as cursor:
+            weather_columns = {row[1] for row in await cursor.fetchall()}
+        if weather_columns and "precipitation_display_override" not in weather_columns:
+            await conn.execute(
+                "ALTER TABLE weather_cache ADD COLUMN precipitation_display_override TEXT"
+            )
 
         await private_stats.migrate_track_options(conn)
         await conn.execute("DROP VIEW IF EXISTS api_calls_combined")
@@ -859,7 +882,10 @@ class Database:
                 SELECT display_type, COALESCE(SUM(sample_count), 0) as count
                 FROM api_calls_combined
                 WHERE timestamp > ?
-                    AND endpoint = '/calendar.bmp'
+                    AND (
+                        endpoint = '/calendar.bmp'
+                        OR (endpoint = '/auto.bmp' AND is_auto_selected = 1)
+                    )
                     AND display_type IS NOT NULL
                     AND display_type != ''
                 GROUP BY display_type
@@ -879,7 +905,10 @@ class Database:
                     COALESCE(SUM(sample_count), 0) as count
                 FROM api_calls_combined
                 WHERE timestamp > ?
-                    AND endpoint = '/teams.bmp'
+                    AND (
+                        endpoint = '/teams.bmp'
+                        OR (endpoint = '/auto.bmp' AND COALESCE(is_auto_selected, 0) = 0)
+                    )
                 GROUP BY COALESCE(NULLIF(display_type, ''), '1bit')
                 ORDER BY count DESC
                 """,
@@ -923,7 +952,7 @@ class Database:
                 rows = await cursor.fetchall()
                 hourly_stats = [{"hour": row["hour"], "count": row["count"]} for row in rows]
 
-            # Race breakdown (top 10) - only for /calendar.bmp endpoint
+            # Race breakdown (top 10) - calendar responses, including automatic ones from /auto.bmp
             async with conn.execute(
                 """
                 SELECT
@@ -935,7 +964,10 @@ class Database:
                     COALESCE(SUM(sample_count), 0) as count
                 FROM api_calls_combined
                 WHERE timestamp > ?
-                    AND endpoint = '/calendar.bmp'
+                    AND (
+                        endpoint = '/calendar.bmp'
+                        OR (endpoint = '/auto.bmp' AND is_auto_selected = 1)
+                    )
                     AND race_name IS NOT NULL
                 GROUP BY year, round, race_name
                 ORDER BY count DESC
@@ -1017,7 +1049,7 @@ class Database:
             SELECT lang, tz, COALESCE(SUM(sample_count), 0) as count
             FROM api_calls_combined
             WHERE timestamp > ?
-              AND endpoint = '/calendar.bmp'
+              AND endpoint IN ('/calendar.bmp', '/auto.bmp')
               AND tz IS NOT NULL
               AND tz != ''
               AND tz != ?
@@ -1460,10 +1492,10 @@ class Database:
                     row = await cursor.fetchone()
                 allowed = (
                     row is not None
-                    and row["month_count"] < 300000
-                    and row["day_count"] < 10000
-                    and row["hour_count"] < 5000
-                    and row["minute_count"] < 600
+                    and row["month_count"] < WEATHER_QUOTA_LIMITS["rolling_31_days"]
+                    and row["day_count"] < WEATHER_QUOTA_LIMITS["day"]
+                    and row["hour_count"] < WEATHER_QUOTA_LIMITS["hour"]
+                    and row["minute_count"] < WEATHER_QUOTA_LIMITS["minute"]
                 )
                 if allowed:
                     await conn.execute("INSERT INTO weather_api_requests VALUES (?)", (stamp,))
@@ -1480,6 +1512,8 @@ class Database:
         weather_code: int,
         precipitation_probability: int,
         ttl_minutes: int = 120,
+        *,
+        precipitation_display_override: str | None = None,
     ) -> None:
         """Save weather data to database cache with TTL."""
         await self._init_db_if_needed()
@@ -1491,14 +1525,15 @@ class Database:
                 """
                 INSERT INTO weather_cache
                     (cache_key, temperature_c, weather_code, precipitation_probability,
-                     cached_at, expires_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                     cached_at, expires_at, precipitation_display_override)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(cache_key) DO UPDATE SET
                     temperature_c = excluded.temperature_c,
                     weather_code = excluded.weather_code,
                     precipitation_probability = excluded.precipitation_probability,
                     cached_at = excluded.cached_at,
-                    expires_at = excluded.expires_at
+                    expires_at = excluded.expires_at,
+                    precipitation_display_override = excluded.precipitation_display_override
                 """,
                 (
                     cache_key,
@@ -1507,12 +1542,15 @@ class Database:
                     precipitation_probability,
                     now.isoformat(),
                     expires_at.isoformat(),
+                    precipitation_display_override,
                 ),
             )
             await conn.commit()
 
-    async def get_weather_cache(self, cache_key: str) -> Optional[tuple[float, int, int, str]]:
-        """Get non-expired weather data plus its original cached_at timestamp."""
+    async def get_weather_cache(
+        self, cache_key: str
+    ) -> Optional[tuple[float, int, int, str, str | None]]:
+        """Get non-expired weather data, its original cached_at and any precipitation text."""
         await self._init_db_if_needed()
         now = datetime.now(timezone.utc).isoformat()
 
@@ -1520,7 +1558,8 @@ class Database:
             self._get_connection() as conn,
             conn.execute(
                 """
-            SELECT temperature_c, weather_code, precipitation_probability, cached_at
+            SELECT temperature_c, weather_code, precipitation_probability, cached_at,
+                   precipitation_display_override
             FROM weather_cache
             WHERE cache_key = ? AND expires_at > ?
             """,
@@ -1534,6 +1573,7 @@ class Database:
                     row["weather_code"],
                     row["precipitation_probability"],
                     row["cached_at"],
+                    row["precipitation_display_override"],
                 )
             return None
 
@@ -1549,6 +1589,47 @@ class Database:
             )
             await conn.commit()
             return cursor.rowcount
+
+    # =========================================================================
+    # Weekend results (current-weekend qualifying and race podiums)
+    # =========================================================================
+
+    async def save_weekend_result(
+        self,
+        season: int,
+        round_num: int,
+        session: str,
+        podium: str | None,
+        checked_at: datetime,
+    ) -> None:
+        """Store one session's podium JSON, or a NULL podium as a negative-cache entry.
+
+        A stored podium is final: a later negative entry never replaces it.
+        """
+        await self._init_db_if_needed()
+        async with self._get_connection() as conn:
+            await conn.execute(
+                """
+                INSERT INTO weekend_results (season, round, session, podium, checked_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(season, round, session) DO UPDATE SET
+                    podium = COALESCE(weekend_results.podium, excluded.podium),
+                    checked_at = excluded.checked_at
+                """,
+                (season, round_num, session, podium, checked_at.isoformat()),
+            )
+            await conn.commit()
+
+    async def load_weekend_results(self) -> list[dict]:
+        """Return every stored weekend result row (podium JSON or None, checked_at ISO)."""
+        await self._init_db_if_needed()
+        async with (
+            self._get_connection() as conn,
+            conn.execute(
+                "SELECT season, round, session, podium, checked_at FROM weekend_results"
+            ) as cursor,
+        ):
+            return [dict(row) for row in await cursor.fetchall()]
 
 
 @dataclass(slots=True)

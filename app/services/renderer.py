@@ -29,12 +29,16 @@ class MonoColors:
     PALETTE: ClassVar[list[int]] = [BLACK, WHITE]
 
 
-MONO_THEME = make_monochrome_theme(
-    colors=MonoColors,
-    track_directory=lambda: TRACKS_PROCESSED_DIR,
-    flags_directories=lambda: FLAGS_DIR,
-    images_directory=lambda: IMAGES_DIR,
-    prepare_track_image=prepare_mono_track_image,
+MONO_THEME, MONO_DARK_THEME = (
+    make_monochrome_theme(
+        colors=MonoColors,
+        track_directory=lambda: TRACKS_PROCESSED_DIR,
+        flags_directories=lambda: FLAGS_DIR,
+        images_directory=lambda: IMAGES_DIR,
+        prepare_track_image=prepare_mono_track_image,
+        dark=dark,
+    )
+    for dark in (False, True)
 )
 
 
@@ -42,10 +46,11 @@ class Renderer(RendererBase):
     """Renderer for generating one-bit BMP images."""
 
     THEME = MONO_THEME
+    DARK_THEME = MONO_DARK_THEME
 
     def _new_canvas(self) -> Image.Image:
         """Create a monochrome canvas using configured display dimensions."""
-        return Image.new("1", (self.width, self.height), self.colors.WHITE)
+        return Image.new("1", (self.width, self.height), self.theme.canvas_fill)
 
     def _encode_image(self, image: Image.Image) -> bytes:
         """Encode the monochrome canvas as BMP."""

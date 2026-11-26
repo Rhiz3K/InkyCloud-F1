@@ -2,6 +2,7 @@
 
 import json
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.services.generation_freshness import PREGENERATED_MAX_AGE_SECONDS
@@ -9,12 +10,18 @@ from app.services.legal import CONTENT_POLICY_VERSION
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.utils.atomic_io import atomic_write_bytes
 from app.utils.etag import strong_etag
+from app.utils.race_times import forecast_period, weekend_session_starts
 
 CALENDAR_LAYOUT_VERSION = 3
 
 
 def calendar_identity(
-    race: dict | None, track_options: TrackOptions = DEFAULT_TRACK_OPTIONS
+    race: dict | None,
+    track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
+    *,
+    weather_type: str = "off",
+    now: datetime | None = None,
+    source_period: str = "",
 ) -> str:
     """Identify a race independently of its translated or timezone-converted display."""
     if not race:
@@ -28,7 +35,13 @@ def calendar_identity(
             race.get("date"),
         )
     )
-    return f"calendar:v{CALENDAR_LAYOUT_VERSION}:{key}:{track_options.cache_key}"
+    identity = f"calendar:v{CALENDAR_LAYOUT_VERSION}:{key}:{track_options.cache_key}"
+    if weather_type == "weekend":
+        period = source_period or forecast_period(
+            weekend_session_starts(race)[1], now or datetime.now(UTC)
+        )
+        identity += f":forecast={period}"
+    return identity
 
 
 def metadata_path(path: Path) -> Path:

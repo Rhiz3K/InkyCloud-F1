@@ -112,10 +112,16 @@ Use the Coolify terminal for the same bundled commands as Docker:
 backup info
 backup test
 backup now
+backup list --verify
+ops status
 ```
 
 The automatic schedule runs inside the single application replica. Invalid enabled cron syntax
-fails startup visibly.
+fails startup visibly. `ops status` explains a degraded readiness with stable reason codes; with
+`ADMIN_API_TOKEN` set the same report is available at `GET /api/ops/status` (bearer token, 404
+without a configured token). Restoring (`backup restore <name|latest>`) needs the database
+closed: stop the application, run the command in a one-off container on the same volume, then
+start it again; see [`SELF-HOSTING.md`](./SELF-HOSTING.md#backup-and-restore).
 
 ## Troubleshooting
 

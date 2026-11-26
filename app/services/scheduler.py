@@ -30,6 +30,12 @@ from app.services.scheduler_weather import (
     prefetch_weather as _prefetch_weather,
 )
 from app.services.version_service import refresh_version_info
+from app.services.weekend_results import (
+    load_weekend_results_from_db as _load_weekend_results_from_db,
+)
+from app.services.weekend_results import (
+    refresh_weekend_results as _refresh_weekend_results,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -132,7 +138,13 @@ def _normalize_cron_day_of_week(value: str) -> str:
             values = list(range(7))
         elif base.count("-") == 1:
             start_text, end_text = base.split("-", 1)
-            values = inclusive_range(parse_weekday(start_text), parse_weekday(end_text))
+            start = parse_weekday(start_text)
+            if end_text.strip().lstrip("0") == "7" and start_text.strip().lstrip("0") != "7":
+                # 7 is Sunday at the end of the week: 0-7 means every day and 1-7 Mon..Sun.
+                # Normalising it to 0 first collapsed 0-7 to Sunday only.
+                values = inclusive_range(start, 6) + ([0] if start else [])
+            else:
+                values = inclusive_range(start, parse_weekday(end_text))
         elif "-" not in base:
             start = parse_weekday(base)
             values = inclusive_range(start, 6) if separator else [start]
@@ -187,7 +199,8 @@ def start_scheduler() -> None:
     Initialize and start the background scheduler with all jobs.
 
     Jobs: hourly image gen (:00), API flush (every min), weather (:55 if
-    enabled), historical refresh (daily at 06:10 UTC), backup (if configured),
+    enabled), weekend podiums (:50, network only after qualifying and the race),
+    historical refresh (daily at 06:10 UTC), backup (if configured),
     version refresh (hourly at :05).
     Returns if scheduler disabled or already running.
     """
@@ -228,6 +241,16 @@ def start_scheduler() -> None:
         trigger=CronTrigger(minute=0, timezone=timezone.utc),
         id="hourly_generation",
         name="Hourly image generation from static data",
+        replace_existing=True,
+    )
+
+    # Hourly at :50: this weekend's podiums for weekend_mode=auto. Requests Jolpica only in
+    # the hours after qualifying and the race until a top three is stored (2-6 calls/weekend).
+    scheduler.add_job(
+        _refresh_weekend_results,
+        trigger=CronTrigger(minute=50, timezone=timezone.utc),
+        id="weekend_results_refresh",
+        name="Current weekend podiums from Jolpica (only after qualifying and the race)",
         replace_existing=True,
     )
 
@@ -320,9 +343,20 @@ async def run_initial_generation() -> None:
             logger.warning("Error loading weather from database: %s", e)
 
     try:
+        await _load_weekend_results_from_db()
+    except Exception as e:
+        logger.warning("Error loading weekend results from database: %s", e)
+
+    try:
         await _collect_and_generate()
     except Exception as e:
         logger.error("Error in initial generation: %s", e, exc_info=True)
+
+    if config.SCHEDULER_ENABLED:
+        try:
+            await _refresh_weekend_results()
+        except Exception as e:
+            logger.error("Error in startup weekend results refresh: %s", e, exc_info=True)
 
     if config.SCHEDULER_ENABLED:
         try:

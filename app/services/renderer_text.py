@@ -99,6 +99,26 @@ def clamp_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> st
     return (trimmed + ellipsis) if trimmed else ""
 
 
+def wrap_text(
+    draw: ImageDraw.ImageDraw, text: str, font, max_width: int, max_lines: int
+) -> list[str]:
+    """Break text into at most ``max_lines`` lines at spaces, each fitting ``max_width``.
+
+    A word wider than a line, or text left over after the last line, ends in an ellipsis
+    instead of being cut mid-word without a mark.
+    """
+    lines: list[str] = []
+    words = text.split()
+    while words and len(lines) < max_lines:
+        line = words.pop(0)
+        while words and text_width(draw, f"{line} {words[0]}", font) <= max_width:
+            line = f"{line} {words.pop(0)}"
+        lines.append(line)
+    if words:
+        lines[-1] = f"{lines[-1]} {' '.join(words)}"
+    return [clamp_text(draw, line, font, max_width) for line in lines]
+
+
 def normalize_team_power_unit(constructor: str, power_unit: str | None) -> str:
     """Shorten Red Bull power-unit labels in teams headers."""
     if not power_unit:
@@ -308,7 +328,7 @@ def get_team_key(constructor: str) -> str | None:
         return "red_bull"
     if "haas" in name:
         return "haas"
-    if "sauber" in name or "stake" in name or "kick" in name:
+    if "sauber" in name or "stake" in name or "kick" in name or "alfa romeo" in name:
         return "sauber"
     if "alpine" in name:
         return "alpine"

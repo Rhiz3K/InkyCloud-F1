@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Der Dienst oder eine Wiederherstellung verwendet die Datenbank. Stoppen Sie den Dienst oder warten Sie, bis die Wiederherstellung abgeschlossen ist.",
+  "ops_last_attempt": "Letzter Generierungsversuch",
   "next_race": "Nächstes Rennen",
   "schedule": "Zeitplan",
   "weekend_schedule": "WOCHENENDZEITPLAN",
@@ -12,6 +14,7 @@
   "countdown_hours_one": "Stunde",
   "countdown_hours_few": "Stunden",
   "countdown_hours_many": "Stunden",
+  "countdown_today": "Heute",
   "cancelled": "ABGESAGT",
   "race_ongoing": "LÄUFT",
   "race_completed": "ABGESCHLOSSEN",
@@ -24,6 +27,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "Sprint",
   "session_race": "Rennen",
+  "session_short_fp1": "T1",
+  "session_short_fp2": "T2",
+  "session_short_fp3": "T3",
+  "session_short_sprintqualifying": "SQ",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "Q",
+  "session_live": "LIVE",
   "loading": "Wird geladen...",
   "no_data": "Keine Renndaten verfügbar",
   "new_track": "NEUE STRECKE",
@@ -48,6 +58,7 @@
   "api_docs_race_key_desc": "Rennkennung aus /api/races/{year}; erfordert year",
   "api_docs_selection_note": "Ohne die Kombination aus year und round oder race_key wird das nächste Rennen ausgewählt. Übernehmen Sie round oder race_key aus /api/races/{year}. Ausnahme: race_key ohne year gibt HTTP 400 zurück.",
   "api_docs_etag_note": "BMP-Antworten enthalten ETag. Senden Sie If-None-Match, um bei unverändertem Bild den Status 304 zu erhalten.",
+  "api_docs_refresh_hint_note": "Kalender- und Teams-Antworten (200 und 304) enthalten X-Next-Refresh-Seconds: einen Hinweis, in wie vielen Sekunden sich das Bild voraussichtlich als Nächstes ändert (60 bis 86400, höchstens 3600, solange stündlich aktualisiertes Wetter angezeigt wird). Akkubetriebene Displays können den Wert als Deep-Sleep-Dauer nutzen; da es nur ein Hinweis ist, kann eine Abfrage trotzdem 304 liefern.",
   "api_docs_operational_auth": "Die Lese-APIs für Statistiken erfordern X-Admin-Token oder Authorization: Bearer <token>, wenn ADMIN_API_TOKEN konfiguriert ist. Bei MINIMAL_DATA_MODE=true geben alle Statistik-APIs den Status 410 zurück.",
   "api_docs_history_desc": "Stündlicher Anfrageverlauf; limit: 1–720 (Standard 168).",
   "api_docs_perf_desc": "GET: Leistungsübersichten; hours: 1–720 (Standard 24). POST: numerische Web Vitals; Besucher- und Gerätemetadaten werden ignoriert.",
@@ -190,7 +201,81 @@
     "weatherLabel": "Wetter",
     "weatherCurrentLabel": "Aktuell",
     "weatherRaceDayLabel": "Am Renntag",
+    "weatherWeekendLabel": "Wochenende",
     "weatherTooltipText": "Aktiviert sich 14 Tage vor dem Rennen",
+    "countdown": {
+      "label": "Countdown",
+      "options": {
+        "hours": "Tage + Stunden",
+        "days": "Nur Tage",
+        "auto": "Auto (akkuschonend)",
+        "off": "Aus (Renndatum)"
+      },
+      "hints": {
+        "hours": "Tage und Stunden; das Bild ändert sich stündlich.",
+        "days": "Ganze Tage; das Bild ändert sich einmal täglich um lokale Mitternacht.",
+        "auto": "Ganze Tage bis 48 h vor dem Start, danach Tage und Stunden.",
+        "off": "Renndatum statt Countdown; ändert sich nur mit dem Rennstatus."
+      },
+      "batteryNote": "Das Wetter wird stündlich aktualisiert. Für die längste Akkulaufzeit das Wetter ausschalten. Der Header X-Next-Refresh-Seconds sagt dem Display, wie lange es schlafen kann."
+    },
+    "weekendMode": {
+      "label": "Rennwochenende",
+      "options": {
+        "off": "Aus",
+        "auto": "Wochenende verfolgen"
+      },
+      "hints": {
+        "off": "Die ganze Woche derselbe Kalender.",
+        "auto": "Während des Rennwochenendes: beendete Sessions abgehakt, die nächste markiert mit Countdown, und die Qualifying- und Rennpodien dieses Wochenendes, sobald verfügbar."
+      }
+    },
+    "autoScreen": {
+      "label": "Eine URL für beide Bildschirme",
+      "options": {
+        "off": "Aus (nur dieser Bildschirm)",
+        "race_week": "Rennwoche: Kalender, sonst Teams",
+        "daily": "Täglich: jeden Tag wechseln"
+      },
+      "hints": {
+        "off": "Die URL zeigt immer diesen Bildschirm.",
+        "race_week": "/auto.bmp zeigt den Kalender ab 48 h vor FP1 bis zum Rennende, sonst Teams mit Countdown. Ideal für Živýobraz.eu mit einer URL pro Display.",
+        "race_week_teams": "/auto.bmp zeigt den Kalender ab 48 h vor FP1 bis zum Rennende, sonst Teams mit dem auf dieser Seite gewählten Panel. Ideal für Živýobraz.eu mit einer URL pro Display.",
+        "daily": "/auto.bmp wechselt jeden Tag um lokale Mitternacht zwischen Kalender und Teams."
+      }
+    },
+    "theme": {
+      "label": "Design",
+      "options": {
+        "light": "Hell (Standard)",
+        "dark": "Dunkel (experimentell)"
+      },
+      "hints": {
+        "light": "Schwarzer Text auf weißem Hintergrund.",
+        "dark": "Weißer Text auf Schwarz, rote und gelbe Akzente bleiben. Experimentell: Große schwarze Flächen können auf manchen Panels Geisterbilder hinterlassen; vollständigen Refresh verwenden."
+      }
+    },
+    "output": {
+      "label": "Bildausgabe",
+      "formatLabel": "Format",
+      "formatOptions": {
+        "bmp": "BMP (Standard)",
+        "png": "PNG (kleiner)"
+      },
+      "formatHints": {
+        "bmp": "Unkomprimiertes BMP, das jede E-Ink-Firmware liest.",
+        "png": "Gleiche Pixel und Farben, 4–27× kleinerer Download. Nur für Firmware, die PNG dekodieren kann."
+      },
+      "rotateLabel": "Drehung",
+      "rotateOptions": {
+        "0": "0° (Standard)",
+        "180": "180° (auf dem Kopf)"
+      },
+      "rotateHints": {
+        "0": "Wie in der Vorschau.",
+        "180": "Für ein Gehäuse mit dem Anschluss auf der anderen Seite. Die Vorschau bleibt aufrecht."
+      }
+    },
     "displayLabel": "Display",
     "imageCreditsNote": "Bildnachweise und Lizenzen:",
     "teamsExtra": {
@@ -232,7 +317,11 @@
     "epaperStep1BeforeLink": "In ",
     "epaperStep1BetweenLinkAndUrl": " ",
     "epaperStep1AfterUrl": " als Inhaltsquelle auswählen",
-    "epaperStep2Text": "Die obige URL in das Bild-URL-Feld einfügen"
+    "epaperStep2Text": "Die obige URL in das Bild-URL-Feld einfügen",
+    "tempUnit": {
+      "label": "Temperatur",
+      "hint": "Fahrenheit wird beim Zeichnen umgerechnet; Wetterdaten und Anfragen bleiben gleich."
+    }
   },
   "unofficial_notice": "Unabhängiges Fanprojekt. Keine Verbindung zur Formula One Gruppe, FIA, Teams oder Fahrern; keine Billigung oder Förderung durch diese.",
   "stats_disabled": "Nutzungsstatistiken sind deaktiviert. Im datensparsamen Modus werden sie nicht erhoben.",
@@ -380,5 +469,49 @@
   "teams_extra_done": "absolviert",
   "teams_extra_upcoming": "Kommende Rennen",
   "teams_extra_today": "heute",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Datensparsamer Modus",
+  "api_docs_open_json": "JSON öffnen",
+  "api_docs_teams_tz_desc": "Optionale IANA-Zeitzone für Panels mit Uhrzeit oder Datum: countdown, flags, track, weather. Standard ist die DEFAULT_TIMEZONE des Servers; bei none oder nicht verfügbaren Panels wird sie ignoriert. Ungültige Werte liefern HTTP 400. Auch von /preview/configure/teams.png unterstützt.",
+  "api_docs_lang_desc": "Sprachcode für den Kalendertext",
+  "api_docs_year_desc": "Saisonjahr für ein bestimmtes Rennen",
+  "api_docs_round_desc": "Rundennummer aus der Saison-Rennliste; ohne year ignoriert",
+  "api_docs_tz_desc": "Zeitzone für Zeitangaben im Zeitplan (IANA-Format)",
+  "api_docs_calendar_display_desc": "Ausgabemodus für 1bit-, B/W/R-, B/W/R/Y- oder Spectra-6-Displays",
+  "api_docs_weather_desc": "Wetter-Overlay aktivieren oder deaktivieren",
+  "api_docs_weather_type_desc": "Welche Wetterdatenvariante gerendert werden soll",
+  "api_docs_countdown_desc": "Countdown im Statusfeld: hours (Tage und Stunden, Standard), days (ganze Tage in tz, wechselt um lokale Mitternacht), auto (ganze Tage bis 48 h vor dem Start, danach Tage und Stunden) oder off (Renndatum statt Countdown). Ungültige Werte liefern HTTP 422.",
+  "api_docs_weekend_mode_desc": "Wochenendmodus: off (Standard) oder auto. Mit auto werden während des Rennwochenendes (ab 12 h vor der ersten Session) beendete Sessions abgehakt, die laufende oder nächste Session markiert und das Statusfeld zählt mit ihrem Kurznamen auf sie herunter (z. B. Q: 3 Std). Eine Session gilt ab ihrem Start plus einer vorsichtigen Dauerschätzung als beendet, weil das tatsächliche Ende nicht veröffentlicht wird. Die Fußzeile zeigt die Qualifying- und Rennpodien dieses Wochenendes, sobald verfügbar (Jolpica, nur in den Stunden nach diesen Sessions abgefragt), mit der Saison über jeder Spalte. Ungültige Werte liefern HTTP 422.",
+  "api_docs_weather_weekend_desc": "Weekend: eine zweite Zeile im Statusfeld mit der Vorhersage für das Qualifying (und den Sprint, wenn er passt) und das Rennen, z. B. Q 19° 60% | R 22° 10%. Eine einzige Open-Meteo-Anfrage deckt das ganze Wochenende ab, dieselbe wie bei race_day. Sessions jenseits der 16-Tage-Vorhersage oder ohne veröffentlichte Zeit werden weggelassen; nach dem Rennstart wird nur das Rennwetter gezeigt.",
+  "api_docs_temp_unit_desc": "Temperatureinheit: c (Standard, Celsius) oder f (Fahrenheit). Wird beim Zeichnen aus denselben zwischengespeicherten Daten umgerechnet und kostet keine zusätzlichen Wetteranfragen. Ungültige Werte liefern HTTP 422.",
+  "api_docs_teams_temp_unit_desc": "Temperatureinheit des Wetterpanels (extra=weather): c (Standard) oder f. Ungültige Werte liefern HTTP 422.",
+  "api_docs_format_desc": "Ausgabeformat: bmp (Standard, unverändert) oder png. PNG ist verlustfrei mit exakt denselben Pixelindizes und derselben Panelpalette (kein Dithering, keine zusätzlichen Farben) und 4–27× kleiner, für Firmware, die PNG dekodieren kann. Der Pfad bleibt .bmp; Content-Type, Content-Length und ETag beschreiben die gesendeten Bytes. Ungültige Werte liefern HTTP 422.",
+  "api_docs_rotate_desc": "Drehung: 0 (Standard) oder 180. 180 stellt das Bild verlustfrei auf den Kopf (weiterhin 800×480, gleiche BMP-Farbtiefe) für ein umgekehrt montiertes Panel. 90/270 werden nicht angeboten, da sie ein Hochformat-Layout bräuchten. Ungültige Werte liefern HTTP 422.",
+  "api_docs_output_sizes": "Typische Kalendergrößen mit format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Jedes Format und jede Drehung hat ein eigenes ETag.",
+  "api_docs_theme_desc": "Design: light (Standard) oder dark (experimentell). Dark zeichnet weißen Text und weiße Linien auf schwarzem Hintergrund; Rot, Gelb und die Spectra-6-Farben bleiben erhalten, Flaggen behalten ihre Farben. Große schwarze Flächen können auf manchen E-Ink-Panels Geisterbilder hinterlassen, daher ist ein vollständiger Refresh empfehlenswert. Wird bei Bedarf gerendert, nie vorab erzeugt. Ungültige Werte liefern HTTP 422.",
+  "api_docs_auto_desc": "Eine URL, die das Kalender- oder Teams-BMP direkt liefert (ohne Weiterleitung). Für Displays, die nur eine Adresse abrufen können, etwa Živýobraz.eu oder einfache ESP32-Firmware.",
+  "api_docs_auto_mode_desc": "race_week: Kalender ab lead_hours vor der ersten Session des nächsten Rennwochenendes, bis das nächste Rennen gewählt wird (4 h nach dem Start), sonst Teams, auch in der Winterpause und bei abgesagten Rennen. daily: Kalender an geraden, Teams an ungeraden lokalen Tagen in tz, Wechsel um lokale Mitternacht. Ungültige Werte liefern HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Nur race_week: wie viele Stunden vor der ersten Session (FP1) der Kalender erscheint. Werte außerhalb von 0–168 liefern HTTP 422.",
+  "api_docs_auto_extra_desc": "Teams-Panel auf dieser URL; Standard ist countdown (Tage bis zum nächsten Rennen). none zeigt nur das Raster.",
+  "api_docs_auto_shared_desc": "Dieselben Werte wie bei /calendar.bmp und /teams.bmp; jeder Parameter gilt für seinen Bildschirm. year wählt die Teams-Saison; der Kalender zeigt immer das nächste Rennen.",
+  "api_docs_auto_headers_note": "X-Active-Screen gibt an, welcher Bildschirm geliefert wurde (calendar oder teams). Das ETag gehört zum aktiven Bildschirm, daher kommt 304 nur, solange das Display ihn bereits zeigt. X-Next-Refresh-Seconds und max-age in Cache-Control reichen nie über den nächsten Wechsel hinaus.",
+  "api_docs_calendar_desc": "Erzeugt einen F1-Kalender als BMP-Bild (800×480) für 1bit-, 4-Bit-B/W/R-, 4-Bit-B/W/R/Y- und Spectra-6-E-Ink-Displays.",
+  "api_docs_eg": "z. B.",
+  "api_docs_dimensions_label": "Abmessungen",
+  "api_docs_color_depth_label": "Farbtiefe",
+  "api_docs_races_desc": "Liste aller Rennen einer Saison",
+  "api_docs_race_desc": "Detaillierte Renninformationen inklusive Zeitplan",
+  "api_docs_stats_desc": "Anfragestatistiken der letzten 24 Stunden",
+  "api_docs_health_desc": "Service-Statusprüfung",
+  "api_docs_json_api_desc": "API-Dokumentation im JSON-Format",
+  "api_docs_laskakit_title": "Für LaskaKit / zivyobraz.eu:",
+  "api_docs_laskakit_step1": "In zivyobraz.eu als Inhaltsquelle auswählen: URL mit Bild",
+  "api_docs_laskakit_step2": "URL einfügen",
+  "api_docs_laskakit_step3": "Aktualisierungsintervall auf 1-6 Stunden setzen",
+  "api_docs_close_btn": "Schließen",
+  "api_docs_loading_text": "Wird geladen...",
+  "api_docs_error_text": "Fehler",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "Q",
+  "weather_session_race": "R"
 }

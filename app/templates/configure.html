@@ -320,7 +320,7 @@ block content %}
               type="text"
               id="apiUrl"
               readonly
-              class="flex-1 px-3 py-2 text-xs font-mono bg-white border-2 border-black focus:outline-none selection:bg-racing-red selection:text-white"
+              class="flex-1 px-3 py-2 text-xs font-mono bg-white border-2 border-black focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red selection:bg-racing-red selection:text-white"
             />
             <button
               data-on-click="copyUrl"
@@ -365,6 +365,79 @@ block content %}
             </svg>
             <span id="refreshBtnText">Refresh</span>
           </button>
+        </div>
+        {% set auto_ui = t.configure.autoScreen %}
+        <div class="w-full max-w-[800px] mt-3 p-3 bg-white border-2 border-black shadow-neo-sm" id="autoScreenContainer">
+          <label class="text-xs font-bold uppercase mb-1.5 block" id="autoScreenLabel" for="autoScreenSelect">{{ auto_ui.label }}</label>
+          <div class="relative">
+            <select
+              id="autoScreenSelect"
+              data-on-change="selectAutoScreen"
+              class="auto-screen-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red"
+            >
+              {% for opt in ["off", "race_week", "daily"] %}
+              {# The teams page keeps its chosen panel on /auto.bmp; the calendar page gets the countdown. #}
+              {% set hint_key = "race_week_teams" if screen_type == "teams" and opt == "race_week" else opt %}
+              <option value="{{ opt }}" data-hint="{{ auto_ui.hints[hint_key] }}">{{ auto_ui.options[opt] }}</option>
+              {% endfor %}
+            </select>
+            <svg class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="square" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+          <p class="auto-screen-hint mt-1 text-xs text-gray-600" aria-live="polite">{{ auto_ui.hints.off }}</p>
+        </div>
+        {# theme=dark changes the preview and the copied URL; light is the default (never in URLs). #}
+        {% set theme_ui = t.configure.theme %}
+        <div class="w-full max-w-[800px] mt-3 p-3 bg-white border-2 border-black shadow-neo-sm" id="themeContainer">
+          <label class="text-xs font-bold uppercase mb-1.5 block" id="themeLabel" for="themeSelect">{{ theme_ui.label }}</label>
+          <div class="relative">
+            <select
+              id="themeSelect"
+              data-on-change="selectTheme"
+              class="theme-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red"
+            >
+              {% for opt in ["light", "dark"] %}
+              <option value="{{ opt }}" data-hint="{{ theme_ui.hints[opt] }}">{{ theme_ui.options[opt] }}</option>
+              {% endfor %}
+            </select>
+            <svg class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="square" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+          <p class="theme-hint mt-1 text-xs text-gray-600" aria-live="polite">{{ theme_ui.hints.light }}</p>
+        </div>
+        {# Output format and rotation change only the copied URL; the preview stays upright. #}
+        {% set output_ui = t.configure.output %}
+        <div class="w-full max-w-[800px] mt-3 p-3 bg-white border-2 border-black shadow-neo-sm" id="outputContainer">
+          <div class="text-xs font-bold uppercase mb-1.5" id="outputLabel">{{ output_ui.label }}</div>
+          <div class="flex flex-col md:flex-row gap-3">
+            {% for field, label, choices in [
+              ("format", output_ui.formatLabel, ["bmp", "png"]),
+              ("rotate", output_ui.rotateLabel, ["0", "180"])
+            ] %}
+            {% set options = output_ui.formatOptions if field == "format" else output_ui.rotateOptions %}
+            {% set hints = output_ui.formatHints if field == "format" else output_ui.rotateHints %}
+            <div class="flex-1">
+              <label class="text-[10px] font-bold uppercase mb-1 block" for="output-{{ field }}-select">{{ label }}</label>
+              <div class="relative">
+                <select
+                  id="output-{{ field }}-select"
+                  data-on-change="selectOutputOption" data-args='["{{ field }}"]'
+                  class="output-{{ field }}-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red"
+                >
+                  {% for opt in choices %}
+                  <option value="{{ opt }}" data-hint="{{ hints[opt] }}">{{ options[opt] }}</option>
+                  {% endfor %}
+                </select>
+                <svg class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="square" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+              <p class="output-{{ field }}-hint mt-1 text-xs text-gray-600" aria-live="polite">{{ hints[choices[0]] }}</p>
+            </div>
+            {% endfor %}
+          </div>
         </div>
         <p class="w-full max-w-[800px] mt-2 text-xs text-gray-600">
           {{ t.configure.imageCreditsNote }}
@@ -500,6 +573,22 @@ block content %}
   let leaderData = {};
   const TEAMS_EXTRA_OPTIONS = ["none", "countdown", "flags", "track", "weather"];
   let currentTeamsExtra = "none";
+  const COUNTDOWN_OPTIONS = ["hours", "days", "auto", "off"];
+  let currentCountdown = "hours";
+  const WEEKEND_MODE_OPTIONS = ["off", "auto"];
+  let currentWeekendMode = "off";
+  const AUTO_SCREEN_OPTIONS = ["off", "race_week", "daily"];
+  let currentAutoScreen = "off";
+  const TEMP_UNIT_OPTIONS = ["c", "f"];
+  let currentTempUnit = "c";
+  // app/utils/refresh_hint.py WEEKEND_FORECAST_LEAD_DAYS: qualifying/sprint days before the race.
+  const WEEKEND_FORECAST_LEAD_DAYS = 2;
+  // Screen theme: "light" is the default and never appears in URLs.
+  const THEME_OPTIONS = ["light", "dark"];
+  let currentTheme = "light";
+  // Output encoding and rotation: the first value of each list is the default, never in URLs.
+  const OUTPUT_OPTIONS = { format: ["bmp", "png"], rotate: ["0", "180"] };
+  const currentOutput = { format: "bmp", rotate: "0" };
 
   function initScreenTypeVisibility() {
     const isCalendar = currentScreenType === "calendar";
@@ -816,6 +905,17 @@ block content %}
     );
     if (weatherRaceDayBtnMobile)
       weatherRaceDayBtnMobile.textContent = t.weatherRaceDayLabel;
+    for (const id of ["weatherWeekendText", "weatherWeekendBtnMobile"]) {
+      const el = document.getElementById(id);
+      if (el && t.weatherWeekendLabel) el.textContent = t.weatherWeekendLabel;
+    }
+    if (t.tempUnit) {
+      document.querySelectorAll(".temp-unit-container").forEach((el) => {
+        el.title = t.tempUnit.hint;
+        const label = el.querySelector("span");
+        if (label) label.textContent = t.tempUnit.label;
+      });
+    }
     const weatherHoverTooltip = document.getElementById("weatherHoverTooltip");
     if (weatherHoverTooltip) weatherHoverTooltip.textContent = t.weatherTooltipText;
     const displayLabel = document.getElementById("displayLabel");
@@ -1003,12 +1103,16 @@ block content %}
       }
       if (!showWeather) {
         params.push(`weather=false`);
-      } else if (weatherType === "current") {
-        params.push(`weather_type=current`);
+      } else if (weatherType === "current" || weatherType === "weekend") {
+        params.push(`weather_type=${weatherType}`);
       }
       if (currentDisplayType !== "1bit") {
         params.push(`display=${currentDisplayType}`);
       }
+      if (currentCountdown !== "hours") params.push(`countdown=${currentCountdown}`);
+      if (currentWeekendMode !== "off") params.push(`weekend_mode=${currentWeekendMode}`);
+      if (showWeather && currentTempUnit !== "c") params.push(`temp_unit=${currentTempUnit}`);
+      if (currentTheme !== "light") params.push(`theme=${currentTheme}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else {
@@ -1022,9 +1126,147 @@ block content %}
       if (currentTeamsExtra !== "none") params.push(`extra=${currentTeamsExtra}`);
       const teamsTz = getTeamsTz();
       if (teamsTz) params.push(`tz=${encodeURIComponent(teamsTz)}`);
+      if (currentTeamsExtra === "weather" && currentTempUnit !== "c") {
+        params.push(`temp_unit=${currentTempUnit}`);
+      }
+      if (currentTheme !== "light") params.push(`theme=${currentTheme}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     }
+  }
+
+  /**
+   * URL shown for copying: the screen URL, or the same parameters on /auto.bmp when
+   * "one URL for both screens" is chosen. The preview always shows the configured screen.
+   */
+  function getCopyUrl() {
+    const screenUrl = getApiUrl();
+    const output = getOutputParams();
+    if (!AUTO_SCREEN_OPTIONS.includes(currentAutoScreen) || currentAutoScreen === "off") {
+      if (output.length === 0) return screenUrl;
+      const outputQuery = output.map(([name, value]) => `${name}=${value}`).join("&");
+      return `${screenUrl}${screenUrl.includes("?") ? "&" : "?"}${outputQuery}`;
+    }
+    const parsed = new URL(screenUrl);
+    const params = parsed.searchParams;
+    // The calendar on /auto.bmp always shows the next race weekend.
+    if (currentScreenType === "calendar") {
+      params.delete("year");
+      params.delete("race_key");
+    } else if (!params.has("extra")) {
+      // /auto.bmp defaults to the countdown panel; keep the chosen "none" panel.
+      params.set("extra", "none");
+    }
+    // The daily switch, the race-week window and the calendar screen all use tz, even when the
+    // teams panel does not, so the auto URL always keeps the selected timezone.
+    const tz = document.getElementById("tz")?.value;
+    if (tz && !params.has("tz")) params.set("tz", tz);
+    if (currentAutoScreen === "daily") params.set("mode", "daily");
+    for (const [name, value] of output) params.set(name, value);
+    const query = params.toString();
+    return `${parsed.origin}/auto.bmp${query ? `?${query}` : ""}`;
+  }
+
+  /**
+   * Non-default output parameters (format=png, rotate=180) for the copied URL. The preview
+   * never carries them, so it always shows the screen upright.
+   */
+  function getOutputParams() {
+    return Object.entries(OUTPUT_OPTIONS)
+      .filter(([name, choices]) => choices.includes(currentOutput[name]) && currentOutput[name] !== choices[0])
+      .map(([name]) => [name, currentOutput[name]]);
+  }
+
+  /**
+   * Sets the output format or rotation, syncing its select, its hint, the page URL (the
+   * default is left out) and the copied URL. The preview is not reloaded.
+   */
+  function setOutputOption(name, value, refresh = true) {
+    const choices = OUTPUT_OPTIONS[name];
+    if (!choices) return;
+    if (!choices.includes(value)) value = choices[0];
+    currentOutput[name] = value;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (value === choices[0]) url.searchParams.delete(name);
+      else url.searchParams.set(name, value);
+      window.history.replaceState(null, "", url);
+    }
+    let hint = "";
+    document.querySelectorAll(`.output-${name}-select`).forEach((select) => {
+      select.value = value;
+      const option = select.options[select.selectedIndex];
+      if (option) hint = option.dataset.hint || "";
+    });
+    document.querySelectorAll(`.output-${name}-hint`).forEach((el) => {
+      el.textContent = hint;
+    });
+    if (refresh) updateUrlDisplay();
+  }
+
+  /** Change handler of the format and rotation selects (data-args names the option). */
+  function selectOutputOption(name) {
+    setOutputOption(name, this.value);
+  }
+
+  /**
+   * Sets the auto-switch mode, syncing the select, its hint and the page URL
+   * (the default "off" is left out of page URLs).
+   */
+  function setAutoScreen(mode, refresh = true) {
+    if (!AUTO_SCREEN_OPTIONS.includes(mode)) mode = "off";
+    currentAutoScreen = mode;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (mode === "off") url.searchParams.delete("auto");
+      else url.searchParams.set("auto", mode);
+      window.history.replaceState(null, "", url);
+    }
+    let hint = "";
+    document.querySelectorAll(".auto-screen-select").forEach((select) => {
+      select.value = mode;
+      const option = select.options[select.selectedIndex];
+      if (option) hint = option.dataset.hint || "";
+    });
+    document.querySelectorAll(".auto-screen-hint").forEach((el) => {
+      el.textContent = hint;
+    });
+    if (refresh) updateUrlDisplay();
+  }
+
+  /** Change handler for the auto-switch select; `this` is the select (dispatchDeclaredHandler). */
+  function selectAutoScreen() {
+    setAutoScreen(this.value);
+  }
+
+  /**
+   * Sets the screen theme, syncing the select, its hint (dark warns about ghosting) and the
+   * page URL (the default "light" is left out), then reloads the preview.
+   */
+  function setTheme(theme, refresh = true) {
+    if (!THEME_OPTIONS.includes(theme)) theme = "light";
+    currentTheme = theme;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (theme === "light") url.searchParams.delete("theme");
+      else url.searchParams.set("theme", theme);
+      window.history.replaceState(null, "", url);
+    }
+    let hint = "";
+    document.querySelectorAll(".theme-select").forEach((select) => {
+      select.value = theme;
+      const option = select.options[select.selectedIndex];
+      if (option) hint = option.dataset.hint || "";
+    });
+    document.querySelectorAll(".theme-hint").forEach((el) => {
+      el.textContent = hint;
+    });
+    if (refresh) updatePreview();
+  }
+
+  /** Change handler for the theme select; `this` is the select (dispatchDeclaredHandler). */
+  function selectTheme() {
+    setTheme(this.value);
   }
 
   /** Teams extra panels that print a time or date and therefore honour `tz`. */
@@ -1079,6 +1321,20 @@ block content %}
     let extra = query.get("extra");
     if (extra === "timeline" || extra === "combo") extra = "countdown";
     if (TEAMS_EXTRA_OPTIONS.includes(extra)) currentTeamsExtra = extra;
+    const countdown = query.get("countdown");
+    if (COUNTDOWN_OPTIONS.includes(countdown)) currentCountdown = countdown;
+    const weekendMode = query.get("weekend_mode");
+    if (WEEKEND_MODE_OPTIONS.includes(weekendMode)) currentWeekendMode = weekendMode;
+    const autoScreen = query.get("auto");
+    if (AUTO_SCREEN_OPTIONS.includes(autoScreen)) currentAutoScreen = autoScreen;
+    const theme = query.get("theme");
+    if (THEME_OPTIONS.includes(theme)) currentTheme = theme;
+    const tempUnit = query.get("temp_unit");
+    currentTempUnit = TEMP_UNIT_OPTIONS.includes(tempUnit) ? tempUnit : suggestedTempUnit();
+    for (const [name, choices] of Object.entries(OUTPUT_OPTIONS)) {
+      const requested = query.get(name);
+      if (choices.includes(requested)) currentOutput[name] = requested;
+    }
     for (const field of ["style", "source", "accent"]) {
       const control = document.getElementById(`track-${field}`);
       if (!control) continue;
@@ -1113,7 +1369,9 @@ block content %}
     if (canUsePrerenderedPreview() && currentScreenType === "calendar") {
       // Use pre-rendered PNG with weather_type and display parameters
       const weatherType = document.querySelector('input[name="weatherType"]:checked')?.value || "race_day";
-      const weatherParam = weatherType === "race_day" ? "race" : weatherType === "current" ? "current" : "off";
+      const weatherParam = weatherType === "race_day"
+        ? "race"
+        : ["current", "weekend"].includes(weatherType) ? weatherType : "off";
       
       // Check if weather is enabled
       const weatherToggle = document.getElementById("weatherToggle");
@@ -1126,6 +1384,10 @@ block content %}
       if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
       params.push(`weather_type=${finalWeather}`);
       if (currentDisplayType !== "1bit") params.push(`display=${currentDisplayType}`);
+      if (currentCountdown !== "hours") params.push(`countdown=${currentCountdown}`);
+      if (currentWeekendMode !== "off") params.push(`weekend_mode=${currentWeekendMode}`);
+      if (finalWeather !== "off" && currentTempUnit !== "c") params.push(`temp_unit=${currentTempUnit}`);
+      if (currentTheme !== "light") params.push(`theme=${currentTheme}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else if (canUsePrerenderedPreview() && currentScreenType === "teams") {
@@ -1136,6 +1398,10 @@ block content %}
       if (currentTeamsExtra !== "none") params.push(`extra=${currentTeamsExtra}`);
       const teamsTz = getTeamsTz();
       if (teamsTz) params.push(`tz=${encodeURIComponent(teamsTz)}`);
+      if (currentTeamsExtra === "weather" && currentTempUnit !== "c") {
+        params.push(`temp_unit=${currentTempUnit}`);
+      }
+      if (currentTheme !== "light") params.push(`theme=${currentTheme}`);
       if (params.length > 0) url += `?${params.join("&")}`;
       return url;
     }
@@ -1288,7 +1554,7 @@ block content %}
   }
 
   function updateUrlDisplay() {
-    document.getElementById("apiUrl").value = getApiUrl();
+    document.getElementById("apiUrl").value = getCopyUrl();
   }
 
   function updatePreview() {
@@ -1406,8 +1672,9 @@ block content %}
   let browserTz = "";
 
   // Popular timezones grouped by UTC offset (most common cities)
+  // Group offsets are standard-time hints only; rendered labels use each zone's current
+  // offset (getUtcOffsetNum), so DST zones such as Auckland (+13 in summer) show correctly.
   const popularTz = [
-    { offset: -12, zones: ["Pacific/Auckland"] },
     { offset: -11, zones: ["Pacific/Pago_Pago"] },
     { offset: -10, zones: ["Pacific/Honolulu"] },
     { offset: -9, zones: ["America/Anchorage"] },
@@ -1495,7 +1762,7 @@ block content %}
   function createTzOption(tz, className, html, onSelect) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `tz-item w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black ${className}`;
+    button.className = `tz-item w-full text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black ${className}`;
     button.dataset.tz = tz;
     button.tabIndex = -1;
     button.setAttribute("aria-pressed", String(tz === selectedTz));
@@ -1507,9 +1774,22 @@ block content %}
   /** Makes the selected entry (or the first one) the timezone list's only Tab stop. */
   function setTzListTabStop(container) {
     const items = Array.from(container.querySelectorAll(".tz-item"));
-    const tabStop = items.find((item) => item.dataset.tz === selectedTz) || items[0];
+    const selected = items.find((item) => item.dataset.tz === selectedTz);
+    const tabStop = selected || items[0];
     if (tabStop) tabStop.tabIndex = 0;
+    if (selected) revealTzItem(container, selected);
     return tabStop || null;
+  }
+
+  /** Scroll the list (not the page) so the selected zone is visible after re-rendering. */
+  function revealTzItem(container, item) {
+    const visible = container.clientHeight;
+    if (!visible || container.scrollHeight <= visible) return;
+    const top =
+      item.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    if (top < 0 || top + item.offsetHeight > visible) {
+      container.scrollTop += top - (visible - item.offsetHeight) / 2;
+    }
   }
 
   /** Arrow/Home/End keyboard navigation between timezone entries (WAI-ARIA toolbar pattern). */
@@ -1599,7 +1879,7 @@ block content %}
 
     // Group timezones by region
     const regions = {};
-    popularTz.forEach(({ offset, zones }) => {
+    popularTz.forEach(({ zones }) => {
       zones.forEach((tz) => {
         if (!allTimezones.includes(tz)) return;
         const region = tz.split("/")[0].toUpperCase();
@@ -1641,9 +1921,10 @@ block content %}
         }
 
         if (!regions[region]) regions[region] = [];
-        regions[region].push({ tz, offset });
+        regions[region].push({ tz, offset: getUtcOffsetNum(tz) });
       });
     });
+    Object.values(regions).forEach((list) => list.sort((a, b) => a.offset - b.offset));
 
     // Sort regions and render
     Object.keys(regions)
@@ -1728,15 +2009,16 @@ block content %}
 
     // Group timezones by region
     const regions = {};
-    popularTz.forEach(({ offset, zones }) => {
+    popularTz.forEach(({ zones }) => {
       zones.forEach((tz) => {
         if (!allTimezones.includes(tz)) return;
         if (tz === browserTz) return;
         const region = tz.split("/")[0];
         if (!regions[region]) regions[region] = [];
-        regions[region].push({ tz, offset });
+        regions[region].push({ tz, offset: getUtcOffsetNum(tz) });
       });
     });
+    Object.values(regions).forEach((list) => list.sort((a, b) => a.offset - b.offset));
 
     // Create optgroups
     Object.keys(regions)
@@ -1801,26 +2083,40 @@ block content %}
     return upcomingRace?.date || null;
   }
 
-  function isRaceDayWeatherAvailable() {
+  /** Whole days until the next race date (rounded up), or null when it is unknown. */
+  function daysUntilNextRace() {
     if (!nextRaceDate) {
-      return false;
+      return null;
     }
-
-    const now = new Date();
     const raceDate = new Date(nextRaceDate);
-    const daysUntilRace = Math.ceil((raceDate - now) / (1000 * 60 * 60 * 24));
-    return daysUntilRace <= 14;
+    return Math.ceil((raceDate - new Date()) / (1000 * 60 * 60 * 24));
+  }
+
+  function isRaceDayWeatherAvailable() {
+    const days = daysUntilNextRace();
+    return days !== null && days <= 14;
+  }
+
+  /**
+   * The weekend forecast also covers qualifying and the sprint up to
+   * WEEKEND_FORECAST_LEAD_DAYS before the race day, so it is available that much earlier.
+   */
+  function isWeekendWeatherAvailable() {
+    const days = daysUntilNextRace();
+    return days !== null && days - WEEKEND_FORECAST_LEAD_DAYS <= 14;
   }
 
   function setWeatherType(type) {
-    const raceDayBtn = document.getElementById("weatherRaceDayBtn");
-    const raceDayBtnMobile = document.getElementById("weatherRaceDayBtnMobile");
-    const raceDayUnavailable =
-      type === "race_day" &&
-      (isWeatherTooltipDisabledState(raceDayBtn) ||
-        isWeatherTooltipDisabledState(raceDayBtnMobile));
+    // Race-day and weekend forecasts have their own availability (and disabled buttons).
+    const forecastButtonIds = {
+      race_day: ["weatherRaceDayBtn", "weatherRaceDayBtnMobile"],
+      weekend: ["weatherWeekendBtn", "weatherWeekendBtnMobile"],
+    }[type];
+    const forecastUnavailable = (forecastButtonIds || []).some((id) =>
+      isWeatherTooltipDisabledState(document.getElementById(id)),
+    );
 
-    if (raceDayUnavailable) {
+    if (forecastUnavailable) {
       return;
     }
 
@@ -1837,6 +2133,8 @@ block content %}
       document.getElementById("weatherOffBtnMobile"),
       document.getElementById("weatherCurrentBtnMobile"),
       document.getElementById("weatherRaceDayBtnMobile"),
+      document.getElementById("weatherWeekendBtn"),
+      document.getElementById("weatherWeekendBtnMobile"),
     ];
 
     allBtns.forEach((btn) => {
@@ -1881,10 +2179,14 @@ block content %}
           btn.setAttribute("aria-pressed", "true");
         }
       });
-    } else if (type === "race_day") {
+    } else if (type === "race_day" || type === "weekend") {
       weatherToggle.checked = true;
-      if (raceDayRadio) raceDayRadio.checked = true;
-      raceDayBtns.forEach((btn) => {
+      const radio = type === "weekend" ? document.getElementById("weatherWeekendRadio") : raceDayRadio;
+      if (radio) radio.checked = true;
+      const pressed = type === "weekend"
+        ? [document.getElementById("weatherWeekendBtn"), document.getElementById("weatherWeekendBtnMobile")]
+        : raceDayBtns;
+      pressed.forEach((btn) => {
         if (btn) {
           btn.classList.remove("bg-white");
           btn.classList.add("bg-racing-red", "text-white");
@@ -1898,15 +2200,18 @@ block content %}
   }
 
   function updateWeatherTypeAvailability() {
-    const raceDayBtns = [
-      document.getElementById("weatherRaceDayBtn"),
-      document.getElementById("weatherRaceDayBtnMobile"),
-    ];
     const isRaceDayAvailable = isRaceDayWeatherAvailable();
+    const isWeekendAvailable = isWeekendWeatherAvailable();
+    const forecastBtns = [
+      [document.getElementById("weatherRaceDayBtn"), isRaceDayAvailable],
+      [document.getElementById("weatherRaceDayBtnMobile"), isRaceDayAvailable],
+      [document.getElementById("weatherWeekendBtn"), isWeekendAvailable],
+      [document.getElementById("weatherWeekendBtnMobile"), isWeekendAvailable],
+    ];
 
-    raceDayBtns.forEach((btn) => {
+    forecastBtns.forEach(([btn, available]) => {
       if (!btn) return;
-      if (isRaceDayAvailable) {
+      if (available) {
         btn.setAttribute("aria-disabled", "false");
         btn.removeAttribute("aria-describedby");
         btn.classList.remove(
@@ -1938,9 +2243,59 @@ block content %}
       }
     });
 
-    if (!isRaceDayAvailable && currentWeatherType === "race_day") {
+    if (
+      (!isRaceDayAvailable && currentWeatherType === "race_day") ||
+      (!isWeekendAvailable && currentWeatherType === "weekend")
+    ) {
       setWeatherType("current");
     }
+  }
+
+  /**
+   * Suggest °F for a browser in a US time zone, where Fahrenheit is customary, and °C
+   * everywhere else. Only the configurator's initial choice when the page URL has no
+   * temp_unit; the server default stays Celsius.
+   */
+  function suggestedTempUnit() {
+    const prefixes = ["America/Indiana/", "America/Kentucky/", "America/North_Dakota/"];
+    const zones = [
+      "America/New_York", "America/Detroit", "America/Chicago", "America/Menominee",
+      "America/Denver", "America/Boise", "America/Phoenix", "America/Los_Angeles",
+      "America/Anchorage", "America/Juneau", "America/Sitka", "America/Yakutat",
+      "America/Nome", "America/Metlakatla", "America/Adak", "Pacific/Honolulu",
+    ];
+    let zone = "";
+    try {
+      zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    } catch (_error) {
+      zone = "";
+    }
+    const fahrenheit = zones.includes(zone) || prefixes.some((prefix) => zone.startsWith(prefix));
+    return fahrenheit ? "f" : "c";
+  }
+
+  /**
+   * Sets the temperature unit, syncing every °C/°F switch and the page URL. Celsius is left
+   * out of the page URL only when it is also the suggestion, so a reload in a US time zone
+   * keeps an explicit °C choice; image URLs omit the server default either way.
+   */
+  function setTempUnit(unit, refresh = true) {
+    if (!TEMP_UNIT_OPTIONS.includes(unit)) unit = "c";
+    currentTempUnit = unit;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (unit === "c" && suggestedTempUnit() === "c") url.searchParams.delete("temp_unit");
+      else url.searchParams.set("temp_unit", unit);
+      window.history.replaceState(null, "", url);
+    }
+    document.querySelectorAll(".temp-unit-btn").forEach((btn) => {
+      const active = btn.dataset.tempUnit === unit;
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+      btn.classList.toggle("bg-black", active);
+      btn.classList.toggle("text-white", active);
+      btn.classList.toggle("bg-white", !active);
+    });
+    if (refresh) updatePreview();
   }
 
   function setTeamsExtra(extra, refresh = true) {
@@ -1980,6 +2335,70 @@ block content %}
    */
   function selectTeamsExtra() {
     setTeamsExtra(this.value);
+  }
+
+  /**
+   * Sets the calendar countdown mode, syncing both selects, the hint and the page URL
+   * (the default "hours" is left out of URLs so existing links stay unchanged).
+   */
+  function setCountdown(mode, refresh = true) {
+    if (!COUNTDOWN_OPTIONS.includes(mode)) mode = "hours";
+    currentCountdown = mode;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (mode === "hours") url.searchParams.delete("countdown");
+      else url.searchParams.set("countdown", mode);
+      window.history.replaceState(null, "", url);
+    }
+
+    let hint = "";
+    document.querySelectorAll(".countdown-select").forEach((select) => {
+      select.value = mode;
+      const option = select.options[select.selectedIndex];
+      if (option) hint = option.dataset.hint || "";
+    });
+    document.querySelectorAll(".countdown-hint").forEach((el) => {
+      el.textContent = hint;
+    });
+
+    if (refresh) updatePreview();
+  }
+
+  /** Change handler for the countdown selects; `this` is the select (dispatchDeclaredHandler). */
+  function selectCountdown() {
+    setCountdown(this.value);
+  }
+
+  /**
+   * Sets the calendar weekend mode, syncing both selects, the hint and the page URL
+   * (the default "off" is left out of URLs so existing links stay unchanged).
+   */
+  function setWeekendMode(mode, refresh = true) {
+    if (!WEEKEND_MODE_OPTIONS.includes(mode)) mode = "off";
+    currentWeekendMode = mode;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (mode === "off") url.searchParams.delete("weekend_mode");
+      else url.searchParams.set("weekend_mode", mode);
+      window.history.replaceState(null, "", url);
+    }
+
+    let hint = "";
+    document.querySelectorAll(".weekend-mode-select").forEach((select) => {
+      select.value = mode;
+      const option = select.options[select.selectedIndex];
+      if (option) hint = option.dataset.hint || "";
+    });
+    document.querySelectorAll(".weekend-mode-hint").forEach((el) => {
+      el.textContent = hint;
+    });
+
+    if (refresh) updatePreview();
+  }
+
+  /** Change handler for the weekend mode selects; `this` is the select (dispatchDeclaredHandler). */
+  function selectWeekendMode() {
+    setWeekendMode(this.value);
   }
 
   function setDisplayType(type, refresh = true) {
@@ -2099,6 +2518,12 @@ block content %}
     initTrackOptions();
     setDisplayType(currentDisplayType, false);
     if (currentScreenType === "teams") setTeamsExtra(currentTeamsExtra, false);
+    if (currentScreenType === "calendar") setCountdown(currentCountdown, false);
+    if (currentScreenType === "calendar") setWeekendMode(currentWeekendMode, false);
+    setTempUnit(currentTempUnit, false);
+    setAutoScreen(currentAutoScreen, false);
+    setTheme(currentTheme, false);
+    for (const name of Object.keys(OUTPUT_OPTIONS)) setOutputOption(name, currentOutput[name], false);
     initializeWeatherTooltips();
     setUiLanguage(currentUiLang);
 
@@ -2122,16 +2547,57 @@ block content %}
     startApp();
   }
 
+  function isDesktopSidebar() {
+    return window.matchMedia("(min-width: 1024px)").matches;
+  }
+
+  // Below lg the settings panel is an off-canvas drawer; while closed it must be inert so
+  // keyboard focus cannot land on controls translated off-screen. On desktop it is static.
+  function syncSidebarInert() {
+    const sidebar = document.getElementById("settingsSidebar");
+    if (!sidebar) return;
+    sidebar.inert =
+      !isDesktopSidebar() && sidebar.classList.contains("-translate-x-full");
+  }
+
+  let sidebarOpener;
   function toggleSidebar() {
     const sidebar = document.getElementById("settingsSidebar");
     const overlay = document.getElementById("sidebarOverlay");
     if (sidebar.classList.contains("-translate-x-full")) {
+      sidebarOpener = this?.matches?.("button") ? this : document.getElementById("mobileMenuBtn");
       sidebar.classList.remove("-translate-x-full");
       overlay.classList.remove("hidden");
+      syncSidebarInert();
+      document.getElementById("settingsSidebarClose")?.focus();
     } else {
+      const hadFocus = sidebar.contains(document.activeElement);
       sidebar.classList.add("-translate-x-full");
       overlay.classList.add("hidden");
+      syncSidebarInert();
+      if (hadFocus) {
+        const opener = sidebarOpener && sidebarOpener.isConnected !== false
+          ? sidebarOpener : document.getElementById("mobileMenuBtn");
+        opener?.focus();
+      }
+      sidebarOpener = null;
     }
   }
+
+  syncSidebarInert();
+  window
+    .matchMedia("(min-width: 1024px)")
+    .addEventListener("change", syncSidebarInert);
+  document.addEventListener("keydown", (event) => {
+    const sidebar = document.getElementById("settingsSidebar");
+    if (
+      event.key === "Escape" &&
+      sidebar &&
+      !isDesktopSidebar() &&
+      !sidebar.classList.contains("-translate-x-full")
+    ) {
+      toggleSidebar();
+    }
+  });
 </script>
 {% endblock %}

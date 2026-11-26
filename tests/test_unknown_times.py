@@ -10,9 +10,8 @@ from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer_calendar import _find_race_datetime, _resolve_countdown_status
 from app.services.renderers import create_renderer
-from app.services.scheduler_generation import _parse_race_datetime_utc, _race_weather_expected
-from app.services.weather_service import _extract_race_datetime
-from app.utils.race_times import convert_race_times_to_timezone
+from app.services.scheduler_generation import _race_weather_expected
+from app.utils.race_times import convert_race_times_to_timezone, race_session_start
 
 
 def unknown_race():
@@ -27,6 +26,20 @@ def unknown_race():
     return service._convert_race_times(race)
 
 
+def test_conversion_moves_the_top_level_race_start_with_the_schedule():
+    """B10: the top-level race start follows the schedule into the target zone."""
+    race = F1Service(timezone_name="Europe/Prague").get_season_from_static(2026)[0]
+    data = F1Service(timezone_name="Europe/Prague")._convert_race_times(race)
+    converted = convert_race_times_to_timezone(data, "Asia/Kolkata")
+    [race_event] = [event for event in converted["schedule"] if event["name"] == "Race"]
+
+    assert converted["datetime"] == race_event["datetime"]
+    assert converted["datetime"].endswith("+05:30")
+    assert converted["time"] == race_event["time"]
+    assert converted["date"] == data["date"]
+    assert datetime.fromisoformat(converted["datetime"]) == datetime.fromisoformat(data["datetime"])
+
+
 def test_date_only_consumers():
     """Conversion, models, countdown and weather preserve date-only values."""
     data = unknown_race()
@@ -37,8 +50,7 @@ def test_date_only_consumers():
         assert event["datetime"] == event["date"]
         assert event["display_time"].endswith(" –")
         assert ScheduleEvent(**event).time is None
-    assert _extract_race_datetime(data) is None
-    assert _parse_race_datetime_utc(data) is None
+    assert race_session_start(data) is None
     assert not _race_weather_expected(data)
     race_day = _find_race_datetime(data["schedule"], datetime)
     assert type(race_day) is date
@@ -84,10 +96,10 @@ def test_weather_prefetch_date_only():
 
 def test_image_and_preview_date_only():
     """Image cache conversion and browser previews accept date-only schedules."""
-    from app.routes.images import _maybe_convert_timezone
     from app.routes.previews import _build_calendar_preview_png
+    from app.services.bmp_artifacts import maybe_convert_timezone
 
-    data = _maybe_convert_timezone(unknown_race(), "Pacific/Kiritimati")
+    data = maybe_convert_timezone(unknown_race(), "Pacific/Kiritimati")
     assert data["schedule"] == unknown_race()["schedule"]
     assert _build_calendar_preview_png("en", "1bit", data, None, True).startswith(b"\x89PNG")
 

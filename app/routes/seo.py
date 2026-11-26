@@ -52,7 +52,9 @@ def _xml_escape(value: str) -> str:
     return escape(value, {'"': "&quot;"})
 
 
-@router.api_route("/robots.txt", methods=["GET", "HEAD"])
+# Crawler files, not API operations. A GET+HEAD api_route also gave both methods the same
+# OpenAPI operationId, which FastAPI reported as duplicates on every schema build.
+@router.api_route("/robots.txt", methods=["GET", "HEAD"], include_in_schema=False)
 async def robots_txt() -> PlainTextResponse:
     """Serve robots.txt for crawlers."""
     site_url = str(config.SITE_URL).rstrip("/")
@@ -64,8 +66,8 @@ Sitemap: {site_url}/sitemap.xml
     return PlainTextResponse(content, media_type="text/plain")
 
 
-@router.api_route("/sitemap.xml", methods=["GET", "HEAD"])
-@router.api_route("/sitemap.xml/", methods=["GET", "HEAD"])
+@router.api_route("/sitemap.xml", methods=["GET", "HEAD"], include_in_schema=False)
+@router.api_route("/sitemap.xml/", methods=["GET", "HEAD"], include_in_schema=False)
 async def sitemap_xml() -> Response:
     """Serve sitemap.xml with subdirectory language URLs."""
     site_url = str(config.SITE_URL).rstrip("/")

@@ -110,7 +110,7 @@ def test_configure_calendar_hidden_weather_inputs_have_names():
     soup = _configure_soup("calendar")
     assert soup.select_one("#weatherToggle")["aria-labelledby"] == "weatherLabel"
     radios = soup.select('input[name="weatherType"]')
-    assert len(radios) == 2
+    assert len(radios) == 3
     for radio in radios:
         assert radio.get("id")
         assert soup.select_one(f"#{radio['aria-labelledby']}") is not None

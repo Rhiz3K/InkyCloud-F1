@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "服务或恢复进程正在使用数据库。请停止服务或等待恢复完成。",
+  "ops_last_attempt": "最近一次生成尝试",
   "next_race": "下一场比赛",
   "schedule": "赛程",
   "weekend_schedule": "周末赛程",
@@ -12,6 +14,7 @@
   "countdown_hours_one": "小时",
   "countdown_hours_few": "小时",
   "countdown_hours_many": "小时",
+  "countdown_today": "今天",
   "cancelled": "已取消",
   "race_ongoing": "进行中",
   "race_completed": "已结束",
@@ -24,6 +27,13 @@
   "session_sprintqualifying": "Sprint Q.",
   "session_sprint": "冲刺赛",
   "session_race": "正赛",
+  "session_short_fp1": "一练",
+  "session_short_fp2": "二练",
+  "session_short_fp3": "三练",
+  "session_short_sprintqualifying": "SQ",
+  "session_short_sprint": "冲刺赛",
+  "session_short_qualifying": "排位赛",
+  "session_live": "进行中",
   "loading": "加载中...",
   "no_data": "暂无比赛数据",
   "new_track": "新赛道",
@@ -48,6 +58,7 @@
   "api_docs_race_key_desc": "来自 /api/races/{year} 的比赛标识符；需要 year",
   "api_docs_selection_note": "未同时指定 year 和 round 或 race_key 时，将选择下一场比赛。请从 /api/races/{year} 复制 round 或 race_key。 例外：指定 race_key 但未提供 year 时返回 HTTP 400。",
   "api_docs_etag_note": "BMP 响应包含 ETag。发送 If-None-Match，图片未更改时将收到 304。",
+  "api_docs_refresh_hint_note": "日历和车队响应（200 和 304）包含 X-Next-Refresh-Seconds：表示图片预计下次变化前还有多少秒（60 到 86400；显示每小时更新的天气时最多 3600）。电池供电的显示屏可以用它作为深度睡眠时长；这只是提示，因此请求仍可能返回 304。",
   "api_docs_operational_auth": "配置 ADMIN_API_TOKEN 后，统计读取 API 需要 X-Admin-Token 或 Authorization: Bearer <token>。设置 MINIMAL_DATA_MODE=true 时，所有统计 API 均返回 410。",
   "api_docs_history_desc": "每小时请求历史；limit：1–720（默认 168）。",
   "api_docs_perf_desc": "GET：性能汇总；hours：1–720（默认 24）。POST：Web Vitals 数值；访客和设备元数据将被忽略。",
@@ -190,7 +201,81 @@
     "weatherLabel": "天气",
     "weatherCurrentLabel": "当前",
     "weatherRaceDayLabel": "比赛日",
+    "weatherWeekendLabel": "周末",
     "weatherTooltipText": "比赛前 14 天启用",
+    "countdown": {
+      "label": "倒计时",
+      "options": {
+        "hours": "天 + 小时",
+        "days": "仅天数",
+        "auto": "自动（省电）",
+        "off": "关闭（比赛日期）"
+      },
+      "hints": {
+        "hours": "天和小时；图片每小时变化。",
+        "days": "整天数；图片每天在当地午夜变化一次。",
+        "auto": "距发车 48 小时以前只显示天数，之后显示天和小时。",
+        "off": "显示比赛日期而非倒计时；仅随比赛状态变化。"
+      },
+      "batteryNote": "天气每小时更新。若要最长续航，请关闭天气。显示屏的睡眠时长可参考 X-Next-Refresh-Seconds 响应头。"
+    },
+    "weekendMode": {
+      "label": "比赛周末",
+      "options": {
+        "off": "关闭",
+        "auto": "跟随比赛周末"
+      },
+      "hints": {
+        "off": "整周显示相同的日历。",
+        "auto": "比赛周末期间：已结束的环节打勾，下一个环节突出显示并倒计时，并在可用时显示本周末排位赛和正赛的领奖台。"
+      }
+    },
+    "autoScreen": {
+      "label": "两个屏幕共用一个 URL",
+      "options": {
+        "off": "关闭（仅此屏幕）",
+        "race_week": "比赛周：日历，其他时间车队",
+        "daily": "每日：每天轮换"
+      },
+      "hints": {
+        "off": "URL 始终显示此屏幕。",
+        "race_week": "/auto.bmp 从 FP1 前 48 小时到比赛结束显示日历，其他时间显示带倒计时的车队。非常适合每块屏幕只能设置一个 URL 的 Živýobraz.eu。",
+        "race_week_teams": "/auto.bmp 从 FP1 前 48 小时到比赛结束显示日历，其他时间显示带有本页所选面板的车队。非常适合每块屏幕只能设置一个 URL 的 Živýobraz.eu。",
+        "daily": "/auto.bmp 每天在当地午夜于日历和车队之间轮换。"
+      }
+    },
+    "theme": {
+      "label": "主题",
+      "options": {
+        "light": "浅色（默认）",
+        "dark": "深色（实验性）"
+      },
+      "hints": {
+        "light": "白色背景上的黑色文字。",
+        "dark": "黑底白字，红色和黄色强调色保持不变。实验性：大面积黑色在部分屏幕上可能产生残影，请使用全刷新。"
+      }
+    },
+    "output": {
+      "label": "图像输出",
+      "formatLabel": "格式",
+      "formatOptions": {
+        "bmp": "BMP（默认）",
+        "png": "PNG（更小）"
+      },
+      "formatHints": {
+        "bmp": "所有电子墨水屏固件都能读取的未压缩 BMP。",
+        "png": "像素和颜色相同，下载量缩小 4–27 倍。仅适用于能解码 PNG 的固件。"
+      },
+      "rotateLabel": "旋转",
+      "rotateOptions": {
+        "0": "0°（默认）",
+        "180": "180°（上下颠倒）"
+      },
+      "rotateHints": {
+        "0": "与预览相同。",
+        "180": "适用于连接器在另一侧的外壳。预览保持正向。"
+      }
+    },
     "displayLabel": "显示",
     "imageCreditsNote": "图片署名与许可：",
     "teamsExtra": {
@@ -232,7 +317,11 @@
     "epaperStep1BeforeLink": "在 ",
     "epaperStep1BetweenLinkAndUrl": " 中选择 ",
     "epaperStep1AfterUrl": " 作为内容来源",
-    "epaperStep2Text": "将上面的 URL 粘贴到图片 URL 字段"
+    "epaperStep2Text": "将上面的 URL 粘贴到图片 URL 字段",
+    "tempUnit": {
+      "label": "温度",
+      "hint": "华氏度在绘制时换算；天气数据和请求次数不变。"
+    }
   },
   "unofficial_notice": "独立的车迷项目，与Formula One集团、FIA、车队或车手无关联，亦未获得其认可或赞助。",
   "stats_disabled": "使用统计已禁用。本服务在最少数据模式下不收集此类统计。",
@@ -380,5 +469,49 @@
   "teams_extra_done": "已完成",
   "teams_extra_upcoming": "即将举行的比赛",
   "teams_extra_today": "今天",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "最少数据模式",
+  "api_docs_open_json": "打开 JSON",
+  "api_docs_teams_tz_desc": "可选的 IANA 时区，用于显示时间或日期的面板：countdown、flags、track、weather。默认使用服务器的 DEFAULT_TIMEZONE；对 none 或不可用的面板无效。无效值返回 HTTP 400。/preview/configure/teams.png 同样支持。",
+  "api_docs_lang_desc": "日历文本的语言代码",
+  "api_docs_year_desc": "指定比赛的赛季年份",
+  "api_docs_round_desc": "赛季比赛列表中的轮次编号；未提供 year 时忽略",
+  "api_docs_tz_desc": "赛程时间使用的时区 (IANA 格式)",
+  "api_docs_calendar_display_desc": "适用于 1bit、B/W/R、B/W/R/Y 或 Spectra 6 显示器的输出模式",
+  "api_docs_weather_desc": "启用或禁用天气叠加层",
+  "api_docs_weather_type_desc": "要渲染的天气数据类型",
+  "api_docs_countdown_desc": "状态框中的倒计时：hours（天和小时，默认）、days（按 tz 的整天数，在当地午夜变化）、auto（距发车 48 小时以前只显示天数，之后显示天和小时）或 off（显示比赛日期而非倒计时）。无效值返回 HTTP 422。",
+  "api_docs_weekend_mode_desc": "周末模式：off（默认）或 auto。使用 auto 时，在比赛周末期间（从第一节练习前 12 小时开始），已结束的环节会打勾，正在进行或下一个环节会被突出显示，状态框以其简称倒计时（例如 排位赛: 3 小时）。由于实际结束时间不会公布，环节在开始时间加上保守的时长估计后即视为结束。页脚会在可用时显示本周末排位赛和正赛的领奖台（来自 Jolpica，仅在这些环节之后的几小时内获取），每一栏上方显示赛季。无效值返回 HTTP 422。",
+  "api_docs_weather_weekend_desc": "Weekend：在状态栏增加第二行，显示排位赛（空间允许时也显示冲刺赛）和正赛的预报，例如 排位 19° 60% | 正赛 22° 10%。整个周末只需一次 Open-Meteo 请求，与 race_day 使用同一请求。超出 16 天预报范围或尚未公布时间的环节会被省略；正赛开始后只显示正赛天气。",
+  "api_docs_temp_unit_desc": "温度单位：c（默认，摄氏）或 f（华氏）。在绘制图像时由同一份缓存数据换算，不会增加天气请求。无效值返回 HTTP 422。",
+  "api_docs_teams_temp_unit_desc": "天气面板（extra=weather）的温度单位：c（默认）或 f。无效值返回 HTTP 422。",
+  "api_docs_format_desc": "输出格式：bmp（默认，不变）或 png。PNG 为无损格式，像素索引和面板调色板完全相同（无抖动，无额外颜色），体积缩小 4–27 倍，适用于能解码 PNG 的固件。路径仍为 .bmp；Content-Type、Content-Length 和 ETag 对应实际发送的字节。无效值返回 HTTP 422。",
+  "api_docs_rotate_desc": "旋转：0（默认）或 180。180 将图像无损上下颠倒（仍为 800×480，BMP 色深不变），适用于反向安装的面板。不提供 90/270，因为它们需要竖向布局。无效值返回 HTTP 422。",
+  "api_docs_output_sizes": "使用 format=png 时日历的典型大小：1bit 48 KB → 约 10 KB，bwr/bwry 192 KB → 约 13 KB，spectra6 385 KB → 约 14 KB。每种格式和旋转都有自己的 ETag。",
+  "api_docs_theme_desc": "主题：light（默认）或 dark（实验性）。深色主题在黑色背景上绘制白色文字和线条；红色、黄色和 Spectra 6 颜色保持不变，国旗保留原色。大面积黑色在部分电子墨水屏上可能产生残影，建议使用全刷新。按需渲染，从不预生成。无效值返回 HTTP 422。",
+  "api_docs_auto_desc": "一个直接返回日历或车队 BMP 的 URL（不重定向）。适用于只能轮询一个地址的显示屏，例如 Živýobraz.eu 或简单的 ESP32 固件。",
+  "api_docs_auto_mode_desc": "race_week：从下一个比赛周末第一节练习前 lead_hours 小时起显示日历，直到切换到下一场比赛（起跑后 4 小时）；其余时间显示车队，包括休赛期和取消的比赛。daily：按 tz 中的本地日期，偶数日显示日历，奇数日显示车队，在当地午夜切换。无效值返回 HTTP 422。",
+  "api_docs_auto_lead_hours_desc": "仅 race_week：在第一节练习（FP1）前多少小时开始显示日历。超出 0–168 的值返回 HTTP 422。",
+  "api_docs_auto_extra_desc": "此 URL 上的车队面板；默认为 countdown（距下一场比赛的天数）。none 只显示网格。",
+  "api_docs_auto_shared_desc": "取值与 /calendar.bmp 和 /teams.bmp 相同；每个参数作用于各自的屏幕。year 选择车队赛季；日历始终显示下一场比赛。",
+  "api_docs_auto_headers_note": "X-Active-Screen 表示返回的是哪个屏幕（calendar 或 teams）。ETag 属于当前屏幕，因此只有显示屏已在显示该屏幕时才会返回 304。X-Next-Refresh-Seconds 和 Cache-Control 的 max-age 不会超过下一次切换。",
+  "api_docs_calendar_desc": "将 F1 赛历生成为 BMP 图片 (800×480)，适用于 1bit、4-bit B/W/R、4-bit B/W/R/Y 和 Spectra 6 E-Ink 显示器。",
+  "api_docs_eg": "例如",
+  "api_docs_dimensions_label": "尺寸",
+  "api_docs_color_depth_label": "色深",
+  "api_docs_races_desc": "指定赛季的全部比赛列表",
+  "api_docs_race_desc": "包含赛程的详细比赛信息",
+  "api_docs_stats_desc": "最近 24 小时的请求统计",
+  "api_docs_health_desc": "服务健康检查",
+  "api_docs_json_api_desc": "JSON 格式的 API 文档",
+  "api_docs_laskakit_title": "适用于 LaskaKit / zivyobraz.eu：",
+  "api_docs_laskakit_step1": "在 zivyobraz.eu 中选择内容来源：图片 URL",
+  "api_docs_laskakit_step2": "粘贴 URL",
+  "api_docs_laskakit_step3": "将刷新间隔设置为 1-6 小时",
+  "api_docs_close_btn": "关闭",
+  "api_docs_loading_text": "加载中...",
+  "api_docs_error_text": "错误",
+  "weather_session_sprint": "冲刺",
+  "weather_session_qualifying": "排位",
+  "weather_session_race": "正赛"
 }

@@ -1,4 +1,6 @@
 {
+  "restore_lock_busy": "Databázi používá služba nebo probíhající obnova. Zastavte službu nebo počkejte na dokončení obnovy.",
+  "ops_last_attempt": "Poslední pokus o generování",
   "next_race": "Příští závod",
   "schedule": "Rozvrh",
   "weekend_schedule": "HARMONOGRAM VÍKENDU",
@@ -12,6 +14,7 @@
   "countdown_hours_one": "hodina",
   "countdown_hours_few": "hodiny",
   "countdown_hours_many": "hodin",
+  "countdown_today": "Dnes",
   "cancelled": "ZRUŠENO",
   "race_ongoing": "PROBÍHÁ",
   "race_completed": "DOKONČEN",
@@ -24,6 +27,13 @@
   "session_sprintqualifying": "Sprint K.",
   "session_sprint": "Sprint",
   "session_race": "Závod",
+  "session_short_fp1": "T1",
+  "session_short_fp2": "T2",
+  "session_short_fp3": "T3",
+  "session_short_sprintqualifying": "SK",
+  "session_short_sprint": "SPRINT",
+  "session_short_qualifying": "K",
+  "session_live": "ŽIVĚ",
   "loading": "Načítání...",
   "no_data": "Data o závodech nejsou k dispozici",
   "new_track": "NOVÁ TRAŤ",
@@ -48,6 +58,7 @@
   "api_docs_race_key_desc": "Identifikátor závodu z /api/races/{year}; vyžaduje year",
   "api_docs_selection_note": "Bez kombinace year a round nebo race_key se vybere nejbližší závod. Hodnotu round nebo race_key zkopírujte z /api/races/{year}. Výjimka: race_key bez year vrací HTTP 400.",
   "api_docs_etag_note": "Odpovědi s BMP obsahují ETag. Odešlete If-None-Match a při nezměněném obrázku obdržíte 304.",
+  "api_docs_refresh_hint_note": "Odpovědi kalendáře a týmů (200 i 304) obsahují hlavičku X-Next-Refresh-Seconds: odhad, za kolik sekund se obrázek nejdříve změní (60 až 86400, nejvýše 3600, když je zobrazeno hodinově obnovované počasí). Bateriové displeje ji mohou použít jako délku hlubokého spánku; jde jen o nápovědu, dotaz proto může vrátit i 304.",
   "api_docs_operational_auth": "API pro čtení statistik vyžadují X-Admin-Token nebo Authorization: Bearer <token>, pokud je nastaven ADMIN_API_TOKEN. Při MINIMAL_DATA_MODE=true vracejí všechna statistická API stav 410.",
   "api_docs_history_desc": "Historie požadavků po hodinách; limit: 1–720 (výchozí 168).",
   "api_docs_perf_desc": "GET: souhrny výkonu; hours: 1–720 (výchozí 24). POST: číselné metriky Web Vitals; metadata návštěvníků a zařízení se ignorují.",
@@ -190,7 +201,81 @@
     "weatherLabel": "Počasí",
     "weatherCurrentLabel": "Aktuální",
     "weatherRaceDayLabel": "V den závodu",
+    "weatherWeekendLabel": "Víkend",
     "weatherTooltipText": "Aktivuje se 14 dní před závodem",
+    "countdown": {
+      "label": "Odpočet",
+      "options": {
+        "hours": "Dny + hodiny",
+        "days": "Jen dny",
+        "auto": "Auto (šetří baterii)",
+        "off": "Vypnuto (datum závodu)"
+      },
+      "hints": {
+        "hours": "Dny a hodiny; obrázek se mění každou hodinu.",
+        "days": "Celé dny; obrázek se mění jednou denně o místní půlnoci.",
+        "auto": "Celé dny až do 48 h před startem, pak dny a hodiny.",
+        "off": "Datum závodu místo odpočtu; mění se jen se stavem závodu."
+      },
+      "batteryNote": "Počasí se obnovuje každou hodinu. Pro nejdelší výdrž baterie počasí vypněte. Délku spánku displeji určí hlavička X-Next-Refresh-Seconds."
+    },
+    "weekendMode": {
+      "label": "Závodní víkend",
+      "options": {
+        "off": "Vypnuto",
+        "auto": "Sledovat víkend"
+      },
+      "hints": {
+        "off": "Stejný kalendář celý týden.",
+        "auto": "Během závodního víkendu: dokončené sessions zaškrtnuté, další zvýrazněná s odpočtem a pódium kvalifikace a závodu tohoto víkendu, jakmile je k dispozici."
+      }
+    },
+    "autoScreen": {
+      "label": "Jedna URL pro obě obrazovky",
+      "options": {
+        "off": "Vypnuto (jen tato obrazovka)",
+        "race_week": "Závodní týden: kalendář, jinak týmy",
+        "daily": "Denně: střídat každý den"
+      },
+      "hints": {
+        "off": "URL vždy zobrazí tuto obrazovku.",
+        "race_week": "/auto.bmp ukazuje kalendář od 48 h před FP1 do konce závodu, jinak týmy s odpočtem. Ideální pro Živýobraz.eu, kde má displej jen jednu URL.",
+        "race_week_teams": "/auto.bmp ukazuje kalendář od 48 h před FP1 do konce závodu, jinak týmy s panelem zvoleným na této stránce. Ideální pro Živýobraz.eu, kde má displej jen jednu URL.",
+        "daily": "/auto.bmp střídá kalendář a týmy každý den o místní půlnoci."
+      }
+    },
+    "theme": {
+      "label": "Motiv",
+      "options": {
+        "light": "Světlý (výchozí)",
+        "dark": "Tmavý (experimentální)"
+      },
+      "hints": {
+        "light": "Černý text na bílém pozadí.",
+        "dark": "Bílý text na černé, červené a žluté akcenty zůstávají. Experimentální: velké černé plochy mohou na některých panelech zanechávat stíny; použijte plné překreslení."
+      }
+    },
+    "output": {
+      "label": "Výstup obrázku",
+      "formatLabel": "Formát",
+      "formatOptions": {
+        "bmp": "BMP (výchozí)",
+        "png": "PNG (menší)"
+      },
+      "formatHints": {
+        "bmp": "Nekomprimovaný BMP, který přečte každý e-ink firmware.",
+        "png": "Stejné pixely i barvy, 4–27× menší stahování. Jen pro firmware, který umí dekódovat PNG."
+      },
+      "rotateLabel": "Otočení",
+      "rotateOptions": {
+        "0": "0° (výchozí)",
+        "180": "180° (vzhůru nohama)"
+      },
+      "rotateHints": {
+        "0": "Stejně jako v náhledu.",
+        "180": "Pro krabičku s konektorem na opačné straně. Náhled zůstává nepřevrácený."
+      }
+    },
     "displayLabel": "Displej",
     "imageCreditsNote": "Atribuce a licence obrázku:",
     "teamsExtra": {
@@ -232,7 +317,11 @@
     "epaperStep1BeforeLink": "V ",
     "epaperStep1BetweenLinkAndUrl": " vyberte ",
     "epaperStep1AfterUrl": " jako zdroj obsahu",
-    "epaperStep2Text": "Vložte URL výše do pole pro URL obrázku"
+    "epaperStep2Text": "Vložte URL výše do pole pro URL obrázku",
+    "tempUnit": {
+      "label": "Teplota",
+      "hint": "Fahrenheit se převádí při kreslení; data o počasí i počet dotazů zůstávají stejné."
+    }
   },
   "unofficial_notice": "Nezávislý fanouškovský projekt. Není spojen se skupinou Formula One, FIA, týmy ani jezdci a není jimi schválen ani sponzorován.",
   "stats_disabled": "Statistiky používání jsou vypnuté. V minimálním režimu je tato služba nesbírá.",
@@ -380,5 +469,49 @@
   "teams_extra_done": "odjeto",
   "teams_extra_upcoming": "Nadcházející závody",
   "teams_extra_today": "dnes",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Minimální režim",
+  "api_docs_open_json": "Otevřít JSON",
+  "api_docs_teams_tz_desc": "Volitelné časové pásmo IANA pro panely s časem nebo datem: countdown, flags, track, weather. Výchozí je DEFAULT_TIMEZONE serveru; pro none a nedostupné panely se ignoruje. Neplatná hodnota vrátí HTTP 400. Podporuje ho i /preview/configure/teams.png.",
+  "api_docs_lang_desc": "Kód jazyka pro text kalendáře",
+  "api_docs_year_desc": "Rok sezóny pro konkrétní závod",
+  "api_docs_round_desc": "Číslo kola ze seznamu závodů sezóny; bez year se ignoruje",
+  "api_docs_tz_desc": "Časové pásmo pro časy v harmonogramu (IANA formát)",
+  "api_docs_calendar_display_desc": "Režim výstupu pro 1bit, B/W/R, B/W/R/Y nebo Spectra 6 displeje",
+  "api_docs_weather_desc": "Zapnutí nebo vypnutí překrytí s počasím",
+  "api_docs_weather_type_desc": "Typ zobrazených dat o počasí",
+  "api_docs_countdown_desc": "Odpočet v informačním poli: hours (dny a hodiny, výchozí), days (celé dny v tz, mění se o místní půlnoci), auto (celé dny až do 48 h před startem, pak dny a hodiny) nebo off (datum závodu místo odpočtu). Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_weekend_mode_desc": "Režim víkendu: off (výchozí) nebo auto. S auto se během závodního víkendu (od 12 h před první session) dokončené sessions označí zaškrtnutím, právě probíhající nebo další session se zvýrazní a informační pole odpočítává k ní s krátkým názvem (např. K: 3 h). Session se považuje za skončenou od startu plus konzervativní odhad délky, protože skutečný konec se nezveřejňuje. Patička ukáže pódium kvalifikace a závodu tohoto víkendu, jakmile je k dispozici (Jolpica, stahuje se jen v hodinách po těchto sessions), s ročníkem nad každým sloupcem. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_weather_weekend_desc": "Weekend: druhý řádek v informačním poli s předpovědí pro kvalifikaci (a sprint, pokud se vejde) a závod, např. K 19° 60% | Z 22° 10%. Celý víkend pokryje jediný dotaz na Open-Meteo, tentýž, který používá race_day. Sessions mimo 16denní předpověď nebo bez zveřejněného času se vynechají; po startu závodu se zobrazí jen počasí závodu.",
+  "api_docs_temp_unit_desc": "Jednotka teploty: c (výchozí, stupně Celsia) nebo f (stupně Fahrenheita). Převádí se při kreslení obrázku ze stejných uložených dat, takže nepřidává žádné dotazy na počasí. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_teams_temp_unit_desc": "Jednotka teploty panelu počasí (extra=weather): c (výchozí) nebo f. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_format_desc": "Formát výstupu: bmp (výchozí, beze změny) nebo png. PNG je bezztrátové se stejnými indexy pixelů a paletou panelu (bez ditheringu a nových barev) a je 4–27× menší; pro firmware, který PNG umí dekódovat. Cesta zůstává .bmp; Content-Type, Content-Length a ETag odpovídají odeslaným bajtům. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_rotate_desc": "Otočení: 0 (výchozí) nebo 180. 180 bezztrátově otočí obraz vzhůru nohama (stále 800×480, stejná barevná hloubka BMP) pro panel namontovaný obráceně. 90/270 nejsou k dispozici, protože by vyžadovaly layout na výšku. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_output_sizes": "Typické velikosti kalendáře s format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Každý formát a otočení má vlastní ETag.",
+  "api_docs_theme_desc": "Motiv: light (výchozí) nebo dark (experimentální). Tmavý motiv kreslí bílý text a čáry na černém pozadí; červená, žlutá a barvy Spectra 6 zůstávají a vlajky si ponechávají své barvy. Velké černé plochy mohou na některých e-ink panelech zanechávat stíny (ghosting), proto doporučujeme plné překreslení. Vykresluje se na vyžádání, nikdy předem. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_auto_desc": "Jedna URL, která vrací přímo BMP kalendáře nebo týmů (bez přesměrování). Hodí se pro displeje, které umí stahovat jen jednu adresu, například Živýobraz.eu nebo jednoduchý firmware ESP32.",
+  "api_docs_auto_mode_desc": "race_week: kalendář od lead_hours před první session nejbližšího závodního víkendu až do výběru dalšího závodu (4 h po startu), jinak týmy, včetně zimní přestávky a zrušených závodů. daily: kalendář v sudé a týmy v liché místní dny v tz, přepíná se o místní půlnoci. Neplatná hodnota vrátí HTTP 422.",
+  "api_docs_auto_lead_hours_desc": "Jen pro race_week: kolik hodin před první session (FP1) se objeví kalendář. Hodnota mimo 0–168 vrátí HTTP 422.",
+  "api_docs_auto_extra_desc": "Panel týmů na této URL; výchozí je countdown (dny do dalšího závodu). Hodnota none zobrazí samotnou mřížku.",
+  "api_docs_auto_shared_desc": "Stejné hodnoty jako u /calendar.bmp a /teams.bmp; každý parametr platí pro svou obrazovku. year volí sezónu týmů; kalendář vždy ukazuje nejbližší závod.",
+  "api_docs_auto_headers_note": "Hlavička X-Active-Screen říká, která obrazovka byla vrácena (calendar nebo teams). ETag patří aktivní obrazovce, takže 304 přijde jen tehdy, když ji displej už zobrazuje. X-Next-Refresh-Seconds ani max-age v Cache-Control nikdy nepřesáhnou další přepnutí.",
+  "api_docs_calendar_desc": "Generuje F1 kalendář jako BMP obrázek (800×480) pro 1bit, 4bit B/W/R, 4bit B/W/R/Y a Spectra 6 E-Ink displeje.",
+  "api_docs_eg": "např.",
+  "api_docs_dimensions_label": "Rozměry",
+  "api_docs_color_depth_label": "Barevná hloubka",
+  "api_docs_races_desc": "Seznam všech závodů pro danou sezónu",
+  "api_docs_race_desc": "Detailní informace o konkrétním závodě včetně harmonogramu",
+  "api_docs_stats_desc": "Statistiky požadavků za posledních 24 hodin",
+  "api_docs_health_desc": "Kontrola zdraví služby",
+  "api_docs_json_api_desc": "Dokumentace API ve formátu JSON",
+  "api_docs_laskakit_title": "Pro LaskaKit / zivyobraz.eu:",
+  "api_docs_laskakit_step1": "V zivyobraz.eu vyberte jako zdroj obsahu: URL s obrázkem",
+  "api_docs_laskakit_step2": "Vložte URL",
+  "api_docs_laskakit_step3": "Nastavte interval obnovování na 1-6 hodin",
+  "api_docs_close_btn": "Zavřít",
+  "api_docs_loading_text": "Načítání...",
+  "api_docs_error_text": "Chyba",
+  "weather_session_sprint": "S",
+  "weather_session_qualifying": "K",
+  "weather_session_race": "Z"
 }

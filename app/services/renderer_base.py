@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from app.models import HistoricalData
 from app.services.circuit_data import load_circuits_data
@@ -49,7 +50,11 @@ from app.services.renderer_text import (
 )
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.track_renderer import render_track_image
-from app.services.weather_service import RAINDROP_ICON, WeatherData
+from app.services.weather_service import RAINDROP_ICON, TempUnit, WeatherDisplay
+from app.utils.refresh_hint import CountdownMode
+
+if TYPE_CHECKING:
+    from app.services.weekend_phase import WeekendPhase
 
 logger = logging.getLogger(__name__)
 TEXT_BASELINE_REF = "ÁŽÝgy"
@@ -76,13 +81,22 @@ class RendererBase(RendererCore):
             text_fill=self.theme.header_text_fill,
             brand_font=self._load_brand_font(36, bold=True),
             subtitle_font=self.fonts["header_subtitle"],
-            draw_f1_logo_fn=lambda canvas, width, height: draw_f1_logo(
-                canvas,
-                width,
-                height,
-                logo_path=self.theme.images_directory() / "eInkF1logo.jpg",
-                logger=logger,
-                prepare_logo_fn=self._prepare_f1_logo,
+            draw_f1_logo_fn=self._draw_header_logo,
+            rule_fill=self.theme.header_rule_fill,
+        )
+
+    def _draw_header_logo(self, canvas: Image.Image, width: int, height: int) -> None:
+        """Draw the header car illustration, as white line art on a dark theme."""
+        draw_f1_logo(
+            canvas,
+            width,
+            height,
+            logo_path=self.theme.images_directory() / "eInkF1logo.jpg",
+            logger=logger,
+            prepare_logo_fn=(
+                (lambda logo: self._prepare_f1_logo(ImageOps.invert(logo.convert("L"))))
+                if self.theme.invert_logo
+                else self._prepare_f1_logo
             ),
         )
 
@@ -276,6 +290,7 @@ class RendererBase(RendererCore):
             clamp_text_fn=clamp_text,
             draw_team_stats_panel_fn=render_team_stats_panel,
             draw_team_driver_row_fn=render_team_driver_row,
+            header_rule_fill=self.theme.team_header_rule_fill,
         )
 
     def _draw_teams_content(
@@ -307,14 +322,8 @@ class RendererBase(RendererCore):
             title_fill=self.theme.header_text_fill,
             header_title_font=self.fonts["header_title"],
             header_subtitle_font=self.fonts["header_subtitle"],
-            draw_f1_logo_fn=lambda canvas, width, height: draw_f1_logo(
-                canvas,
-                width,
-                height,
-                logo_path=self.theme.images_directory() / "eInkF1logo.jpg",
-                logger=logger,
-                prepare_logo_fn=self._prepare_f1_logo,
-            ),
+            draw_f1_logo_fn=self._draw_header_logo,
+            rule_fill=self.theme.header_rule_fill,
         )
 
     def _draw_track_section(
@@ -341,6 +350,7 @@ class RendererBase(RendererCore):
                 height,
                 {2: "1bit", 3: "bwr", 4: "bwry", 6: "spectra6"}[len(self.colors.PALETTE)],
                 track_options,
+                dark=self.theme.dark,
             ),
             load_track_image_fn=self._load_track_image,
             prepare_track_image_fn=lambda track_image, width, height: (
@@ -375,8 +385,11 @@ class RendererBase(RendererCore):
         self,
         draw: ImageDraw.ImageDraw,
         race_data: dict,
-        weather_data: WeatherData | None = None,
+        weather_data: WeatherDisplay | None = None,
         weather_type: str = "",
+        countdown_mode: CountdownMode = CountdownMode.HOURS,
+        weekend: WeekendPhase | None = None,
+        temp_unit: TempUnit = TempUnit.C,
     ) -> int:
         """Draw the race-weekend schedule and return its lower boundary."""
         return draw_schedule_section(
@@ -395,9 +408,14 @@ class RendererBase(RendererCore):
             draw_countdown_box_fn=self._draw_countdown_box,
             weather_data=weather_data,
             weather_type=weather_type,
+            countdown_mode=countdown_mode,
+            weekend=weekend,
+            temp_unit=temp_unit,
         )
 
-    def _draw_schedule_row(self, draw: ImageDraw.ImageDraw, y: int, event: dict) -> None:
+    def _draw_schedule_row(
+        self, draw: ImageDraw.ImageDraw, y: int, event: dict, *, mark: str | None = None
+    ) -> None:
         """Draw a localized schedule row using the shared session mapping."""
         raw_session_name = event.get("name", "")
         normalized_session_name = raw_session_name
@@ -420,6 +438,8 @@ class RendererBase(RendererCore):
             regular_text_fill=self.theme.text_fill,
             session_text_fill=self._get_session_color(normalized_session_name),
             session_text_shadow_fill=self.theme.session_shadow_fill,
+            mark=mark,
+            mark_fill=self.theme.accent_fill,
             format_schedule_session_name_fn=(
                 lambda draw_ctx, session_name, max_width: format_schedule_session_name(
                     draw_ctx, session_name, max_width, self.lang_code, self.translator
@@ -432,8 +452,12 @@ class RendererBase(RendererCore):
         draw: ImageDraw.ImageDraw,
         race_data: dict,
         schedule_bottom: int,
-        weather_data: WeatherData | None = None,
+        weather_data: WeatherDisplay | None = None,
         weather_type: str = "",
+        *,
+        countdown_mode: CountdownMode = CountdownMode.HOURS,
+        weekend: WeekendPhase | None = None,
+        temp_unit: TempUnit = TempUnit.C,
     ) -> int:
         """Draw the countdown/status box and return its bottom coordinate."""
         return draw_countdown_box(
@@ -457,6 +481,9 @@ class RendererBase(RendererCore):
             text_fill=self.theme.countdown_text_fill,
             weather_data=weather_data,
             weather_type=weather_type,
+            countdown_mode=countdown_mode,
+            weekend=weekend,
+            temp_unit=temp_unit,
         )
 
     def _draw_circuit_stats(
@@ -557,7 +584,7 @@ class RendererBase(RendererCore):
             message=message,
             font=font,
             fill=self.theme.text_fill,
-            background_fill=self.colors.WHITE,
+            background_fill=self.theme.canvas_fill,
         )
 
     def _draw_results_column(

@@ -9,14 +9,23 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import LANGUAGE_CODES, VALID_LANGUAGES, config
 from app.models import PerfMetricsPayload
+from app.services.auto_screen import (
+    ACTIVE_SCREEN_HEADER,
+    DEFAULT_LEAD_HOURS,
+    MAX_LEAD_HOURS,
+    AutoMode,
+)
 from app.services.database import get_database
-from app.services.f1_service import F1Service
+from app.services.f1_service import NEXT_RACE_GRACE, F1Service
 from app.services.private_stats import canonical_page
-from app.services.renderer_text import get_team_color_hex
+from app.services.renderer_text import get_team_color_hex, get_team_key
+from app.services.renderer_theme import ThemeMode
 from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_extra import TeamsExtra
 from app.services.teams_service import TeamsService, get_default_teams_year
 from app.services.track_catalog import TrackAccent, TrackSource, TrackStyle
+from app.services.weather_service import TempUnit
+from app.services.weekend_phase import WeekendMode
 from app.state import get_bmp_cache, get_bmp_variant_cache
 from app.utils.f1_season import (
     MIN_F1_SEASON,
@@ -24,8 +33,17 @@ from app.utils.f1_season import (
     get_max_supported_f1_season,
     race_selection_error,
 )
+from app.utils.image_conversion import OutputFormat, Rotation
 from app.utils.rate_limit import enforce_rate_limit
-from app.utils.standings_metadata import TEAM_ID_MAP, get_driver_number
+from app.utils.refresh_hint import (
+    ERROR_REFRESH_SECONDS,
+    HOURLY_REFRESH_SECONDS,
+    MAX_REFRESH_SECONDS,
+    MIN_REFRESH_SECONDS,
+    REFRESH_HINT_HEADER,
+    CountdownMode,
+)
+from app.utils.standings_metadata import get_driver_number
 from app.version import APP_VERSION
 
 from .deps import get_f1_service
@@ -156,6 +174,85 @@ async def api_info() -> dict:
             "values": [accent.value for accent in TrackAccent],
         },
     }
+    countdown_parameter = {
+        "type": "string",
+        "description": "Countdown in the status box: hours (days and hours), days (whole days "
+        "in tz, changes at local midnight), auto (whole days until 48 h before the start, then "
+        "days and hours) or off (race date). Invalid values return 422.",
+        "values": [mode.value for mode in CountdownMode],
+        "default": CountdownMode.HOURS.value,
+        "example": "?countdown=auto",
+        "optional": True,
+    }
+    weekend_mode_parameter = {
+        "type": "string",
+        "description": "auto: during the race weekend (from 12 h before the first session) "
+        "mark finished sessions (start plus a conservative duration estimate, the real end "
+        "is unknown), highlight the running or next session, count down to it with its short "
+        "label and show this weekend's qualifying and race podiums (from Jolpica, fetched "
+        "only after those sessions) with the season above each column. off: unchanged. "
+        "Invalid values return 422.",
+        "values": [mode.value for mode in WeekendMode],
+        "default": WeekendMode.OFF.value,
+        "example": "?weekend_mode=auto",
+        "optional": True,
+    }
+    temp_unit_parameter = {
+        "type": "string",
+        "description": "Temperature unit of the drawn weather: c (Celsius) or f (Fahrenheit, "
+        "converted when drawing from the same cached Celsius data, without extra weather "
+        "requests). Invalid values return 422.",
+        "values": [unit.value for unit in TempUnit],
+        "default": TempUnit.C.value,
+        "example": "?temp_unit=f",
+        "optional": True,
+    }
+    weather_type_values = ["race_day", "race", "current", "weekend", "off"]
+    output_parameters = {
+        "format": {
+            "type": "string",
+            "description": "bmp: the default bytes, unchanged. png: lossless PNG with exactly "
+            "the same pixel indices and panel palette (1-bit greyscale for 1bit, indexed for "
+            "bwr/bwry/spectra6; no dithering or extra colours), about 10-15 KB instead of "
+            "48-385 KB. The path stays .bmp; Content-Type, Content-Length and ETag describe "
+            "the bytes sent. Invalid values return 422.",
+            "values": [output_format.value for output_format in OutputFormat],
+            "default": OutputFormat.BMP.value,
+            "example": "?format=png",
+            "optional": True,
+        },
+        "rotate": {
+            "type": "string",
+            "description": "180 turns the image upside down losslessly (still "
+            f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}, same BMP bit depth) for a panel "
+            "mounted with its connector on the other side. 90/270 are not offered: they need "
+            "a portrait layout. Invalid values return 422.",
+            "values": [rotation.value for rotation in Rotation],
+            "default": Rotation.NONE.value,
+            "example": "?rotate=180",
+            "optional": True,
+        },
+        "theme": {
+            "type": "string",
+            "description": "dark (experimental): white text and lines on a black background; "
+            "red, yellow and the Spectra 6 colours keep their roles and flags keep their colours. "
+            "Large black areas can ghost on some panels, so prefer a full refresh. Rendered on "
+            "demand (never pregenerated). light keeps the default output. Invalid values return "
+            "422.",
+            "values": [theme.value for theme in ThemeMode],
+            "default": ThemeMode.LIGHT.value,
+            "example": "?theme=dark",
+            "optional": True,
+        },
+    }
+    output_content_type = "image/bmp; image/png with format=png"
+    refresh_hint = (
+        f"{REFRESH_HINT_HEADER} on 200 and 304: seconds until the image is next expected to "
+        f"change ({MIN_REFRESH_SECONDS}-{MAX_REFRESH_SECONDS}, at most "
+        f"{HOURLY_REFRESH_SECONDS} while hourly refreshed weather is shown; "
+        f"{ERROR_REFRESH_SECONDS} for an error image). A hint for the client's sleep length, "
+        "not a promise that the ETag stays unchanged."
+    )
     operational_auth = {
         "required": config.ADMIN_API_TOKEN is not None,
         "description": "Public unless ADMIN_API_TOKEN is configured. Applies to GET only.",
@@ -262,16 +359,24 @@ async def api_info() -> dict:
                         "type": "string",
                         "description": (
                             "Weather source to render "
-                            "('race' normalizes to 'race_day'; 'off' disables weather)"
+                            "('race' normalizes to 'race_day'; 'off' disables weather). "
+                            "'weekend' adds a second line to the status box with the "
+                            "qualifying (and, when it fits, sprint) and race forecasts from "
+                            "the same single Open-Meteo request as race_day; sessions beyond "
+                            "the 16-day forecast or without a published time are left out"
                         ),
-                        "values": ["race_day", "race", "current", "off"],
+                        "values": weather_type_values,
                         "default": "race_day",
                         "example": "?weather_type=current",
                         "optional": True,
                     },
+                    "countdown": countdown_parameter,
+                    "weekend_mode": weekend_mode_parameter,
+                    "temp_unit": temp_unit_parameter,
+                    **output_parameters,
                 },
                 "response": {
-                    "content_type": "image/bmp",
+                    "content_type": output_content_type,
                     "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
                     "color_depth": (
                         "1-bit monochrome, 4-bit indexed B/W/R, "
@@ -280,6 +385,7 @@ async def api_info() -> dict:
                     "cache_control": "public, max-age=3600; no-store for rendering errors",
                     "conditional_requests": "Send If-None-Match with the previous ETag for a "
                     "body-free 304 response when unchanged",
+                    "refresh_hint": refresh_hint,
                 },
                 "examples": [
                     "/calendar.bmp",
@@ -289,6 +395,11 @@ async def api_info() -> dict:
                     "/calendar.bmp?display=bwr",
                     "/calendar.bmp?display=bwry",
                     "/calendar.bmp?display=spectra6&weather_type=current",
+                    "/calendar.bmp?countdown=auto&weather=false",
+                    "/calendar.bmp?weekend_mode=auto&display=bwry",
+                    "/calendar.bmp?weather_type=weekend&temp_unit=f&tz=America/New_York",
+                    "/calendar.bmp?display=spectra6&format=png&rotate=180",
+                    "/calendar.bmp?display=bwr&theme=dark",
                 ],
             },
             "/teams.bmp": {
@@ -331,9 +442,15 @@ async def api_info() -> dict:
                         "example": "?display=bwr",
                         "optional": True,
                     },
+                    "temp_unit": {
+                        **temp_unit_parameter,
+                        "description": "Temperature unit of the weather panel (extra=weather): "
+                        "c or f. Invalid values return 422.",
+                    },
+                    **output_parameters,
                 },
                 "response": {
-                    "content_type": "image/bmp",
+                    "content_type": output_content_type,
                     "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
                     "color_depth": (
                         "1-bit monochrome, 4-bit indexed B/W/R, "
@@ -342,6 +459,7 @@ async def api_info() -> dict:
                     "cache_control": "no-cache; no-store for rendering errors",
                     "conditional_requests": "Send If-None-Match with the previous ETag for a "
                     "body-free 304 response when unchanged",
+                    "refresh_hint": refresh_hint,
                 },
                 "examples": [
                     "/teams.bmp",
@@ -349,6 +467,100 @@ async def api_info() -> dict:
                     f"/teams.bmp?year={get_default_teams_year()}",
                     "/teams.bmp?display=bwr",
                     "/teams.bmp?display=spectra6",
+                    "/teams.bmp?extra=weather&temp_unit=f",
+                    "/teams.bmp?display=bwr&format=png",
+                    "/teams.bmp?display=spectra6&extra=flags&theme=dark",
+                ],
+            },
+            "/auto.bmp": {
+                "method": "GET",
+                "description": "One URL that returns the calendar or the teams BMP directly "
+                "(no redirect), for displays that can poll a single address such as "
+                "Živýobraz.eu. Accepts the calendar and teams parameters; each applies to "
+                "its own screen.",
+                "parameters": {
+                    "mode": {
+                        "type": "string",
+                        "description": "race_week: calendar from lead_hours before the first "
+                        "session of the next race weekend until the next race is selected "
+                        f"({int(NEXT_RACE_GRACE.total_seconds() // 3600)} h after the start, or "
+                        "after the local race day while the start time is unpublished), teams "
+                        "otherwise, also during the off-season and for cancelled races. daily: "
+                        "calendar on even and teams on odd local days in tz, switching at "
+                        "local midnight. Invalid values return 422.",
+                        "values": [mode.value for mode in AutoMode],
+                        "default": AutoMode.RACE_WEEK.value,
+                        "example": "?mode=daily",
+                        "optional": True,
+                    },
+                    "lead_hours": {
+                        "type": "integer",
+                        "description": "race_week: hours before the first session when the "
+                        "calendar appears. Values outside the range return 422.",
+                        "minimum": 0,
+                        "maximum": MAX_LEAD_HOURS,
+                        "default": DEFAULT_LEAD_HOURS,
+                        "example": "?lead_hours=72",
+                        "optional": True,
+                    },
+                    "lang": {"type": "string", "default": "en", "values": _LANGUAGE_VALUES},
+                    "tz": {
+                        **timezone_parameter,
+                        "description": "IANA timezone for both screens and the daily switch; "
+                        "an invalid timezone returns 400",
+                    },
+                    "display": {"type": "string", "default": "1bit", "values": _DISPLAY_VALUES},
+                    "weather": {
+                        "type": "boolean",
+                        "description": "Calendar only",
+                        "default": True,
+                        "optional": True,
+                    },
+                    "weather_type": {
+                        "type": "string",
+                        "description": "Calendar only",
+                        "values": weather_type_values,
+                        "default": "race_day",
+                        "optional": True,
+                    },
+                    "countdown": {**countdown_parameter, "description": "Calendar only"},
+                    "weekend_mode": {**weekend_mode_parameter, "description": "Calendar only"},
+                    "temp_unit": {
+                        **temp_unit_parameter,
+                        "description": "Calendar weather and teams weather panel",
+                    },
+                    **track_parameters,
+                    "extra": {
+                        "type": "string",
+                        "description": "Teams only; defaults to countdown on this URL",
+                        "values": [extra.value for extra in TeamsExtra],
+                        "default": TeamsExtra.COUNTDOWN.value,
+                        "optional": True,
+                    },
+                    "year": {
+                        "type": "integer",
+                        "description": "Teams only: season year; the calendar always shows the "
+                        "next race",
+                        "optional": True,
+                    },
+                    **output_parameters,
+                },
+                "response": {
+                    "content_type": output_content_type,
+                    "dimensions": f"{config.DISPLAY_WIDTH}x{config.DISPLAY_HEIGHT}",
+                    "active_screen": f"{ACTIVE_SCREEN_HEADER}: calendar or teams",
+                    "cache_control": "As the active screen; max-age never exceeds the seconds "
+                    "until the next switch",
+                    "conditional_requests": "ETag of the active screen (the same as its direct "
+                    "URL); a 304 is returned only while the client already shows that screen",
+                    "refresh_hint": f"{refresh_hint} Never later than the next switch.",
+                },
+                "examples": [
+                    "/auto.bmp",
+                    "/auto.bmp?lang=cs&tz=Europe/Prague&display=bwry",
+                    "/auto.bmp?mode=daily&tz=America/New_York",
+                    "/auto.bmp?lead_hours=72&extra=flags",
+                    "/auto.bmp?display=bwry&format=png&rotate=180",
                 ],
             },
             "/api": {"method": "GET", "description": "API documentation (this endpoint)"},
@@ -382,13 +594,30 @@ async def api_info() -> dict:
                     "weather_type": {
                         "type": "string",
                         "default": "off",
-                        "values": ["off", "current", "race", "race_day"],
+                        "values": ["off", "current", "race", "race_day", "weekend"],
                     },
                     "extra": {
                         "type": "string",
                         "description": "Optional teams panel; applies only to teams",
                         "default": "none",
                         "values": [extra.value for extra in TeamsExtra],
+                    },
+                    "countdown": {
+                        **countdown_parameter,
+                        "description": "Calendar countdown; applies only to calendar",
+                    },
+                    "weekend_mode": {
+                        **weekend_mode_parameter,
+                        "description": "Calendar weekend mode; applies only to calendar",
+                    },
+                    "temp_unit": {
+                        **temp_unit_parameter,
+                        "description": "Calendar weather and teams weather panel",
+                    },
+                    "theme": {
+                        **output_parameters["theme"],
+                        "description": "light (default, pregenerated) or dark (experimental, "
+                        "rendered on demand into the variant cache)",
                     },
                     **track_parameters,
                 },
@@ -673,11 +902,13 @@ def _get_driver_number(driver_code: str, year: int) -> int | None:
 
 
 def _get_team_id(team_name: str) -> str | None:
-    """Resolve a standings constructor name to the frontend team asset key."""
-    for key, team_id in TEAM_ID_MAP.items():
-        if key.lower() in team_name.lower():
-            return team_id
-    return None
+    """Resolve a standings constructor name to the canonical team key.
+
+    Shares the renderer's mapping so the public id always matches the colour and artwork
+    keys (a separate substring table returned None for Audi/Cadillac and "ferrari" for
+    "Cadillac-Ferrari").
+    """
+    return get_team_key(team_name)
 
 
 @router.get("/api/standings/leader")

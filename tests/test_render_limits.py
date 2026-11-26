@@ -17,6 +17,7 @@ from PIL import Image
 
 from app.models import TeamEntry, TeamsData
 from app.routes import images, previews, tracks
+from app.services import bmp_artifacts
 from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_extra import TeamsExtra, build_teams_extra_context
 from app.services.weather_service import WeatherData, WeatherService
@@ -24,7 +25,7 @@ from app.state import get_bmp_cache, get_bmp_variant_cache
 from app.utils import render_limit
 from app.utils.async_tasks import run_render
 from app.utils.etag import strong_etag
-from app.utils.rate_limit import _reset_rate_limit_state_for_tests
+from app.utils.rate_limit import _reset_rate_limit_state_for_tests, enforce_rate_limit
 from app.utils.render_limit import render_jobs, render_slot, reset_render_limits_for_tests
 
 _NOW = datetime(2026, 5, 1, 12, tzinfo=UTC)
@@ -35,7 +36,7 @@ def routes(monkeypatch):
     """Mount image routes with deterministic teams data and no external fetching."""
     get_bmp_cache().clear()
     get_bmp_variant_cache().clear()
-    images._singleflight_tasks.clear()
+    bmp_artifacts._singleflight_tasks.clear()
     monkeypatch.setattr(WeatherService, "get_cached_value", lambda key: WeatherData(20.0, 1, 10))
     monkeypatch.setattr(images, "record_api_call", MagicMock())
     for module in (images, previews):
@@ -48,9 +49,10 @@ def routes(monkeypatch):
                 extra, year, now=_NOW, **kwargs
             ),
         )
+    for module in (bmp_artifacts, previews):
         monkeypatch.setattr(module, "is_teams_data_cacheable", lambda data: True)
     monkeypatch.setattr(
-        images.TeamsService,
+        bmp_artifacts.TeamsService,
         "get_teams_and_drivers",
         AsyncMock(
             return_value=TeamsData(season=2026, teams=[TeamEntry(constructor_name="Ferrari")])
@@ -71,7 +73,7 @@ def routes(monkeypatch):
     yield app
     get_bmp_cache().clear()
     get_bmp_variant_cache().clear()
-    images._singleflight_tasks.clear()
+    bmp_artifacts._singleflight_tasks.clear()
 
 
 def _configure_limits(monkeypatch, *, global_limit: int, variant_limit: int, wait: float) -> None:
@@ -189,14 +191,14 @@ async def test_variant_pool_rejects_extras_while_plain_renders_continue(monkeypa
 async def test_route_bytes_match_the_renderer_and_land_in_separate_caches(routes, monkeypatch):
     """Every display and extra panel keeps the renderer bytes, headers, and cache split."""
     rendered: list[bytes] = []
-    original = images.run_render
+    original = bmp_artifacts.run_render
 
     async def spy(func):
         data = await original(func)
         rendered.append(data)
         return data
 
-    monkeypatch.setattr(images, "run_render", spy)
+    monkeypatch.setattr(bmp_artifacts, "run_render", spy)
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
 
     async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
@@ -301,7 +303,7 @@ async def test_same_key_shares_one_slot_and_distinct_keys_receive_503(routes, mo
 
     entries = 0
     joined = asyncio.Event()
-    original_singleflight = images._singleflight
+    original_singleflight = bmp_artifacts.singleflight
 
     async def counting(key, producer):
         nonlocal entries
@@ -310,8 +312,8 @@ async def test_same_key_shares_one_slot_and_distinct_keys_receive_503(routes, mo
             joined.set()
         return await original_singleflight(key, producer)
 
-    monkeypatch.setattr(images, "run_render", slow)
-    monkeypatch.setattr(images, "_singleflight", counting)
+    monkeypatch.setattr(bmp_artifacts, "run_render", slow)
+    monkeypatch.setattr(bmp_artifacts, "singleflight", counting)
 
     async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
         first_task = asyncio.create_task(client.get("/teams.bmp"))
@@ -362,7 +364,7 @@ async def test_busy_global_pool_returns_503_without_replacing_image_routes(route
 async def test_busy_variant_pool_rejects_extras_and_still_serves_calendar(routes, monkeypatch):
     """Extra BMP and preview floods get 503 while a calendar miss can still render."""
     _configure_limits(monkeypatch, global_limit=2, variant_limit=1, wait=0.05)
-    monkeypatch.setattr(images, "run_render", AsyncMock(return_value=b"BMcalendar"))
+    monkeypatch.setattr(bmp_artifacts, "run_render", AsyncMock(return_value=b"BMcalendar"))
     monkeypatch.setattr(previews, "run_render", AsyncMock(return_value=b"panel-png"))
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
 
@@ -379,7 +381,7 @@ async def test_busy_variant_pool_rejects_extras_and_still_serves_calendar(routes
     assert calendar.status_code == 200
     assert calendar.content == b"BMcalendar"
     assert calendar.headers["cache-control"] == images.CALENDAR_BMP_CACHE_CONTROL
-    images.run_render.assert_awaited()
+    bmp_artifacts.run_render.assert_awaited()
 
 
 @pytest.mark.asyncio
@@ -548,7 +550,7 @@ async def test_failed_render_waiters_share_one_limited_error_image(routes, monke
     error_renders = 0
     calendar_entries = 0
     error_entries = 0
-    original_singleflight = images._singleflight
+    original_singleflight = bmp_artifacts.singleflight
 
     async def counting(key, producer):
         nonlocal calendar_entries, error_entries
@@ -565,7 +567,7 @@ async def test_failed_render_waiters_share_one_limited_error_image(routes, monke
 
     async def render(func):
         nonlocal error_renders
-        if getattr(func, "func", None) is images._render_error_bytes:
+        if getattr(func, "func", None) is bmp_artifacts.render_error_bytes:
             error_renders += 1
             await second_error.wait()
             return b"BMerror"
@@ -573,8 +575,8 @@ async def test_failed_render_waiters_share_one_limited_error_image(routes, monke
         await release.wait()
         raise RuntimeError("calendar failed")
 
-    monkeypatch.setattr(images, "run_render", render)
-    monkeypatch.setattr(images, "_singleflight", counting)
+    monkeypatch.setattr(bmp_artifacts, "run_render", render)
+    monkeypatch.setattr(bmp_artifacts, "singleflight", counting)
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
 
     async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
@@ -591,7 +593,7 @@ async def test_failed_render_waiters_share_one_limited_error_image(routes, monke
     assert first_response.content == second_response.content == b"BMerror"
     assert first_response.headers["cache-control"] == "no-store"
     assert second_response.headers["cache-control"] == "no-store"
-    assert not images._singleflight_tasks
+    assert not bmp_artifacts._singleflight_tasks
 
 
 @pytest.mark.asyncio
@@ -599,7 +601,7 @@ async def test_error_bmp_waits_for_a_render_slot(routes, monkeypatch):
     """The error-image fallback cannot bypass a full render pool."""
     _configure_limits(monkeypatch, global_limit=1, variant_limit=1, wait=0.05)
     monkeypatch.setattr(
-        images, "_render_calendar_artifact", AsyncMock(side_effect=RuntimeError("fail"))
+        bmp_artifacts, "render_calendar_artifact", AsyncMock(side_effect=RuntimeError("fail"))
     )
     monkeypatch.setattr(images, "_get_pregenerated_calendar_path", MagicMock(return_value=None))
 
@@ -708,17 +710,18 @@ def test_permit_release_waits_for_every_tracked_worker():
 
 
 @pytest.mark.asyncio
-async def test_image_rate_limit_still_returns_429_before_rendering(monkeypatch):
+async def test_image_rate_limit_still_returns_429_before_rendering(
+    routes, monkeypatch, fixed_rate_limit_clock
+):
     """The existing per-minute limit is unchanged and still wins over render admission."""
     _reset_rate_limit_state_for_tests()
     monkeypatch.setattr(images.config, "RATE_LIMIT_ENABLED", True)
     monkeypatch.setattr(images.config, "IMAGE_RATE_LIMIT_PER_MINUTE", 1)
     monkeypatch.setattr(images.config, "MINIMAL_DATA_MODE", False)
     monkeypatch.setattr(images.config, "AGGREGATE_STATS_ONLY", False)
-    app = FastAPI()
-    app.include_router(images.router)
+    monkeypatch.setattr(images, "enforce_rate_limit", enforce_rate_limit)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
         first = await client.get("/teams.bmp", params={"extra": "none"})
         second = await client.get("/teams.bmp", params={"extra": "countdown"})
 

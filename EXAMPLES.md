@@ -12,6 +12,100 @@ curl http://localhost:8000/calendar.bmp?lang=en -o calendar.bmp
 curl http://localhost:8000/calendar.bmp?lang=cs -o calendar.bmp
 ```
 
+### Battery-Friendly Countdown and Refresh Hint
+
+```bash
+# Whole days only: the image changes once a day at local midnight (plus race status changes)
+curl "http://localhost:8000/calendar.bmp?countdown=days&weather=false" -o calendar.bmp
+
+# Days until 48 hours before the start, then days and hours; show the refresh hint
+curl -sD - "http://localhost:8000/calendar.bmp?countdown=auto&weather=false" -o calendar.bmp \
+  | grep -i x-next-refresh-seconds
+
+# Race date instead of a countdown
+curl "http://localhost:8000/calendar.bmp?countdown=off" -o calendar.bmp
+```
+
+### Race Weekend Mode
+
+```bash
+# During the race weekend: finished sessions ticked, next session marked and counted down,
+# this weekend's qualifying and race podiums once Jolpica publishes them
+curl "http://localhost:8000/calendar.bmp?weekend_mode=auto&display=bwry" -o calendar.bmp
+
+# Combine with whole-day countdowns and the one-URL screen switch
+curl "http://localhost:8000/auto.bmp?weekend_mode=auto&countdown=auto&tz=Europe/Prague" \
+  -o screen.bmp
+```
+
+### Weekend Weather and Fahrenheit
+
+```bash
+# Qualifying (and sprint when it fits) plus race forecast from one Open-Meteo request
+curl "http://localhost:8000/calendar.bmp?weather_type=weekend&display=bwry" -o calendar.bmp
+
+# The same in Fahrenheit for a US display, and the teams weather panel in Fahrenheit
+curl "http://localhost:8000/calendar.bmp?weather_type=weekend&temp_unit=f&tz=America/New_York" \
+  -o calendar.bmp
+curl "http://localhost:8000/teams.bmp?extra=weather&temp_unit=f" -o teams.bmp
+```
+
+### One URL for Both Screens
+
+```bash
+# Calendar in race week (from 48 h before FP1), teams with a countdown otherwise.
+# Use this single URL for Živýobraz.eu or firmware that polls one address.
+curl -sD - "http://localhost:8000/auto.bmp?lang=cs&tz=Europe/Prague" -o screen.bmp \
+  | grep -i -E "x-active-screen|x-next-refresh-seconds"
+
+# Show the calendar three days ahead and the plain teams grid otherwise
+curl "http://localhost:8000/auto.bmp?lead_hours=72&extra=none" -o screen.bmp
+
+# Alternate calendar and teams every day at local midnight
+curl "http://localhost:8000/auto.bmp?mode=daily&tz=America/New_York&display=bwry" -o screen.bmp
+```
+
+### PNG Output and 180° Rotation
+
+```bash
+# Palette-exact PNG: same pixels and panel palette as the BMP, about 14 KB instead of 385 KB
+curl -sD - "http://localhost:8000/calendar.bmp?display=spectra6&format=png" -o calendar.png \
+  | grep -i -E "content-type|content-length|etag"
+
+# Upside down for an enclosure with the connector on the other side (still a 4-bit BMP)
+curl "http://localhost:8000/teams.bmp?display=bwr&rotate=180" -o teams.bmp
+
+# Both, on the one-URL screen switch (the path stays .bmp; Content-Type is image/png)
+curl "http://localhost:8000/auto.bmp?display=bwry&format=png&rotate=180" -o screen.png
+```
+
+| `display`  | BMP       | `format=png` |
+| ---------- | --------- | ------------ |
+| `1bit`     | 48 062 B  | ~10.5 KB     |
+| `bwr`      | 192 118 B | ~12.8 KB     |
+| `bwry`     | 192 118 B | ~13.0 KB     |
+| `spectra6` | 385 078 B | ~14.3 KB     |
+
+Measured on an 800×480 calendar. `90` and `270` are not offered because they need a portrait
+layout; invalid `format` or `rotate` values return `422`.
+
+### Dark Theme
+
+```bash
+# Experimental dark theme: black background, white text, red accents stay red
+curl "http://localhost:8000/calendar.bmp?display=bwr&theme=dark" -o calendar.bmp
+
+# Works with every other parameter, here the teams flags panel as a rotated PNG
+curl "http://localhost:8000/teams.bmp?display=spectra6&extra=flags&theme=dark&format=png&rotate=180" \
+  -o teams.png
+
+# And on the one-URL screen switch
+curl "http://localhost:8000/auto.bmp?display=1bit&theme=dark" -o screen.bmp
+```
+
+`theme=light` (the default) returns the same bytes as a URL without `theme`; an invalid value
+returns `422`. Large black areas can ghost on some panels, so prefer a full refresh.
+
 ### Check Health
 
 ```bash
@@ -154,13 +248,14 @@ curl http://localhost:8000/api
 #include <HTTPClient.h>
 #include <WiFi.h>
 
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+// Define WIFI_SSID / WIFI_PASSWORD in secrets.h and keep that file out of version control.
+#include "secrets.h"
+
 const char* serverUrl = "http://your-server:8000/calendar.bmp?lang=cs";
 
 void setup() {
   Serial.begin(115200);
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);

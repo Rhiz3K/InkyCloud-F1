@@ -7,14 +7,17 @@ applied to one copy (like the BWR results-flag map) silently missed the others.
 
 from __future__ import annotations
 
+from app.config import DISPLAY_CODES
 from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.renderer import Renderer
+from app.services.renderer_theme import ThemeMode
 from app.services.spectra6_renderer import Spectra6Renderer
+from app.utils.bmp import RgbColor
 
 AnyRenderer = Renderer | Spectra6Renderer | BwrRenderer | BwryRenderer
 RendererType = type[Renderer] | type[Spectra6Renderer] | type[BwrRenderer] | type[BwryRenderer]
-DISPLAY_TYPES = ("1bit", "bwr", "bwry", "spectra6")
+DISPLAY_TYPES = DISPLAY_CODES
 COLOR_DISPLAYS = frozenset({"bwr", "bwry", "spectra6"})
 
 _RENDERER_TYPES: dict[str, RendererType] = {
@@ -25,7 +28,16 @@ _RENDERER_TYPES: dict[str, RendererType] = {
 }
 
 
-def create_renderer(display: str, translator: dict, lang: str) -> AnyRenderer:
-    """Instantiate the renderer for the requested display mode ("1bit" fallback)."""
+def create_renderer(
+    display: str, translator: dict, lang: str, theme: ThemeMode = ThemeMode.LIGHT
+) -> AnyRenderer:
+    """Instantiate the renderer for the requested display mode ("1bit" fallback) and theme."""
     renderer_type = _RENDERER_TYPES.get(display, Renderer)
-    return renderer_type(translator, lang)
+    return renderer_type(translator, lang, dark=theme == ThemeMode.DARK)
+
+
+def display_palette(display: str) -> list[RgbColor] | None:
+    """Return the fixed panel palette of a colour display; ``None`` for 1-bit (mode "1")."""
+    if display not in COLOR_DISPLAYS:
+        return None
+    return list(_RENDERER_TYPES[display].THEME.colors.PALETTE)

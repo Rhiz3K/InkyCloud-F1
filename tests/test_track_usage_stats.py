@@ -17,6 +17,7 @@ from app import main, state
 from app.config import LANGUAGE_CODES, config
 from app.routes import api, images, pages
 from app.routes.deps import get_f1_service
+from app.services import bmp_artifacts
 from app.services.database import DATABASE_SCHEMA_VERSION, Database
 from app.services.i18n import get_translator
 from app.services.private_stats import TRACK_DIMENSIONS, hour_stamp, normalize_track_options
@@ -181,9 +182,9 @@ async def test_calendar_defaults_custom_choices_cache_and_304_reach_stats_api(
         data = kwargs["track_options"].cache_key.encode()
         artifact = (data, strong_etag(data))
         state.get_bmp_cache()[kwargs["cache_key"]] = artifact
-        return artifact
+        return bmp_artifacts.RenderedArtifact(artifact, True, state.bmp_cache_generation())
 
-    monkeypatch.setattr(images, "_render_calendar_artifact", render)
+    monkeypatch.setattr(bmp_artifacts, "render_calendar_artifact", render)
     app = FastAPI()
     app.include_router(images.router)
     app.include_router(api.router)
@@ -344,3 +345,58 @@ async def test_each_map_dimension_survives_buffering_and_retention(
             assert (await (await conn.execute("SELECT COUNT(*) FROM api_calls")).fetchone())[0] == 0
     finally:
         await db.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("aggregate", [True, False])
+async def test_auto_calendar_responses_count_as_calendar_requests(tmp_path, monkeypatch, aggregate):
+    """/auto.bmp calendar responses feed the calendar reports; its teams responses the teams."""
+    monkeypatch.setattr(config, "AGGREGATE_STATS_ONLY", aggregate)
+    db = Database(str(tmp_path / "auto-requests.db"))
+    try:
+        state.record_api_call(
+            "/auto.bmp",
+            100,
+            1000,
+            "en",
+            "Asia/Tokyo",
+            2026,
+            1,
+            "Australian Grand Prix",
+            True,
+            "spectra6",
+            track_style="relief",
+            track_source="jules",
+            track_accent="all",
+        )
+        state.record_api_call(
+            "/auto.bmp",
+            90,
+            900,
+            "en",
+            None,
+            2026,
+            None,
+            None,
+            False,
+            "bwr",
+            track_style="relief",
+            track_source="jules",
+            track_accent="all",
+        )
+        await db.save_api_calls_batch(state.get_and_clear_api_calls_buffer())
+
+        stats = await db.get_stats_for_range(24)
+        assert stats["display_types"] == [{"display_type": "spectra6", "count": 1}]
+        assert stats["teams_display_types"] == [{"display_type": "bwr", "count": 1}]
+        assert [(race["round"], race["count"]) for race in stats["races"]] == [(1, 1)]
+        for field, choice in zip(TRACK_DIMENSIONS, ("relief", "jules", "all"), strict=True):
+            assert stats[f"{field}s"] == [{field: choice, "count": 1}]
+        assert await db.get_popular_tz_variants(min_requests=1, exclude_tz="Europe/Prague") == [
+            {"lang": "en", "tz": "Asia/Tokyo", "count": 1}
+        ]
+    finally:
+        await db.close()
+    assert normalize_track_options({"endpoint": "/auto.bmp", "track_style": "relief"}) == {
+        field: None for field in TRACK_DIMENSIONS
+    }

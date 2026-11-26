@@ -13,6 +13,7 @@ import httpx
 
 from app.config import config
 from app.services.circuit_data import ensure_runtime_circuits_data, load_jolpica_data
+from app.services.circuit_metadata import provider_circuit_id
 from app.services.http_client import get_shared_http_client
 from app.utils.atomic_io import atomic_write_json
 from app.utils.f1_season import get_current_f1_season
@@ -134,11 +135,13 @@ async def _fetch_results_with_status(
     had_failure = False
     api_base = get_jolpica_base_url()
     pacer = pacer or get_jolpica_pacer(api_base)
+    # Bundled data is keyed by local IDs (e.g. las_vegas); the provider knows the circuit as vegas.
+    api_circuit_id = provider_circuit_id(circuit_id)
     for year in (current_year, current_year - 1, current_year - 2):
         try:
             qualifying_response = await fetch_with_retry(
                 client,
-                f"{api_base}/{year}/circuits/{circuit_id}/qualifying.json?limit=100",
+                f"{api_base}/{year}/circuits/{api_circuit_id}/qualifying.json?limit=100",
                 max_retries=config.JOLPICA_MAX_RETRIES,
                 retry_base_delay=2.0,
                 pacer=pacer,
@@ -153,7 +156,7 @@ async def _fetch_results_with_status(
 
             race_response = await fetch_with_retry(
                 client,
-                f"{api_base}/{year}/circuits/{circuit_id}/results.json?limit=100",
+                f"{api_base}/{year}/circuits/{api_circuit_id}/results.json?limit=100",
                 max_retries=config.JOLPICA_MAX_RETRIES,
                 retry_base_delay=2.0,
                 pacer=pacer,
@@ -170,7 +173,12 @@ async def _fetch_results_with_status(
                 :PODIUM_SIZE
             ]
             race = sort_entries_by_position(race_races[0].get("Results"))[:PODIUM_SIZE]
-            if len(qualifying) != PODIUM_SIZE or len(race) != PODIUM_SIZE:
+            # Three rows are not enough: a podium missing P3 (stored as 1, 2, 4) would be
+            # displayed with the fourth-placed driver in third place.
+            expected_positions = list(range(1, PODIUM_SIZE + 1))
+            if [position for position, _ in qualifying] != expected_positions or [
+                position for position, _ in race
+            ] != expected_positions:
                 raise ValueError("Incomplete podium results")
 
             return CircuitFetchOutcome(

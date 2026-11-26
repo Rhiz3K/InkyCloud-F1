@@ -271,7 +271,12 @@ def test_scheduler_omits_usage_and_backup_jobs_but_keeps_generation(monkeypatch)
     with patch.object(scheduler, "AsyncIOScheduler") as factory:
         scheduler.start_scheduler()
     jobs = {call.kwargs["id"] for call in factory.return_value.add_job.call_args_list}
-    assert jobs == {"hourly_generation", "historical_results_refresh", "refresh_version_info"}
+    assert jobs == {
+        "hourly_generation",
+        "historical_results_refresh",
+        "weekend_results_refresh",
+        "refresh_version_info",
+    }
     factory.return_value.start.assert_called_once()
 
 

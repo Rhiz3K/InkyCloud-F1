@@ -6,7 +6,7 @@ import asyncio
 import functools
 import logging
 import weakref
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Collection, Iterable, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TypeVar
@@ -21,10 +21,14 @@ from app.services.artifact_metadata import (
 from app.services.database import Database, get_database
 from app.services.f1_service import F1Service
 from app.services.generation_freshness import (
+    GENERATION_ATTEMPT_META_KEY,
+    GENERATION_REASONS_META_KEY,
     GENERATION_STATUS_DEGRADED,
     GENERATION_STATUS_META_KEY,
     GENERATION_STATUS_READY,
     GENERATION_SUCCESS_META_KEY,
+    DegradedReason,
+    encode_reasons,
 )
 from app.services.i18n import get_translator
 from app.services.image_keys import (
@@ -35,20 +39,49 @@ from app.services.image_keys import (
 )
 from app.services.renderers import COLOR_DISPLAYS, DISPLAY_TYPES, create_renderer
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext
-from app.services.weather_service import WeatherData, _parse_coordinate, get_weather_context
+from app.services.weather_service import (
+    WeatherData,
+    WeatherDisplay,
+    WeekendWeather,
+    get_weather_context,
+    parse_coordinate,
+    weekend_weather_expected,
+)
 from app.state import clear_bmp_cache
 from app.utils.async_locks import LoopLockRegistry, get_loop_lock
 from app.utils.async_tasks import RENDER_WORKER_COUNT, run_render
 from app.utils.atomic_io import atomic_write_bytes as _atomic_write_bytes
 from app.utils.etag import encode_etag_sidecar, etag_sidecar_path, strong_etag
 from app.utils.image_conversion import bmp_to_png
-from app.utils.race_times import convert_race_times_to_timezone
+from app.utils.race_times import convert_race_times_to_timezone, race_session_start
 
 logger = logging.getLogger(__name__)
 
 SUPPORTED_LANGUAGES = list(LANGUAGE_CODES)
 _generation_locks: LoopLockRegistry = weakref.WeakKeyDictionary()
 _T = TypeVar("_T")
+
+
+def _profile_languages() -> list[str]:
+    """Languages pregenerated hourly: PREGENERATE_LANGUAGES applied to the supported set."""
+    selected = set(config.pregenerate_languages)
+    return [lang for lang in SUPPORTED_LANGUAGES if lang in selected]
+
+
+def _profile_displays() -> list[str]:
+    """Palettes pregenerated hourly: PREGENERATE_DISPLAYS applied to every display type."""
+    selected = set(config.pregenerate_displays)
+    return [display for display in DISPLAY_TYPES if display in selected]
+
+
+def _profile_weather_types(weather_by_type: dict[str, WeatherDisplay | None]) -> list[str]:
+    """Weather variants to pregenerate: ``off`` always, others per PREGENERATE_WEATHER_TYPES."""
+    # Generation keys race-day weather as "race" (its filename token) rather than "race_day".
+    allowed = {
+        "off",
+        *("race" if kind == "race_day" else kind for kind in config.pregenerate_weather_types),
+    }
+    return [kind for kind in weather_by_type if kind in allowed]
 
 
 async def _bounded_gather(jobs: Sequence[Callable[[], Awaitable[_T]]]) -> list[_T]:
@@ -97,7 +130,7 @@ def _render_calendar_variant_bytes(
     display: str,
     race_data: dict,
     historical_data,
-    weather_data: WeatherData | None,
+    weather_data: WeatherDisplay | None,
     weather_type: str,
 ) -> bytes:
     """Construct the renderer and render in the worker thread.
@@ -182,9 +215,9 @@ async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> No
     """
     images_dir = Path(config.IMAGES_PATH)
     images_dir.mkdir(parents=True, exist_ok=True)
-    display_types = DISPLAY_TYPES
+    display_types = _profile_displays()
 
-    for lang in SUPPORTED_LANGUAGES:
+    for lang in _profile_languages():
         calendar_written = 0
         for display_name in display_types:
             for weather_type in weather_types:
@@ -251,6 +284,54 @@ async def generate_preview_pngs(weather_types: list[str], teams_year: int) -> No
         logger.info("Generated %d teams preview PNGs for %s", teams_written, lang)
 
 
+# Weather tokens of calendar preview filenames ("race" is the race-day forecast).
+_PREVIEW_WEATHER_KINDS = ("off", "current", "race", "weekend")
+
+
+def _preview_filenames(
+    languages: Iterable[str], displays: Iterable[str], weather_kinds: Iterable[str]
+) -> set[str]:
+    """Return every preview PNG name that ``generate_preview_pngs`` writes for a profile."""
+    displays, weather_kinds = list(displays), list(weather_kinds)
+    names: set[str] = set()
+    for lang in languages:
+        if "1bit" in displays:
+            names.add(get_preview_filename("teams", lang))
+            if "off" in weather_kinds:
+                names.add(get_preview_filename("calendar", lang))
+        for display in displays:
+            names.add(get_configure_preview_filename("teams", lang, display=display))
+            names.update(
+                get_configure_preview_filename("calendar", lang, display=display, weather=kind)
+                for kind in weather_kinds
+            )
+    return names
+
+
+def _delete_excluded_previews(images_dir: Path) -> int:
+    """Delete preview PNGs (and their metadata) that the pregeneration profile no longer writes.
+
+    A teams preview stays valid for the whole season and a calendar preview for the race
+    weekend, so one left behind by a narrowed profile would keep serving old standings or
+    weather instead of falling back to an on-demand render.
+    """
+    wanted = _preview_filenames(
+        _profile_languages(),
+        _profile_displays(),
+        _profile_weather_types(dict.fromkeys(_PREVIEW_WEATHER_KINDS)),
+    )
+    removed = 0
+    for name in sorted(
+        _preview_filenames(SUPPORTED_LANGUAGES, DISPLAY_TYPES, _PREVIEW_WEATHER_KINDS) - wanted
+    ):
+        path = images_dir / name
+        if path.exists() or metadata_path(path).exists():
+            path.unlink(missing_ok=True)
+            metadata_path(path).unlink(missing_ok=True)
+            removed += 1
+    return removed
+
+
 async def _write_preview_artifact(
     path: Path, content: bytes, source_path: Path, source_metadata: dict
 ) -> None:
@@ -268,7 +349,7 @@ async def _generate_variant(
     db: Database,
     race_data: dict,
     historical_data,
-    weather_data: WeatherData | None,
+    weather_data: WeatherDisplay | None,
     lang: str,
     tz: str | None,
     display: str,
@@ -280,6 +361,12 @@ async def _generate_variant(
     render never propagates up and aborts the whole generation run.
     """
     wd = weather_data if weather_type != "off" else None
+    identity = calendar_identity(
+        race_data,
+        weather_type=weather_type,
+        now=datetime.now(timezone.utc),
+        source_period=wd.period if isinstance(wd, WeekendWeather) else "",
+    )
     image_key = _get_image_key(lang, tz, display, weather_type)
     image_path = images_dir / f"{image_key}.bmp"
 
@@ -297,7 +384,7 @@ async def _generate_variant(
                 weather_type,
             )
         )
-        await _write_bmp_artifact(image_path, bmp_data, calendar_identity(race_data))
+        await _write_bmp_artifact(image_path, bmp_data, identity)
         await db.save_generated_image(image_key=image_key, image_path=str(image_path), lang=lang)
     except Exception as exc:
         logger.error(
@@ -358,9 +445,12 @@ def _load_historical_data(race_data: dict) -> object | None:
 
 async def _load_weather_context(
     race_data: dict,
-) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherData | None]]:
-    """Load current and race-day weather variants for generation."""
-    current_weather, race_weather, weather_by_type = await get_weather_context(race_data)
+) -> tuple[WeatherData | None, WeatherData | None, dict[str, WeatherDisplay | None]]:
+    """Load current, race-day and (when the profile lists it) weekend weather for generation."""
+    wanted = _profile_weather_types({"current": None, "race": None, "weekend": None})
+    current_weather, race_weather, weather_by_type = await get_weather_context(
+        race_data, include_weekend="weekend" in wanted, wanted=wanted
+    )
 
     circuit_id = race_data.get("circuit", {}).get("circuitId")
     if circuit_id and current_weather:
@@ -375,39 +465,14 @@ def _has_weather_coordinates(race_data: dict) -> bool:
     """Return whether race data contains valid latitude and longitude values."""
     circuit = race_data.get("circuit", {})
     displayed_lon = circuit.get("long") if circuit.get("long") is not None else circuit.get("lon")
-    lat = _parse_coordinate(circuit.get("lat"))
-    lon = _parse_coordinate(displayed_lon)
+    lat = parse_coordinate(circuit.get("lat"))
+    lon = parse_coordinate(displayed_lon)
     return lat is not None and lon is not None and -90 <= lat <= 90 and -180 <= lon <= 180
-
-
-def _parse_race_datetime_utc(race_data: dict) -> datetime | None:
-    """Extract the race session timestamp as an aware UTC datetime."""
-    schedule = race_data.get("schedule", [])
-    race_session = next(
-        (session for session in schedule if str(session.get("name", "")).lower() == "race"),
-        None,
-    )
-    if not race_session:
-        return None
-
-    dt_str = race_session.get("datetime")
-    if not dt_str or len(str(dt_str)) == 10:
-        return None
-
-    try:
-        race_dt = datetime.fromisoformat(str(dt_str).replace("Z", "+00:00"))
-    except ValueError:
-        logger.debug("Invalid race datetime for weather degradation check: %s", dt_str)
-        return None
-
-    if race_dt.tzinfo is None:
-        return race_dt.replace(tzinfo=timezone.utc)
-    return race_dt.astimezone(timezone.utc)
 
 
 def _race_weather_expected(race_data: dict) -> bool:
     """Return whether historical or forecast race weather should be available."""
-    race_dt = _parse_race_datetime_utc(race_data)
+    race_dt = race_session_start(race_data)
     if race_dt is None:
         return False
 
@@ -422,15 +487,24 @@ def _race_weather_expected(race_data: dict) -> bool:
 
 def _weather_context_degraded(
     race_data: dict,
-    weather_by_type: dict[str, WeatherData | None],
+    weather_by_type: dict[str, WeatherDisplay | None],
+    wanted: Collection[str] = ("current", "race"),
 ) -> bool:
-    """Return whether any weather source expected for rendering is unavailable."""
+    """Return whether any weather source expected for rendering is unavailable.
+
+    Only the ``wanted`` variants (those the pregeneration profile renders) count. The weekend
+    summary is expected by the weather service's own rule, so a race outside its forecast
+    window (or a weekend whose shown sessions are over) is not degraded.
+    """
     if not config.WEATHER_ENABLED or not _has_weather_coordinates(race_data):
         return False
 
     expected = {"current"}
     if _race_weather_expected(race_data):
         expected.add("race")
+    if weekend_weather_expected(race_data):
+        expected.add("weekend")
+    expected &= set(wanted)
 
     return any(weather_by_type.get(weather_type) is None for weather_type in expected)
 
@@ -442,7 +516,7 @@ async def _generate_base_variants(
     race_data: dict,
     historical_data,
     display_types: Sequence[str],
-    weather_by_type: dict[str, WeatherData | None],
+    weather_by_type: dict[str, WeatherDisplay | None],
 ) -> tuple[set[Path], int]:
     """Generate the base language/display/weather combinations.
 
@@ -461,7 +535,7 @@ async def _generate_base_variants(
             display,
             weather_type,
         )
-        for lang in SUPPORTED_LANGUAGES
+        for lang in _profile_languages()
         for display in display_types
         for weather_type, weather_data in weather_by_type.items()
     ]
@@ -476,7 +550,7 @@ async def _generate_popular_tz_variants(
     race_data: dict,
     historical_data,
     display_types: Sequence[str],
-    weather_by_type: dict[str, WeatherData | None],
+    weather_by_type: dict[str, WeatherDisplay | None],
 ) -> tuple[set[Path], int]:
     """Generate extra calendar variants for the most-used non-default timezones.
 
@@ -496,8 +570,8 @@ async def _generate_popular_tz_variants(
     for variant in popular_variants:
         lang = variant["lang"]
         tz = variant["tz"]
-        if lang not in SUPPORTED_LANGUAGES:
-            logger.debug("Skipping unsupported language: %s", lang)
+        if lang not in _profile_languages():
+            logger.debug("Skipping language outside the pregeneration profile: %s", lang)
             continue
 
         try:
@@ -570,12 +644,15 @@ async def _generate_teams_bmp_variants(
     *,
     images_dir: Path,
     db: Database,
+    reasons: set[DegradedReason] | None = None,
 ) -> tuple[set[Path], int]:
-    """Generate pregenerated teams BMPs for all languages and display modes.
+    """Generate pregenerated teams BMPs for the profile's languages and display modes.
 
     Returns (written paths, failure count). A failed/empty upstream fetch counts as a failure
-    so the caller skips stale pruning and keeps the previous teams BMPs in place.
+    so the caller skips stale pruning and keeps the previous teams BMPs in place; it is also
+    recorded in ``reasons`` as TEAMS_DATA_UNAVAILABLE.
     """
+    data_reasons = reasons if reasons is not None else set()
     from app.services.teams_service import (
         TeamsService,
         get_default_teams_year,
@@ -589,14 +666,20 @@ async def _generate_teams_bmp_variants(
             teams_data = await teams_service.get_teams_and_drivers(teams_year)
     except Exception as exc:
         logger.error("Error fetching teams BMP data for %d: %s", teams_year, exc, exc_info=True)
+        data_reasons.add(DegradedReason.TEAMS_DATA_UNAVAILABLE)
         return set(), 1
 
     if not teams_data.teams:
         logger.warning("Skipping teams BMP generation: no teams data for %d", teams_year)
+        data_reasons.add(DegradedReason.TEAMS_DATA_UNAVAILABLE)
         return set(), 1
     if not is_teams_data_cacheable(teams_data):
         logger.warning("Skipping teams BMP generation: standings incomplete for %d", teams_year)
+        data_reasons.add(DegradedReason.TEAMS_DATA_UNAVAILABLE)
         return set(), 1
+
+    languages = _profile_languages()
+    displays = _profile_displays()
 
     jobs = [
         functools.partial(
@@ -608,8 +691,8 @@ async def _generate_teams_bmp_variants(
             lang=lang,
             display=display,
         )
-        for lang in SUPPORTED_LANGUAGES
-        for display in DISPLAY_TYPES
+        for lang in languages
+        for display in displays
     ]
     results = await _bounded_gather(jobs)
     generated = {path for path in results if path is not None}
@@ -617,8 +700,8 @@ async def _generate_teams_bmp_variants(
 
     logger.info(
         "Generated teams BMP variants for %d languages x %d displays (%d total, %d failed)",
-        len(SUPPORTED_LANGUAGES),
-        len(DISPLAY_TYPES),
+        len(languages),
+        len(displays),
         len(generated),
         failures,
     )
@@ -641,129 +724,163 @@ async def _collect_and_generate_unlocked() -> None:
 
     try:
         db = get_database()
-        f1_service = F1Service()
-
-        images_dir = Path(config.IMAGES_PATH)
-        images_dir.mkdir(parents=True, exist_ok=True)
-
-        race_data = f1_service.get_next_race_from_static()
-        if not race_data:
-            logger.warning("No upcoming race found in static data")
-            return
-
-        logger.info("Next race: %s (from static data)", race_data.get("race_name"))
-
-        historical_data = _load_historical_data(race_data)
-
-        # Core calendars must be ready before any optional upstream dependency is awaited.
-        weather_by_type: dict[str, WeatherData | None] = {"off": None}
-        display_types = DISPLAY_TYPES
-        logger.info(
-            "Generating variants: displays=%s, weather=%s",
-            display_types,
-            list(weather_by_type.keys()),
-        )
-
-        # Write every variant first (overwriting its deterministic path), then prune stale
-        # files. We never delete up front: a mid-run failure used to leave devices with no
-        # pregenerated images for an hour.
-        generated_paths: set[Path] = set()
-        total_failures = 0
-
-        base_paths, base_failures = await _generate_base_variants(
-            images_dir=images_dir,
-            db=db,
-            race_data=race_data,
-            historical_data=historical_data,
-            display_types=display_types,
-            weather_by_type=weather_by_type,
-        )
-        generated_paths |= base_paths
-        total_failures += base_failures
-
-        from app.services.teams_service import get_default_teams_year
-
-        if base_paths:
-            await db.set_cache_meta(GENERATION_STATUS_META_KEY, GENERATION_STATUS_DEGRADED)
-            await db.set_cache_meta(
-                GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat()
-            )
-            clear_bmp_cache()
-            await generate_preview_pngs(["off"], get_default_teams_year())
-
-        _, _, weather_by_type = await _load_weather_context(race_data)
-        weather_degraded = _weather_context_degraded(race_data, weather_by_type)
-        weather_variants = {key: value for key, value in weather_by_type.items() if key != "off"}
-        if weather_variants:
-            weather_paths, weather_failures = await _generate_base_variants(
-                images_dir=images_dir,
-                db=db,
-                race_data=race_data,
-                historical_data=historical_data,
-                display_types=display_types,
-                weather_by_type=weather_variants,
-            )
-            generated_paths |= weather_paths
-            total_failures += weather_failures
-
-        tz_paths, tz_failures = await _generate_popular_tz_variants(
-            images_dir=images_dir,
-            db=db,
-            race_data=race_data,
-            historical_data=historical_data,
-            display_types=display_types,
-            weather_by_type=weather_by_type,
-        )
-        generated_paths |= tz_paths
-        total_failures += tz_failures
-
-        teams_paths, teams_failures = await _generate_teams_bmp_variants(
-            images_dir=images_dir, db=db
-        )
-        generated_paths |= teams_paths
-        total_failures += teams_failures
-
-        await generate_preview_pngs(list(weather_by_type), get_default_teams_year())
-
-        # Only prune when the whole run succeeded (and weather wasn't degraded), so a
-        # transient failure never deletes a previously-good file devices still serve.
-        if total_failures == 0 and not weather_degraded:
-            removed = _delete_stale_bmps(images_dir, keep=generated_paths)
-            if removed:
-                logger.info("Pruned %d stale BMP files", removed)
-        else:
-            logger.warning(
-                "Skipping stale-BMP prune: %d variant failure(s), weather_degraded=%s",
-                total_failures,
-                weather_degraded,
-            )
-
-        # Readiness means that at least one core calendar artifact was published recently.
-        # Optional weather, timezone, teams, and preview failures remain observable as a
-        # degraded run but must not restart a process that can still serve calendars.
-        if base_paths:
-            generation_status = (
-                GENERATION_STATUS_DEGRADED
-                if total_failures or weather_degraded
-                else GENERATION_STATUS_READY
-            )
-            await db.set_cache_meta(GENERATION_STATUS_META_KEY, generation_status)
-            await db.set_cache_meta(
-                GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat()
-            )
-        else:
-            logger.error(
-                "Generation produced no core calendar artifacts; readiness marker unchanged"
-            )
-        clear_bmp_cache()
-
-        if config.STATS_RETENTION_DAYS > 0:
-            await db.cleanup_old_stats(days=config.STATS_RETENTION_DAYS)
-
-        logger.info(
-            "Image generation completed: %d images (%d failures)",
-            len(generated_paths),
-            total_failures,
+        started = datetime.now(timezone.utc).isoformat()
+        reasons: set[DegradedReason] = set()
+        try:
+            status = await _publish_images(db, reasons)
+        except Exception:
+            logger.exception("Image generation failed")
+            status = "failed"
+            reasons.add(DegradedReason.GENERATION_DEGRADED)
+        # A single row keeps the time, outcome and reasons from different attempts together.
+        await db.set_cache_meta(
+            GENERATION_ATTEMPT_META_KEY, "|".join((started, status, encode_reasons(reasons)))
         )
     except Exception as exc:
         logger.error("Error in image generation: %s", exc, exc_info=True)
+
+
+async def _publish_images(db: Database, reasons: set[DegradedReason]) -> str:
+    """Publish the selected variants and maintain the last successful generation markers."""
+    f1_service = F1Service()
+
+    images_dir = Path(config.IMAGES_PATH)
+    images_dir.mkdir(parents=True, exist_ok=True)
+
+    race_data = f1_service.get_next_race_from_static()
+    if not race_data:
+        logger.warning("No upcoming race found in static data")
+        reasons.add(DegradedReason.CALENDAR_VARIANT_FAILED)
+        return "failed"
+
+    logger.info("Next race: %s (from static data)", race_data.get("race_name"))
+
+    historical_data = _load_historical_data(race_data)
+
+    # Core calendars must be ready before any optional upstream dependency is awaited.
+    weather_by_type: dict[str, WeatherDisplay | None] = {"off": None}
+    display_types = _profile_displays()
+    logger.info(
+        "Generating variants: displays=%s, weather=%s",
+        display_types,
+        list(weather_by_type.keys()),
+    )
+
+    # Write every variant first (overwriting its deterministic path), then prune stale
+    # files. We never delete up front: a mid-run failure used to leave devices with no
+    # pregenerated images for an hour.
+    generated_paths: set[Path] = set()
+    total_failures = 0
+
+    base_paths, base_failures = await _generate_base_variants(
+        images_dir=images_dir,
+        db=db,
+        race_data=race_data,
+        historical_data=historical_data,
+        display_types=display_types,
+        weather_by_type=weather_by_type,
+    )
+    generated_paths |= base_paths
+    total_failures += base_failures
+    if base_failures:
+        reasons.add(DegradedReason.CALENDAR_VARIANT_FAILED)
+
+    from app.services.teams_service import get_default_teams_year
+
+    if base_paths:
+        await db.set_cache_meta(GENERATION_STATUS_META_KEY, GENERATION_STATUS_DEGRADED)
+        await db.set_cache_meta(GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat())
+        clear_bmp_cache()
+        await generate_preview_pngs(["off"], get_default_teams_year())
+
+    # Weather the profile does not pregenerate is neither fetched nor expected, so an
+    # unavailable source cannot mark the run degraded or block the stale-file prune.
+    wanted_weather = _profile_weather_types({"current": None, "race": None, "weekend": None})
+    if wanted_weather:
+        _, _, weather_by_type = await _load_weather_context(race_data)
+    weather_degraded = _weather_context_degraded(race_data, weather_by_type, wanted_weather)
+    if weather_degraded:
+        reasons.add(DegradedReason.WEATHER_UNAVAILABLE)
+    profile_weather = _profile_weather_types(weather_by_type)
+    weather_by_type = {key: weather_by_type[key] for key in profile_weather}
+    weather_variants = {key: value for key, value in weather_by_type.items() if key != "off"}
+    if weather_variants:
+        weather_paths, weather_failures = await _generate_base_variants(
+            images_dir=images_dir,
+            db=db,
+            race_data=race_data,
+            historical_data=historical_data,
+            display_types=display_types,
+            weather_by_type=weather_variants,
+        )
+        generated_paths |= weather_paths
+        total_failures += weather_failures
+        if weather_failures:
+            reasons.add(DegradedReason.WEATHER_VARIANT_FAILED)
+
+    tz_paths, tz_failures = await _generate_popular_tz_variants(
+        images_dir=images_dir,
+        db=db,
+        race_data=race_data,
+        historical_data=historical_data,
+        display_types=display_types,
+        weather_by_type=weather_by_type,
+    )
+    generated_paths |= tz_paths
+    total_failures += tz_failures
+    if tz_failures:
+        reasons.add(DegradedReason.TIMEZONE_VARIANT_FAILED)
+
+    teams_paths, teams_failures = await _generate_teams_bmp_variants(
+        images_dir=images_dir, db=db, reasons=reasons
+    )
+    generated_paths |= teams_paths
+    total_failures += teams_failures
+    if teams_failures and DegradedReason.TEAMS_DATA_UNAVAILABLE not in reasons:
+        reasons.add(DegradedReason.TEAMS_VARIANT_FAILED)
+
+    await generate_preview_pngs(list(weather_by_type), get_default_teams_year())
+    excluded_previews = _delete_excluded_previews(images_dir)
+    if excluded_previews:
+        logger.info("Removed %d previews outside the pregeneration profile", excluded_previews)
+
+    # Only prune when the whole run succeeded (and weather wasn't degraded), so a
+    # transient failure never deletes a previously-good file devices still serve.
+    if total_failures == 0 and not weather_degraded:
+        removed = _delete_stale_bmps(images_dir, keep=generated_paths)
+        if removed:
+            logger.info("Pruned %d stale BMP files", removed)
+    else:
+        logger.warning(
+            "Skipping stale-BMP prune: %d variant failure(s), weather_degraded=%s",
+            total_failures,
+            weather_degraded,
+        )
+
+    # Readiness means that at least one core calendar artifact was published recently.
+    # Optional weather, timezone, teams, and preview failures remain observable as a
+    # degraded run but must not restart a process that can still serve calendars.
+    if base_paths:
+        generation_status = (
+            GENERATION_STATUS_DEGRADED
+            if total_failures or weather_degraded
+            else GENERATION_STATUS_READY
+        )
+        await db.set_cache_meta(GENERATION_STATUS_META_KEY, generation_status)
+        await db.set_cache_meta(GENERATION_REASONS_META_KEY, encode_reasons(reasons))
+        await db.set_cache_meta(GENERATION_SUCCESS_META_KEY, datetime.now(timezone.utc).isoformat())
+    else:
+        generation_status = "failed"
+        reasons.add(DegradedReason.CALENDAR_VARIANT_FAILED)
+        logger.error("Generation produced no core calendar artifacts; readiness marker unchanged")
+    clear_bmp_cache()
+
+    if config.STATS_RETENTION_DAYS > 0:
+        await db.cleanup_old_stats(days=config.STATS_RETENTION_DAYS)
+
+    logger.info(
+        "Image generation completed: %d images (%d failures)",
+        len(generated_paths),
+        total_failures,
+    )
+    return generation_status

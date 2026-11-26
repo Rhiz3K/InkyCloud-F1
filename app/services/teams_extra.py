@@ -9,14 +9,17 @@ from zoneinfo import ZoneInfo
 from app.config import config
 from app.models import Race
 from app.services.circuit_metadata import COUNTRY_MAP, canonical_circuit_id
-from app.services.f1_service import F1Service
+from app.services.f1_service import NEXT_RACE_GRACE, F1Service
 from app.services.renderer_assets import get_country_flag_iso_code
 from app.services.weather_service import (
+    TempUnit,
     WeatherData,
     WeatherService,
     _race_weather_cache_key,
+    convert_temperature,
     get_cached_circuit_weather,
 )
+from app.utils.race_times import local_session_start, parse_session_start, session_over
 from app.utils.timezones import normalize_timezone
 
 
@@ -65,6 +68,10 @@ class TeamsExtraContext:
     timezone_name: str = config.DEFAULT_TIMEZONE
     # Preserve the legacy day token when the weather panel has nothing to draw.
     default_today: date | None = None
+    # False for a race whose start hour is not published yet (date-only schedule entry).
+    start_time_known: bool = True
+    # Unit of the weather panel's temperature; the cached weather stays in Celsius.
+    temp_unit: TempUnit = TempUnit.C
 
 
 _CODES = dict(
@@ -80,8 +87,48 @@ _CODES = dict(
 
 
 def _start(race: Race) -> datetime:
-    """Parse the bundled UTC race start."""
-    return datetime.fromisoformat(f"{race.date}T{race.time or '00:00:00Z'}").replace(tzinfo=UTC)
+    """Return the race start as aware UTC for ordering; a TBA race sorts at UTC midnight.
+
+    Only for ordering; use _local_start/_race_over for anything shown or compared to now.
+    """
+    return parse_session_start(race.date, race.time) or datetime.combine(
+        date.fromisoformat(race.date), datetime.min.time(), UTC
+    )
+
+
+def _local_start(race: Race, zone: ZoneInfo) -> datetime:
+    """Return the start in the viewer's zone; a date-only race keeps its calendar date."""
+    return local_session_start(race.date, race.time, zone)
+
+
+def _race_over(race: Race, zone: ZoneInfo, now: datetime) -> bool:
+    """A timed race is over NEXT_RACE_GRACE after it starts; a date-only one after its local day.
+
+    The grace matches the calendar's next-race selection, so the panel does not move on to the
+    next round while the current race is still running. The hourly teams refresh during
+    RESULTS_WINDOW picks up the switch.
+    """
+    return session_over(race.date, race.time, zone, now, grace=NEXT_RACE_GRACE)
+
+
+def points_session_starts(season: int) -> list[datetime]:
+    """Return the UTC starts of a season's points sessions (sprints and races).
+
+    A session without a published time counts from UTC midnight of its date.
+    """
+    starts = []
+    for race in F1Service.get_season_from_static(season):
+        for session in (race, race.Sprint):
+            if session is None:
+                continue
+            try:
+                starts.append(
+                    parse_session_start(session.date, session.time)
+                    or datetime.combine(date.fromisoformat(session.date), datetime.min.time(), UTC)
+                )
+            except ValueError:
+                continue
+    return sorted(starts)
 
 
 def build_teams_extra_context(
@@ -90,8 +137,12 @@ def build_teams_extra_context(
     *,
     now: datetime | None = None,
     timezone_name: str | None = None,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> TeamsExtraContext | None:
-    """Build a panel snapshot from bundled seasons and existing memory caches only."""
+    """Build a panel snapshot from bundled seasons and existing memory caches only.
+
+    ``temp_unit`` only changes how the weather panel draws the cached Celsius temperature.
+    """
     if extra == TeamsExtra.NONE:
         return None
     now = now or datetime.now(UTC)
@@ -104,12 +155,15 @@ def build_teams_extra_context(
     candidates = list(races)
     for year in {local_today.year, local_today.year + 1} - {season}:
         candidates.extend(r for r in F1Service.get_season_from_static(year) if r.round)
-    upcoming = next((r for r in sorted(candidates, key=_start) if _start(r) > now), None)
+    upcoming = next(
+        (r for r in sorted(candidates, key=_start) if not _race_over(r, zone, now)), None
+    )
     if upcoming is None or int(upcoming.season) != season or season < local_today.year:
         return None
     circuit = upcoming.Circuit
     circuit_id = canonical_circuit_id(circuit.circuitId)
     start = _start(upcoming)
+    start_local = _local_start(upcoming, zone)
     weather = None
     if extra == TeamsExtra.WEATHER:
         location = circuit.Location
@@ -125,8 +179,8 @@ def build_teams_extra_context(
                 canonical_circuit_id(r.Circuit.circuitId), r.Circuit.Location.country[:3].upper()
             ),
             get_country_flag_iso_code(r.Circuit.Location.country, COUNTRY_MAP) or None,
-            _start(r).astimezone(zone).date(),
-            _start(r) <= now,
+            _local_start(r, zone).date(),
+            _race_over(r, zone, now),
         )
         for r in races
     )
@@ -138,11 +192,13 @@ def build_teams_extra_context(
         upcoming.raceName.replace("Grand Prix", "GP"),
         circuit_id,
         circuit.circuitName,
-        start.astimezone(zone),
-        max(0, (start.astimezone(zone).date() - local_today).days),
+        start_local,
+        max(0, (start_local.date() - local_today).days),
         weather,
         timezone_name,
         now.astimezone(ZoneInfo(config.DEFAULT_TIMEZONE)).date(),
+        start_time_known=bool(upcoming.time),
+        temp_unit=temp_unit,
     )
 
 
@@ -157,8 +213,17 @@ def teams_extra_cache_token(extra: TeamsExtra, ctx: TeamsExtraContext | None) ->
     token = f"_x{extra}_{today:%Y%m%d}_r{ctx.next_round}"
     if extra == TeamsExtra.WEATHER and ctx.weather is not None:
         wx = ctx.weather
-        values = (round(wx.temperature_c), wx.weather_code, wx.precip_display)
+        # Hash the temperature as drawn: 20.2 °C and 20.4 °C are both 20 °C but 68 °F and
+        # 69 °F. Celsius keeps its historical value, and with it the existing keys.
+        temperature = (
+            round(wx.temperature_c)
+            if ctx.temp_unit == TempUnit.C
+            else convert_temperature(wx.temperature_c, ctx.temp_unit)
+        )
+        values = (temperature, wx.weather_code, wx.precip_display)
         token += "_" + sha256(repr(values).encode()).hexdigest()[:10]
+        if ctx.temp_unit != TempUnit.C:
+            token += f"_{ctx.temp_unit}"
     if normalize_timezone(ctx.timezone_name) != normalize_timezone(config.DEFAULT_TIMEZONE) and (
         extra != TeamsExtra.WEATHER or ctx.weather is not None
     ):

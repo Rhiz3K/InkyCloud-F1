@@ -1,7 +1,7 @@
 """Offline context and clipped teams-panel regression tests."""
 
 from dataclasses import FrozenInstanceError, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from unittest.mock import Mock
 
@@ -9,6 +9,7 @@ import httpx
 import pytest
 from PIL import Image, ImageChops, ImageDraw
 
+from app.services import bmp_artifacts
 from app.services import renderer_teams_extras as panels
 from app.services import teams_extra as extras
 from app.services.f1_service import F1Service
@@ -266,7 +267,7 @@ def test_completed_rounds_and_real_colour_flags(ctx, monkeypatch, tmp_path):
 
 def test_render_helpers_forward_options(ctx, monkeypatch):
     """Worker adapters forward the same optional panel arguments."""
-    from app.routes import images, previews
+    from app.routes import previews
     from app.services import scheduler_generation
 
     renderer = Mock()
@@ -274,8 +275,8 @@ def test_render_helpers_forward_options(ctx, monkeypatch):
     teams = object()
     for module, invoke in (
         (
-            images,
-            lambda: images._render_teams_bytes(
+            bmp_artifacts,
+            lambda: bmp_artifacts.render_teams_bytes(
                 "1bit", "en", teams, extra=TeamsExtra.TRACK, extra_context=ctx
             ),
         ),
@@ -747,3 +748,17 @@ def test_context_normalizes_timezone_aliases(monkeypatch):
     assert alias.timezone_name == "Asia/Kolkata"
     monkeypatch.setattr(extras.config, "DEFAULT_TIMEZONE", "Asia/Calcutta")
     assert teams_extra_cache_token(TeamsExtra.TRACK, alias) == "_xtrack_20260306_r1"
+
+
+@pytest.mark.parametrize(("hours", "round_num", "done"), [(1, 1, False), (4, 2, True)])
+def test_running_race_stays_current_for_the_calendar_grace(hours, round_num, done):
+    """Like the calendar, keep round 1 current until NEXT_RACE_GRACE after lights-out."""
+    first = min(
+        (race for race in F1Service.get_season_from_static(2026) if race.round),
+        key=extras._start,
+    )
+    now = extras._start(first) + timedelta(hours=hours)
+    value = build_teams_extra_context(TeamsExtra.COUNTDOWN, 2026, now=now, timezone_name="UTC")
+
+    assert value.next_round == round_num
+    assert value.rounds[0].done is done

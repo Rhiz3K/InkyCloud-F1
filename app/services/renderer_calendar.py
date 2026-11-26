@@ -5,13 +5,39 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from PIL import Image, ImageDraw
+from PIL.ImageFont import FreeTypeFont
 
+from app.config import config
 from app.services.font_utils import fit_ui_font
 from app.services.renderer_assets import _load_image_copy
-from app.services.renderer_text import clamp_text
+from app.services.renderer_text import clamp_text, normalize_session_name, text_width
+from app.services.weather_service import TempUnit, WeatherData, WeekendWeather
 from app.utils.race_times import today_in_timezone
+from app.utils.refresh_hint import RACE_LIVE_WINDOW, CountdownMode, countdown_shows_days
+from app.utils.timezones import get_timezone
+
+if TYPE_CHECKING:
+    from app.services.weekend_phase import WeekendPhase
+
+# Schedule row marks drawn by weekend_mode=auto in the 10 px gap left of the date column.
+MARK_PAST = "past"
+MARK_CURRENT = "current"
+
+
+def _shrink_font_to_width(
+    draw: ImageDraw.ImageDraw, text: str, font, max_width: int, min_size: int
+):
+    """Step a TrueType font down in size (same face) until the text fits ``max_width``."""
+    while (
+        isinstance(font, FreeTypeFont)
+        and font.size > min_size
+        and text_width(draw, text, font) > max_width
+    ):
+        font = font.font_variant(size=font.size - 1)
+    return font
 
 
 def _countdown_plural_category(value: int, lang_code: str) -> str:
@@ -40,11 +66,19 @@ def draw_race_header(
     header_title_font,
     header_subtitle_font,
     draw_f1_logo_fn,
+    rule_fill=None,
 ) -> None:
-    """Draw the shared race header with logo and two-line title block."""
+    """Draw the shared race header with logo and two-line title block.
+
+    ``rule_fill`` underlines the whole header when its band is as dark as the canvas.
+    """
     draw.rectangle([(0, 0), (split_x, header_height)], fill=left_fill)
     draw.line([(0, header_height - 1), (split_x, header_height - 1)], fill=divider_fill, width=2)
     draw.rectangle([(split_x + 1, 0), (canvas_width, header_height)], fill=right_fill)
+    if rule_fill is not None:
+        draw.line(
+            [(0, header_height - 1), (canvas_width, header_height - 1)], fill=rule_fill, width=2
+        )
 
     draw_f1_logo_fn(image, split_x, header_height)
 
@@ -57,6 +91,11 @@ def draw_race_header(
     text_right_padding = 15
     total_text_height = 80
     start_y = (header_height - total_text_height) // 2 - 5
+    max_text_width = canvas_width - text_x - text_right_padding
+
+    # The CJK face draws Latin wider than Titillium; keep its first line inside the margin.
+    title_font = _shrink_font_to_width(draw, line1, header_title_font, max_text_width, 24)
+    line1 = clamp_text(draw, line1, title_font, max_text_width)
 
     subtitle_font = header_subtitle_font
     subtitle_bbox = draw.textbbox((0, 0), line2, font=subtitle_font)
@@ -77,7 +116,7 @@ def draw_race_header(
         canvas_width - text_x - text_right_padding,
     )
 
-    draw.text((text_x, start_y), line1, fill=title_fill, font=header_title_font)
+    draw.text((text_x, start_y), line1, fill=title_fill, font=title_font)
     draw.text((text_x, start_y + 40), line2, fill=title_fill, font=subtitle_font)
 
 
@@ -170,9 +209,100 @@ def _resolve_countdown_status(
     if delta.total_seconds() > 0:
         return None, delta
 
-    status_key = "race_ongoing" if now < race_dt + timedelta(hours=3) else "race_completed"
+    status_key = "race_ongoing" if now < race_dt + RACE_LIVE_WINDOW else "race_completed"
     fallback = "IN PROGRESS" if status_key == "race_ongoing" else "COMPLETED"
     return translator.get(status_key, fallback), delta
+
+
+# Minimum horizontal gap between the left status/countdown text and the weather block.
+_COUNTDOWN_WEATHER_GAP = 8
+# Smallest scale applied to the status font before falling back to an ellipsis.
+_MIN_STATUS_FONT_RATIO = 0.7
+
+
+def _countdown_weather_width(
+    draw: ImageDraw.ImageDraw,
+    weather_data,
+    *,
+    rain_icon: str,
+    weather_icon_font,
+    text_font,
+    temp_unit: TempUnit = TempUnit.C,
+) -> int:
+    """Measure the weather block drawn by _draw_countdown_weather."""
+    parts = (
+        (weather_data.icon, weather_icon_font),
+        (f"{weather_data.format_temp(temp_unit)} ", text_font),
+        (rain_icon, weather_icon_font),
+        (weather_data.precip_display, text_font),
+    )
+    widths = [draw.textbbox((0, 0), text, font=font) for text, font in parts]
+    return int(sum(bbox[2] - bbox[0] for bbox in widths) + 4 + 3)
+
+
+def _fit_left_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: float) -> tuple[str, Any]:
+    """Shrink (then ellipsize) text so it ends before the weather block instead of under it."""
+    bbox = draw.textbbox((0, 0), text, font=font)
+    if bbox[2] - bbox[0] <= max_width:
+        return text, font
+    base_size = getattr(font, "size", None)
+    if base_size and hasattr(font, "font_variant"):
+        min_size = max(1, int(base_size * _MIN_STATUS_FONT_RATIO))
+        for size in range(int(base_size) - 1, min_size - 1, -1):
+            candidate = font.font_variant(size=size)
+            bbox = draw.textbbox((0, 0), text, font=candidate)
+            if bbox[2] - bbox[0] <= max_width:
+                return text, candidate
+        font = font.font_variant(size=min_size)
+    return clamp_text(draw, text, font, int(max_width)), font
+
+
+# temp_unit=f: how many sizes the weather text may shrink before the countdown is ellipsized.
+_MAX_WEATHER_FONT_STEPS = 5
+
+
+def _fit_beside_weather(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font,
+    *,
+    space: float,
+    weather_data: WeatherData,
+    rain_icon: str,
+    weather_icon_font,
+    temp_unit: TempUnit,
+) -> tuple[str, Any, Any]:
+    """Fit the status/countdown text before the weather block; return text, font, weather font.
+
+    In Fahrenheit a three-digit temperature may push the text into an ellipsis, so the
+    weather text first shrinks a few sizes. Celsius keeps the original layout byte for byte.
+    """
+    sizes = [int(getattr(font, "size", 0) or 0)]
+    if temp_unit != TempUnit.C and isinstance(font, FreeTypeFont):
+        sizes = list(range(int(font.size), int(font.size) - _MAX_WEATHER_FONT_STEPS - 1, -1))
+    for size in sizes:
+        weather_font = _font_size(font, size)
+        weather_w = _countdown_weather_width(
+            draw,
+            weather_data,
+            rain_icon=rain_icon,
+            weather_icon_font=weather_icon_font,
+            text_font=weather_font,
+            temp_unit=temp_unit,
+        )
+        fitted, fitted_font = _fit_left_text(draw, text, font, space - weather_w)
+        if fitted == text:
+            return fitted, fitted_font, weather_font
+    weather_w = _countdown_weather_width(
+        draw,
+        weather_data,
+        rain_icon=rain_icon,
+        weather_icon_font=weather_icon_font,
+        text_font=font,
+        temp_unit=temp_unit,
+    )
+    fitted, fitted_font = _fit_left_text(draw, text, font, space - weather_w)
+    return fitted, fitted_font, font
 
 
 def _draw_countdown_weather(
@@ -186,9 +316,16 @@ def _draw_countdown_weather(
     weather_icon_font,
     text_font,
     text_fill,
+    temp_unit: TempUnit = TempUnit.C,
+    base_font=None,
 ) -> None:
-    """Right-align the weather summary inside a countdown/status box."""
-    temperature = f"{weather_data.temp_display} "
+    """Right-align the weather summary inside a countdown/status box.
+
+    A ``text_font`` smaller than the box font (``base_font``) keeps the box font's baseline.
+    """
+    if base_font is not None and base_font is not text_font:
+        text_y += base_font.getmetrics()[0] - text_font.getmetrics()[0]
+    temperature = f"{weather_data.format_temp(temp_unit)} "
     precipitation = weather_data.precip_display
     weather_icon_bbox = draw.textbbox((0, 0), weather_data.icon, font=weather_icon_font)
     temperature_bbox = draw.textbbox((0, 0), temperature, font=text_font)
@@ -209,6 +346,145 @@ def _draw_countdown_weather(
     draw.text((current_x, text_y), rain_icon, fill=text_fill, font=weather_icon_font)
     current_x += rain_icon_width + 3
     draw.text((current_x, text_y), precipitation, fill=text_fill, font=text_font)
+
+
+# weather_type=weekend: gap between the countdown line and the session weather line, the gap
+# around the separator between sessions and the smallest text size per layout (with a sprint,
+# with icons, plain) before the line is clamped.
+_WEEKEND_LINE_GAP = 4
+_WEEKEND_SEGMENT_GAP = 7
+_WEEKEND_MIN_SIZES = (17, 14, 12)
+
+
+def _weekend_line_layout(
+    draw: ImageDraw.ImageDraw,
+    weekend: WeekendWeather,
+    *,
+    max_width: int,
+    translator: Mapping[str, str],
+    temp_unit: TempUnit,
+    rain_icon: str,
+    text_font,
+    weather_icon_font,
+) -> tuple[list[list[tuple[str, Any, int]]], Any, int]:
+    """Choose the session weather segments, text font and width for the weekend line.
+
+    Tries every session with icons, then without the sprint, then without icons, each from
+    the box font size down to its minimum; the last layout is clamped by the caller.
+    """
+    sessions = list(weekend.sessions)
+    without_sprint = [item for item in sessions if item.session != "sprint"] or sessions
+    with_sprint, with_icons_min, plain_min = _WEEKEND_MIN_SIZES
+    attempts = [(without_sprint, True, with_icons_min), (without_sprint, False, plain_min)]
+    if without_sprint != sessions:
+        attempts.insert(0, (sessions, True, with_sprint))
+    base_size = int(getattr(text_font, "size", 0) or 0)
+    icon_delta = int(getattr(weather_icon_font, "size", base_size) or base_size) - base_size
+    layout: tuple[list[list[tuple[str, Any, int]]], Any, int] = ([], text_font, 0)
+    for subset, with_icons, min_size in attempts:
+        for size in range(base_size, min(min_size, base_size) - 1, -1):
+            font = _font_size(text_font, size)
+            icon_font = _font_size(weather_icon_font, size + icon_delta)
+            segments = [
+                _weekend_segment(
+                    item.weather,
+                    translator.get(f"weather_session_{item.session}", item.session[:1].upper()),
+                    temp_unit=temp_unit,
+                    rain_icon=rain_icon,
+                    text_font=font,
+                    icon_font=icon_font if with_icons else None,
+                )
+                for item in subset
+            ]
+            width = _weekend_segments_width(draw, segments)
+            layout = (segments, font, width)
+            if width <= max_width:
+                return layout
+    return layout
+
+
+def _font_size(font, size: int):
+    """Return the same TrueType face at ``size`` (other fonts are returned unchanged)."""
+    if isinstance(font, FreeTypeFont) and font.size != size:
+        return font.font_variant(size=size)
+    return font
+
+
+def _weekend_segment(
+    weather: WeatherData,
+    label: str,
+    *,
+    temp_unit: TempUnit,
+    rain_icon: str,
+    text_font,
+    icon_font,
+) -> list[tuple[str, Any, int]]:
+    """Return ``(text, font, gap after)`` parts of one session, e.g. ``Q ☀ 19° 💧60%``."""
+    parts = [(label, text_font, 5)]
+    if icon_font is not None:
+        parts.append((weather.icon, icon_font, 3))
+    parts.append((weather.format_temp(temp_unit), text_font, 4))
+    if icon_font is not None:
+        parts.append((rain_icon, icon_font, 2))
+    parts.append((weather.precip_display, text_font, 0))
+    return parts
+
+
+def _weekend_segments_width(
+    draw: ImageDraw.ImageDraw, segments: Sequence[Sequence[tuple[str, Any, int]]]
+) -> int:
+    """Measure the weekend segments including the separators between them."""
+    width = sum(
+        text_width(draw, text, font) + gap for segment in segments for text, font, gap in segment
+    )
+    return int(width + max(0, len(segments) - 1) * (2 * _WEEKEND_SEGMENT_GAP + 1))
+
+
+def _draw_weekend_line(
+    draw: ImageDraw.ImageDraw,
+    weekend: WeekendWeather,
+    *,
+    x_left: int,
+    x_right: int,
+    row_top: int,
+    row_height: int,
+    padding_x: int,
+    translator: Mapping[str, str],
+    temp_unit: TempUnit,
+    rain_icon: str,
+    text_font,
+    weather_icon_font,
+    text_baseline_ref: str,
+    text_fill,
+) -> None:
+    """Draw the centred ``Q ☀ 19° 💧60% | R ☀ 22° 💧10%`` line of weather_type=weekend."""
+    max_width = (x_right - x_left) - 2 * padding_x
+    segments, font, width = _weekend_line_layout(
+        draw,
+        weekend,
+        max_width=max_width,
+        translator=translator,
+        temp_unit=temp_unit,
+        rain_icon=rain_icon,
+        text_font=text_font,
+        weather_icon_font=weather_icon_font,
+    )
+    if width > max_width:
+        # Last resort for a very long label: one clamped plain text line.
+        text = " | ".join(" ".join(part[0] for part in segment) for segment in segments)
+        segments = [[(clamp_text(draw, text, font, max_width), font, 0)]]
+        width = _weekend_segments_width(draw, segments)
+    ref_bbox = draw.textbbox((0, 0), text_baseline_ref, font=font)
+    text_y = row_top + (row_height - (ref_bbox[3] - ref_bbox[1])) // 2 - ref_bbox[1]
+    x = x_left + ((x_right - x_left) - width) // 2
+    for index, segment in enumerate(segments):
+        if index:
+            x += _WEEKEND_SEGMENT_GAP
+            draw.line([(x, row_top + 2), (x, row_top + row_height - 2)], fill=text_fill)
+            x += _WEEKEND_SEGMENT_GAP + 1
+        for text, part_font, gap in segment:
+            draw.text((x, text_y), text, fill=text_fill, font=part_font)
+            x += text_width(draw, text, part_font) + gap
 
 
 def _countdown_unit_labels(
@@ -237,6 +513,145 @@ def _countdown_unit_labels(
     )
 
 
+def _race_date_label(race_dt, translator: Mapping[str, str]) -> str:
+    """Return the race day and local start (``countdown=off``), as the schedule rows show it."""
+    day = translator.get(f"day_{race_dt.strftime('%a').lower()}", race_dt.strftime("%a"))
+    label = f"{day} {race_dt:%d.%m.}"
+    if isinstance(race_dt, datetime):
+        label += f" {race_dt:%H:%M}"
+    return label
+
+
+def _countdown_text(
+    race_dt,
+    delta: timedelta,
+    *,
+    countdown_mode: CountdownMode,
+    timezone_name: str | None,
+    datetime_cls,
+    translator: Mapping[str, str],
+    lang_code: str,
+    weather_type: str,
+) -> str:
+    """Return the countdown for a future race in the requested ``countdown`` mode."""
+    if countdown_mode == CountdownMode.OFF:
+        return _race_date_label(race_dt, translator)
+    date_only = isinstance(race_dt, date) and not isinstance(race_dt, datetime)
+    days = delta.days
+    hours = delta.seconds // 3600
+    if not date_only and countdown_shows_days(countdown_mode, delta):
+        # Whole calendar days in the requested timezone, as on the teams countdown panel.
+        zone = get_timezone(timezone_name or config.DEFAULT_TIMEZONE)
+        days = (race_dt.astimezone(zone).date() - datetime_cls.now(zone).date()).days
+        if days <= 0:
+            return translator.get("countdown_today", "Today")
+        date_only = True
+    days_label, hours_label = _countdown_unit_labels(
+        days,
+        hours,
+        translator=translator,
+        lang_code=lang_code,
+        weather_type=weather_type,
+    )
+    return f"{days} {days_label}" if date_only else f"{days} {days_label} {hours} {hours_label}"
+
+
+def _session_countdown_text(
+    weekend: WeekendPhase,
+    *,
+    countdown_mode: CountdownMode,
+    timezone_name: str | None,
+    datetime_cls,
+    translator: Mapping[str, str],
+    lang_code: str,
+    weather_type: str,
+) -> tuple[str, bool]:
+    """Return ``LABEL: countdown`` for the next non-race session and whether it is running.
+
+    The countdown follows ``countdown_mode`` like the race countdown; a leading zero day count
+    is left out (``Q: 3 h``) and ``off`` shows the local day and start time (``Q: Sat 15:00``;
+    the date is in the schedule above). A running session shows ``LABEL: LIVE``, also when it
+    started after ``weekend`` was resolved (the render can run behind a weather fetch).
+    """
+    name = weekend.countdown_session or ""
+    label = translator.get(f"session_short_{normalize_session_name(name)}", name.upper())
+    zone = get_timezone(timezone_name or config.DEFAULT_TIMEZONE)
+    now = datetime_cls.now(zone)
+    start = weekend.countdown_start
+    if weekend.live or (start is not None and start <= now):
+        return f"{label}: {translator.get('session_live', 'LIVE')}", True
+    assert start is not None
+    start = start.astimezone(zone)
+    if countdown_mode == CountdownMode.OFF:
+        day = translator.get(f"day_{start.strftime('%a').lower()}", start.strftime("%a"))
+        return f"{label}: {day} {start:%H:%M}", False
+    delta = start - now
+    text = _countdown_text(
+        start,
+        delta,
+        countdown_mode=countdown_mode,
+        timezone_name=timezone_name,
+        datetime_cls=datetime_cls,
+        translator=translator,
+        lang_code=lang_code,
+        weather_type=weather_type,
+    )
+    days_label, _ = _countdown_unit_labels(
+        0, 0, translator=translator, lang_code=lang_code, weather_type=weather_type
+    )
+    text = text.removeprefix(f"0 {days_label} ")
+    return f"{label}: {text}", False
+
+
+def _draw_countdown_status(
+    draw: ImageDraw.ImageDraw,
+    status_text: str,
+    *,
+    weather_data,
+    x_left: int,
+    x_right: int,
+    text_y: float,
+    padding_x: int,
+    base_font,
+    rain_icon: str,
+    weather_icon_font,
+    text_fill,
+    temp_unit: TempUnit,
+) -> None:
+    """Draw a race status centred, or left-aligned beside the weather when there is some."""
+    if weather_data is None:
+        status_bbox = draw.textbbox((0, 0), status_text, font=base_font)
+        status_w = status_bbox[2] - status_bbox[0]
+        text_x = x_left + ((x_right - x_left) - status_w) // 2
+        draw.text((text_x, text_y), status_text, fill=text_fill, font=base_font)
+        return
+    # Long localized statuses (e.g. "ABGESCHLOSSEN") ran under the weather icon.
+    status_text, status_font, weather_font = _fit_beside_weather(
+        draw,
+        status_text,
+        base_font,
+        space=(x_right - x_left) - 2 * padding_x - _COUNTDOWN_WEATHER_GAP,
+        weather_data=weather_data,
+        rain_icon=rain_icon,
+        weather_icon_font=weather_icon_font,
+        temp_unit=temp_unit,
+    )
+    draw.text((x_left + padding_x, text_y), status_text, fill=text_fill, font=status_font)
+    _draw_countdown_weather(
+        draw,
+        weather_data,
+        x_right=x_right,
+        text_y=text_y,
+        padding_x=padding_x,
+        rain_icon=rain_icon,
+        weather_icon_font=weather_icon_font,
+        text_font=weather_font,
+        text_fill=text_fill,
+        temp_unit=temp_unit,
+        base_font=base_font,
+    )
+
+
 def draw_countdown_box(
     draw: ImageDraw.ImageDraw,
     race_data: dict,
@@ -259,8 +674,19 @@ def draw_countdown_box(
     text_fill,
     weather_data=None,
     weather_type: str = "",
+    countdown_mode: CountdownMode = CountdownMode.HOURS,
+    weekend: WeekendPhase | None = None,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> int:
-    """Draw the countdown/status box and return its bottom y-coordinate."""
+    """Draw the countdown/status box and return its bottom y-coordinate.
+
+    ``countdown_mode`` picks days and hours (default), whole days, days until 48 hours before
+    the start (``auto``) or the race date instead of a countdown (``off``); race statuses and
+    weather are drawn the same way in every mode. With a ``weekend`` phase whose next session
+    is not the race, the box counts down to that session with its short label instead.
+    A :class:`WeekendWeather` adds a second line with the sessions' weather below the
+    countdown. Temperatures are drawn in ``temp_unit``.
+    """
     is_cancelled = race_data.get("is_cancelled", False)
     race_dt = _find_race_datetime(race_data.get("schedule", []), datetime_cls)
 
@@ -279,12 +705,46 @@ def draw_countdown_box(
 
     stats_top_y = results_y_start - 3 - (3 * circuit_stats_row_height)
     available_height = stats_top_y - schedule_bottom
+
+    weekend_weather = weather_data if isinstance(weather_data, WeekendWeather) else None
+    if weekend_weather is not None:
+        weather_data = None
+        two_lines = box_height + text_height + _WEEKEND_LINE_GAP
+        if is_cancelled:
+            weekend_weather = None
+        elif two_lines <= available_height:
+            box_height = two_lines
+        else:
+            # A longer schedule leaves no room for a second line: keep the race forecast.
+            weather_data = next(
+                (item.weather for item in weekend_weather.sessions if item.session == "race"),
+                None,
+            )
+            weekend_weather = None
+
     y_top = schedule_bottom + (available_height - box_height) // 2
     y_bottom = y_top + box_height
 
     draw.rectangle([x_left, y_top, x_right, y_bottom], fill=box_fill, outline=box_outline)
 
     text_y = y_top + padding_y - ref_bbox[1]
+    if weekend_weather is not None:
+        _draw_weekend_line(
+            draw,
+            weekend_weather,
+            x_left=x_left,
+            x_right=x_right,
+            row_top=int(y_top + padding_y + text_height + _WEEKEND_LINE_GAP),
+            row_height=int(text_height),
+            padding_x=padding_x,
+            translator=translator,
+            temp_unit=temp_unit,
+            rain_icon=rain_icon,
+            text_font=schedule_row_bold_font,
+            weather_icon_font=weather_icon_font,
+            text_baseline_ref=text_baseline_ref,
+            text_fill=text_fill,
+        )
 
     status_text, delta = _resolve_countdown_status(
         is_cancelled=is_cancelled,
@@ -293,53 +753,72 @@ def draw_countdown_box(
         translator=translator,
         timezone_name=race_data.get("timezone"),
     )
+    session_text: str | None = None
+    if weekend is not None and weekend.countdown_session and not is_cancelled:
+        session_text, session_live = _session_countdown_text(
+            weekend,
+            countdown_mode=countdown_mode,
+            timezone_name=race_data.get("timezone"),
+            datetime_cls=datetime_cls,
+            translator=translator,
+            lang_code=lang_code,
+            weather_type=weather_type,
+        )
+        # The session replaces the race countdown or a date-only race-day placeholder.
+        status_text = session_text if session_live else None
+        if session_live:
+            session_text = None
 
     if status_text:
-        show_weather = weather_data is not None and not is_cancelled
-        status_bbox = draw.textbbox((0, 0), status_text, font=schedule_row_bold_font)
-        status_w = status_bbox[2] - status_bbox[0]
-        text_x = (
-            x_left + padding_x if show_weather else x_left + ((x_right - x_left) - status_w) // 2
-        )
-        draw.text((text_x, text_y), status_text, fill=text_fill, font=schedule_row_bold_font)
-        if not show_weather:
-            return int(y_bottom)
-        _draw_countdown_weather(
+        _draw_countdown_status(
             draw,
-            weather_data,
+            status_text,
+            weather_data=None if is_cancelled else weather_data,
+            x_left=x_left,
             x_right=x_right,
             text_y=text_y,
             padding_x=padding_x,
+            base_font=schedule_row_bold_font,
             rain_icon=rain_icon,
             weather_icon_font=weather_icon_font,
-            text_font=schedule_row_bold_font,
             text_fill=text_fill,
+            temp_unit=temp_unit,
         )
         return int(y_bottom)
 
-    if delta is None or delta.total_seconds() <= 0:
+    if session_text is not None:
+        countdown_str = session_text
+    elif delta is None or delta.total_seconds() <= 0:
         return schedule_bottom
-
-    days = delta.days
-    hours = delta.seconds // 3600
+    else:
+        countdown_str = _countdown_text(
+            race_dt,
+            delta,
+            countdown_mode=countdown_mode,
+            timezone_name=race_data.get("timezone"),
+            datetime_cls=datetime_cls,
+            translator=translator,
+            lang_code=lang_code,
+            weather_type=weather_type,
+        )
 
     flag_icon = "🏁"
-    days_label, hours_label = _countdown_unit_labels(
-        days,
-        hours,
-        translator=translator,
-        lang_code=lang_code,
-        weather_type=weather_type,
-    )
-    countdown_str = (
-        f"{days} {days_label}"
-        if isinstance(race_dt, date) and not isinstance(race_dt, datetime)
-        else f"{days} {days_label} {hours} {hours_label}"
-    )
 
     flag_bbox = draw.textbbox((0, 0), flag_icon, font=icon_small_font)
     flag_w = flag_bbox[2] - flag_bbox[0]
-    countdown_bbox = draw.textbbox((0, 0), countdown_str, font=schedule_row_bold_font)
+    countdown_font = weather_font = schedule_row_bold_font
+    if weather_data:
+        countdown_str, countdown_font, weather_font = _fit_beside_weather(
+            draw,
+            countdown_str,
+            schedule_row_bold_font,
+            space=(x_right - x_left) - 2 * padding_x - _COUNTDOWN_WEATHER_GAP - flag_w - 6,
+            weather_data=weather_data,
+            rain_icon=rain_icon,
+            weather_icon_font=weather_icon_font,
+            temp_unit=temp_unit,
+        )
+    countdown_bbox = draw.textbbox((0, 0), countdown_str, font=countdown_font)
     countdown_w = countdown_bbox[2] - countdown_bbox[0]
     total_content_w = flag_w + 6 + countdown_w
 
@@ -351,7 +830,7 @@ def draw_countdown_box(
 
     draw.text((cur_x, text_y), flag_icon, fill=text_fill, font=icon_small_font)
     cur_x += int(flag_w + 6)
-    draw.text((cur_x, text_y), countdown_str, fill=text_fill, font=schedule_row_bold_font)
+    draw.text((cur_x, text_y), countdown_str, fill=text_fill, font=countdown_font)
 
     if weather_data:
         _draw_countdown_weather(
@@ -362,8 +841,10 @@ def draw_countdown_box(
             padding_x=padding_x,
             rain_icon=rain_icon,
             weather_icon_font=weather_icon_font,
-            text_font=schedule_row_bold_font,
+            text_font=weather_font,
             text_fill=text_fill,
+            temp_unit=temp_unit,
+            base_font=schedule_row_bold_font,
         )
 
     return int(y_bottom)
@@ -506,6 +987,44 @@ def draw_track_section(
     draw.text((padding, label_y), label_text, fill=label_fill, font=label_font)
 
 
+def _draw_schedule_mark(
+    draw: ImageDraw.ImageDraw,
+    mark: str,
+    *,
+    right_x: int,
+    digits_bbox: tuple[float, float, float, float],
+    fill,
+) -> None:
+    """Draw a check mark or a triangle, at most 8 px wide, ending at ``right_x``.
+
+    Shapes instead of glyphs: they look the same in every locale font and palette.
+    """
+    center_y = round((digits_bbox[1] + digits_bbox[3]) / 2)
+    if mark == MARK_PAST:
+        draw.line(
+            [(right_x - 7, center_y), (right_x - 4, center_y + 3), (right_x, center_y - 4)],
+            fill=fill,
+            width=2,
+        )
+        return
+    draw.polygon(
+        [(right_x - 6, center_y - 5), (right_x - 6, center_y + 5), (right_x, center_y)],
+        fill=fill,
+    )
+
+
+def schedule_mark(event: Mapping[str, Any], weekend: WeekendPhase | None) -> str | None:
+    """Return the weekend mark of one schedule row, None without a weekend phase."""
+    if weekend is None:
+        return None
+    name = event.get("name")
+    if name in weekend.past:
+        return MARK_PAST
+    if name == weekend.current:
+        return MARK_CURRENT
+    return None
+
+
 def draw_schedule_row(
     draw: ImageDraw.ImageDraw,
     *,
@@ -524,8 +1043,15 @@ def draw_schedule_row(
     format_schedule_session_name_fn,
     session_text_shadow_fill=None,
     session_text_shadow_offset: tuple[int, int] = (1, 1),
+    mark: str | None = None,
+    mark_fill=None,
 ) -> None:
-    """Draw one localized schedule row using shared date/time/name layout."""
+    """Draw one localized schedule row using shared date/time/name layout.
+
+    ``mark`` (``weekend_mode=auto``) draws a finished session with a check mark and a plain
+    regular-weight name, and the current or next session with a filled ``mark_fill``
+    triangle; both marks sit in the gap left of ``schedule_date_x``.
+    """
     dt = event.get("datetime")
     name = event.get("name", "")
 
@@ -545,6 +1071,7 @@ def draw_schedule_row(
 
     name_max_width = canvas_width - schedule_name_x - 5
     translated_name = format_schedule_session_name_fn(draw, name, name_max_width)
+    past = mark == MARK_PAST
     font_bold = fit_ui_font(
         draw,
         lang_code,
@@ -552,12 +1079,24 @@ def draw_schedule_row(
         max_width=name_max_width,
         base_size=20,
         min_size=15,
-        bold=True,
+        bold=not past,
     )
 
     draw.text((schedule_date_x, y), date_str, fill=regular_text_fill, font=font_reg)
     draw.text((schedule_day_x, y), day_str, fill=regular_text_fill, font=font_reg)
     draw.text((schedule_time_x, y), time_str, fill=regular_text_fill, font=font_reg)
+    if mark is not None:
+        _draw_schedule_mark(
+            draw,
+            mark,
+            right_x=schedule_date_x - 2,
+            digits_bbox=draw.textbbox((schedule_date_x, y), "0", font=font_reg),
+            fill=regular_text_fill if past else (mark_fill or regular_text_fill),
+        )
+    if past:
+        # Finished sessions lose their session colour and shadow, so upcoming ones stand out.
+        session_text_fill = regular_text_fill
+        session_text_shadow_fill = None
     if session_text_shadow_fill is not None and session_text_shadow_fill != session_text_fill:
         shadow_x = schedule_name_x + session_text_shadow_offset[0]
         shadow_y = y + session_text_shadow_offset[1]
@@ -587,8 +1126,11 @@ def draw_schedule_section(
     draw_countdown_box_fn,
     weather_data,
     weather_type: str,
+    countdown_mode: CountdownMode = CountdownMode.HOURS,
+    weekend: WeekendPhase | None = None,
+    temp_unit: TempUnit = TempUnit.C,
 ) -> int:
-    """Draw the schedule title, rows, and countdown area."""
+    """Draw the schedule title, rows, and countdown area (with weekend marks when given)."""
     schedule_title = translator.get("weekend_schedule", "WEEKEND SCHEDULE")
     schedule_title_font = fit_ui_font(
         draw,
@@ -610,9 +1152,18 @@ def draw_schedule_section(
     row_y = schedule_start_y
 
     for event in schedule:
-        draw_schedule_row_fn(draw, row_y, event)
+        draw_schedule_row_fn(draw, row_y, event, mark=schedule_mark(event, weekend))
         row_y += schedule_row_height
         if row_y > results_y_start - 80:
             break
 
-    return draw_countdown_box_fn(draw, race_data, row_y + 10, weather_data, weather_type)
+    return draw_countdown_box_fn(
+        draw,
+        race_data,
+        row_y + 10,
+        weather_data,
+        weather_type,
+        countdown_mode=countdown_mode,
+        weekend=weekend,
+        temp_unit=temp_unit,
+    )

@@ -93,21 +93,3 @@ def get_season_driver_number_by_id(driver_id: str, year: int) -> int | None:
     if driver_code is None:
         return None
     return DRIVER_NUMBERS_BY_YEAR.get(year, {}).get(driver_code)
-
-
-TEAM_ID_MAP = {
-    "McLaren": "mclaren",
-    "Ferrari": "ferrari",
-    "Red Bull": "red_bull",
-    "Mercedes": "mercedes",
-    "Aston Martin": "aston_martin",
-    "Alpine": "alpine",
-    "Williams": "williams",
-    "RB": "racing_bulls",
-    "Racing Bulls": "racing_bulls",
-    "Haas F1 Team": "haas",
-    "Haas": "haas",
-    "Kick Sauber": "sauber",
-    "Sauber": "sauber",
-    "Alfa Romeo": "sauber",
-}

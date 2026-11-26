@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from PIL import Image, ImageDraw, ImageFont
 from PIL.ImageFont import FreeTypeFont
@@ -20,11 +20,15 @@ from app.services.font_utils import (
 from app.services.renderer_assets import ASSET_CACHE_LOCK
 from app.services.renderer_teams import teams_extra_slot
 from app.services.renderer_teams_extras import draw_teams_extra
-from app.services.renderer_text import split_teams_for_columns
+from app.services.renderer_text import split_teams_for_columns, wrap_text
 from app.services.renderer_theme import RenderTheme
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
-from app.services.weather_service import WeatherData
+from app.services.weather_service import TempUnit, WeatherDisplay
+from app.utils.refresh_hint import CountdownMode
+
+if TYPE_CHECKING:
+    from app.services.weekend_phase import WeekendPhase
 
 logger = logging.getLogger(__name__)
 Font = FreeTypeFont | ImageFont.ImageFont
@@ -49,6 +53,12 @@ class RendererCore(ABC):
     """Own immutable theme state, rendering entry points, fonts, and asset caches."""
 
     THEME: ClassVar[RenderTheme]
+    # Opt-in theme=dark policy: black canvas, white ink, unchanged accent colours.
+    DARK_THEME: ClassVar[RenderTheme]
+    # Anti-aliased glyph edges are blends that nearest-colour quantisation maps onto unrelated
+    # inks (Spectra 6 turned red/black text edges green, blue and yellow). Variants without a
+    # blend-aware palette mapper draw text with hard edges instead.
+    TEXT_ANTIALIAS: ClassVar[bool] = True
     _cached_driver_photos: ClassVar[dict[str, Image.Image] | None] = None
     _cached_driver_photos_key: ClassVar[tuple[str, str] | None] = None
 
@@ -62,9 +72,9 @@ class RendererCore(ABC):
     _racing_fonts: dict[int, Font]
     _driver_photos: dict[str, Image.Image] | None
 
-    def __init__(self, translator: dict, lang_code: str = "en") -> None:
-        """Bind this renderer's immutable theme and initialize shared state."""
-        self.theme = self.THEME
+    def __init__(self, translator: dict, lang_code: str = "en", *, dark: bool = False) -> None:
+        """Bind this renderer's immutable (light or dark) theme and initialize shared state."""
+        self.theme = self.DARK_THEME if dark else self.THEME
         self.colors = self.theme.colors
         self._initialize_renderer(translator, lang_code)
 
@@ -140,17 +150,34 @@ class RendererCore(ABC):
         self,
         race_data: dict,
         historical_data: HistoricalData | None = None,
-        weather_data: WeatherData | None = None,
+        weather_data: WeatherDisplay | None = None,
         weather_type: str = "",
         *,
         track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
+        countdown_mode: CountdownMode = CountdownMode.HOURS,
+        weekend: WeekendPhase | None = None,
+        temp_unit: TempUnit = TempUnit.C,
     ) -> bytes:
-        """Render a calendar using the variant's immutable theme."""
+        """Render a calendar using the variant's immutable theme.
+
+        ``weekend`` (``weekend_mode=auto`` during a race weekend) marks finished and next
+        sessions and counts down to the next session; None draws the default calendar.
+        ``weather_data`` is one forecast or a weather_type=weekend summary; temperatures are
+        drawn in ``temp_unit`` (the data stays in Celsius).
+        """
         image = self._new_canvas()
-        draw = ImageDraw.Draw(image)
+        draw = self._new_draw(image)
         self._draw_header(draw, image, race_data)
         self._draw_track_section(draw, image, race_data, track_options=track_options)
-        schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data, weather_type)
+        schedule_bottom = self._draw_schedule_section(
+            draw,
+            race_data,
+            weather_data,
+            weather_type,
+            countdown_mode=countdown_mode,
+            weekend=weekend,
+            temp_unit=temp_unit,
+        )
         self._draw_circuit_stats(draw, race_data, schedule_bottom)
         self._draw_results_section(draw, image, race_data, historical_data)
         return self._encode_image(image)
@@ -164,7 +191,7 @@ class RendererCore(ABC):
         """Render a teams dashboard using the same themed adapter set."""
         self._ensure_teams_assets()
         image = self._new_canvas()
-        draw = ImageDraw.Draw(image)
+        draw = self._new_draw(image)
         self._draw_teams_header(draw, image, teams_data.season)
         self._draw_teams_content(image, draw, teams_data.teams)
         left, right = split_teams_for_columns(teams_data.teams)
@@ -174,7 +201,7 @@ class RendererCore(ABC):
             display = {2: "1bit", 3: "bwr", 4: "bwry", 6: "spectra6"}[len(self.colors.PALETTE)]
             draw_teams_extra(
                 panel,
-                ImageDraw.Draw(panel),
+                self._new_draw(panel),
                 self.theme,
                 extra_context,
                 extra,
@@ -188,7 +215,7 @@ class RendererCore(ABC):
     def render_error(self, error_message: str) -> bytes:
         """Render an error placeholder in the active display palette."""
         image = self._new_canvas()
-        draw = ImageDraw.Draw(image)
+        draw = self._new_draw(image)
         error_text = self.translator.get("error", "Error")
         padding = self.layout["padding"]
         draw.text(
@@ -197,12 +224,17 @@ class RendererCore(ABC):
             fill=self.theme.error_title_fill,
             font=self.fonts["schedule_title"],
         )
-        draw.text(
-            (padding, padding + 50),
-            error_message[:60],
-            fill=self.theme.error_text_fill,
-            font=self.fonts["schedule_row"],
-        )
+        font = self.fonts["schedule_row"]
+        line_height = 28
+        for index, line in enumerate(
+            wrap_text(draw, error_message, font, self.width - 2 * padding, max_lines=3)
+        ):
+            draw.text(
+                (padding, padding + 50 + index * line_height),
+                line,
+                fill=self.theme.error_text_fill,
+                font=font,
+            )
         return self._encode_image(image)
 
     @abstractmethod
@@ -225,8 +257,11 @@ class RendererCore(ABC):
         self,
         draw: ImageDraw.ImageDraw,
         race_data: dict,
-        weather_data: WeatherData | None = None,
+        weather_data: WeatherDisplay | None = None,
         weather_type: str = "",
+        countdown_mode: CountdownMode = CountdownMode.HOURS,
+        weekend: WeekendPhase | None = None,
+        temp_unit: TempUnit = TempUnit.C,
     ) -> int:
         """Draw the race-weekend schedule and return its lower boundary."""
 
@@ -321,6 +356,13 @@ class RendererCore(ABC):
     @abstractmethod
     def _new_canvas(self) -> Image.Image:
         """Create a blank canvas in the variant's native image mode."""
+
+    def _new_draw(self, image: Image.Image) -> ImageDraw.ImageDraw:
+        """Create a draw context honouring the variant's text anti-aliasing policy."""
+        draw = ImageDraw.Draw(image)
+        if not self.TEXT_ANTIALIAS:
+            draw.fontmode = "1"
+        return draw
 
     @abstractmethod
     def _encode_image(self, image: Image.Image) -> bytes:

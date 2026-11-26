@@ -1,4 +1,5 @@
 {% import "configure/_timezone_picker.html" as tz_picker %}
+{% import "configure/_temp_unit.html" as temp_unit with context %}
 {% set tx = t.configure.teamsExtra %}
 {% set teams_extra_options = ["none", "countdown", "flags", "track", "weather"] %}
 <div class="hidden lg:flex flex-1 flex-col min-h-0">
@@ -53,7 +54,7 @@
       <select
         id="teamsExtraSelect"
         data-on-change="selectTeamsExtra"
-        class="teams-extra-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-racing-red"
+        class="teams-extra-select w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red"
       >
         {% for opt in teams_extra_options %}
         <option value="{{ opt }}" data-hint="{{ tx.hints[opt] }}">{{ tx.options[opt] }}</option>
@@ -65,6 +66,7 @@
     </div>
     <p class="teams-extra-hint mt-2 text-xs text-gray-600" aria-live="polite">{{ tx.hints.none }}</p>
     <p class="teams-extra-note-weather hidden mt-2 text-xs text-gray-600">{{ tx.weatherNote }}</p>
+    {{ temp_unit.toggle("Teams", extra_class="teams-extra-note-weather hidden") }}
     <p class="teams-extra-note-track hidden mt-2 text-xs text-gray-600">{{ tx.trackNote }} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ tx.creditsLink }}</a></p>
   </div>
 
@@ -82,7 +84,7 @@
     <select
       id="teamsExtraSelectMobile"
       data-on-change="selectTeamsExtra"
-      class="teams-extra-select w-full appearance-none bg-white border-2 border-black px-3 py-2 pr-7 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-racing-red shadow-neo-sm"
+      class="teams-extra-select w-full appearance-none bg-white border-2 border-black px-3 py-2 pr-7 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red shadow-neo-sm"
     >
       {% for opt in teams_extra_options %}
       <option value="{{ opt }}" data-hint="{{ tx.hints[opt] }}">{{ tx.options[opt] }}</option>
@@ -94,6 +96,7 @@
   </div>
   <p class="teams-extra-hint mt-2 text-xs text-gray-600" aria-live="polite">{{ tx.hints.none }}</p>
   <p class="teams-extra-note-weather hidden mt-2 text-xs text-gray-600">{{ tx.weatherNote }}</p>
+  {{ temp_unit.toggle("TeamsMobile", mobile=True, extra_class="teams-extra-note-weather hidden") }}
   <p class="teams-extra-note-track hidden mt-2 text-xs text-gray-600">{{ tx.trackNote }} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ tx.creditsLink }}</a></p>
 </div>
 
@@ -155,6 +158,6 @@
   <select
     id="yearSelectMobile"
     data-on-change="selectYearMobile"
-    class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-none shadow-neo-sm"
+    class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red shadow-neo-sm"
   ></select>
 </div>

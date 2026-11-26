@@ -62,6 +62,10 @@ class HistoricalData(BaseModel):
     is_new_track: bool = False  # True if no previous race exists at this circuit
     race_results: list[RaceResultEntry] = []  # Top 3 race finishers
     qualifying_results: list[QualifyingResultEntry] = []  # Top 3 qualifiers
+    # Per-column seasons for weekend_mode=auto, e.g. this weekend's qualifying next to last
+    # year's race. None means the column belongs to ``season`` (or is empty on a new track).
+    qualifying_season: Optional[int] = None
+    race_season: Optional[int] = None
 
 
 class Location(BaseModel):

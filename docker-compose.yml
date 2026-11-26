@@ -13,6 +13,7 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    stop_grace_period: 30s
     # Do not persist stdout/stderr, including diagnostics from outside Python logging.
     logging:
       driver: "none"
@@ -27,6 +28,11 @@ services:
       - PYTHONUNBUFFERED=1
       - DATABASE_PATH=/app/data/f1.db
       - IMAGES_PATH=/app/data/images
+      # Small instance (one display at home): pregenerate only what you use and keep weather
+      # warm for the next race only. Other combinations still render on demand.
+      # - PREGENERATE_LANGUAGES=cs
+      # - PREGENERATE_DISPLAYS=bwry
+      # - WEATHER_PREFETCH_ALL_CIRCUITS=false
     volumes:
       - f1_data:/app/data
     # Healthcheck is built into Dockerfile, but can override if needed

@@ -357,7 +357,7 @@ class TestWeatherService:
     @staticmethod
     @pytest.mark.asyncio
     @pytest.mark.parametrize("days_ahead", [1, 11, 15])
-    async def test_get_race_weather_requests_only_race_date(monkeypatch, days_ahead):
+    async def test_get_race_weather_requests_only_the_race_weekend(monkeypatch, days_ahead):
         base_now = datetime.now(timezone.utc)
         race_dt = base_now + timedelta(days=days_ahead)
         race_hour = race_dt.strftime("%Y-%m-%dT%H:00")
@@ -402,11 +402,11 @@ class TestWeatherService:
         service = WeatherService()
         result = await service.get_race_weather(lat=52.52, lon=13.41, race_datetime=race_dt)
         assert result is not None
-        assert (
-            captured_params["start_date"]
-            == captured_params["end_date"]
-            == race_dt.date().isoformat()
-        )
+        # One request covers the race weekend (qualifying and a sprint up to two days before
+        # the race, clipped to today) instead of the intervening days: still one call unit.
+        weekend_start = max(base_now.date(), race_dt.date() - timedelta(days=2))
+        assert captured_params["start_date"] == weekend_start.isoformat()
+        assert captured_params["end_date"] == race_dt.date().isoformat()
         assert "forecast_days" not in captured_params
         assert captured_params["timezone"] == "UTC"
         assert result.temperature_c == 21.0
@@ -952,24 +952,8 @@ def test_match_hourly_weather_edge_cases(hourly, race_dt, precipitation_key, as_
     )
 
 
-@pytest.mark.parametrize(
-    ("schedule", "expected"),
-    [
-        ([], None),
-        ([{"name": "Race"}], None),
-        ([{"name": "Race", "datetime": "invalid"}], None),
-        (
-            [{"name": "Race", "datetime": "2026-07-10T14:00:00Z"}],
-            datetime(2026, 7, 10, 14, tzinfo=timezone.utc),
-        ),
-    ],
-)
-def test_extract_race_datetime_validates_schedule(schedule, expected):
-    assert weather._extract_race_datetime({"schedule": schedule}) == expected
-
-
 def test_parse_coordinate_returns_none_for_missing_value():
-    assert weather._parse_coordinate(None) is None
+    assert weather.parse_coordinate(None) is None
 
 
 @pytest.mark.asyncio
@@ -1118,3 +1102,25 @@ async def test_load_prefetched_weather_handles_missing_partial_and_timestamp_var
         "app.services.weather_service._get_next_race_details", return_value=(1.0, 2.0, race_dt)
     ):
         assert await weather.load_prefetched_weather_from_db(db) == 2
+
+
+@pytest.mark.parametrize("field", ["temperature_2m", "weather_code", "precip"])
+@pytest.mark.parametrize(
+    "value", [True, "bad", float("nan"), float("inf"), pytest.param(10**400, id="overflow")]
+)
+def test_hourly_numbers_must_be_finite(field, value):
+    stamp = datetime(2026, 7, 10, 14, tzinfo=timezone.utc)
+    hourly = {
+        "time": ["2026-07-10T14:00"],
+        "temperature_2m": [20],
+        "weather_code": [1],
+        "precip": [10],
+        field: [value],
+    }
+    for amount in (True, False):
+        assert (
+            weather._match_hourly_weather(
+                hourly, stamp, precipitation_key="precip", precipitation_as_amount=amount
+            )
+            is None
+        )

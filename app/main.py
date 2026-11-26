@@ -27,10 +27,12 @@ from app.routes.credits import router as credits_router
 from app.routes.docs import router as docs_router
 from app.routes.health import router as health_router
 from app.routes.images import router as images_router
+from app.routes.ops import router as ops_router
 from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
 from app.routes.tracks import router as tracks_router
+from app.services import bmp_artifacts
 from app.services.circuit_data import ensure_runtime_circuits_data
 from app.services.csp import DOCS_PATHS, build_csp
 from app.services.database import close_shared_database, get_database
@@ -43,6 +45,7 @@ from app.services.scheduler import (
     stop_scheduler,
 )
 from app.services.scheduler_maintenance import flush_api_calls_to_db
+from app.services.storage_lock import storage_lock
 from app.services.warmup import warm_teams_renderer_assets
 from app.utils.async_tasks import (
     RENDER_WORKER_COUNT,
@@ -132,6 +135,14 @@ def _check_persistent_storage() -> bool:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifespan context manager for startup/shutdown events."""
+    with storage_lock(Path(config.DATABASE_PATH)):
+        async with _running_service():
+            yield
+
+
+@asynccontextmanager
+async def _running_service():
+    """Start and drain the service while its database and circuit files are reserved."""
     logger.info("Starting F1.InkyCloud.click service")
 
     _check_persistent_storage()
@@ -188,6 +199,7 @@ async def lifespan(_app: FastAPI):
     except Exception as exc:
         logger.error("Final API-call flush on shutdown failed: %s", exc, exc_info=True)
     await drain_background_tasks()
+    await bmp_artifacts.drain_singleflight()
     try:
         shutdown_render_executor()
     except Exception as exc:
@@ -260,6 +272,45 @@ class StaticCacheMiddleware:
             await send(message)
 
         await self.app(scope, receive, send_with_cache_headers)
+
+
+class EncodingAwareETagMiddleware:
+    """Keep entity tags honest when GZipMiddleware changes the representation.
+
+    Routes hash the identity bytes into a strong ETag before compression, so identity and gzip
+    bodies would otherwise share one strong validator. Mounted outside GZipMiddleware, this
+    uses weak validators whenever gzip is negotiated, including below its size threshold, and adds
+    ``Vary: Accept-Encoding`` to every response that carries an ETag, including 304s.
+    """
+
+    def __init__(self, asgi_app):
+        """Wrap an ASGI application whose responses may be gzip-encoded downstream."""
+        self.app = asgi_app
+
+    async def __call__(self, scope, receive, send):
+        """Forward one ASGI request, adjusting validator headers on the response start."""
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Mirrors GZipMiddleware's own negotiation check.
+        accepts_gzip = "gzip" in Headers(scope=scope).get("accept-encoding", "")
+
+        async def send_with_encoding_aware_etag(message):
+            """Adjust ETag/Vary before forwarding the response start."""
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                etag = headers.get("etag")
+                if etag:
+                    vary = headers.get("vary", "")
+                    if "accept-encoding" not in vary.lower():
+                        headers["Vary"] = f"{vary}, Accept-Encoding" if vary else "Accept-Encoding"
+                    encoded = headers.get("content-encoding", "identity").lower() != "identity"
+                    if not etag.startswith("W/") and (encoded or accepts_gzip):
+                        headers["ETag"] = f"W/{etag}"
+            await send(message)
+
+        await self.app(scope, receive, send_with_encoding_aware_etag)
 
 
 class SecurityHeadersMiddleware:
@@ -382,6 +433,8 @@ async def not_found_handler(request: StarletteRequest, exc: StarletteHTTPExcepti
 app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)
+# Must be added after (i.e. wrap) GZipMiddleware so it sees the final Content-Encoding.
+app.add_middleware(EncodingAwareETagMiddleware)
 
 app.add_middleware(AttributionMiddleware)
 
@@ -392,6 +445,7 @@ app.include_router(previews_router)  # /preview/* must be before pages (/{lang}/
 app.include_router(docs_router)
 app.include_router(seo_router)
 app.include_router(health_router)
+app.include_router(ops_router)
 app.include_router(api_router)
 app.include_router(images_router)
 app.include_router(tracks_router)

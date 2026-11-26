@@ -41,6 +41,7 @@ from app.routes.images import (
     _get_race_data_from_static,
     _get_race_info_for_stats,
 )
+from app.services import bmp_artifacts
 from app.services.artifact_metadata import calendar_identity, write_artifact_metadata
 from app.services.f1_service import F1Service
 from app.services.image_keys import get_teams_image_key
@@ -1408,9 +1409,8 @@ def test_configure_teams_urls_gate_timezone_params_on_extra_panel():
     response = client.get("/configure/teams")
     html = response.text
 
-    api_url_block = html.split("function getApiUrl() {", 1)[1].split(
-        "function teamsExtraUsesTz", 1
-    )[0]
+    # Up to getCopyUrl: the /auto.bmp copy URL keeps tz for its switch on purpose.
+    api_url_block = html.split("function getApiUrl() {", 1)[1].split("function getCopyUrl", 1)[0]
     teams_api_branch = api_url_block.split("} else {", 1)[1]
     assert "`${window.location.origin}/teams.bmp`" in teams_api_branch
     assert "params.push(`year=${selectedTeamsYear}`)" in teams_api_branch
@@ -1574,8 +1574,8 @@ def test_calendar_bmp_default():
 def test_calendar_bmp_executes_real_render_pipeline(monkeypatch):
     clear_bmp_cache()
     monkeypatch.setattr(images_routes, "_get_pregenerated_calendar_path", lambda **_kwargs: None)
-    render_calendar = Mock(wraps=images_routes._render_calendar_bytes)
-    monkeypatch.setattr(images_routes, "_render_calendar_bytes", render_calendar)
+    render_calendar = Mock(wraps=bmp_artifacts.render_calendar_bytes)
+    monkeypatch.setattr(bmp_artifacts, "render_calendar_bytes", render_calendar)
 
     response = client.get("/calendar.bmp?weather=false")
 
@@ -1696,7 +1696,7 @@ def test_calendar_bmp_with_bwry_display():
     assert int.from_bytes(response.content[28:30], byteorder="little") == 4
 
 
-def test_calendar_bmp_rate_limit_returns_429(monkeypatch):
+def test_calendar_bmp_rate_limit_returns_429(monkeypatch, fixed_rate_limit_clock):
     _reset_rate_limit_state_for_tests()
     monkeypatch.setattr(images_routes.config, "RATE_LIMIT_ENABLED", True)
     monkeypatch.setattr(images_routes.config, "IMAGE_RATE_LIMIT_PER_MINUTE", 1)
@@ -1762,6 +1762,18 @@ def test_teams_bmp_default():
     assert response.content[:2] == b"BM"
 
 
+def test_auto_bmp_through_the_full_app_carries_screen_and_attribution():
+    """/auto.bmp is mounted behind the attribution middleware like the direct routes."""
+    for query in ("", "?mode=daily&tz=America/New_York&display=bwr"):
+        response = client.get(f"/auto.bmp{query}")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/bmp"
+        assert response.content[:2] == b"BM"
+        assert response.headers["x-active-screen"] in {"calendar", "teams"}
+        assert response.headers["x-data-attribution"].startswith("Jolpica-F1")
+        assert 60 <= int(response.headers["x-next-refresh-seconds"]) <= 86400
+
+
 def test_teams_bmp_with_year():
     """Test /teams.bmp with year parameter."""
     for year in [2025, 2026]:
@@ -1807,8 +1819,8 @@ def test_teams_bmp_with_spectra6_display():
 def test_teams_bmp_executes_real_render_pipeline(monkeypatch):
     clear_bmp_cache()
     monkeypatch.setattr(images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: None)
-    render_teams = Mock(wraps=images_routes._render_teams_bytes)
-    monkeypatch.setattr(images_routes, "_render_teams_bytes", render_teams)
+    render_teams = Mock(wraps=bmp_artifacts.render_teams_bytes)
+    monkeypatch.setattr(bmp_artifacts, "render_teams_bytes", render_teams)
 
     response = client.get("/teams.bmp?year=2026")
 
@@ -1861,12 +1873,12 @@ def test_teams_bmp_falls_back_when_pregenerated_read_races_with_cleanup(monkeypa
     monkeypatch.setattr(
         images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: disappearing_path
     )
-    monkeypatch.setattr(images_routes, "run_render", AsyncMock(return_value=b"BMdynamic"))
+    monkeypatch.setattr(bmp_artifacts, "run_render", AsyncMock(return_value=b"BMdynamic"))
     teams_service_cls = Mock()
     teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(
         return_value=TeamsData(season=2026, teams=[], standings_complete=False)
     )
-    monkeypatch.setattr(images_routes, "TeamsService", teams_service_cls)
+    monkeypatch.setattr(bmp_artifacts, "TeamsService", teams_service_cls)
 
     response = client.get("/teams.bmp?year=2026")
 
@@ -1884,10 +1896,10 @@ def test_teams_bmp_does_not_cache_degraded_standings(monkeypatch):
     )
 
     monkeypatch.setattr(images_routes, "_get_pregenerated_teams_path", lambda **_kwargs: None)
-    monkeypatch.setattr(images_routes, "run_render", AsyncMock(return_value=b"BMdynamic"))
+    monkeypatch.setattr(bmp_artifacts, "run_render", AsyncMock(return_value=b"BMdynamic"))
     teams_service_cls = Mock()
     teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(return_value=degraded_teams)
-    monkeypatch.setattr(images_routes, "TeamsService", teams_service_cls)
+    monkeypatch.setattr(bmp_artifacts, "TeamsService", teams_service_cls)
 
     response = client.get("/teams.bmp?year=2026")
 
@@ -1910,8 +1922,8 @@ def test_teams_bmp_redacts_internal_error_details(monkeypatch):
     teams_service_cls.return_value.get_teams_and_drivers = AsyncMock(
         side_effect=RuntimeError("/srv/private/data.json")
     )
-    monkeypatch.setattr(images_routes, "TeamsService", teams_service_cls)
-    monkeypatch.setattr(images_routes, "_render_error_bytes", render_error)
+    monkeypatch.setattr(bmp_artifacts, "TeamsService", teams_service_cls)
+    monkeypatch.setattr(bmp_artifacts, "render_error_bytes", render_error)
 
     response = client.get("/teams.bmp?year=2026")
 

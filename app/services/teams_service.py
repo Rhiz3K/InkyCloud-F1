@@ -29,6 +29,10 @@ CACHE_TTL_SECONDS = 3600
 # hourly scheduler and later requests retry soon after an upstream hiccup.
 DEGRADED_CACHE_TTL_SECONDS = 300
 NEGATIVE_CACHE_TTL_SECONDS = 60
+# Share of TEAMS_ENRICHMENT_TIMEOUT_SECONDS that standings enrichment may use. Callers bound the
+# whole lookup with the full budget; giving standings a smaller slice lets the bundled roster be
+# returned (without points) before that outer budget cancels the fallback as well.
+STANDINGS_BUDGET_FRACTION = 0.75
 _fetch_locks: weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, dict[int, asyncio.Lock]] = (
     weakref.WeakKeyDictionary()
 )
@@ -623,13 +627,16 @@ class TeamsService:
             json_data = self._load_from_json(year)
             if json_data:
                 try:
-                    driver_standings, constructor_standings = await self._fetch_standings(year)
+                    async with asyncio.timeout(
+                        config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS * STANDINGS_BUDGET_FRACTION
+                    ):
+                        driver_standings, constructor_standings = await self._fetch_standings(year)
 
-                    if not driver_standings and not constructor_standings and year >= 2026:
-                        logger.info("No standings for %d, falling back to %d", year, year - 1)
-                        driver_standings, constructor_standings = await self._fetch_standings(
-                            year - 1
-                        )
+                        if not driver_standings and not constructor_standings and year >= 2026:
+                            logger.info("No standings for %d, falling back to %d", year, year - 1)
+                            driver_standings, constructor_standings = await self._fetch_standings(
+                                year - 1
+                            )
 
                     json_data = self._merge_standings(
                         json_data, driver_standings, constructor_standings
@@ -641,7 +648,7 @@ class TeamsService:
                     # degraded result, so the next request/scheduler run retries immediately
                     # instead of pinning a standings-less dashboard for the full cache TTL.
                     logger.warning(
-                        "Standings fetch failed for %d; serving teams without standings: %s",
+                        "Standings fetch failed for %d; serving teams without standings: %r",
                         year,
                         e,
                     )
