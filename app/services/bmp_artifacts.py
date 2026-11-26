@@ -27,10 +27,17 @@ from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.teams_service import TeamsService, is_teams_data_cacheable
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.weather_service import get_weather_context
-from app.state import BmpArtifact, bmp_cache_generation, get_bmp_cache, get_bmp_variant_cache
+from app.state import (
+    BmpArtifact,
+    ImageCache,
+    bmp_cache_generation,
+    get_bmp_cache,
+    get_bmp_variant_cache,
+)
 from app.utils.async_tasks import run_render
 from app.utils.etag import strong_etag
 from app.utils.race_times import convert_race_times_to_timezone
+from app.utils.refresh_hint import CountdownMode
 from app.utils.render_limit import render_slot
 
 logger = logging.getLogger(__name__)
@@ -99,6 +106,7 @@ def render_calendar_bytes(
     weather_data,
     weather_type: str,
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
+    countdown_mode: CountdownMode = CountdownMode.HOURS,
 ) -> bytes:
     """Construct the renderer and render in the worker thread.
 
@@ -108,7 +116,12 @@ def render_calendar_bytes(
     """
     renderer = create_renderer(display, get_translator(lang), lang)
     return renderer.render_calendar(
-        race_data, historical_data, weather_data, weather_type, track_options=track_options
+        race_data,
+        historical_data,
+        weather_data,
+        weather_type,
+        track_options=track_options,
+        countdown_mode=countdown_mode,
     )
 
 
@@ -154,6 +167,7 @@ async def render_calendar(
     weather_type: str,
     display: str,
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
+    countdown_mode: CountdownMode = CountdownMode.HOURS,
 ) -> tuple[bytes, dict | None, bool]:
     """Render a calendar BMP for a selected race and a canonical weather type.
 
@@ -187,6 +201,7 @@ async def render_calendar(
             weather_data,
             weather_type,
             track_options,
+            countdown_mode,
         )
     )
     return (bmp_data, race_data, True)
@@ -201,10 +216,15 @@ async def render_calendar_artifact(
     weather_type: str,
     display: str,
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
+    countdown_mode: CountdownMode = CountdownMode.HOURS,
 ) -> BmpArtifact:
-    """Render/hash one calendar miss and cache the pair only when complete."""
+    """Render/hash one calendar miss and cache the pair only when complete.
+
+    A non-default countdown is an opt-in variant: it renders in a variant slot and is cached
+    in the variant cache, so it can never displace the default calendars.
+    """
     generation = selected_generation()
-    async with render_slot():
+    async with render_slot(variant=countdown_mode != CountdownMode.HOURS):
         require_current_selection(generation)
         bmp_data, _race_data, is_cacheable = await render_calendar(
             race_data=race_data,
@@ -213,11 +233,19 @@ async def render_calendar_artifact(
             weather_type=weather_type,
             display=display,
             track_options=track_options,
+            countdown_mode=countdown_mode,
         )
         artifact = (bmp_data, strong_etag(bmp_data))
         if is_cacheable and bmp_cache_generation() == generation:
-            get_bmp_cache()[cache_key] = artifact
+            calendar_image_cache(countdown_mode)[cache_key] = artifact
         return artifact
+
+
+def calendar_image_cache(countdown_mode: CountdownMode) -> ImageCache:
+    """Keep default-countdown calendars in the main cache and other modes in the variant cache."""
+    if countdown_mode == CountdownMode.HOURS:
+        return get_bmp_cache()
+    return get_bmp_variant_cache()
 
 
 def teams_image_cache(extra: TeamsExtra) -> TTLCache[str, BmpArtifact]:

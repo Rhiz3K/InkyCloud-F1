@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add battery-friendly refresh for e-ink panels. `/calendar.bmp` and
+  `/preview/configure/calendar.png` accept `countdown=hours|days|auto|off`: `hours` (default)
+  keeps today's days-and-hours countdown and byte-identical output; `days` shows whole calendar
+  days in the requested timezone (`Today` on race day), so the image changes once a day; `auto`
+  shows days until 48 hours before the start and then days and hours; `off` shows the race date
+  and start time instead of a countdown. Race statuses and weather are unchanged in every mode,
+  and an invalid value returns HTTP 422. Non-default modes are rendered on demand into the
+  variant cache (never the default cache or the hourly pregeneration), and their cache key
+  includes the next content change, so a cached day count never outlives local midnight. Their
+  `Cache-Control` max-age is capped at that change as well, so browsers and shared caches
+  cannot reuse yesterday's image either.
+  `/calendar.bmp` and `/teams.bmp` responses (200 and 304) carry a new
+  `X-Next-Refresh-Seconds` header: the seconds until the image is next expected to change
+  (next countdown hour, local midnight including DST, race start, end of the live window,
+  next-race switch, sprint/race start for standings; 60 to 86400, at most 3600 while hourly
+  weather is shown, 300 for an error image). It is a hint for the client's sleep length, not a
+  promise of an unchanged ETag. The calendar configurator offers the countdown choice with a
+  battery note, and the README ESP32 example now sleeps for the hinted time. Static asset URLs
+  (`?v=`) now include a digest of the files, so a deploy that changes a script or stylesheet
+  without a version bump cannot serve returning visitors the previous copy.
+
 - Add the optional IANA `tz` parameter to `/teams.bmp` and `/preview/configure/teams.png`.
   It sets the timezone for the race start, the day countdown, and the round dates in the
   `countdown`, `flags`, `track`, and `weather` panels; without it they keep using
@@ -270,6 +291,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Image requests after a cache clear now use the refreshed inputs. Gzip-negotiated responses consistently use weak ETags, including small files. Backup retention counts confirmed deletes and accepts zero-padded cron weekdays.
 
 - Compose allows 30 seconds for shutdown so active renders can finish. The API documentation preserves quotes and line breaks in translated controls.
+
+- Refresh hints count down to the next UTC hourly publication at two minutes past the hour, on-demand cache expiry, or an earlier content change. Both 200 and 304 responses account for render time.
 
 ## [1.3.3] - 2026-10-30
 

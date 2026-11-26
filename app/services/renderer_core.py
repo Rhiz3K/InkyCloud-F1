@@ -25,6 +25,7 @@ from app.services.renderer_theme import RenderTheme
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.weather_service import WeatherData
+from app.utils.refresh_hint import CountdownMode
 
 logger = logging.getLogger(__name__)
 Font = FreeTypeFont | ImageFont.ImageFont
@@ -148,13 +149,16 @@ class RendererCore(ABC):
         weather_type: str = "",
         *,
         track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
+        countdown_mode: CountdownMode = CountdownMode.HOURS,
     ) -> bytes:
         """Render a calendar using the variant's immutable theme."""
         image = self._new_canvas()
         draw = self._new_draw(image)
         self._draw_header(draw, image, race_data)
         self._draw_track_section(draw, image, race_data, track_options=track_options)
-        schedule_bottom = self._draw_schedule_section(draw, race_data, weather_data, weather_type)
+        schedule_bottom = self._draw_schedule_section(
+            draw, race_data, weather_data, weather_type, countdown_mode=countdown_mode
+        )
         self._draw_circuit_stats(draw, race_data, schedule_bottom)
         self._draw_results_section(draw, image, race_data, historical_data)
         return self._encode_image(image)
@@ -236,6 +240,7 @@ class RendererCore(ABC):
         race_data: dict,
         weather_data: WeatherData | None = None,
         weather_type: str = "",
+        countdown_mode: CountdownMode = CountdownMode.HOURS,
     ) -> int:
         """Draw the race-weekend schedule and return its lower boundary."""
 

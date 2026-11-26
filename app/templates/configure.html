@@ -500,6 +500,8 @@ block content %}
   let leaderData = {};
   const TEAMS_EXTRA_OPTIONS = ["none", "countdown", "flags", "track", "weather"];
   let currentTeamsExtra = "none";
+  const COUNTDOWN_OPTIONS = ["hours", "days", "auto", "off"];
+  let currentCountdown = "hours";
 
   function initScreenTypeVisibility() {
     const isCalendar = currentScreenType === "calendar";
@@ -1009,6 +1011,7 @@ block content %}
       if (currentDisplayType !== "1bit") {
         params.push(`display=${currentDisplayType}`);
       }
+      if (currentCountdown !== "hours") params.push(`countdown=${currentCountdown}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else {
@@ -1079,6 +1082,8 @@ block content %}
     let extra = query.get("extra");
     if (extra === "timeline" || extra === "combo") extra = "countdown";
     if (TEAMS_EXTRA_OPTIONS.includes(extra)) currentTeamsExtra = extra;
+    const countdown = query.get("countdown");
+    if (COUNTDOWN_OPTIONS.includes(countdown)) currentCountdown = countdown;
     for (const field of ["style", "source", "accent"]) {
       const control = document.getElementById(`track-${field}`);
       if (!control) continue;
@@ -1126,6 +1131,7 @@ block content %}
       if (currentUiLang !== 'en') params.push(`lang=${currentUiLang}`);
       params.push(`weather_type=${finalWeather}`);
       if (currentDisplayType !== "1bit") params.push(`display=${currentDisplayType}`);
+      if (currentCountdown !== "hours") params.push(`countdown=${currentCountdown}`);
       if (params.length > 0) url += '?' + params.join('&');
       return url;
     } else if (canUsePrerenderedPreview() && currentScreenType === "teams") {
@@ -1998,6 +2004,38 @@ block content %}
     setTeamsExtra(this.value);
   }
 
+  /**
+   * Sets the calendar countdown mode, syncing both selects, the hint and the page URL
+   * (the default "hours" is left out of URLs so existing links stay unchanged).
+   */
+  function setCountdown(mode, refresh = true) {
+    if (!COUNTDOWN_OPTIONS.includes(mode)) mode = "hours";
+    currentCountdown = mode;
+    if (refresh) {
+      const url = new URL(window.location.href);
+      if (mode === "hours") url.searchParams.delete("countdown");
+      else url.searchParams.set("countdown", mode);
+      window.history.replaceState(null, "", url);
+    }
+
+    let hint = "";
+    document.querySelectorAll(".countdown-select").forEach((select) => {
+      select.value = mode;
+      const option = select.options[select.selectedIndex];
+      if (option) hint = option.dataset.hint || "";
+    });
+    document.querySelectorAll(".countdown-hint").forEach((el) => {
+      el.textContent = hint;
+    });
+
+    if (refresh) updatePreview();
+  }
+
+  /** Change handler for the countdown selects; `this` is the select (dispatchDeclaredHandler). */
+  function selectCountdown() {
+    setCountdown(this.value);
+  }
+
   function setDisplayType(type, refresh = true) {
     currentDisplayType = type;
     if (refresh) {
@@ -2115,6 +2153,7 @@ block content %}
     initTrackOptions();
     setDisplayType(currentDisplayType, false);
     if (currentScreenType === "teams") setTeamsExtra(currentTeamsExtra, false);
+    if (currentScreenType === "calendar") setCountdown(currentCountdown, false);
     initializeWeatherTooltips();
     setUiLanguage(currentUiLang);
 

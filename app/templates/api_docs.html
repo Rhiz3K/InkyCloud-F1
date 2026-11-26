@@ -229,6 +229,23 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
                 >
               </td>
             </tr>
+            <tr>
+              <td class="px-3 py-2 font-mono text-racing-red font-bold">
+                countdown
+              </td>
+              <td class="px-3 py-2">string</td>
+              <td class="px-3 py-2">
+                {{ t.api_docs_countdown_desc }}
+                <br /><span class="text-xs text-gray-500"
+                  >{{ t.get("api_docs_values", "Values") }}:
+                  <code class="bg-gray-100 px-1">hours</code>,
+                  <code class="bg-gray-100 px-1">days</code>,
+                  <code class="bg-gray-100 px-1">auto</code>,
+                  <code class="bg-gray-100 px-1">off</code>
+                  ({{ t.get("api_docs_default", "default") }}: <code>hours</code>)</span
+                >
+              </td>
+            </tr>
             {% for parameter, choices, label, default in [
               ('track_style', track_ui.styles, track_ui.styleLabel, track_ui.defaults.style),
               ('track_source', track_ui.sources, track_ui.sourceLabel, track_ui.defaults.source),
@@ -283,7 +300,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           </div>
         </div>
       </div>
-      <p class="text-sm mb-6">{{ t.get("api_docs_etag_note", "BMP responses include ETag. Send If-None-Match to receive 304 when the image is unchanged.") }}</p>
+      <p class="text-sm mb-2">{{ t.get("api_docs_etag_note", "BMP responses include ETag. Send If-None-Match to receive 304 when the image is unchanged.") }}</p>
+      <p class="text-sm mb-6">{{ t.api_docs_refresh_hint_note }} <code>/calendar.bmp?countdown=auto&amp;weather=false</code></p>
 
       <!-- Try it -->
       <div class="flex flex-wrap gap-3">
@@ -547,6 +565,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           </tbody>
         </table>
       </div>
+      <p class="text-sm mb-6">{{ t.api_docs_refresh_hint_note }}</p>
 
       <!-- Response -->
       <h3
@@ -790,6 +809,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           <p class="text-sm">{{ t.get("api_docs_preview_desc", "PNG previews for calendar or teams; lang selects the language. Configure previews also accept display and calendar weather_type (default off). Teams configure previews also accept extra (default none).") }}</p>
           <p><code>extra</code> — {{ t.get("api_docs_teams_extra_desc") }}</p>
           <p class="text-xs mt-2"><code>track_style</code>, <code>track_source</code>, <code>track_accent</code> — {{ track_ui.styleLabel }}, {{ track_ui.sourceLabel }}, {{ track_ui.accentLabel }} (<code>calendar</code>).</p>
+          <p class="text-xs mt-2"><code>countdown</code> — {{ t.api_docs_countdown_desc }} (<code>calendar</code>)</p>
         </div>
 
         <div class="border-2 border-black p-4">

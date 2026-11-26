@@ -12,6 +12,7 @@
   "countdown_hours_one": "hodina",
   "countdown_hours_few": "hodiny",
   "countdown_hours_many": "hodin",
+  "countdown_today": "Dnes",
   "cancelled": "ZRUŠENO",
   "race_ongoing": "PROBÍHÁ",
   "race_completed": "DOKONČEN",
@@ -48,6 +49,7 @@
   "api_docs_race_key_desc": "Identifikátor závodu z /api/races/{year}; vyžaduje year",
   "api_docs_selection_note": "Bez kombinace year a round nebo race_key se vybere nejbližší závod. Hodnotu round nebo race_key zkopírujte z /api/races/{year}. Výjimka: race_key bez year vrací HTTP 400.",
   "api_docs_etag_note": "Odpovědi s BMP obsahují ETag. Odešlete If-None-Match a při nezměněném obrázku obdržíte 304.",
+  "api_docs_refresh_hint_note": "Odpovědi kalendáře a týmů (200 i 304) obsahují hlavičku X-Next-Refresh-Seconds: odhad, za kolik sekund se obrázek nejdříve změní (60 až 86400, nejvýše 3600, když je zobrazeno hodinově obnovované počasí). Bateriové displeje ji mohou použít jako délku hlubokého spánku; jde jen o nápovědu, dotaz proto může vrátit i 304.",
   "api_docs_operational_auth": "API pro čtení statistik vyžadují X-Admin-Token nebo Authorization: Bearer <token>, pokud je nastaven ADMIN_API_TOKEN. Při MINIMAL_DATA_MODE=true vracejí všechna statistická API stav 410.",
   "api_docs_history_desc": "Historie požadavků po hodinách; limit: 1–720 (výchozí 168).",
   "api_docs_perf_desc": "GET: souhrny výkonu; hours: 1–720 (výchozí 24). POST: číselné metriky Web Vitals; metadata návštěvníků a zařízení se ignorují.",
@@ -191,6 +193,22 @@
     "weatherCurrentLabel": "Aktuální",
     "weatherRaceDayLabel": "V den závodu",
     "weatherTooltipText": "Aktivuje se 14 dní před závodem",
+    "countdown": {
+      "label": "Odpočet",
+      "options": {
+        "hours": "Dny + hodiny",
+        "days": "Jen dny",
+        "auto": "Auto (šetří baterii)",
+        "off": "Vypnuto (datum závodu)"
+      },
+      "hints": {
+        "hours": "Dny a hodiny; obrázek se mění každou hodinu.",
+        "days": "Celé dny; obrázek se mění jednou denně o místní půlnoci.",
+        "auto": "Celé dny až do 48 h před startem, pak dny a hodiny.",
+        "off": "Datum závodu místo odpočtu; mění se jen se stavem závodu."
+      },
+      "batteryNote": "Počasí se obnovuje každou hodinu. Pro nejdelší výdrž baterie počasí vypněte. Délku spánku displeji určí hlavička X-Next-Refresh-Seconds."
+    },
     "displayLabel": "Displej",
     "imageCreditsNote": "Atribuce a licence obrázku:",
     "teamsExtra": {
@@ -391,6 +409,7 @@
   "api_docs_calendar_display_desc": "Režim výstupu pro 1bit, B/W/R, B/W/R/Y nebo Spectra 6 displeje",
   "api_docs_weather_desc": "Zapnutí nebo vypnutí překrytí s počasím",
   "api_docs_weather_type_desc": "Typ zobrazených dat o počasí",
+  "api_docs_countdown_desc": "Odpočet v informačním poli: hours (dny a hodiny, výchozí), days (celé dny v tz, mění se o místní půlnoci), auto (celé dny až do 48 h před startem, pak dny a hodiny) nebo off (datum závodu místo odpočtu). Neplatná hodnota vrátí HTTP 422.",
   "api_docs_calendar_desc": "Generuje F1 kalendář jako BMP obrázek (800×480) pro 1bit, 4bit B/W/R, 4bit B/W/R/Y a Spectra 6 E-Ink displeje.",
   "api_docs_eg": "např.",
   "api_docs_dimensions_label": "Rozměry",

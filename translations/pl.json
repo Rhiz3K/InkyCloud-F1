@@ -12,6 +12,7 @@
   "countdown_hours_one": "godzina",
   "countdown_hours_few": "godziny",
   "countdown_hours_many": "godzin",
+  "countdown_today": "Dzisiaj",
   "cancelled": "ODWOŁANY",
   "race_ongoing": "TRWA",
   "race_completed": "ZAKOŃCZONY",
@@ -48,6 +49,7 @@
   "api_docs_race_key_desc": "Identyfikator wyścigu z /api/races/{year}; wymaga year",
   "api_docs_selection_note": "Bez kombinacji year i round lub race_key wybierany jest najbliższy wyścig. Skopiuj round lub race_key z /api/races/{year}. Wyjątek: race_key bez year zwraca HTTP 400.",
   "api_docs_etag_note": "Odpowiedzi BMP zawierają ETag. Wyślij If-None-Match, aby otrzymać 304, gdy obraz się nie zmienił.",
+  "api_docs_refresh_hint_note": "Odpowiedzi kalendarza i zespołów (200 i 304) zawierają X-Next-Refresh-Seconds: wskazówkę, za ile sekund obraz najpewniej się zmieni (od 60 do 86400, najwyżej 3600, gdy wyświetlana jest pogoda odświeżana co godzinę). Wyświetlacze na baterii mogą użyć jej jako długości głębokiego uśpienia; to tylko wskazówka, więc zapytanie nadal może zwrócić 304.",
   "api_docs_operational_auth": "API odczytu statystyk wymagają X-Admin-Token lub Authorization: Bearer <token>, gdy skonfigurowano ADMIN_API_TOKEN. Przy MINIMAL_DATA_MODE=true wszystkie API statystyk zwracają 410.",
   "api_docs_history_desc": "Historia żądań według godzin; limit: 1–720 (domyślnie 168).",
   "api_docs_perf_desc": "GET: podsumowania wydajności; hours: 1–720 (domyślnie 24). POST: wartości liczbowe Web Vitals; metadane odwiedzających i urządzeń są ignorowane.",
@@ -191,6 +193,22 @@
     "weatherCurrentLabel": "Aktualna",
     "weatherRaceDayLabel": "Dzień wyścigu",
     "weatherTooltipText": "Aktywuje się 14 dni przed wyścigiem",
+    "countdown": {
+      "label": "Odliczanie",
+      "options": {
+        "hours": "Dni + godziny",
+        "days": "Tylko dni",
+        "auto": "Auto (oszczędza baterię)",
+        "off": "Wył. (data wyścigu)"
+      },
+      "hints": {
+        "hours": "Dni i godziny; obraz zmienia się co godzinę.",
+        "days": "Pełne dni; obraz zmienia się raz dziennie o lokalnej północy.",
+        "auto": "Pełne dni do 48 h przed startem, potem dni i godziny.",
+        "off": "Data wyścigu zamiast odliczania; zmienia się tylko ze stanem wyścigu."
+      },
+      "batteryNote": "Pogoda odświeża się co godzinę. Aby bateria działała najdłużej, wyłącz pogodę. Długość uśpienia wyświetlacza wskaże nagłówek X-Next-Refresh-Seconds."
+    },
     "displayLabel": "Wyświetlacz",
     "imageCreditsNote": "Atrybucja i licencje obrazu:",
     "teamsExtra": {
@@ -391,6 +409,7 @@
   "api_docs_calendar_display_desc": "Tryb wyjścia dla ekranów 1bit, B/W/R, B/W/R/Y lub Spectra 6",
   "api_docs_weather_desc": "Włącz lub wyłącz nakładkę pogody",
   "api_docs_weather_type_desc": "Który wariant danych pogodowych wyrenderować",
+  "api_docs_countdown_desc": "Odliczanie w polu stanu: hours (dni i godziny, domyślnie), days (pełne dni w tz, zmienia się o lokalnej północy), auto (pełne dni do 48 h przed startem, potem dni i godziny) lub off (data wyścigu zamiast odliczania). Nieprawidłowa wartość zwraca HTTP 422.",
   "api_docs_calendar_desc": "Generuje kalendarz F1 jako obraz BMP (800×480) dla wyświetlaczy E-Ink 1bit, 4-bit B/W/R, 4-bit B/W/R/Y i Spectra 6.",
   "api_docs_eg": "np.",
   "api_docs_dimensions_label": "Wymiary",

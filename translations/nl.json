@@ -12,6 +12,7 @@
   "countdown_hours_one": "uur",
   "countdown_hours_few": "uur",
   "countdown_hours_many": "uur",
+  "countdown_today": "Vandaag",
   "cancelled": "GEANNULEERD",
   "race_ongoing": "BEZIG",
   "race_completed": "VOLTOOID",
@@ -48,6 +49,7 @@
   "api_docs_race_key_desc": "Race-identificatie uit /api/races/{year}; vereist year",
   "api_docs_selection_note": "Zonder de combinatie van year en round of race_key wordt de volgende race geselecteerd. Neem round of race_key over uit /api/races/{year}. Uitzondering: race_key zonder year geeft HTTP 400 terug.",
   "api_docs_etag_note": "BMP-antwoorden bevatten ETag. Stuur If-None-Match om 304 te ontvangen wanneer de afbeelding ongewijzigd is.",
+  "api_docs_refresh_hint_note": "Kalender- en teamsantwoorden (200 en 304) bevatten X-Next-Refresh-Seconds: een hint over hoeveel seconden het duurt tot de afbeelding naar verwachting weer verandert (60 tot 86400, hooguit 3600 zolang elk uur ververst weer wordt getoond). Displays op batterij kunnen dit als duur van de diepe slaap gebruiken; het is alleen een hint, dus een verzoek kan nog steeds 304 opleveren.",
   "api_docs_operational_auth": "De lees-API’s voor statistieken vereisen X-Admin-Token of Authorization: Bearer <token> wanneer ADMIN_API_TOKEN is ingesteld. Met MINIMAL_DATA_MODE=true geven alle statistiek-API’s 410 terug.",
   "api_docs_history_desc": "Aanvraaggeschiedenis per uur; limit: 1–720 (standaard 168).",
   "api_docs_perf_desc": "GET: prestatieoverzichten; hours: 1–720 (standaard 24). POST: numerieke Web Vitals; metadata van bezoekers en apparaten worden genegeerd.",
@@ -191,6 +193,22 @@
     "weatherCurrentLabel": "Huidig",
     "weatherRaceDayLabel": "Racedag",
     "weatherTooltipText": "Wordt 14 dagen voor de race geactiveerd",
+    "countdown": {
+      "label": "Aftelling",
+      "options": {
+        "hours": "Dagen + uren",
+        "days": "Alleen dagen",
+        "auto": "Auto (batterijzuinig)",
+        "off": "Uit (racedatum)"
+      },
+      "hints": {
+        "hours": "Dagen en uren; de afbeelding verandert elk uur.",
+        "days": "Hele dagen; de afbeelding verandert één keer per dag om lokale middernacht.",
+        "auto": "Hele dagen tot 48 uur voor de start, daarna dagen en uren.",
+        "off": "Racedatum in plaats van aftelling; verandert alleen met de racestatus."
+      },
+      "batteryNote": "Het weer wordt elk uur ververst. Zet het weer uit voor de langste batterijduur. De header X-Next-Refresh-Seconds vertelt je display hoe lang het kan slapen."
+    },
     "displayLabel": "Scherm",
     "imageCreditsNote": "Bronvermelding en licenties van de afbeelding:",
     "teamsExtra": {
@@ -391,6 +409,7 @@
   "api_docs_calendar_display_desc": "Uitvoermodus voor 1bit-, B/W/R-, B/W/R/Y- of Spectra 6-displays",
   "api_docs_weather_desc": "Weeroverlay in- of uitschakelen",
   "api_docs_weather_type_desc": "Welke variant van weergegevens gerenderd moet worden",
+  "api_docs_countdown_desc": "Aftelling in het statusvak: hours (dagen en uren, standaard), days (hele dagen in tz, wisselt om lokale middernacht), auto (hele dagen tot 48 uur voor de start, daarna dagen en uren) of off (racedatum in plaats van aftelling). Ongeldige waarden geven HTTP 422.",
   "api_docs_calendar_desc": "Genereert een F1-kalender als BMP-afbeelding (800×480) voor 1bit-, 4-bit B/W/R-, 4-bit B/W/R/Y- en Spectra 6 E-Ink-displays.",
   "api_docs_eg": "bijv.",
   "api_docs_dimensions_label": "Afmetingen",

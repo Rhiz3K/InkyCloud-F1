@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
+from datetime import UTC, datetime
 from email.utils import formatdate
 from io import BytesIO
 from pathlib import Path
@@ -25,7 +26,7 @@ from app.routes.params import (
 )
 from app.services import bmp_artifacts
 from app.services.artifact_metadata import calendar_identity, read_artifact_metadata
-from app.services.f1_service import F1Service
+from app.services.f1_service import NEXT_RACE_GRACE, F1Service
 from app.services.i18n import get_translator
 from app.services.image_generation import (
     StaleSelection,
@@ -50,11 +51,12 @@ from app.services.track_catalog import (
     TrackStyle,
 )
 from app.services.track_renderer import attribution_headers
-from app.state import bmp_cache_generation, get_bmp_cache, get_bmp_variant_cache
+from app.state import bmp_cache_generation, get_bmp_variant_cache
 from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, strong_etag
 from app.utils.image_conversion import bmp_to_png
 from app.utils.rate_limit import enforce_rate_limit
+from app.utils.refresh_hint import CountdownMode, calendar_refresh_hint
 from app.utils.render_limit import render_slot
 
 router = APIRouter()
@@ -162,7 +164,12 @@ async def _render_calendar_preview(
 
 
 async def _render_configure_calendar(
-    request: Request, lang: str, display: str, weather: str, options: TrackOptions
+    request: Request,
+    lang: str,
+    display: str,
+    weather: str,
+    options: TrackOptions,
+    countdown: CountdownMode = CountdownMode.HOURS,
 ) -> Response:
     """Share calendar BMP caching and singleflight, then encode the matching PNG preview.
 
@@ -174,7 +181,19 @@ async def _render_configure_calendar(
         + "|"
         + calendar_cache_key(lang, None, None, None, None, weather, display)
     )
-    artifact = get_bmp_cache().get(key)
+    if countdown != CountdownMode.HOURS:
+        hint = calendar_refresh_hint(
+            race,
+            now=datetime.now(UTC),
+            timezone_name=None,
+            countdown=countdown,
+            weather_type=weather,
+            weather_enabled=config.WEATHER_ENABLED,
+            selection_grace=NEXT_RACE_GRACE,
+        )
+        key += f":countdown={countdown}:{hint.cache_token()}"
+    image_cache = bmp_artifacts.calendar_image_cache(countdown)
+    artifact = image_cache.get(key)
     if artifact is None:
         artifact = await bmp_artifacts.singleflight(
             f"calendar:{selected_generation()}:{key}",
@@ -187,6 +206,7 @@ async def _render_configure_calendar(
                 weather_type=weather,
                 display=display,
                 track_options=options,
+                countdown_mode=countdown,
             ),
         )
     async with render_slot():
@@ -203,7 +223,7 @@ async def _render_configure_calendar(
         media_type=None if unchanged else "image/png",
         headers={
             "ETag": etag,
-            "Cache-Control": _PREVIEW_CACHE_CONTROL if key in get_bmp_cache() else "no-store",
+            "Cache-Control": _PREVIEW_CACHE_CONTROL if key in image_cache else "no-store",
             **attribution_headers((race or {}).get("circuit", {}).get("circuitId", ""), options),
         },
     )
@@ -362,6 +382,10 @@ async def get_configure_preview_png(
     track_style: TrackStyle = TrackStyle.RELIEF,
     track_source: TrackSource = TrackSource.JULES,
     track_accent: TrackAccent = TrackAccent.ALL,
+    countdown: Annotated[
+        CountdownMode,
+        Query(description="Calendar countdown: hours (default), days, auto or off"),
+    ] = CountdownMode.HOURS,
 ) -> Response:
     """Serve pre-generated configure-preview images."""
     allowed_screens = {"calendar": "calendar", "teams": "teams"}
@@ -404,7 +428,8 @@ async def get_configure_preview_png(
     options = TrackOptions(track_style, track_source, track_accent)
     cached = (
         await _cached_preview_response(configure_path, request, _preview_identity(safe_screen))
-        if options == DEFAULT_TRACK_OPTIONS or safe_screen == "teams"
+        if (options == DEFAULT_TRACK_OPTIONS and countdown == CountdownMode.HOURS)
+        or safe_screen == "teams"
         else None
     )
     if cached is not None:
@@ -414,7 +439,7 @@ async def get_configure_preview_png(
         _charge_configure_preview(request)
         try:
             return await _render_configure_calendar(
-                request, safe_lang, safe_display, safe_weather, options
+                request, safe_lang, safe_display, safe_weather, options, countdown
             )
         except Exception as exc:
             if isinstance(exc, (HTTPException, StaleSelection)):

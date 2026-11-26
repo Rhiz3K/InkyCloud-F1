@@ -8,6 +8,7 @@ import logging
 import os
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -18,7 +19,7 @@ from fastapi.responses import Response
 from app.config import LANGUAGE_CODES, config
 from app.services import bmp_artifacts
 from app.services.artifact_metadata import artifact_matches, calendar_identity
-from app.services.f1_service import F1Service
+from app.services.f1_service import NEXT_RACE_GRACE, F1Service
 from app.services.generation_freshness import PREGENERATED_MAX_AGE_SECONDS
 from app.services.image_generation import (
     StaleSelection,
@@ -28,7 +29,11 @@ from app.services.image_generation import (
 )
 from app.services.image_keys import get_calendar_image_key, get_teams_image_key
 from app.services.renderers import DISPLAY_TYPES
-from app.services.teams_extra import TeamsExtra, build_teams_extra_context
+from app.services.teams_extra import (
+    TeamsExtra,
+    build_teams_extra_context,
+    points_session_starts,
+)
 from app.services.teams_service import (
     get_default_teams_year,
 )
@@ -42,12 +47,20 @@ from app.services.track_catalog import (
 from app.services.track_renderer import attribution_headers
 from app.state import (
     BmpArtifact,
-    get_bmp_cache,
+    ImageCache,
     record_api_call,
 )
 from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
 from app.utils.f1_season import race_selection_error
 from app.utils.rate_limit import enforce_rate_limit
+from app.utils.refresh_hint import (
+    ERROR_REFRESH_SECONDS,
+    REFRESH_HINT_HEADER,
+    CountdownMode,
+    RefreshHint,
+    calendar_refresh_hint,
+    teams_refresh_hint,
+)
 from app.utils.timezones import is_valid_timezone, normalize_timezone
 
 from .deps import get_f1_service
@@ -75,6 +88,48 @@ CALENDAR_BMP_CACHE_CONTROL = "public, max-age=3600"
 # is checked first; the scheduler clears it at the end of each generation run (or the TTL
 # expires if a run fails before that).
 PREGENERATED_CACHE_STATUS = "PREGENERATED"
+# Panels that print a day count, a date or the next rounds, so change at local midnight.
+_DAY_BASED_TEAMS_EXTRAS = frozenset({TeamsExtra.COUNTDOWN, TeamsExtra.FLAGS, TeamsExtra.TRACK})
+
+
+def _utc_now() -> datetime:
+    """Return the current instant for refresh hints (a seam for tests)."""
+    return datetime.now(UTC)
+
+
+def _calendar_poll_seconds(
+    hint: RefreshHint | None,
+    countdown: CountdownMode,
+    cache: ImageCache | None,
+    key: str,
+    status: str | None,
+) -> int:
+    """Evaluate the source deadline immediately before returning a calendar response."""
+    if hint is None:
+        return ERROR_REFRESH_SECONDS
+    if (
+        not config.SCHEDULER_ENABLED
+        and countdown == CountdownMode.HOURS
+        and cache is not None
+        and status in ("HIT", "MISS")
+        and key in cache
+    ):
+        return hint.seconds(
+            _utc_now(), cache_seconds=cache.remaining_seconds(key), cache_ttl=cache.ttl
+        )
+    return hint.seconds(_utc_now())
+
+
+def _calendar_cache_control(countdown: CountdownMode, hint: RefreshHint) -> str:
+    """Return the calendar Cache-Control; countdown variants never outlive their next change.
+
+    The default (hours) keeps its historical one-hour lifetime. A day count, ``off`` or ``auto``
+    image is keyed by its content period, so a browser or shared cache must not reuse it past
+    local midnight, the race start or the auto switch.
+    """
+    if countdown == CountdownMode.HOURS:
+        return CALENDAR_BMP_CACHE_CONTROL
+    return f"public, max-age={hint.max_age(_utc_now())}"
 
 
 def _to_round_number(round_value: str | int | None) -> int | None:
@@ -194,8 +249,12 @@ def _bmp_response(
     cache_control: str,
     record_call: Callable[[int, int], None],
     cache_status: str | None = None,
+    refresh_seconds: int | None = None,
 ) -> Response:
-    """Build a 200/304 BMP response and record the call exactly once."""
+    """Build a 200/304 BMP response and record the call exactly once.
+
+    ``refresh_seconds`` becomes the ``X-Next-Refresh-Seconds`` hint on both 200 and 304.
+    """
     not_modified = if_none_match_matches(request.headers.get("If-None-Match"), etag)
     status_code = 304 if not_modified else 200
     body = b"" if not_modified else (content or b"")
@@ -206,6 +265,8 @@ def _bmp_response(
     }
     if cache_status is not None:
         headers["X-Cache"] = cache_status
+    if refresh_seconds is not None:
+        headers[REFRESH_HINT_HEADER] = str(refresh_seconds)
 
     record_call(status_code, len(body))
 
@@ -233,6 +294,7 @@ def _calendar_response(
     cache_control: str,
     cache_status: str | None,
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
+    refresh_seconds: int | None = None,
 ) -> Response:
     """Apply the shared calendar response and call-record epilogue."""
     return _bmp_response(
@@ -242,6 +304,7 @@ def _calendar_response(
         filename="calendar.bmp",
         cache_control=cache_control,
         cache_status=cache_status,
+        refresh_seconds=refresh_seconds,
         record_call=lambda status, size: _record_calendar_api_call(
             start_time=start_time,
             size_bytes=size,
@@ -269,6 +332,7 @@ def _teams_response(
     year: int | None,
     cache_control: str = TEAMS_BMP_CACHE_CONTROL,
     cache_status: str | None = None,
+    refresh_seconds: int | None = None,
 ) -> Response:
     """Apply the shared teams response and call-record epilogue."""
     response = _bmp_response(
@@ -278,6 +342,7 @@ def _teams_response(
         filename="teams.bmp",
         cache_control=cache_control,
         cache_status=cache_status,
+        refresh_seconds=refresh_seconds,
         record_call=lambda status, size: _record_teams_api_call(
             start_time=start_time,
             size_bytes=size,
@@ -540,6 +605,13 @@ async def get_calendar_bmp(
     track_style: TrackStyle = TrackStyle.RELIEF,
     track_source: TrackSource = TrackSource.JULES,
     track_accent: TrackAccent = TrackAccent.ALL,
+    countdown: Annotated[
+        CountdownMode,
+        Query(
+            description="Countdown: hours (default, days and hours), days (whole days), "
+            "auto (days until 48 h before the start, then days and hours) or off (race date)"
+        ),
+    ] = CountdownMode.HOURS,
 ):
     """Render the calendar endpoint for the requested display and selection."""
     start_time = time.time()
@@ -564,6 +636,10 @@ async def get_calendar_bmp(
     actual_year, actual_round = year, race_round
     actual_race_name: str | None = None
     selected_race: dict | None = None
+    # Until the selection is known (and on the error image) ask for a retry soon.
+    poll_hint: RefreshHint | None = None
+    image_cache: ImageCache | None = None
+    cache_key = ""
 
     def respond(
         content: bytes | None,
@@ -588,6 +664,9 @@ async def get_calendar_bmp(
             cache_control=cache_control,
             cache_status=cache_status,
             track_options=track_options,
+            refresh_seconds=_calendar_poll_seconds(
+                poll_hint, countdown, image_cache, cache_key, cache_status
+            ),
         )
         response.headers.update(
             attribution_headers(
@@ -605,15 +684,30 @@ async def get_calendar_bmp(
         )
         selected_race = await _select_calendar_race(f1_service, year, race_round, race_key)
         identity = calendar_identity(selected_race, track_options)
+        hint = calendar_refresh_hint(
+            selected_race,
+            now=_utc_now(),
+            timezone_name=tz,
+            countdown=countdown,
+            weather_type=weather_type,
+            weather_enabled=config.WEATHER_ENABLED,
+            selection_grace=NEXT_RACE_GRACE if race_round is None and race_key is None else None,
+        )
+        # Without a race the route serves the "failed to fetch" error image: retry soon.
+        poll_hint = hint if selected_race else None
         cache_key = f"{identity}|" + calendar_cache_key(
             lang, year, race_round, race_key, tz, weather_type, display
         )
-        cached_artifact = get_bmp_cache().get(cache_key)
+        if countdown != CountdownMode.HOURS:
+            # The content period keeps a cached day count from outliving local midnight.
+            cache_key += f":countdown={countdown}:{hint.cache_token()}"
+        image_cache = bmp_artifacts.calendar_image_cache(countdown)
+        cached_artifact = image_cache.get(cache_key)
         if cached_artifact is not None:
             logger.debug("Cache hit for %s", cache_key)
             return respond(
                 *cached_artifact,
-                cache_control=CALENDAR_BMP_CACHE_CONTROL,
+                cache_control=_calendar_cache_control(countdown, hint),
                 cache_status="HIT",
             )
 
@@ -629,7 +723,7 @@ async def get_calendar_bmp(
                 weather_type=weather_type,
                 expected_identity=identity,
             )
-            if track_options == DEFAULT_TRACK_OPTIONS
+            if track_options == DEFAULT_TRACK_OPTIONS and countdown == CountdownMode.HOURS
             else None
         )
         if image_path is not None:
@@ -665,12 +759,13 @@ async def get_calendar_bmp(
                 weather_type=weather_type,
                 display=display,
                 track_options=track_options,
+                countdown_mode=countdown,
             ),
         )
-        is_cacheable = get_bmp_cache().get(cache_key) is artifact
+        is_cacheable = image_cache.get(cache_key) is artifact
         return respond(
             *artifact,
-            cache_control=CALENDAR_BMP_CACHE_CONTROL if is_cacheable else "no-store",
+            cache_control=_calendar_cache_control(countdown, hint) if is_cacheable else "no-store",
             cache_status="MISS",
         )
     except Exception as exc:
@@ -682,6 +777,7 @@ async def get_calendar_bmp(
         bmp_data, etag = await bmp_artifacts.shared_error_artifact(
             display, lang, "Temporary rendering error"
         )
+        poll_hint = None
         return respond(
             bmp_data,
             etag,
@@ -726,7 +822,6 @@ async def get_teams_bmp(
     lang = normalize_lang(lang)
     display = normalize_display(display)
     tz = validate_timezone(tz)
-
     try:
         if year is None:
             year = get_default_teams_year()
@@ -749,6 +844,7 @@ async def get_teams_bmp(
                 year=year,
                 cache_control=cache_control,
                 cache_status=cache_status,
+                refresh_seconds=hint.seconds(_utc_now()),
             )
 
         ctx = (
@@ -757,6 +853,13 @@ async def get_teams_bmp(
             else None
         )
         effective = extra if ctx is not None else TeamsExtra.NONE
+        hint = teams_refresh_hint(
+            now=_utc_now(),
+            points_sessions=points_session_starts(year),
+            timezone_name=tz,
+            day_panel=effective in _DAY_BASED_TEAMS_EXTRAS,
+            hourly=effective == TeamsExtra.WEATHER,
+        )
         cache_key = get_teams_image_key(
             lang, year, display=display, extra=effective, extra_context=ctx
         )
@@ -813,4 +916,5 @@ async def get_teams_bmp(
             display=display,
             year=year,
             cache_control="no-store",
+            refresh_seconds=ERROR_REFRESH_SECONDS,
         )

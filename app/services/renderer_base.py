@@ -50,6 +50,7 @@ from app.services.renderer_text import (
 from app.services.track_catalog import DEFAULT_TRACK_OPTIONS, TrackOptions
 from app.services.track_renderer import render_track_image
 from app.services.weather_service import RAINDROP_ICON, WeatherData
+from app.utils.refresh_hint import CountdownMode
 
 logger = logging.getLogger(__name__)
 TEXT_BASELINE_REF = "ÁŽÝgy"
@@ -377,6 +378,7 @@ class RendererBase(RendererCore):
         race_data: dict,
         weather_data: WeatherData | None = None,
         weather_type: str = "",
+        countdown_mode: CountdownMode = CountdownMode.HOURS,
     ) -> int:
         """Draw the race-weekend schedule and return its lower boundary."""
         return draw_schedule_section(
@@ -395,6 +397,7 @@ class RendererBase(RendererCore):
             draw_countdown_box_fn=self._draw_countdown_box,
             weather_data=weather_data,
             weather_type=weather_type,
+            countdown_mode=countdown_mode,
         )
 
     def _draw_schedule_row(self, draw: ImageDraw.ImageDraw, y: int, event: dict) -> None:
@@ -434,6 +437,8 @@ class RendererBase(RendererCore):
         schedule_bottom: int,
         weather_data: WeatherData | None = None,
         weather_type: str = "",
+        *,
+        countdown_mode: CountdownMode = CountdownMode.HOURS,
     ) -> int:
         """Draw the countdown/status box and return its bottom coordinate."""
         return draw_countdown_box(
@@ -457,6 +462,7 @@ class RendererBase(RendererCore):
             text_fill=self.theme.countdown_text_fill,
             weather_data=weather_data,
             weather_type=weather_type,
+            countdown_mode=countdown_mode,
         )
 
     def _draw_circuit_stats(

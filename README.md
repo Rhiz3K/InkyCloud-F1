@@ -43,6 +43,7 @@ Configure your deployed instance following [the self-hosting guide](SELF-HOSTING
 | `display`      | `1bit`, `bwr`, `bwry`, `spectra6` | `?display=bwry`                      |
 | `weather`      | `true`, `false`                  | `?weather=false`                     |
 | `weather_type` | `race_day`, `race`, `current`, `off` | `?weather=true&weather_type=current` |
+| `countdown`    | `hours` (default), `days`, `auto`, `off` | `?countdown=auto` |
 | `track_style`  | 18 style identifiers from `/api/tracks`; default `relief` | `?track_style=contours` |
 | `track_source` | `jules` (default), `commons`       | `?track_source=commons`              |
 | `track_accent` | 16 accent subsets from `/api/tracks`; default `all` | `?track_accent=warm` |
@@ -58,6 +59,7 @@ https://racing.example.com/calendar.bmp?lang=en&display=bwr
 https://racing.example.com/calendar.bmp?lang=en&display=bwry
 https://racing.example.com/calendar.bmp?lang=en&display=spectra6
 https://racing.example.com/calendar.bmp?lang=en&weather=true&weather_type=current
+https://racing.example.com/calendar.bmp?lang=en&countdown=auto&weather=false
 https://racing.example.com/teams.bmp?lang=ja&display=spectra6
 https://racing.example.com/sk/configure/calendar
 ```
@@ -128,11 +130,14 @@ Compatible with [zivyobraz.eu](https://zivyobraz.eu) — a service for managing 
 
 ```cpp
 #include <HTTPClient.h>
+#include <esp_sleep.h>
 
 HTTPClient http;
-http.begin("https://racing.example.com/calendar.bmp?lang=cs");
-const char* responseHeaders[] = {"ETag"};
-http.collectHeaders(responseHeaders, 1);
+// countdown=auto shows whole days until 48 h before the start, so the image (and ETag)
+// changes about once a day instead of every hour. weather=false avoids hourly weather updates.
+http.begin("https://racing.example.com/calendar.bmp?lang=cs&countdown=auto&weather=false");
+const char* responseHeaders[] = {"ETag", "X-Next-Refresh-Seconds"};
+http.collectHeaders(responseHeaders, 2);
 
 String etag = loadEtagFromPreferences();  // Persist across deep-sleep cycles.
 if (!etag.isEmpty()) {
@@ -146,6 +151,13 @@ if (httpCode == HTTP_CODE_OK) {
 } else if (httpCode == HTTP_CODE_NOT_MODIFIED) {
   // The BMP is unchanged: skip both the download and disruptive panel redraw.
 }
+
+// Sleep until the server expects the image to change (60-86400 s); fall back to one hour.
+long sleepSeconds = http.header("X-Next-Refresh-Seconds").toInt();
+if (sleepSeconds < 60 || sleepSeconds > 86400) sleepSeconds = 3600;
+http.end();
+esp_sleep_enable_timer_wakeup((uint64_t)sleepSeconds * 1000000ULL);
+esp_deep_sleep_start();
 ```
 
 Calendar and teams responses use a SHA-256 `ETag`: strong for uncompressed responses, and weak
@@ -159,6 +171,24 @@ including a `304` for an image already in that cache), `PREGENERATED` (scheduler
 on disk), `REVALIDATED` (`304` checked against a pregenerated file's ETag without reading the
 image), or `MISS` (rendered for this request).
 
+Calendar and teams responses (`200` and `304`) also carry `X-Next-Refresh-Seconds`: the number
+of seconds until the image is next expected to change, so a battery panel can pick its deep-sleep
+length. It follows the next whole hour of a `d h` countdown, the next local midnight in the
+requested `tz` for day counts (DST-aware), the race start and the end of the three-hour
+`IN PROGRESS` window, the switch to the next race, and for teams the next sprint or race start
+(hourly for 24 hours after one). The value is capped at `86400`, at `3600` while weather that is
+refreshed hourly is shown (`weather_type=current`, or a race-day forecast inside the 16-day
+range), never goes below `60`, includes a two-minute margin for the hourly pre-generation, and is
+`300` for an error image. It is a hint, not a promise: a data refresh can change the image
+earlier, and a poll can still return `304` with a new hint.
+
+The calendar `countdown` parameter controls how often the countdown itself changes the image:
+`hours` (default, `12 d 17 h`, changes hourly), `days` (whole calendar days in `tz`, changes at
+local midnight; `Today` on race day), `auto` (whole days until 48 hours before the start, then
+days and hours) or `off` (the race date and start time instead of a countdown). Race statuses
+(`IN PROGRESS`, `COMPLETED`, `CANCELLED`) and weather are shown the same way in every mode, and
+an invalid value returns `422`. The teams `extra=countdown` panel already counts whole days.
+
 ---
 
 ## Public Routes and API Endpoints
@@ -167,7 +197,7 @@ Your deployed instance provides these endpoints:
 
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
-| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `tz`, `track_style`, `track_source`, and `track_accent` params |
+| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `countdown`, `tz`, `track_style`, `track_source`, and `track_accent` params; `X-Next-Refresh-Seconds` hint header |
 | `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`, `extra`: `none`, `countdown`, `flags`, `track`, `weather`); optional IANA `tz` applies only to countdown, flags, track, and weather panels showing a time or date (also on `/preview/configure/teams.png`); attribution/licences at `/credits` (`Link rel="license"` header) |
 | `GET /`                                  | Landing page with screen type selection                 |
 | `GET /configure/{screen}`                | Interactive localized preview/config page (calendar/teams) |
