@@ -21,7 +21,7 @@ from tests.test_routes_images import _request
 
 @pytest.mark.asyncio
 async def test_weather_total_budget_and_caller_cancellation(monkeypatch):
-    async def stalled(_):
+    async def stalled(*_):
         await asyncio.Event().wait()
 
     monkeypatch.setattr(weather_service, "_get_weather_context_unbounded", stalled)

@@ -105,6 +105,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Review quick wins (issue #185):
+  - `/teams.bmp` no longer returns the error image when the standings fetch is slow. Standings
+    enrichment now gets 75% of `TEAMS_ENRICHMENT_TIMEOUT_SECONDS`, so the bundled roster is
+    rendered without points (and not cached) before the overall budget runs out.
+  - Open-Meteo responses with a `null`, NaN or non-numeric current temperature are treated as
+    missing. Previously they were cached and made every weather render fail until expiry.
+    A `null` weather code or precipitation value now falls back to 0.
+  - `/calendar.bmp` returns the error BMP (`Cache-Control: no-store`) for failures during race
+    selection, cache lookup or pregenerated-file access. These used to escape as a
+    `text/plain` HTTP 500.
+  - `weather_type=off` no longer fetches weather on a cache miss. When weather enrichment
+    times out, a lookup that already finished (for example current weather) is kept instead
+    of being dropped.
+  - `reset-db stats` also clears `api_call_totals`, `perf_metrics`, `perf_buckets` and
+    `stats_batches`, the tables the default `AGGREGATE_STATS_ONLY=true` profile writes, and
+    `reset-db info` lists them. Tables missing from older databases are skipped; a failed table
+    lookup (for example a database still locked after the timeout) aborts the reset.
+  - The historical refresh requests Las Vegas from Jolpica as `vegas` (the provider ID) instead
+    of the local `las_vegas`, which never returned results. A podium is accepted only with
+    positions exactly 1–3, and the results footer labels rows with the stored position. The
+    bundled 2025 Las Vegas qualifying (1, 2, 4) now shows `4.` instead of relabelling Russell
+    as third.
+  - Historical race weather keeps its precipitation amount (for example `1.6mm`) across
+    restarts. The `weather_cache` table gains a nullable `precipitation_display_override`
+    column (schema version 7, added automatically on startup); before, the warm-load turned
+    the amount into `0%`.
+  - `/api/standings/leader` resolves `leader_team.id` with the same team mapping as the
+    renderer, so Audi and Cadillac get their ids (before, `null`) and Cadillac-Ferrari
+    is no longer reported as `ferrari`. Driver standings report the driver's current
+    (last-listed) constructor, as the Teams roster does, and a malformed standings row is
+    skipped instead of discarding the whole table.
+  - The calendar status or countdown text no longer runs under the weather block. For
+    example, German "ABGESCHLOSSEN" with 24° / 40 % overlapped the icon by 11 px. The text
+    is measured against the weather width, shrunk to at most 70 % of its size, and only then
+    shortened with an ellipsis.
+  - Spectra 6 draws text without anti-aliasing. Its nearest-colour quantisation turned
+    blended glyph edges into stray green, blue and yellow pixels; a red-and-black error
+    image had 228 of them. `bwr`/`bwry` keep anti-aliased text because their palette
+    mapper already resolves edges to black, white or red.
+  - Keyboard access to the configurator: the closed mobile menu and the closed settings
+    drawer (below `lg`) are `inert`, so Tab no longer lands on off-screen buttons. Opening
+    moves focus into the panel, while closing (including with Escape) returns it to the menu
+    button. The timezone, season and race selects and the URL field now show a
+    `focus-visible` ring, and these and the other ring-styled controls keep a visible outline
+    in Windows high-contrast (forced colors) mode, which hides the ring.
+
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
   from `requires-python = ">=3.15"`, so the pinned ruff behaves as before.
@@ -144,6 +190,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with enforcing CSP, the site's own favicon, and no CDN or Google Fonts.
 - Restrict the data-on-* event dispatcher to an explicit, frozen allowlist of handlers instead of calling any global function, closing a CSP-bypass gadget.
 - Replace the header's two inline event handlers (mobile menu, language switcher) with data-on-* attributes, so the CSP can be enforced.
+
+- Skip malformed standings and hourly weather rows individually. The mobile settings drawer returns keyboard focus to the button that opened it.
 
 ## [1.3.3] - 2026-10-30
 

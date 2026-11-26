@@ -32,6 +32,24 @@ def _get_fetch_lock(year: int, standings_type: str) -> asyncio.Lock:
     return locks.setdefault((year, standings_type), asyncio.Lock())
 
 
+def _parse_standing_numbers(entry: object) -> tuple[int, float, int] | None:
+    """Parse position, points and wins from one standings row, or None when malformed.
+
+    A single bad row (e.g. an empty position string) used to raise and discard the whole
+    table; skipping only that row keeps the rest of the standings usable.
+    """
+    if not isinstance(entry, dict):
+        return None
+    try:
+        return (
+            int(entry.get("position", 0)),
+            float(entry.get("points", 0)),
+            int(entry.get("wins", 0)),
+        )
+    except TypeError, ValueError:
+        return None
+
+
 class CacheEntry:
     """Simple cache entry with TTL."""
 
@@ -151,15 +169,27 @@ class StandingsService:
             driver_standings = []
 
             for entry in standings_data.get("DriverStandings", []):
+                # Validate the row before reading any field so a non-mapping row is skipped
+                # instead of raising and discarding the whole table.
+                numbers = _parse_standing_numbers(entry)
+                if numbers is None:
+                    logger.warning("Skipping malformed driver standing for %s: %r", year, entry)
+                    continue
                 driver_data = entry.get("Driver", {})
                 constructors = entry.get("Constructors", [])
-                constructor_name = constructors[0].get("name", "") if constructors else ""
+                if not isinstance(driver_data, dict) or not isinstance(constructors, list):
+                    continue
+                if constructors and not isinstance(constructors[-1], dict):
+                    continue
+                # Constructors are chronological; the last one is the driver's current team,
+                # matching the Teams roster rule.
+                constructor_name = constructors[-1].get("name", "") if constructors else ""
 
                 driver_standings.append(
                     DriverStanding(
-                        position=int(entry.get("position", 0)),
-                        points=float(entry.get("points", 0)),
-                        wins=int(entry.get("wins", 0)),
+                        position=numbers[0],
+                        points=numbers[1],
+                        wins=numbers[2],
                         driver_code=driver_data.get("code", ""),
                         driver_name=driver_data.get("familyName", ""),
                         driver_given_name=driver_data.get("givenName", ""),
@@ -167,6 +197,11 @@ class StandingsService:
                         constructor_name=constructor_name,
                     )
                 )
+
+            if not driver_standings:
+                # Every row was rejected: return empty so only the short negative cache applies.
+                logger.warning("No valid driver standings rows for %s", year)
+                return []
 
             full_data = StandingsData(
                 season=year,
@@ -245,17 +280,30 @@ class StandingsService:
             constructor_standings = []
 
             for entry in standings_data.get("ConstructorStandings", []):
+                numbers = _parse_standing_numbers(entry)
+                if numbers is None:
+                    logger.warning(
+                        "Skipping malformed constructor standing for %s: %r", year, entry
+                    )
+                    continue
                 constructor_data = entry.get("Constructor", {})
+                if not isinstance(constructor_data, dict):
+                    continue
 
                 constructor_standings.append(
                     ConstructorStanding(
-                        position=int(entry.get("position", 0)),
-                        points=float(entry.get("points", 0)),
-                        wins=int(entry.get("wins", 0)),
+                        position=numbers[0],
+                        points=numbers[1],
+                        wins=numbers[2],
                         constructor_name=constructor_data.get("name", ""),
                         nationality=constructor_data.get("nationality", ""),
                     )
                 )
+
+            if not constructor_standings:
+                # Every row was rejected: return empty so only the short negative cache applies.
+                logger.warning("No valid constructor standings rows for %s", year)
+                return []
 
             full_data = StandingsData(
                 season=year,

@@ -194,7 +194,8 @@ def draw_results_column(
 
     for i, entry in enumerate(results[:3]):
         y = y_rows_start + (i * row_height)
-        pos = i + 1
+        # Label rows with the stored classification so an incomplete podium is not relabelled.
+        pos = getattr(entry, "position", None) or i + 1
         if entry is None:
             text = f"{pos}. -"
             time_str = ""

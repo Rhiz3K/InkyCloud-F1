@@ -499,6 +499,7 @@ def test_countdown_status_draws_weather(monkeypatch):
     draw.textbbox.return_value = (0, 0, 10, 10)
     weather = object()
     weather_draw = MagicMock()
+    monkeypatch.setattr(renderer_calendar, "_countdown_weather_width", lambda *_a, **_k: 40)
     monkeypatch.setattr(renderer_calendar, "_find_race_datetime", lambda *_args: object())
     monkeypatch.setattr(
         renderer_calendar,

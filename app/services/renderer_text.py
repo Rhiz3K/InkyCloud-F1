@@ -308,7 +308,7 @@ def get_team_key(constructor: str) -> str | None:
         return "red_bull"
     if "haas" in name:
         return "haas"
-    if "sauber" in name or "stake" in name or "kick" in name:
+    if "sauber" in name or "stake" in name or "kick" in name or "alfa romeo" in name:
         return "sauber"
     if "alpine" in name:
         return "alpine"

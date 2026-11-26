@@ -12,7 +12,7 @@ from app.models import PerfMetricsPayload
 from app.services.database import get_database
 from app.services.f1_service import F1Service
 from app.services.private_stats import canonical_page
-from app.services.renderer_text import get_team_color_hex
+from app.services.renderer_text import get_team_color_hex, get_team_key
 from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_extra import TeamsExtra
 from app.services.teams_service import TeamsService, get_default_teams_year
@@ -25,7 +25,7 @@ from app.utils.f1_season import (
     race_selection_error,
 )
 from app.utils.rate_limit import enforce_rate_limit
-from app.utils.standings_metadata import TEAM_ID_MAP, get_driver_number
+from app.utils.standings_metadata import get_driver_number
 from app.version import APP_VERSION
 
 from .deps import get_f1_service
@@ -673,11 +673,13 @@ def _get_driver_number(driver_code: str, year: int) -> int | None:
 
 
 def _get_team_id(team_name: str) -> str | None:
-    """Resolve a standings constructor name to the frontend team asset key."""
-    for key, team_id in TEAM_ID_MAP.items():
-        if key.lower() in team_name.lower():
-            return team_id
-    return None
+    """Resolve a standings constructor name to the canonical team key.
+
+    Shares the renderer's mapping so the public id always matches the colour and artwork
+    keys (a separate substring table returned None for Audi/Cadillac and "ferrari" for
+    "Cadillac-Ferrari").
+    """
+    return get_team_key(team_name)
 
 
 @router.get("/api/standings/leader")

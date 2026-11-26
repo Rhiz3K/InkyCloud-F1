@@ -47,6 +47,8 @@ class BwrRenderer(Spectra6Renderer):
     """Renderer for generating black/white/red indexed BMP images."""
 
     THEME = BWR_THEME
+    # map_to_bwr_palette thresholds anti-aliased edges onto black/white/red itself.
+    TEXT_ANTIALIAS = True
 
     def _to_indexed_bmp(self, image: Image.Image) -> bytes:
         """Map the RGB canvas to the strict B/W/R palette and encode 4-bit BMP."""

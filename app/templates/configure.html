@@ -320,7 +320,7 @@ block content %}
               type="text"
               id="apiUrl"
               readonly
-              class="flex-1 px-3 py-2 text-xs font-mono bg-white border-2 border-black focus:outline-none selection:bg-racing-red selection:text-white"
+              class="flex-1 px-3 py-2 text-xs font-mono bg-white border-2 border-black focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red selection:bg-racing-red selection:text-white"
             />
             <button
               data-on-click="copyUrl"
@@ -1495,7 +1495,7 @@ block content %}
   function createTzOption(tz, className, html, onSelect) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `tz-item w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black ${className}`;
+    button.className = `tz-item w-full text-left focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-black ${className}`;
     button.dataset.tz = tz;
     button.tabIndex = -1;
     button.setAttribute("aria-pressed", String(tz === selectedTz));
@@ -2122,16 +2122,57 @@ block content %}
     startApp();
   }
 
+  function isDesktopSidebar() {
+    return window.matchMedia("(min-width: 1024px)").matches;
+  }
+
+  // Below lg the settings panel is an off-canvas drawer; while closed it must be inert so
+  // keyboard focus cannot land on controls translated off-screen. On desktop it is static.
+  function syncSidebarInert() {
+    const sidebar = document.getElementById("settingsSidebar");
+    if (!sidebar) return;
+    sidebar.inert =
+      !isDesktopSidebar() && sidebar.classList.contains("-translate-x-full");
+  }
+
+  let sidebarOpener;
   function toggleSidebar() {
     const sidebar = document.getElementById("settingsSidebar");
     const overlay = document.getElementById("sidebarOverlay");
     if (sidebar.classList.contains("-translate-x-full")) {
+      sidebarOpener = this?.matches?.("button") ? this : document.getElementById("mobileMenuBtn");
       sidebar.classList.remove("-translate-x-full");
       overlay.classList.remove("hidden");
+      syncSidebarInert();
+      document.getElementById("settingsSidebarClose")?.focus();
     } else {
+      const hadFocus = sidebar.contains(document.activeElement);
       sidebar.classList.add("-translate-x-full");
       overlay.classList.add("hidden");
+      syncSidebarInert();
+      if (hadFocus) {
+        const opener = sidebarOpener && sidebarOpener.isConnected !== false
+          ? sidebarOpener : document.getElementById("mobileMenuBtn");
+        opener?.focus();
+      }
+      sidebarOpener = null;
     }
   }
+
+  syncSidebarInert();
+  window
+    .matchMedia("(min-width: 1024px)")
+    .addEventListener("change", syncSidebarInert);
+  document.addEventListener("keydown", (event) => {
+    const sidebar = document.getElementById("settingsSidebar");
+    if (
+      event.key === "Escape" &&
+      sidebar &&
+      !isDesktopSidebar() &&
+      !sidebar.classList.contains("-translate-x-full")
+    ) {
+      toggleSidebar();
+    }
+  });
 </script>
 {% endblock %}
