@@ -2,7 +2,7 @@
   "schema": 1,
   "assets": {
     "circuits_jolpica.json": {
-      "sha256": "9cb3809f49be27b855c851f176aab03418496bcedbf5a94d0e614f851f19c449",
+      "sha256": "d4edf40f84326f80b5730bdcaceb8b2cf60c1750c9bb24ff60ab094668de488f",
       "license": "CC-BY-NC-SA-4.0",
       "author": "Jolpica-F1 / Ergast contributors",
       "source": "/static/licenses/DATA_LICENSES.txt",

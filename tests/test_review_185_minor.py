@@ -1,4 +1,4 @@
-"""Minor review cleanups from issue #185 (B2, B11, E12, A10, C10, D11)."""
+"""Minor review cleanups from issue #185 (B1, B2, B11, E12, A10, C10, D11)."""
 
 import asyncio
 import io
@@ -44,6 +44,19 @@ def test_persisted_circuit_weather_loads_under_the_local_id(empty_circuit_weathe
     )
     assert loaded == 1
     assert weather_service.get_cached_circuit_weather("las_vegas").temperature_c == 18.0
+
+
+def test_bundled_historical_podiums_are_complete():
+    from app.paths import ASSETS_DIR
+
+    data = json.loads((ASSETS_DIR / "circuits_jolpica.json").read_text(encoding="utf-8"))
+    for circuit_id, circuit in data.get("circuits", data).items():
+        history = circuit.get("historical")
+        if not history:
+            continue
+        for session in ("qualifying", "race"):
+            positions = [entry["pos"] for entry in history[session]]
+            assert positions == [1, 2, 3], (circuit_id, session, positions)
 
 
 # --- B11: no flag is guessed from a country name's first letters ---------------------------------
