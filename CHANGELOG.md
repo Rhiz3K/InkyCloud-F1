@@ -105,6 +105,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep the finished season current over the winter break. From 1 January a new calendar
+  year no longer switches the current season on its own: a season starts on its first race
+  day, taken from `SEASON_START_DATES` or, for later years, from the bundled season
+  calendar. Until a new calendar is bundled and its first race day arrives, the previous
+  season stays current, so the configurator, `/api` and the historical refresh keep using
+  2026 instead of an empty 2027. Standings requests without a year use the same season
+  instead of the calendar year. The test that failed the suite once `SEASON_START_DATES`
+  stopped covering the calendar year is replaced by a check that the table matches the
+  bundled calendars, because a missing date no longer selects an empty season.
+
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
   from `requires-python = ">=3.15"`, so the pinned ruff behaves as before.
