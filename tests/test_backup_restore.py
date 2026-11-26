@@ -424,6 +424,41 @@ def test_failed_local_publication_cleans_its_reservation(data_dir, monkeypatch, 
     assert not list(_local_dir(data_dir).iterdir())
 
 
+def test_publication_without_hard_links_never_exposes_an_empty_backup(data_dir, monkeypatch):
+    directory = _local_dir(data_dir)
+    name = "f1_backup_2026-11-26_10-00-00.db"
+    monkeypatch.setattr(backup, "generate_backup_filename", lambda: name)
+    monkeypatch.setattr(backup.os, "link", MagicMock(side_effect=OSError(errno.ENOTSUP, "link")))
+    replace = backup.os.replace
+
+    published = []
+
+    def checked(source, target):
+        if Path(target).parent == directory and Path(target).name == name:
+            # Mid-publication only the hidden reservation exists, never the final name.
+            assert not Path(target).exists()
+            assert (directory / f".{name}.reserved").is_file()
+            assert backup.local_backups() == []
+            published.append(target)
+        replace(source, target)
+
+    monkeypatch.setattr(backup.os, "replace", checked)
+    assert backup.perform_local_backup()["filename"] == name
+    assert published
+    assert [path.name for path in directory.iterdir()] == [name]
+
+    # A crash can leave only a reservation behind: listing ignores it, the next
+    # publication skips its name, and restore still selects a complete backup.
+    stale = directory / ".f1_backup_2026-11-26_10-00-00_1.db.reserved"
+    stale.touch()
+    assert backup.perform_local_backup()["filename"] == "f1_backup_2026-11-26_10-00-00_2.db"
+    assert [entry["name"] for entry in backup.local_backups()] == [
+        name,
+        "f1_backup_2026-11-26_10-00-00_2.db",
+    ]
+    assert stale.is_file()
+
+
 def test_restore_excludes_service_and_second_restore_until_cleanup(data_dir, monkeypatch):
     from app import main
 

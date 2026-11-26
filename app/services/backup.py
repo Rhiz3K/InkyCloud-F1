@@ -813,20 +813,26 @@ def _publish_local_backup(staged: Path, directory: Path, name: str) -> str:
 
 
 def _publish_backup_candidate(staged: Path, candidate: Path) -> None:
-    """Publish by hard link, or atomically replace our own reservation on other filesystems."""
+    """Publish by hard link, or by an atomic rename guarded by a hidden reservation.
+
+    The final name only ever appears with the complete snapshot. Where hard links are not
+    supported, publishers of the same name serialise on ``.<name>.reserved`` (``O_EXCL``),
+    which listing and restore never accept; a crash can leave only that hidden file behind.
+    """
     try:
         os.link(staged, candidate)
         return
     except OSError as exc:
         if exc.errno not in (errno.EPERM, errno.ENOTSUP, errno.EOPNOTSUPP):
             raise
-    descriptor = os.open(candidate, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    reservation = candidate.with_name(f".{candidate.name}.reserved")
+    os.close(os.open(reservation, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600))
     try:
-        os.close(descriptor)
+        if os.path.lexists(candidate):
+            raise FileExistsError(candidate)
         os.replace(staged, candidate)
-    except BaseException:
-        candidate.unlink(missing_ok=True)
-        raise
+    finally:
+        reservation.unlink(missing_ok=True)
 
 
 def _database_in_use(db_path: Path, *, ignore_sidecars: bool = False) -> bool:
