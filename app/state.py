@@ -173,6 +173,7 @@ def record_api_call(
         **normalize_track_options(
             {
                 "endpoint": endpoint,
+                "is_auto_selected": is_auto_selected,
                 "track_style": track_style,
                 "track_source": track_source,
                 "track_accent": track_accent,

@@ -157,8 +157,15 @@ def normalize_call(call: dict) -> dict:
 
 
 def normalize_track_options(call: dict) -> dict[str, str | None]:
-    """Keep catalogue choices only; absent historic calendar choices are legacy."""
-    calendar = canonical_page(call.get("endpoint", ""), endpoint=True) == "/calendar.bmp"
+    """Keep catalogue choices only; absent historic calendar choices are legacy.
+
+    ``/auto.bmp`` records its calendar responses with ``is_auto_selected`` set and its teams
+    responses without it, so only the calendar ones keep their map choices.
+    """
+    endpoint = canonical_page(call.get("endpoint", ""), endpoint=True)
+    calendar = endpoint == "/calendar.bmp" or (
+        endpoint == "/auto.bmp" and bool(call.get("is_auto_selected"))
+    )
     return {
         field: (
             value
@@ -201,19 +208,22 @@ async def migrate_track_options(conn) -> None:
 
 
 async def load_track_usage(conn, cutoff: str) -> dict[str, list[dict]]:
-    """Count each map choice across retained calendar requests, including legacy totals."""
+    """Count each map choice across retained calendar responses, including legacy totals."""
     queries = {
         "track_style": """SELECT COALESCE(NULLIF(track_style, ''), ?) AS choice,
             SUM(sample_count) AS count FROM api_calls_combined
-            WHERE timestamp > ? AND endpoint='/calendar.bmp'
+            WHERE timestamp > ? AND (endpoint='/calendar.bmp'
+                OR (endpoint='/auto.bmp' AND is_auto_selected=1))
             GROUP BY choice ORDER BY count DESC, choice ASC""",
         "track_source": """SELECT COALESCE(NULLIF(track_source, ''), ?) AS choice,
             SUM(sample_count) AS count FROM api_calls_combined
-            WHERE timestamp > ? AND endpoint='/calendar.bmp'
+            WHERE timestamp > ? AND (endpoint='/calendar.bmp'
+                OR (endpoint='/auto.bmp' AND is_auto_selected=1))
             GROUP BY choice ORDER BY count DESC, choice ASC""",
         "track_accent": """SELECT COALESCE(NULLIF(track_accent, ''), ?) AS choice,
             SUM(sample_count) AS count FROM api_calls_combined
-            WHERE timestamp > ? AND endpoint='/calendar.bmp'
+            WHERE timestamp > ? AND (endpoint='/calendar.bmp'
+                OR (endpoint='/auto.bmp' AND is_auto_selected=1))
             GROUP BY choice ORDER BY count DESC, choice ASC""",
     }
     result = {}

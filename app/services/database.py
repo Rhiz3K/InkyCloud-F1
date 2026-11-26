@@ -869,7 +869,10 @@ class Database:
                 SELECT display_type, COALESCE(SUM(sample_count), 0) as count
                 FROM api_calls_combined
                 WHERE timestamp > ?
-                    AND endpoint = '/calendar.bmp'
+                    AND (
+                        endpoint = '/calendar.bmp'
+                        OR (endpoint = '/auto.bmp' AND is_auto_selected = 1)
+                    )
                     AND display_type IS NOT NULL
                     AND display_type != ''
                 GROUP BY display_type
@@ -889,7 +892,10 @@ class Database:
                     COALESCE(SUM(sample_count), 0) as count
                 FROM api_calls_combined
                 WHERE timestamp > ?
-                    AND endpoint = '/teams.bmp'
+                    AND (
+                        endpoint = '/teams.bmp'
+                        OR (endpoint = '/auto.bmp' AND COALESCE(is_auto_selected, 0) = 0)
+                    )
                 GROUP BY COALESCE(NULLIF(display_type, ''), '1bit')
                 ORDER BY count DESC
                 """,
@@ -933,7 +939,7 @@ class Database:
                 rows = await cursor.fetchall()
                 hourly_stats = [{"hour": row["hour"], "count": row["count"]} for row in rows]
 
-            # Race breakdown (top 10) - only for /calendar.bmp endpoint
+            # Race breakdown (top 10) - calendar responses, including automatic ones from /auto.bmp
             async with conn.execute(
                 """
                 SELECT
@@ -945,7 +951,10 @@ class Database:
                     COALESCE(SUM(sample_count), 0) as count
                 FROM api_calls_combined
                 WHERE timestamp > ?
-                    AND endpoint = '/calendar.bmp'
+                    AND (
+                        endpoint = '/calendar.bmp'
+                        OR (endpoint = '/auto.bmp' AND is_auto_selected = 1)
+                    )
                     AND race_name IS NOT NULL
                 GROUP BY year, round, race_name
                 ORDER BY count DESC
@@ -1027,7 +1036,7 @@ class Database:
             SELECT lang, tz, COALESCE(SUM(sample_count), 0) as count
             FROM api_calls_combined
             WHERE timestamp > ?
-              AND endpoint = '/calendar.bmp'
+              AND endpoint IN ('/calendar.bmp', '/auto.bmp')
               AND tz IS NOT NULL
               AND tz != ''
               AND tz != ?

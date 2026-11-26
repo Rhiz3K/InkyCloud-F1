@@ -21,7 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   URL with the same parameters. A new `X-Active-Screen: calendar|teams` header names the
   screen; `X-Next-Refresh-Seconds` and the `Cache-Control` `max-age` never reach past the next
   switch, and invalid `mode` or `lead_hours` values return HTTP 422. Calls are counted as
-  `/auto.bmp` in the aggregate statistics. The calendar and teams route handlers now share
+  `/auto.bmp` in the aggregate statistics; its calendar responses also count in the calendar
+  display, race, map-style and popular-timezone breakdowns (so their timezones keep getting
+  pregenerated images), and its teams responses in the teams display breakdown. The calendar and teams route handlers now share
   internal serving helpers instead of duplicating them. API docs, the configurator ("One URL
   for both screens", whose copied URL always keeps the selected timezone), README, EXAMPLES and
   all 13 locales are updated.
