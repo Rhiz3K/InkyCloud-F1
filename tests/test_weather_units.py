@@ -1269,7 +1269,7 @@ async def test_unusable_forecast_is_never_cached(open_meteo, bad):
 
 @pytest.mark.asyncio
 async def test_concurrent_forecasts_and_empty_render_share_window(open_meteo, monkeypatch):
-    race, sessions = _future_weekend(3)
+    _, sessions = _future_weekend(3)
     data = {
         "circuit": {"lat": 1, "long": 2},
         "schedule": [{"name": kind, "datetime": start.isoformat()} for kind, start in sessions],
