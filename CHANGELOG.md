@@ -151,6 +151,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `focus-visible` ring, and these and the other ring-styled controls keep a visible outline
     in Windows high-contrast (forced colors) mode, which hides the ring.
 
+- Review follow-ups (issue #185):
+  - The Teams `extra` panels keep a race with an unpublished start hour on its calendar date
+    and show `–` instead of an invented `00:00` UTC start (which displayed a 14 March race as
+    13 March 19:00 in New York). Such a race stays "next" until its local day ends. An explicit
+    offset in a start time is honoured instead of being overwritten with UTC.
+  - `/calendar.bmp?round=N` without `year` (documented as ignored) shares the cache entry and
+    pregenerated file of the plain auto-selected request instead of forcing a fresh render.
+    Cache keys compare `year`/`round` with `None` instead of truthiness.
+  - Responses that carry an `ETag` now always send `Vary: Accept-Encoding` (including `304`),
+    and a gzip-encoded response or a gzip-negotiated `304` uses a weak `W/"…"` tag. Before,
+    identity and gzip bodies shared one strong validator. Clients that send the tag back
+    unchanged keep getting `304`.
+  - A calendar, Teams or Teams-extra preview render still in flight when the scheduler clears
+    the image caches no longer writes its pre-refresh bytes back into the cleared cache. It is
+    served once and then rendered again from fresh data.
+  - When a Teams `extra` preview fails and the plain Teams preview is served instead, the
+    response is `Cache-Control: no-store` with `X-Preview-Fallback: plain`. The browser no
+    longer caches the panel-less image under the panel's URL.
+  - `BACKUP_CRON` day-of-week ranges ending in `7` follow cron: `0-7` is every day and `1-7`
+    Monday–Sunday (before, `0-7` collapsed to Sunday only). S3 retention cleanup counts only
+    the keys the store confirms as deleted and logs each per-key error. `backup-cli info`
+    shows backups as disabled under `MINIMAL_DATA_MODE=true` and says why.
+  - All 13 locales gain `privacy_minimal_title` (the minimal-mode statistics page had an empty
+    heading), `api_docs_teams_tz_desc` (it was English everywhere) and `api_docs_open_json`.
+    The API docs button that opens `/api` now reads "Open JSON" instead of "Open Image".
+    A test checks that every key used by a template exists in every locale.
+  - The configurator's timezone picker lists Auckland once, with its current offset (it also
+    appeared under UTC-12). Every entry shows the zone's live offset, so DST zones are
+    labelled correctly, and the selected zone is scrolled into view after the search filter is
+    cleared.
+  - `/robots.txt` and `/sitemap.xml` are left out of the OpenAPI schema. Their combined
+    GET/HEAD routes produced three duplicate-operationId warnings on every schema build.
+  - Standings requested without an explicit year use the current F1 season, like
+    `/api/standings/leader`, instead of the calendar year (which was empty before the first
+    race).
+  - An empty `?tz=` is treated as unset on every route. Before, `/calendar.bmp?tz=` returned
+    HTTP 400, while `/teams.bmp?tz=` used the default timezone.
+
 - Let DeepSource's ruff formatter run again: drop `target-version = "py315"` from
   `[tool.ruff]`, which ruff releases before 0.15 cannot parse. Ruff now infers the target
   from `requires-python = ">=3.15"`, so the pinned ruff behaves as before.
@@ -192,6 +230,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace the header's two inline event handlers (mobile menu, language switcher) with data-on-* attributes, so the CSP can be enforced.
 
 - Skip malformed standings and hourly weather rows individually. The mobile settings drawer returns keyboard focus to the button that opened it.
+
+- Image requests after a cache clear now use the refreshed inputs. Gzip-negotiated responses consistently use weak ETags, including small files. Backup retention counts confirmed deletes and accepts zero-padded cron weekdays.
 
 ## [1.3.3] - 2026-10-30
 

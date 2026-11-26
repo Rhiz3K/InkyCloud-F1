@@ -64,7 +64,9 @@ def _date_time(ctx: TeamsExtraContext, translator: dict) -> str:
     """Follow calendar session formatting with translated weekdays and local time."""
     dt = ctx.start_local
     day = translator.get(f"day_{dt.strftime('%a').lower()}", dt.strftime("%a"))
-    return f"{day} {dt:%d.%m.} · {dt:%H:%M}"
+    # Unknown start hour: show the date with a dash, as the calendar schedule does.
+    clock = f"{dt:%H:%M}" if ctx.start_time_known else "–"
+    return f"{day} {dt:%d.%m.} · {clock}"
 
 
 def _race_line(

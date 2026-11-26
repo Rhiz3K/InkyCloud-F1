@@ -380,5 +380,8 @@
   "teams_extra_done": "completed",
   "teams_extra_upcoming": "Upcoming races",
   "teams_extra_today": "today",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Minimal data mode",
+  "api_docs_open_json": "Open JSON",
+  "api_docs_teams_tz_desc": "Optional IANA timezone for extra panels showing a time or date: countdown, flags, track, weather. Defaults to the server's DEFAULT_TIMEZONE; ignored for none or unavailable panels. Invalid values return HTTP 400. Also supported by /preview/configure/teams.png."
 }

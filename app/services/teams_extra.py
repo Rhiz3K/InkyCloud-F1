@@ -65,6 +65,8 @@ class TeamsExtraContext:
     timezone_name: str = config.DEFAULT_TIMEZONE
     # Preserve the legacy day token when the weather panel has nothing to draw.
     default_today: date | None = None
+    # False for a race whose start hour is not published yet (date-only schedule entry).
+    start_time_known: bool = True
 
 
 _CODES = dict(
@@ -80,8 +82,29 @@ _CODES = dict(
 
 
 def _start(race: Race) -> datetime:
-    """Parse the bundled UTC race start."""
-    return datetime.fromisoformat(f"{race.date}T{race.time or '00:00:00Z'}").replace(tzinfo=UTC)
+    """Parse the bundled race start as an aware UTC instant (midnight UTC when unknown).
+
+    Only for ordering; use _local_start/_race_over for anything shown or compared to now.
+    An explicit offset is honoured instead of being overwritten with UTC.
+    """
+    parsed = datetime.fromisoformat(f"{race.date}T{race.time or '00:00:00Z'}")
+    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
+
+
+def _local_start(race: Race, zone: ZoneInfo) -> datetime:
+    """Return the start in the viewer's zone; a date-only race keeps its calendar date."""
+    if race.time:
+        return _start(race).astimezone(zone)
+    # A TBA race happens on its published date wherever the viewer is (same contract as the
+    # calendar); converting UTC midnight would move it to the previous day west of UTC.
+    return datetime.combine(date.fromisoformat(race.date), datetime.min.time(), zone)
+
+
+def _race_over(race: Race, zone: ZoneInfo, now: datetime) -> bool:
+    """A timed race is over once it starts; a date-only race after its local day ends."""
+    if race.time:
+        return _start(race) <= now
+    return _local_start(race, zone) + timedelta(days=1) <= now
 
 
 def build_teams_extra_context(
@@ -104,12 +127,15 @@ def build_teams_extra_context(
     candidates = list(races)
     for year in {local_today.year, local_today.year + 1} - {season}:
         candidates.extend(r for r in F1Service.get_season_from_static(year) if r.round)
-    upcoming = next((r for r in sorted(candidates, key=_start) if _start(r) > now), None)
+    upcoming = next(
+        (r for r in sorted(candidates, key=_start) if not _race_over(r, zone, now)), None
+    )
     if upcoming is None or int(upcoming.season) != season or season < local_today.year:
         return None
     circuit = upcoming.Circuit
     circuit_id = canonical_circuit_id(circuit.circuitId)
     start = _start(upcoming)
+    start_local = _local_start(upcoming, zone)
     weather = None
     if extra == TeamsExtra.WEATHER:
         location = circuit.Location
@@ -125,8 +151,8 @@ def build_teams_extra_context(
                 canonical_circuit_id(r.Circuit.circuitId), r.Circuit.Location.country[:3].upper()
             ),
             get_country_flag_iso_code(r.Circuit.Location.country, COUNTRY_MAP) or None,
-            _start(r).astimezone(zone).date(),
-            _start(r) <= now,
+            _local_start(r, zone).date(),
+            _race_over(r, zone, now),
         )
         for r in races
     )
@@ -138,11 +164,12 @@ def build_teams_extra_context(
         upcoming.raceName.replace("Grand Prix", "GP"),
         circuit_id,
         circuit.circuitName,
-        start.astimezone(zone),
-        max(0, (start.astimezone(zone).date() - local_today).days),
+        start_local,
+        max(0, (start_local.date() - local_today).days),
         weather,
         timezone_name,
         now.astimezone(ZoneInfo(config.DEFAULT_TIMEZONE)).date(),
+        start_time_known=bool(upcoming.time),
     )
 
 

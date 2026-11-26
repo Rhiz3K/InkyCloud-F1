@@ -1386,6 +1386,14 @@ def test_run_backup_honors_configuration():
         ("0/2", "sun,tue,thu,sat"),
         ("monday", "mon"),
         ("1,1-2", "mon,tue"),
+        # 7 as a range end is Sunday at the end of the week (issue #185, C11).
+        ("0-7", "sun,mon,tue,wed,thu,fri,sat"),
+        ("1-7", "mon,tue,wed,thu,fri,sat,sun"),
+        ("5-7", "fri,sat,sun"),
+        ("7-7", "sun"),
+        ("00-07", "sun,mon,tue,wed,thu,fri,sat"),
+        ("07-7", "sun"),
+        ("0-7/2", "sun,tue,thu,sat"),
     ],
 )
 def test_normalize_cron_day_of_week(value, expected):

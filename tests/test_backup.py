@@ -303,6 +303,9 @@ class TestCleanupOldBackups:
             }
         ]
         mock_s3_client.get_paginator.return_value = mock_paginator
+        mock_s3_client.delete_objects.return_value = {
+            "Deleted": [{"Key": "f1_backup_2025-01-01_03-00-00.db"}]
+        }
 
         with patch("app.services.backup.config") as mock_config:
             mock_config.MINIMAL_DATA_MODE = False
@@ -460,6 +463,7 @@ class TestBackupDiagnostics:
 
         assert info == {
             "enabled": True,
+            "minimal_data_mode": False,
             "endpoint": "(not configured)",
             "bucket": "(not configured)",
             "region": "auto",

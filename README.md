@@ -148,8 +148,9 @@ if (httpCode == HTTP_CODE_OK) {
 }
 ```
 
-Calendar and teams responses use a strong SHA-256 `ETag`. Send it back in `If-None-Match`; an
-unchanged image returns `304 Not Modified` with an empty body. Persist the ETag in NVS/Preferences,
+Calendar and teams responses use a SHA-256 `ETag`: strong for uncompressed responses, and weak
+(`W/"…"`) when the request accepts gzip and the body is compressed. Send it back unchanged in
+`If-None-Match`; an unchanged image returns `304 Not Modified` with an empty body. Persist the ETag in NVS/Preferences,
 because an ESP32 commonly sleeps between polls. A changed race, weather view, language, timezone,
 or renderer output returns `200` with a new ETag. Teams deliberately use `Cache-Control: no-cache`,
 which permits conditional revalidation without accepting a stale response.

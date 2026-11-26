@@ -1,5 +1,6 @@
 """HTTP contracts for optional, offline teams panels."""
 
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
@@ -11,7 +12,7 @@ from app.models import TeamEntry, TeamsData
 from app.routes import images, previews
 from app.services.teams_extra import TeamsExtra, build_teams_extra_context, teams_extra_cache_token
 from app.services.weather_service import WeatherData, WeatherService
-from app.state import get_bmp_cache, get_bmp_variant_cache
+from app.state import clear_bmp_cache, get_bmp_cache, get_bmp_variant_cache
 from app.utils.etag import strong_etag
 
 _NOW = datetime(2026, 5, 1, 12, tzinfo=UTC)
@@ -401,6 +402,32 @@ async def test_timezone_aliases_share_route_cache(routes, path):
     assert canonical.headers["etag"] == alias.headers["etag"]
     assert len(get_bmp_variant_cache()) == 1
     assert "Asia_Kolkata" in next(iter(get_bmp_variant_cache()))
+
+
+@pytest.mark.asyncio
+async def test_configure_preview_charges_once_across_reselection(routes, monkeypatch):
+    """A stale queued panel retries admission without consuming a second quota unit."""
+    slots = 0
+    render_slot = previews.render_slot
+
+    @asynccontextmanager
+    async def refreshed_slot(**kwargs):
+        nonlocal slots
+        async with render_slot(**kwargs):
+            slots += 1
+            if slots == 1:
+                clear_bmp_cache()
+            yield
+
+    monkeypatch.setattr(previews, "render_slot", refreshed_slot)
+    monkeypatch.setattr(previews, "_build_teams_preview_png", MagicMock(return_value=b"panel"))
+    async with AsyncClient(transport=ASGITransport(app=routes), base_url="http://test") as client:
+        response = await client.get("/preview/configure/teams.png", params={"extra": "countdown"})
+    assert response.status_code == 200
+    assert response.content == b"panel"
+    assert slots == 2
+    previews.enforce_rate_limit.assert_called_once()
+    assert previews.enforce_rate_limit.call_args.kwargs["bucket"] == "dynamic_preview"
 
 
 @pytest.mark.asyncio

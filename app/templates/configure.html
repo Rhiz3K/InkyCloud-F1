@@ -1406,8 +1406,9 @@ block content %}
   let browserTz = "";
 
   // Popular timezones grouped by UTC offset (most common cities)
+  // Group offsets are standard-time hints only; rendered labels use each zone's current
+  // offset (getUtcOffsetNum), so DST zones such as Auckland (+13 in summer) show correctly.
   const popularTz = [
-    { offset: -12, zones: ["Pacific/Auckland"] },
     { offset: -11, zones: ["Pacific/Pago_Pago"] },
     { offset: -10, zones: ["Pacific/Honolulu"] },
     { offset: -9, zones: ["America/Anchorage"] },
@@ -1507,9 +1508,22 @@ block content %}
   /** Makes the selected entry (or the first one) the timezone list's only Tab stop. */
   function setTzListTabStop(container) {
     const items = Array.from(container.querySelectorAll(".tz-item"));
-    const tabStop = items.find((item) => item.dataset.tz === selectedTz) || items[0];
+    const selected = items.find((item) => item.dataset.tz === selectedTz);
+    const tabStop = selected || items[0];
     if (tabStop) tabStop.tabIndex = 0;
+    if (selected) revealTzItem(container, selected);
     return tabStop || null;
+  }
+
+  /** Scroll the list (not the page) so the selected zone is visible after re-rendering. */
+  function revealTzItem(container, item) {
+    const visible = container.clientHeight;
+    if (!visible || container.scrollHeight <= visible) return;
+    const top =
+      item.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    if (top < 0 || top + item.offsetHeight > visible) {
+      container.scrollTop += top - (visible - item.offsetHeight) / 2;
+    }
   }
 
   /** Arrow/Home/End keyboard navigation between timezone entries (WAI-ARIA toolbar pattern). */
@@ -1599,7 +1613,7 @@ block content %}
 
     // Group timezones by region
     const regions = {};
-    popularTz.forEach(({ offset, zones }) => {
+    popularTz.forEach(({ zones }) => {
       zones.forEach((tz) => {
         if (!allTimezones.includes(tz)) return;
         const region = tz.split("/")[0].toUpperCase();
@@ -1641,9 +1655,10 @@ block content %}
         }
 
         if (!regions[region]) regions[region] = [];
-        regions[region].push({ tz, offset });
+        regions[region].push({ tz, offset: getUtcOffsetNum(tz) });
       });
     });
+    Object.values(regions).forEach((list) => list.sort((a, b) => a.offset - b.offset));
 
     // Sort regions and render
     Object.keys(regions)
@@ -1728,15 +1743,16 @@ block content %}
 
     // Group timezones by region
     const regions = {};
-    popularTz.forEach(({ offset, zones }) => {
+    popularTz.forEach(({ zones }) => {
       zones.forEach((tz) => {
         if (!allTimezones.includes(tz)) return;
         if (tz === browserTz) return;
         const region = tz.split("/")[0];
         if (!regions[region]) regions[region] = [];
-        regions[region].push({ tz, offset });
+        regions[region].push({ tz, offset: getUtcOffsetNum(tz) });
       });
     });
+    Object.values(regions).forEach((list) => list.sort((a, b) => a.offset - b.offset));
 
     // Create optgroups
     Object.keys(regions)

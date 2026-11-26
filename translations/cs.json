@@ -380,5 +380,8 @@
   "teams_extra_done": "odjeto",
   "teams_extra_upcoming": "Nadcházející závody",
   "teams_extra_today": "dnes",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "Minimální režim",
+  "api_docs_open_json": "Otevřít JSON",
+  "api_docs_teams_tz_desc": "Volitelné časové pásmo IANA pro panely s časem nebo datem: countdown, flags, track, weather. Výchozí je DEFAULT_TIMEZONE serveru; pro none a nedostupné panely se ignoruje. Neplatná hodnota vrátí HTTP 400. Podporuje ho i /preview/configure/teams.png."
 }

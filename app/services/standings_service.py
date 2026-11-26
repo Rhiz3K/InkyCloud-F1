@@ -4,7 +4,6 @@ import asyncio
 import logging
 import time
 import weakref
-from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
@@ -12,7 +11,7 @@ import httpx
 from app.config import config
 from app.models import ConstructorStanding, DriverStanding, StandingsData
 from app.services.http_client import get_shared_http_client
-from app.utils.f1_season import is_supported_f1_season
+from app.utils.f1_season import get_current_f1_season, is_supported_f1_season
 from app.utils.http import fetch_with_retry
 from app.utils.jolpica import get_jolpica_base_url, get_jolpica_pacer
 
@@ -120,7 +119,7 @@ class StandingsService:
     ) -> list[DriverStanding]:
         """Return bounded driver standings with cache and fetch coalescing."""
         if year is None:
-            year = datetime.now(timezone.utc).year
+            year = get_current_f1_season()
 
         if not is_supported_f1_season(year):
             raise ValueError(f"Unsupported F1 season: {year}")
@@ -229,7 +228,7 @@ class StandingsService:
     ) -> list[ConstructorStanding]:
         """Return bounded constructor standings with cache and fetch coalescing."""
         if year is None:
-            year = datetime.now(timezone.utc).year
+            year = get_current_f1_season()
 
         if not is_supported_f1_season(year):
             raise ValueError(f"Unsupported F1 season: {year}")
@@ -329,7 +328,7 @@ class StandingsService:
     async def get_all_standings(self, year: Optional[int] = None, limit: int = 10) -> StandingsData:
         """Return a combined driver and constructor standings snapshot."""
         if year is None:
-            year = datetime.now(timezone.utc).year
+            year = get_current_f1_season()
 
         cached_drivers = self._get_cached(year, "drivers")
         cached_constructors = self._get_cached(year, "constructors")

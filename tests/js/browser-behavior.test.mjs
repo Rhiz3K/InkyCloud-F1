@@ -663,7 +663,7 @@ function tzListContext(state = {}) {
         escapeHtml: (text) => text, normalizeTimezone: (tz) => tz, syncMobileTzSelect() {},
         updatePreview() {ctx.previewUpdates += 1;}, previewUpdates: 0, ...state,
     });
-    for (const name of ["createTzOption", "setTzListTabStop", "onTzListKeydown", "renderTzList", "selectTimezone", "filterTzContinent"]) {
+    for (const name of ["createTzOption", "setTzListTabStop", "revealTzItem", "onTzListKeydown", "renderTzList", "selectTimezone", "filterTzContinent"]) {
         vm.runInContext(templateFunction(template, name), ctx);
     }
     const items = () => list.querySelectorAll(".tz-item");
@@ -888,4 +888,27 @@ test("closing the settings drawer returns focus to the button that opened it", (
         ctx.toggleSidebar();
         assert.equal(document.activeElement, opener);
     }
+});
+
+test("revealTzItem scrolls only the list, and only when the selection is out of view", () => {
+    const template = readFileSync("app/templates/configure.html", "utf8");
+    const ctx = vm.createContext({});
+    vm.runInContext(templateFunction(template, "revealTzItem"), ctx);
+    const list = (scrollTop) => ({
+        clientHeight: 100, scrollHeight: 400, scrollTop,
+        getBoundingClientRect: () => ({top: 50}),
+    });
+    const item = (top) => ({offsetHeight: 20, getBoundingClientRect: () => ({top})});
+
+    const below = list(0);
+    ctx.revealTzItem(below, item(300));
+    assert.equal(below.scrollTop, 210);
+
+    const visible = list(10);
+    ctx.revealTzItem(visible, item(80));
+    assert.equal(visible.scrollTop, 10);
+
+    const unscrollable = {clientHeight: 100, scrollHeight: 100, scrollTop: 0};
+    ctx.revealTzItem(unscrollable, item(500));
+    assert.equal(unscrollable.scrollTop, 0);
 });

@@ -21,6 +21,14 @@ from app.services.artifact_metadata import artifact_matches, calendar_identity
 from app.services.f1_service import F1Service
 from app.services.generation_freshness import PREGENERATED_MAX_AGE_SECONDS
 from app.services.i18n import get_translator
+from app.services.image_generation import (
+    StaleSelection,
+    require_current_selection,
+    retrying_selection,
+    selected_generation,
+    selection_flight_key,
+    with_current_selection,
+)
 from app.services.image_keys import get_calendar_image_key, get_teams_image_key
 from app.services.renderers import DISPLAY_TYPES, create_renderer
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext, build_teams_extra_context
@@ -38,7 +46,13 @@ from app.services.track_catalog import (
 )
 from app.services.track_renderer import attribution_headers
 from app.services.weather_service import get_weather_context
-from app.state import BmpArtifact, get_bmp_cache, get_bmp_variant_cache, record_api_call
+from app.state import (
+    BmpArtifact,
+    bmp_cache_generation,
+    get_bmp_cache,
+    get_bmp_variant_cache,
+    record_api_call,
+)
 from app.utils.async_tasks import run_render
 from app.utils.etag import if_none_match_matches, read_etag_sidecar, strong_etag
 from app.utils.f1_season import race_selection_error
@@ -75,6 +89,7 @@ async def _singleflight(
     The mapping is intentionally lock-free: routes and task cleanup access it only from the
     same asyncio event loop. Shielding keeps the producer alive when one waiter disconnects.
     """
+    key = selection_flight_key(key)
     existing = _singleflight_tasks.get(key)
     if existing is not None:
         return await asyncio.shield(existing)
@@ -126,8 +141,11 @@ def _get_cache_key(
 ) -> str:
     """Build the cache key for calendar render variants."""
     weather_key = weather_type if weather else "no_weather"
+    # Compare with None, not truthiness: 0 is a (rejected) value, not "missing".
+    year_key = "next" if year is None else year
+    round_key = "next" if round_num is None else round_num
     return (
-        f"{lang}:{year or 'next'}:{round_num or 'next'}:{race_key or 'auto'}:"
+        f"{lang}:{year_key}:{round_key}:{'auto' if race_key is None else race_key}:"
         f"{tz or 'default'}:{weather_key}:{display}"
     )
 
@@ -160,7 +178,9 @@ def _get_race_info_for_stats(
     if race_key is not None and year is None:
         return is_auto_selected, actual_year, actual_round, actual_race_name
 
-    if year and (race_round or race_key):
+    # Compare with None, not truthiness: round=0, year=0 and race_key= are invalid explicit
+    # selections (error image), never a request for the next race.
+    if year is not None and (race_round is not None or race_key is not None):
         for race in f1_service.get_all_races_from_static(year):
             if race_key and race.get("race_key") == race_key:
                 actual_race_name = race.get("race_name", "Unknown")
@@ -524,6 +544,21 @@ def _get_pregenerated_teams_path(*, lang: str, year: int | None, display: str) -
     return path if path is not None and artifact_matches(path, f"teams:{default_year}") else None
 
 
+async def _select_calendar_race(
+    f1_service: F1Service, year: int | None, race_round: int | None, race_key: str | None
+) -> dict | None:
+    """Resolve the current selection, fetching a valid explicit round when absent locally."""
+    selected_race = _get_race_data_from_static(f1_service, year, race_round, race_key)
+    if (
+        selected_race is None
+        and year is not None
+        and race_round is not None
+        and race_selection_error(year, race_round) is None
+    ):
+        selected_race = await f1_service.get_race_by_round(year, race_round)
+    return selected_race
+
+
 def _get_race_data_from_static(
     f1_service: F1Service,
     year: int | None,
@@ -534,7 +569,9 @@ def _get_race_data_from_static(
     if race_key is not None and year is None:
         return None
 
-    if year and (race_round or race_key):
+    # Compare with None, not truthiness: round=0, year=0 and race_key= are invalid explicit
+    # selections (error image), never a request for the next race.
+    if year is not None and (race_round is not None or race_key is not None):
         for race in f1_service.get_all_races_from_static(year):
             if race_key and race.get("race_key") == race_key:
                 return race
@@ -690,7 +727,9 @@ async def _render_calendar_artifact(
     track_options: TrackOptions = DEFAULT_TRACK_OPTIONS,
 ) -> BmpArtifact:
     """Render/hash one calendar miss and cache the pair only when complete."""
+    generation = selected_generation()
     async with render_slot():
+        require_current_selection(generation)
         bmp_data, _race_data, is_cacheable = await _render_calendar(
             f1_service=f1_service,
             lang=lang,
@@ -705,7 +744,7 @@ async def _render_calendar_artifact(
             track_options=track_options,
         )
         artifact = (bmp_data, strong_etag(bmp_data))
-        if is_cacheable:
+        if is_cacheable and bmp_cache_generation() == generation:
             get_bmp_cache()[cache_key] = artifact
         return artifact
 
@@ -720,7 +759,9 @@ async def _render_teams_artifact(
     extra_context: TeamsExtraContext | None = None,
 ) -> BmpArtifact:
     """Fetch, render, and hash one teams miss, caching only a complete dashboard."""
+    generation = selected_generation()
     async with render_slot(variant=extra != TeamsExtra.NONE):
+        require_current_selection(generation)
         async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
             teams_data = await TeamsService().get_teams_and_drivers(year)
         bmp_data = await run_render(
@@ -734,7 +775,7 @@ async def _render_teams_artifact(
             )
         )
         artifact = (bmp_data, strong_etag(bmp_data))
-        if is_teams_data_cacheable(teams_data):
+        if is_teams_data_cacheable(teams_data) and bmp_cache_generation() == generation:
             _teams_image_cache(extra)[cache_key] = artifact
         elif teams_data.teams:
             logger.warning("Teams standings incomplete for %s; serving but not caching", year)
@@ -744,6 +785,7 @@ async def _render_teams_artifact(
 
 
 @router.get("/calendar.bmp")
+@with_current_selection
 async def get_calendar_bmp(
     request: Request,
     lang: str = Query(default="en", description=f"Language code ({', '.join(LANGUAGE_CODES)})"),
@@ -785,7 +827,8 @@ async def get_calendar_bmp(
     """Render the calendar endpoint for the requested display and selection."""
     start_time = time.time()
     track_options = TrackOptions(track_style, track_source, track_accent)
-    enforce_rate_limit(request, bucket="calendar_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
+    if not retrying_selection():
+        enforce_rate_limit(request, bucket="calendar_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
 
     lang = _normalize_lang(lang)
     display = _normalize_display(display)
@@ -793,6 +836,10 @@ async def get_calendar_bmp(
     _validate_timezone_param(tz)
     tz = normalize_timezone(tz) if tz else None
     _validate_calendar_selection(year, race_key)
+    if year is None:
+        # Documented as ignored without year; dropping it keeps the cache key and the
+        # pregenerated-file match identical to the plain auto-selected request.
+        race_round = None
 
     # Defaults let the error path build a response even when selection itself fails.
     is_auto_selected = year is None and race_round is None and race_key is None
@@ -838,14 +885,7 @@ async def get_calendar_bmp(
         is_auto_selected, actual_year, actual_round, actual_race_name = _get_race_info_for_stats(
             f1_service, year, race_round, race_key
         )
-        selected_race = _get_race_data_from_static(f1_service, year, race_round, race_key)
-        if (
-            selected_race is None
-            and year is not None
-            and race_round is not None
-            and race_selection_error(year, race_round) is None
-        ):
-            selected_race = await f1_service.get_race_by_round(year, race_round)
+        selected_race = await _select_calendar_race(f1_service, year, race_round, race_key)
         identity = calendar_identity(selected_race, track_options)
         cache_key = f"{identity}|" + _get_cache_key(
             lang, year, race_round, race_key, tz, weather, weather_type, display
@@ -897,7 +937,7 @@ async def get_calendar_bmp(
             logger.info("Pre-generated image disappeared before read; rendering")
 
         artifact = await _singleflight(
-            f"calendar:{cache_key}",
+            f"calendar:{selected_generation()}:{cache_key}",
             functools.partial(
                 _render_calendar_artifact,
                 cache_key=cache_key,
@@ -921,7 +961,7 @@ async def get_calendar_bmp(
             cache_status="MISS",
         )
     except Exception as exc:
-        if isinstance(exc, HTTPException):
+        if isinstance(exc, (HTTPException, StaleSelection)):
             raise
         logger.error("Error generating calendar: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:
@@ -936,6 +976,7 @@ async def get_calendar_bmp(
 
 
 @router.get("/teams.bmp")
+@with_current_selection
 async def get_teams_bmp(
     request: Request,
     lang: str = Query(default="en", description=f"Language code ({', '.join(LANGUAGE_CODES)})"),
@@ -965,7 +1006,8 @@ async def get_teams_bmp(
 ):
     """Render the teams and drivers dashboard as a BMP image."""
     start_time = time.time()
-    enforce_rate_limit(request, bucket="teams_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
+    if not retrying_selection():
+        enforce_rate_limit(request, bucket="teams_bmp", limit=config.IMAGE_RATE_LIMIT_PER_MINUTE)
     lang = _normalize_lang(lang)
     display = _normalize_display(display)
 
@@ -1027,7 +1069,7 @@ async def get_teams_bmp(
             logger.info("Pre-generated teams image disappeared before read; rendering")
 
         artifact = await _singleflight(
-            f"teams:{cache_key}",
+            f"teams:{selected_generation()}:{cache_key}",
             functools.partial(
                 _render_teams_artifact,
                 cache_key=cache_key,
@@ -1041,7 +1083,7 @@ async def get_teams_bmp(
         return respond(*artifact, cache_status="MISS")
 
     except Exception as exc:
-        if isinstance(exc, HTTPException):
+        if isinstance(exc, (HTTPException, StaleSelection)):
             raise
         logger.error("Error generating teams: %s", exc, exc_info=True)
         if not config.MINIMAL_DATA_MODE:

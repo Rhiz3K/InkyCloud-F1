@@ -226,11 +226,21 @@ def cleanup_old_backups(s3_client=None) -> int:
             # S3 delete_objects supports up to 1000 keys per request
             for i in range(0, len(objects_to_delete), 1000):
                 batch = objects_to_delete[i : i + 1000]
-                s3_client.delete_objects(
+                response = s3_client.delete_objects(
                     Bucket=config.S3_BUCKET_NAME,
                     Delete={"Objects": batch},
                 )
-                deleted_count += len(batch)
+                # delete_objects reports per-key failures in a 200 response; count only the
+                # keys the store confirms instead of the requested batch size.
+                errors = (response or {}).get("Errors") or []
+                for error in errors:
+                    logger.warning(
+                        "Failed to delete backup %s: %s",
+                        error.get("Key"),
+                        error.get("Code") or error.get("Message"),
+                    )
+                deleted = (response or {}).get("Deleted")
+                deleted_count += len(deleted or [])
 
             logger.info(
                 "Deleted %s old backup(s) (older than %s)", deleted_count, cutoff_date.date()
@@ -253,7 +263,9 @@ def get_backup_config_info() -> dict[str, Any]:
         and credentials_configured fields.
     """
     return {
-        "enabled": config.BACKUP_ENABLED,
+        # MINIMAL_DATA_MODE disables backups regardless of BACKUP_ENABLED.
+        "enabled": config.BACKUP_ENABLED and not config.MINIMAL_DATA_MODE,
+        "minimal_data_mode": config.MINIMAL_DATA_MODE,
         "endpoint": config.S3_ENDPOINT_URL or "(not configured)",
         "bucket": config.S3_BUCKET_NAME or "(not configured)",
         "region": config.S3_REGION,

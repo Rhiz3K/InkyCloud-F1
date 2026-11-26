@@ -380,5 +380,8 @@
   "teams_extra_done": "終了",
   "teams_extra_upcoming": "今後のレース",
   "teams_extra_today": "今日",
-  "teams_extra_weather_credit": "Open-Meteo"
+  "teams_extra_weather_credit": "Open-Meteo",
+  "privacy_minimal_title": "データ最小化モード",
+  "api_docs_open_json": "JSONを開く",
+  "api_docs_teams_tz_desc": "時刻や日付を表示するパネル（countdown、flags、track、weather）用の任意の IANA タイムゾーン。既定はサーバーの DEFAULT_TIMEZONE で、none や利用できないパネルでは無視されます。無効な値は HTTP 400 を返します。/preview/configure/teams.png でも使用できます。"
 }

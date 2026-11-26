@@ -262,6 +262,45 @@ class StaticCacheMiddleware:
         await self.app(scope, receive, send_with_cache_headers)
 
 
+class EncodingAwareETagMiddleware:
+    """Keep entity tags honest when GZipMiddleware changes the representation.
+
+    Routes hash the identity bytes into a strong ETag before compression, so identity and gzip
+    bodies would otherwise share one strong validator. Mounted outside GZipMiddleware, this
+    uses weak validators whenever gzip is negotiated, including below its size threshold, and adds
+    ``Vary: Accept-Encoding`` to every response that carries an ETag, including 304s.
+    """
+
+    def __init__(self, asgi_app):
+        """Wrap an ASGI application whose responses may be gzip-encoded downstream."""
+        self.app = asgi_app
+
+    async def __call__(self, scope, receive, send):
+        """Forward one ASGI request, adjusting validator headers on the response start."""
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Mirrors GZipMiddleware's own negotiation check.
+        accepts_gzip = "gzip" in Headers(scope=scope).get("accept-encoding", "")
+
+        async def send_with_encoding_aware_etag(message):
+            """Adjust ETag/Vary before forwarding the response start."""
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                etag = headers.get("etag")
+                if etag:
+                    vary = headers.get("vary", "")
+                    if "accept-encoding" not in vary.lower():
+                        headers["Vary"] = f"{vary}, Accept-Encoding" if vary else "Accept-Encoding"
+                    encoded = headers.get("content-encoding", "identity").lower() != "identity"
+                    if not etag.startswith("W/") and (encoded or accepts_gzip):
+                        headers["ETag"] = f"W/{etag}"
+            await send(message)
+
+        await self.app(scope, receive, send_with_encoding_aware_etag)
+
+
 class SecurityHeadersMiddleware:
     """Apply baseline security headers and canonical-host redirects to HTTP responses."""
 
@@ -382,6 +421,8 @@ async def not_found_handler(request: StarletteRequest, exc: StarletteHTTPExcepti
 app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)
+# Must be added after (i.e. wrap) GZipMiddleware so it sees the final Content-Encoding.
+app.add_middleware(EncodingAwareETagMiddleware)
 
 app.add_middleware(AttributionMiddleware)
 
