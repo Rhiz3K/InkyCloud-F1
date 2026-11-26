@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from app.models import HistoricalData
 from app.services.circuit_data import load_circuits_data
@@ -81,13 +81,22 @@ class RendererBase(RendererCore):
             text_fill=self.theme.header_text_fill,
             brand_font=self._load_brand_font(36, bold=True),
             subtitle_font=self.fonts["header_subtitle"],
-            draw_f1_logo_fn=lambda canvas, width, height: draw_f1_logo(
-                canvas,
-                width,
-                height,
-                logo_path=self.theme.images_directory() / "eInkF1logo.jpg",
-                logger=logger,
-                prepare_logo_fn=self._prepare_f1_logo,
+            draw_f1_logo_fn=self._draw_header_logo,
+            rule_fill=self.theme.header_rule_fill,
+        )
+
+    def _draw_header_logo(self, canvas: Image.Image, width: int, height: int) -> None:
+        """Draw the header car illustration, as white line art on a dark theme."""
+        draw_f1_logo(
+            canvas,
+            width,
+            height,
+            logo_path=self.theme.images_directory() / "eInkF1logo.jpg",
+            logger=logger,
+            prepare_logo_fn=(
+                (lambda logo: self._prepare_f1_logo(ImageOps.invert(logo.convert("L"))))
+                if self.theme.invert_logo
+                else self._prepare_f1_logo
             ),
         )
 
@@ -281,6 +290,7 @@ class RendererBase(RendererCore):
             clamp_text_fn=clamp_text,
             draw_team_stats_panel_fn=render_team_stats_panel,
             draw_team_driver_row_fn=render_team_driver_row,
+            header_rule_fill=self.theme.team_header_rule_fill,
         )
 
     def _draw_teams_content(
@@ -312,14 +322,8 @@ class RendererBase(RendererCore):
             title_fill=self.theme.header_text_fill,
             header_title_font=self.fonts["header_title"],
             header_subtitle_font=self.fonts["header_subtitle"],
-            draw_f1_logo_fn=lambda canvas, width, height: draw_f1_logo(
-                canvas,
-                width,
-                height,
-                logo_path=self.theme.images_directory() / "eInkF1logo.jpg",
-                logger=logger,
-                prepare_logo_fn=self._prepare_f1_logo,
-            ),
+            draw_f1_logo_fn=self._draw_header_logo,
+            rule_fill=self.theme.header_rule_fill,
         )
 
     def _draw_track_section(
@@ -346,6 +350,7 @@ class RendererBase(RendererCore):
                 height,
                 {2: "1bit", 3: "bwr", 4: "bwry", 6: "spectra6"}[len(self.colors.PALETTE)],
                 track_options,
+                dark=self.theme.dark,
             ),
             load_track_image_fn=self._load_track_image,
             prepare_track_image_fn=lambda track_image, width, height: (
@@ -579,7 +584,7 @@ class RendererBase(RendererCore):
             message=message,
             font=font,
             fill=self.theme.text_fill,
-            background_fill=self.colors.WHITE,
+            background_fill=self.theme.canvas_fill,
         )
 
     def _draw_results_column(

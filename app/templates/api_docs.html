@@ -298,7 +298,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             {% endfor %}
             {% for parameter, choices, default, description in [
               ('format', ['bmp', 'png'], 'bmp', t.api_docs_format_desc),
-              ('rotate', ['0', '180'], '0', t.api_docs_rotate_desc)
+              ('rotate', ['0', '180'], '0', t.api_docs_rotate_desc),
+              ('theme', ['light', 'dark'], 'light', t.api_docs_theme_desc)
             ] %}
             <tr>
               <td class="px-3 py-2 font-mono text-racing-red font-bold">{{ parameter }}</td>
@@ -628,7 +629,8 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             </tr>
             {% for parameter, choices, default, description in [
               ('format', ['bmp', 'png'], 'bmp', t.api_docs_format_desc),
-              ('rotate', ['0', '180'], '0', t.api_docs_rotate_desc)
+              ('rotate', ['0', '180'], '0', t.api_docs_rotate_desc),
+              ('theme', ['light', 'dark'], 'light', t.api_docs_theme_desc)
             ] %}
             <tr>
               <td class="px-3 py-2 font-mono text-racing-red font-bold">{{ parameter }}</td>
@@ -787,7 +789,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
             <tr>
               <td class="px-3 py-2 font-mono text-racing-red font-bold">
                 lang, tz, display, weather, weather_type, countdown, weekend_mode, temp_unit,
-                track_style, track_source, track_accent, year, format, rotate
+                track_style, track_source, track_accent, year, format, rotate, theme
               </td>
               <td class="px-3 py-2">—</td>
               <td class="px-3 py-2">{{ t.api_docs_auto_shared_desc }}</td>
@@ -985,6 +987,7 @@ Documentation") }} - F1.InkyCloud.click{% endblock %} {% block meta_description
           <p class="text-xs mt-2"><code>countdown</code> — {{ t.api_docs_countdown_desc }} (<code>calendar</code>)</p>
           <p class="text-xs mt-2"><code>weekend_mode</code> — {{ t.api_docs_weekend_mode_desc }} (<code>calendar</code>)</p>
           <p class="text-xs mt-2"><code>temp_unit</code> — {{ t.api_docs_temp_unit_desc }} (<code>calendar</code>, <code>teams</code>)</p>
+          <p class="text-xs mt-2"><code>theme</code> — {{ t.api_docs_theme_desc }} (<code>calendar</code>, <code>teams</code>)</p>
         </div>
 
         <div class="border-2 border-black p-4">

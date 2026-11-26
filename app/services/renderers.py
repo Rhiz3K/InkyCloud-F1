@@ -11,6 +11,7 @@ from app.config import DISPLAY_CODES
 from app.services.bwr_renderer import BwrRenderer
 from app.services.bwry_renderer import BwryRenderer
 from app.services.renderer import Renderer
+from app.services.renderer_theme import ThemeMode
 from app.services.spectra6_renderer import Spectra6Renderer
 from app.utils.bmp import RgbColor
 
@@ -27,10 +28,12 @@ _RENDERER_TYPES: dict[str, RendererType] = {
 }
 
 
-def create_renderer(display: str, translator: dict, lang: str) -> AnyRenderer:
-    """Instantiate the renderer for the requested display mode ("1bit" fallback)."""
+def create_renderer(
+    display: str, translator: dict, lang: str, theme: ThemeMode = ThemeMode.LIGHT
+) -> AnyRenderer:
+    """Instantiate the renderer for the requested display mode ("1bit" fallback) and theme."""
     renderer_type = _RENDERER_TYPES.get(display, Renderer)
-    return renderer_type(translator, lang)
+    return renderer_type(translator, lang, dark=theme == ThemeMode.DARK)
 
 
 def display_palette(display: str) -> list[RgbColor] | None:

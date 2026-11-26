@@ -19,6 +19,7 @@ from app.services.database import get_database
 from app.services.f1_service import NEXT_RACE_GRACE, F1Service
 from app.services.private_stats import canonical_page
 from app.services.renderer_text import get_team_color_hex, get_team_key
+from app.services.renderer_theme import ThemeMode
 from app.services.renderers import DISPLAY_TYPES
 from app.services.teams_extra import TeamsExtra
 from app.services.teams_service import TeamsService, get_default_teams_year
@@ -231,6 +232,18 @@ async def api_info() -> dict:
             "example": "?rotate=180",
             "optional": True,
         },
+        "theme": {
+            "type": "string",
+            "description": "dark (experimental): white text and lines on a black background; "
+            "red, yellow and the Spectra 6 colours keep their roles and flags keep their colours. "
+            "Large black areas can ghost on some panels, so prefer a full refresh. Rendered on "
+            "demand (never pregenerated). light keeps the default output. Invalid values return "
+            "422.",
+            "values": [theme.value for theme in ThemeMode],
+            "default": ThemeMode.LIGHT.value,
+            "example": "?theme=dark",
+            "optional": True,
+        },
     }
     output_content_type = "image/bmp; image/png with format=png"
     refresh_hint = (
@@ -386,6 +399,7 @@ async def api_info() -> dict:
                     "/calendar.bmp?weekend_mode=auto&display=bwry",
                     "/calendar.bmp?weather_type=weekend&temp_unit=f&tz=America/New_York",
                     "/calendar.bmp?display=spectra6&format=png&rotate=180",
+                    "/calendar.bmp?display=bwr&theme=dark",
                 ],
             },
             "/teams.bmp": {
@@ -455,6 +469,7 @@ async def api_info() -> dict:
                     "/teams.bmp?display=spectra6",
                     "/teams.bmp?extra=weather&temp_unit=f",
                     "/teams.bmp?display=bwr&format=png",
+                    "/teams.bmp?display=spectra6&extra=flags&theme=dark",
                 ],
             },
             "/auto.bmp": {
@@ -598,6 +613,11 @@ async def api_info() -> dict:
                     "temp_unit": {
                         **temp_unit_parameter,
                         "description": "Calendar weather and teams weather panel",
+                    },
+                    "theme": {
+                        **output_parameters["theme"],
+                        "description": "light (default, pregenerated) or dark (experimental, "
+                        "rendered on demand into the variant cache)",
                     },
                     **track_parameters,
                 },

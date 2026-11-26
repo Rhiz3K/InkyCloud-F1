@@ -59,6 +59,7 @@ https://racing.example.com/auto.bmp?lang=cs&tz=Europe/Prague
 | `track_accent` | 16 accent subsets from `/api/tracks`; default `all` | `?track_accent=warm` |
 | `format`       | `bmp` (default), `png` — palette-exact PNG, see [PNG output and rotation](#png-output-and-rotation) | `?format=png` |
 | `rotate`       | `0` (default), `180` — upside-down panel | `?rotate=180` |
+| `theme`        | `light` (default), `dark` — experimental, see [Dark theme](#dark-theme-themedark) | `?theme=dark` |
 
 **Examples:**
 
@@ -75,6 +76,7 @@ https://racing.example.com/calendar.bmp?lang=en&countdown=auto&weather=false
 https://racing.example.com/calendar.bmp?lang=en&weekend_mode=auto&display=bwry
 https://racing.example.com/calendar.bmp?lang=en&tz=America/New_York&weather_type=weekend&temp_unit=f
 https://racing.example.com/calendar.bmp?lang=en&display=spectra6&format=png&rotate=180
+https://racing.example.com/calendar.bmp?lang=en&display=bwr&theme=dark
 https://racing.example.com/teams.bmp?lang=ja&display=spectra6
 https://racing.example.com/auto.bmp?lang=de&tz=Europe/Berlin&display=bwry
 https://racing.example.com/sk/configure/calendar
@@ -152,12 +154,33 @@ with every other parameter.
   file) once on the render workers and kept in the variant cache. Invalid values return `422`.
   The configurator offers both under "Image output"; its preview always stays upright.
 
+### Dark theme (`theme=dark`)
+
+`theme=dark` (experimental) works on `/calendar.bmp`, `/teams.bmp`, `/auto.bmp` and the
+configurator previews, together with every other parameter (`format=png`, `rotate=180`,
+`weekend_mode`, `weather_type=weekend`, `temp_unit`, `countdown`, `extra`, `track_*`).
+
+- It is not a pixel inversion. Black and white swap roles (black background, white text, lines
+  and outlines), while red, yellow and the Spectra 6 green and blue keep their roles, so a red
+  header, countdown or P1 badge stays red on `bwr`, `bwry` and `spectra6`.
+- Country flags keep their own colours and get a thin white border; the header car is drawn as
+  white line art. Every one of the 18 track styles swaps its black and white inks (colour bands
+  stay); `negative` already draws on black and is unchanged. On the 1-bit panel the black title
+  band is underlined in white and the countdown becomes a white box with black text.
+- Text keeps the hard edges or palette mapping of each display, so dark images contain only
+  the panel's own colours.
+- Large black areas can leave ghosting on some e-ink panels (especially with partial refresh).
+  Prefer a full refresh, and check the result on your own hardware before relying on it.
+- `light` (the default) is byte-identical to a URL without the parameter. Dark images are
+  rendered on demand into the variant cache with their own cache keys and ETags; they are never
+  pregenerated, so they do not add to the hourly scheduler work. Invalid values return `422`.
+
 ### One URL for Both Screens (`/auto.bmp`)
 
 `GET /auto.bmp` returns the calendar or the teams BMP directly (no redirect), so a display that
 can poll only one address still gets both screens. It accepts the calendar and teams parameters
 above (`lang`, `tz`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`,
-`temp_unit`, `track_*`, `extra`, `year`, `format`, `rotate`); each applies to its own screen. `year` selects the teams season; the calendar always
+`temp_unit`, `track_*`, `extra`, `year`, `format`, `rotate`, `theme`); each applies to its own screen. `year` selects the teams season; the calendar always
 shows the next race.
 
 | Parameter    | Options                              | Example            |
@@ -231,7 +254,7 @@ Planned features for future releases:
 
 - [ ] **More languages** — Additional community/localized translations beyond the current 13 supported locales
 - [x] **Extended weather integration** — `weather_type=weekend` (qualifying, sprint and race forecast) and `temp_unit=f`
-- [ ] **Dark mode variant** — Inverted colors for different display preferences
+- [x] **Dark mode variant** — `theme=dark` (experimental): black background, white text, accents and flags keep their colours
 
 ---
 
@@ -312,7 +335,7 @@ Your deployed instance provides these endpoints:
 
 | Endpoint                                 | Description                                             |
 | ---------------------------------------- | ------------------------------------------------------- |
-| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`, `temp_unit`, `tz`, `track_style`, `track_source`, and `track_accent` params; `format=png` and `rotate=180` on all three image endpoints; `X-Next-Refresh-Seconds` hint header |
+| `GET /calendar.bmp`                      | Calendar BMP with `lang`, `year`, `round`, `race_key`, `display`, `weather`, `weather_type`, `countdown`, `weekend_mode`, `temp_unit`, `tz`, `track_style`, `track_source`, and `track_accent` params; `format=png`, `rotate=180` and `theme=dark` on all three image endpoints; `X-Next-Refresh-Seconds` hint header |
 | `GET /teams.bmp`                         | Teams & drivers grid as BMP image (`lang`, `year`, `display`, `extra`: `none`, `countdown`, `flags`, `track`, `weather`; `temp_unit` for the weather panel); optional IANA `tz` applies only to countdown, flags, track, and weather panels showing a time or date (also on `/preview/configure/teams.png`); attribution/licences at `/credits` (`Link rel="license"` header) |
 | `GET /auto.bmp`                          | Calendar or teams BMP on one URL (`mode`: `race_week`, `daily`; `lead_hours` 0–168; calendar and teams params); `X-Active-Screen` header |
 | `GET /`                                  | Landing page with screen type selection                 |

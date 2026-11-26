@@ -244,6 +244,17 @@
         "daily": "/auto.bmp strieda kalendár a tímy každý deň o miestnej polnoci."
       }
     },
+    "theme": {
+      "label": "Motív",
+      "options": {
+        "light": "Svetlý (predvolený)",
+        "dark": "Tmavý (experimentálny)"
+      },
+      "hints": {
+        "light": "Čierny text na bielom pozadí.",
+        "dark": "Biely text na čiernom, červené a žlté akcenty zostávajú. Experimentálne: veľké čierne plochy môžu na niektorých paneloch zanechávať tiene; použite úplné prekreslenie."
+      }
+    },
     "output": {
       "label": "Výstup obrázka",
       "formatLabel": "Formát",
@@ -477,6 +488,7 @@
   "api_docs_format_desc": "Formát výstupu: bmp (predvolený, bez zmeny) alebo png. PNG je bezstratové s rovnakými indexmi pixelov a paletou panelu (bez ditheringu a nových farieb) a je 4–27× menšie; pre firmvér, ktorý vie dekódovať PNG. Cesta zostáva .bmp; Content-Type, Content-Length a ETag zodpovedajú odoslaným bajtom. Neplatná hodnota vráti HTTP 422.",
   "api_docs_rotate_desc": "Otočenie: 0 (predvolené) alebo 180. 180 bezstratovo otočí obraz hore nohami (stále 800×480, rovnaká farebná hĺbka BMP) pre panel namontovaný naopak. 90/270 nie sú k dispozícii, pretože by vyžadovali rozloženie na výšku. Neplatná hodnota vráti HTTP 422.",
   "api_docs_output_sizes": "Typické veľkosti kalendára s format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Každý formát a otočenie má vlastný ETag.",
+  "api_docs_theme_desc": "Motív: light (predvolený) alebo dark (experimentálny). Tmavý motív kreslí biely text a čiary na čiernom pozadí; červená, žltá a farby Spectra 6 zostávajú a vlajky si ponechávajú svoje farby. Veľké čierne plochy môžu na niektorých e-ink paneloch zanechávať tiene (ghosting), preto odporúčame úplné prekreslenie. Vykresľuje sa na požiadanie, nikdy vopred. Neplatná hodnota vráti HTTP 422.",
   "api_docs_auto_desc": "Jedna URL, ktorá vracia priamo BMP kalendára alebo tímov (bez presmerovania). Hodí sa pre displeje, ktoré vedia sťahovať iba jednu adresu, napríklad Živýobraz.eu alebo jednoduchý firmvér ESP32.",
   "api_docs_auto_mode_desc": "race_week: kalendár od lead_hours pred prvou session najbližšieho pretekárskeho víkendu až do výberu ďalších pretekov (4 h po štarte), inak tímy, vrátane zimnej prestávky a zrušených pretekov. daily: kalendár v párne a tímy v nepárne miestne dni v tz, prepína sa o miestnej polnoci. Neplatná hodnota vráti HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Iba pre race_week: koľko hodín pred prvou session (FP1) sa zobrazí kalendár. Hodnota mimo 0–168 vráti HTTP 422.",

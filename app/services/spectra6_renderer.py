@@ -47,14 +47,18 @@ class Spectra6Colors:
     IDX_GREEN = 5
 
 
-SPECTRA6_THEME = make_color_theme(
-    colors=Spectra6Colors,
-    track_directory=lambda: TRACKS_SPECTRA6_DIR,
-    flags_directories=lambda: FLAGS_DIR,
-    images_directory=lambda: IMAGES_DIR,
-    prepare_track_image=lambda image, width, height, _logger: preserve_neutral_colors(
-        prepare_color_track_image(image, width, height)
-    ),
+SPECTRA6_THEME, SPECTRA6_DARK_THEME = (
+    make_color_theme(
+        colors=Spectra6Colors,
+        track_directory=lambda: TRACKS_SPECTRA6_DIR,
+        flags_directories=lambda: FLAGS_DIR,
+        images_directory=lambda: IMAGES_DIR,
+        prepare_track_image=lambda image, width, height, _logger: preserve_neutral_colors(
+            prepare_color_track_image(image, width, height)
+        ),
+        dark=dark,
+    )
+    for dark in (False, True)
 )
 
 
@@ -62,11 +66,12 @@ class Spectra6Renderer(RendererBase):
     """Renderer for generating six-color indexed BMP images."""
 
     THEME = SPECTRA6_THEME
+    DARK_THEME = SPECTRA6_DARK_THEME
     TEXT_ANTIALIAS = False
 
     def _new_canvas(self) -> Image.Image:
-        """Create an RGB composition canvas in active palette white."""
-        return Image.new("RGB", (self.width, self.height), self.colors.WHITE)
+        """Create an RGB composition canvas in the theme's paper colour."""
+        return Image.new("RGB", (self.width, self.height), self.theme.canvas_fill)
 
     def _encode_image(self, image: Image.Image) -> bytes:
         """Encode the RGB canvas as the target indexed BMP."""

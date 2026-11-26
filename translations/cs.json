@@ -244,6 +244,17 @@
         "daily": "/auto.bmp střídá kalendář a týmy každý den o místní půlnoci."
       }
     },
+    "theme": {
+      "label": "Motiv",
+      "options": {
+        "light": "Světlý (výchozí)",
+        "dark": "Tmavý (experimentální)"
+      },
+      "hints": {
+        "light": "Černý text na bílém pozadí.",
+        "dark": "Bílý text na černé, červené a žluté akcenty zůstávají. Experimentální: velké černé plochy mohou na některých panelech zanechávat stíny; použijte plné překreslení."
+      }
+    },
     "output": {
       "label": "Výstup obrázku",
       "formatLabel": "Formát",
@@ -477,6 +488,7 @@
   "api_docs_format_desc": "Formát výstupu: bmp (výchozí, beze změny) nebo png. PNG je bezztrátové se stejnými indexy pixelů a paletou panelu (bez ditheringu a nových barev) a je 4–27× menší; pro firmware, který PNG umí dekódovat. Cesta zůstává .bmp; Content-Type, Content-Length a ETag odpovídají odeslaným bajtům. Neplatná hodnota vrátí HTTP 422.",
   "api_docs_rotate_desc": "Otočení: 0 (výchozí) nebo 180. 180 bezztrátově otočí obraz vzhůru nohama (stále 800×480, stejná barevná hloubka BMP) pro panel namontovaný obráceně. 90/270 nejsou k dispozici, protože by vyžadovaly layout na výšku. Neplatná hodnota vrátí HTTP 422.",
   "api_docs_output_sizes": "Typické velikosti kalendáře s format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Každý formát a otočení má vlastní ETag.",
+  "api_docs_theme_desc": "Motiv: light (výchozí) nebo dark (experimentální). Tmavý motiv kreslí bílý text a čáry na černém pozadí; červená, žlutá a barvy Spectra 6 zůstávají a vlajky si ponechávají své barvy. Velké černé plochy mohou na některých e-ink panelech zanechávat stíny (ghosting), proto doporučujeme plné překreslení. Vykresluje se na vyžádání, nikdy předem. Neplatná hodnota vrátí HTTP 422.",
   "api_docs_auto_desc": "Jedna URL, která vrací přímo BMP kalendáře nebo týmů (bez přesměrování). Hodí se pro displeje, které umí stahovat jen jednu adresu, například Živýobraz.eu nebo jednoduchý firmware ESP32.",
   "api_docs_auto_mode_desc": "race_week: kalendář od lead_hours před první session nejbližšího závodního víkendu až do výběru dalšího závodu (4 h po startu), jinak týmy, včetně zimní přestávky a zrušených závodů. daily: kalendář v sudé a týmy v liché místní dny v tz, přepíná se o místní půlnoci. Neplatná hodnota vrátí HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Jen pro race_week: kolik hodin před první session (FP1) se objeví kalendář. Hodnota mimo 0–168 vrátí HTTP 422.",

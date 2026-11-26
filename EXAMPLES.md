@@ -89,6 +89,23 @@ curl "http://localhost:8000/auto.bmp?display=bwry&format=png&rotate=180" -o scre
 Measured on an 800×480 calendar. `90` and `270` are not offered because they need a portrait
 layout; invalid `format` or `rotate` values return `422`.
 
+### Dark Theme
+
+```bash
+# Experimental dark theme: black background, white text, red accents stay red
+curl "http://localhost:8000/calendar.bmp?display=bwr&theme=dark" -o calendar.bmp
+
+# Works with every other parameter, here the teams flags panel as a rotated PNG
+curl "http://localhost:8000/teams.bmp?display=spectra6&extra=flags&theme=dark&format=png&rotate=180" \
+  -o teams.png
+
+# And on the one-URL screen switch
+curl "http://localhost:8000/auto.bmp?display=1bit&theme=dark" -o screen.bmp
+```
+
+`theme=light` (the default) returns the same bytes as a URL without `theme`; an invalid value
+returns `422`. Large black areas can ghost on some panels, so prefer a full refresh.
+
 ### Check Health
 
 ```bash

@@ -244,6 +244,17 @@
         "daily": "/auto.bmp wisselt elke dag om lokale middernacht tussen kalender en teams."
       }
     },
+    "theme": {
+      "label": "Thema",
+      "options": {
+        "light": "Licht (standaard)",
+        "dark": "Donker (experimenteel)"
+      },
+      "hints": {
+        "light": "Zwarte tekst op een witte achtergrond.",
+        "dark": "Witte tekst op zwart, rode en gele accenten blijven. Experimenteel: grote zwarte vlakken kunnen op sommige panelen nabeelden achterlaten; gebruik een volledige verversing."
+      }
+    },
     "output": {
       "label": "Beelduitvoer",
       "formatLabel": "Formaat",
@@ -477,6 +488,7 @@
   "api_docs_format_desc": "Uitvoerformaat: bmp (standaard, ongewijzigd) of png. PNG is verliesvrij met exact dezelfde pixelindices en hetzelfde schermpalet (geen dithering, geen extra kleuren) en 4–27× kleiner, voor firmware die PNG kan decoderen. Het pad blijft .bmp; Content-Type, Content-Length en ETag beschrijven de verzonden bytes. Ongeldige waarden geven HTTP 422.",
   "api_docs_rotate_desc": "Rotatie: 0 (standaard) of 180. 180 zet het beeld verliesvrij op zijn kop (nog steeds 800×480, dezelfde BMP-kleurdiepte) voor een omgekeerd gemonteerd scherm. 90/270 worden niet aangeboden omdat die een staande lay-out nodig hebben. Ongeldige waarden geven HTTP 422.",
   "api_docs_output_sizes": "Typische kalendergroottes met format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Elk formaat en elke rotatie heeft een eigen ETag.",
+  "api_docs_theme_desc": "Thema: light (standaard) of dark (experimenteel). Donker tekent witte tekst en lijnen op een zwarte achtergrond; rood, geel en de Spectra 6-kleuren blijven behouden en vlaggen houden hun kleuren. Grote zwarte vlakken kunnen op sommige e-inkpanelen nabeelden achterlaten, dus een volledige verversing is aan te raden. Wordt op aanvraag gerenderd, nooit vooraf. Ongeldige waarden geven HTTP 422.",
   "api_docs_auto_desc": "Eén URL die direct de kalender- of teams-BMP teruggeeft (zonder doorverwijzing). Voor displays die maar één adres kunnen opvragen, zoals Živýobraz.eu of eenvoudige ESP32-firmware.",
   "api_docs_auto_mode_desc": "race_week: de kalender vanaf lead_hours voor de eerste sessie van het volgende raceweekend tot de volgende race wordt gekozen (4 uur na de start), anders de teams, ook in de winterstop en bij afgelaste races. daily: kalender op even en teams op oneven lokale dagen in tz, wisselt om lokale middernacht. Ongeldige waarden geven HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Alleen race_week: hoeveel uur voor de eerste sessie (FP1) de kalender verschijnt. Waarden buiten 0–168 geven HTTP 422.",

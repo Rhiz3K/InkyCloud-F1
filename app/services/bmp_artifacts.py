@@ -11,6 +11,7 @@ import asyncio
 import functools
 import logging
 from collections.abc import Awaitable, Callable
+from typing import TypedDict
 
 from cachetools import TTLCache
 
@@ -22,6 +23,7 @@ from app.services.image_generation import (
     selected_generation,
     selection_flight_key,
 )
+from app.services.renderer_theme import ThemeMode
 from app.services.renderers import create_renderer, display_palette
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext
 from app.services.teams_service import TeamsService, is_teams_data_cacheable
@@ -112,6 +114,7 @@ def render_calendar_bytes(
     countdown_mode: CountdownMode = CountdownMode.HOURS,
     weekend: WeekendPhase | None = None,
     temp_unit: TempUnit = TempUnit.C,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> bytes:
     """Construct the renderer and render in the worker thread.
 
@@ -119,7 +122,7 @@ def render_calendar_bytes(
     into a per-thread cache, so building on the event loop would share FreeTypeFont objects
     across render threads.
     """
-    renderer = create_renderer(display, get_translator(lang), lang)
+    renderer = create_renderer(display, get_translator(lang), lang, **theme_kwargs(theme))
     return renderer.render_calendar(
         race_data,
         historical_data,
@@ -139,30 +142,39 @@ def render_teams_bytes(
     *,
     extra: TeamsExtra = TeamsExtra.NONE,
     extra_context: TeamsExtraContext | None = None,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> bytes:
     """Construct the renderer and render the teams screen in the worker thread."""
-    renderer = create_renderer(display, get_translator(lang), lang)
+    renderer = create_renderer(display, get_translator(lang), lang, **theme_kwargs(theme))
     return renderer.render_teams_drivers(teams_data, extra, extra_context)
 
 
-def render_error_bytes(display: str, lang: str, message: str) -> bytes:
+def render_error_bytes(
+    display: str, lang: str, message: str, theme: ThemeMode = ThemeMode.LIGHT
+) -> bytes:
     """Construct the renderer and render an error BMP in the worker thread."""
-    renderer = create_renderer(display, get_translator(lang), lang)
+    renderer = create_renderer(display, get_translator(lang), lang, **theme_kwargs(theme))
     return renderer.render_error(message)
 
 
-async def render_error_artifact(display: str, lang: str, message: str) -> BmpArtifact:
+async def render_error_artifact(
+    display: str, lang: str, message: str, theme: ThemeMode = ThemeMode.LIGHT
+) -> BmpArtifact:
     """Render one error BMP inside the shared render limit."""
-    async with render_slot():
-        bmp_data = await run_render(functools.partial(render_error_bytes, display, lang, message))
+    async with render_slot(variant=theme != ThemeMode.LIGHT):
+        bmp_data = await run_render(
+            functools.partial(render_error_bytes, display, lang, message, **theme_kwargs(theme))
+        )
     return bmp_data, strong_etag(bmp_data)
 
 
-async def shared_error_artifact(display: str, lang: str, message: str) -> BmpArtifact:
-    """Share one in-flight error image across waiters of a failed render."""
+async def shared_error_artifact(
+    display: str, lang: str, message: str, theme: ThemeMode = ThemeMode.LIGHT
+) -> BmpArtifact:
+    """Share one in-flight error image (in the requested theme) across waiters."""
     return await singleflight(
-        f"error:{display}:{lang}:{message}",
-        functools.partial(render_error_artifact, display, lang, message),
+        f"error:{display}:{lang}:{message}{theme_cache_suffix(theme)}",
+        functools.partial(render_error_artifact, display, lang, message, **theme_kwargs(theme)),
     )
 
 
@@ -178,6 +190,7 @@ async def render_calendar(
     weekend_mode: WeekendMode = WeekendMode.OFF,
     weekend: WeekendPhase | None = None,
     temp_unit: TempUnit = TempUnit.C,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> tuple[bytes, dict | None, bool]:
     """Render a calendar BMP for a selected race and a canonical weather type.
 
@@ -187,7 +200,13 @@ async def render_calendar(
     """
     if not race_data:
         error_bmp = await run_render(
-            functools.partial(render_error_bytes, display, lang, "Failed to fetch race data")
+            functools.partial(
+                render_error_bytes,
+                display,
+                lang,
+                "Failed to fetch race data",
+                **theme_kwargs(theme),
+            )
         )
         return error_bmp, None, False
 
@@ -223,6 +242,7 @@ async def render_calendar(
             countdown_mode,
             weekend,
             temp_unit,
+            **theme_kwargs(theme),
         )
     )
     return (bmp_data, race_data, True)
@@ -241,15 +261,16 @@ async def render_calendar_artifact(
     weekend_mode: WeekendMode = WeekendMode.OFF,
     weekend: WeekendPhase | None = None,
     temp_unit: TempUnit = TempUnit.C,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> BmpArtifact:
     """Render/hash one calendar miss and cache the pair only when complete.
 
-    A non-default countdown, weekend mode, temperature unit or the weekend weather summary
-    is an opt-in variant: it renders in a variant slot and is cached in the variant cache, so
-    it can never displace the default calendars.
+    A non-default countdown, weekend mode, temperature unit, theme or the weekend weather
+    summary is an opt-in variant: it renders in a variant slot and is cached in the variant
+    cache, so it can never displace the default calendars.
     """
     generation = selected_generation()
-    variant = is_calendar_variant(countdown_mode, weekend_mode, temp_unit, weather_type)
+    variant = is_calendar_variant(countdown_mode, weekend_mode, temp_unit, weather_type, theme)
     async with render_slot(variant=variant):
         require_current_selection(generation)
         bmp_data, _race_data, is_cacheable = await render_calendar(
@@ -263,10 +284,11 @@ async def render_calendar_artifact(
             weekend_mode=weekend_mode,
             weekend=weekend,
             temp_unit=temp_unit,
+            **theme_kwargs(theme),
         )
         artifact = (bmp_data, strong_etag(bmp_data))
         if is_cacheable and bmp_cache_generation() == generation:
-            calendar_image_cache(countdown_mode, weekend_mode, temp_unit, weather_type)[
+            calendar_image_cache(countdown_mode, weekend_mode, temp_unit, weather_type, theme)[
                 cache_key
             ] = artifact
         return artifact
@@ -277,9 +299,10 @@ def calendar_image_cache(
     weekend_mode: WeekendMode = WeekendMode.OFF,
     temp_unit: TempUnit = TempUnit.C,
     weather_type: str = "off",
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> ImageCache:
     """Keep default calendars in the main cache and opt-in variants in the variant cache."""
-    if is_calendar_variant(countdown_mode, weekend_mode, temp_unit, weather_type):
+    if is_calendar_variant(countdown_mode, weekend_mode, temp_unit, weather_type, theme):
         return get_bmp_variant_cache()
     return get_bmp_cache()
 
@@ -289,6 +312,7 @@ def is_calendar_variant(
     weekend_mode: WeekendMode = WeekendMode.OFF,
     temp_unit: TempUnit = TempUnit.C,
     weather_type: str = "off",
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> bool:
     """Return whether a calendar is an opt-in variant (variant render slot and cache)."""
     return (
@@ -296,14 +320,41 @@ def is_calendar_variant(
         or weekend_mode != WeekendMode.OFF
         or temp_unit != TempUnit.C
         or weather_type == "weekend"
+        or theme != ThemeMode.LIGHT
     )
 
 
-def teams_image_cache(extra: TeamsExtra) -> TTLCache[str, BmpArtifact]:
-    """Keep plain teams dashboards in the main cache and extra panels in the variant cache."""
-    if extra == TeamsExtra.NONE:
-        return get_bmp_cache()
-    return get_bmp_variant_cache()
+class ThemeKwargs(TypedDict, total=False):
+    """Keyword arguments that carry a non-default theme through a render call."""
+
+    theme: ThemeMode
+
+
+def theme_kwargs(theme: ThemeMode) -> ThemeKwargs:
+    """Return ``{"theme": theme}`` for a non-default theme and nothing for light.
+
+    Light calls keep their exact argument shape, so the default code path is unchanged.
+    """
+    return ThemeKwargs() if theme == ThemeMode.LIGHT else ThemeKwargs(theme=theme)
+
+
+def theme_cache_suffix(theme: ThemeMode) -> str:
+    """Return the cache-key suffix of a theme; empty for the light default."""
+    return "" if theme == ThemeMode.LIGHT else f":theme={theme}"
+
+
+def is_teams_variant(extra: TeamsExtra, theme: ThemeMode = ThemeMode.LIGHT) -> bool:
+    """Return whether a teams dashboard is an opt-in variant (extra panel or dark theme)."""
+    return extra != TeamsExtra.NONE or theme != ThemeMode.LIGHT
+
+
+def teams_image_cache(
+    extra: TeamsExtra, theme: ThemeMode = ThemeMode.LIGHT
+) -> TTLCache[str, BmpArtifact]:
+    """Keep plain light teams dashboards in the main cache and variants in the variant cache."""
+    if is_teams_variant(extra, theme):
+        return get_bmp_variant_cache()
+    return get_bmp_cache()
 
 
 async def render_teams_artifact(
@@ -314,10 +365,11 @@ async def render_teams_artifact(
     display: str,
     extra: TeamsExtra = TeamsExtra.NONE,
     extra_context: TeamsExtraContext | None = None,
+    theme: ThemeMode = ThemeMode.LIGHT,
 ) -> BmpArtifact:
     """Fetch, render, and hash one teams miss, caching only a complete dashboard."""
     generation = selected_generation()
-    async with render_slot(variant=extra != TeamsExtra.NONE):
+    async with render_slot(variant=is_teams_variant(extra, theme)):
         require_current_selection(generation)
         async with asyncio.timeout(config.TEAMS_ENRICHMENT_TIMEOUT_SECONDS):
             teams_data = await TeamsService().get_teams_and_drivers(year)
@@ -329,11 +381,12 @@ async def render_teams_artifact(
                 teams_data,
                 extra=extra,
                 extra_context=extra_context,
+                **theme_kwargs(theme),
             )
         )
         artifact = (bmp_data, strong_etag(bmp_data))
         if is_teams_data_cacheable(teams_data) and bmp_cache_generation() == generation:
-            teams_image_cache(extra)[cache_key] = artifact
+            teams_image_cache(extra, theme)[cache_key] = artifact
         elif teams_data.teams:
             logger.warning("Teams standings incomplete for %s; serving but not caching", year)
         else:

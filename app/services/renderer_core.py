@@ -53,6 +53,8 @@ class RendererCore(ABC):
     """Own immutable theme state, rendering entry points, fonts, and asset caches."""
 
     THEME: ClassVar[RenderTheme]
+    # Opt-in theme=dark policy: black canvas, white ink, unchanged accent colours.
+    DARK_THEME: ClassVar[RenderTheme]
     # Anti-aliased glyph edges are blends that nearest-colour quantisation maps onto unrelated
     # inks (Spectra 6 turned red/black text edges green, blue and yellow). Variants without a
     # blend-aware palette mapper draw text with hard edges instead.
@@ -70,9 +72,9 @@ class RendererCore(ABC):
     _racing_fonts: dict[int, Font]
     _driver_photos: dict[str, Image.Image] | None
 
-    def __init__(self, translator: dict, lang_code: str = "en") -> None:
-        """Bind this renderer's immutable theme and initialize shared state."""
-        self.theme = self.THEME
+    def __init__(self, translator: dict, lang_code: str = "en", *, dark: bool = False) -> None:
+        """Bind this renderer's immutable (light or dark) theme and initialize shared state."""
+        self.theme = self.DARK_THEME if dark else self.THEME
         self.colors = self.theme.colors
         self._initialize_renderer(translator, lang_code)
 

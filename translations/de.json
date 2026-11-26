@@ -244,6 +244,17 @@
         "daily": "/auto.bmp wechselt jeden Tag um lokale Mitternacht zwischen Kalender und Teams."
       }
     },
+    "theme": {
+      "label": "Design",
+      "options": {
+        "light": "Hell (Standard)",
+        "dark": "Dunkel (experimentell)"
+      },
+      "hints": {
+        "light": "Schwarzer Text auf weißem Hintergrund.",
+        "dark": "Weißer Text auf Schwarz, rote und gelbe Akzente bleiben. Experimentell: Große schwarze Flächen können auf manchen Panels Geisterbilder hinterlassen; vollständigen Refresh verwenden."
+      }
+    },
     "output": {
       "label": "Bildausgabe",
       "formatLabel": "Format",
@@ -477,6 +488,7 @@
   "api_docs_format_desc": "Ausgabeformat: bmp (Standard, unverändert) oder png. PNG ist verlustfrei mit exakt denselben Pixelindizes und derselben Panelpalette (kein Dithering, keine zusätzlichen Farben) und 4–27× kleiner, für Firmware, die PNG dekodieren kann. Der Pfad bleibt .bmp; Content-Type, Content-Length und ETag beschreiben die gesendeten Bytes. Ungültige Werte liefern HTTP 422.",
   "api_docs_rotate_desc": "Drehung: 0 (Standard) oder 180. 180 stellt das Bild verlustfrei auf den Kopf (weiterhin 800×480, gleiche BMP-Farbtiefe) für ein umgekehrt montiertes Panel. 90/270 werden nicht angeboten, da sie ein Hochformat-Layout bräuchten. Ungültige Werte liefern HTTP 422.",
   "api_docs_output_sizes": "Typische Kalendergrößen mit format=png: 1bit 48 KB → ~10 KB, bwr/bwry 192 KB → ~13 KB, spectra6 385 KB → ~14 KB. Jedes Format und jede Drehung hat ein eigenes ETag.",
+  "api_docs_theme_desc": "Design: light (Standard) oder dark (experimentell). Dark zeichnet weißen Text und weiße Linien auf schwarzem Hintergrund; Rot, Gelb und die Spectra-6-Farben bleiben erhalten, Flaggen behalten ihre Farben. Große schwarze Flächen können auf manchen E-Ink-Panels Geisterbilder hinterlassen, daher ist ein vollständiger Refresh empfehlenswert. Wird bei Bedarf gerendert, nie vorab erzeugt. Ungültige Werte liefern HTTP 422.",
   "api_docs_auto_desc": "Eine URL, die das Kalender- oder Teams-BMP direkt liefert (ohne Weiterleitung). Für Displays, die nur eine Adresse abrufen können, etwa Živýobraz.eu oder einfache ESP32-Firmware.",
   "api_docs_auto_mode_desc": "race_week: Kalender ab lead_hours vor der ersten Session des nächsten Rennwochenendes, bis das nächste Rennen gewählt wird (4 h nach dem Start), sonst Teams, auch in der Winterpause und bei abgesagten Rennen. daily: Kalender an geraden, Teams an ungeraden lokalen Tagen in tz, Wechsel um lokale Mitternacht. Ungültige Werte liefern HTTP 422.",
   "api_docs_auto_lead_hours_desc": "Nur race_week: wie viele Stunden vor der ersten Session (FP1) der Kalender erscheint. Werte außerhalb von 0–168 liefern HTTP 422.",

@@ -236,6 +236,7 @@ const PAGE_HANDLER_NAMES = [
     "selectCountdown",
     "selectRaceFromList",
     "selectRaceMobile",
+    "selectTheme",
     "selectTeamsExtra",
     "selectWeekendMode",
     "selectTeamsSeason",
