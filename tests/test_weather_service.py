@@ -952,24 +952,8 @@ def test_match_hourly_weather_edge_cases(hourly, race_dt, precipitation_key, as_
     )
 
 
-@pytest.mark.parametrize(
-    ("schedule", "expected"),
-    [
-        ([], None),
-        ([{"name": "Race"}], None),
-        ([{"name": "Race", "datetime": "invalid"}], None),
-        (
-            [{"name": "Race", "datetime": "2026-07-10T14:00:00Z"}],
-            datetime(2026, 7, 10, 14, tzinfo=timezone.utc),
-        ),
-    ],
-)
-def test_extract_race_datetime_validates_schedule(schedule, expected):
-    assert weather._extract_race_datetime({"schedule": schedule}) == expected
-
-
 def test_parse_coordinate_returns_none_for_missing_value():
-    assert weather._parse_coordinate(None) is None
+    assert weather.parse_coordinate(None) is None
 
 
 @pytest.mark.asyncio

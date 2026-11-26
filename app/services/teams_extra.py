@@ -17,6 +17,7 @@ from app.services.weather_service import (
     _race_weather_cache_key,
     get_cached_circuit_weather,
 )
+from app.utils.race_times import local_session_start, parse_session_start, session_over
 from app.utils.timezones import normalize_timezone
 
 
@@ -82,29 +83,23 @@ _CODES = dict(
 
 
 def _start(race: Race) -> datetime:
-    """Parse the bundled race start as an aware UTC instant (midnight UTC when unknown).
+    """Return the race start as aware UTC for ordering; a TBA race sorts at UTC midnight.
 
     Only for ordering; use _local_start/_race_over for anything shown or compared to now.
-    An explicit offset is honoured instead of being overwritten with UTC.
     """
-    parsed = datetime.fromisoformat(f"{race.date}T{race.time or '00:00:00Z'}")
-    return parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
+    return parse_session_start(race.date, race.time) or datetime.combine(
+        date.fromisoformat(race.date), datetime.min.time(), UTC
+    )
 
 
 def _local_start(race: Race, zone: ZoneInfo) -> datetime:
     """Return the start in the viewer's zone; a date-only race keeps its calendar date."""
-    if race.time:
-        return _start(race).astimezone(zone)
-    # A TBA race happens on its published date wherever the viewer is (same contract as the
-    # calendar); converting UTC midnight would move it to the previous day west of UTC.
-    return datetime.combine(date.fromisoformat(race.date), datetime.min.time(), zone)
+    return local_session_start(race.date, race.time, zone)
 
 
 def _race_over(race: Race, zone: ZoneInfo, now: datetime) -> bool:
     """A timed race is over once it starts; a date-only race after its local day ends."""
-    if race.time:
-        return _start(race) <= now
-    return _local_start(race, zone) + timedelta(days=1) <= now
+    return session_over(race.date, race.time, zone, now)
 
 
 def build_teams_extra_context(

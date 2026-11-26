@@ -35,14 +35,14 @@ from app.services.image_keys import (
 )
 from app.services.renderers import COLOR_DISPLAYS, DISPLAY_TYPES, create_renderer
 from app.services.teams_extra import TeamsExtra, TeamsExtraContext
-from app.services.weather_service import WeatherData, _parse_coordinate, get_weather_context
+from app.services.weather_service import WeatherData, get_weather_context, parse_coordinate
 from app.state import clear_bmp_cache
 from app.utils.async_locks import LoopLockRegistry, get_loop_lock
 from app.utils.async_tasks import RENDER_WORKER_COUNT, run_render
 from app.utils.atomic_io import atomic_write_bytes as _atomic_write_bytes
 from app.utils.etag import encode_etag_sidecar, etag_sidecar_path, strong_etag
 from app.utils.image_conversion import bmp_to_png
-from app.utils.race_times import convert_race_times_to_timezone
+from app.utils.race_times import convert_race_times_to_timezone, race_session_start
 
 logger = logging.getLogger(__name__)
 
@@ -375,39 +375,14 @@ def _has_weather_coordinates(race_data: dict) -> bool:
     """Return whether race data contains valid latitude and longitude values."""
     circuit = race_data.get("circuit", {})
     displayed_lon = circuit.get("long") if circuit.get("long") is not None else circuit.get("lon")
-    lat = _parse_coordinate(circuit.get("lat"))
-    lon = _parse_coordinate(displayed_lon)
+    lat = parse_coordinate(circuit.get("lat"))
+    lon = parse_coordinate(displayed_lon)
     return lat is not None and lon is not None and -90 <= lat <= 90 and -180 <= lon <= 180
-
-
-def _parse_race_datetime_utc(race_data: dict) -> datetime | None:
-    """Extract the race session timestamp as an aware UTC datetime."""
-    schedule = race_data.get("schedule", [])
-    race_session = next(
-        (session for session in schedule if str(session.get("name", "")).lower() == "race"),
-        None,
-    )
-    if not race_session:
-        return None
-
-    dt_str = race_session.get("datetime")
-    if not dt_str or len(str(dt_str)) == 10:
-        return None
-
-    try:
-        race_dt = datetime.fromisoformat(str(dt_str).replace("Z", "+00:00"))
-    except ValueError:
-        logger.debug("Invalid race datetime for weather degradation check: %s", dt_str)
-        return None
-
-    if race_dt.tzinfo is None:
-        return race_dt.replace(tzinfo=timezone.utc)
-    return race_dt.astimezone(timezone.utc)
 
 
 def _race_weather_expected(race_data: dict) -> bool:
     """Return whether historical or forecast race weather should be available."""
-    race_dt = _parse_race_datetime_utc(race_data)
+    race_dt = race_session_start(race_data)
     if race_dt is None:
         return False
 

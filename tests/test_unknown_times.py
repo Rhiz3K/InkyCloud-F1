@@ -10,9 +10,8 @@ from app.services.f1_service import F1Service
 from app.services.i18n import get_translator
 from app.services.renderer_calendar import _find_race_datetime, _resolve_countdown_status
 from app.services.renderers import create_renderer
-from app.services.scheduler_generation import _parse_race_datetime_utc, _race_weather_expected
-from app.services.weather_service import _extract_race_datetime
-from app.utils.race_times import convert_race_times_to_timezone
+from app.services.scheduler_generation import _race_weather_expected
+from app.utils.race_times import convert_race_times_to_timezone, race_session_start
 
 
 def unknown_race():
@@ -37,8 +36,7 @@ def test_date_only_consumers():
         assert event["datetime"] == event["date"]
         assert event["display_time"].endswith(" –")
         assert ScheduleEvent(**event).time is None
-    assert _extract_race_datetime(data) is None
-    assert _parse_race_datetime_utc(data) is None
+    assert race_session_start(data) is None
     assert not _race_weather_expected(data)
     race_day = _find_race_datetime(data["schedule"], datetime)
     assert type(race_day) is date
