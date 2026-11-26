@@ -26,6 +26,20 @@ def unknown_race():
     return service._convert_race_times(race)
 
 
+def test_conversion_moves_the_top_level_race_start_with_the_schedule():
+    """B10: the top-level race start follows the schedule into the target zone."""
+    race = F1Service(timezone_name="Europe/Prague").get_season_from_static(2026)[0]
+    data = F1Service(timezone_name="Europe/Prague")._convert_race_times(race)
+    converted = convert_race_times_to_timezone(data, "Asia/Kolkata")
+    [race_event] = [event for event in converted["schedule"] if event["name"] == "Race"]
+
+    assert converted["datetime"] == race_event["datetime"]
+    assert converted["datetime"].endswith("+05:30")
+    assert converted["time"] == race_event["time"]
+    assert converted["date"] == data["date"]
+    assert datetime.fromisoformat(converted["datetime"]) == datetime.fromisoformat(data["datetime"])
+
+
 def test_date_only_consumers():
     """Conversion, models, countdown and weather preserve date-only values."""
     data = unknown_race()

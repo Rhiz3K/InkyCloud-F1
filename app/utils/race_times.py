@@ -147,6 +147,10 @@ def convert_race_times_to_timezone(race_data: dict, target_tz_str: str) -> dict:
                 try:
                     dt = datetime.fromisoformat(iso_str)
                     result["race_date"] = dt.strftime("%d.%m.%Y")
+                    if len(iso_str) != 10:
+                        # Keep the top-level race start in the same zone as the schedule.
+                        result["datetime"] = dt.isoformat()
+                        result["time"] = dt.strftime("%H:%M")
                 except ValueError, TypeError:
                     pass
             break

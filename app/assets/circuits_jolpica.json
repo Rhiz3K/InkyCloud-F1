@@ -1529,29 +1529,29 @@
     "first_grand_prix": "2023",
     "number_of_laps": 50,
     "historical": {
-      "season": 2025,
-      "updated_at": "2025-12-22",
+      "season": 2026,
+      "updated_at": "2026-11-26",
       "qualifying": [
         {
           "pos": 1,
-          "code": "NOR",
-          "name": "Norris",
-          "team": "McLaren",
-          "time": "1:47.934"
+          "code": "ANT",
+          "name": "Antonelli",
+          "team": "Mercedes",
+          "time": "1:33.893"
         },
         {
           "pos": 2,
           "code": "VER",
           "name": "Verstappen",
           "team": "Red Bull",
-          "time": "1:48.257"
+          "time": "1:34.151"
         },
         {
-          "pos": 4,
+          "pos": 3,
           "code": "RUS",
           "name": "Russell",
           "team": "Mercedes",
-          "time": "1:48.803"
+          "time": "1:34.224"
         }
       ],
       "race": [
@@ -1560,21 +1560,21 @@
           "code": "VER",
           "name": "Verstappen",
           "team": "Red Bull",
-          "time": "1:21:08.429"
+          "time": "1:27:39.624"
         },
         {
           "pos": 2,
-          "code": "RUS",
-          "name": "Russell",
-          "team": "Mercedes",
-          "time": "+23.546"
+          "code": "NOR",
+          "name": "Norris",
+          "team": "McLaren",
+          "time": "+0.639"
         },
         {
           "pos": 3,
-          "code": "ANT",
-          "name": "Antonelli",
-          "team": "Mercedes",
-          "time": "+30.488"
+          "code": "PIA",
+          "name": "Piastri",
+          "team": "McLaren",
+          "time": "+1.529"
         }
       ]
     },

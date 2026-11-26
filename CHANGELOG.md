@@ -246,6 +246,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Review leftovers (issue #185):
+  - The `blueprint` track style keeps its horizontal grid lines in the `bwr`, `bwry` and
+    `spectra6` palettes. The lines sat on the tile edge, so half of each stroke was clipped
+    and colour quantization removed them.
+  - The Malaysian flag is bundled (waving and flat), so Malaysia no longer renders without a
+    flag.
+  - The bundled Las Vegas history no longer shows the fourth-placed qualifier as P3. Jolpica
+    has no P3 row for the 2025 qualifying; the circuit now carries the complete 2026 podium.
+  - The teams `extra` panels keep a running race as the current round for four hours after
+    lights-out, like the calendar, instead of switching to the next round at the start.
+  - Converting race times to another timezone also converts the top-level race `datetime`
+    and `time`, not only the schedule.
+
 - A request whose render spans a cache clear keeps its completed image while retrying. If the retry fails or yields incomplete data, devices receive the original image, its validator and a short retry hint. Previews revalidate if their source changes during encoding.
 
 - A calendar rendered while the scheduler cleared the image cache (at startup and around

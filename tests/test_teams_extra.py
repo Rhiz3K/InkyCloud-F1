@@ -1,7 +1,7 @@
 """Offline context and clipped teams-panel regression tests."""
 
 from dataclasses import FrozenInstanceError, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from unittest.mock import Mock
 
@@ -748,3 +748,17 @@ def test_context_normalizes_timezone_aliases(monkeypatch):
     assert alias.timezone_name == "Asia/Kolkata"
     monkeypatch.setattr(extras.config, "DEFAULT_TIMEZONE", "Asia/Calcutta")
     assert teams_extra_cache_token(TeamsExtra.TRACK, alias) == "_xtrack_20260306_r1"
+
+
+@pytest.mark.parametrize(("hours", "round_num", "done"), [(1, 1, False), (4, 2, True)])
+def test_running_race_stays_current_for_the_calendar_grace(hours, round_num, done):
+    """Like the calendar, keep round 1 current until NEXT_RACE_GRACE after lights-out."""
+    first = min(
+        (race for race in F1Service.get_season_from_static(2026) if race.round),
+        key=extras._start,
+    )
+    now = extras._start(first) + timedelta(hours=hours)
+    value = build_teams_extra_context(TeamsExtra.COUNTDOWN, 2026, now=now, timezone_name="UTC")
+
+    assert value.next_round == round_num
+    assert value.rounds[0].done is done

@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from app.config import config
 from app.models import Race
 from app.services.circuit_metadata import COUNTRY_MAP, canonical_circuit_id
-from app.services.f1_service import F1Service
+from app.services.f1_service import NEXT_RACE_GRACE, F1Service
 from app.services.renderer_assets import get_country_flag_iso_code
 from app.services.weather_service import (
     TempUnit,
@@ -102,8 +102,13 @@ def _local_start(race: Race, zone: ZoneInfo) -> datetime:
 
 
 def _race_over(race: Race, zone: ZoneInfo, now: datetime) -> bool:
-    """A timed race is over once it starts; a date-only race after its local day ends."""
-    return session_over(race.date, race.time, zone, now)
+    """A timed race is over NEXT_RACE_GRACE after it starts; a date-only one after its local day.
+
+    The grace matches the calendar's next-race selection, so the panel does not move on to the
+    next round while the current race is still running. The hourly teams refresh during
+    RESULTS_WINDOW picks up the switch.
+    """
+    return session_over(race.date, race.time, zone, now, grace=NEXT_RACE_GRACE)
 
 
 def points_session_starts(season: int) -> list[datetime]:

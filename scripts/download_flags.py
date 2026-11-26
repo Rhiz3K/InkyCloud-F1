@@ -32,6 +32,7 @@ COUNTRY_MAP = {
     "Hungary": "hu",
     "Italy": "it",
     "Japan": "jp",
+    "Malaysia": "my",
     "Mexico": "mx",
     "Monaco": "mc",
     "Netherlands": "nl",
