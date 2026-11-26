@@ -20,10 +20,14 @@ SEASON_START_DATES: dict[int, datetime] = {
 
 @lru_cache(maxsize=16)
 def bundled_season_start(year: int) -> datetime | None:
-    """Return the first bundled race day of a season, or None when no calendar is published."""
+    """Return the first bundled race day of a season, or None when no calendar is published.
+
+    Cancelled races stay in bundled calendars with their original dates but without a round;
+    they never start a season, and a calendar with only cancelled races counts as unpublished.
+    """
     try:
         races = json.loads((SEASONS_DIR / f"{year}.json").read_text(encoding="utf-8"))["races"]
-        first_day = min(date.fromisoformat(race["date"]) for race in races)
+        first_day = min(date.fromisoformat(race["date"]) for race in races if race.get("round"))
     except OSError, ValueError, TypeError, KeyError:
         return None
     return datetime(first_day.year, first_day.month, first_day.day, tzinfo=timezone.utc)

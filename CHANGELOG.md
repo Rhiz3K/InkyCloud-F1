@@ -107,8 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Keep the finished season current over the winter break. From 1 January a new calendar
   year no longer switches the current season on its own: a season starts on its first race
-  day, taken from `SEASON_START_DATES` or, for later years, from the bundled season
-  calendar. Until a new calendar is bundled and its first race day arrives, the previous
+  day, taken from `SEASON_START_DATES` or, for later years, from the first race of the
+  bundled season calendar that is not cancelled. Until a new calendar is bundled and its first race day arrives, the previous
   season stays current, so the configurator, `/api` and the historical refresh keep using
   2026 instead of an empty 2027. Standings requests without a year use the same season
   instead of the calendar year. The test that failed the suite once `SEASON_START_DATES`

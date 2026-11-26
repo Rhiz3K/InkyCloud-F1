@@ -175,29 +175,35 @@ def test_season_start_dates_match_bundled_calendars():
         (datetime(2027, 12, 31, tzinfo=timezone.utc), 2026),
     ],
 )
-def test_new_calendar_year_does_not_start_an_unpublished_season(moment, season):
+def test_new_calendar_year_does_not_start_an_unpublished_season(bundled_calendars, moment, season):
+    (bundled_calendars / "2027.json").write_text('{"races": []}', encoding="utf-8")
     assert get_current_f1_season(moment) == season
 
 
-def test_bundled_calendar_starts_a_season_on_its_first_race_day(tmp_path, monkeypatch):
-    (tmp_path / "2027.json").write_text(
-        json.dumps({"races": [{"date": "2027-03-21"}, {"date": "2027-03-14"}]}),
-        encoding="utf-8",
+def test_bundled_calendar_starts_a_season_on_its_first_race_day(bundled_calendars):
+    def calendar(year, *races):
+        (bundled_calendars / f"{year}.json").write_text(
+            json.dumps({"races": list(races)}), encoding="utf-8"
+        )
+
+    # A cancelled opener keeps its original date but has no round.
+    calendar(
+        2027,
+        {"round": "2", "date": "2027-03-21"},
+        {"round": "1", "date": "2027-03-14"},
+        {"round": "", "date": "2027-03-07"},
     )
-    (tmp_path / "2028.json").write_text('{"races": [{"date": "soon"}]}', encoding="utf-8")
-    monkeypatch.setattr(f1_season, "SEASONS_DIR", tmp_path)
-    f1_season.bundled_season_start.cache_clear()
-    try:
-        assert get_current_f1_season(datetime(2027, 3, 13, tzinfo=timezone.utc)) == 2026
-        assert get_current_f1_season(datetime(2027, 3, 14, tzinfo=timezone.utc)) == 2027
-        assert get_current_f1_season(datetime(2028, 6, 1, tzinfo=timezone.utc)) == 2027
-        assert f1_season.bundled_season_start(2028) is None
-        assert f1_season.bundled_season_start(2029) is None
-    finally:
-        f1_season.bundled_season_start.cache_clear()
+    calendar(2028, {"date": "2028-03-05"}, {"round": None, "date": "2028-03-12"})
+    calendar(2029, {"round": "1", "date": "soon"})
+    assert get_current_f1_season(datetime(2027, 3, 13, tzinfo=timezone.utc)) == 2026
+    assert get_current_f1_season(datetime(2027, 3, 14, tzinfo=timezone.utc)) == 2027
+    assert get_current_f1_season(datetime(2028, 6, 1, tzinfo=timezone.utc)) == 2027
+    assert f1_season.bundled_season_start(2028) is None
+    assert f1_season.bundled_season_start(2029) is None
+    assert f1_season.bundled_season_start(2030) is None
 
 
-def test_stale_calendars_are_reported(caplog):
+def test_stale_calendars_are_reported(bundled_calendars, caplog):
     with caplog.at_level("WARNING"):
         assert get_current_f1_season(datetime(2028, 6, 1, tzinfo=timezone.utc)) == 2026
 
