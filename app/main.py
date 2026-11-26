@@ -31,6 +31,7 @@ from app.routes.pages import router as pages_router
 from app.routes.previews import router as previews_router
 from app.routes.seo import router as seo_router
 from app.routes.tracks import router as tracks_router
+from app.services import bmp_artifacts
 from app.services.circuit_data import ensure_runtime_circuits_data
 from app.services.csp import DOCS_PATHS, build_csp
 from app.services.database import close_shared_database, get_database
@@ -188,6 +189,7 @@ async def lifespan(_app: FastAPI):
     except Exception as exc:
         logger.error("Final API-call flush on shutdown failed: %s", exc, exc_info=True)
     await drain_background_tasks()
+    await bmp_artifacts.drain_singleflight()
     try:
         shutdown_render_executor()
     except Exception as exc:

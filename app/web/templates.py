@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import mimetypes
 from typing import Any
 
 from fastapi import Request
@@ -14,11 +13,6 @@ from app.services.i18n import get_translator
 from app.services.legal import CONTENT_POLICY_VERSION
 from app.services.track_catalog import track_ui_options
 from app.version import APP_VERSION
-
-# Register font MIME types (Python's mimetypes doesn't know TTF by default)
-mimetypes.add_type("font/ttf", ".ttf")
-mimetypes.add_type("font/woff", ".woff")
-mimetypes.add_type("font/woff2", ".woff2")
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 

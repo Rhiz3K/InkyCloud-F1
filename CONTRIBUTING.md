@@ -137,8 +137,8 @@ docs: update Docker deployment instructions
    dependency, CI or documentation updates can stay there without publishing a release
 4. **Prepare a release when needed** - To publish on merge, move the Unreleased notes into a new
    semantic-version heading above the previous release, keep `## [Unreleased]` empty, and bump
-   `version` in `pyproject.toml`. Merging that section to `main` tags the release and publishes
-   the container image
+   `version` in `pyproject.toml` and the `F1_VERSION` example in `SELF-HOSTING.md`. Merging that
+   section to `main` tags the release and publishes the container image
 5. **Validate release metadata** - Run `uv run python -m app.utils.release_validation`
 6. **Create PR** - Provide clear description of changes
 7. **Address feedback** - Respond to review comments

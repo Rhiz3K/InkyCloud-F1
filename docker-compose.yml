@@ -13,6 +13,7 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    stop_grace_period: 30s
     # Do not persist stdout/stderr, including diagnostics from outside Python logging.
     logging:
       driver: "none"
