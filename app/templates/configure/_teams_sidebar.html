@@ -1,5 +1,6 @@
 {% import "configure/_timezone_picker.html" as tz_picker %}
 {% import "configure/_temp_unit.html" as temp_unit with context %}
+{% import "configure/_image_options.html" as image_options with context %}
 {% set tx = t.configure.teamsExtra %}
 {% set teams_extra_options = ["none", "countdown", "flags", "track", "weather"] %}
 <div class="hidden lg:flex flex-1 flex-col min-h-0">
@@ -69,6 +70,9 @@
     {{ temp_unit.toggle("Teams", extra_class="teams-extra-note-weather hidden") }}
     <p class="teams-extra-note-track hidden mt-2 text-xs text-gray-600">{{ tx.trackNote }} <a class="underline hover:text-racing-red" href="{{ lang_url('/credits') }}" target="_blank" rel="noopener">{{ tx.creditsLink }}</a></p>
   </div>
+
+  <!-- Auto screen, theme and image output - Desktop -->
+  {{ image_options.sections(edge="b") }}
 
   <!-- Timezone - Desktop: shown by setTeamsExtra() only for extra panels that show a time or date.
        The wrapper is toggled between 'hidden' and 'flex' so it is hidden on lg+ too. -->
@@ -161,3 +165,6 @@
     class="w-full appearance-none bg-white border-2 border-black px-3 py-2 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red shadow-neo-sm"
   ></select>
 </div>
+
+<!-- Auto screen, theme and image output - Mobile -->
+{{ image_options.sections(mobile=True) }}

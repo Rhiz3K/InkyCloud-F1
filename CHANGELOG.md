@@ -179,6 +179,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The configurator's "One URL for both screens", theme and image output (format, rotation)
+  settings moved from below the preview into the settings sidebar, so on phones they are in
+  the left menu with the other options instead of under the URL. On wide screens the timezone
+  list keeps a fixed, scrollable height so the settings below it are not squeezed.
+
 - Update Soup Sieve to 4.0 in both dependency locks so production images use the
   security update and the exported requirements stay in sync with `uv.lock`.
 

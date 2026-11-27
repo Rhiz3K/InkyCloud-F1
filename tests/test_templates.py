@@ -37,6 +37,34 @@ def test_configure_calendar_timezone_picker_is_unchanged():
 
 
 @pytest.mark.parametrize("screen", ["calendar", "teams"])
+def test_configure_image_options_live_in_the_settings_sidebar(screen):
+    """Auto screen, theme, format and rotation sit in the sidebar (lg+ and the mobile drawer)."""
+    soup = _configure_soup(screen)
+    sidebar = soup.select_one("#settingsSidebar")
+    main = soup.select_one("#main-content")
+    selects = {
+        "autoScreenSelect": ("auto-screen-select", "selectAutoScreen"),
+        "themeSelect": ("theme-select", "selectTheme"),
+        "output-format-select": ("output-format-select", "selectOutputOption"),
+        "output-rotate-select": ("output-rotate-select", "selectOutputOption"),
+    }
+    for base_id, (sync_class, handler) in selects.items():
+        for element_id in (base_id, f"{base_id}Mobile"):
+            assert len(soup.find_all(id=element_id)) == 1, element_id
+            select = sidebar.select_one(f"#{element_id}")
+            assert select is not None, element_id
+            assert sync_class in select["class"]
+            assert select["data-on-change"] == handler
+            assert soup.select_one(f'label[for="{element_id}"]') is not None, element_id
+        assert main.select(f".{sync_class}") == []
+    for container in ("autoScreenContainer", "themeContainer", "outputContainer"):
+        assert "lg:hidden" in soup.select_one(f"#{container}Mobile")["class"]
+        assert soup.select_one(f"#{container}").find_parent(class_="hidden") is not None
+    # The timezone list keeps its own scroll height instead of being squeezed by the sections.
+    assert "h-72" in soup.select_one("#tzList")["class"]
+
+
+@pytest.mark.parametrize("screen", ["calendar", "teams"])
 def test_configure_timezone_picker_preserves_controls_and_handlers(screen):
     soup = _configure_soup(screen)
     for element_id in (
