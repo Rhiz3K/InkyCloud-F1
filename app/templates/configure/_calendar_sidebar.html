@@ -1,5 +1,6 @@
 {% import "configure/_timezone_picker.html" as tz_picker %}
 {% import "configure/_temp_unit.html" as temp_unit with context %}
+{% import "configure/_image_options.html" as image_options with context %}
 {% set cd = t.configure.countdown %}
 {% set countdown_options = ["hours", "days", "auto", "off"] %}
 {% set wm = t.configure.weekendMode %}
@@ -169,6 +170,10 @@
     </div>
   </div>
 {% endcall %}
+<!-- Auto screen, theme and image output - Desktop (below the timezone list, which keeps its height) -->
+<div class="hidden lg:flex flex-col flex-shrink-0">
+  {{ image_options.sections() }}
+</div>
 
 <!-- Weather - Mobile -->
 <div class="lg:hidden p-3 border-b-2 border-black bg-gray-50" id="mobileWeatherContainer">
@@ -319,3 +324,6 @@
     <option value="">{{ t.get('next_race', 'Next Race') }}</option>
   </select>
 </div>
+
+<!-- Auto screen, theme and image output - Mobile -->
+{{ image_options.sections(mobile=True) }}

@@ -1,0 +1,91 @@
+{#
+  Settings shared by both screens: one URL for both screens (auto), theme, output format and
+  rotation. Rendered in the settings sidebar, once for lg+ and once for the mobile drawer.
+  The selects are synced by class (setAutoScreen, setTheme, setOutputOption), so each copy has
+  its own ids. `edge` picks the section border that matches the neighbouring sidebar sections.
+#}
+{% macro sections(mobile=False, edge="t") %}
+{% set suffix = "Mobile" if mobile else "" %}
+{% set border = "border-t-2" if edge == "t" else "border-b-2" %}
+{% set section_class = ("lg:hidden p-3 " if mobile else "flex-shrink-0 px-2 py-1.5 ") ~ border ~ " border-black bg-gray-50" %}
+{% set label_class = "block text-xs font-bold uppercase " ~ ("mb-2" if mobile else "mb-1.5") %}
+{% set sublabel_class = "block font-bold uppercase mb-1 " ~ ("text-xs" if mobile else "text-[10px]") %}
+{% set select_class = "w-full appearance-none bg-white border-2 border-black px-3 py-2 pr-7 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red shadow-neo-sm" if mobile else "w-full appearance-none bg-white border border-black px-2 py-1 pr-7 text-xs font-bold focus:outline-hidden focus-visible:ring-2 focus-visible:ring-racing-red" %}
+{% set hint_class = "mt-2 text-xs text-gray-600" if mobile else "mt-1 text-[10px] leading-tight text-gray-600" %}
+{% set auto_ui = t.configure.autoScreen %}
+{% set theme_ui = t.configure.theme %}
+{% set output_ui = t.configure.output %}
+
+<div class="{{ section_class }}" id="autoScreenContainer{{ suffix }}">
+  <label class="{{ label_class }}" id="autoScreenLabel{{ suffix }}" for="autoScreenSelect{{ suffix }}">{{ auto_ui.label }}</label>
+  <div class="relative">
+    <select
+      id="autoScreenSelect{{ suffix }}"
+      data-on-change="selectAutoScreen"
+      class="auto-screen-select {{ select_class }}"
+    >
+      {% for opt in ["off", "race_week", "daily"] %}
+      {# The teams page keeps its chosen panel on /auto.bmp; the calendar page gets the countdown. #}
+      {% set hint_key = "race_week_teams" if screen_type == "teams" and opt == "race_week" else opt %}
+      <option value="{{ opt }}" data-hint="{{ auto_ui.hints[hint_key] }}">{{ auto_ui.options[opt] }}</option>
+      {% endfor %}
+    </select>
+    <svg class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="square" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+    </svg>
+  </div>
+  <p class="auto-screen-hint {{ hint_class }}" aria-live="polite">{{ auto_ui.hints.off }}</p>
+</div>
+
+{# theme=dark changes the preview and the copied URL; light is the default (never in URLs). #}
+<div class="{{ section_class }}" id="themeContainer{{ suffix }}">
+  <label class="{{ label_class }}" id="themeLabel{{ suffix }}" for="themeSelect{{ suffix }}">{{ theme_ui.label }}</label>
+  <div class="relative">
+    <select
+      id="themeSelect{{ suffix }}"
+      data-on-change="selectTheme"
+      class="theme-select {{ select_class }}"
+    >
+      {% for opt in ["light", "dark"] %}
+      <option value="{{ opt }}" data-hint="{{ theme_ui.hints[opt] }}">{{ theme_ui.options[opt] }}</option>
+      {% endfor %}
+    </select>
+    <svg class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="square" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+    </svg>
+  </div>
+  <p class="theme-hint {{ hint_class }}" aria-live="polite">{{ theme_ui.hints.light }}</p>
+</div>
+
+{# Output format and rotation change only the copied URL; the preview stays upright. #}
+<div class="{{ section_class }}" id="outputContainer{{ suffix }}" role="group" aria-labelledby="outputLabel{{ suffix }}">
+  <span class="{{ label_class }}" id="outputLabel{{ suffix }}">{{ output_ui.label }}</span>
+  <div class="flex flex-col {{ 'gap-3' if mobile else 'gap-1.5' }}">
+    {% for field, label, choices in [
+      ("format", output_ui.formatLabel, ["bmp", "png"]),
+      ("rotate", output_ui.rotateLabel, ["0", "180"])
+    ] %}
+    {% set options = output_ui.formatOptions if field == "format" else output_ui.rotateOptions %}
+    {% set hints = output_ui.formatHints if field == "format" else output_ui.rotateHints %}
+    <div>
+      <label class="{{ sublabel_class }}" for="output-{{ field }}-select{{ suffix }}">{{ label }}</label>
+      <div class="relative">
+        <select
+          id="output-{{ field }}-select{{ suffix }}"
+          data-on-change="selectOutputOption" data-args='["{{ field }}"]'
+          class="output-{{ field }}-select {{ select_class }}"
+        >
+          {% for opt in choices %}
+          <option value="{{ opt }}" data-hint="{{ hints[opt] }}">{{ options[opt] }}</option>
+          {% endfor %}
+        </select>
+        <svg class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="square" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        </svg>
+      </div>
+      <p class="output-{{ field }}-hint {{ hint_class }}" aria-live="polite">{{ hints[choices[0]] }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endmacro %}
