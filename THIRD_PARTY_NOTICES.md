@@ -25,8 +25,12 @@ artifacts may still contain the logos.
 - Swagger UI 5.34.1 (npm swagger-ui-dist): SmartBear Software Inc., Apache License 2.0;
   full LICENSE and NOTICE in app/assets/vendor/swagger-ui-5.34.1/, served at /docs,
   no external CDN.
+  Source: https://registry.npmjs.org/swagger-ui-dist/-/swagger-ui-dist-5.34.1.tgz
+  (tarball SHA-256 `8e7286de0230e431fc8a5a75490d28117af3d0c306413b6f9e17f7bb55045fb6`).
 - ReDoc 2.5.4 (npm redoc, standalone bundle): Redocly Inc., MIT; LICENSE in
   app/assets/vendor/redoc-2.5.4/, served at /redoc, no external CDN or Google Fonts.
+  Source: https://registry.npmjs.org/redoc/-/redoc-2.5.4.tgz
+  (tarball SHA-256 `44922df4d0eb45c1b066c09ec251e6bd9bd7ded16bc69e87613337b9d911a56e`).
 - Python dependencies: pinned name, version, source and complete installed distribution
   notices under `app/assets/licenses/dependencies.json` and `licenses/dependencies/`.
   Installed wheels and the Docker image also retain their original `.dist-info` notices.

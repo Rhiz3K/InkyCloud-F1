@@ -139,7 +139,7 @@ Feature flags like `SENTRY_ENABLED` control optional services - code must handle
    curl "http://localhost:8000/calendar.bmp?lang=<code>" > test.bmp
    ```
 4. Add test coverage in `tests/test_renderer.py`
-5. Update README.md and CONTRIBUTING.md with the new language
+5. Update README.md, docs/parameters.md and CONTRIBUTING.md with the new language
 
 ## Session Types
 
@@ -167,7 +167,7 @@ Production runs in Docker with Python 3.15-slim. The Dockerfile installs system 
 
 ## Integration with ESP32
 
-The `/calendar.bmp` endpoint returns standard BMP files fetchable by ESP32 HTTPClient. Query param `?lang=cs` switches language. See [README.md](../README.md) for ESP32 integration examples.
+The `/calendar.bmp` endpoint returns standard BMP files fetchable by ESP32 HTTPClient. Query param `?lang=cs` switches language. See [docs/firmware.md](../docs/firmware.md) for ESP32 integration examples.
 
 ## Track Map Rendering
 

@@ -103,6 +103,10 @@ The default paths are:
 
 History is migrated once from a legacy `circuits_data.json`, copying only historical results.
 
+The persistent circuit history file (`circuits_jolpica.json`, Jolpica data only) takes current
+facts and new circuits from the bundled release, while retaining newer historical results
+and runtime-only circuits.
+
 Mount the common `/app/data` root, including when custom paths are nested below it. Readiness
 rejects a container path under `/app/data` when that root is not a real mount, and performs a
 write probe without blocking the event loop.
@@ -147,6 +151,24 @@ WEATHER_PREFETCH_ALL_CIRCUITS=false
   unavailable weather API does not mark the run degraded.
 
 `ops status` (below) prints the active profile and how many files one run writes.
+
+## Runtime behaviour
+
+Core calendar BMPs and PNG previews are published before optional upstream lookups. Weather
+and teams enrichment have total budgets of 15 and 30 seconds, configurable with
+`WEATHER_ENRICHMENT_TIMEOUT_SECONDS` and `TEAMS_ENRICHMENT_TIMEOUT_SECONDS`. A timeout keeps
+core readiness available and marks generation degraded. Preview metadata sidecars bind each
+PNG to the current race and source BMP and preserve the source's six-hour freshness limit;
+missing or stale configure previews fall back to rendering the requested BMP.
+
+Calendar images and plain teams dashboards share a 512-entry, one-hour process cache.
+Teams `extra` panels and extra previews use a separate cache (`BMP_VARIANT_CACHE_MAXSIZE`,
+default 64, same one-hour lifetime) so those variants cannot evict the common images.
+Uncached renders admit at most `RENDER_CONCURRENCY` at a time (default 4) and wait up to
+`RENDER_SLOT_WAIT_SECONDS` (default 5) for a slot. Extra panels and extra previews are
+also limited by `RENDER_VARIANT_CONCURRENCY` (default 2, and never higher than the global
+cap). A full wait returns HTTP 503 with `Retry-After`. Cached image responses do not wait
+and are not counted against those slots. The per-minute image rate limit is unchanged.
 
 ## Health and monitoring
 

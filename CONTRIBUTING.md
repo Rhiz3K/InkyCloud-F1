@@ -105,7 +105,8 @@ Example `translations/de.json`:
 
 1. **Write tests first** - Add tests in `tests/` directory
 2. **Implement the feature** - Make changes in `app/`
-3. **Update documentation** - Update README.md and EXAMPLES.md
+3. **Update documentation** - Update the matching page in `docs/` (parameters, firmware, API),
+   EXAMPLES.md and, for user-visible features, the short overview in README.md
 4. **Test thoroughly** - Run tests and manual testing
 5. **Commit and push** - Follow commit message conventions
 

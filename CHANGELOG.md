@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Split the README into a short overview and separate pages: `docs/parameters.md` (every URL
+  parameter, race weekend mode, weather, PNG and rotation, dark theme, `/auto.bmp`),
+  `docs/firmware.md` (ESP32 example, `ETag`/`304`, refresh hint, countdown modes) and
+  `docs/api.md` (routes and endpoints). Runtime limits and caches moved to SELF-HOSTING, the
+  vendored file hashes to the third-party notices; completed roadmap items now live only in the
+  changelog. The text itself is unchanged.
+
 ## [1.4.0] - 2026-11-28
 
 ### Added
