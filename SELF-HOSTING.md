@@ -21,7 +21,7 @@ newest tag on the [Releases page](https://github.com/Rhiz3K/InkyCloud-F1/release
 git clone https://github.com/Rhiz3K/InkyCloud-F1.git
 cd InkyCloud-F1
 cp .env.example .env
-F1_VERSION=v1.3.3
+F1_VERSION=v1.4.0
 F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose pull
 F1_IMAGE=ghcr.io/rhiz3k/inkycloud-f1:$F1_VERSION docker compose up -d --no-build
 ```
