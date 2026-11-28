@@ -28,10 +28,12 @@ int httpCode = http.GET();
 
 if (httpCode == HTTP_CODE_OK) {
   String newEtag = http.header("ETag");
-  display.drawBitmap(http.getStream());
-  // Save the ETag only after a successful draw, so a reset in between cannot leave the old
-  // image on the panel while the next poll returns 304.
-  saveEtagToPreferences(newEtag);
+  // drawBitmap stands for your display code; assume it returns false when the draw fails.
+  // Save the ETag only after a successful draw, so a reset or failed draw cannot leave the
+  // old image on the panel while the next poll returns 304.
+  if (display.drawBitmap(http.getStream())) {
+    saveEtagToPreferences(newEtag);
+  }
 } else if (httpCode == HTTP_CODE_NOT_MODIFIED) {
   // The BMP is unchanged: skip both the download and disruptive panel redraw.
 }
