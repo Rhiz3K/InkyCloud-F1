@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Split the README into a short overview and separate pages: `docs/parameters.md` (every URL
+  parameter, race weekend mode, weather, PNG and rotation, dark theme, `/auto.bmp`),
+  `docs/firmware.md` (ESP32 example, `ETag`/`304`, refresh hint, countdown modes) and
+  `docs/api.md` (routes and endpoints). Runtime limits and caches moved to SELF-HOSTING, the
+  vendored file hashes to the third-party notices; completed roadmap items now live only in the
+  changelog. The text is unchanged apart from three corrections: the ESP32 example saves the
+  `ETag` only after a successful draw, the circuit history note says the runtime file is merged
+  with the bundled data at load instead of being updated, and teams previews are bound to their
+  season rather than to the current race.
+
 ## [1.4.0] - 2026-11-28
 
 ### Added
