@@ -103,9 +103,11 @@ The default paths are:
 
 History is migrated once from a legacy `circuits_data.json`, copying only historical results.
 
-The persistent circuit history file (`circuits_jolpica.json`, Jolpica data only) takes current
-facts and new circuits from the bundled release, while retaining newer historical results
-and runtime-only circuits.
+The persistent circuit history file (`circuits_jolpica.json`, Jolpica data only) is seeded once
+and is not rewritten with new bundled circuits. The application merges it with the bundled
+release when loading: current facts and new circuits come from the release, and the file
+contributes its historical results when they are at least as recent, including history for
+circuits that only exist in the file.
 
 Mount the common `/app/data` root, including when custom paths are nested below it. Readiness
 rejects a container path under `/app/data` when that root is not a real mount, and performs a
@@ -158,7 +160,8 @@ Core calendar BMPs and PNG previews are published before optional upstream looku
 and teams enrichment have total budgets of 15 and 30 seconds, configurable with
 `WEATHER_ENRICHMENT_TIMEOUT_SECONDS` and `TEAMS_ENRICHMENT_TIMEOUT_SECONDS`. A timeout keeps
 core readiness available and marks generation degraded. Preview metadata sidecars bind each
-PNG to the current race and source BMP and preserve the source's six-hour freshness limit;
+PNG to its source BMP and that BMP's identity (the current race for calendar previews, the
+season for teams previews) and preserve the source's six-hour freshness limit;
 missing or stale configure previews fall back to rendering the requested BMP.
 
 Calendar images and plain teams dashboards share a 512-entry, one-hour process cache.
