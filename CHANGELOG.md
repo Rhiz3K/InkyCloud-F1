@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-28
+
 ### Added
 
 - Add an experimental `theme=light|dark` to `/calendar.bmp`, `/teams.bmp`, `/auto.bmp` and the
